@@ -1,6 +1,6 @@
 WB_Zombies_Scoreboard refers to
 
-BP_BaseGS
+BP_BaseGS <- works are being carried out
 BP_Player_State
 BP_BasePlayerController
 WB_PlayerScore
