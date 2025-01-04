@@ -1,0 +1,381 @@
+WB_Zombies_Scoreboard refers to
+
+BP_BaseGS <- works are being carried out
+BP_Player_State
+BP_BasePlayerController
+WB_PlayerScore
+
+
+WB_Zombies_GameOver refers to FIXED
+
+BP_BaseGS
+BP_Zombies_GS
+
+
+WB_TDM_GameOver
+
+BP_BaseGS
+
+
+WB_TDM_Scoreboard refers to
+
+BP_BaseGS
+BP_Player_State
+BP_BasePlayerController
+WB_PlayerScore
+
+
+WB_Skirmish_Scoreboard refers to
+
+BP_BaseGS
+BP_Player_State
+BP_BasePlayerController
+WB_PlayerScore
+
+
+WB_Skirmish refers to
+
+BP_Conquest_GS
+
+
+WB_GenericScoreboard refers to
+
+BP_BaseGS
+
+
+WB_HitDirection refers to
+
+BP_FPSCharacter_Parent
+
+
+WB_WeaponComponnet refers to
+
+BP_BasePlayerController
+
+
+WB_ThrowableComponent refers to
+
+BP_BasePlayerController
+
+
+WB_Throwable refers to
+
+BP_BasePlayerController
+
+
+WB_CustomizationMain refers to
+
+BP_BasePlayerController
+
+
+WB_ClassSelection refers to
+
+BP_BaseGS
+
+
+WB_CharacterClass refers to
+
+BP_BasePlayerController
+
+
+WB_Acessory refers to
+
+BP_BasePlayerController
+
+
+WB_FFA_Scoreboard refers to
+
+BP_BaseGS
+BP_Player_State
+BP_BasePlayerController
+WB_PlayerScore
+
+
+WB_FFA_GameOver refers to
+
+BP_BaseGS
+BP_FFA_GS
+
+
+WB_FFA refers to
+
+BP_FFA_GS
+BP_Player_State
+
+
+WB_Conquest_Scoreboard refers to
+
+BP_BaseGS
+BP_Player_State
+BP_BasePlayerController
+WB_PlayerScore
+
+
+WB_ConquestObjectiveProgressBar refers to
+
+BP_BaseGS
+
+
+WB_ConquestGameOver refers to
+
+BP_BaseGS
+
+
+BP_Player_State refers to
+
+BP_BaseGS
+
+
+BP_GMBase refers to
+
+BP_BaseGS
+BP_BasePlayerController
+BP_Player_State
+BP_GameInstance
+
+
+BP_BaseGS refers to
+
+BP_GMBase
+BP_FPSCharacter_Parent
+
+
+BP_WeaponBase refers to
+
+PrimitiveComponent
+BP_WeaponBaseParent
+WB_WeaponAmmoWidget
+BP_Sight
+BP_BasePIPScope
+BP_PointShoot
+BP_SupressorBase
+
+
+BP_FPSCharacter_Parent refers to
+
+BP_BasePlayerController
+WB_TeamMateTag
+BP_FPSCharacter_Parent
+ABP_FP
+ABP_TPMannequin
+WB_TeamMateTag
+BP_Player_State
+DT_BaseDamage
+BP_BaseGS
+BP_NVGBase
+
+
+BP_BasePlayerController refers to
+
+BP_BaseGS
+
+
+TutorialTPP_AnimBlueprint refers to
+
+TutorialCharacter
+
+
+WB_WeaponNameWidget refers to
+
+BP_FPSCharacter_Parent
+
+
+WB_WeaponAmmoWidget refers to
+
+BP_FPSCharacter_Parent
+
+
+WB_VoteMap refers to
+
+BP_BasePlayerController
+BP_BaseGS
+
+
+WB_PauseMenu refers to
+
+BP_BasePlayerController
+BP_GameInstance
+
+
+WB_GameModeSelectionOffline refers to
+
+WB_PVPOffline
+
+
+ABP_TPMannequinLegs refers to
+
+BP_FPSCharacter_Parent
+
+
+ABP_TPMannequinAI refers to
+
+BP_AIBase
+
+
+ABP_TPMannequin refers to
+
+BP_FPSCharacter_Parent
+
+
+ABP_FP refers to
+
+BP_FPSCharacter_Parent
+
+
+BP_Zombies_GS refers to
+
+BP_FPSCharacter_Parent
+BP_GMBase
+
+
+BP_Skirmish_GS refers to
+
+BP_Skirmish_GM
+BP_GMBase
+
+
+BP_SkirmishPoint refers to
+
+BP_BaseGS
+BP_GMBase
+BP_FPSCharacter_Parent
+BP_FPSCharacter_Parent
+WB_CapturePointIcon
+
+
+BP_CachePoint refers to
+
+BP_GMBase
+BP_Skirmish_GS
+WB_CapturePointIcon
+WB_CacheName
+BP_Player_State
+BP_FPSCharacter_Parent
+
+
+BP_FFA_GS refers to
+
+BP_GMBase
+
+
+BP_FFA_GM refers to
+
+BP_BaseGS
+
+
+BP_DominationPoint refers to
+
+BP_FPSCharacter_Parent
+BP_BaseGS
+WB_CapturePointIcon
+BP_GMBase
+WB_CacheName
+BP_Player_State
+
+
+BPF_Services refers to
+
+BP_FPSCharacter_Parent
+BP_FPSCharacter_Parent
+
+
+BPF_GameModeFunctions refers to
+
+BP_BaseGS
+BP_GameInstance
+BP_GMBase
+BP_BasePlayerController
+WB_TeamMateTag
+
+
+BPF_AI refers to
+
+BP_BaseGS
+
+
+BP_CustomizationCharacter refers to
+
+BP_BasePlayerController
+
+
+WB_WeaponListSecondary refers to
+
+BP_BasePlayerController
+
+
+WB_SecondaryCustomizationMain refers to
+
+BP_BasePlayerController
+
+
+WB_AttachmentListSecondary refers to
+
+BP_BasePlayerController
+WB_AttachmentListSecondary
+BP_BasePlayerController
+WB_AttachmentListPrimary
+BP_FPSCharacter_Parent
+BP_AIBase
+BP_GMBase
+
+
+BP_AIBase refers to
+
+BP_AIThrowableBase
+BP_BaseGS
+BP_FPSCharacter_Parent
+WB_TeamMateTag
+BP_BasePlayerController
+
+
+BP_ZombieController refers to
+
+BP_FPSCharacter_Parent
+
+
+ABP_Zombie refers to
+
+BP_ZombieParent
+
+
+BTT_WalkToOpponent refers to
+
+BP_FPSCharacter_Parent
+BP_FPSCharacter_Parent
+
+
+BTT_SetFocusExecute refers to
+
+BP_FPSCharacter_Parent
+
+
+BTT_SaveOpponentLoc refers to
+
+BP_FPSCharacter_Parent
+BP_AIPC
+BP_AIBase
+BP_AIBase
+
+
+BTT_GetOpponentLoc refers to
+
+BP_BaseGS
+BP_FPSCharacter_Parent
+
+
+BP_WaveBasedSpawner refers to
+
+BP_GMBase
+BP_Zombies_GS
+BP_Zombies_GM
+BP_ZombieParent
+
+
+BTT_ChasePlayer refers to
+
+BP_FPSCharacter_Parent
+
+
+BP_AmmoPickup refers to
+
+BP_FPSCharacter_Parent
