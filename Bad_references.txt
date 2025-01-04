@@ -1,6 +1,6 @@
-WB_Zombies_Scoreboard refers to
+WB_Zombies_Scoreboard refers to FIXED
 
-BP_BaseGS <- works are being carried out
+BP_BaseGS refers to
 BP_Player_State
 BP_BasePlayerController
 WB_PlayerScore
@@ -12,7 +12,7 @@ BP_BaseGS
 BP_Zombies_GS
 
 
-WB_TDM_GameOver
+WB_TDM_GameOver <- Work
 
 BP_BaseGS
 
