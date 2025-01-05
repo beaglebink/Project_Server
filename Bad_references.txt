@@ -38,12 +38,12 @@ WB_Skirmish FIXSED
 BP_Conquest_GS
 
 
-WB_GenericScoreboard Fixsed
+WB_GenericScoreboard FIXSED
 
 BP_BaseGS
 
 
-WB_HitDirection refers to
+WB_HitDirection FIXSED
 
 BP_FPSCharacter_Parent
 
