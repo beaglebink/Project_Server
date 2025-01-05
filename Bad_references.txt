@@ -38,7 +38,7 @@ WB_Skirmish FIXSED
 BP_Conquest_GS
 
 
-WB_GenericScoreboard refers to
+WB_GenericScoreboard Fixsed
 
 BP_BaseGS
 
