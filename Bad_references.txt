@@ -1,4 +1,4 @@
-WB_Zombies_Scoreboard FIXED
+WB_Zombies_Scoreboard FIXSED
 
 BP_BaseGS refers to
 BP_Player_State
@@ -6,13 +6,13 @@ BP_BasePlayerController
 WB_PlayerScore
 
 
-WB_Zombies_GameOver FIXED
+WB_Zombies_GameOver FIXSED
 
 BP_BaseGS
 BP_Zombies_GS
 
 
-WB_TDM_GameOver FIXED
+WB_TDM_GameOver FIXSED
 
 BP_BaseGS
 
@@ -33,7 +33,7 @@ BP_BasePlayerController
 WB_PlayerScore
 
 
-WB_Skirmish refers to
+WB_Skirmish FIXSED
 
 BP_Conquest_GS
 
