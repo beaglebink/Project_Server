@@ -175,7 +175,7 @@ TutorialTPP_AnimBlueprint refers to
 TutorialCharacter
 
 
-WB_WeaponNameWidget refers to
+WB_WeaponNameWidget FIXSED
 
 BP_FPSCharacter_Parent
 
