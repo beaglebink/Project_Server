@@ -48,6 +48,23 @@ WB_HitDirection FIXSED
 BP_FPSCharacter_Parent
 
 
+WB_WeaponNameWidget FIXSED
+
+BP_FPSCharacter_Parent
+
+
+WB_Conquest_Scoreboard FIXSED
+
+BP_BaseGS
+BP_Player_State
+BP_BasePlayerController
+WB_PlayerScore
+
+WB_Throwable FIXSED
+
+BP_BasePlayerController
+
+
 WB_WeaponComponnet refers to
 
 BP_BasePlayerController
@@ -57,10 +74,6 @@ WB_ThrowableComponent refers to
 
 BP_BasePlayerController
 
-
-WB_Throwable refers to
-
-BP_BasePlayerController
 
 
 WB_CustomizationMain refers to
@@ -101,14 +114,6 @@ WB_FFA refers to
 
 BP_FFA_GS
 BP_Player_State
-
-
-WB_Conquest_Scoreboard FIXED
-
-BP_BaseGS
-BP_Player_State
-BP_BasePlayerController
-WB_PlayerScore
 
 
 WB_ConquestObjectiveProgressBar refers to
@@ -173,11 +178,6 @@ BP_BaseGS
 TutorialTPP_AnimBlueprint refers to
 
 TutorialCharacter
-
-
-WB_WeaponNameWidget FIXSED
-
-BP_FPSCharacter_Parent
 
 
 WB_WeaponAmmoWidget refers to
