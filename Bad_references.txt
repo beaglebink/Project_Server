@@ -80,6 +80,10 @@ WB_ClassSelection FIXSED
 BP_BaseGS
 
 
+WB_PlayerHud FIXSED
+
+B_ALS_Character
+
 WB_WeaponComponnet refers to
 
 BP_BasePlayerController
