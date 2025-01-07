@@ -65,12 +65,12 @@ WB_Throwable FIXSED
 BP_BasePlayerController
 
 
-WB_WeaponComponnet refers to
+WB_ThrowableComponent FIXSED
 
 BP_BasePlayerController
 
 
-WB_ThrowableComponent refers to
+WB_WeaponComponnet refers to
 
 BP_BasePlayerController
 
