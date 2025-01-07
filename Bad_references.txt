@@ -90,6 +90,17 @@ WB_WeaponAmmoWidget FIXSED
 BP_FPSCharacter_Parent
 
 
+BP_WeaponBase refers to
+
+PrimitiveComponent
+BP_WeaponBaseParent
+WB_WeaponAmmoWidget
+BP_Sight
+BP_BasePIPScope
+BP_PointShoot
+BP_SupressorBase
+
+
 WB_WeaponComponnet refers to
 
 BP_BasePlayerController
@@ -152,17 +163,6 @@ BP_BaseGS refers to
 
 BP_GMBase
 BP_FPSCharacter_Parent
-
-
-BP_WeaponBase refers to
-
-PrimitiveComponent
-BP_WeaponBaseParent
-WB_WeaponAmmoWidget
-BP_Sight
-BP_BasePIPScope
-BP_PointShoot
-BP_SupressorBase
 
 
 BP_FPSCharacter_Parent refers to
