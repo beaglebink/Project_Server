@@ -70,6 +70,11 @@ WB_ThrowableComponent FIXSED
 BP_BasePlayerController
 
 
+WB_CharacterClass FIXSED
+
+BP_BasePlayerController
+
+
 WB_WeaponComponnet refers to
 
 BP_BasePlayerController
@@ -84,11 +89,6 @@ BP_BasePlayerController
 WB_ClassSelection refers to
 
 BP_BaseGS
-
-
-WB_CharacterClass refers to
-
-BP_BasePlayerController
 
 
 WB_Acessory refers to
