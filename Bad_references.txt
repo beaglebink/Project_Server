@@ -90,7 +90,7 @@ WB_WeaponAmmoWidget FIXSED
 BP_FPSCharacter_Parent
 
 
-BP_WeaponBase refers to
+BP_WeaponBase FIXSED
 
 PrimitiveComponent
 BP_WeaponBaseParent
