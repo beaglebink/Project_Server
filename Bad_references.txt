@@ -111,7 +111,7 @@ WB_CustomizationMain FIXSED
 BP_BasePlayerController
 
 
-WB_Acessory refers to
+WB_Acessory FIXSED
 
 BP_BasePlayerController
 
