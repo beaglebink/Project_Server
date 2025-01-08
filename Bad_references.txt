@@ -124,13 +124,13 @@ BP_BasePlayerController
 WB_PlayerScore
 
 
-WB_FFA_GameOver refers to
+WB_FFA_GameOver FIXSED
 
 BP_BaseGS
 BP_FFA_GS
 
 
-WB_FFA refers to
+WB_FFA FIXSED
 
 BP_FFA_GS
 BP_Player_State
