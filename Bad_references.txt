@@ -146,7 +146,7 @@ WB_ConquestGameOver FIXSED
 BP_BaseGS
 
 
-BP_Player_State refers to
+BP_Player_State FIXSED
 
 BP_BaseGS
 
