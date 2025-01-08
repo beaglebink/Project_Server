@@ -136,7 +136,7 @@ BP_FFA_GS
 BP_Player_State
 
 
-WB_ConquestObjectiveProgressBar refers to
+WB_ConquestObjectiveProgressBar FIXSED
 
 BP_BaseGS
 
