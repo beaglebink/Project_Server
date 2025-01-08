@@ -106,7 +106,7 @@ WB_WeaponComponnet FIXSED
 BP_BasePlayerController
 
 
-WB_CustomizationMain refers to
+WB_CustomizationMain FIXSED
 
 BP_BasePlayerController
 
