@@ -116,7 +116,7 @@ WB_Acessory FIXSED
 BP_BasePlayerController
 
 
-WB_FFA_Scoreboard refers to
+WB_FFA_Scoreboard FIXSED
 
 BP_BaseGS
 BP_Player_State
