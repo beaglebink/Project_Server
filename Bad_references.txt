@@ -141,7 +141,7 @@ WB_ConquestObjectiveProgressBar FIXSED
 BP_BaseGS
 
 
-WB_ConquestGameOver refers to
+WB_ConquestGameOver FIXSED
 
 BP_BaseGS
 
