@@ -101,7 +101,7 @@ BP_PointShoot
 BP_SupressorBase
 
 
-WB_WeaponComponnet refers to
+WB_WeaponComponnet FIXSED
 
 BP_BasePlayerController
 
