@@ -160,6 +160,11 @@ BP_BasePlayerController
 WB_TeamMateTag
 
 
+BP_BasePlayerController FIXSED
+
+BP_BaseGS
+
+
 BP_GMBase refers to
 
 BP_BaseGS
@@ -188,9 +193,7 @@ BP_BaseGS
 BP_NVGBase
 
 
-BP_BasePlayerController refers to
 
-BP_BaseGS
 
 
 TutorialTPP_AnimBlueprint refers to
