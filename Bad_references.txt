@@ -151,6 +151,15 @@ BP_Player_State FIXSED
 BP_BaseGS
 
 
+BPF_GameModeFunctions FIXSED
+
+BP_BaseGS
+BP_GameInstance
+BP_GMBase
+BP_BasePlayerController
+WB_TeamMateTag
+
+
 BP_GMBase refers to
 
 BP_BaseGS
@@ -281,15 +290,6 @@ BPF_Services refers to
 
 BP_FPSCharacter_Parent
 BP_FPSCharacter_Parent
-
-
-BPF_GameModeFunctions refers to
-
-BP_BaseGS
-BP_GameInstance
-BP_GMBase
-BP_BasePlayerController
-WB_TeamMateTag
 
 
 BPF_AI refers to
