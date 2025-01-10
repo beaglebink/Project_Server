@@ -191,35 +191,20 @@ BP_BasePlayerController
 BP_GameInstance
 
 
-ABP_Zombie refers to
+ABP_Zombie FIXSED
 
 BP_ZombieParent
+
+
+BP_Zombies_GS FIXSED
+
+BP_FPSCharacter_Parent
+BP_GMBase
 
 
 WB_GameModeSelectionOffline refers to
 
 WB_PVPOffline
-
-
-ABP_TPMannequinAI refers to
-
-BP_AIBase
-
-
-ABP_TPMannequin refers to
-
-BP_FPSCharacter_Parent
-
-
-ABP_FP refers to
-
-BP_FPSCharacter_Parent
-
-
-BP_Zombies_GS refers to
-
-BP_FPSCharacter_Parent
-BP_GMBase
 
 
 BP_Skirmish_GS refers to
