@@ -179,29 +179,7 @@ BP_GMBase
 BP_FPSCharacter_Parent
 
 
-BP_FPSCharacter_Parent refers to
-
-BP_BasePlayerController
-WB_TeamMateTag
-BP_FPSCharacter_Parent
-ABP_FP
-ABP_TPMannequin
-WB_TeamMateTag
-BP_Player_State
-DT_BaseDamage
-BP_BaseGS
-BP_NVGBase
-
-
-
-
-
-TutorialTPP_AnimBlueprint refers to
-
-TutorialCharacter
-
-
-WB_VoteMap refers to
+WB_VoteMap FIXSED
 
 BP_BasePlayerController
 BP_BaseGS
