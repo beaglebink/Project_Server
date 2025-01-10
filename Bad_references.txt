@@ -191,14 +191,14 @@ BP_BasePlayerController
 BP_GameInstance
 
 
+ABP_Zombie refers to
+
+BP_ZombieParent
+
+
 WB_GameModeSelectionOffline refers to
 
 WB_PVPOffline
-
-
-ABP_TPMannequinLegs refers to
-
-BP_FPSCharacter_Parent
 
 
 ABP_TPMannequinAI refers to
