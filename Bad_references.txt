@@ -165,7 +165,7 @@ BP_BasePlayerController FIXSED
 BP_BaseGS
 
 
-BP_GMBase refers to
+BP_GMBase FIXSED
 
 BP_BaseGS
 BP_BasePlayerController
