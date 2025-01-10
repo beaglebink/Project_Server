@@ -173,7 +173,7 @@ BP_Player_State
 BP_GameInstance
 
 
-BP_BaseGS refers to
+BP_BaseGS FIXSED
 
 BP_GMBase
 BP_FPSCharacter_Parent
