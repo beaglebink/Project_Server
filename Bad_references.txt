@@ -1,6 +1,6 @@
 WB_Zombies_Scoreboard FIXSED
 
-BP_BaseGS refers to
+BP_BaseGS FIXSED
 BP_Player_State
 BP_BasePlayerController
 WB_PlayerScore
