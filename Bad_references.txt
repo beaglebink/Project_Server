@@ -233,6 +233,13 @@ BP_FPSCharacter_Parent
 BP_FPSCharacter_Parent
 
 
+
+
+BP_CustomizationCharacter FIXSED
+
+BP_BasePlayerController
+
+
 BP_CachePoint refers to
 
 BP_GMBase
@@ -256,11 +263,6 @@ BP_Player_State
 BPF_AI refers to
 
 BP_BaseGS
-
-
-BP_CustomizationCharacter refers to
-
-BP_BasePlayerController
 
 
 WB_WeaponListSecondary refers to
