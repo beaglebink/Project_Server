@@ -217,6 +217,16 @@ BP_FPSCharacter_Parent
 WB_CapturePointIcon
 
 
+BP_FFA_GS FIXSED
+
+BP_GMBase
+
+
+BP_FFA_GM refers to
+
+BP_BaseGS
+
+
 BP_CachePoint refers to
 
 BP_GMBase
@@ -225,16 +235,6 @@ WB_CapturePointIcon
 WB_CacheName
 BP_Player_State
 BP_FPSCharacter_Parent
-
-
-BP_FFA_GS refers to
-
-BP_GMBase
-
-
-BP_FFA_GM refers to
-
-BP_BaseGS
 
 
 BP_DominationPoint refers to
