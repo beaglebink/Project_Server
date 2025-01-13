@@ -202,12 +202,7 @@ BP_FPSCharacter_Parent
 BP_GMBase
 
 
-WB_GameModeSelectionOffline refers to
-
-WB_PVPOffline
-
-
-BP_Skirmish_GS refers to
+BP_Skirmish_GS FIXSED
 
 BP_Skirmish_GM
 BP_GMBase
@@ -349,3 +344,8 @@ BP_FPSCharacter_Parent
 BP_AmmoPickup refers to
 
 BP_FPSCharacter_Parent
+
+
+WB_GameModeSelectionOffline refers to
+
+WB_PVPOffline
