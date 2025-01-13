@@ -222,7 +222,7 @@ BP_FFA_GS FIXSED
 BP_GMBase
 
 
-BP_FFA_GM refers to
+BP_FFA_GM FIXSED
 
 BP_BaseGS
 
