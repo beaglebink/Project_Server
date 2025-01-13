@@ -208,7 +208,7 @@ BP_Skirmish_GM
 BP_GMBase
 
 
-BP_SkirmishPoint refers to
+BP_SkirmishPoint FIXSED
 
 BP_BaseGS
 BP_GMBase
