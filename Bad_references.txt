@@ -286,6 +286,14 @@ BP_FPSCharacter_Parent
 BP_FPSCharacter_Parent
 
 
+BTT_SaveOpponentLoc FIXSED
+
+BP_FPSCharacter_Parent
+BP_AIPC
+BP_AIBase
+BP_AIBase
+
+
 WB_AttachmentListSecondary refers to
 
 BP_BasePlayerController
@@ -315,14 +323,6 @@ BP_FPSCharacter_Parent
 WB_TeamMateTag
 BP_BasePlayerController
 
-
-
-BTT_SaveOpponentLoc refers to
-
-BP_FPSCharacter_Parent
-BP_AIPC
-BP_AIBase
-BP_AIBase
 
 
 BTT_GetOpponentLoc refers to
