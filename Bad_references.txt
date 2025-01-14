@@ -275,6 +275,16 @@ BTT_ChasePlayer FIXSED
 BP_FPSCharacter_Parent
 
 
+BP_AmmoPickup FIXSED
+
+BP_FPSCharacter_Parent
+
+
+WB_GameModeSelectionOffline refers to
+
+WB_PVPOffline
+
+
 WB_AttachmentListSecondary refers to
 
 BP_BasePlayerController
@@ -333,11 +343,3 @@ BP_Zombies_GM
 BP_ZombieParent
 
 
-BP_AmmoPickup refers to
-
-BP_FPSCharacter_Parent
-
-
-WB_GameModeSelectionOffline refers to
-
-WB_PVPOffline
