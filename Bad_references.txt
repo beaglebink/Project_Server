@@ -300,6 +300,16 @@ BP_AIBase
 BP_AIBase
 
 
+BP_CachePoint FIXSED
+
+BP_GMBase
+BP_Skirmish_GS
+WB_CapturePointIcon
+WB_CacheName
+BP_Player_State
+BP_FPSCharacter_Parent
+
+
 WB_AttachmentListSecondary refers to
 
 BP_BasePlayerController
@@ -309,16 +319,6 @@ WB_AttachmentListPrimary
 BP_FPSCharacter_Parent
 BP_AIBase
 BP_GMBase
-
-
-BP_CachePoint refers to
-
-BP_GMBase
-BP_Skirmish_GS
-WB_CapturePointIcon
-WB_CacheName
-BP_Player_State
-BP_FPSCharacter_Parent
 
 
 BP_WaveBasedSpawner refers to
