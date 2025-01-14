@@ -255,6 +255,16 @@ BPF_AI FIXSED
 BP_BaseGS
 
 
+WB_WeaponListSecondary FIXSED
+
+BP_BasePlayerController
+
+
+WB_SecondaryCustomizationMain refers to
+
+BP_BasePlayerController
+
+
 BP_CachePoint refers to
 
 BP_GMBase
@@ -263,17 +273,6 @@ WB_CapturePointIcon
 WB_CacheName
 BP_Player_State
 BP_FPSCharacter_Parent
-
-
-
-WB_WeaponListSecondary refers to
-
-BP_BasePlayerController
-
-
-WB_SecondaryCustomizationMain refers to
-
-BP_BasePlayerController
 
 
 WB_AttachmentListSecondary refers to
