@@ -270,6 +270,11 @@ WB_SecondaryCustomizationMain FIXSED
 BP_BasePlayerController
 
 
+BTT_ChasePlayer FIXSED
+
+BP_FPSCharacter_Parent
+
+
 WB_AttachmentListSecondary refers to
 
 BP_BasePlayerController
@@ -326,11 +331,6 @@ BP_GMBase
 BP_Zombies_GS
 BP_Zombies_GM
 BP_ZombieParent
-
-
-BTT_ChasePlayer refers to
-
-BP_FPSCharacter_Parent
 
 
 BP_AmmoPickup refers to
