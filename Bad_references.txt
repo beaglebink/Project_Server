@@ -265,7 +265,7 @@ BTT_SetFocusExecute FIXSED
 BP_FPSCharacter_Parent
 
 
-WB_SecondaryCustomizationMain refers to
+WB_SecondaryCustomizationMain FIXSED
 
 BP_BasePlayerController
 
