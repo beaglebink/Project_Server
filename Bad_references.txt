@@ -321,7 +321,7 @@ BP_AIBase
 BP_GMBase
 
 
-BP_WaveBasedSpawner refers to
+BP_WaveBasedSpawner FIXSED
 
 BP_GMBase
 BP_Zombies_GS
