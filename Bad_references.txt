@@ -239,8 +239,8 @@ BP_CustomizationCharacter FIXSED
 
 BP_BasePlayerController
 
-BP_DominationPoint FIXSED
 
+BP_DominationPoint FIXSED
 
 BP_FPSCharacter_Parent
 BP_BaseGS
@@ -248,6 +248,11 @@ WB_CapturePointIcon
 BP_GMBase
 WB_CacheName
 BP_Player_State
+
+
+BPF_AI FIXSED
+
+BP_BaseGS
 
 
 BP_CachePoint refers to
@@ -259,10 +264,6 @@ WB_CacheName
 BP_Player_State
 BP_FPSCharacter_Parent
 
-
-BPF_AI refers to
-
-BP_BaseGS
 
 
 WB_WeaponListSecondary refers to
