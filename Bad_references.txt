@@ -280,9 +280,10 @@ BP_AmmoPickup FIXSED
 BP_FPSCharacter_Parent
 
 
-WB_GameModeSelectionOffline refers to
+BTT_WalkToOpponent FIXSED
 
-WB_PVPOffline
+BP_FPSCharacter_Parent
+BP_FPSCharacter_Parent
 
 
 WB_AttachmentListSecondary refers to
@@ -314,11 +315,6 @@ BP_FPSCharacter_Parent
 WB_TeamMateTag
 BP_BasePlayerController
 
-
-BTT_WalkToOpponent refers to
-
-BP_FPSCharacter_Parent
-BP_FPSCharacter_Parent
 
 
 BTT_SaveOpponentLoc refers to
