@@ -310,6 +310,14 @@ BP_Player_State
 BP_FPSCharacter_Parent
 
 
+BP_WaveBasedSpawner FIXSED
+
+BP_GMBase
+BP_Zombies_GS
+BP_Zombies_GM
+BP_ZombieParent
+
+
 WB_AttachmentListSecondary refers to
 
 BP_BasePlayerController
@@ -319,13 +327,3 @@ WB_AttachmentListPrimary
 BP_FPSCharacter_Parent
 BP_AIBase
 BP_GMBase
-
-
-BP_WaveBasedSpawner FIXSED
-
-BP_GMBase
-BP_Zombies_GS
-BP_Zombies_GM
-BP_ZombieParent
-
-
