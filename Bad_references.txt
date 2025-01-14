@@ -260,19 +260,14 @@ WB_WeaponListSecondary FIXSED
 BP_BasePlayerController
 
 
+BTT_SetFocusExecute FIXSED
+
+BP_FPSCharacter_Parent
+
+
 WB_SecondaryCustomizationMain refers to
 
 BP_BasePlayerController
-
-
-BP_CachePoint refers to
-
-BP_GMBase
-BP_Skirmish_GS
-WB_CapturePointIcon
-WB_CacheName
-BP_Player_State
-BP_FPSCharacter_Parent
 
 
 WB_AttachmentListSecondary refers to
@@ -286,6 +281,16 @@ BP_AIBase
 BP_GMBase
 
 
+BP_CachePoint refers to
+
+BP_GMBase
+BP_Skirmish_GS
+WB_CapturePointIcon
+WB_CacheName
+BP_Player_State
+BP_FPSCharacter_Parent
+
+
 BP_AIBase refers to
 
 BP_AIThrowableBase
@@ -295,24 +300,9 @@ WB_TeamMateTag
 BP_BasePlayerController
 
 
-BP_ZombieController refers to
-
-BP_FPSCharacter_Parent
-
-
-ABP_Zombie refers to
-
-BP_ZombieParent
-
-
 BTT_WalkToOpponent refers to
 
 BP_FPSCharacter_Parent
-BP_FPSCharacter_Parent
-
-
-BTT_SetFocusExecute refers to
-
 BP_FPSCharacter_Parent
 
 
