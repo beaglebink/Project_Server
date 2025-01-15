@@ -6,8 +6,11 @@
 #include "HAL/FileManagerGeneric.h"
 #include "Misc/Paths.h"
 
-void UShareLibrary::AnalyzeAssets()
+void UShareLibrary::AnalyzeAssets(UObject* WorldContextObject)
 {
+    if (WorldContextObject->GetWorld()->WorldType != EWorldType::PIE && WorldContextObject->GetWorld()->WorldType != EWorldType::Editor)
+        return;
+
     FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
     IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
@@ -15,13 +18,13 @@ void UShareLibrary::AnalyzeAssets()
     FARFilter Filter;
     Filter.bRecursiveClasses = true;
 
-    // Добавляем дополнительные пути к фильтру
+    // Add additional paths to the filter
     Filter.PackagePaths.Add(TEXT("/Game"));
     Filter.PackagePaths.Add(TEXT("/Game/MultiplayerFPS"));
     Filter.PackagePaths.Add(TEXT("/Game/MultiplayerFPS/Game"));
     Filter.PackagePaths.Add(TEXT("/Game/RefactoredALS"));
 
-    // Вызов ScanPathsSynchronous для загрузки ассетов
+    // Calling ScanPathsSynchronous to load assets
     AssetRegistry.ScanPathsSynchronous({ TEXT("/Game"), TEXT("/Game/MultiplayerFPS"), TEXT("/Game/MultiplayerFPS/Game"), TEXT("/Game/RefactoredALS") }, true);
 
     UE_LOG(LogTemp, Warning, TEXT("Scanning assets in specified directories..."));
@@ -39,7 +42,7 @@ void UShareLibrary::AnalyzeAssets()
 
         if (HardReferences.Num() > 0)
         {
-            // Получение пути к файлу и проверка его размера
+            // Getting the path to a file and checking its size
             FString AssetPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() + AssetData.PackageName.ToString().Replace(TEXT("/Game/"), TEXT("")) + TEXT(".uasset"));
             int64 AssetSize = IFileManager::Get().FileSize(*AssetPath);
 

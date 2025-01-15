@@ -11,5 +11,5 @@ class FPSKITALSREFACTORED_API UShareLibrary : public UBlueprintFunctionLibrary
 
 public:
     UFUNCTION(BlueprintCallable, Category = "Asset Analysis")
-    static void AnalyzeAssets();
+    static void AnalyzeAssets(UObject* WorldContextObject);
 };
