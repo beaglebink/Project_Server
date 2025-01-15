@@ -318,7 +318,7 @@ BP_Zombies_GM
 BP_ZombieParent
 
 
-WB_AttachmentListSecondary refers to
+WB_AttachmentListSecondary FIXSED
 
 BP_BasePlayerController
 WB_AttachmentListSecondary
