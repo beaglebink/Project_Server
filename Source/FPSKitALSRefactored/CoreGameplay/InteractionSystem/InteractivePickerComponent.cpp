@@ -1,19 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "InteractivePickerComponent.h"
 
-// Sets default values for this component's properties
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
 	// ...
 }
 
-
-// Called when the game starts
 void UInteractivePickerComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -28,16 +21,7 @@ void UInteractivePickerComponent::BeginPlay()
 	
 }
 
-
-// Called every frame
-void UInteractivePickerComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// ...
-}
-
-void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* FoundItem, bool IsPeriodicalUpdate)
+void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* FoundItem)
 {
 	const auto Owner = this->GetOwner();
 
@@ -45,7 +29,7 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 	{
 		if (IsValid(CurrentItem) || CurrentIItemIsValid)
 		{
-			LostComponentNow(Owner, CurrentItem, IsPeriodicalUpdate);
+			LostComponentNow(Owner, CurrentItem);
 
 			CurrentItem = nullptr;
 			CurrentIItemIsValid = false;
@@ -58,19 +42,15 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 			CurrentItem = FoundItem;
 			CurrentIItemIsValid = true;
 
-			FoundComponentNow(Owner, FoundItem, IsPeriodicalUpdate);
+			FoundComponentNow(Owner, FoundItem);
 		}
 		else
 		{
 			if (FoundItem != CurrentItem)
 			{
-				LostComponentNow(Owner, CurrentItem, IsPeriodicalUpdate);
+				LostComponentNow(Owner, CurrentItem);
 
-				FoundComponentNow(Owner, FoundItem, IsPeriodicalUpdate);
-
-				OnInteractiveSelected.Broadcast(FoundItem);
-
-				FoundItem->CallInteractiveSelected(Owner);
+				FoundComponentNow(Owner, FoundItem);
 
 				CurrentItem = FoundItem;
 				CurrentIItemIsValid = true;
@@ -82,17 +62,9 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 void UInteractivePickerComponent::OnStartUsePressKeyEvent(ACharacter* Character)
 {
 	OnPickerStartUsePressKeyEvent.Broadcast();
-
-	OnInteractionStarted.Broadcast(CurrentItem);
-
 }
 
-void UInteractivePickerComponent::OnUseReleaseKeyEvent(AActor* Initiator)
-{
-	OnPickerEndHoldUseEvent.Broadcast();
-}
-
-	void UInteractivePickerComponent::TickPicker(float DeltaTime)
+void UInteractivePickerComponent::TickPicker(float DeltaTime)
 {
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
 	check(Character && TEXT("Designed for player pawns only!"));
@@ -206,15 +178,10 @@ void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* 
 	{
 		return;
 	}
-
-	if (CurrentItem != nullptr && IsValid(CurrentItem) && !CurrentItem->IsActive())
-	{
-		SetCurrentItem(FoundItem, true);
-		return;
-	}
+	SetCurrentItem(FoundItem);
 }
 
-void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent, bool IsPeriodicalUpdate)
+void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
 {
 	if (!IsValid(Owner))
 	{
@@ -234,7 +201,6 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 	}
 
 	OnInteractiveLostFocusEvent.Broadcast();
-	OnInteractiveRemoved.Broadcast(InteractiveComponent);
 
 	if (InteractiveComponent != nullptr && IsValid(InteractiveComponent) && Parent != nullptr && IsValid(Parent))
 	{
@@ -245,16 +211,14 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 	{
 
 		InteractiveComponent->OnStartUsePressKeyEvent.RemoveDynamic(this, &UInteractivePickerComponent::OnStartUsePressKeyEvent);
-		InteractiveComponent->OnUseReleaseKeyEvent.RemoveDynamic(this, &UInteractivePickerComponent::OnUseReleaseKeyEvent);
-
 	}
 }
 
-void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent, bool IsPeriodicalUpdate)
+void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
 {
 	if (IsValid(InteractiveComponent))
 	{
-		InteractiveComponent->SetIsInteractiveNow(Owner, true);
+		InteractiveComponent->SetIsInteractiveNow(Owner);
 	}
 
 	OnInteractiveFocusEvent.Broadcast(InteractiveComponent);
@@ -262,6 +226,5 @@ void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveI
 	if (IsValid(InteractiveComponent))
 	{
 		InteractiveComponent->OnStartUsePressKeyEvent.AddUniqueDynamic(this, &UInteractivePickerComponent::OnStartUsePressKeyEvent);
-		InteractiveComponent->OnUseReleaseKeyEvent.AddUniqueDynamic(this, &UInteractivePickerComponent::OnUseReleaseKeyEvent);
 	}
 }
