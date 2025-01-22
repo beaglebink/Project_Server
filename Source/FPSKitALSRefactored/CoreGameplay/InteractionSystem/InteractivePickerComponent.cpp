@@ -1,7 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "InteractivePickerComponent.h"
-//#include "ALSCamera/Public/AlsCameraComponent.h"
 
 // Sets default values for this component's properties
 UInteractivePickerComponent::UInteractivePickerComponent()
@@ -38,7 +37,62 @@ void UInteractivePickerComponent::TickComponent(float DeltaTime, ELevelTick Tick
 	// ...
 }
 
-void UInteractivePickerComponent::TickPicker(float DeltaTime)
+void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* FoundItem, bool IsPeriodicalUpdate)
+{
+	const auto Owner = this->GetOwner();
+
+	if (!IsValid(FoundItem))
+	{
+		if (IsValid(CurrentItem) || CurrentIItemIsValid)
+		{
+			LostComponentNow(Owner, CurrentItem, IsPeriodicalUpdate);
+
+			CurrentItem = nullptr;
+			CurrentIItemIsValid = false;
+		}
+	}
+	else
+	{
+		if (!IsValid(CurrentItem) && CurrentIItemIsValid == false)
+		{
+			CurrentItem = FoundItem;
+			CurrentIItemIsValid = true;
+
+			FoundComponentNow(Owner, FoundItem, IsPeriodicalUpdate);
+		}
+		else
+		{
+			if (FoundItem != CurrentItem)
+			{
+				LostComponentNow(Owner, CurrentItem, IsPeriodicalUpdate);
+
+				FoundComponentNow(Owner, FoundItem, IsPeriodicalUpdate);
+
+				OnInteractiveSelected.Broadcast(FoundItem);
+
+				FoundItem->CallInteractiveSelected(Owner);
+
+				CurrentItem = FoundItem;
+				CurrentIItemIsValid = true;
+			}
+		}
+	}
+}
+
+void UInteractivePickerComponent::OnStartUsePressKeyEvent(ACharacter* Character)
+{
+	OnPickerStartUsePressKeyEvent.Broadcast();
+
+	OnInteractionStarted.Broadcast(CurrentItem);
+
+}
+
+void UInteractivePickerComponent::OnUseReleaseKeyEvent(AActor* Initiator)
+{
+	OnPickerEndHoldUseEvent.Broadcast();
+}
+
+	void UInteractivePickerComponent::TickPicker(float DeltaTime)
 {
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
 	check(Character && TEXT("Designed for player pawns only!"));
@@ -68,7 +122,6 @@ void UInteractivePickerComponent::TickPicker(float DeltaTime)
 	TArray<UInteractiveItemComponent*> ItemsNearby;
 	UInteractiveItemComponent* FoundItem = nullptr;
 
-	//auto Camera = Character->GetComponentByClass(UAlsCameraComponent::StaticClass());
 	FMinimalViewInfo MinimalViewInfo;
 	Character->CalcCamera(0.f, MinimalViewInfo);
 
@@ -80,18 +133,11 @@ void UInteractivePickerComponent::TickPicker(float DeltaTime)
 
 		TArray<AActor*> ActorsToIgnore(ActorsToIgnoreCache);
 
-		//ActorsToIgnore.Add(Character);
 		ActorsToIgnore = FoundCharacters;
 
-
-#if (!UE_BUILD_SHIPPING)
-		if (IsShowInteractionTrace)
-		{
-			TracedActors.Empty();
-		}
-#endif //!UE_BUILD_SHIPPING
-
 		FoundItem = TraceNearestUsableObject(Location, Direction, TracedActors, GetPickRadius(), ActorsToIgnore);
+
+		TickSetCurrentItem(FoundItem);
 	}
 }
 
@@ -103,7 +149,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		return nullptr;
 	}
 
-	const auto BoxExtent = FVector(Radius / 2.f, CapsuleRadius, CapsuleRadius);
+	const auto BoxExtent = FVector(Radius / 2.f, Width, Width);
 	const auto BoxCenter = Location + Direction * BoxExtent.X;
 	const auto BoxQuaternion = Direction.ToOrientationQuat();
 	if (DebugDraw)
@@ -120,28 +166,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 	{
 		return nullptr;
 	}
-/*
-	UClass* OwnerClass = GetOwner()->GetClass();
 
-	auto OwnerTypeFilter = [this, OwnerClass](FOverlapResult Result)
-	{
-		const AActor* OverlappedActor = Result.GetActor();
-		if (OverlappedActor != nullptr)
-		{
-			const AActor* Owner = this->GetOwner();
-			if (Owner != nullptr)
-			{
-				if (OverlappedActor->IsA(OwnerClass))
-				{
-					return OverlappedActor != Owner;
-				}
-			}
-		}
-		return false;
-	};
-
-	auto CharacterData = OutOverlapResults.FindByPredicate(OwnerTypeFilter);
-*/
 	for (const auto OverlapResult : OutOverlapResults)
 	{
 		const auto HitActor = OverlapResult.GetActor();
@@ -162,33 +187,81 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		{
 			if (!IsValid(InteractiveItem))
 			{
-#if (!UE_BUILD_SHIPPING)
-				if (IsShowInteractionTrace)
-				{
-					OutTracedActors.Add(HitActor, FString(TEXT("Interactive item deactivated")));
-				}
-#endif //!UE_BUILD_SHIPPING
 				continue;
 			}
 
-#if (!UE_BUILD_SHIPPING)
-			if (IsShowInteractionTrace)
-			{
-				OutTracedActors.Add(HitActor, FString(TEXT("Interactive USED")));
-			}
-#endif //!UE_BUILD_SHIPPING
 			return InteractiveItem;
 		}
-#if (!UE_BUILD_SHIPPING)
-		if (IsShowInteractionTrace)
-		{
-			if (!OutTracedActors.Contains(HitActor))
-			{
-				OutTracedActors.Add(HitActor, FString(TEXT("Block interact")));
-			}
-		}
-#endif //!UE_BUILD_SHIPPING
 	}
 
 	return nullptr;
+}
+
+void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* FoundItem)
+{
+	const auto Owner = GetOwner();
+	const auto World = GetWorld();
+
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	if (CurrentItem != nullptr && IsValid(CurrentItem) && !CurrentItem->IsActive())
+	{
+		SetCurrentItem(FoundItem, true);
+		return;
+	}
+}
+
+void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent, bool IsPeriodicalUpdate)
+{
+	if (!IsValid(Owner))
+	{
+		return;
+	}
+
+	if (!IsValid(InteractiveComponent) && !CurrentIItemIsValid)
+	{
+		return;
+	}
+
+	const auto Parent = Cast<ACharacter>(GetOwner());
+
+	if (!IsValid(Parent))
+	{
+		return;
+	}
+
+	OnInteractiveLostFocusEvent.Broadcast();
+	OnInteractiveRemoved.Broadcast(InteractiveComponent);
+
+	if (InteractiveComponent != nullptr && IsValid(InteractiveComponent) && Parent != nullptr && IsValid(Parent))
+	{
+		InteractiveComponent->FinishInteractiveUse(Parent, false);
+	}
+
+	if (IsValid(InteractiveComponent))
+	{
+
+		InteractiveComponent->OnStartUsePressKeyEvent.RemoveDynamic(this, &UInteractivePickerComponent::OnStartUsePressKeyEvent);
+		InteractiveComponent->OnUseReleaseKeyEvent.RemoveDynamic(this, &UInteractivePickerComponent::OnUseReleaseKeyEvent);
+
+	}
+}
+
+void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent, bool IsPeriodicalUpdate)
+{
+	if (IsValid(InteractiveComponent))
+	{
+		InteractiveComponent->SetIsInteractiveNow(Owner, true);
+	}
+
+	OnInteractiveFocusEvent.Broadcast(InteractiveComponent);
+
+	if (IsValid(InteractiveComponent))
+	{
+		InteractiveComponent->OnStartUsePressKeyEvent.AddUniqueDynamic(this, &UInteractivePickerComponent::OnStartUsePressKeyEvent);
+		InteractiveComponent->OnUseReleaseKeyEvent.AddUniqueDynamic(this, &UInteractivePickerComponent::OnUseReleaseKeyEvent);
+	}
 }
