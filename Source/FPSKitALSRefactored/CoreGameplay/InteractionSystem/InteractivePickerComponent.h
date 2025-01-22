@@ -34,10 +34,10 @@ public:
 
 	UFUNCTION()
 	void SetCurrentItem(UInteractiveItemComponent* FoundItem);
-
+/*
 	UFUNCTION()
 	void OnStartUsePressKeyEvent(ACharacter* Character);
-
+*/
 private:
 	void TickPicker(float DeltaTime);
 

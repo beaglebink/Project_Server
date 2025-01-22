@@ -58,12 +58,12 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 		}
 	}
 }
-
+/*
 void UInteractivePickerComponent::OnStartUsePressKeyEvent(ACharacter* Character)
 {
 	OnPickerStartUsePressKeyEvent.Broadcast();
 }
-
+*/
 void UInteractivePickerComponent::TickPicker(float DeltaTime)
 {
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
@@ -206,12 +206,13 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 	{
 		InteractiveComponent->FinishInteractiveUse(Parent, false);
 	}
-
+/*
 	if (IsValid(InteractiveComponent))
 	{
 
 		InteractiveComponent->OnStartUsePressKeyEvent.RemoveDynamic(this, &UInteractivePickerComponent::OnStartUsePressKeyEvent);
 	}
+*/
 }
 
 void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
@@ -222,9 +223,10 @@ void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveI
 	}
 
 	OnInteractiveFocusEvent.Broadcast(InteractiveComponent);
-
+	/*
 	if (IsValid(InteractiveComponent))
 	{
 		InteractiveComponent->OnStartUsePressKeyEvent.AddUniqueDynamic(this, &UInteractivePickerComponent::OnStartUsePressKeyEvent);
 	}
+	*/
 }

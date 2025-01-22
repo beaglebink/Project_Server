@@ -11,7 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveUseEvent, ACharacter*,
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEndHoldUseEvent, AActor*, Initiator);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStartUseEvent, ACharacter*, Initiator);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStartUseEvent, ACharacter*, Initiator);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveNow, AActor*, WhoInteract);
 
@@ -41,10 +41,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FEndHoldUseEvent OnUseReleaseKeyEvent;
-
+	/*
 	UPROPERTY(BlueprintAssignable)
 	FStartUseEvent OnStartUsePressKeyEvent;
-
+	*/
 	UPROPERTY(BlueprintAssignable)
 	FOnInteractiveNow OnInteractiveNow;
 
