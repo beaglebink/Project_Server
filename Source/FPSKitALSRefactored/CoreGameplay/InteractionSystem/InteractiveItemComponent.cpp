@@ -44,6 +44,21 @@ void UInteractiveItemComponent::SetIsInteractiveNow(AActor* WhoInteract)
 	OnInteractiveNow.Broadcast(WhoInteract);
 }
 
+void UInteractiveItemComponent::DoInteractiveUse(ACharacter* IIUser)
+{
+	if (!IsValid(this))
+	{
+		return;
+	}
+
+	if (IsActive())
+	{
+		auto Picker = Cast<UInteractivePickerComponent>(IIUser->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
+
+		OnInteractionStarted.Broadcast(Picker);
+	}
+}
+
 
 void UInteractiveItemComponent::BeginPlay()
 {

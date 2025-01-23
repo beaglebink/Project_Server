@@ -34,10 +34,7 @@ public:
 
 	UFUNCTION()
 	void SetCurrentItem(UInteractiveItemComponent* FoundItem);
-/*
-	UFUNCTION()
-	void OnStartUsePressKeyEvent(ACharacter* Character);
-*/
+
 private:
 	void TickPicker(float DeltaTime);
 
@@ -66,6 +63,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
 	FPickerStartUsePressKeyEvent OnPickerStartUsePressKeyEvent;
+
+	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
+	UInteractiveItemComponent* DoInteractiveUse();
 
 	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	bool DebugDraw = true;

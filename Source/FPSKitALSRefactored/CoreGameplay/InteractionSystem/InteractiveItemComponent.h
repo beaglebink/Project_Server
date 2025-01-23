@@ -11,8 +11,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveUseEvent, ACharacter*,
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEndHoldUseEvent, AActor*, Initiator);
 
-//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStartUseEvent, ACharacter*, Initiator);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveNow, AActor*, WhoInteract);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -29,6 +27,8 @@ public:
 
 	void SetIsInteractiveNow(AActor* WhoInteract);
 
+	void DoInteractiveUse(ACharacter* IIUser);
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -41,12 +41,15 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FEndHoldUseEvent OnUseReleaseKeyEvent;
-	/*
-	UPROPERTY(BlueprintAssignable)
-	FStartUseEvent OnStartUsePressKeyEvent;
-	*/
+
 	UPROPERTY(BlueprintAssignable)
 	FOnInteractiveNow OnInteractiveNow;
+
+	UPROPERTY(BlueprintAssignable)
+	FInteractivePicker OnInteractionStarted;
+
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "InteractiveItem")
+	FText InteractiveTooltipText;
 
 private:
 	ACharacter* ReleasedUser;

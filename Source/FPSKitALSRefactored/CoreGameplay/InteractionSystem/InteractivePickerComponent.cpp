@@ -58,12 +58,7 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 		}
 	}
 }
-/*
-void UInteractivePickerComponent::OnStartUsePressKeyEvent(ACharacter* Character)
-{
-	OnPickerStartUsePressKeyEvent.Broadcast();
-}
-*/
+
 void UInteractivePickerComponent::TickPicker(float DeltaTime)
 {
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
@@ -139,35 +134,44 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		return nullptr;
 	}
 
-	for (const auto OverlapResult : OutOverlapResults)
+	float NearestDistance = TNumericLimits<float>::Max();
+	UInteractiveItemComponent* NearestItem = nullptr;
+
+	auto FindNearestComponent = [&](const AActor* Actor)
+		{
+			TInlineComponentArray<UInteractiveItemComponent*> InteractiveItems;
+			Actor->GetComponents<UInteractiveItemComponent>(InteractiveItems, true);
+
+			for (UInteractiveItemComponent* InteractiveItem : InteractiveItems)
+			{
+				if (!IsValid(InteractiveItem) || !InteractiveItem->IsActive())
+				{
+					continue;
+				}
+
+				float Distance = FVector::Dist(Location, InteractiveItem->GetOwner()->GetActorLocation());
+				if (Distance < NearestDistance)
+				{
+					NearestDistance = Distance;
+					NearestItem = InteractiveItem;
+				}
+			}
+		};
+
+	for (const auto& OverlapResult : OutOverlapResults)
 	{
 		const auto HitActor = OverlapResult.GetActor();
-		if (!IsValid(HitActor))
+		if (!IsValid(HitActor) || HitActor == GetOwner())
 		{
 			continue;
 		}
 
-		if (HitActor == GetOwner())
-		{
-			continue;
-		}
-
-		TArray<UInteractiveItemComponent*> InteractiveItems;
-		HitActor->GetComponents<UInteractiveItemComponent>(InteractiveItems, /*bIncludeFromChildActors =*/false);
-
-		for (UInteractiveItemComponent* InteractiveItem : InteractiveItems)
-		{
-			if (!IsValid(InteractiveItem))
-			{
-				continue;
-			}
-
-			return InteractiveItem;
-		}
+		FindNearestComponent(HitActor);
 	}
 
-	return nullptr;
+	return NearestItem;
 }
+
 
 void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* FoundItem)
 {
@@ -206,13 +210,6 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 	{
 		InteractiveComponent->FinishInteractiveUse(Parent, false);
 	}
-/*
-	if (IsValid(InteractiveComponent))
-	{
-
-		InteractiveComponent->OnStartUsePressKeyEvent.RemoveDynamic(this, &UInteractivePickerComponent::OnStartUsePressKeyEvent);
-	}
-*/
 }
 
 void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
@@ -223,10 +220,16 @@ void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveI
 	}
 
 	OnInteractiveFocusEvent.Broadcast(InteractiveComponent);
-	/*
-	if (IsValid(InteractiveComponent))
+
+}
+
+UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
+{
+	if (IsValid(CurrentItem))
 	{
-		InteractiveComponent->OnStartUsePressKeyEvent.AddUniqueDynamic(this, &UInteractivePickerComponent::OnStartUsePressKeyEvent);
+		auto PickerOwner = Cast<ACharacter>(GetOwner());
+		CurrentItem->DoInteractiveUse(PickerOwner);
 	}
-	*/
+
+	return CurrentItem;
 }
