@@ -59,6 +59,11 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 	}
 }
 
+void UInteractivePickerComponent::ResetCurrentItem()
+{
+	CurrentItem = nullptr;
+}
+
 void UInteractivePickerComponent::TickPicker(float DeltaTime)
 {
 	ACharacter* Character = Cast<ACharacter>(GetOwner());

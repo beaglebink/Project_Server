@@ -35,6 +35,9 @@ public:
 	UFUNCTION()
 	void SetCurrentItem(UInteractiveItemComponent* FoundItem);
 
+	UFUNCTION(blueprintCallable, Category = "InteractiveItem")
+	void ResetCurrentItem();
+
 private:
 	void TickPicker(float DeltaTime);
 
