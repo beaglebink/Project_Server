@@ -5,6 +5,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
+#include <PhysicsEngine/PhysicsConstraintComponent.h>
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
@@ -13,6 +14,29 @@ AAlsCharacterExample::AAlsCharacterExample()
 	Camera = CreateDefaultSubobject<UAlsCameraComponent>(FName{TEXTVIEW("Camera")});
 	Camera->SetupAttachment(GetMesh());
 	Camera->SetRelativeRotation_Direct({0.0f, 90.0f, 0.0f});
+
+	//PhysicsConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("PhysicsConstraint"));
+	//PhysicsConstraint->SetupAttachment(RootComponent);
+}
+
+void AAlsCharacterExample::BeginPlay()
+{
+	Super::BeginPlay();
+/*
+	PhysicsConstraint->SetLinearXLimit(LCM_Free, 0.0f);
+	PhysicsConstraint->SetLinearYLimit(LCM_Free, 0.0f);
+	PhysicsConstraint->SetLinearZLimit(LCM_Free, 0.0f);
+
+	PhysicsConstraint->SetAngularSwing1Limit(ACM_Free, 0.0f);
+	PhysicsConstraint->SetAngularSwing2Limit(ACM_Free, 0.0f);
+	PhysicsConstraint->SetAngularTwistLimit(ACM_Free, 0.0f);
+
+	PhysicsConstraint->SetLinearPositionDrive(true, true, true);
+	PhysicsConstraint->SetLinearDriveParams(500.0f, 50.0f, 0.0f);
+
+	PhysicsConstraint->SetAngularOrientationDrive(true, true);
+	PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
+*/
 }
 
 void AAlsCharacterExample::NotifyControllerChanged()
@@ -210,4 +234,89 @@ void AAlsCharacterExample::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo
 	}
 
 	Super::DisplayDebug(Canvas, DisplayInfo, Unused, VerticalLocation);
+}
+
+void AAlsCharacterExample::GrabExistingObject(AActor* ExistingActor)
+{
+	/*
+	if (ExistingActor)
+	{
+		UE_LOG(LogTemp, Log, TEXT("ExistingActor is valid: %s"), *ExistingActor->GetName());
+
+		UPrimitiveComponent* ComponentToGrab = Cast<UPrimitiveComponent>(ExistingActor->GetComponentByClass(UPrimitiveComponent::StaticClass()));
+
+		if (ComponentToGrab)
+		{
+			UE_LOG(LogTemp, Log, TEXT("ComponentToGrab is valid: %s"), *ComponentToGrab->GetName());
+
+			if (PhysicsConstraint && AttachmentPoint)
+			{
+				UE_LOG(LogTemp, Log, TEXT("PhysicsConstraint and AttachmentPoint are valid"));
+
+				AttachmentPoint->SetSimulatePhysics(true);
+				// Проверка физического состояния компонентов
+				if (!AttachmentPoint->IsSimulatingPhysics())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("AttachmentPoint is not simulating physics. Enabling physics simulation."));
+					AttachmentPoint->SetSimulatePhysics(true);
+				}
+
+				if (!ComponentToGrab->IsSimulatingPhysics())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("ComponentToGrab is not simulating physics. Enabling physics simulation."));
+					ComponentToGrab->SetSimulatePhysics(true);
+				}
+
+				PhysicsConstraint->SetConstrainedComponents(AttachmentPoint, NAME_None, ComponentToGrab, NAME_None);
+				PhysicsConstraint->SetWorldLocation(AttachmentPoint->GetComponentLocation());
+
+				// Проверка, что компоненты действительно присоединены
+				UPrimitiveComponent* ConstrainedComponent1;
+				UPrimitiveComponent* ConstrainedComponent2;
+				FName BoneName1, BoneName2;
+				PhysicsConstraint->GetConstrainedComponents(ConstrainedComponent1, BoneName1, ConstrainedComponent2, BoneName2);
+
+				if (ConstrainedComponent1 == AttachmentPoint && ConstrainedComponent2 == ComponentToGrab)
+				{
+					UE_LOG(LogTemp, Log, TEXT("Components successfully constrained"));
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("Failed to constrain components"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("PhysicsConstraint or AttachmentPoint is null"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("ComponentToGrab is null in GrabExistingObject"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("ExistingActor is null in GrabExistingObject"));
+	}
+	*/
+}
+
+void AAlsCharacterExample::ReleaseObject()
+{
+	//PhysicsConstraint->BreakConstraint();
+}
+
+void AAlsCharacterExample::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+/*
+	if (PhysicsConstraint->ConstraintInstance.IsValidConstraintInstance())
+	{
+		FVector TargetLocation = AttachmentPoint->GetComponentLocation();
+		FRotator TargetRotation = AttachmentPoint->GetComponentRotation();
+
+		PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
+	}
+*/
 }

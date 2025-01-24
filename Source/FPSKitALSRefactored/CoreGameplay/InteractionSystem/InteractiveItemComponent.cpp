@@ -9,6 +9,7 @@ UInteractiveItemComponent::UInteractiveItemComponent()
 
 	bAutoActivate = true;
 }
+
 void UInteractiveItemComponent::FinishInteractiveUse(ACharacter* IIUser, const bool IsReleaseButton)
 {
 	if (this == nullptr || !IsValid(this))
@@ -58,13 +59,3 @@ void UInteractiveItemComponent::DoInteractiveUse(ACharacter* IIUser)
 		OnInteractionStarted.Broadcast(Picker);
 	}
 }
-
-
-void UInteractiveItemComponent::BeginPlay()
-{
-	Super::BeginPlay();
-
-	// ...
-	
-}
-

@@ -5,6 +5,13 @@
 
 #include "InteractiveItemComponent.generated.h"
 
+UENUM(BlueprintType)
+enum class EInteractDuration : uint8
+{
+	Instant = 0,
+	Continue
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInteractivePicker, UInteractivePickerComponent*, Picker);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveUseEvent, ACharacter*, User);
@@ -29,9 +36,6 @@ public:
 
 	void DoInteractiveUse(ACharacter* IIUser);
 
-protected:
-	virtual void BeginPlay() override;
-
 public:
 	UPROPERTY(BlueprintAssignable)
 	FInteractivePicker OnInteractorSelected;
@@ -48,8 +52,11 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FInteractivePicker OnInteractionStarted;
 
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "InteractiveItem")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
 	FText InteractiveTooltipText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
+	EInteractDuration InteractDuration;
 
 private:
 	ACharacter* ReleasedUser;

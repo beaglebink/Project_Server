@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AlsCharacter.h"
+#include <PhysicsEngine/PhysicsConstraintActor.h>
 #include "AlsCharacterExample.generated.h"
 
 struct FInputActionValue;
@@ -73,8 +74,16 @@ protected:
 		Meta = (ClampMin = 0, ForceUnits = "deg/s"))
 	float LookRightRate{240.0f};
 
+	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interact|DragActor")
+	//UPhysicsConstraintComponent* PhysicsConstraint;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact|DragActor")
+	//UStaticMeshComponent* AttachmentPoint;
+
 public:
 	AAlsCharacterExample();
+
+	void BeginPlay() override;
 
 	virtual void NotifyControllerChanged() override;
 
@@ -119,4 +128,12 @@ private:
 
 public:
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DisplayInfo, float& Unused, float& VerticalLocation) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Interact|DragActor")
+	void GrabExistingObject(AActor* ExistingActor);
+
+	UFUNCTION(BlueprintCallable, Category = "Interact|DragActor")
+	void ReleaseObject();
+
+	void Tick(float DeltaTime) override;
 };
