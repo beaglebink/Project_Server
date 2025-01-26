@@ -5,6 +5,8 @@ public class FPSKitALSRefactored : ModuleRules
 {
     public FPSKitALSRefactored(ReadOnlyTargetRules Target) : base(Target)
     {
+		OptimizeCode = CodeOptimization.Never;
+		
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "AssetRegistry", "ALSCamera" });

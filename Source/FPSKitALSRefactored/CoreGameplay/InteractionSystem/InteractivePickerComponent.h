@@ -8,40 +8,37 @@
 #include "InteractiveItemComponent.h"
 #include "InteractivePickerComponent.generated.h"
 
+// Делегаты для событий взаимодействия
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveFocusEvent, UInteractiveItemComponent*, FocusedItem);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInteractiveEvent, UInteractiveItemComponent*, UseInteractiveComponent);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInteractiveLostFocusEvent);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPickerStartUsePressKeyEvent);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPickerEndHoldUseEvent);
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UInteractivePickerComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	UInteractivePickerComponent();
 
 protected:
 	virtual void BeginPlay() override;
 
-public:	
-	FORCEINLINE float GetPickRadius() const { return Depth; }
+public:
+	FORCEINLINE float GetDept() const { return Depth; }
 
 	UFUNCTION()
 	void SetCurrentItem(UInteractiveItemComponent* FoundItem);
 
-	UFUNCTION(blueprintCallable, Category = "InteractiveItem")
+	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	void ResetCurrentItem();
 
 private:
 	void TickPicker(float DeltaTime);
 
-	UInteractiveItemComponent* TraceNearestUsableObject(const FVector& Location, const FVector& Direction, TMap<AActor*, FString>& OutTracedActors, float Radius,
+	UInteractiveItemComponent* TraceNearestUsableObject(const FVector& Location, const FVector& Direction, TMap<AActor*, FString>& OutTracedActors,
 		const TArray<AActor*>& ActorsToIgnore) const;
 
 	UFUNCTION()
@@ -53,7 +50,6 @@ private:
 	UFUNCTION()
 	void FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent);
 
-
 public:
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
 	FOnInteractiveFocusEvent OnInteractiveFocusEvent;
@@ -62,7 +58,7 @@ public:
 	FOnInteractiveLostFocusEvent OnInteractiveLostFocusEvent;
 
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
-	FInteractiveEvent	OnInteractiveSelected;
+	FInteractiveEvent OnInteractiveSelected;
 
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
 	FPickerStartUsePressKeyEvent OnPickerStartUsePressKeyEvent;
@@ -102,5 +98,4 @@ private:
 	TArray<AActor*> ActorsToIgnoreCache;
 
 	bool CurrentIItemIsValid = false;
-		
 };

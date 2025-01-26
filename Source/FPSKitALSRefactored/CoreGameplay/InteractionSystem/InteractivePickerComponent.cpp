@@ -1,10 +1,12 @@
 #include "InteractivePickerComponent.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/World.h"
+#include "DrawDebugHelpers.h"
 
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
 }
 
 void UInteractivePickerComponent::BeginPlay()
@@ -13,21 +15,20 @@ void UInteractivePickerComponent::BeginPlay()
 
 	const auto OwnerPawn = Cast<APawn>(GetOwner());
 	check(OwnerPawn && TEXT("Designed for player pawns only! Better crash than silence!"));
-	if (IsValid(OwnerPawn))
+	if (OwnerPawn)
 	{
 		TimerDel = FTimerDelegate::CreateUObject(this, &UInteractivePickerComponent::TickPicker, 0.f);
 		GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDel, PickTickInterval, true);
 	}
-	
 }
 
 void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* FoundItem)
 {
-	const auto Owner = this->GetOwner();
+	const auto Owner = GetOwner();
 
-	if (!IsValid(FoundItem))
+	if (!FoundItem)
 	{
-		if (IsValid(CurrentItem) || CurrentIItemIsValid)
+		if (CurrentItem || CurrentIItemIsValid)
 		{
 			LostComponentNow(Owner, CurrentItem);
 
@@ -37,24 +38,21 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 	}
 	else
 	{
-		if (!IsValid(CurrentItem) && CurrentIItemIsValid == false)
+		if (!CurrentItem && !CurrentIItemIsValid)
 		{
 			CurrentItem = FoundItem;
 			CurrentIItemIsValid = true;
 
 			FoundComponentNow(Owner, FoundItem);
 		}
-		else
+		else if (FoundItem != CurrentItem)
 		{
-			if (FoundItem != CurrentItem)
-			{
-				LostComponentNow(Owner, CurrentItem);
+			LostComponentNow(Owner, CurrentItem);
 
-				FoundComponentNow(Owner, FoundItem);
+			FoundComponentNow(Owner, FoundItem);
 
-				CurrentItem = FoundItem;
-				CurrentIItemIsValid = true;
-			}
+			CurrentItem = FoundItem;
+			CurrentIItemIsValid = true;
 		}
 	}
 }
@@ -69,24 +67,19 @@ void UInteractivePickerComponent::TickPicker(float DeltaTime)
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
 	check(Character && TEXT("Designed for player pawns only!"));
 
-	if (!IsValid(Character))
-	{
-		return;
-	}
-
-	if (!Character->IsLocallyControlled())
+	if (!Character || !Character->IsLocallyControlled())
 	{
 		return;
 	}
 
 	const APlayerController* CurrentController = Cast<APlayerController>(Character->GetController());
-	if (!IsValid(CurrentController))
+	if (!CurrentController)
 	{
 		return;
 	}
 
 	const USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
-	if (CharacterMesh == nullptr)
+	if (!CharacterMesh)
 	{
 		return;
 	}
@@ -104,24 +97,23 @@ void UInteractivePickerComponent::TickPicker(float DeltaTime)
 		const FVector Direction = Rotation.Vector();
 
 		TArray<AActor*> ActorsToIgnore(ActorsToIgnoreCache);
-
 		ActorsToIgnore = FoundCharacters;
 
-		FoundItem = TraceNearestUsableObject(Location, Direction, TracedActors, GetPickRadius(), ActorsToIgnore);
+		FoundItem = TraceNearestUsableObject(Location, Direction, TracedActors, ActorsToIgnore);
 
 		TickSetCurrentItem(FoundItem);
 	}
 }
 
-UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject(const FVector& Location, const FVector& Direction, TMap<AActor*, FString>& OutTracedActors, float Radius, const TArray<AActor*>& ActorsToIgnore) const
+UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject(const FVector& Location, const FVector& Direction, TMap<AActor*, FString>& OutTracedActors, const TArray<AActor*>& ActorsToIgnore) const
 {
 	const auto World = GetWorld();
-	if (!IsValid(World))
+	if (!World)
 	{
 		return nullptr;
 	}
 
-	const auto BoxExtent = FVector(Radius / 2.f, Width, Width);
+	const auto BoxExtent = FVector(Depth / 2.f, Width, Width);
 	const auto BoxCenter = Location + Direction * BoxExtent.X;
 	const auto BoxQuaternion = Direction.ToOrientationQuat();
 	if (DebugDraw)
@@ -133,7 +125,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 	CollisionShape.ShapeType = ECollisionShape::Box;
 	CollisionShape.SetBox(FVector3f(BoxExtent));
 	TArray<FOverlapResult> OutOverlapResults;
-	const auto TraceResult = GetWorld()->OverlapMultiByChannel(OutOverlapResults, BoxCenter, BoxQuaternion, ECollisionChannel::ECC_Camera, CollisionShape);
+	const auto TraceResult = World->OverlapMultiByChannel(OutOverlapResults, BoxCenter, BoxQuaternion, ECollisionChannel::ECC_Camera, CollisionShape);
 	if (!TraceResult)
 	{
 		return nullptr;
@@ -142,48 +134,50 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 	float NearestDistance = TNumericLimits<float>::Max();
 	UInteractiveItemComponent* NearestItem = nullptr;
 
-	auto FindNearestComponent = [&](const AActor* Actor)
-		{
-			TInlineComponentArray<UInteractiveItemComponent*> InteractiveItems;
-			Actor->GetComponents<UInteractiveItemComponent>(InteractiveItems, true);
-
-			for (UInteractiveItemComponent* InteractiveItem : InteractiveItems)
-			{
-				if (!IsValid(InteractiveItem) || !InteractiveItem->IsActive())
-				{
-					continue;
-				}
-
-				float Distance = FVector::Dist(Location, InteractiveItem->GetOwner()->GetActorLocation());
-				if (Distance < NearestDistance)
-				{
-					NearestDistance = Distance;
-					NearestItem = InteractiveItem;
-				}
-			}
-		};
+	TInlineComponentArray<UInteractiveItemComponent*> InteractiveItems;
+	TInlineComponentArray<UInteractiveItemComponent*> AllInteractiveItems;
 
 	for (const auto& OverlapResult : OutOverlapResults)
 	{
 		const auto HitActor = OverlapResult.GetActor();
-		if (!IsValid(HitActor) || HitActor == GetOwner())
+		if (!HitActor || HitActor == GetOwner())
 		{
 			continue;
 		}
 
-		FindNearestComponent(HitActor);
+		HitActor->GetComponents<UInteractiveItemComponent>(InteractiveItems, true);
+		AllInteractiveItems.Append(InteractiveItems);
 	}
 
+	for (UInteractiveItemComponent* InteractiveItem : AllInteractiveItems)
+	{
+		float Distance = FVector::DistSquared(Location, InteractiveItem->GetOwner()->GetActorLocation());
+		if (InteractiveItem && DebugDraw)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Item: %s %f"), *InteractiveItem->GetOwner()->GetName(), Distance);
+		}
+
+		if (Distance < NearestDistance)
+		{
+			NearestDistance = Distance;
+			NearestItem = InteractiveItem;
+		}
+	}
+
+	if (NearestItem && DebugDraw)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NearestItem: %s %f"), *NearestItem->GetOwner()->GetName(), NearestDistance);
+	}
+;
 	return NearestItem;
 }
-
 
 void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* FoundItem)
 {
 	const auto Owner = GetOwner();
 	const auto World = GetWorld();
 
-	if (!IsValid(World))
+	if (!World)
 	{
 		return;
 	}
@@ -192,26 +186,21 @@ void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* 
 
 void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
 {
-	if (!IsValid(Owner))
-	{
-		return;
-	}
-
-	if (!IsValid(InteractiveComponent) && !CurrentIItemIsValid)
+	if (!Owner || (!InteractiveComponent && !CurrentIItemIsValid))
 	{
 		return;
 	}
 
 	const auto Parent = Cast<ACharacter>(GetOwner());
 
-	if (!IsValid(Parent))
+	if (!Parent)
 	{
 		return;
 	}
 
 	OnInteractiveLostFocusEvent.Broadcast();
 
-	if (InteractiveComponent != nullptr && IsValid(InteractiveComponent) && Parent != nullptr && IsValid(Parent))
+	if (InteractiveComponent && Parent)
 	{
 		InteractiveComponent->FinishInteractiveUse(Parent, false);
 	}
@@ -219,18 +208,17 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 
 void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
 {
-	if (IsValid(InteractiveComponent))
+	if (InteractiveComponent)
 	{
 		InteractiveComponent->SetIsInteractiveNow(Owner);
 	}
 
 	OnInteractiveFocusEvent.Broadcast(InteractiveComponent);
-
 }
 
 UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 {
-	if (IsValid(CurrentItem))
+	if (CurrentItem)
 	{
 		auto PickerOwner = Cast<ACharacter>(GetOwner());
 		CurrentItem->DoInteractiveUse(PickerOwner);
