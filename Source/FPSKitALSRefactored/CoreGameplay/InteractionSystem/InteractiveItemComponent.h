@@ -58,6 +58,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
 	EInteractDuration InteractDuration;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
+	FVector DragingLocation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
+	FRotator DragingRotator;
+
 private:
 	ACharacter* ReleasedUser;
 	bool IsRelease;
