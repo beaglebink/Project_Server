@@ -16,8 +16,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInteractivePicker, UInteractivePick
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveUseEvent, ACharacter*, User);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEndHoldUseEvent, AActor*, Initiator);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveNow, AActor*, WhoInteract);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -38,19 +36,13 @@ public:
 
 public:
 	UPROPERTY(BlueprintAssignable)
-	FInteractivePicker OnInteractorSelected;
+	FOnInteractiveNow OnInteractiveReceiveFocusEvent;
 
 	UPROPERTY(BlueprintAssignable)
-	FOnInteractiveUseEvent OnInteractiveFinishUseEvent;
+	FOnInteractiveUseEvent OnInteractiveLostFocusEvent;
 
 	UPROPERTY(BlueprintAssignable)
-	FEndHoldUseEvent OnUseReleaseKeyEvent;
-
-	UPROPERTY(BlueprintAssignable)
-	FOnInteractiveNow OnInteractiveNow;
-
-	UPROPERTY(BlueprintAssignable)
-	FInteractivePicker OnInteractionStarted;
+	FInteractivePicker OnInteractionPressKeyEvent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
 	FText InteractiveTooltipText;

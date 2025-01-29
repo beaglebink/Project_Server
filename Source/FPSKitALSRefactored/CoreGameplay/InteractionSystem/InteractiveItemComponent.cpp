@@ -25,12 +25,7 @@ void UInteractiveItemComponent::FinishInteractiveUse(ACharacter* IIUser, const b
 	ReleasedUser = IIUser;
 	IsRelease = IsReleaseButton;
 
-	OnInteractiveFinishUseEvent.Broadcast(ReleasedUser);
-
-	if (IsRelease)
-	{
-		OnUseReleaseKeyEvent.Broadcast(ReleasedUser);
-	}
+	OnInteractiveLostFocusEvent.Broadcast(ReleasedUser);
 }
 
 void UInteractiveItemComponent::SetIsInteractiveNow(AActor* WhoInteract)
@@ -42,7 +37,7 @@ void UInteractiveItemComponent::SetIsInteractiveNow(AActor* WhoInteract)
 
 	auto Picker = Cast<UInteractivePickerComponent>(WhoInteract->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
 
-	OnInteractiveNow.Broadcast(WhoInteract);
+	OnInteractiveReceiveFocusEvent.Broadcast(WhoInteract);
 }
 
 void UInteractiveItemComponent::DoInteractiveUse(ACharacter* IIUser)
@@ -56,6 +51,6 @@ void UInteractiveItemComponent::DoInteractiveUse(ACharacter* IIUser)
 	{
 		auto Picker = Cast<UInteractivePickerComponent>(IIUser->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
 
-		OnInteractionStarted.Broadcast(Picker);
+		OnInteractionPressKeyEvent.Broadcast(Picker);
 	}
 }

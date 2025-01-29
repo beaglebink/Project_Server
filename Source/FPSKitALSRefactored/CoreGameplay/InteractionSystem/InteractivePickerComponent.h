@@ -52,16 +52,13 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
-	FOnInteractiveFocusEvent OnInteractiveFocusEvent;
+	FOnInteractiveFocusEvent OnInteractiveReceiveFocusEvent;
 
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
 	FOnInteractiveLostFocusEvent OnInteractiveLostFocusEvent;
 
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
-	FInteractiveEvent OnInteractiveSelected;
-
-	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
-	FPickerStartUsePressKeyEvent OnPickerStartUsePressKeyEvent;
+	FPickerStartUsePressKeyEvent OnInteractionPressKeyEvent;
 
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	UInteractiveItemComponent* DoInteractiveUse();

@@ -213,7 +213,7 @@ void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveI
 		InteractiveComponent->SetIsInteractiveNow(Owner);
 	}
 
-	OnInteractiveFocusEvent.Broadcast(InteractiveComponent);
+	OnInteractiveReceiveFocusEvent.Broadcast(InteractiveComponent);
 }
 
 UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
@@ -222,6 +222,8 @@ UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 	{
 		auto PickerOwner = Cast<ACharacter>(GetOwner());
 		CurrentItem->DoInteractiveUse(PickerOwner);
+
+		OnInteractionPressKeyEvent.Broadcast();
 	}
 
 	return CurrentItem;
