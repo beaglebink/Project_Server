@@ -8,12 +8,9 @@
 #include "InteractiveItemComponent.h"
 #include "InteractivePickerComponent.generated.h"
 
-// Делегаты для событий взаимодействия
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveFocusEvent, UInteractiveItemComponent*, FocusedItem);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInteractiveEvent, UInteractiveItemComponent*, UseInteractiveComponent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInteractiveLostFocusEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPickerStartUsePressKeyEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPickerEndHoldUseEvent);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UInteractivePickerComponent : public UActorComponent
@@ -64,10 +61,7 @@ public:
 	UInteractiveItemComponent* DoInteractiveUse();
 
 	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	bool DebugDraw = true;
-
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere)
-	bool IsShowInteractionTrace = false;
+	bool DebugDraw = false;
 
 	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float PickTickInterval = 0.3f;
