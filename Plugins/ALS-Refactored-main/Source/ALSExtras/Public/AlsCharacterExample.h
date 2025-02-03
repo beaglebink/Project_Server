@@ -9,6 +9,15 @@ class UAlsCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 
+UENUM(BlueprintType)
+enum class EMovementDirection : uint8
+{
+	Forward_Back,
+	Right_Left
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMovementInputEvent, EMovementDirection, MovementDirection, float, Value);
+
 UCLASS(AutoExpandCategories = ("Settings|Als Character Example", "State|Als Character Example"))
 class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter
 {
@@ -79,6 +88,9 @@ protected:
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact|DragActor")
 	//UStaticMeshComponent* AttachmentPoint;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Movement|Input")
+	FOnMovementInputEvent OnMovementInputEvent;
 
 public:
 	AAlsCharacterExample();
