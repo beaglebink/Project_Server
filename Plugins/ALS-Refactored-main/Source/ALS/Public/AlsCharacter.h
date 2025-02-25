@@ -107,6 +107,9 @@ protected:
 
 	FTimerHandle BrakingFrictionFactorResetTimer;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool IsFirstJumpClick = true;
+
 public:
 	explicit AAlsCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 

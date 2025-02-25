@@ -169,15 +169,25 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 			return;
 		}
 
-		if (StartMantlingGrounded())
-		{
-			return;
-		}
-
 		if (GetStance() == AlsStanceTags::Crouching)
 		{
 			SetDesiredStance(AlsStanceTags::Standing);
 			return;
+		}
+
+		if (IsFirstJumpClick)
+		{
+			IsFirstJumpClick = false;
+			GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AAlsCharacterExample::ContinueJump, DoubleSpaceTime, false);
+			return;
+		}
+		else
+		{
+			JumpTimerHandle.Invalidate();
+			if (StartMantlingGrounded())
+			{
+				return;
+			}
 		}
 
 		Jump();
@@ -319,4 +329,10 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 		PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
 	}
 */
+}
+
+void AAlsCharacterExample::ContinueJump()
+{
+	IsFirstJumpClick = true;
+	Jump();
 }

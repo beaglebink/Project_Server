@@ -92,6 +92,12 @@ protected:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Movement|Input")
 	FOnMovementInputEvent OnMovementInputEvent;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example")
+	float DoubleSpaceTime = 0.15f;
+
+private:
+	FTimerHandle JumpTimerHandle;
+
 public:
 	AAlsCharacterExample();
 
@@ -135,6 +141,8 @@ private:
 	void Input_OnViewMode();
 
 	void Input_OnSwitchShoulder();
+
+	void ContinueJump();
 
 	// Debug
 
