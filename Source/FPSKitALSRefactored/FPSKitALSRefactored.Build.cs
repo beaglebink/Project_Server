@@ -9,7 +9,7 @@ public class FPSKitALSRefactored : ModuleRules
 		
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "AssetRegistry", "ALSCamera" });
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "AssetRegistry", "ALSCamera", "EnhancedInput" });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
         /*
