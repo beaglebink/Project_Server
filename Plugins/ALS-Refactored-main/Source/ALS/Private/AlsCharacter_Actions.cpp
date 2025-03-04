@@ -519,6 +519,8 @@ void AAlsCharacter::StartMantlingImplementation(const FAlsMantlingParameters& Pa
 	RootMotionSource->ActorRotationOffset = ActorRotationOffset.Rotator();
 	RootMotionSource->TargetAnimationLocation = TargetAnimationLocation;
 	RootMotionSource->MontageStartTime = StartTime;
+	
+	OnStartmantling.Broadcast(RootMotionSource->Duration, Parameters.MantlingType);
 
 	MantlingState.RootMotionSourceId = GetCharacterMovement()->ApplyRootMotionSource(RootMotionSource);
 

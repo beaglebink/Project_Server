@@ -1,5 +1,7 @@
 #pragma once
 
+#include "CoreMinimal.h"
+#include "Delegates/DelegateCombinations.h"
 #include "GameFramework/Character.h"
 #include "State/AlsLocomotionState.h"
 #include "State/AlsMantlingState.h"
@@ -9,6 +11,8 @@
 #include "State/AlsViewState.h"
 #include "Utility/AlsGameplayTags.h"
 #include "AlsCharacter.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartMantling, float, AnimationDuration, EAlsMantlingType, MantlingType);
 
 struct FAlsMantlingParameters;
 struct FAlsMantlingTraceSettings;
@@ -109,6 +113,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool IsFirstJumpClick = true;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnStartMantling OnStartmantling;
 
 public:
 	explicit AAlsCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
