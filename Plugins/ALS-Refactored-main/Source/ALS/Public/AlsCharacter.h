@@ -13,6 +13,7 @@
 #include "AlsCharacter.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartMantling, float, AnimationDuration, EAlsMantlingType, MantlingType);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStartRolling, float, AnimationDuration);
 
 struct FAlsMantlingParameters;
 struct FAlsMantlingTraceSettings;
@@ -116,6 +117,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnStartMantling OnStartmantling;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnStartRolling OnStartRolling;
 
 public:
 	explicit AAlsCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());

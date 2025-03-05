@@ -88,6 +88,8 @@ void AAlsCharacter::StartRollingImplementation(UAnimMontage* Montage, const floa
 {
 	if (IsRollingAllowedToStart(Montage) && GetMesh()->GetAnimInstance()->Montage_Play(Montage, PlayRate))
 	{
+		OnStartRolling.Broadcast(Montage->GetPlayLength() / PlayRate);
+
 		RollingState.TargetYawAngle = TargetYawAngle;
 
 		RefreshRotationInstant(InitialYawAngle);
