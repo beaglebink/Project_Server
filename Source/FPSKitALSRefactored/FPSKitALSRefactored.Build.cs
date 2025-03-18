@@ -11,7 +11,7 @@ public class FPSKitALSRefactored : ModuleRules
 
         PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "AssetRegistry", "ALSCamera", "EnhancedInput" });
 
-        PrivateDependencyModuleNames.AddRange(new string[] { });
+        PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore", "ApplicationCore" });
         /*
         PublicIncludePaths.AddRange(new string[] {
             "FPSKitALSRefactored/Public",
