@@ -195,7 +195,9 @@ public:
 
 	void SetMaxAllowedGait(const FGameplayTag& NewMaxAllowedGait);
 
-private:
+public:
+	float MovementSpeedMultiplier = 1.0f;
+
 	void RefreshMaxWalkSpeed();
 
 public:

@@ -933,8 +933,10 @@ void UAlsCharacterMovementComponent::SetMaxAllowedGait(const FGameplayTag& NewMa
 
 void UAlsCharacterMovementComponent::RefreshMaxWalkSpeed()
 {
-	MaxWalkSpeed = GaitSettings.GetSpeedByGait(MaxAllowedGait);
+	MaxWalkSpeed = GaitSettings.GetSpeedByGait(MaxAllowedGait) * MovementSpeedMultiplier;
 	MaxWalkSpeedCrouched = MaxWalkSpeed;
+
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Red, FString::Printf(TEXT("%f"), MaxWalkSpeed));
 }
 
 float UAlsCharacterMovementComponent::CalculateGaitAmount() const

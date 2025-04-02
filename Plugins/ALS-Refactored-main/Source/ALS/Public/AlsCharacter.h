@@ -38,6 +38,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character")
 	TObjectPtr<UAlsMovementSettings> MovementSettings;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.5", ClampMax = "1.0"))
+	float MovementBackwardSpeedMultiplier = 0.7f;
+
+	float SpeedMultiplier = 1.0f;
+	float PrevSpeedMultiplier = 1.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State",
 		ReplicatedUsing = "OnReplicated_DesiredAiming")
 	uint8 bDesiredAiming : 1;

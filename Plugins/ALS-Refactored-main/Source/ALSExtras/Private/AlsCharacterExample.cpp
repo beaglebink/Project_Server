@@ -6,14 +6,16 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include <PhysicsEngine/PhysicsConstraintComponent.h>
+#include "Kismet/KismetMathLibrary.h"
+#include "AlsCharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
 AAlsCharacterExample::AAlsCharacterExample()
 {
-	Camera = CreateDefaultSubobject<UAlsCameraComponent>(FName{TEXTVIEW("Camera")});
+	Camera = CreateDefaultSubobject<UAlsCameraComponent>(FName{ TEXTVIEW("Camera") });
 	Camera->SetupAttachment(GetMesh());
-	Camera->SetRelativeRotation_Direct({0.0f, 90.0f, 0.0f});
+	Camera->SetRelativeRotation_Direct({ 0.0f, 90.0f, 0.0f });
 
 	//PhysicsConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("PhysicsConstraint"));
 	//PhysicsConstraint->SetupAttachment(RootComponent);
@@ -22,43 +24,43 @@ AAlsCharacterExample::AAlsCharacterExample()
 void AAlsCharacterExample::BeginPlay()
 {
 	Super::BeginPlay();
-/*
-	PhysicsConstraint->SetLinearXLimit(LCM_Free, 0.0f);
-	PhysicsConstraint->SetLinearYLimit(LCM_Free, 0.0f);
-	PhysicsConstraint->SetLinearZLimit(LCM_Free, 0.0f);
+	/*
+		PhysicsConstraint->SetLinearXLimit(LCM_Free, 0.0f);
+		PhysicsConstraint->SetLinearYLimit(LCM_Free, 0.0f);
+		PhysicsConstraint->SetLinearZLimit(LCM_Free, 0.0f);
 
-	PhysicsConstraint->SetAngularSwing1Limit(ACM_Free, 0.0f);
-	PhysicsConstraint->SetAngularSwing2Limit(ACM_Free, 0.0f);
-	PhysicsConstraint->SetAngularTwistLimit(ACM_Free, 0.0f);
+		PhysicsConstraint->SetAngularSwing1Limit(ACM_Free, 0.0f);
+		PhysicsConstraint->SetAngularSwing2Limit(ACM_Free, 0.0f);
+		PhysicsConstraint->SetAngularTwistLimit(ACM_Free, 0.0f);
 
-	PhysicsConstraint->SetLinearPositionDrive(true, true, true);
-	PhysicsConstraint->SetLinearDriveParams(500.0f, 50.0f, 0.0f);
+		PhysicsConstraint->SetLinearPositionDrive(true, true, true);
+		PhysicsConstraint->SetLinearDriveParams(500.0f, 50.0f, 0.0f);
 
-	PhysicsConstraint->SetAngularOrientationDrive(true, true);
-	PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
-*/
+		PhysicsConstraint->SetAngularOrientationDrive(true, true);
+		PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
+	*/
 }
 
 void AAlsCharacterExample::NotifyControllerChanged()
 {
-	const auto* PreviousPlayer{Cast<APlayerController>(PreviousController)};
+	const auto* PreviousPlayer{ Cast<APlayerController>(PreviousController) };
 	if (IsValid(PreviousPlayer))
 	{
-		auto* InputSubsystem{ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PreviousPlayer->GetLocalPlayer())};
+		auto* InputSubsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PreviousPlayer->GetLocalPlayer()) };
 		if (IsValid(InputSubsystem))
 		{
 			InputSubsystem->RemoveMappingContext(InputMappingContext);
 		}
 	}
 
-	auto* NewPlayer{Cast<APlayerController>(GetController())};
+	auto* NewPlayer{ Cast<APlayerController>(GetController()) };
 	if (IsValid(NewPlayer))
 	{
 		NewPlayer->InputYawScale_DEPRECATED = 1.0f;
 		NewPlayer->InputPitchScale_DEPRECATED = 1.0f;
 		NewPlayer->InputRollScale_DEPRECATED = 1.0f;
 
-		auto* InputSubsystem{ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(NewPlayer->GetLocalPlayer())};
+		auto* InputSubsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(NewPlayer->GetLocalPlayer()) };
 		if (IsValid(InputSubsystem))
 		{
 			FModifyContextOptions Options;
@@ -86,7 +88,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 {
 	Super::SetupPlayerInputComponent(Input);
 
-	auto* EnhancedInput{Cast<UEnhancedInputComponent>(Input)};
+	auto* EnhancedInput{ Cast<UEnhancedInputComponent>(Input) };
 	if (IsValid(EnhancedInput))
 	{
 		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLookMouse);
@@ -107,7 +109,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 
 void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValue)
 {
-	const auto Value{ActionValue.Get<FVector2D>()};
+	const auto Value{ ActionValue.Get<FVector2D>() };
 
 	AddControllerPitchInput(Value.Y * LookUpMouseSensitivity);
 	AddControllerYawInput(Value.X * LookRightMouseSensitivity);
@@ -115,7 +117,7 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 
 void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 {
-	const auto Value{ActionValue.Get<FVector2D>()};
+	const auto Value{ ActionValue.Get<FVector2D>() };
 
 	AddControllerPitchInput(Value.Y * LookUpRate);
 	AddControllerYawInput(Value.X * LookRightRate);
@@ -123,10 +125,10 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 {
-	const auto Value{UAlsMath::ClampMagnitude012D(ActionValue.Get<FVector2D>())};
+	const auto Value{ UAlsMath::ClampMagnitude012D(ActionValue.Get<FVector2D>()) };
 
-	const auto ForwardDirection{UAlsMath::AngleToDirectionXY(UE_REAL_TO_FLOAT(GetViewState().Rotation.Yaw))};
-	const auto RightDirection{UAlsMath::PerpendicularCounterClockwiseXY(ForwardDirection)};
+	const auto ForwardDirection{ UAlsMath::AngleToDirectionXY(UE_REAL_TO_FLOAT(GetViewState().Rotation.Yaw)) };
+	const auto RightDirection{ UAlsMath::PerpendicularCounterClockwiseXY(ForwardDirection) };
 
 	AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
 }
@@ -213,7 +215,7 @@ void AAlsCharacterExample::Input_OnRagdoll()
 
 void AAlsCharacterExample::Input_OnRoll()
 {
-	static constexpr auto PlayRate{1.3f};
+	static constexpr auto PlayRate{ 1.3f };
 
 	StartRolling(PlayRate);
 }
@@ -221,8 +223,8 @@ void AAlsCharacterExample::Input_OnRoll()
 void AAlsCharacterExample::Input_OnRotationMode()
 {
 	SetDesiredRotationMode(GetDesiredRotationMode() == AlsRotationModeTags::VelocityDirection
-		                       ? AlsRotationModeTags::ViewDirection
-		                       : AlsRotationModeTags::VelocityDirection);
+		? AlsRotationModeTags::ViewDirection
+		: AlsRotationModeTags::VelocityDirection);
 }
 
 void AAlsCharacterExample::Input_OnViewMode()
@@ -320,15 +322,24 @@ void AAlsCharacterExample::ReleaseObject()
 void AAlsCharacterExample::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-/*
-	if (PhysicsConstraint->ConstraintInstance.IsValidConstraintInstance())
-	{
-		FVector TargetLocation = AttachmentPoint->GetComponentLocation();
-		FRotator TargetRotation = AttachmentPoint->GetComponentRotation();
+	/*
+		if (PhysicsConstraint->ConstraintInstance.IsValidConstraintInstance())
+		{
+			FVector TargetLocation = AttachmentPoint->GetComponentLocation();
+			FRotator TargetRotation = AttachmentPoint->GetComponentRotation();
 
-		PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
+			PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
+		}
+	*/
+	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
+	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Green, FString::Printf(TEXT("%f2.2"), SpeedMultiplier));
+	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.01f)
+	{
+		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
+		AlsCharacterMovement->RefreshMaxWalkSpeed();
 	}
-*/
+	PrevSpeedMultiplier = SpeedMultiplier;
 }
 
 void AAlsCharacterExample::ContinueJump()
