@@ -129,8 +129,10 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 
 	const auto ForwardDirection{ UAlsMath::AngleToDirectionXY(UE_REAL_TO_FLOAT(GetViewState().Rotation.Yaw)) };
 	const auto RightDirection{ UAlsMath::PerpendicularCounterClockwiseXY(ForwardDirection) };
-
-	AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
+	if (!bIsStunned)
+	{
+		AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
+	}
 }
 
 void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
@@ -177,20 +179,20 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 			return;
 		}
 
-		if (IsFirstJumpClick)
-		{
-			IsFirstJumpClick = false;
-			GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AAlsCharacterExample::ContinueJump, DoubleSpaceTime, false);
-			return;
-		}
-		else
-		{
-			JumpTimerHandle.Invalidate();
-			if (StartMantlingGrounded())
-			{
-				return;
-			}
-		}
+		//if (IsFirstJumpClick)
+		//{
+		//	IsFirstJumpClick = false;
+		//	GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AAlsCharacterExample::ContinueJump, DoubleSpaceTime, false);
+		//	return;
+		//}
+		//else
+		//{
+		//	JumpTimerHandle.Invalidate();
+		//	if (StartMantlingGrounded())
+		//	{
+		//		return;
+		//	}
+		//}
 
 		Jump();
 	}
@@ -331,8 +333,10 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 			PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
 		}
 	*/
-	
+
 	CalculateBackwardAndStrafeMoveReducement();
+
+	CalculateFallDistanceToCountStunAndDamage();
 }
 
 void AAlsCharacterExample::ContinueJump()

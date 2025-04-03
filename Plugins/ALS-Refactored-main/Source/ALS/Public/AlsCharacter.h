@@ -44,40 +44,50 @@ protected:
 	float SpeedMultiplier = 1.0f;
 	float PrevSpeedMultiplier = 1.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MinFallHeightWithoutDamageAndStun = 200.0f;
+
+	float FallDistanceToCountStunAndDamage = 0;
+	float PrevZLocation = 0;
+	float ZLocation = 0;
+	float StunTime = 0.0f;
+	float FallDamage = 0.0f;
+	uint8 bIsStunned : 1 = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State",
 		ReplicatedUsing = "OnReplicated_DesiredAiming")
 	uint8 bDesiredAiming : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated)
-	FGameplayTag DesiredRotationMode{AlsRotationModeTags::ViewDirection};
+	FGameplayTag DesiredRotationMode{ AlsRotationModeTags::ViewDirection };
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated)
-	FGameplayTag DesiredStance{AlsStanceTags::Standing};
+	FGameplayTag DesiredStance{ AlsStanceTags::Standing };
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated)
-	FGameplayTag DesiredGait{AlsGaitTags::Running};
+	FGameplayTag DesiredGait{ AlsGaitTags::Running };
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated)
-	FGameplayTag ViewMode{AlsViewModeTags::ThirdPerson};
+	FGameplayTag ViewMode{ AlsViewModeTags::ThirdPerson };
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State",
 		ReplicatedUsing = "OnReplicated_OverlayMode")
-	FGameplayTag OverlayMode{AlsOverlayModeTags::Default};
+	FGameplayTag OverlayMode{ AlsOverlayModeTags::Default };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Meta = (ShowInnerProperties))
 	TWeakObjectPtr<UAlsAnimationInstance> AnimationInstance;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient)
-	FGameplayTag LocomotionMode{AlsLocomotionModeTags::Grounded};
+	FGameplayTag LocomotionMode{ AlsLocomotionModeTags::Grounded };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient)
-	FGameplayTag RotationMode{AlsRotationModeTags::ViewDirection};
+	FGameplayTag RotationMode{ AlsRotationModeTags::ViewDirection };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient)
-	FGameplayTag Stance{AlsStanceTags::Standing};
+	FGameplayTag Stance{ AlsStanceTags::Standing };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient)
-	FGameplayTag Gait{AlsGaitTags::Walking};
+	FGameplayTag Gait{ AlsGaitTags::Walking };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient)
 	FGameplayTag LocomotionAction;
@@ -120,6 +130,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool IsFirstJumpClick = true;
+
 
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnStartMantling OnStartmantling;
@@ -426,6 +437,9 @@ private:
 
 	void OnJumpedNetworked();
 
+protected:
+	void CalculateFallDistanceToCountStunAndDamage();
+
 	// Rotation
 
 public:
@@ -460,7 +474,7 @@ protected:
 	void RefreshRotation(float TargetYawAngle, float DeltaTime, float RotationInterpolationSpeed);
 
 	void RefreshRotationExtraSmooth(float TargetYawAngle, float DeltaTime,
-	                                float RotationInterpolationSpeed, float TargetYawAngleRotationSpeed);
+		float RotationInterpolationSpeed, float TargetYawAngleRotationSpeed);
 
 	void RefreshRotationInstant(float TargetYawAngle, ETeleportType Teleport = ETeleportType::None);
 
@@ -600,7 +614,7 @@ public:
 
 private:
 	static void DisplayDebugHeader(const UCanvas* Canvas, const FText& HeaderText, const FLinearColor& HeaderColor,
-	                               float Scale, float HorizontalLocation, float& VerticalLocation);
+		float Scale, float HorizontalLocation, float& VerticalLocation);
 
 	void DisplayDebugCurves(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 
