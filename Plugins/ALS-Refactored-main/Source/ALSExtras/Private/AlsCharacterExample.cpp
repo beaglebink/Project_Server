@@ -179,20 +179,20 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 			return;
 		}
 
-		//if (IsFirstJumpClick)
-		//{
-		//	IsFirstJumpClick = false;
-		//	GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AAlsCharacterExample::ContinueJump, DoubleSpaceTime, false);
-		//	return;
-		//}
-		//else
-		//{
-		//	JumpTimerHandle.Invalidate();
-		//	if (StartMantlingGrounded())
-		//	{
-		//		return;
-		//	}
-		//}
+		if (IsFirstJumpClick)
+		{
+			IsFirstJumpClick = false;
+			GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AAlsCharacterExample::ContinueJump, DoubleSpaceTime, false);
+			return;
+		}
+		else
+		{
+			JumpTimerHandle.Invalidate();
+			if (StartMantlingGrounded())
+			{
+				return;
+			}
+		}
 
 		Jump();
 	}

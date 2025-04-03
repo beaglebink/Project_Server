@@ -1509,6 +1509,7 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 			FTimerHandle TimerHandle;
 			GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {bIsStunned = false; }, StunTime, false);
 		}
+	
 		FallDistanceToCountStunAndDamage = 0.0f;
 		FallDamage = 0.0f;
 		StunTime = 0.0f;
