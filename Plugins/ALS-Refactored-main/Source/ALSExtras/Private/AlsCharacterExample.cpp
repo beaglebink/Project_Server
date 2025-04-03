@@ -6,6 +6,8 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include <PhysicsEngine/PhysicsConstraintComponent.h>
+#include "Kismet/KismetMathLibrary.h"
+#include "AlsCharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
@@ -329,7 +331,7 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 			PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
 		}
 	*/
-
+	
 	CalculateBackwardAndStrafeMoveReducement();
 }
 

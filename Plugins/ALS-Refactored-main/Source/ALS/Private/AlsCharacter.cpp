@@ -933,7 +933,6 @@ void AAlsCharacter::OnGaitChanged_Implementation(const FGameplayTag& PreviousGai
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 {
-	// Finding out character movement direction to set movement multiplier to reduce backward and strafe movement
 	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
 	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.01f)
