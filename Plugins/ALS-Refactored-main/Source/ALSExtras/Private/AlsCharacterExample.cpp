@@ -6,8 +6,6 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include <PhysicsEngine/PhysicsConstraintComponent.h>
-#include "Kismet/KismetMathLibrary.h"
-#include "AlsCharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
@@ -331,15 +329,8 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 			PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
 		}
 	*/
-	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
-	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Green, FString::Printf(TEXT("%f2.2"), SpeedMultiplier));
-	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.01f)
-	{
-		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
-		AlsCharacterMovement->RefreshMaxWalkSpeed();
-	}
-	PrevSpeedMultiplier = SpeedMultiplier;
+
+	CalculateBackwardAndStrafeMoveReducement();
 }
 
 void AAlsCharacterExample::ContinueJump()

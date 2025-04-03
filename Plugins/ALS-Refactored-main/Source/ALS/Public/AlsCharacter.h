@@ -314,6 +314,8 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "Als Character")
 	void OnGaitChanged(const FGameplayTag& PreviousGait);
 
+	void CalculateBackwardAndStrafeMoveReducement();
+
 private:
 	void RefreshGait();
 
