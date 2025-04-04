@@ -47,9 +47,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float MinFallHeightWithoutDamageAndStun = 200.0f;
 
-	float FallDistanceToCountStunAndDamage = 0;
-	float PrevZLocation = 0;
-	float ZLocation = 0;
+	float FallDistanceToCountStunAndDamage = 0.0f;
+	float PrevZLocation = 0.0f;
+	float ZLocation = 0.0f;
 	float StunTime = 0.0f;
 	float FallDamage = 0.0f;
 	uint8 bIsStunned : 1 = false;

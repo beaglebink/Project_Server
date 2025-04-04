@@ -333,10 +333,6 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 			PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
 		}
 	*/
-
-	CalculateBackwardAndStrafeMoveReducement();
-
-	CalculateFallDistanceToCountStunAndDamage();
 }
 
 void AAlsCharacterExample::ContinueJump()

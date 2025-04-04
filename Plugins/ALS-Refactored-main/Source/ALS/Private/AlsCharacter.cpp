@@ -299,6 +299,10 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	RefreshLocomotionLate(DeltaTime);
+
+	CalculateBackwardAndStrafeMoveReducement();
+
+	CalculateFallDistanceToCountStunAndDamage();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
