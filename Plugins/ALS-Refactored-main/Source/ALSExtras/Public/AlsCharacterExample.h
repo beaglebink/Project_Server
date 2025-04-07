@@ -8,6 +8,7 @@ struct FInputActionValue;
 class UAlsCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class UAttributesWidget;
 
 UENUM(BlueprintType)
 enum class EMovementDirection : uint8
@@ -70,18 +71,18 @@ protected:
 	TObjectPtr<UInputAction> SwitchShoulderAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example", Meta = (ClampMin = 0, ForceUnits = "x"))
-	float LookUpMouseSensitivity{1.0f};
+	float LookUpMouseSensitivity{ 1.0f };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example", Meta = (ClampMin = 0, ForceUnits = "x"))
-	float LookRightMouseSensitivity{1.0f};
+	float LookRightMouseSensitivity{ 1.0f };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example",
 		Meta = (ClampMin = 0, ForceUnits = "deg/s"))
-	float LookUpRate{90.0f};
+	float LookUpRate{ 90.0f };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example",
 		Meta = (ClampMin = 0, ForceUnits = "deg/s"))
-	float LookRightRate{240.0f};
+	float LookRightRate{ 240.0f };
 
 	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interact|DragActor")
 	//UPhysicsConstraintComponent* PhysicsConstraint;
@@ -156,4 +157,18 @@ public:
 	void ReleaseObject();
 
 	void Tick(float DeltaTime) override;
+
+	// UI
+
+protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UAttributesWidget> AttributesWidgetClass;
+
+private:
+	TObjectPtr<UAttributesWidget> AttributesWidget;
+
+protected:
+	UFUNCTION(BlueprintCallable)
+	void InitStatWidget();
+
 };

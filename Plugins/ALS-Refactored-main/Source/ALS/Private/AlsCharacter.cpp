@@ -1513,7 +1513,7 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 			FTimerHandle TimerHandle;
 			GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {bIsStunned = false; }, StunTime, false);
 		}
-	
+
 		FallDistanceToCountStunAndDamage = 0.0f;
 		FallDamage = 0.0f;
 		StunTime = 0.0f;
@@ -1889,4 +1889,47 @@ void AAlsCharacter::RefreshViewRelativeTargetYawAngle()
 {
 	LocomotionState.ViewRelativeTargetYawAngle = FRotator3f::NormalizeAxis(UE_REAL_TO_FLOAT(
 		ViewState.Rotation.Yaw - LocomotionState.TargetYawAngle));
+}
+
+// Attributes
+float AAlsCharacter::GetMaxHealth()
+{
+	return MaxHealth;
+}
+
+float AAlsCharacter::GetHealth()
+{
+	return Health;
+}
+
+float AAlsCharacter::GetMaxStamina()
+{
+	return MaxStamina;
+}
+
+float AAlsCharacter::GetStamina()
+{
+	return Stamina;
+}
+
+void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
+{
+	MaxHealth = NewMaxHealth;
+}
+
+void AAlsCharacter::SetHealth(float NewHealth)
+{
+	Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
+	OnHealthChanged.Broadcast(Health);
+}
+
+void AAlsCharacter::SetMaxStamina(float NewMaxStamina)
+{
+	MaxStamina = NewMaxStamina;
+}
+
+void AAlsCharacter::SetStamina(float NewStamina)
+{
+	Stamina = FMath::Clamp(NewStamina, 0.0f, GetMaxStamina());
+	OnStaminaChanged.Broadcast(Stamina);
 }

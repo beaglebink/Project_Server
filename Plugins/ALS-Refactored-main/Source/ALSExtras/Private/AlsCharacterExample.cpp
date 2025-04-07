@@ -8,6 +8,8 @@
 #include <PhysicsEngine/PhysicsConstraintComponent.h>
 #include "Kismet/KismetMathLibrary.h"
 #include "AlsCharacterMovementComponent.h"
+#include "UI/AttributesWidget.h"
+#include "Kismet/GameplayStatics.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
@@ -39,6 +41,8 @@ void AAlsCharacterExample::BeginPlay()
 		PhysicsConstraint->SetAngularOrientationDrive(true, true);
 		PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
 	*/
+
+	InitStatWidget();
 }
 
 void AAlsCharacterExample::NotifyControllerChanged()
@@ -339,4 +343,21 @@ void AAlsCharacterExample::ContinueJump()
 {
 	IsFirstJumpClick = true;
 	Jump();
+}
+
+// UI
+void AAlsCharacterExample::InitStatWidget()
+{
+	if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+	{
+		if (AttributesWidgetClass)
+		{
+			if (AttributesWidget = CreateWidget<UAttributesWidget>(PC, AttributesWidgetClass))
+			{
+				AttributesWidget->AddToViewport();
+				AttributesWidget->SetHealthPercent(GetHealth() / GetMaxHealth());
+				AttributesWidget->SetStaminaPercent(GetStamina() / GetMaxStamina());
+			}
+		}
+	}
 }

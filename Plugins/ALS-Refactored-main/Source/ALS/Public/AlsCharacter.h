@@ -15,6 +15,9 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartMantling, float, AnimationDuration, EAlsMantlingType, MantlingType);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStartRolling, float, AnimationDuration);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChanged, float, Health);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStaminaChanged, float, Stamina);
+
 struct FAlsMantlingParameters;
 struct FAlsMantlingTraceSettings;
 class UAlsCharacterMovementComponent;
@@ -625,6 +628,52 @@ private:
 	void DisplayDebugTraces(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 
 	void DisplayDebugMantling(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
+
+	// Attributes
+
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MaxHealth = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float Health = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MaxStamina = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float Stamina = 100.0f;
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnHealthChanged OnHealthChanged;
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnStaminaChanged OnStaminaChanged;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetMaxHealth();
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetHealth();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetMaxStamina();
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetStamina();
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetMaxHealth(float NewMaxHealth);
+	
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetHealth(float NewHealth);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetMaxStamina(float NewMaxStamina);
+	
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetStamina(float NewStamina);
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
