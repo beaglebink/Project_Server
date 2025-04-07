@@ -171,4 +171,7 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void InitStatWidget();
 
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
+	void OnSetSprintMode(bool bSprintMode);
+
 };
