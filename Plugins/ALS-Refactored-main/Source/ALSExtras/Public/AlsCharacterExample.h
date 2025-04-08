@@ -177,4 +177,5 @@ protected:
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void OnSetSprintMode(bool bSprintMode);
 
+
 };
