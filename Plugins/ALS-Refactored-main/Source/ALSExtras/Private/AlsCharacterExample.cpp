@@ -147,15 +147,18 @@ void AAlsCharacterExample::Input_StartSprint()
 			if (GetDesiredGait() != AlsGaitTags::Sprinting)
 			{
 				OnSetSprintMode(true);
-				SetDesiredGait(AlsGaitTags::Sprinting);
+				//SetDesiredGait(AlsGaitTags::Sprinting);
 			}
-			SetStamina(GetStamina() - SprintStaminaDrainRate);
+			if (GetDesiredGait() == AlsGaitTags::Sprinting)
+			{
+				SetStamina(GetStamina() - SprintStaminaDrainRate);
+			}
 		}
 		else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
 		{
 			AbleToSprint = false;
 			OnSetSprintMode(false);
-			SetDesiredGait(AlsGaitTags::Running);
+			//SetDesiredGait(AlsGaitTags::Running);
 			FTimerHandle TimerHandle;
 			GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
 		}
@@ -165,7 +168,7 @@ void AAlsCharacterExample::Input_StartSprint()
 void AAlsCharacterExample::Input_StopSprint()
 {
 	OnSetSprintMode(false);
-	SetDesiredGait(AlsGaitTags::Running);
+	//SetDesiredGait(AlsGaitTags::Running);
 }
 
 void AAlsCharacterExample::Input_OnWalk()
