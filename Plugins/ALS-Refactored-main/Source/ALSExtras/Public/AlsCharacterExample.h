@@ -123,7 +123,8 @@ private:
 
 	void Input_OnMove(const FInputActionValue& ActionValue);
 
-	void Input_OnSprint(const FInputActionValue& ActionValue);
+	void Input_StartSprint();
+	void Input_StopSprint();
 
 	void Input_OnWalk();
 
@@ -158,6 +159,8 @@ public:
 
 	void Tick(float DeltaTime) override;
 
+	virtual void PossessedBy(AController* NewController) override;
+
 	// UI
 
 protected:
@@ -173,4 +176,5 @@ protected:
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void OnSetSprintMode(bool bSprintMode);
+
 };

@@ -1457,6 +1457,7 @@ void AAlsCharacter::Jump()
 	if (Stance == AlsStanceTags::Standing && !LocomotionAction.IsValid() &&
 		LocomotionMode == AlsLocomotionModeTags::Grounded)
 	{
+		SetStamina(GetStamina() - JumpStaminaCost);
 		Super::Jump();
 	}
 }
@@ -1920,7 +1921,7 @@ void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 void AAlsCharacter::SetHealth(float NewHealth)
 {
 	Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
-	OnHealthChanged.Broadcast(Health);
+	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
 
 void AAlsCharacter::SetMaxStamina(float NewMaxStamina)
@@ -1931,5 +1932,5 @@ void AAlsCharacter::SetMaxStamina(float NewMaxStamina)
 void AAlsCharacter::SetStamina(float NewStamina)
 {
 	Stamina = FMath::Clamp(NewStamina, 0.0f, GetMaxStamina());
-	OnStaminaChanged.Broadcast(Stamina);
+	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
 }

@@ -21,16 +21,16 @@ void AAlsCharacter::StartRolling(const float PlayRate)
 	if (LocomotionMode == AlsLocomotionModeTags::Grounded)
 	{
 		StartRolling(PlayRate, Settings->Rolling.bRotateToInputOnStart && LocomotionState.bHasInput
-			                       ? LocomotionState.InputYawAngle
-			                       : UE_REAL_TO_FLOAT(FRotator::NormalizeAxis(GetActorRotation().Yaw)));
+			? LocomotionState.InputYawAngle
+			: UE_REAL_TO_FLOAT(FRotator::NormalizeAxis(GetActorRotation().Yaw)));
 	}
 }
 
 bool AAlsCharacter::IsRollingAllowedToStart(const UAnimMontage* Montage) const
 {
 	return !LocomotionAction.IsValid() ||
-	       (LocomotionAction == AlsLocomotionActionTags::Rolling &&
-	        !GetMesh()->GetAnimInstance()->Montage_IsPlaying(Montage));
+		(LocomotionAction == AlsLocomotionActionTags::Rolling &&
+			!GetMesh()->GetAnimInstance()->Montage_IsPlaying(Montage));
 }
 
 void AAlsCharacter::StartRolling(const float PlayRate, const float TargetYawAngle)
@@ -40,14 +40,16 @@ void AAlsCharacter::StartRolling(const float PlayRate, const float TargetYawAngl
 		return;
 	}
 
-	auto* Montage{SelectRollMontage()};
+	auto* Montage{ SelectRollMontage() };
 
 	if (!ALS_ENSURE(IsValid(Montage)) || !IsRollingAllowedToStart(Montage))
 	{
 		return;
 	}
 
-	const auto InitialYawAngle{UE_REAL_TO_FLOAT(FRotator::NormalizeAxis(GetActorRotation().Yaw))};
+	SetStamina(GetStamina() - RollStaminaCost);
+
+	const auto InitialYawAngle{ UE_REAL_TO_FLOAT(FRotator::NormalizeAxis(GetActorRotation().Yaw)) };
 
 	if (GetLocalRole() >= ROLE_Authority)
 	{
@@ -68,7 +70,7 @@ UAnimMontage* AAlsCharacter::SelectRollMontage_Implementation()
 }
 
 void AAlsCharacter::ServerStartRolling_Implementation(UAnimMontage* Montage, const float PlayRate,
-                                                      const float InitialYawAngle, const float TargetYawAngle)
+	const float InitialYawAngle, const float TargetYawAngle)
 {
 	if (IsRollingAllowedToStart(Montage))
 	{
@@ -78,13 +80,13 @@ void AAlsCharacter::ServerStartRolling_Implementation(UAnimMontage* Montage, con
 }
 
 void AAlsCharacter::MulticastStartRolling_Implementation(UAnimMontage* Montage, const float PlayRate,
-                                                         const float InitialYawAngle, const float TargetYawAngle)
+	const float InitialYawAngle, const float TargetYawAngle)
 {
 	StartRollingImplementation(Montage, PlayRate, InitialYawAngle, TargetYawAngle);
 }
 
 void AAlsCharacter::StartRollingImplementation(UAnimMontage* Montage, const float PlayRate,
-                                               const float InitialYawAngle, const float TargetYawAngle)
+	const float InitialYawAngle, const float TargetYawAngle)
 {
 	if (IsRollingAllowedToStart(Montage) && GetMesh()->GetAnimInstance()->Montage_Play(Montage, PlayRate))
 	{
@@ -101,7 +103,7 @@ void AAlsCharacter::StartRollingImplementation(UAnimMontage* Montage, const floa
 void AAlsCharacter::RefreshRolling(const float DeltaTime)
 {
 	if (GetLocalRole() <= ROLE_SimulatedProxy ||
-	    GetMesh()->GetAnimInstance()->RootMotionMode <= ERootMotionMode::IgnoreRootMotion)
+		GetMesh()->GetAnimInstance()->RootMotionMode <= ERootMotionMode::IgnoreRootMotion)
 	{
 		// Refresh rolling physics here because AAlsCharacter::PhysicsRotation()
 		// won't be called on simulated proxies or with ignored root motion.
@@ -118,7 +120,7 @@ void AAlsCharacter::RefreshRollingPhysics(const float DeltaTime)
 		return;
 	}
 
-	auto TargetRotation{GetCharacterMovement()->UpdatedComponent->GetComponentRotation()};
+	auto TargetRotation{ GetCharacterMovement()->UpdatedComponent->GetComponentRotation() };
 
 	if (Settings->Rolling.RotationInterpolationSpeed <= 0.0f)
 	{
@@ -129,8 +131,8 @@ void AAlsCharacter::RefreshRollingPhysics(const float DeltaTime)
 	else
 	{
 		TargetRotation.Yaw = UAlsMath::ExponentialDecayAngle(UE_REAL_TO_FLOAT(FRotator::NormalizeAxis(TargetRotation.Yaw)),
-		                                                     RollingState.TargetYawAngle, DeltaTime,
-		                                                     Settings->Rolling.RotationInterpolationSpeed);
+			RollingState.TargetYawAngle, DeltaTime,
+			Settings->Rolling.RotationInterpolationSpeed);
 
 		GetCharacterMovement()->MoveUpdatedComponent(FVector::ZeroVector, TargetRotation, false);
 	}
@@ -139,13 +141,13 @@ void AAlsCharacter::RefreshRollingPhysics(const float DeltaTime)
 bool AAlsCharacter::StartMantlingGrounded()
 {
 	return LocomotionMode == AlsLocomotionModeTags::Grounded &&
-	       StartMantling(Settings->Mantling.GroundedTrace);
+		StartMantling(Settings->Mantling.GroundedTrace);
 }
 
 bool AAlsCharacter::StartMantlingInAir()
 {
 	return LocomotionMode == AlsLocomotionModeTags::InAir && IsLocallyControlled() &&
-	       StartMantling(Settings->Mantling.InAirTrace);
+		StartMantling(Settings->Mantling.InAirTrace);
 }
 
 bool AAlsCharacter::IsMantlingAllowedToStart_Implementation() const
@@ -160,24 +162,24 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 		return false;
 	}
 
-	const auto ActorLocation{GetActorLocation()};
-	const auto ActorYawAngle{UE_REAL_TO_FLOAT(FRotator::NormalizeAxis(GetActorRotation().Yaw))};
+	const auto ActorLocation{ GetActorLocation() };
+	const auto ActorYawAngle{ UE_REAL_TO_FLOAT(FRotator::NormalizeAxis(GetActorRotation().Yaw)) };
 
 	float ForwardTraceAngle;
 	if (LocomotionState.bHasSpeed)
 	{
 		ForwardTraceAngle = LocomotionState.bHasInput
-			                    ? LocomotionState.VelocityYawAngle +
-			                      FMath::ClampAngle(LocomotionState.InputYawAngle - LocomotionState.VelocityYawAngle,
-			                                        -Settings->Mantling.MaxReachAngle, Settings->Mantling.MaxReachAngle)
-			                    : LocomotionState.VelocityYawAngle;
+			? LocomotionState.VelocityYawAngle +
+			FMath::ClampAngle(LocomotionState.InputYawAngle - LocomotionState.VelocityYawAngle,
+				-Settings->Mantling.MaxReachAngle, Settings->Mantling.MaxReachAngle)
+			: LocomotionState.VelocityYawAngle;
 	}
 	else
 	{
 		ForwardTraceAngle = LocomotionState.bHasInput ? LocomotionState.InputYawAngle : ActorYawAngle;
 	}
 
-	const auto ForwardTraceDeltaAngle{FRotator3f::NormalizeAxis(ForwardTraceAngle - ActorYawAngle)};
+	const auto ForwardTraceDeltaAngle{ FRotator3f::NormalizeAxis(ForwardTraceAngle - ActorYawAngle) };
 	if (FMath::Abs(ForwardTraceDeltaAngle) > Settings->Mantling.TraceAngleThreshold)
 	{
 		return false;
@@ -189,66 +191,66 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 	};
 
 #if ENABLE_DRAW_DEBUG
-	const auto bDisplayDebug{UAlsUtility::ShouldDisplayDebugForActor(this, UAlsConstants::MantlingDebugDisplayName())};
+	const auto bDisplayDebug{ UAlsUtility::ShouldDisplayDebugForActor(this, UAlsConstants::MantlingDebugDisplayName()) };
 #endif
 
-	const auto* Capsule{GetCapsuleComponent()};
+	const auto* Capsule{ GetCapsuleComponent() };
 
-	const auto CapsuleScale{Capsule->GetComponentScale().Z};
-	const auto CapsuleRadius{Capsule->GetScaledCapsuleRadius()};
-	const auto CapsuleHalfHeight{Capsule->GetScaledCapsuleHalfHeight()};
+	const auto CapsuleScale{ Capsule->GetComponentScale().Z };
+	const auto CapsuleRadius{ Capsule->GetScaledCapsuleRadius() };
+	const auto CapsuleHalfHeight{ Capsule->GetScaledCapsuleHalfHeight() };
 
-	const FVector CapsuleBottomLocation{ActorLocation.X, ActorLocation.Y, ActorLocation.Z - CapsuleHalfHeight};
+	const FVector CapsuleBottomLocation{ ActorLocation.X, ActorLocation.Y, ActorLocation.Z - CapsuleHalfHeight };
 
-	const auto TraceCapsuleRadius{CapsuleRadius - 1.0f};
+	const auto TraceCapsuleRadius{ CapsuleRadius - 1.0f };
 
-	const auto LedgeHeightDelta{UE_REAL_TO_FLOAT((TraceSettings.LedgeHeight.GetMax() - TraceSettings.LedgeHeight.GetMin()) * CapsuleScale)};
+	const auto LedgeHeightDelta{ UE_REAL_TO_FLOAT((TraceSettings.LedgeHeight.GetMax() - TraceSettings.LedgeHeight.GetMin()) * CapsuleScale) };
 
 	// Trace forward to find an object the character cannot walk on.
 
-	static const FName ForwardTraceTag{FString::Printf(TEXT("%hs (Forward Trace)"), __FUNCTION__)};
+	static const FName ForwardTraceTag{ FString::Printf(TEXT("%hs (Forward Trace)"), __FUNCTION__) };
 
-	auto ForwardTraceStart{CapsuleBottomLocation - ForwardTraceDirection * CapsuleRadius};
+	auto ForwardTraceStart{ CapsuleBottomLocation - ForwardTraceDirection * CapsuleRadius };
 	ForwardTraceStart.Z += (TraceSettings.LedgeHeight.X + TraceSettings.LedgeHeight.Y) *
 		0.5f * CapsuleScale - UCharacterMovementComponent::MAX_FLOOR_DIST;
 
-	auto ForwardTraceEnd{ForwardTraceStart + ForwardTraceDirection * (CapsuleRadius + (TraceSettings.ReachDistance + 1.0f) * CapsuleScale)};
+	auto ForwardTraceEnd{ ForwardTraceStart + ForwardTraceDirection * (CapsuleRadius + (TraceSettings.ReachDistance + 1.0f) * CapsuleScale) };
 
-	const auto ForwardTraceCapsuleHalfHeight{LedgeHeightDelta * 0.5f};
+	const auto ForwardTraceCapsuleHalfHeight{ LedgeHeightDelta * 0.5f };
 
 	FHitResult ForwardTraceHit;
 	GetWorld()->SweepSingleByChannel(ForwardTraceHit, ForwardTraceStart, ForwardTraceEnd,
-	                                 FQuat::Identity, Settings->Mantling.MantlingTraceChannel,
-	                                 FCollisionShape::MakeCapsule(TraceCapsuleRadius, ForwardTraceCapsuleHalfHeight),
-	                                 {ForwardTraceTag, false, this}, Settings->Mantling.MantlingTraceResponses);
+		FQuat::Identity, Settings->Mantling.MantlingTraceChannel,
+		FCollisionShape::MakeCapsule(TraceCapsuleRadius, ForwardTraceCapsuleHalfHeight),
+		{ ForwardTraceTag, false, this }, Settings->Mantling.MantlingTraceResponses);
 
-	auto* TargetPrimitive{ForwardTraceHit.GetComponent()};
+	auto* TargetPrimitive{ ForwardTraceHit.GetComponent() };
 
 	if (!ForwardTraceHit.IsValidBlockingHit() ||
-	    !IsValid(TargetPrimitive) ||
-	    TargetPrimitive->GetComponentVelocity().SizeSquared() > FMath::Square(Settings->Mantling.TargetPrimitiveSpeedThreshold) ||
-	    !TargetPrimitive->CanCharacterStepUp(this) ||
-	    GetCharacterMovement()->IsWalkable(ForwardTraceHit))
+		!IsValid(TargetPrimitive) ||
+		TargetPrimitive->GetComponentVelocity().SizeSquared() > FMath::Square(Settings->Mantling.TargetPrimitiveSpeedThreshold) ||
+		!TargetPrimitive->CanCharacterStepUp(this) ||
+		GetCharacterMovement()->IsWalkable(ForwardTraceHit))
 	{
 #if ENABLE_DRAW_DEBUG
 		if (bDisplayDebug)
 		{
 			UAlsUtility::DrawDebugSweepSingleCapsuleAlternative(GetWorld(), ForwardTraceStart, ForwardTraceEnd, TraceCapsuleRadius,
-			                                                    ForwardTraceCapsuleHalfHeight, false, ForwardTraceHit, {0.0f, 0.25f, 1.0f},
-			                                                    {0.0f, 0.75f, 1.0f}, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);
+				ForwardTraceCapsuleHalfHeight, false, ForwardTraceHit, { 0.0f, 0.25f, 1.0f },
+				{ 0.0f, 0.75f, 1.0f }, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);
 		}
 #endif
 
 		return false;
 	}
 
-	const auto TargetDirection{-ForwardTraceHit.ImpactNormal.GetSafeNormal2D()};
+	const auto TargetDirection{ -ForwardTraceHit.ImpactNormal.GetSafeNormal2D() };
 
 	// Trace downward from the first trace's impact point and determine if the hit location is walkable.
 
-	static const FName DownwardTraceTag{FString::Printf(TEXT("%hs (Downward Trace)"), __FUNCTION__)};
+	static const FName DownwardTraceTag{ FString::Printf(TEXT("%hs (Downward Trace)"), __FUNCTION__) };
 
-	const FVector2D TargetLocationOffset{TargetDirection * (TraceSettings.TargetLocationOffset * CapsuleScale)};
+	const FVector2D TargetLocationOffset{ TargetDirection * (TraceSettings.TargetLocationOffset * CapsuleScale) };
 
 	const FVector DownwardTraceStart{
 		ForwardTraceHit.ImpactPoint.X + TargetLocationOffset.X,
@@ -265,34 +267,34 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 
 	FHitResult DownwardTraceHit;
 	GetWorld()->SweepSingleByChannel(DownwardTraceHit, DownwardTraceStart, DownwardTraceEnd, FQuat::Identity,
-	                                 Settings->Mantling.MantlingTraceChannel, FCollisionShape::MakeSphere(TraceCapsuleRadius),
-	                                 {DownwardTraceTag, false, this}, Settings->Mantling.MantlingTraceResponses);
+		Settings->Mantling.MantlingTraceChannel, FCollisionShape::MakeSphere(TraceCapsuleRadius),
+		{ DownwardTraceTag, false, this }, Settings->Mantling.MantlingTraceResponses);
 
-	const auto SlopeAngleCos{UE_REAL_TO_FLOAT(DownwardTraceHit.ImpactNormal.Z)};
+	const auto SlopeAngleCos{ UE_REAL_TO_FLOAT(DownwardTraceHit.ImpactNormal.Z) };
 
 	// The approximate slope angle is used in situations where the normal slope angle cannot convey
 	// the true nature of the surface slope, for example, for a 45 degree staircase the slope
 	// angle will always be 90 degrees, while the approximate slope angle will be ~45 degrees.
 
-	auto ApproximateSlopeNormal{DownwardTraceHit.Location - DownwardTraceHit.ImpactPoint};
+	auto ApproximateSlopeNormal{ DownwardTraceHit.Location - DownwardTraceHit.ImpactPoint };
 	ApproximateSlopeNormal.Normalize();
 
-	const auto ApproximateSlopeAngleCos{UE_REAL_TO_FLOAT(ApproximateSlopeNormal.Z)};
+	const auto ApproximateSlopeAngleCos{ UE_REAL_TO_FLOAT(ApproximateSlopeNormal.Z) };
 
 	if (SlopeAngleCos < Settings->Mantling.SlopeAngleThresholdCos ||
-	    ApproximateSlopeAngleCos < Settings->Mantling.SlopeAngleThresholdCos ||
-	    !GetCharacterMovement()->IsWalkable(DownwardTraceHit))
+		ApproximateSlopeAngleCos < Settings->Mantling.SlopeAngleThresholdCos ||
+		!GetCharacterMovement()->IsWalkable(DownwardTraceHit))
 	{
 #if ENABLE_DRAW_DEBUG
 		if (bDisplayDebug)
 		{
 			UAlsUtility::DrawDebugSweepSingleCapsuleAlternative(GetWorld(), ForwardTraceStart, ForwardTraceEnd, TraceCapsuleRadius,
-			                                                    ForwardTraceCapsuleHalfHeight, true, ForwardTraceHit, {0.0f, 0.25f, 1.0f},
-			                                                    {0.0f, 0.75f, 1.0f}, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);
+				ForwardTraceCapsuleHalfHeight, true, ForwardTraceHit, { 0.0f, 0.25f, 1.0f },
+				{ 0.0f, 0.75f, 1.0f }, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);
 
 			UAlsUtility::DrawDebugSweepSingleSphere(GetWorld(), DownwardTraceStart, DownwardTraceEnd, TraceCapsuleRadius,
-			                                        false, DownwardTraceHit, {0.25f, 0.0f, 1.0f}, {0.75f, 0.0f, 1.0f},
-			                                        TraceSettings.bDrawFailedTraces ? 7.5f : 0.0f);
+				false, DownwardTraceHit, { 0.25f, 0.0f, 1.0f }, { 0.75f, 0.0f, 1.0f },
+				TraceSettings.bDrawFailedTraces ? 7.5f : 0.0f);
 		}
 #endif
 
@@ -301,7 +303,7 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 
 	// Check that there is enough free space for the capsule at the target location.
 
-	static const FName TargetLocationTraceTag{FString::Printf(TEXT("%hs (Target Location Overlap)"), __FUNCTION__)};
+	static const FName TargetLocationTraceTag{ FString::Printf(TEXT("%hs (Target Location Overlap)"), __FUNCTION__) };
 
 	const FVector TargetLocation{
 		DownwardTraceHit.Location.X,
@@ -309,25 +311,25 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 		DownwardTraceHit.ImpactPoint.Z + UCharacterMovementComponent::MIN_FLOOR_DIST
 	};
 
-	const FVector TargetCapsuleLocation{TargetLocation.X, TargetLocation.Y, TargetLocation.Z + CapsuleHalfHeight};
+	const FVector TargetCapsuleLocation{ TargetLocation.X, TargetLocation.Y, TargetLocation.Z + CapsuleHalfHeight };
 
 	if (GetWorld()->OverlapBlockingTestByChannel(TargetCapsuleLocation, FQuat::Identity, Settings->Mantling.MantlingTraceChannel,
-	                                             FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight),
-	                                             {TargetLocationTraceTag, false, this}, Settings->Mantling.MantlingTraceResponses))
+		FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight),
+		{ TargetLocationTraceTag, false, this }, Settings->Mantling.MantlingTraceResponses))
 	{
 #if ENABLE_DRAW_DEBUG
 		if (bDisplayDebug)
 		{
 			UAlsUtility::DrawDebugSweepSingleCapsuleAlternative(GetWorld(), ForwardTraceStart, ForwardTraceEnd, TraceCapsuleRadius,
-			                                                    ForwardTraceCapsuleHalfHeight, true, ForwardTraceHit, {0.0f, 0.25f, 1.0f},
-			                                                    {0.0f, 0.75f, 1.0f}, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);
+				ForwardTraceCapsuleHalfHeight, true, ForwardTraceHit, { 0.0f, 0.25f, 1.0f },
+				{ 0.0f, 0.75f, 1.0f }, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);
 
 			UAlsUtility::DrawDebugSweepSingleSphere(GetWorld(), DownwardTraceStart, DownwardTraceEnd, TraceCapsuleRadius,
-			                                        false, DownwardTraceHit, {0.25f, 0.0f, 1.0f}, {0.75f, 0.0f, 1.0f},
-			                                        TraceSettings.bDrawFailedTraces ? 7.5f : 0.0f);
+				false, DownwardTraceHit, { 0.25f, 0.0f, 1.0f }, { 0.75f, 0.0f, 1.0f },
+				TraceSettings.bDrawFailedTraces ? 7.5f : 0.0f);
 
 			DrawDebugCapsule(GetWorld(), TargetCapsuleLocation, CapsuleHalfHeight, CapsuleRadius, FQuat::Identity,
-			                 FColor::Red, false, TraceSettings.bDrawFailedTraces ? 10.0f : 0.0f);
+				FColor::Red, false, TraceSettings.bDrawFailedTraces ? 10.0f : 0.0f);
 		}
 #endif
 
@@ -337,9 +339,9 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 	// Perform additional overlap at the approximate start location to
 	// ensure there are no vertical obstacles on the path, such as a ceiling.
 
-	static const FName StartLocationTraceTag{FString::Printf(TEXT("%hs (Start Location Overlap)"), __FUNCTION__)};
+	static const FName StartLocationTraceTag{ FString::Printf(TEXT("%hs (Start Location Overlap)"), __FUNCTION__) };
 
-	const FVector2D StartLocationOffset{TargetDirection * (TraceSettings.StartLocationOffset * CapsuleScale)};
+	const FVector2D StartLocationOffset{ TargetDirection * (TraceSettings.StartLocationOffset * CapsuleScale) };
 
 	const FVector StartLocation{
 		ForwardTraceHit.ImpactPoint.X - StartLocationOffset.X,
@@ -347,26 +349,26 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 		(DownwardTraceHit.Location.Z + DownwardTraceEnd.Z) * 0.5f
 	};
 
-	const auto StartLocationTraceCapsuleHalfHeight{(DownwardTraceHit.Location.Z - DownwardTraceEnd.Z) * 0.5f + TraceCapsuleRadius};
+	const auto StartLocationTraceCapsuleHalfHeight{ (DownwardTraceHit.Location.Z - DownwardTraceEnd.Z) * 0.5f + TraceCapsuleRadius };
 
 	if (GetWorld()->OverlapBlockingTestByChannel(StartLocation, FQuat::Identity, Settings->Mantling.MantlingTraceChannel,
-	                                             FCollisionShape::MakeCapsule(TraceCapsuleRadius, StartLocationTraceCapsuleHalfHeight),
-	                                             {StartLocationTraceTag, false, this}, Settings->Mantling.MantlingTraceResponses))
+		FCollisionShape::MakeCapsule(TraceCapsuleRadius, StartLocationTraceCapsuleHalfHeight),
+		{ StartLocationTraceTag, false, this }, Settings->Mantling.MantlingTraceResponses))
 	{
 #if ENABLE_DRAW_DEBUG
 		if (bDisplayDebug)
 		{
 			UAlsUtility::DrawDebugSweepSingleCapsuleAlternative(GetWorld(), ForwardTraceStart, ForwardTraceEnd, TraceCapsuleRadius,
-			                                                    ForwardTraceCapsuleHalfHeight, true, ForwardTraceHit,
-			                                                    {0.0f, 0.25f, 1.0f},
-			                                                    {0.0f, 0.75f, 1.0f}, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);
+				ForwardTraceCapsuleHalfHeight, true, ForwardTraceHit,
+				{ 0.0f, 0.25f, 1.0f },
+				{ 0.0f, 0.75f, 1.0f }, TraceSettings.bDrawFailedTraces ? 5.0f : 0.0f);
 
 			UAlsUtility::DrawDebugSweepSingleSphere(GetWorld(), DownwardTraceStart, DownwardTraceEnd, TraceCapsuleRadius,
-			                                        false, DownwardTraceHit, {0.25f, 0.0f, 1.0f}, {0.75f, 0.0f, 1.0f},
-			                                        TraceSettings.bDrawFailedTraces ? 7.5f : 0.0f);
+				false, DownwardTraceHit, { 0.25f, 0.0f, 1.0f }, { 0.75f, 0.0f, 1.0f },
+				TraceSettings.bDrawFailedTraces ? 7.5f : 0.0f);
 
 			DrawDebugCapsule(GetWorld(), StartLocation, StartLocationTraceCapsuleHalfHeight, TraceCapsuleRadius, FQuat::Identity,
-			                 FLinearColor{1.0f, 0.5f, 0.0f}.ToFColor(true), false, TraceSettings.bDrawFailedTraces ? 10.0f : 0.0f);
+				FLinearColor{ 1.0f, 0.5f, 0.0f }.ToFColor(true), false, TraceSettings.bDrawFailedTraces ? 10.0f : 0.0f);
 		}
 #endif
 
@@ -377,16 +379,16 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 	if (bDisplayDebug)
 	{
 		UAlsUtility::DrawDebugSweepSingleCapsuleAlternative(GetWorld(), ForwardTraceStart, ForwardTraceEnd, TraceCapsuleRadius,
-		                                                    ForwardTraceCapsuleHalfHeight, true, ForwardTraceHit,
-		                                                    {0.0f, 0.25f, 1.0f}, {0.0f, 0.75f, 1.0f}, 5.0f);
+			ForwardTraceCapsuleHalfHeight, true, ForwardTraceHit,
+			{ 0.0f, 0.25f, 1.0f }, { 0.0f, 0.75f, 1.0f }, 5.0f);
 
 		UAlsUtility::DrawDebugSweepSingleSphere(GetWorld(), DownwardTraceStart, DownwardTraceEnd,
-		                                        TraceCapsuleRadius, true, DownwardTraceHit,
-		                                        {0.25f, 0.0f, 1.0f}, {0.75f, 0.0f, 1.0f}, 7.5f);
+			TraceCapsuleRadius, true, DownwardTraceHit,
+			{ 0.25f, 0.0f, 1.0f }, { 0.75f, 0.0f, 1.0f }, 7.5f);
 	}
 #endif
 
-	const auto TargetRotation{TargetDirection.ToOrientationQuat()};
+	const auto TargetRotation{ TargetDirection.ToOrientationQuat() };
 
 	FAlsMantlingParameters Parameters;
 
@@ -396,10 +398,10 @@ bool AAlsCharacter::StartMantling(const FAlsMantlingTraceSettings& TraceSettings
 	// Determine the mantling type by checking the movement mode and mantling height.
 
 	Parameters.MantlingType = LocomotionMode != AlsLocomotionModeTags::Grounded
-		                          ? EAlsMantlingType::InAir
-		                          : Parameters.MantlingHeight > Settings->Mantling.MantlingHighHeightThreshold
-		                          ? EAlsMantlingType::High
-		                          : EAlsMantlingType::Low;
+		? EAlsMantlingType::InAir
+		: Parameters.MantlingHeight > Settings->Mantling.MantlingHighHeightThreshold
+		? EAlsMantlingType::High
+		: EAlsMantlingType::Low;
 
 	// If the target primitive can't move, then use world coordinates to save
 	// some performance by skipping some coordinate space transformations later.
@@ -455,30 +457,32 @@ void AAlsCharacter::StartMantlingImplementation(const FAlsMantlingParameters& Pa
 		return;
 	}
 
-	const auto* MantlingSettings{SelectMantlingSettings(Parameters.MantlingType)};
+	SetStamina(GetStamina() - JumpStaminaCost);
+
+	const auto* MantlingSettings{ SelectMantlingSettings(Parameters.MantlingType) };
 
 	if (!ALS_ENSURE(IsValid(MantlingSettings)) || !ALS_ENSURE(IsValid(MantlingSettings->Montage)))
 	{
 		return;
 	}
 
-	const auto StartTime{CalculateMantlingStartTime(MantlingSettings, Parameters.MantlingHeight)};
-	const auto Duration{MantlingSettings->Montage->GetPlayLength() - StartTime};
-	const auto PlayRate{MantlingSettings->Montage->RateScale};
+	const auto StartTime{ CalculateMantlingStartTime(MantlingSettings, Parameters.MantlingHeight) };
+	const auto Duration{ MantlingSettings->Montage->GetPlayLength() - StartTime };
+	const auto PlayRate{ MantlingSettings->Montage->RateScale };
 
-	const auto TargetAnimationLocation{UAlsUtility::ExtractLastRootTransformFromMontage(MantlingSettings->Montage).GetLocation()};
+	const auto TargetAnimationLocation{ UAlsUtility::ExtractLastRootTransformFromMontage(MantlingSettings->Montage).GetLocation() };
 
 	if (FMath::IsNearlyZero(TargetAnimationLocation.Z))
 	{
 		UE_LOG(LogAls, Warning, TEXT("Can't start mantling! The %s animation montage has incorrect root motion,")
-		       TEXT(" the final vertical location of the character must be non-zero!"), *MantlingSettings->Montage->GetName());
+			TEXT(" the final vertical location of the character must be non-zero!"), *MantlingSettings->Montage->GetName());
 		return;
 	}
 
 	// Calculate actor offsets (offsets between actor and target transform).
 
-	const auto bUseRelativeLocation{MovementBaseUtility::UseRelativeLocation(Parameters.TargetPrimitive.Get())};
-	const auto TargetRelativeRotation{Parameters.TargetRelativeRotation.GetNormalized()};
+	const auto bUseRelativeLocation{ MovementBaseUtility::UseRelativeLocation(Parameters.TargetPrimitive.Get()) };
+	const auto TargetRelativeRotation{ Parameters.TargetRelativeRotation.GetNormalized() };
 
 	const auto TargetTransform{
 		bUseRelativeLocation
@@ -489,17 +493,17 @@ void AAlsCharacter::StartMantlingImplementation(const FAlsMantlingParameters& Pa
 			: FTransform{TargetRelativeRotation, Parameters.TargetRelativeLocation}
 	};
 
-	const auto ActorFeetLocationOffset{GetCharacterMovement()->GetActorFeetLocation() - TargetTransform.GetLocation()};
-	const auto ActorRotationOffset{TargetTransform.GetRotation().Inverse() * GetActorQuat()};
+	const auto ActorFeetLocationOffset{ GetCharacterMovement()->GetActorFeetLocation() - TargetTransform.GetLocation() };
+	const auto ActorRotationOffset{ TargetTransform.GetRotation().Inverse() * GetActorQuat() };
 
 	// Reset network smoothing.
 
 	GetCharacterMovement()->NetworkSmoothingMode = ENetworkSmoothingMode::Disabled;
 
 	GetMesh()->SetRelativeLocationAndRotation(GetBaseTranslationOffset(),
-	                                          GetMesh()->IsUsingAbsoluteRotation()
-		                                          ? GetActorQuat() * GetBaseRotationOffset()
-		                                          : GetBaseRotationOffset(), false, nullptr, ETeleportType::TeleportPhysics);
+		GetMesh()->IsUsingAbsoluteRotation()
+		? GetActorQuat() * GetBaseRotationOffset()
+		: GetBaseRotationOffset(), false, nullptr, ETeleportType::TeleportPhysics);
 
 	// Clear the character movement mode and set the locomotion action to mantling.
 
@@ -510,7 +514,7 @@ void AAlsCharacter::StartMantlingImplementation(const FAlsMantlingParameters& Pa
 
 	// Apply mantling root motion.
 
-	const auto RootMotionSource{MakeShared<FAlsRootMotionSource_Mantling>()};
+	const auto RootMotionSource{ MakeShared<FAlsRootMotionSource_Mantling>() };
 	RootMotionSource->InstanceName = __FUNCTION__;
 	RootMotionSource->Duration = Duration / PlayRate;
 	RootMotionSource->MantlingSettings = MantlingSettings;
@@ -521,7 +525,7 @@ void AAlsCharacter::StartMantlingImplementation(const FAlsMantlingParameters& Pa
 	RootMotionSource->ActorRotationOffset = ActorRotationOffset.Rotator();
 	RootMotionSource->TargetAnimationLocation = TargetAnimationLocation;
 	RootMotionSource->MontageStartTime = StartTime;
-	
+
 	OnStartmantling.Broadcast(RootMotionSource->Duration, Parameters.MantlingType);
 
 	MantlingState.RootMotionSourceId = GetCharacterMovement()->ApplyRootMotionSource(RootMotionSource);
@@ -529,8 +533,8 @@ void AAlsCharacter::StartMantlingImplementation(const FAlsMantlingParameters& Pa
 	// Play the animation montage if valid.
 
 	if (GetMesh()->GetAnimInstance()->Montage_Play(MantlingSettings->Montage, 1.0f,
-	                                               EMontagePlayReturnType::MontageLength,
-	                                               StartTime, false))
+		EMontagePlayReturnType::MontageLength,
+		StartTime, false))
 	{
 		SetLocomotionAction(AlsLocomotionActionTags::Mantling);
 	}
@@ -552,27 +556,27 @@ float AAlsCharacter::CalculateMantlingStartTime(const UAlsMantlingSettings* Mant
 
 	// https://landelare.github.io/2022/05/15/climbing-with-root-motion.html
 
-	const auto* Montage{MantlingSettings->Montage.Get()};
+	const auto* Montage{ MantlingSettings->Montage.Get() };
 	if (!IsValid(Montage))
 	{
 		return 0.0f;
 	}
 
-	const auto MontageFrameRate{1.0f / Montage->GetSamplingFrameRate().AsDecimal()};
+	const auto MontageFrameRate{ 1.0f / Montage->GetSamplingFrameRate().AsDecimal() };
 
-	auto SearchStartTime{0.0f};
-	auto SearchEndTime{Montage->GetPlayLength()};
+	auto SearchStartTime{ 0.0f };
+	auto SearchEndTime{ Montage->GetPlayLength() };
 
-	const auto SearchStartLocationZ{UAlsUtility::ExtractRootTransformFromMontage(Montage, SearchStartTime).GetTranslation().Z};
-	const auto SearchEndLocationZ{UAlsUtility::ExtractRootTransformFromMontage(Montage, SearchEndTime).GetTranslation().Z};
+	const auto SearchStartLocationZ{ UAlsUtility::ExtractRootTransformFromMontage(Montage, SearchStartTime).GetTranslation().Z };
+	const auto SearchEndLocationZ{ UAlsUtility::ExtractRootTransformFromMontage(Montage, SearchEndTime).GetTranslation().Z };
 
 	// Find the vertical distance the character has already moved.
 
-	const auto TargetLocationZ{FMath::Max(0.0f, SearchEndLocationZ - MantlingHeight)};
+	const auto TargetLocationZ{ FMath::Max(0.0f, SearchEndLocationZ - MantlingHeight) };
 
 	// Perform a binary search to find the time when the character is at the target vertical distance.
 
-	static constexpr auto MaxLocationSearchTolerance{1.0f};
+	static constexpr auto MaxLocationSearchTolerance{ 1.0f };
 
 	if (FMath::IsNearlyEqual(SearchStartLocationZ, TargetLocationZ, MaxLocationSearchTolerance))
 	{
@@ -581,14 +585,14 @@ float AAlsCharacter::CalculateMantlingStartTime(const UAlsMantlingSettings* Mant
 
 	while (true)
 	{
-		const auto Time{(SearchStartTime + SearchEndTime) * 0.5f};
-		const auto LocationZ{UAlsUtility::ExtractRootTransformFromMontage(Montage, Time).GetTranslation().Z};
+		const auto Time{ (SearchStartTime + SearchEndTime) * 0.5f };
+		const auto LocationZ{ UAlsUtility::ExtractRootTransformFromMontage(Montage, Time).GetTranslation().Z };
 
 		// Stop the search if a close enough location has been found or if
 		// the search interval is less than the animation montage frame rate.
 
 		if (FMath::IsNearlyEqual(LocationZ, TargetLocationZ, MaxLocationSearchTolerance) ||
-		    SearchEndTime - SearchStartTime <= MontageFrameRate)
+			SearchEndTime - SearchStartTime <= MontageFrameRate)
 		{
 			return Time;
 		}
@@ -731,7 +735,7 @@ void AAlsCharacter::StartRagdollingImplementation()
 
 	// Stop any active montages.
 
-	static constexpr auto BlendOutDuration{0.2f};
+	static constexpr auto BlendOutDuration{ 0.2f };
 
 	GetMesh()->GetAnimInstance()->Montage_Stop(BlendOutDuration);
 
@@ -752,14 +756,14 @@ void AAlsCharacter::StartRagdollingImplementation()
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GetMesh()->SetSimulatePhysics(true);
 
-	const auto* PelvisBody{GetMesh()->GetBodyInstance(UAlsConstants::PelvisBoneName())};
+	const auto* PelvisBody{ GetMesh()->GetBodyInstance(UAlsConstants::PelvisBoneName()) };
 	FVector PelvisLocation;
 
 	FPhysicsCommand::ExecuteRead(PelvisBody->ActorHandle, [this, &PelvisLocation](const FPhysicsActorHandle& ActorHandle)
-	{
-		PelvisLocation = FPhysicsInterface::GetTransform_AssumesLocked(ActorHandle, true).GetLocation();
-		RagdollingState.Velocity = FPhysicsInterface::GetLinearVelocity_AssumesLocked(ActorHandle);
-	});
+		{
+			PelvisLocation = FPhysicsInterface::GetTransform_AssumesLocked(ActorHandle, true).GetLocation();
+			RagdollingState.Velocity = FPhysicsInterface::GetLinearVelocity_AssumesLocked(ActorHandle);
+		});
 
 	RagdollingState.PullForce = 0.0f;
 
@@ -769,7 +773,7 @@ void AAlsCharacter::StartRagdollingImplementation()
 		// it can get a much higher initial speed than the character's last speed.
 		// TODO Find a better solution or wait for a fix in future engine versions.
 
-		static constexpr auto MinSpeedLimit{200.0f};
+		static constexpr auto MinSpeedLimit{ 200.0f };
 
 		RagdollingState.SpeedLimitFrameTimeRemaining = 8;
 		RagdollingState.SpeedLimit = FMath::Max(MinSpeedLimit, LocomotionState.Velocity.Size());
@@ -802,10 +806,10 @@ void AAlsCharacter::SetRagdollTargetLocation(const FVector& NewTargetLocation)
 
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, RagdollTargetLocation, this)
 
-		if (GetLocalRole() == ROLE_AutonomousProxy)
-		{
-			ServerSetRagdollTargetLocation(RagdollTargetLocation);
-		}
+			if (GetLocalRole() == ROLE_AutonomousProxy)
+			{
+				ServerSetRagdollTargetLocation(RagdollTargetLocation);
+			}
 	}
 }
 
@@ -824,16 +828,16 @@ void AAlsCharacter::RefreshRagdolling(const float DeltaTime)
 	// Since we are dealing with physics here, we should not use functions such as USkinnedMeshComponent::GetSocketTransform() as
 	// they may return an incorrect result in situations like when the animation blueprint is not ticking or when URO is enabled.
 
-	const auto* PelvisBody{GetMesh()->GetBodyInstance(UAlsConstants::PelvisBoneName())};
+	const auto* PelvisBody{ GetMesh()->GetBodyInstance(UAlsConstants::PelvisBoneName()) };
 	FVector PelvisLocation;
 
 	FPhysicsCommand::ExecuteRead(PelvisBody->ActorHandle, [this, &PelvisLocation](const FPhysicsActorHandle& ActorHandle)
-	{
-		PelvisLocation = FPhysicsInterface::GetTransform_AssumesLocked(ActorHandle, true).GetLocation();
-		RagdollingState.Velocity = FPhysicsInterface::GetLinearVelocity_AssumesLocked(ActorHandle);
-	});
+		{
+			PelvisLocation = FPhysicsInterface::GetTransform_AssumesLocked(ActorHandle, true).GetLocation();
+			RagdollingState.Velocity = FPhysicsInterface::GetLinearVelocity_AssumesLocked(ActorHandle);
+		});
 
-	const auto bLocallyControlled{IsLocallyControlled() || (GetLocalRole() >= ROLE_Authority && !IsValid(GetController()))};
+	const auto bLocallyControlled{ IsLocallyControlled() || (GetLocalRole() >= ROLE_Authority && !IsValid(GetController())) };
 
 	if (bLocallyControlled)
 	{
@@ -855,47 +859,47 @@ void AAlsCharacter::RefreshRagdolling(const float DeltaTime)
 	{
 		// Apply ragdoll location corrections.
 
-		static constexpr auto PullForce{750.0f};
-		static constexpr auto InterpolationSpeed{0.6f};
+		static constexpr auto PullForce{ 750.0f };
+		static constexpr auto InterpolationSpeed{ 0.6f };
 
 		RagdollingState.PullForce = FMath::FInterpTo(RagdollingState.PullForce, PullForce, DeltaTime, InterpolationSpeed);
 
-		const auto HorizontalSpeedSquared{RagdollingState.Velocity.SizeSquared2D()};
+		const auto HorizontalSpeedSquared{ RagdollingState.Velocity.SizeSquared2D() };
 
 		const auto PullForceBoneName{
 			HorizontalSpeedSquared > FMath::Square(300.0f) ? UAlsConstants::Spine03BoneName() : UAlsConstants::PelvisBoneName()
 		};
 
-		auto* PullForceBody{GetMesh()->GetBodyInstance(PullForceBoneName)};
+		auto* PullForceBody{ GetMesh()->GetBodyInstance(PullForceBoneName) };
 
 		FPhysicsCommand::ExecuteWrite(PullForceBody->ActorHandle, [this](const FPhysicsActorHandle& ActorHandle)
-		{
-			if (!FPhysicsInterface::IsRigidBody(ActorHandle))
 			{
-				return;
-			}
+				if (!FPhysicsInterface::IsRigidBody(ActorHandle))
+				{
+					return;
+				}
 
-			const auto PullForceVector{
-				RagdollTargetLocation - FPhysicsInterface::GetTransform_AssumesLocked(ActorHandle, true).GetLocation()
-			};
+				const auto PullForceVector{
+					RagdollTargetLocation - FPhysicsInterface::GetTransform_AssumesLocked(ActorHandle, true).GetLocation()
+				};
 
-			static constexpr auto MinPullForceDistance{5.0f};
-			static constexpr auto MaxPullForceDistance{50.0f};
+				static constexpr auto MinPullForceDistance{ 5.0f };
+				static constexpr auto MaxPullForceDistance{ 50.0f };
 
-			if (PullForceVector.SizeSquared() > FMath::Square(MinPullForceDistance))
-			{
-				FPhysicsInterface::AddForce_AssumesLocked(
-					ActorHandle, PullForceVector.GetClampedToMaxSize(MaxPullForceDistance) * RagdollingState.PullForce, true, true);
-			}
-		});
+				if (PullForceVector.SizeSquared() > FMath::Square(MinPullForceDistance))
+				{
+					FPhysicsInterface::AddForce_AssumesLocked(
+						ActorHandle, PullForceVector.GetClampedToMaxSize(MaxPullForceDistance) * RagdollingState.PullForce, true, true);
+				}
+			});
 	}
 
 	// Use the speed to scale ragdoll joint strength for physical animation.
 
-	static constexpr auto ReferenceSpeed{1000.0f};
-	static constexpr auto Stiffness{25000.0f};
+	static constexpr auto ReferenceSpeed{ 1000.0f };
+	static constexpr auto Stiffness{ 25000.0f };
 
-	const auto SpeedAmount{UAlsMath::Clamp01(UE_REAL_TO_FLOAT(RagdollingState.Velocity.Size() / ReferenceSpeed))};
+	const auto SpeedAmount{ UAlsMath::Clamp01(UE_REAL_TO_FLOAT(RagdollingState.Velocity.Size() / ReferenceSpeed)) };
 
 	GetMesh()->SetAllMotorsAngularDriveParams(SpeedAmount * Stiffness, 0.0f, 0.0f);
 
@@ -911,14 +915,14 @@ void AAlsCharacter::RefreshRagdolling(const float DeltaTime)
 
 FVector AAlsCharacter::RagdollTraceGround(bool& bGrounded) const
 {
-	const auto CapsuleHalfHeight{GetCapsuleComponent()->GetScaledCapsuleHalfHeight()};
+	const auto CapsuleHalfHeight{ GetCapsuleComponent()->GetScaledCapsuleHalfHeight() };
 
-	const auto TraceStart{!RagdollTargetLocation.IsZero() ? FVector{RagdollTargetLocation} : GetActorLocation()};
-	const FVector TraceEnd{TraceStart.X, TraceStart.Y, TraceStart.Z - CapsuleHalfHeight};
+	const auto TraceStart{ !RagdollTargetLocation.IsZero() ? FVector{RagdollTargetLocation} : GetActorLocation() };
+	const FVector TraceEnd{ TraceStart.X, TraceStart.Y, TraceStart.Z - CapsuleHalfHeight };
 
 	FHitResult Hit;
 	bGrounded = GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, Settings->Ragdolling.GroundTraceChannel,
-	                                                 {__FUNCTION__, false, this}, Settings->Ragdolling.GroundTraceResponses);
+		{ __FUNCTION__, false, this }, Settings->Ragdolling.GroundTraceResponses);
 
 	return {
 		TraceStart.X, TraceStart.Y,
@@ -929,26 +933,26 @@ FVector AAlsCharacter::RagdollTraceGround(bool& bGrounded) const
 void AAlsCharacter::LimitRagdollSpeed() const
 {
 	GetMesh()->ForEachBodyBelow(NAME_None, true, false, [this](FBodyInstance* Body)
-	{
-		FPhysicsCommand::ExecuteWrite(Body->ActorHandle, [this](const FPhysicsActorHandle& ActorHandle)
 		{
-			if (!FPhysicsInterface::IsRigidBody(ActorHandle))
-			{
-				return;
-			}
+			FPhysicsCommand::ExecuteWrite(Body->ActorHandle, [this](const FPhysicsActorHandle& ActorHandle)
+				{
+					if (!FPhysicsInterface::IsRigidBody(ActorHandle))
+					{
+						return;
+					}
 
-			auto Velocity{FPhysicsInterface::GetLinearVelocity_AssumesLocked(ActorHandle)};
-			if (Velocity.SizeSquared() <= FMath::Square(RagdollingState.SpeedLimit))
-			{
-				return;
-			}
+					auto Velocity{ FPhysicsInterface::GetLinearVelocity_AssumesLocked(ActorHandle) };
+					if (Velocity.SizeSquared() <= FMath::Square(RagdollingState.SpeedLimit))
+					{
+						return;
+					}
 
-			Velocity.Normalize();
-			Velocity *= RagdollingState.SpeedLimit;
+					Velocity.Normalize();
+					Velocity *= RagdollingState.SpeedLimit;
 
-			FPhysicsInterface::SetLinearVelocity_AssumesLocked(ActorHandle, Velocity);
+					FPhysicsInterface::SetLinearVelocity_AssumesLocked(ActorHandle, Velocity);
+				});
 		});
-	});
 }
 
 bool AAlsCharacter::IsRagdollingAllowedToStop() const
@@ -996,10 +1000,10 @@ void AAlsCharacter::StopRagdollingImplementation()
 		return;
 	}
 
-	auto& FinalRagdollPose{AnimationInstance->SnapshotFinalRagdollPose()};
+	auto& FinalRagdollPose{ AnimationInstance->SnapshotFinalRagdollPose() };
 
-	const auto PelvisTransform{GetMesh()->GetSocketTransform(UAlsConstants::PelvisBoneName())};
-	const auto PelvisRotation{PelvisTransform.Rotator()};
+	const auto PelvisTransform{ GetMesh()->GetSocketTransform(UAlsConstants::PelvisBoneName()) };
+	const auto PelvisRotation{ PelvisTransform.Rotator() };
 
 	// Disable mesh physics simulation and enable capsule collision.
 
@@ -1015,23 +1019,23 @@ void AAlsCharacter::StopRagdollingImplementation()
 	GetCharacterMovement()->bIgnoreClientMovementErrorChecksAndCorrection = false;
 
 	bool bGrounded;
-	const auto NewActorLocation{RagdollTraceGround(bGrounded)};
+	const auto NewActorLocation{ RagdollTraceGround(bGrounded) };
 
 	// Determine whether the ragdoll is facing upward or downward and set the actor rotation accordingly.
 
-	const auto bRagdollFacingUpward{FRotator::NormalizeAxis(PelvisRotation.Roll) <= 0.0f};
+	const auto bRagdollFacingUpward{ FRotator::NormalizeAxis(PelvisRotation.Roll) <= 0.0f };
 
-	auto NewActorRotation{GetActorRotation()};
+	auto NewActorRotation{ GetActorRotation() };
 	NewActorRotation.Yaw = bRagdollFacingUpward ? PelvisRotation.Yaw - 180.0f : PelvisRotation.Yaw;
 
 	SetActorLocationAndRotation(NewActorLocation, NewActorRotation, false, nullptr, ETeleportType::TeleportPhysics);
 
 	// Attach the mesh back and restore its default relative location.
 
-	const auto& ActorTransform{GetActorTransform()};
+	const auto& ActorTransform{ GetActorTransform() };
 
 	GetMesh()->SetWorldLocationAndRotationNoPhysics(ActorTransform.TransformPositionNoScale(GetBaseTranslationOffset()),
-	                                                ActorTransform.TransformRotation(GetBaseRotationOffset()).Rotator());
+		ActorTransform.TransformRotation(GetBaseRotationOffset()).Rotator());
 
 	GetMesh()->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
 
@@ -1042,18 +1046,18 @@ void AAlsCharacter::StopRagdollingImplementation()
 		GetMesh()->bEnableUpdateRateOptimizations = false;
 
 		GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]
-		{
-			ALS_ENSURE(!GetMesh()->bEnableUpdateRateOptimizations);
-			GetMesh()->bEnableUpdateRateOptimizations = true;
-		}));
+			{
+				ALS_ENSURE(!GetMesh()->bEnableUpdateRateOptimizations);
+				GetMesh()->bEnableUpdateRateOptimizations = true;
+			}));
 	}
 
 	// Restore the pelvis transform to the state it was in before we changed
 	// the character and mesh transforms to keep its world transform unchanged.
 
-	const auto& ReferenceSkeleton{GetMesh()->GetSkeletalMeshAsset()->GetRefSkeleton()};
+	const auto& ReferenceSkeleton{ GetMesh()->GetSkeletalMeshAsset()->GetRefSkeleton() };
 
-	const auto PelvisBoneIndex{ReferenceSkeleton.FindBoneIndex(UAlsConstants::PelvisBoneName())};
+	const auto PelvisBoneIndex{ ReferenceSkeleton.FindBoneIndex(UAlsConstants::PelvisBoneName()) };
 	if (ALS_ENSURE(PelvisBoneIndex >= 0))
 	{
 		// We expect the pelvis bone to be the root bone or attached to it, so we can safely use the mesh transform here.
@@ -1082,8 +1086,8 @@ void AAlsCharacter::StopRagdollingImplementation()
 	OnRagdollingEnded();
 
 	if (bGrounded &&
-	    GetMesh()->GetAnimInstance()->Montage_Play(SelectGetUpMontage(bRagdollFacingUpward), 1.0f,
-	                                               EMontagePlayReturnType::MontageLength, 0.0f, true))
+		GetMesh()->GetAnimInstance()->Montage_Play(SelectGetUpMontage(bRagdollFacingUpward), 1.0f,
+			EMontagePlayReturnType::MontageLength, 0.0f, true))
 	{
 		AlsCharacterMovement->SetInputBlocked(true);
 

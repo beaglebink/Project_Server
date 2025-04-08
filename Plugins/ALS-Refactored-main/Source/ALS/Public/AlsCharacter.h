@@ -15,8 +15,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartMantling, float, AnimationDuration, EAlsMantlingType, MantlingType);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStartRolling, float, AnimationDuration);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChanged, float, Health);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStaminaChanged, float, Stamina);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChanged, float, Health, float, MaxHealth);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStaminaChanged, float, Stamina, float, MaxStamina);
 
 struct FAlsMantlingParameters;
 struct FAlsMantlingTraceSettings;
@@ -632,48 +632,67 @@ private:
 	// Attributes
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float MaxHealth = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float Health = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float MaxStamina = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float Stamina = 100.0f;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnHealthChanged OnHealthChanged;
+
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnStaminaChanged OnStaminaChanged;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetMaxHealth();
-	
+
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetHealth();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetMaxStamina();
-	
+
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetStamina();
 
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetMaxHealth(float NewMaxHealth);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetHealth(float NewHealth);
 
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetMaxStamina(float NewMaxStamina);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetStamina(float NewStamina);
 
+	// What does stamina affect
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes|Stamina affects", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float SprintStaminaDrainRate = 2.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes|Stamina affects", meta = (ClampMin = "0.0", ClampMax = "50.0"))
+	float JumpStaminaCost = 10.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes|Stamina affects", meta = (ClampMin = "0.0", ClampMax = "50.0"))
+	float RollStaminaCost = 10.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes|Stamina affects", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float StaminaRegenerationRate = 0.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes|Stamina affects", meta = (ClampMin = "0.0", ClampMax = "10.0", Units = "s"))
+	float	ExhaustionPenaltyDuration = 5.0f;
+
+	uint8 AbleToSprint : 1{true};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

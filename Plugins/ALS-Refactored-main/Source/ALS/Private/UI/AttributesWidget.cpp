@@ -4,12 +4,11 @@
 #include "UI/AttributesWidget.h"
 #include "AlsCharacter.h"
 
-void UAttributesWidget::NativeConstruct()
+void UAttributesWidget::InitWithCharacterOwner(AAlsCharacter* PlayerCharacter)
 {
-    Super::NativeConstruct();
+	PlayerCharacter->OnHealthChanged.AddDynamic(this, &UAttributesWidget::SetHealthPercent);
+	PlayerCharacter->OnStaminaChanged.AddDynamic(this, &UAttributesWidget::SetStaminaPercent);
 
-	//if (AAlsCharacter* PlayerCharacter = Cast<AAlsCharacter>(Getcharacte))
-	//{
-
-	//}
+	SetHealthPercent(PlayerCharacter->GetHealth(), PlayerCharacter->GetMaxHealth());
+	SetStaminaPercent(PlayerCharacter->GetStamina(), PlayerCharacter->GetMaxStamina());
 }

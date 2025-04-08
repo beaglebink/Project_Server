@@ -6,6 +6,8 @@
 #include "Blueprint/UserWidget.h"
 #include "AttributesWidget.generated.h"
 
+class AAlsCharacter;
+
 UCLASS()
 class ALS_API UAttributesWidget : public UUserWidget
 {
@@ -13,11 +15,10 @@ class ALS_API UAttributesWidget : public UUserWidget
 	
 public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Attributes")
-	void SetHealthPercent(float HealthPercent);
+	void SetHealthPercent(float Health, float MaxHealth);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Attributes")
-	void SetStaminaPercent(float StaminaPercent);
+	void SetStaminaPercent(float Stamina, float MaxStamina);
 
-protected:
-	virtual void NativeConstruct() override;
+	void InitWithCharacterOwner(AAlsCharacter* PlayerCharacter);
 };

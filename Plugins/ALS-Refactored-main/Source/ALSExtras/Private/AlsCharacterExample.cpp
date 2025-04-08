@@ -41,8 +41,6 @@ void AAlsCharacterExample::BeginPlay()
 		PhysicsConstraint->SetAngularOrientationDrive(true, true);
 		PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
 	*/
-
-	InitStatWidget();
 }
 
 void AAlsCharacterExample::NotifyControllerChanged()
@@ -98,7 +96,8 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLookMouse);
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLook);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnMove);
-		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSprint);
+		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ThisClass::Input_StartSprint);
+		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ThisClass::Input_StopSprint);
 		EnhancedInput->BindAction(WalkAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnWalk);
 		EnhancedInput->BindAction(CrouchAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnCrouch);
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnJump);
@@ -139,10 +138,34 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 	}
 }
 
-void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
+void AAlsCharacterExample::Input_StartSprint()
 {
-	//SetDesiredGait(ActionValue.Get<bool>() ? AlsGaitTags::Sprinting : AlsGaitTags::Running);
-	OnSetSprintMode(ActionValue.Get<bool>());
+	if (!GetLastMovementInputVector().IsNearlyZero() && GetDesiredStance() == AlsStanceTags::Standing)
+	{
+		if (GetStamina() > SprintStaminaDrainRate && AbleToSprint)
+		{
+			if (GetDesiredGait() != AlsGaitTags::Sprinting)
+			{
+				OnSetSprintMode(true);
+				SetDesiredGait(AlsGaitTags::Sprinting);
+			}
+			SetStamina(GetStamina() - SprintStaminaDrainRate);
+		}
+		else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
+		{
+			AbleToSprint = false;
+			OnSetSprintMode(false);
+			SetDesiredGait(AlsGaitTags::Running);
+			FTimerHandle TimerHandle;
+			GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
+		}
+	}
+}
+
+void AAlsCharacterExample::Input_StopSprint()
+{
+	OnSetSprintMode(false);
+	SetDesiredGait(AlsGaitTags::Running);
 }
 
 void AAlsCharacterExample::Input_OnWalk()
@@ -171,7 +194,7 @@ void AAlsCharacterExample::Input_OnCrouch()
 
 void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 {
-	if (ActionValue.Get<bool>())
+	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>())
 	{
 		if (StopRagdolling())
 		{
@@ -224,7 +247,10 @@ void AAlsCharacterExample::Input_OnRoll()
 {
 	static constexpr auto PlayRate{ 1.3f };
 
-	StartRolling(PlayRate);
+	if (GetStamina() > RollStaminaCost)
+	{
+		StartRolling(PlayRate);
+	}
 }
 
 void AAlsCharacterExample::Input_OnRotationMode()
@@ -338,6 +364,15 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 			PhysicsConstraint->SetWorldLocationAndRotation(TargetLocation, TargetRotation);
 		}
 	*/
+
+	SetStamina(GetStamina() + StaminaRegenerationRate);
+}
+
+void AAlsCharacterExample::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	InitStatWidget();
 }
 
 void AAlsCharacterExample::ContinueJump()
@@ -349,15 +384,14 @@ void AAlsCharacterExample::ContinueJump()
 // UI
 void AAlsCharacterExample::InitStatWidget()
 {
-	if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
 		if (AttributesWidgetClass)
 		{
 			if (AttributesWidget = CreateWidget<UAttributesWidget>(PC, AttributesWidgetClass))
 			{
+				AttributesWidget->InitWithCharacterOwner(this);
 				AttributesWidget->AddToViewport();
-				AttributesWidget->SetHealthPercent(GetHealth() / GetMaxHealth());
-				AttributesWidget->SetStaminaPercent(GetStamina() / GetMaxStamina());
 			}
 		}
 	}
