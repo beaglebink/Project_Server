@@ -939,7 +939,12 @@ void AAlsCharacter::OnGaitChanged_Implementation(const FGameplayTag& PreviousGai
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 {
 	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
-	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
+
+	// The less health left the slower movement
+	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
+
+	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f),
+		FVector2D(MovementBackwardSpeedMultiplier * (1 - WeaponMovementPenalty) * DamageMovementPenalty, (1 - WeaponMovementPenalty) * DamageMovementPenalty), MovementDirection);
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.01f)
 	{
 		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;

@@ -41,13 +41,20 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character")
 	TObjectPtr<UAlsMovementSettings> MovementSettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.5", ClampMax = "1.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.5", ClampMax = "1.0"))
 	float MovementBackwardSpeedMultiplier = 0.7f;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "0.5"))
+	float WeaponMovementPenalty = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "The bigger value - the bigger movement slowing in depends on health left"))
+	float HealthMovementPenalty_01 = 0.0f;
 
 	float SpeedMultiplier = 1.0f;
 	float PrevSpeedMultiplier = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float MinFallHeightWithoutDamageAndStun = 200.0f;
 
 	float FallDistanceToCountStunAndDamage = 0.0f;
@@ -56,6 +63,9 @@ protected:
 	float StunTime = 0.0f;
 	float FallDamage = 0.0f;
 	uint8 bIsStunned : 1 = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.01", ClampMax = "5.0"))
+	float DelayCrouchInOut = 0.01f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State",
 		ReplicatedUsing = "OnReplicated_DesiredAiming")

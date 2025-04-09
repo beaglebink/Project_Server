@@ -70,6 +70,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> SwitchShoulderAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> SwitchWeaponAction;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example", Meta = (ClampMin = 0, ForceUnits = "x"))
 	float LookUpMouseSensitivity{ 1.0f };
 
@@ -145,6 +148,12 @@ private:
 	void Input_OnSwitchShoulder();
 
 	void ContinueJump();
+
+	void Input_OnSwitchWeapon();
+
+protected:
+	UFUNCTION(BlueprintImplementableEvent)
+	void SwitchWeaponHandle();
 
 	// Debug
 

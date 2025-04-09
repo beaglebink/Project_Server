@@ -107,6 +107,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(RotationModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRotationMode);
 		EnhancedInput->BindAction(ViewModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnViewMode);
 		EnhancedInput->BindAction(SwitchShoulderAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchShoulder);
+		EnhancedInput->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchWeapon);
 	}
 }
 
@@ -185,14 +186,18 @@ void AAlsCharacterExample::Input_OnWalk()
 
 void AAlsCharacterExample::Input_OnCrouch()
 {
-	if (GetDesiredStance() == AlsStanceTags::Standing)
-	{
-		SetDesiredStance(AlsStanceTags::Crouching);
-	}
-	else if (GetDesiredStance() == AlsStanceTags::Crouching)
-	{
-		SetDesiredStance(AlsStanceTags::Standing);
-	}
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
+		{
+			if (GetDesiredStance() == AlsStanceTags::Standing)
+			{
+				SetDesiredStance(AlsStanceTags::Crouching);
+			}
+			else if (GetDesiredStance() == AlsStanceTags::Crouching)
+			{
+				SetDesiredStance(AlsStanceTags::Standing);
+			}
+			; }, DelayCrouchInOut, false);
 }
 
 void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
@@ -382,6 +387,11 @@ void AAlsCharacterExample::ContinueJump()
 {
 	IsFirstJumpClick = true;
 	Jump();
+}
+
+void AAlsCharacterExample::Input_OnSwitchWeapon()
+{
+	SwitchWeaponHandle();
 }
 
 // UI
