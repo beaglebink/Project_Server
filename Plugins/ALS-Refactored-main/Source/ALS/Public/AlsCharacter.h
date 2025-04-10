@@ -44,15 +44,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.5", ClampMax = "1.0"))
 	float MovementBackwardSpeedMultiplier = 0.7f;
 
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "0.5"))
-	float WeaponMovementPenalty = 0.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character",
-		meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "The bigger value - the bigger movement slowing in depends on health left"))
-	float HealthMovementPenalty_01 = 0.0f;
-
 	float SpeedMultiplier = 1.0f;
 	float PrevSpeedMultiplier = 1.0f;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "0.5"))
+	float WeaponMovementPenalty = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float MinFallHeightWithoutDamageAndStun = 200.0f;
@@ -640,7 +636,6 @@ private:
 	void DisplayDebugMantling(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 
 	// Attributes
-
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float MaxHealth = 100.0f;
@@ -703,6 +698,36 @@ public:
 	float	ExhaustionPenaltyDuration = 5.0f;
 
 	uint8 AbleToSprint : 1{true};
+
+	//Damage slowdown
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "The bigger value - the bigger movement slowing in depends on health left"))
+	float HealthMovementPenalty_01 = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "0 - no slow effect, 1 - max slow effect"))
+	float DamageSlowdownEffect = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "How long slow effect lasts. 0 - no slow effect, 1 - max time slow effect"))
+	float DamageSlowdownTime = 0.0f;
+
+	float DamageSlowdownMultiplier = 1.0f;
+
+private:
+	void CalculateDamageSlowdownDuration(float NewHealth);
+
+	//Adjusts speed based on incline or decline angles.
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "The influence of surface slope on the movement speed. 0 - no effect, 1 - max effect"))
+	float SurfaceSlopeEffect = 0.0f;
+
+private:
+	float SurfaceSlopeEffectMultiplier = 1.0f;
+
+	void CalculateSpeedMultiplierOnGoingUpOrDown();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

@@ -303,6 +303,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CalculateBackwardAndStrafeMoveReducement();
 
 	CalculateFallDistanceToCountStunAndDamage();
+
+	CalculateSpeedMultiplierOnGoingUpOrDown();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -944,7 +946,8 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
 
 	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f),
-		FVector2D(MovementBackwardSpeedMultiplier * (1 - WeaponMovementPenalty) * DamageMovementPenalty, (1 - WeaponMovementPenalty) * DamageMovementPenalty), MovementDirection);
+		FVector2D(MovementBackwardSpeedMultiplier * (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier,
+			(1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier) * SurfaceSlopeEffectMultiplier, MovementDirection);
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.01f)
 	{
 		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
@@ -1925,6 +1928,7 @@ void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 
 void AAlsCharacter::SetHealth(float NewHealth)
 {
+	CalculateDamageSlowdownDuration(NewHealth);
 	Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
@@ -1938,4 +1942,38 @@ void AAlsCharacter::SetStamina(float NewStamina)
 {
 	Stamina = FMath::Clamp(NewStamina, 0.0f, GetMaxStamina());
 	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
+}
+
+void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)
+{
+	float DeltaHealth = GetHealth() - NewHealth;
+	float DamageSlowdownDuration = DeltaHealth / 10.0f * DamageSlowdownTime;
+	if (DeltaHealth > 0)
+	{
+		DamageSlowdownMultiplier -= (DeltaHealth / GetMaxHealth() * DamageSlowdownEffect);
+
+		FTimerHandle TimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {DamageSlowdownMultiplier = 1.0f; }, DamageSlowdownDuration + 0.001f, false);
+	}
+}
+
+void AAlsCharacter::CalculateSpeedMultiplierOnGoingUpOrDown()
+{
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	FHitResult PrevHitResult;
+	FHitResult NextHitResult;
+	FVector PrevLineTraceStart = GetActorLocation() + GetVelocity().GetSafeNormal() * FVector(30.0f, 30.0f, 0.0);
+	FVector PrevLineTraceEnd = PrevLineTraceStart + FVector(0.0f, 0.0f, -200.0f);
+	FVector NextLineTraceStart = GetActorLocation() + GetVelocity().GetSafeNormal() * FVector(40.0f, 40.0f, 0.0);
+	FVector NextLineTraceEnd = NextLineTraceStart + FVector(0.0f, 0.0f, -200.0f);
+
+	bool bIsHitPrev = UKismetSystemLibrary::LineTraceSingle(GetWorld(), PrevLineTraceStart, PrevLineTraceEnd, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, PrevHitResult, true);
+	bool bIsHitNext = UKismetSystemLibrary::LineTraceSingle(GetWorld(), NextLineTraceStart, NextLineTraceEnd, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, NextHitResult, true);
+
+	if (bIsHitPrev && bIsHitNext)
+	{
+		float DeltaTilt = FMath::GetMappedRangeValueClamped(FVector2D(-10.0f, 10.0f), FVector2D(-0.9f, 0.9f), NextHitResult.Location.Z - PrevHitResult.Location.Z);
+		SurfaceSlopeEffectMultiplier = FMath::FInterpTo(SurfaceSlopeEffectMultiplier, 1 - DeltaTilt * SurfaceSlopeEffect, GetWorld()->DeltaTimeSeconds, 1.0f);
+	}
 }

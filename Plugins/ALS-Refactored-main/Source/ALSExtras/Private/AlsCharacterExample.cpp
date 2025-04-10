@@ -383,6 +383,17 @@ void AAlsCharacterExample::PossessedBy(AController* NewController)
 	InitStatWidget();
 }
 
+void AAlsCharacterExample::UnPossessed()
+{
+	Super::UnPossessed();
+
+	if (AttributesWidget)
+	{
+		AttributesWidget->RemoveFromParent();
+		AttributesWidget = nullptr;
+	}
+}
+
 void AAlsCharacterExample::ContinueJump()
 {
 	IsFirstJumpClick = true;
