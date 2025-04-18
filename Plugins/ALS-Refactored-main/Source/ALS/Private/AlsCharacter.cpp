@@ -305,6 +305,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CalculateFallDistanceToCountStunAndDamage();
 
 	CalculateSpeedMultiplierOnGoingUpOrDown();
+
+	CalculateStartStopSliding();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -1975,5 +1977,53 @@ void AAlsCharacter::CalculateSpeedMultiplierOnGoingUpOrDown()
 	{
 		float DeltaTilt = FMath::GetMappedRangeValueClamped(FVector2D(-10.0f, 10.0f), FVector2D(-0.9f, 0.9f), NextHitResult.Location.Z - PrevHitResult.Location.Z);
 		SurfaceSlopeEffectMultiplier = FMath::FInterpTo(SurfaceSlopeEffectMultiplier, 1 - DeltaTilt * SurfaceSlopeEffect, GetWorld()->DeltaTimeSeconds, 1.0f);
+	}
+}
+
+void AAlsCharacter::CalculateStartStopSliding()
+{
+	PrevControlRotation = CurrentControlRotation;
+	CurrentControlRotation = GetControlRotation();
+	float DeltaControlRotation = abs(PrevControlRotation.Yaw - CurrentControlRotation.Yaw);
+
+	PrevVelocity2D = CurrentVelocity2D;
+	CurrentVelocity2D = FVector2D(GetVelocity());
+	float DeltaChangeVelocityDirection = UKismetMathLibrary::DotProduct2D(PrevVelocity2D, CurrentVelocity2D);
+
+	PrevVelocityLength2D = CurrentVelocityLength2D;
+	CurrentVelocityLength2D = FVector2D(GetVelocity()).Length();
+	float DeltaChangeVelocityLength = PrevVelocityLength2D - CurrentVelocityLength2D;
+
+
+
+	if (((DeltaChangeVelocityDirection < 0.75f || DeltaControlRotation > 20.0f) && PrevVelocityLength2D > 100.0f && CurrentVelocityLength2D > 100.0f) || (DeltaChangeVelocityLength > 30.0f))
+	{
+		bIsSliding = true;
+	}
+	if (bIsSliding && SlidingDistanceToStopPoint > 10.0f)
+	{
+
+		SetActorLocation(GetActorLocation() + LastVelocityDirection * DeltaDistanceToGetToStopPoint);
+		SlidingDistanceToStopPoint -= DeltaDistanceToGetToStopPoint;
+		float DistanceToCurve = FMath::GetMappedRangeValueClamped(FVector2D(OnStart_SlidingDistanceToStopPoint, 0.0f), FVector2D(0.0f, 1.0f), SlidingDistanceToStopPoint);
+
+		if (CurveToCountDeltaDistance)
+		{
+			DeltaDistanceToGetToStopPoint = OnStart_DeltaDistanceToGetToStopPoint * CurveToCountDeltaDistance->GetFloatValue(DistanceToCurve);
+			AlphaForLeanAnim = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting)), FVector2D(0.0f, 1.0f),
+				OnStart_SlidingDistanceToStopPoint) * CurveToCountDeltaDistance->GetFloatValue(DistanceToCurve);
+
+			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Green, FString::Printf(TEXT("Sliding   %2.2f"), AlphaForLeanAnim));
+		}
+	}
+	else
+	{
+		bIsSliding = false;
+		LastVelocityDirection = GetVelocity().GetSafeNormal() * FVector(1.0f, 1.0f, 0.0f);
+		OnStart_SlidingDistanceToStopPoint = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.0f, AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting)),
+			FVector2D(GetVelocity()).Length() / AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting));
+		SlidingDistanceToStopPoint = OnStart_SlidingDistanceToStopPoint;
+		OnStart_DeltaDistanceToGetToStopPoint = (FVector2D(GetVelocity())).Length() * GetWorld()->GetDeltaSeconds();
+		DeltaDistanceToGetToStopPoint = OnStart_DeltaDistanceToGetToStopPoint;
 	}
 }

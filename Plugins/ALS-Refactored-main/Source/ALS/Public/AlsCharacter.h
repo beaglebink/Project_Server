@@ -728,6 +728,34 @@ private:
 	float SurfaceSlopeEffectMultiplier = 1.0f;
 
 	void CalculateSpeedMultiplierOnGoingUpOrDown();
+
+	//Sliding
+
+public:
+	UPROPERTY(BlueprintReadWrite, Category = "Movement|Sliding")
+	uint8 bIsSliding : 1{false};
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement|Sliding")
+	float AlphaForLeanAnim;
+
+private:
+	FVector2D PrevVelocity2D;
+	FVector2D CurrentVelocity2D;
+	FRotator PrevControlRotation;
+	FRotator CurrentControlRotation;
+	float PrevVelocityLength2D;
+	float CurrentVelocityLength2D;
+	FVector LastVelocityDirection;
+	float OnStart_SlidingDistanceToStopPoint;
+	float SlidingDistanceToStopPoint;
+	float OnStart_DeltaDistanceToGetToStopPoint;
+	float DeltaDistanceToGetToStopPoint;
+
+	void CalculateStartStopSliding();
+
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement|Sliding")
+	UCurveFloat* CurveToCountDeltaDistance;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
