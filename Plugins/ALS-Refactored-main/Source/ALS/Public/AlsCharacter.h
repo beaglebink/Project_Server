@@ -738,6 +738,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Sliding")
 	float AlphaForLeanAnim;
 
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ToolTip = "If true - turns on sliding logic in depends on surface physic friction"))
+	uint8 SlidingTurnOn_Off : 1 {false};
+
 private:
 	FVector2D PrevVelocity2D;
 	FVector2D CurrentVelocity2D;
@@ -750,7 +754,9 @@ private:
 	float SlidingDistanceToStopPoint;
 	float OnStart_DeltaDistanceToGetToStopPoint;
 	float DeltaDistanceToGetToStopPoint;
+	float SurfacePhysicFriction = 1.0f;
 
+	bool SwitcherForSlidingLogic_OnSurfaceFriction();
 	void CalculateStartStopSliding();
 
 protected:

@@ -1980,8 +1980,41 @@ void AAlsCharacter::CalculateSpeedMultiplierOnGoingUpOrDown()
 	}
 }
 
+bool AAlsCharacter::SwitcherForSlidingLogic_OnSurfaceFriction()
+{
+	if (!SlidingTurnOn_Off)
+	{
+		return false;
+	}
+
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	FHitResult HitResult;
+	FVector LineTraceStart = GetActorLocation() + GetVelocity().GetSafeNormal() * FVector(30.0f, 30.0f, 0.0);
+	FVector LineTraceEnd = LineTraceStart + FVector(0.0f, 0.0f, -200.0f);
+
+	bool bIsHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), LineTraceStart, LineTraceEnd, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, HitResult, true);
+
+	if (bIsHit)
+	{
+		SurfacePhysicFriction = HitResult.PhysMaterial->Friction;
+		if (SurfacePhysicFriction < 0.7f)
+		{
+			return true;
+		}
+	}
+
+	bIsSliding = false;
+	return false;
+}
+
 void AAlsCharacter::CalculateStartStopSliding()
 {
+	if (!SwitcherForSlidingLogic_OnSurfaceFriction())
+	{
+		return;
+	}
+
 	PrevControlRotation = CurrentControlRotation;
 	CurrentControlRotation = GetControlRotation();
 	float DeltaControlRotation = abs(PrevControlRotation.Yaw - CurrentControlRotation.Yaw);
@@ -2013,7 +2046,6 @@ void AAlsCharacter::CalculateStartStopSliding()
 			AlphaForLeanAnim = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting)), FVector2D(0.0f, 1.0f),
 				OnStart_SlidingDistanceToStopPoint) * CurveToCountDeltaDistance->GetFloatValue(DistanceToCurve);
 
-			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Green, FString::Printf(TEXT("Sliding   %2.2f"), AlphaForLeanAnim));
 		}
 	}
 	else
@@ -2022,8 +2054,13 @@ void AAlsCharacter::CalculateStartStopSliding()
 		LastVelocityDirection = GetVelocity().GetSafeNormal() * FVector(1.0f, 1.0f, 0.0f);
 		OnStart_SlidingDistanceToStopPoint = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.0f, AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting)),
 			FVector2D(GetVelocity()).Length() / AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting));
+		OnStart_SlidingDistanceToStopPoint *= FMath::GetMappedRangeValueClamped(FVector2D(0.7f, 0.0f), FVector2D(0.0f, 1.0f), SurfacePhysicFriction);
 		SlidingDistanceToStopPoint = OnStart_SlidingDistanceToStopPoint;
+
 		OnStart_DeltaDistanceToGetToStopPoint = (FVector2D(GetVelocity())).Length() * GetWorld()->GetDeltaSeconds();
+		OnStart_DeltaDistanceToGetToStopPoint *= FMath::GetMappedRangeValueClamped(FVector2D(0.7f, 0.0f), FVector2D(0.0f, 1.0f), SurfacePhysicFriction);
 		DeltaDistanceToGetToStopPoint = OnStart_DeltaDistanceToGetToStopPoint;
+
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Green, FString::Printf(TEXT("Sliding   %2.2f    %2.2f"), OnStart_SlidingDistanceToStopPoint, OnStart_DeltaDistanceToGetToStopPoint));
 	}
 }

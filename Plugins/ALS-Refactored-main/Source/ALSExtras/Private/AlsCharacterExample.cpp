@@ -133,7 +133,7 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 
 	const auto ForwardDirection{ UAlsMath::AngleToDirectionXY(UE_REAL_TO_FLOAT(GetViewState().Rotation.Yaw)) };
 	const auto RightDirection{ UAlsMath::PerpendicularCounterClockwiseXY(ForwardDirection) };
-	if (!bIsStunned)
+	if (!bIsStunned && !bIsSliding)
 	{
 		AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
 	}
@@ -141,27 +141,30 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_StartSprint()
 {
-	if (!GetLastMovementInputVector().IsNearlyZero() && GetDesiredStance() == AlsStanceTags::Standing)
+	if (!bIsSliding)
 	{
-		if (GetStamina() > SprintStaminaDrainRate && AbleToSprint)
+		if (!GetLastMovementInputVector().IsNearlyZero() && GetDesiredStance() == AlsStanceTags::Standing)
 		{
-			if (GetDesiredGait() != AlsGaitTags::Sprinting)
+			if (GetStamina() > SprintStaminaDrainRate && AbleToSprint)
 			{
-				OnSetSprintMode(true);
-				//SetDesiredGait(AlsGaitTags::Sprinting);
+				if (GetDesiredGait() != AlsGaitTags::Sprinting)
+				{
+					OnSetSprintMode(true);
+					//SetDesiredGait(AlsGaitTags::Sprinting);
+				}
+				if (GetDesiredGait() == AlsGaitTags::Sprinting)
+				{
+					SetStamina(GetStamina() - SprintStaminaDrainRate);
+				}
 			}
-			if (GetDesiredGait() == AlsGaitTags::Sprinting)
+			else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
 			{
-				SetStamina(GetStamina() - SprintStaminaDrainRate);
+				AbleToSprint = false;
+				OnSetSprintMode(false);
+				//SetDesiredGait(AlsGaitTags::Running);
+				FTimerHandle TimerHandle;
+				GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
 			}
-		}
-		else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
-		{
-			AbleToSprint = false;
-			OnSetSprintMode(false);
-			//SetDesiredGait(AlsGaitTags::Running);
-			FTimerHandle TimerHandle;
-			GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
 		}
 	}
 }
@@ -202,7 +205,7 @@ void AAlsCharacterExample::Input_OnCrouch()
 
 void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 {
-	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>())
+	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>() && !bIsSliding)
 	{
 		if (StopRagdolling())
 		{
@@ -255,7 +258,7 @@ void AAlsCharacterExample::Input_OnRoll()
 {
 	static constexpr auto PlayRate{ 1.3f };
 
-	if (GetStamina() > RollStaminaCost)
+	if (GetStamina() > RollStaminaCost && bIsSliding)
 	{
 		StartRolling(PlayRate);
 	}
