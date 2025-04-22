@@ -258,7 +258,7 @@ void AAlsCharacterExample::Input_OnRoll()
 {
 	static constexpr auto PlayRate{ 1.3f };
 
-	if (GetStamina() > RollStaminaCost && bIsSliding)
+	if (GetStamina() > RollStaminaCost && !bIsSliding)
 	{
 		StartRolling(PlayRate);
 	}

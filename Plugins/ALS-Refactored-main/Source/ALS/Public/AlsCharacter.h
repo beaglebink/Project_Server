@@ -738,6 +738,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Sliding")
 	float AlphaForLeanAnim;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Movement|Sliding")
+	FGameplayTag LastGaitTag;
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ToolTip = "If true - turns on sliding logic in depends on surface physic friction"))
 	uint8 SlidingTurnOn_Off : 1 {false};
