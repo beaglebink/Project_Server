@@ -743,7 +743,7 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ToolTip = "If true - turns on sliding logic in depends on surface physic friction"))
-	uint8 SlidingTurnOn_Off : 1 {false};
+	uint8 SlidingTurnOnOff : 1 {false};
 
 private:
 	FVector2D PrevVelocity2D;

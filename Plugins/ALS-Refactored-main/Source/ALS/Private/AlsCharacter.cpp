@@ -1982,7 +1982,7 @@ void AAlsCharacter::CalculateSpeedMultiplierOnGoingUpOrDown()
 
 bool AAlsCharacter::SwitcherForSlidingLogic_OnSurfaceFriction()
 {
-	if (!SlidingTurnOn_Off)
+	if (!SlidingTurnOnOff)
 	{
 		return false;
 	}
