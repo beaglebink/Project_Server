@@ -307,6 +307,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CalculateSpeedMultiplierOnGoingUpOrDown();
 
 	CalculateStartStopSliding();
+
+	CalculateWindInfluenceEffect();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2060,4 +2062,8 @@ void AAlsCharacter::CalculateStartStopSliding()
 		OnStart_DeltaDistanceToGetToStopPoint *= FMath::GetMappedRangeValueClamped(FVector2D(0.7f, 0.0f), FVector2D(0.0f, 1.0f), SurfacePhysicFriction);
 		DeltaDistanceToGetToStopPoint = OnStart_DeltaDistanceToGetToStopPoint;
 	}
+}
+
+void AAlsCharacter::CalculateWindInfluenceEffect()
+{
 }

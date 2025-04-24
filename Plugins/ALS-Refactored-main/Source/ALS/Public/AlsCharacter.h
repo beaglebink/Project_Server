@@ -730,7 +730,6 @@ private:
 	void CalculateSpeedMultiplierOnGoingUpOrDown();
 
 	//Sliding
-
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "Movement|Sliding")
 	uint8 bIsSliding : 1{false};
@@ -765,6 +764,18 @@ private:
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement|Sliding")
 	UCurveFloat* CurveToCountDeltaDistance;
+
+	//Wind influence
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ToolTip = "If true - turns on wind influence"))
+	uint8 bDoesWindInfluence : 1 {false};
+
+	FVector2D WindDirection;
+
+private:
+	float WindIfluenceEffect0_2 = 1;
+
+	void CalculateWindInfluenceEffect();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
