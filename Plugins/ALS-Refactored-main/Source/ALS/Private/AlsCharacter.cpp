@@ -16,6 +16,7 @@
 #include "Utility/AlsUtility.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/GameplayStatics.h"
+#include "Interfaces/I_PluginToProject.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacter)
 
@@ -321,6 +322,8 @@ void AAlsCharacter::PossessedBy(AController* NewController)
 
 	ViewState.NetworkSmoothing.bEnabled |= IsValid(Settings) && Settings->View.bEnableListenServerNetworkSmoothing &&
 		IsNetMode(NM_ListenServer) && GetRemoteRole() == ROLE_AutonomousProxy;
+
+	SetWindDirection();
 }
 
 void AAlsCharacter::Restart()
@@ -942,23 +945,6 @@ void AAlsCharacter::SetGait(const FGameplayTag& NewGait)
 
 void AAlsCharacter::OnGaitChanged_Implementation(const FGameplayTag& PreviousGait) {}
 
-void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
-{
-	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
-
-	// The less health left the slower movement
-	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
-
-	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f),
-		FVector2D(MovementBackwardSpeedMultiplier * (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier,
-			(1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier) * SurfaceSlopeEffectMultiplier, MovementDirection);
-	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.01f)
-	{
-		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
-		AlsCharacterMovement->RefreshMaxWalkSpeed();
-	}
-	PrevSpeedMultiplier = SpeedMultiplier;
-}
 
 void AAlsCharacter::RefreshGait()
 {
@@ -1502,6 +1488,28 @@ void AAlsCharacter::OnJumpedNetworked()
 	{
 		AnimationInstance->Jump();
 	}
+}
+
+void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
+{
+	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
+
+	// The less health left the slower movement
+	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
+
+	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
+
+	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
+	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2;
+
+	//GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), SpeedMultiplier));
+
+	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
+	{
+		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
+		AlsCharacterMovement->RefreshMaxWalkSpeed();
+	}
+	PrevSpeedMultiplier = SpeedMultiplier;
 }
 
 void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
@@ -2064,6 +2072,26 @@ void AAlsCharacter::CalculateStartStopSliding()
 	}
 }
 
+void AAlsCharacter::SetWindDirection()
+{
+	//	if (WindControllerSubClass->GetClass()->ImplementsInterface(UI_PluginToProject::StaticClass()))
+	//	{
+	if (II_PluginToProject* Interface = Cast<II_PluginToProject>(WindControllerSubClass))
+	{
+		WindDirectionAndSpeed = Interface->GetWindDirectionAndSpeed();
+		//GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Green, FString::Printf(TEXT("%2.2f"), WindDirectionAndSpeed));
+	}
+	//	}
+}
+
 void AAlsCharacter::CalculateWindInfluenceEffect()
 {
+	BackwardForward_WindAmount = UKismetMathLibrary::DotProduct2D(FVector2D(GetActorForwardVector().GetSafeNormal()), WindDirectionAndSpeed.GetSafeNormal());
+	LeftRight_WindAmount = UKismetMathLibrary::DotProduct2D(FVector2D(GetActorRightVector().GetSafeNormal()), WindDirectionAndSpeed.GetSafeNormal());
+
+	BackwardForward_WindAmount *= FMath::GetMappedRangeValueClamped(FVector2D(1000.0f, 2500.0f), FVector2D(0.0f, 1.0f), WindDirectionAndSpeed.Length());
+	LeftRight_WindAmount *= FMath::GetMappedRangeValueClamped(FVector2D(1000.0f, 2500.0f), FVector2D(0.0f, 1.0f), WindDirectionAndSpeed.Length());
+
+	WindIfluenceEffect0_2 = FMath::FInterpTo(WindIfluenceEffect0_2, 1 + UKismetMathLibrary::DotProduct2D(FVector2D(GetVelocity().GetSafeNormal()), WindDirectionAndSpeed.GetSafeNormal()) *
+		FMath::GetMappedRangeValueClamped(FVector2D(1000.0f, 2500.0f), FVector2D(0.0f, 1.0f), WindDirectionAndSpeed.Length()), GetWorld()->GetDeltaSeconds(), 2.0f);
 }

@@ -767,13 +767,25 @@ protected:
 
 	//Wind influence
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ToolTip = "If true - turns on wind influence"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character|Wind", meta = (ToolTip = "If true - turns on wind influence"))
 	uint8 bDoesWindInfluence : 1 {false};
 
-	FVector2D WindDirection;
+	UPROPERTY(BlueprintReadOnly, Category = "WindDirectionInfluence")
+	float BackwardForward_WindAmount = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "WindDirectionInfluence")
+	float LeftRight_WindAmount = 0.0f;
+
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character|Wind")
+	TSubclassOf<AActor> WindControllerSubClass;
 
 private:
+	FVector2D WindDirectionAndSpeed;
+
 	float WindIfluenceEffect0_2 = 1;
+
+	void SetWindDirection();
 
 	void CalculateWindInfluenceEffect();
 };
