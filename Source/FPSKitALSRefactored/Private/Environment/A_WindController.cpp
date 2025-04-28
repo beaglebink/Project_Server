@@ -7,14 +7,14 @@
 
 AA_WindController::AA_WindController()
 {
-	ArrowComponent = CreateDefaultSubobject<UArrowComponent>(TEXT("ArrowComponent"));
+	WindArrow = CreateDefaultSubobject<UArrowComponent>(TEXT("WindArrow"));
 	TextRenderComponent = CreateDefaultSubobject<UTextRenderComponent>(TEXT("TextComponent"));
 
-	ArrowComponent->SetupAttachment(RootComponent);
-	TextRenderComponent->SetupAttachment(ArrowComponent);
-
-	ArrowComponent->bHiddenInGame = false;
-
+	WindArrow->SetupAttachment(RootComponent);
+	TextRenderComponent->SetupAttachment(WindArrow);
+	
+	WindArrow->SetArrowFColor(FColor::Red);
+	WindArrow->SetArrowSize(2.0f);
 	TextRenderComponent->SetText(FText::FromString("Wind direction"));
 	TextRenderComponent->SetHorizontalAlignment(EHTA_Center);
 	TextRenderComponent->SetWorldSize(30.0f);
@@ -25,12 +25,7 @@ AA_WindController::AA_WindController()
 void AA_WindController::BeginPlay()
 {
 	Super::BeginPlay();
-	
-}
 
-FVector2D AA_WindController::GetWindDirectionAndSpeed()
-{
-	return FVector2D(GetActorForwardVector() * WindSpeed);
 }
 
 void AA_WindController::Tick(float DeltaTime)

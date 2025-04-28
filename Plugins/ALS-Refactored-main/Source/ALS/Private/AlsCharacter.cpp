@@ -16,7 +16,8 @@
 #include "Utility/AlsUtility.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/GameplayStatics.h"
-#include "Interfaces/I_PluginToProject.h"
+#include "Engine/WindDirectionalSource.h"
+#include "Components/WindDirectionalSourceComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacter)
 
@@ -2078,11 +2079,9 @@ void AAlsCharacter::SetWindDirection()
 
 	if (WindControllers.Num() > 0)
 	{
-		if (II_PluginToProject* Interface = Cast<II_PluginToProject>(WindControllers[0]))
-		{
-			WindDirectionAndSpeed = Interface->GetWindDirectionAndSpeed();
-			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Green, FString::Printf(TEXT("%2.2f    %2.2f"), WindDirectionAndSpeed.X, WindDirectionAndSpeed.Y));
-		}
+		AWindDirectionalSource* WindDirectionalSource = Cast<AWindDirectionalSource>(WindControllers[0]);
+		WindDirectionAndSpeed = FVector2D(WindDirectionalSource->GetActorForwardVector() * WindDirectionalSource->GetComponent()->Speed);
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Green, FString::Printf(TEXT("%2.2f    %2.2f"), WindDirectionAndSpeed.X, WindDirectionAndSpeed.Y));
 	}
 }
 
