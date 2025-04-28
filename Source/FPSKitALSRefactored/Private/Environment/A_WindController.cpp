@@ -18,6 +18,8 @@ AA_WindController::AA_WindController()
 	TextRenderComponent->SetText(FText::FromString("Wind direction"));
 	TextRenderComponent->SetHorizontalAlignment(EHTA_Center);
 	TextRenderComponent->SetWorldSize(30.0f);
+
+	Tags.Add(TEXT("WindController"));
 }
 
 void AA_WindController::BeginPlay()

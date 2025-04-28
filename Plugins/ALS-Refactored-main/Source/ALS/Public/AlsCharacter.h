@@ -776,10 +776,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "WindDirectionInfluence")
 	float LeftRight_WindAmount = 0.0f;
 
-protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character|Wind")
-	TSubclassOf<AActor> WindControllerSubClass;
-
 private:
 	FVector2D WindDirectionAndSpeed;
 

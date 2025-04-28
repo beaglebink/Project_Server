@@ -945,7 +945,6 @@ void AAlsCharacter::SetGait(const FGameplayTag& NewGait)
 
 void AAlsCharacter::OnGaitChanged_Implementation(const FGameplayTag& PreviousGait) {}
 
-
 void AAlsCharacter::RefreshGait()
 {
 	if (LocomotionMode != AlsLocomotionModeTags::Grounded)
@@ -1490,28 +1489,6 @@ void AAlsCharacter::OnJumpedNetworked()
 	}
 }
 
-void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
-{
-	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
-
-	// The less health left the slower movement
-	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
-
-	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
-
-	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
-	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2;
-
-	//GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), SpeedMultiplier));
-
-	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
-	{
-		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
-		AlsCharacterMovement->RefreshMaxWalkSpeed();
-	}
-	PrevSpeedMultiplier = SpeedMultiplier;
-}
-
 void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 {
 	if (AlsCharacterMovement->IsFalling())
@@ -1956,6 +1933,28 @@ void AAlsCharacter::SetStamina(float NewStamina)
 	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
 }
 
+void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
+{
+	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
+
+	// The less health left the slower movement
+	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
+
+	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
+
+	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
+	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2;
+
+	//GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), SpeedMultiplier));
+
+	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
+	{
+		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
+		AlsCharacterMovement->RefreshMaxWalkSpeed();
+	}
+	PrevSpeedMultiplier = SpeedMultiplier;
+}
+
 void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)
 {
 	float DeltaHealth = GetHealth() - NewHealth;
@@ -2074,14 +2073,17 @@ void AAlsCharacter::CalculateStartStopSliding()
 
 void AAlsCharacter::SetWindDirection()
 {
-	//	if (WindControllerSubClass->GetClass()->ImplementsInterface(UI_PluginToProject::StaticClass()))
-	//	{
-	if (II_PluginToProject* Interface = Cast<II_PluginToProject>(WindControllerSubClass))
+	TArray<AActor*> WindControllers;
+	UGameplayStatics::GetAllActorsWithTag(GetWorld(), TEXT("WindController"), WindControllers);
+
+	if (WindControllers.Num() > 0)
 	{
-		WindDirectionAndSpeed = Interface->GetWindDirectionAndSpeed();
-		//GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Green, FString::Printf(TEXT("%2.2f"), WindDirectionAndSpeed));
+		if (II_PluginToProject* Interface = Cast<II_PluginToProject>(WindControllers[0]))
+		{
+			WindDirectionAndSpeed = Interface->GetWindDirectionAndSpeed();
+			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Green, FString::Printf(TEXT("%2.2f    %2.2f"), WindDirectionAndSpeed.X, WindDirectionAndSpeed.Y));
+		}
 	}
-	//	}
 }
 
 void AAlsCharacter::CalculateWindInfluenceEffect()
