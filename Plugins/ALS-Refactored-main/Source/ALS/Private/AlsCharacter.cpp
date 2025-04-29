@@ -310,6 +310,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	CalculateStartStopSliding();
 
+	CalculateWindInfluenceOnFalling();
+
 	CalculateWindInfluenceEffect();
 }
 
@@ -2042,33 +2044,23 @@ void AAlsCharacter::CalculateStartStopSliding()
 		bIsSliding = true;
 	}
 
-	if (bIsSliding && SlidingDistanceToStopPoint > 10.0f)
+	if (bIsSliding && DeltaDistanceToGetToStopPoint > 0.0f)
 	{
-		SetActorLocation(GetActorLocation() + LastVelocityDirection * DeltaDistanceToGetToStopPoint);
-		SlidingDistanceToStopPoint -= DeltaDistanceToGetToStopPoint;
-		float DistanceToCurve = FMath::GetMappedRangeValueClamped(FVector2D(OnStart_SlidingDistanceToStopPoint, 0.0f), FVector2D(0.0f, 1.0f), SlidingDistanceToStopPoint);
+		AddActorWorldOffset(LastVelocity.GetSafeNormal() * DeltaDistanceToGetToStopPoint, true);
+		LastVelocity = FMath::VInterpTo(LastVelocity, LastVelocityConsideringWind, GetWorld()->DeltaTimeSeconds, 3.0f);
 
-		if (CurveToCountDeltaDistance)
-		{
-			DeltaDistanceToGetToStopPoint = OnStart_DeltaDistanceToGetToStopPoint * CurveToCountDeltaDistance->GetFloatValue(DistanceToCurve);
-			AlphaForLeanAnim = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting)), FVector2D(0.0f, 1.0f),
-				OnStart_SlidingDistanceToStopPoint) * CurveToCountDeltaDistance->GetFloatValue(DistanceToCurve);
-		}
+		SlidingTime += GetWorld()->GetDeltaSeconds();
+		DeltaDistanceToGetToStopPoint -= (FMath::Pow(SlidingTime, 2) + SurfacePhysicFriction);
+		AlphaForLeanAnim = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 23.0f), FVector2D(0.0f, 1.0f), DeltaDistanceToGetToStopPoint);
 	}
 	else
 	{
 		bIsSliding = false;
-		LastVelocityDirection = GetVelocity().GetSafeNormal() * FVector(1.0f, 1.0f, 0.0f);
+		SlidingTime = 0.0f;
+		LastVelocity = GetVelocity() * FVector(1.0f, 1.0f, 0.0f);
+		LastVelocityConsideringWind = LastVelocity + FVector(WindDirectionAndSpeed.X, WindDirectionAndSpeed.Y, 0.0f) / 5.0f;
 		LastGaitTag = GetGait();
-
-		OnStart_SlidingDistanceToStopPoint = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.0f, AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting)),
-			FVector2D(GetVelocity()).Length() / AlsCharacterMovement->GetGaitSettings().GetSpeedByGait(AlsGaitTags::Sprinting));
-		OnStart_SlidingDistanceToStopPoint *= FMath::GetMappedRangeValueClamped(FVector2D(0.7f, 0.0f), FVector2D(0.0f, 1.0f), SurfacePhysicFriction);
-		SlidingDistanceToStopPoint = OnStart_SlidingDistanceToStopPoint;
-
-		OnStart_DeltaDistanceToGetToStopPoint = (FVector2D(GetVelocity())).Length() * GetWorld()->GetDeltaSeconds();
-		OnStart_DeltaDistanceToGetToStopPoint *= FMath::GetMappedRangeValueClamped(FVector2D(0.7f, 0.0f), FVector2D(0.0f, 1.0f), SurfacePhysicFriction);
-		DeltaDistanceToGetToStopPoint = OnStart_DeltaDistanceToGetToStopPoint;
+		DeltaDistanceToGetToStopPoint = FVector2D(LastVelocityConsideringWind).Length() * GetWorld()->GetDeltaSeconds();
 	}
 }
 
@@ -2081,7 +2073,14 @@ void AAlsCharacter::SetWindDirection()
 	{
 		AWindDirectionalSource* WindDirectionalSource = Cast<AWindDirectionalSource>(WindControllers[0]);
 		WindDirectionAndSpeed = FVector2D(WindDirectionalSource->GetActorForwardVector() * WindDirectionalSource->GetComponent()->Speed);
-		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Green, FString::Printf(TEXT("%2.2f    %2.2f"), WindDirectionAndSpeed.X, WindDirectionAndSpeed.Y));
+	}
+}
+
+void AAlsCharacter::CalculateWindInfluenceOnFalling()
+{
+	if (AlsCharacterMovement->IsFalling())
+	{
+		AddActorWorldOffset(FVector(WindDirectionAndSpeed.X, WindDirectionAndSpeed.Y, 0.0f) / 1000.0f, true);
 	}
 }
 

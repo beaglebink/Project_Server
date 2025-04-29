@@ -751,19 +751,14 @@ private:
 	FRotator CurrentControlRotation;
 	float PrevVelocityLength2D;
 	float CurrentVelocityLength2D;
-	FVector LastVelocityDirection;
-	float OnStart_SlidingDistanceToStopPoint;
-	float SlidingDistanceToStopPoint;
-	float OnStart_DeltaDistanceToGetToStopPoint;
+	FVector LastVelocity;
+	FVector LastVelocityConsideringWind;
 	float DeltaDistanceToGetToStopPoint;
 	float SurfacePhysicFriction = 1.0f;
+	float SlidingTime = 0.0f;
 
 	bool SwitcherForSlidingLogic_OnSurfaceFriction();
 	void CalculateStartStopSliding();
-
-protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement|Sliding")
-	UCurveFloat* CurveToCountDeltaDistance;
 
 	//Wind influence
 public:
@@ -782,6 +777,8 @@ private:
 	float WindIfluenceEffect0_2 = 1;
 
 	void SetWindDirection();
+
+	void CalculateWindInfluenceOnFalling();
 
 	void CalculateWindInfluenceEffect();
 };
