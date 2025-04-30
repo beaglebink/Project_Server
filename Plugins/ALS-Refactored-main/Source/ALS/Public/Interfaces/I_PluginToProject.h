@@ -17,5 +17,6 @@ class ALS_API II_PluginToProject
 	GENERATED_BODY()
 
 public:
-	virtual FVector2D GetWindDirectionAndSpeed() = 0;
+
+	// methods to be override in child = 0
 };

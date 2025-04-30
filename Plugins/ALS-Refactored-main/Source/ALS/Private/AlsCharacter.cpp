@@ -1948,8 +1948,6 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2;
 
-	//GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), SpeedMultiplier));
-
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
 		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
