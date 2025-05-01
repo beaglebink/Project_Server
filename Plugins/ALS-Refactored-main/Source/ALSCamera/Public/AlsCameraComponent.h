@@ -63,6 +63,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (ClampMin = 5, ClampMax = 360, ForceUnits = "deg"))
 	float CameraFov{90.0f};
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Aiming", Meta = (ClampMin = 0, ClampMax = 90, ForceUnits = "deg"))
+	float AimFOVOffset{ 0.0f };
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
 	uint8 bRightShoulder : 1 {true};
 
