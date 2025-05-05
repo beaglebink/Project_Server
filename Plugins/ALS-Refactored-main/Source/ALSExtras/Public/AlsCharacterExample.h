@@ -99,6 +99,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example")
 	float DoubleSpaceTime = 0.15f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example")
+	bool IsImplementingAIM = true;
+
 private:
 	FTimerHandle JumpTimerHandle;
 

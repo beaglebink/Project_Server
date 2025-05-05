@@ -243,7 +243,8 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnAim(const FInputActionValue& ActionValue)
 {
-	SetDesiredAiming(ActionValue.Get<bool>());
+	if(IsImplementingAIM)
+		SetDesiredAiming(ActionValue.Get<bool>());
 }
 
 void AAlsCharacterExample::Input_OnRagdoll()
