@@ -115,16 +115,22 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 {
 	const auto Value{ ActionValue.Get<FVector2D>() };
 
-	AddControllerPitchInput(Value.Y * LookUpMouseSensitivity);
-	AddControllerYawInput(Value.X * LookRightMouseSensitivity);
+	if (!bIsStunned)
+	{
+		AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier);
+		AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier);
+	}
 }
 
 void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 {
 	const auto Value{ ActionValue.Get<FVector2D>() };
 
-	AddControllerPitchInput(Value.Y * LookUpRate);
-	AddControllerYawInput(Value.X * LookRightRate);
+	if (!bIsStunned)
+	{
+		AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier);
+		AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier);
+	}
 }
 
 void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
@@ -243,7 +249,7 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnAim(const FInputActionValue& ActionValue)
 {
-	if(IsImplementingAIM)
+	if (IsImplementingAIM)
 		SetDesiredAiming(ActionValue.Get<bool>());
 }
 

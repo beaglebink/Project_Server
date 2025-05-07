@@ -313,6 +313,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CalculateWindInfluenceOnFalling();
 
 	CalculateWindInfluenceEffect();
+
+	StunRecovery();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -1944,7 +1946,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
-	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2;
+	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -1958,8 +1960,19 @@ void AAlsCharacter::StunEffect(float Time)
 {
 	bIsStunned = true;
 
+	StunRecoveryMultiplier = 0.1f;
+
 	FTimerHandle TimerHandle;
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {bIsStunned = false; }, Time, false);
+}
+
+void AAlsCharacter::StunRecovery()
+{
+	if (!bIsStunned && StunRecoveryMultiplier < 1.0f)
+	{
+		StunRecoveryMultiplier += GetWorld()->GetDeltaSeconds() / StunRecoveryTime;
+	}
+	StunRecoveryMultiplier = UKismetMathLibrary::FClamp(StunRecoveryMultiplier, 0.1f, 1.0f);
 }
 
 void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)

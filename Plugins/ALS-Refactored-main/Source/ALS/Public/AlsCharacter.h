@@ -702,10 +702,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stun effect time", meta = (ClampMin = "0.0", ClampMax = "10.0", ToolTip = "Stun time from being heavy attack"))
 	float StunTime = 0.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stun effect recovery time", meta = (ClampMin = "0.0", ClampMax = "10.0", ToolTip = "Stun recovery time"))
+	float StunRecoveryTime = 5.0f;
+
 	uint8 bIsStunned : 1 = false;
 
 	UFUNCTION(BlueprintCallable, Category = "Stun effect")
 	void StunEffect(float Time);
+
+	float StunRecoveryMultiplier = 1.0f;
+
+private:
+	void StunRecovery();
 
 	//Damage slowdown
 protected:
