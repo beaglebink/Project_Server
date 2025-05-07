@@ -50,16 +50,6 @@ protected:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "0.5"))
 	float WeaponMovementPenalty = 0.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
-	float MinFallHeightWithoutDamageAndStun = 200.0f;
-
-	float FallDistanceToCountStunAndDamage = 0.0f;
-	float PrevZLocation = 0.0f;
-	float ZLocation = 0.0f;
-	float StunTime = 0.0f;
-	float FallDamage = 0.0f;
-	uint8 bIsStunned : 1 = false;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.01", ClampMax = "5.0"))
 	float DelayCrouchInOut = 0.01f;
 
@@ -698,6 +688,24 @@ public:
 	float	ExhaustionPenaltyDuration = 5.0f;
 
 	uint8 AbleToSprint : 1{true};
+
+	//Fall damage
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MinFallHeightWithoutDamageAndStun = 200.0f;
+
+	float FallDistanceToCountStunAndDamage = 0.0f;
+	float PrevZLocation = 0.0f;
+	float ZLocation = 0.0f;
+	float FallDamage = 0.0f;
+
+	//Stun effect
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stun effect time", meta = (ClampMin = "0.0", ClampMax = "10.0", ToolTip = "Stun time from being heavy attack"))
+	float StunTime = 0.0f;
+
+	uint8 bIsStunned : 1 = false;
+
+	UFUNCTION(BlueprintCallable, Category = "Stun effect")
+	void StunEffect(float Time);
 
 	//Damage slowdown
 protected:

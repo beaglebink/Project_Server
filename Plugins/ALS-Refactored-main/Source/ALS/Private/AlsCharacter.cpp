@@ -1509,10 +1509,8 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 		{
 			FallDamage = (FallDistanceToCountStunAndDamage - MinFallHeightWithoutDamageAndStun) / 10.0f;
 			StunTime = (FallDistanceToCountStunAndDamage - MinFallHeightWithoutDamageAndStun) / 100.0f;
-			bIsStunned = true;
 			UGameplayStatics::ApplyDamage(this, FallDamage, GetController(), this, nullptr);
-			FTimerHandle TimerHandle;
-			GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {bIsStunned = false; }, StunTime, false);
+			StunEffect(StunTime);
 		}
 
 		FallDistanceToCountStunAndDamage = 0.0f;
@@ -1954,6 +1952,14 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		AlsCharacterMovement->RefreshMaxWalkSpeed();
 	}
 	PrevSpeedMultiplier = SpeedMultiplier;
+}
+
+void AAlsCharacter::StunEffect(float Time)
+{
+	bIsStunned = true;
+
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {bIsStunned = false; }, Time, false);
 }
 
 void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)

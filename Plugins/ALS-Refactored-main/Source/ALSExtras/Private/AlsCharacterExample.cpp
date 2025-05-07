@@ -141,7 +141,7 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_StartSprint()
 {
-	if (!bIsSliding)
+	if (!bIsStunned && !bIsSliding)
 	{
 		if (!GetLastMovementInputVector().IsNearlyZero() && GetDesiredStance() == AlsStanceTags::Standing)
 		{
@@ -205,7 +205,7 @@ void AAlsCharacterExample::Input_OnCrouch()
 
 void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 {
-	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>() && !bIsSliding)
+	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>() && !bIsStunned && !bIsSliding)
 	{
 		if (StopRagdolling())
 		{
@@ -259,7 +259,7 @@ void AAlsCharacterExample::Input_OnRoll()
 {
 	static constexpr auto PlayRate{ 1.3f };
 
-	if (GetStamina() > RollStaminaCost && !bIsSliding)
+	if (GetStamina() > RollStaminaCost && !bIsStunned && !bIsSliding)
 	{
 		StartRolling(PlayRate);
 	}
