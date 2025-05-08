@@ -782,21 +782,32 @@ public:
 	uint8 bDoesWindInfluence : 1 {false};
 
 	UPROPERTY(BlueprintReadOnly, Category = "WindDirectionInfluence")
-	float BackwardForward_WindAmount = 0.0f;
+	float BackwardForward_WindAmount{ 0.0f };
 
 	UPROPERTY(BlueprintReadOnly, Category = "WindDirectionInfluence")
-	float LeftRight_WindAmount = 0.0f;
+	float LeftRight_WindAmount{ 0.0f };
 
 private:
 	FVector2D WindDirectionAndSpeed;
 
-	float WindIfluenceEffect0_2 = 1;
+	float WindIfluenceEffect0_2{ 1.0f };
 
 	void SetWindDirection();
 
 	void CalculateWindInfluenceOnFalling();
 
 	void CalculateWindInfluenceEffect();
+
+	//Sticky surface
+public:
+	UFUNCTION(BlueprintCallable, Category = "Sticky Feet")
+	bool IsStickySurface(FName Bone);
+
+protected:
+	uint8 bUsedMashToEscape : 1{false};
+
+private:
+	float StickyMultiplier{ 1.0f };
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
