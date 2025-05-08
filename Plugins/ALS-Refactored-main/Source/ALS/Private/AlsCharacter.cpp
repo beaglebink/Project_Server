@@ -2118,6 +2118,7 @@ bool AAlsCharacter::IsStickySurface(FName Bone)
 	if (bUsedMashToEscape)
 	{
 		StickyMultiplier = 1.0f;
+		SetDesiredGait(AlsGaitTags::Walking);
 		return false;
 	}
 
@@ -2135,12 +2136,14 @@ bool AAlsCharacter::IsStickySurface(FName Bone)
 		{
 		case EPhysicalSurface::SurfaceType8:
 		{
+			bIsSticky = true;
 			StickyMultiplier = 0.5f;
 			SetDesiredGait(AlsGaitTags::Walking);
 			return true;
 		}
 		default:
 		{
+			bIsSticky = false;
 			StickyMultiplier = 1.0f;
 			break;
 		}

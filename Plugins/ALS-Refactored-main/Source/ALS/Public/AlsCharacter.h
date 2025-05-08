@@ -805,6 +805,7 @@ public:
 
 protected:
 	uint8 bUsedMashToEscape : 1{false};
+	uint8 bIsSticky : 1{false};
 
 private:
 	float StickyMultiplier{ 1.0f };
