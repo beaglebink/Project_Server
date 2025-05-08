@@ -147,7 +147,7 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_StartSprint()
 {
-	if (!bIsStunned && !bIsSliding)
+	if (!bIsStunned && !bIsSliding && !bIsSticky)
 	{
 		if (!GetLastMovementInputVector().IsNearlyZero() && GetDesiredStance() == AlsStanceTags::Standing)
 		{
@@ -265,7 +265,7 @@ void AAlsCharacterExample::Input_OnRoll()
 {
 	static constexpr auto PlayRate{ 1.3f };
 
-	if (GetStamina() > RollStaminaCost && !bIsStunned && !bIsSliding)
+	if (GetStamina() > RollStaminaCost && !bIsStunned && !bIsSliding && !bIsSticky)
 	{
 		StartRolling(PlayRate);
 	}
