@@ -54,22 +54,22 @@ protected:
 #endif
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
-	FGameplayTag ViewMode{AlsViewModeTags::ThirdPerson};
+	FGameplayTag ViewMode{ AlsViewModeTags::ThirdPerson };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
-	FGameplayTag LocomotionMode{AlsLocomotionModeTags::Grounded};
+	FGameplayTag LocomotionMode{ AlsLocomotionModeTags::Grounded };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
-	FGameplayTag RotationMode{AlsRotationModeTags::ViewDirection};
+	FGameplayTag RotationMode{ AlsRotationModeTags::ViewDirection };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
-	FGameplayTag Stance{AlsStanceTags::Standing};
+	FGameplayTag Stance{ AlsStanceTags::Standing };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
-	FGameplayTag Gait{AlsGaitTags::Walking};
+	FGameplayTag Gait{ AlsGaitTags::Walking };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
-	FGameplayTag OverlayMode{AlsOverlayModeTags::Default};
+	FGameplayTag OverlayMode{ AlsOverlayModeTags::Default };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
 	FGameplayTag LocomotionAction;
@@ -248,14 +248,14 @@ private:
 	void RefreshFeet(float DeltaTime);
 
 	void RefreshFoot(FAlsFootState& FootState, const FName& FootIkCurveName, const FName& FootLockCurveName,
-	                 const FAlsFootLimitsSettings& LimitsSettings, const FTransform& ComponentTransformInverse, float DeltaTime) const;
+		const FAlsFootLimitsSettings& LimitsSettings, const FTransform& ComponentTransformInverse, float DeltaTime) const;
 
 	void ProcessFootLockTeleport(FAlsFootState& FootState) const;
 
 	void ProcessFootLockBaseChange(FAlsFootState& FootState, const FTransform& ComponentTransformInverse) const;
 
 	void RefreshFootLock(FAlsFootState& FootState, const FName& FootLockCurveName, const FTransform& ComponentTransformInverse,
-	                     float DeltaTime, FVector& FinalLocation, FQuat& FinalRotation) const;
+		float DeltaTime, FVector& FinalLocation, FQuat& FinalRotation) const;
 
 	void RefreshFootOffset(FAlsFootState& FootState, float DeltaTime, FVector& FinalLocation, FQuat& FinalRotation) const;
 
@@ -269,15 +269,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Animation Instance", Meta = (BlueprintThreadSafe))
 	void PlayTransitionAnimation(UAnimSequenceBase* Animation, float BlendInDuration = 0.2f, float BlendOutDuration = 0.2f,
-	                             float PlayRate = 1.0f, float StartTime = 0.0f, bool bFromStandingIdleOnly = false);
+		float PlayRate = 1.0f, float StartTime = 0.0f, bool bFromStandingIdleOnly = false);
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Animation Instance", Meta = (BlueprintThreadSafe))
 	void PlayTransitionLeftAnimation(float BlendInDuration = 0.2f, float BlendOutDuration = 0.2f, float PlayRate = 1.0f,
-	                                 float StartTime = 0.0f, bool bFromStandingIdleOnly = false);
+		float StartTime = 0.0f, bool bFromStandingIdleOnly = false);
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Animation Instance", Meta = (BlueprintThreadSafe))
 	void PlayTransitionRightAnimation(float BlendInDuration = 0.2f, float BlendOutDuration = 0.2f, float PlayRate = 1.0f,
-	                                  float StartTime = 0.0f, bool bFromStandingIdleOnly = false);
+		float StartTime = 0.0f, bool bFromStandingIdleOnly = false);
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Animation Instance", Meta = (BlueprintThreadSafe))
 	void StopTransitionAndTurnInPlaceAnimations(float BlendOutDuration = 0.2f);

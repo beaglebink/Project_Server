@@ -313,6 +313,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CalculateWindInfluenceOnFalling();
 
 	CalculateWindInfluenceEffect();
+
+	StunRecovery();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -1509,10 +1511,8 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 		{
 			FallDamage = (FallDistanceToCountStunAndDamage - MinFallHeightWithoutDamageAndStun) / 10.0f;
 			StunTime = (FallDistanceToCountStunAndDamage - MinFallHeightWithoutDamageAndStun) / 100.0f;
-			bIsStunned = true;
 			UGameplayStatics::ApplyDamage(this, FallDamage, GetController(), this, nullptr);
-			FTimerHandle TimerHandle;
-			GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {bIsStunned = false; }, StunTime, false);
+			StunEffect(StunTime);
 		}
 
 		FallDistanceToCountStunAndDamage = 0.0f;
@@ -1946,7 +1946,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
-	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2;
+	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -1954,6 +1954,25 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		AlsCharacterMovement->RefreshMaxWalkSpeed();
 	}
 	PrevSpeedMultiplier = SpeedMultiplier;
+}
+
+void AAlsCharacter::StunEffect(float Time)
+{
+	bIsStunned = true;
+
+	StunRecoveryMultiplier = 0.1f;
+
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {bIsStunned = false; }, Time, false);
+}
+
+void AAlsCharacter::StunRecovery()
+{
+	if (!bIsStunned && StunRecoveryMultiplier < 1.0f)
+	{
+		StunRecoveryMultiplier += GetWorld()->GetDeltaSeconds() / StunRecoveryTime;
+	}
+	StunRecoveryMultiplier = UKismetMathLibrary::FClamp(StunRecoveryMultiplier, 0.1f, 1.0f);
 }
 
 void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)
@@ -2092,4 +2111,41 @@ void AAlsCharacter::CalculateWindInfluenceEffect()
 
 	WindIfluenceEffect0_2 = FMath::FInterpTo(WindIfluenceEffect0_2, 1 + UKismetMathLibrary::DotProduct2D(FVector2D(GetVelocity().GetSafeNormal()), WindDirectionAndSpeed.GetSafeNormal()) *
 		FMath::GetMappedRangeValueClamped(FVector2D(1000.0f, 2500.0f), FVector2D(0.0f, 1.0f), WindDirectionAndSpeed.Length()), GetWorld()->GetDeltaSeconds(), 2.0f);
+}
+
+bool AAlsCharacter::IsStickySurface(FName Bone)
+{
+	if (bUsedMashToEscape)
+	{
+		StickyMultiplier = 1.0f;
+		return false;
+	}
+
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	FHitResult HitResult;
+	FVector LineTraceStart = GetMesh()->GetSocketLocation(Bone) + GetActorUpVector() * 10.0f;
+	FVector LineTraceEnd = LineTraceStart + FVector(0.0f, 0.0f, -50.0f);
+
+	bool bIsHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), LineTraceStart, LineTraceEnd, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, HitResult, true);
+
+	if (bIsHit && HitResult.PhysMaterial.IsValid())
+	{
+		switch (HitResult.PhysMaterial->SurfaceType)
+		{
+		case EPhysicalSurface::SurfaceType8:
+		{
+			StickyMultiplier = 0.5f;
+			SetDesiredGait(AlsGaitTags::Walking);
+			return true;
+		}
+		default:
+		{
+			StickyMultiplier = 1.0f;
+			break;
+		}
+		}
+	}
+
+	return false;
 }
