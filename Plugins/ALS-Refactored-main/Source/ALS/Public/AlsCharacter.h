@@ -800,15 +800,42 @@ private:
 
 	//Sticky surface
 public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stickness", meta = (ClampMin = 0.0f, ClampMax = 1.0f, ToolTip = "How faster slowdown on sticky surface"))
+	float StickyStuckSpeed = 0.0f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stickness", meta = (ClampMin = 0, ClampMax = 10, ToolTip = "How many times need to tap move button quickly and in a row to get rid of stickness"))
+	uint8 HowManyTaps = 5;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stickness", meta = (ClampMin = 0.0f, ClampMax = 1.0f, ForceUnits = "s", ToolTip = "How quick should push the button to escape"))
+	float TimeBetweenTaps = 0.2f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Stickness")
+	float StickyStuckMultiplier{ 1.0f };
+
 	UFUNCTION(BlueprintCallable, Category = "Sticky Feet")
 	bool IsStickySurface(FName Bone);
 
 protected:
 	uint8 bUsedMashToEscape : 1{false};
+	
 	uint8 bIsSticky : 1{false};
+
+	uint8 bIsStickyStuck : 1{false};
+
+	void RemoveSticknessByMash();
+
+	FVector2D LastInputDirection;
 
 private:
 	float StickyMultiplier{ 1.0f };
+
+	uint8 bTapInTime = false;
+
+	uint8 TapCounter = 0;
+
+	FTimerHandle TapInTimeTimerHandle;
+
+	FVector2D PrevInputDirection;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

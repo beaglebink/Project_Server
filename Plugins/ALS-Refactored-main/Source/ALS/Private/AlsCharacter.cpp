@@ -1946,7 +1946,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(MovementBackwardSpeedMultiplier, 1.0f), MovementDirection);
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
-	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier;
+	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2117,7 +2117,9 @@ bool AAlsCharacter::IsStickySurface(FName Bone)
 {
 	if (bUsedMashToEscape)
 	{
+		bUsedMashToEscape = false;
 		StickyMultiplier = 1.0f;
+		bIsStickyStuck = false;
 		SetDesiredGait(AlsGaitTags::Walking);
 		return false;
 	}
@@ -2137,13 +2139,15 @@ bool AAlsCharacter::IsStickySurface(FName Bone)
 		case EPhysicalSurface::SurfaceType8:
 		{
 			bIsSticky = true;
-			StickyMultiplier = 0.5f;
+			StickyMultiplier = UAlsMath::Clamp01(StickyMultiplier -= StickyStuckSpeed / 100.0f);
+			bIsStickyStuck = !StickyMultiplier;
 			SetDesiredGait(AlsGaitTags::Walking);
 			return true;
 		}
 		default:
 		{
 			bIsSticky = false;
+			bIsStickyStuck = false;
 			StickyMultiplier = 1.0f;
 			break;
 		}
@@ -2151,4 +2155,32 @@ bool AAlsCharacter::IsStickySurface(FName Bone)
 	}
 
 	return false;
+}
+
+void AAlsCharacter::RemoveSticknessByMash()
+{
+	if (bTapInTime)
+	{
+		if (PrevInputDirection == LastInputDirection)
+		{
+			GetWorld()->GetTimerManager().ClearTimer(TapInTimeTimerHandle);
+			--TapCounter;
+			if (!TapCounter)
+			{
+				bUsedMashToEscape = true;
+				bTapInTime = false;
+				return;
+			}
+			GetWorld()->GetTimerManager().SetTimer(TapInTimeTimerHandle, [this]() {bTapInTime = false; }, TimeBetweenTaps, false);
+		}
+	}
+	else
+	{
+		bTapInTime = true;
+		TapCounter = HowManyTaps;
+		GetWorld()->GetTimerManager().SetTimer(TapInTimeTimerHandle, [this]() {bTapInTime = false; }, TimeBetweenTaps, false);
+	}
+
+	PrevInputDirection = LastInputDirection;
+
 }

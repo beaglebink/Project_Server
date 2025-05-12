@@ -96,6 +96,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLookMouse);
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLook);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnMove);
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnMove_Released);
 		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ThisClass::Input_StartSprint);
 		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ThisClass::Input_StopSprint);
 		EnhancedInput->BindAction(WalkAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnWalk);
@@ -137,12 +138,19 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 {
 	const auto Value{ UAlsMath::ClampMagnitude012D(ActionValue.Get<FVector2D>()) };
 
+	LastInputDirection = Value;
+
 	const auto ForwardDirection{ UAlsMath::AngleToDirectionXY(UE_REAL_TO_FLOAT(GetViewState().Rotation.Yaw)) };
 	const auto RightDirection{ UAlsMath::PerpendicularCounterClockwiseXY(ForwardDirection) };
-	if (!bIsStunned && !bIsSliding)
+	if (!bIsStunned && !bIsSliding && !bIsStickyStuck)
 	{
 		AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
 	}
+}
+
+void AAlsCharacterExample::Input_OnMove_Released()
+{
+	RemoveSticknessByMash();
 }
 
 void AAlsCharacterExample::Input_StartSprint()
@@ -211,7 +219,7 @@ void AAlsCharacterExample::Input_OnCrouch()
 
 void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 {
-	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>() && !bIsStunned && !bIsSliding)
+	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>() && !bIsStunned && !bIsSliding && !bIsStickyStuck)
 	{
 		if (StopRagdolling())
 		{
