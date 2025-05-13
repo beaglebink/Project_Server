@@ -2161,7 +2161,7 @@ void AAlsCharacter::RemoveSticknessByMash()
 {
 	if (bTapInTime)
 	{
-
+		// check for directional keys - if pressed same direction key. If want use it just remove comment below
 		//if (PrevInputDirection == LastInputDirection)
 		{
 			GetWorld()->GetTimerManager().ClearTimer(TapInTimeTimerHandle);
