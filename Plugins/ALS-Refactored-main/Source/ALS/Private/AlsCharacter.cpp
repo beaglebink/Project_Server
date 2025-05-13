@@ -2161,7 +2161,8 @@ void AAlsCharacter::RemoveSticknessByMash()
 {
 	if (bTapInTime)
 	{
-		if (PrevInputDirection == LastInputDirection)
+
+		//if (PrevInputDirection == LastInputDirection)
 		{
 			GetWorld()->GetTimerManager().ClearTimer(TapInTimeTimerHandle);
 			--TapCounter;

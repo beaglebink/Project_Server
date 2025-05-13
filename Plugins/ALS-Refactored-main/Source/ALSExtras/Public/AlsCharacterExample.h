@@ -73,6 +73,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> SwitchWeaponAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> RemoveSticknessAction;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example", Meta = (ClampMin = 0, ForceUnits = "x"))
 	float LookUpMouseSensitivity{ 1.0f };
 
@@ -154,6 +157,8 @@ private:
 	void ContinueJump();
 
 	void Input_OnSwitchWeapon();
+
+	void Input_OnRemoveStickness();
 
 protected:
 	UFUNCTION(BlueprintImplementableEvent)

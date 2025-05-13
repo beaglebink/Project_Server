@@ -109,6 +109,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(ViewModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnViewMode);
 		EnhancedInput->BindAction(SwitchShoulderAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchShoulder);
 		EnhancedInput->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchWeapon);
+		EnhancedInput->BindAction(RemoveSticknessAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnRemoveStickness);
 	}
 }
 
@@ -421,6 +422,11 @@ void AAlsCharacterExample::ContinueJump()
 void AAlsCharacterExample::Input_OnSwitchWeapon()
 {
 	SwitchWeaponHandle();
+}
+
+void AAlsCharacterExample::Input_OnRemoveStickness()
+{
+	RemoveSticknessByMash();
 }
 
 // UI
