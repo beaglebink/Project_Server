@@ -1958,12 +1958,19 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 void AAlsCharacter::StunEffect(float Time)
 {
-	bIsStunned = true;
+	float StunTimeLocal = Time;
+	if (bIsStunned)
+	{
+		StunTimeLocal += GetWorldTimerManager().GetTimerRemaining(StunTimerHandle);
+	}
 
-	StunRecoveryMultiplier = 0.1f;
-
-	FTimerHandle TimerHandle;
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {bIsStunned = false; }, Time, false);
+	GetWorldTimerManager().ClearTimer(StunTimerHandle);
+	if (StunTimeLocal > 0)
+	{
+		bIsStunned = true;
+		StunRecoveryMultiplier = 0.1f;
+		GetWorldTimerManager().SetTimer(StunTimerHandle, [&]() {bIsStunned = false; }, StunTimeLocal, false);
+	}
 }
 
 void AAlsCharacter::StunRecovery()
@@ -2184,4 +2191,14 @@ void AAlsCharacter::RemoveSticknessByMash()
 
 	PrevInputDirection = LastInputDirection;
 
+}
+
+void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPower)
+{
+	float Power = FMath::Clamp(InstigatorPower - UKismetMathLibrary::Vector_Distance(InstigatorLocation, GetActorLocation()), 0.0f, 1000.0f);
+	FVector Direction = (GetActorLocation() - InstigatorLocation).GetSafeNormal() * Power;
+	Direction.Z = FMath::Clamp(Direction.Z, 0.0f, 1000.0f);
+	LaunchCharacter(Direction, false, false);
+	float Time = UKismetMathLibrary::MapRangeClamped(Power, 200.0f, 1000.0f, 0.0f, 5.0f);
+	StunEffect(Time);
 }

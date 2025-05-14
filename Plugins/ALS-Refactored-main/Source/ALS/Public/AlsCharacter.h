@@ -713,6 +713,9 @@ public:
 	float StunRecoveryMultiplier = 1.0f;
 
 private:
+	FTimerHandle StunTimerHandle;
+
+private:
 	void StunRecovery();
 
 	//Damage slowdown
@@ -802,7 +805,7 @@ private:
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stickness", meta = (ClampMin = 0.0f, ClampMax = 1.0f, ToolTip = "How faster slowdown on sticky surface"))
 	float StickyStuckSpeed = 0.0f;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stickness", meta = (ClampMin = 0, ClampMax = 10, ToolTip = "How many times need to tap move button quickly and in a row to get rid of stickness"))
 	uint8 HowManyTaps = 5;
 
@@ -817,7 +820,7 @@ public:
 
 protected:
 	uint8 bUsedMashToEscape : 1{false};
-	
+
 	uint8 bIsSticky : 1{false};
 
 	uint8 bIsStickyStuck : 1{false};
@@ -836,6 +839,11 @@ private:
 	FTimerHandle TapInTimeTimerHandle;
 
 	FVector2D PrevInputDirection;
+
+	//stumble effect
+public:
+	UFUNCTION(BlueprintCallable, Category = "StumbleEffect")
+	void StumbleEffect(FVector InstigatorLocation, float InstigatorPower);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
