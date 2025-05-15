@@ -1957,7 +1957,7 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 		ZLocation = 0.0f;
 	}
 
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), temp));
+	//GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), temp));
 }
 
 void AAlsCharacter::StunEffect(float Time)
