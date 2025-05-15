@@ -1929,9 +1929,14 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 {
-	float temp = LastCharacterLocation_Z - GetActorLocation().Z;
-	LastCharacterLocation_Z = GetActorLocation().Z;
-	if (temp > 10.0f)
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	FHitResult HitResult;
+
+	bool bIsHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(),
+		GetActorLocation() + FVector(0.0f, 0.0f, -GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - 20.0f), ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, HitResult, true);
+
+	if (!bIsHit)
 	{
 		ZLocation = GetActorLocation().Z;
 		if (PrevZLocation)
@@ -1956,8 +1961,6 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 		PrevZLocation = 0.0f;
 		ZLocation = 0.0f;
 	}
-
-	//GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), temp));
 }
 
 void AAlsCharacter::StunEffect(float Time)
