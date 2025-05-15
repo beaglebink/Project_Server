@@ -694,7 +694,6 @@ public:
 	float MinFallHeightWithoutDamageAndStun = 200.0f;
 
 private:
-	float LastCharacterLocation_Z = 0.0f;
 	float FallDistanceToCountStunAndDamage = 0.0f;
 	float PrevZLocation = 0.0f;
 	float ZLocation = 0.0f;
