@@ -1494,35 +1494,6 @@ void AAlsCharacter::OnJumpedNetworked()
 	}
 }
 
-void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
-{
-	if (AlsCharacterMovement->IsFalling())
-	{
-		ZLocation = GetActorLocation().Z;
-		if (PrevZLocation)
-		{
-			FallDistanceToCountStunAndDamage += (PrevZLocation - ZLocation) > 0 ? PrevZLocation - ZLocation : 0.0f;
-		}
-		PrevZLocation = ZLocation;
-	}
-	else
-	{
-		if (FallDistanceToCountStunAndDamage > MinFallHeightWithoutDamageAndStun)
-		{
-			FallDamage = (FallDistanceToCountStunAndDamage - MinFallHeightWithoutDamageAndStun) / 10.0f;
-			StunTime = (FallDistanceToCountStunAndDamage - MinFallHeightWithoutDamageAndStun) / 100.0f;
-			UGameplayStatics::ApplyDamage(this, FallDamage, GetController(), this, nullptr);
-			StunEffect(StunTime);
-		}
-
-		FallDistanceToCountStunAndDamage = 0.0f;
-		FallDamage = 0.0f;
-		StunTime = 0.0f;
-		PrevZLocation = 0.0f;
-		ZLocation = 0.0f;
-	}
-}
-
 void AAlsCharacter::FaceRotation(const FRotator Rotation, const float DeltaTime)
 {
 	// Left empty intentionally. We are ignoring rotation changes from external
@@ -1956,6 +1927,39 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	PrevSpeedMultiplier = SpeedMultiplier;
 }
 
+void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
+{
+	float temp = LastCharacterLocation_Z - GetActorLocation().Z;
+	LastCharacterLocation_Z = GetActorLocation().Z;
+	if (temp > 10.0f)
+	{
+		ZLocation = GetActorLocation().Z;
+		if (PrevZLocation)
+		{
+			FallDistanceToCountStunAndDamage += (PrevZLocation - ZLocation) > 0 ? PrevZLocation - ZLocation : 0.0f;
+		}
+		PrevZLocation = ZLocation;
+	}
+	else
+	{
+		if (FallDistanceToCountStunAndDamage > MinFallHeightWithoutDamageAndStun)
+		{
+			FallDamage = (FallDistanceToCountStunAndDamage - MinFallHeightWithoutDamageAndStun) / 10.0f;
+			StunTime = (FallDistanceToCountStunAndDamage - MinFallHeightWithoutDamageAndStun) / 100.0f;
+			UGameplayStatics::ApplyDamage(this, FallDamage, GetController(), this, nullptr);
+			StunEffect(StunTime);
+		}
+
+		FallDistanceToCountStunAndDamage = 0.0f;
+		FallDamage = 0.0f;
+		StunTime = 0.0f;
+		PrevZLocation = 0.0f;
+		ZLocation = 0.0f;
+	}
+
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), temp));
+}
+
 void AAlsCharacter::StunEffect(float Time)
 {
 	float StunTimeLocal = Time;
@@ -1963,13 +1967,19 @@ void AAlsCharacter::StunEffect(float Time)
 	{
 		StunTimeLocal += GetWorldTimerManager().GetTimerRemaining(StunTimerHandle);
 	}
+	FTimerDelegate StunDelegate;
+	StunDelegate.BindLambda([this]()
+		{
+			bIsStunned = false;
+			StopRagdolling();
+		});
 
 	GetWorldTimerManager().ClearTimer(StunTimerHandle);
 	if (StunTimeLocal > 0)
 	{
 		bIsStunned = true;
 		StunRecoveryMultiplier = 0.1f;
-		GetWorldTimerManager().SetTimer(StunTimerHandle, [&]() {bIsStunned = false; }, StunTimeLocal, false);
+		GetWorldTimerManager().SetTimer(StunTimerHandle, StunDelegate, StunTimeLocal, false);
 	}
 }
 
@@ -2199,6 +2209,18 @@ void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPo
 	FVector Direction = (GetActorLocation() - InstigatorLocation).GetSafeNormal() * Power;
 	Direction.Z = FMath::Clamp(Direction.Z, 0.0f, 1000.0f);
 	LaunchCharacter(Direction, false, false);
+
 	float Time = UKismetMathLibrary::MapRangeClamped(Power, 200.0f, 1000.0f, 0.0f, 5.0f);
 	StunEffect(Time);
+}
+
+void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius)
+{
+	if (UKismetMathLibrary::Vector_Distance(InstigatorLocation, GetActorLocation()) <= InfluenceRadius)
+	{
+		float Force = GetMesh()->IsSimulatingPhysics("pelvis") ? 200.0f : 5000.0f;
+		StartRagdolling();
+		GetMesh()->AddRadialImpulse(InstigatorLocation, InfluenceRadius, Force, ERadialImpulseFalloff::RIF_Constant, true);
+		StunEffect(2.0f);
+	}
 }

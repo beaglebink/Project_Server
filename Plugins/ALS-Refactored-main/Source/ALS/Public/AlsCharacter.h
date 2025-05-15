@@ -693,12 +693,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float MinFallHeightWithoutDamageAndStun = 200.0f;
 
+private:
+	float LastCharacterLocation_Z = 0.0f;
 	float FallDistanceToCountStunAndDamage = 0.0f;
 	float PrevZLocation = 0.0f;
 	float ZLocation = 0.0f;
 	float FallDamage = 0.0f;
 
 	//Stun effect
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stun effect time", meta = (ClampMin = "0.0", ClampMax = "10.0", ToolTip = "Stun time from being heavy attack"))
 	float StunTime = 0.0f;
 
@@ -844,6 +847,11 @@ private:
 public:
 	UFUNCTION(BlueprintCallable, Category = "StumbleEffect")
 	void StumbleEffect(FVector InstigatorLocation, float InstigatorPower);
+
+	//knockdown effect
+public:
+	UFUNCTION(BlueprintCallable, Category = "KnockdownEffect")
+	void KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
