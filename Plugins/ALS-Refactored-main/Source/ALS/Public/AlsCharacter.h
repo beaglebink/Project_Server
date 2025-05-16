@@ -852,9 +852,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "KnockdownEffect")
 	void KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius);
 
-	//shock effect
-protected:
+	//Shock effect
+public:
+	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
+	uint8 bIsShocked : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
+	float ShockEffectPower_01Range = 0.0f;
+
+private:
+	FTimerHandle LaunchTimerHandle;
+	FTimerHandle CameraTimerHandle;
+	FTimerHandle DiscreteTimerHandle;
+	FTimerHandle RapidTimerHandle;
+
 	float ShockSpeedMultiplier = 1.0f;
+	float CameraPitchOffset = 0.0f;
+	float CameraYawOffset = 0.0f;
+	float CameraRapidPitchOffset = 0.0f;
+	float CameraRapidYawOffset = 0.0f;
+	float RapidFinalDistance = 0.0f;
+	float RapidFinalDistanceTransition = 0.0f;
+
+	void ShockEffect();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

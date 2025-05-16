@@ -315,6 +315,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CalculateWindInfluenceEffect();
 
 	StunRecovery();
+
+	ShockEffect();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2227,4 +2229,82 @@ void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceR
 		GetMesh()->AddRadialImpulse(InstigatorLocation, InfluenceRadius, Force, ERadialImpulseFalloff::RIF_Constant, true);
 		StunEffect(2.0f);
 	}
+}
+
+void AAlsCharacter::ShockEffect()
+{
+	if (bIsShocked)
+	{
+		ShockEffectPower_01Range = FMath::Clamp(ShockEffectPower_01Range, 0.0f, 1.0f);
+
+		//// moving
+		//ShockSpeedMultiplier = 1.0f - UKismetMathLibrary::RandomFloatInRange(0.0f, ShockEffectPower_01Range);
+
+		////side offset
+		//if (!GetWorldTimerManager().IsTimerActive(LaunchTimerHandle))
+		//{
+		//	GetWorldTimerManager().SetTimer(LaunchTimerHandle, [&]()
+		//		{
+		//			FVector LaunchDirection = UKismetMathLibrary::RandomUnitVector() * FVector(1.0f, 1.0f, 0.0f);
+		//			float ForceToLaunch = 500.0f * ShockEffectPower_01Range;
+		//			FTimerHandle VelocityTimerHandle;
+		//			AlsCharacterMovement->Velocity = GetVelocity() + LaunchDirection * ForceToLaunch;
+		//			GetWorldTimerManager().SetTimer(VelocityTimerHandle, [&]()
+		//				{
+		//					AlsCharacterMovement->Velocity = GetVelocity() - LaunchDirection * ForceToLaunch;
+		//				}, 0.2f, false);
+		//		}, UKismetMathLibrary::RandomFloatInRange(0.5f, 1.5f), false);
+		//}
+
+		////camera
+		//if (!GetWorldTimerManager().IsTimerActive(CameraTimerHandle))
+		//{
+		//	GetWorldTimerManager().SetTimer(CameraTimerHandle, [&]()
+		//		{
+		//			CameraPitchOffset = UKismetMathLibrary::RandomFloatInRange(1.0f, 2.0f) * (FMath::RandBool() ? 1 : -1) * ShockEffectPower_01Range;
+		//			CameraYawOffset = UKismetMathLibrary::RandomFloatInRange(1.0f, 2.0f) * (FMath::RandBool() ? 1 : -1) * ShockEffectPower_01Range;
+		//			;
+		//		}, UKismetMathLibrary::RandomFloatInRange(0.5f, 1.5f), false);
+		//}
+		//else if (!GetWorldTimerManager().IsTimerActive(DiscreteTimerHandle))
+		//{
+		//	GetWorldTimerManager().SetTimer(DiscreteTimerHandle, [this]()
+		//		{
+		//			AddControllerPitchInput(CameraPitchOffset);
+		//			AddControllerYawInput(CameraYawOffset);
+		//		}, UKismetMathLibrary::RandomFloatInRange(0.02f, 0.07f), false);
+		//}
+
+		if (!GetWorldTimerManager().IsTimerActive(RapidTimerHandle))
+		{
+			GetWorldTimerManager().SetTimer(RapidTimerHandle, [&]()
+				{
+					RapidFinalDistance = UKismetMathLibrary::RandomFloatInRange(3.0f, 4.0f) * ShockEffectPower_01Range;
+					RapidFinalDistanceTransition = 0.0f;
+					float PitchOffset = UKismetMathLibrary::RandomFloatInRange(0.0f, 7.0f);
+					CameraRapidPitchOffset = PitchOffset * (FMath::RandBool() ? 1 : -1) * ShockEffectPower_01Range;
+					CameraRapidYawOffset = (7.0f - PitchOffset) * (FMath::RandBool() ? 1 : -1) * ShockEffectPower_01Range;
+					;
+				}, UKismetMathLibrary::RandomFloatInRange(3.0f, 5.0f), false);
+		}
+		else
+		{
+			if (RapidFinalDistanceTransition < RapidFinalDistance)
+			{
+				++RapidFinalDistanceTransition;
+				AddControllerPitchInput(CameraRapidPitchOffset);
+				AddControllerYawInput(CameraRapidYawOffset);
+			}
+			else if (RapidFinalDistance > 0)
+			{
+				float ReturnSpeedMult = 0.5f;
+				RapidFinalDistance -= ReturnSpeedMult;
+				AddControllerPitchInput(-CameraRapidPitchOffset * ReturnSpeedMult);
+				AddControllerYawInput(-CameraRapidYawOffset * ReturnSpeedMult);
+			}
+		}
+
+		return;
+	}
+	ShockSpeedMultiplier = FMath::FInterpTo(ShockSpeedMultiplier, 1.0f, GetWorld()->GetDeltaSeconds(), 1.0f);
 }
