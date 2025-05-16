@@ -393,8 +393,6 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 	*/
 
 	SetStamina(GetStamina() + StaminaRegenerationRate);
-
-	ShockEffect();
 }
 
 void AAlsCharacterExample::PossessedBy(AController* NewController)
@@ -445,54 +443,4 @@ void AAlsCharacterExample::InitStatWidget()
 			}
 		}
 	}
-}
-
-void AAlsCharacterExample::ShockEffect()
-{
-	if (bIsShocked)
-	{
-		ShockEffectPower_01Range = FMath::Clamp(ShockEffectPower_01Range, 0.0f, 1.0f);
-
-		// moving
-		ShockSpeedMultiplier = 1.0f - UKismetMathLibrary::RandomFloatInRange(0.0f, ShockEffectPower_01Range);
-
-		//side offset
-		if (!GetWorldTimerManager().IsTimerActive(LaunchTimerHandle))
-		{
-			GetWorldTimerManager().SetTimer(LaunchTimerHandle, [&]()
-				{
-					FVector LaunchDirection = UKismetMathLibrary::RandomUnitVector() * FVector(1.0f, 1.0f, 0.0f);
-					float ForceToLaunch = 500.0f * ShockEffectPower_01Range;
-					FTimerHandle VelocityTimerHandle;
-					AlsCharacterMovement->Velocity = GetVelocity() + LaunchDirection * ForceToLaunch;
-					GetWorldTimerManager().SetTimer(VelocityTimerHandle, [&]()
-						{
-							AlsCharacterMovement->Velocity = GetVelocity() - LaunchDirection * ForceToLaunch;
-						}, 0.2f, false);
-				}, UKismetMathLibrary::RandomFloatInRange(0.5f, 1.5f), false);
-		}
-
-		//camera
-		if (!GetWorldTimerManager().IsTimerActive(CameraTimerHandle))
-		{
-			GetWorldTimerManager().SetTimer(CameraTimerHandle, [&]()
-				{
-					float OffsetDegree = 2.0f * ShockEffectPower_01Range;;
-					CameraPitchOffset = (UKismetMathLibrary::RandomFloatInRange(-OffsetDegree, OffsetDegree));
-					CameraYawOffset = (UKismetMathLibrary::RandomFloatInRange(-OffsetDegree, OffsetDegree));
-					;
-				}, UKismetMathLibrary::RandomFloatInRange(0.5f, 1.5f), false);
-		}
-		else if (!GetWorldTimerManager().IsTimerActive(DiscreteTimerHandle))
-		{
-			GetWorldTimerManager().SetTimer(DiscreteTimerHandle, [this]()
-				{
-					AddControllerPitchInput(CameraPitchOffset);
-					AddControllerYawInput(CameraYawOffset);
-				}, UKismetMathLibrary::RandomFloatInRange(0.02f, 0.07f), false);
-		}
-
-		return;
-	}
-	ShockSpeedMultiplier = FMath::FInterpTo(ShockSpeedMultiplier, 1.0f, GetWorld()->GetDeltaSeconds(), 1.0f);
 }

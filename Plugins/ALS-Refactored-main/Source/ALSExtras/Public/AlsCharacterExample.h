@@ -196,21 +196,4 @@ protected:
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void OnSetSprintMode(bool bSprintMode);
-
-	//Shock effect
-public:
-	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
-	uint8 bIsShocked : 1{false};
-
-	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
-	float ShockEffectPower_01Range = 0.0f;
-
-private:
-	FTimerHandle LaunchTimerHandle;
-	FTimerHandle CameraTimerHandle;
-	FTimerHandle DiscreteTimerHandle;
-
-	float CameraPitchOffset = 0.0f;
-	float CameraYawOffset = 0.0f;
-	void ShockEffect();
 };
