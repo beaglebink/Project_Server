@@ -477,19 +477,19 @@ void AAlsCharacterExample::ShockEffect()
 		{
 			GetWorldTimerManager().SetTimer(CameraTimerHandle, [&]()
 				{
-					FRotator OffsetRotation = UKismetMathLibrary::RandomUnitVectorInConeInDegrees(Camera->GetForwardVector(), 5.0f).Rotation();
+					float OffsetDegree = 2.0f * ShockEffectPower_01Range;;
+					CameraPitchOffset = (UKismetMathLibrary::RandomFloatInRange(-OffsetDegree, OffsetDegree));
+					CameraYawOffset = (UKismetMathLibrary::RandomFloatInRange(-OffsetDegree, OffsetDegree));
 					;
 				}, UKismetMathLibrary::RandomFloatInRange(0.5f, 1.5f), false);
 		}
-
-
-		//right hand
-		if (!GetWorldTimerManager().IsTimerActive(RightHandTimerHandle))
+		else if (!GetWorldTimerManager().IsTimerActive(DiscreteTimerHandle))
 		{
-			GetWorldTimerManager().SetTimer(RightHandTimerHandle, [&]()
+			GetWorldTimerManager().SetTimer(DiscreteTimerHandle, [this]()
 				{
-					;
-				}, UKismetMathLibrary::RandomFloatInRange(0.5f, 1.5f), false);
+					AddControllerPitchInput(CameraPitchOffset);
+					AddControllerYawInput(CameraYawOffset);
+				}, UKismetMathLibrary::RandomFloatInRange(0.02f, 0.07f), false);
 		}
 
 		return;

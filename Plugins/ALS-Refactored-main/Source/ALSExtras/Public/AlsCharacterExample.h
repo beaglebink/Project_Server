@@ -208,7 +208,9 @@ public:
 private:
 	FTimerHandle LaunchTimerHandle;
 	FTimerHandle CameraTimerHandle;
-	FTimerHandle RightHandTimerHandle;
+	FTimerHandle DiscreteTimerHandle;
 
+	float CameraPitchOffset = 0.0f;
+	float CameraYawOffset = 0.0f;
 	void ShockEffect();
 };
