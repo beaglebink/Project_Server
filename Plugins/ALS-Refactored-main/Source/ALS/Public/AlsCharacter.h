@@ -851,6 +851,10 @@ public:
 public:
 	UFUNCTION(BlueprintCallable, Category = "KnockdownEffect")
 	void KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius);
+
+	//shock effect
+protected:
+	float ShockSpeedMultiplier = 1.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
