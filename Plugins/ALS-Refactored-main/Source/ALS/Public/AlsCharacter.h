@@ -852,12 +852,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "KnockdownEffect")
 	void KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius);
 
-	//Shock effect
+	//shock effect
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
 	uint8 bIsShocked : 1{false};
 
-	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|ShockEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float ShockEffectPower_01Range = 0.0f;
 
 private:
@@ -875,6 +875,11 @@ private:
 	float RapidFinalDistanceTransition = 0.0f;
 
 	void ShockEffect();
+
+	//slowdown
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|SlowdownEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float Slowdown_01Range = 1.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
