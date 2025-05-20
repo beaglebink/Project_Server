@@ -133,8 +133,7 @@ private:
 	void Input_OnMove(const FInputActionValue& ActionValue);
 	void Input_OnMove_Released();
 
-	void Input_StartSprint();
-	void Input_StopSprint();
+	void Input_StartSprint(const FInputActionValue& ActionValue);
 
 	void Input_OnWalk();
 

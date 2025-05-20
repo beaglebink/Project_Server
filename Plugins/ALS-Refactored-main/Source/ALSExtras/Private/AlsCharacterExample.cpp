@@ -98,7 +98,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnMove);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnMove_Released);
 		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ThisClass::Input_StartSprint);
-		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ThisClass::Input_StopSprint);
+		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ThisClass::Input_StartSprint);
 		EnhancedInput->BindAction(WalkAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnWalk);
 		EnhancedInput->BindAction(CrouchAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnCrouch);
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnJump);
@@ -194,30 +194,29 @@ void AAlsCharacterExample::Input_OnMove_Released()
 	RemoveSticknessByMash();
 }
 
-void AAlsCharacterExample::Input_StartSprint()
+void AAlsCharacterExample::Input_StartSprint(const FInputActionValue& ActionValue)
 {
-	auto StartSprintLambda = [this]()
+	FGameplayTag GaitTag = ActionValue.Get<bool>() ? AlsGaitTags::Sprinting : AlsGaitTags::Running;
+
+	auto StartSprintLambda = [this, GaitTag]()
 		{
-			if (!GetLastMovementInputVector().IsNearlyZero() && GetDesiredStance() == AlsStanceTags::Standing)
+			if (GetStamina() > SprintStaminaDrainRate && AbleToSprint)
 			{
-				if (GetStamina() > SprintStaminaDrainRate && AbleToSprint)
+				if (GetDesiredGait() == AlsGaitTags::Sprinting && GaitTag == AlsGaitTags::Sprinting)
 				{
-					if (GetDesiredGait() == AlsGaitTags::Sprinting)
-					{
-						SetStamina(GetStamina() - SprintStaminaDrainRate);
-					}
-					else
-					{
-						OnSetSprintMode(true);
-					}
+					SetStamina(GetStamina() - SprintStaminaDrainRate);
 				}
-				else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
+				else
 				{
-					AbleToSprint = false;
-					OnSetSprintMode(false);
-					FTimerHandle TimerHandle;
-					GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
+					SetDesiredGait(GaitTag);
 				}
+			}
+			else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
+			{
+				AbleToSprint = false;
+				SetDesiredGait(AlsGaitTags::Running);
+				FTimerHandle TimerHandle;
+				GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
 			}
 		};
 
@@ -232,22 +231,6 @@ void AAlsCharacterExample::Input_StartSprint()
 		{
 			StartSprintLambda();
 		}
-	}
-}
-
-void AAlsCharacterExample::Input_StopSprint()
-{
-	if (bIsDiscombobulated)
-	{
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				OnSetSprintMode(false);
-			}, DiscombobulateTimeDelay, false);
-	}
-	else
-	{
-		OnSetSprintMode(false);
 	}
 }
 
