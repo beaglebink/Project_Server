@@ -880,6 +880,26 @@ private:
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|SlowdownEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float Slowdown_01Range = 1.0f;
+
+	//discombobulate Effect
+public:
+	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
+	uint8 bIsDiscombobulated : 1{false};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|DiscombobulateEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float DiscombobulateEffectPower_01Range = 0.0f;
+
+	protected:
+	float DiscombobulateTimeDelay = 0.0001f;
+
+private:
+	float CurrentDiscombobulateCameraPitchOffset = 0.0f;
+	float CurrentDiscombobulateCameraYawOffset = 0.0f;
+
+	float TargetDiscombobulateCameraPitchOffset = 0.0f;
+	float TargetDiscombobulateCameraYawOffset = 0.0f;
+
+	void DiscombobulateEffect();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

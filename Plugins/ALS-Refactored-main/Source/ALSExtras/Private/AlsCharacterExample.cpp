@@ -119,8 +119,22 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 
 	if (!bIsStunned)
 	{
-		AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier);
-		AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier);
+		if (bIsDiscombobulated)
+		{
+			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier;
+			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier;
+			FTimerHandle TimerHandle;
+			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
+				{
+					AddControllerPitchInput(PitchDirection);
+					AddControllerYawInput(YawDirection);
+				}, DiscombobulateTimeDelay, false);
+		}
+		else
+		{
+			AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier);
+			AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier);
+		}
 	}
 }
 
@@ -130,8 +144,22 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 
 	if (!bIsStunned)
 	{
-		AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier);
-		AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier);
+		if (bIsDiscombobulated)
+		{
+			float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier;
+			float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier;
+			FTimerHandle TimerHandle;
+			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
+				{
+					AddControllerPitchInput(PitchDirection);
+					AddControllerYawInput(YawDirection);
+				}, DiscombobulateTimeDelay, false);
+		}
+		else
+		{
+			AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier);
+			AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier);
+		}
 	}
 }
 
@@ -145,7 +173,19 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 	const auto RightDirection{ UAlsMath::PerpendicularCounterClockwiseXY(ForwardDirection) };
 	if (!bIsStunned && !bIsSliding && !bIsStickyStuck)
 	{
-		AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
+		if (bIsDiscombobulated)
+		{
+			FVector Direction = ForwardDirection * Value.Y + RightDirection * Value.X;
+			FTimerHandle TimerHandle;
+			GetWorldTimerManager().SetTimer(TimerHandle, [this, Direction]()
+				{
+					AddMovementInput(Direction);
+				}, DiscombobulateTimeDelay, false);
+		}
+		else
+		{
+			AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
+		}
 	}
 }
 
@@ -156,38 +196,59 @@ void AAlsCharacterExample::Input_OnMove_Released()
 
 void AAlsCharacterExample::Input_StartSprint()
 {
+	auto StartSprintLambda = [this]()
+		{
+			if (!GetLastMovementInputVector().IsNearlyZero() && GetDesiredStance() == AlsStanceTags::Standing)
+			{
+				if (GetStamina() > SprintStaminaDrainRate && AbleToSprint)
+				{
+					if (GetDesiredGait() == AlsGaitTags::Sprinting)
+					{
+						SetStamina(GetStamina() - SprintStaminaDrainRate);
+					}
+					else
+					{
+						OnSetSprintMode(true);
+					}
+				}
+				else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
+				{
+					AbleToSprint = false;
+					OnSetSprintMode(false);
+					FTimerHandle TimerHandle;
+					GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
+				}
+			}
+		};
+
 	if (!bIsStunned && !bIsSliding && !bIsSticky)
 	{
-		if (!GetLastMovementInputVector().IsNearlyZero() && GetDesiredStance() == AlsStanceTags::Standing)
+		if (bIsDiscombobulated)
 		{
-			if (GetStamina() > SprintStaminaDrainRate && AbleToSprint)
-			{
-				if (GetDesiredGait() != AlsGaitTags::Sprinting)
-				{
-					OnSetSprintMode(true);
-					//SetDesiredGait(AlsGaitTags::Sprinting);
-				}
-				if (GetDesiredGait() == AlsGaitTags::Sprinting)
-				{
-					SetStamina(GetStamina() - SprintStaminaDrainRate);
-				}
-			}
-			else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
-			{
-				AbleToSprint = false;
-				OnSetSprintMode(false);
-				//SetDesiredGait(AlsGaitTags::Running);
-				FTimerHandle TimerHandle;
-				GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
-			}
+			FTimerHandle TimerHandleDiscombobulate;
+			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, StartSprintLambda, DiscombobulateTimeDelay, false);
+		}
+		else
+		{
+			StartSprintLambda();
 		}
 	}
 }
 
 void AAlsCharacterExample::Input_StopSprint()
 {
-	OnSetSprintMode(false);
-	//SetDesiredGait(AlsGaitTags::Running);
+	if (bIsDiscombobulated)
+	{
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				OnSetSprintMode(false);
+			}, DiscombobulateTimeDelay, false);
+	}
+	else
+	{
+		OnSetSprintMode(false);
+	}
 }
 
 void AAlsCharacterExample::Input_OnWalk()
@@ -222,33 +283,70 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 {
 	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>() && !bIsStunned && !bIsSliding && !bIsStickyStuck)
 	{
-		if (StopRagdolling())
+		if (bIsDiscombobulated)
 		{
-			return;
-		}
+			FTimerHandle TimerHandleDiscombobulate;
+			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, [this]()
+				{
+					if (StopRagdolling())
+					{
+						return;
+					}
 
-		if (GetStance() == AlsStanceTags::Crouching)
-		{
-			SetDesiredStance(AlsStanceTags::Standing);
-			return;
-		}
+					if (GetStance() == AlsStanceTags::Crouching)
+					{
+						SetDesiredStance(AlsStanceTags::Standing);
+						return;
+					}
 
-		if (IsFirstJumpClick)
-		{
-			IsFirstJumpClick = false;
-			GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AAlsCharacterExample::ContinueJump, DoubleSpaceTime, false);
-			return;
+					if (IsFirstJumpClick)
+					{
+						IsFirstJumpClick = false;
+						GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AAlsCharacterExample::ContinueJump, DoubleSpaceTime, false);
+						return;
+					}
+					else
+					{
+						JumpTimerHandle.Invalidate();
+						if (StartMantlingGrounded())
+						{
+							return;
+						}
+					}
+
+					Jump();
+				}, DiscombobulateTimeDelay, false);
 		}
 		else
 		{
-			JumpTimerHandle.Invalidate();
-			if (StartMantlingGrounded())
+			if (StopRagdolling())
 			{
 				return;
 			}
-		}
 
-		Jump();
+			if (GetStance() == AlsStanceTags::Crouching)
+			{
+				SetDesiredStance(AlsStanceTags::Standing);
+				return;
+			}
+
+			if (IsFirstJumpClick)
+			{
+				IsFirstJumpClick = false;
+				GetWorldTimerManager().SetTimer(JumpTimerHandle, this, &AAlsCharacterExample::ContinueJump, DoubleSpaceTime, false);
+				return;
+			}
+			else
+			{
+				JumpTimerHandle.Invalidate();
+				if (StartMantlingGrounded())
+				{
+					return;
+				}
+			}
+
+			Jump();
+		}
 	}
 	else
 	{
@@ -276,7 +374,18 @@ void AAlsCharacterExample::Input_OnRoll()
 
 	if (GetStamina() > RollStaminaCost && !bIsStunned && !bIsSliding && !bIsSticky)
 	{
-		StartRolling(PlayRate);
+		if (bIsDiscombobulated)
+		{
+			FTimerHandle TimerHandleDiscombobulate;
+			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, [this]()
+				{
+					StartRolling(PlayRate);
+				}, DiscombobulateTimeDelay, false);
+		}
+		else
+		{
+			StartRolling(PlayRate);
+		}
 	}
 }
 
