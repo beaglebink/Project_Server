@@ -179,12 +179,12 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, Direction]()
 				{
-					AddMovementInput(Direction);
+					AddMovementInput(Direction * (bIsInputReversed ? -1.0f : 1.0f));
 				}, DiscombobulateTimeDelay, false);
 		}
 		else
 		{
-			AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
+			AddMovementInput((ForwardDirection * Value.Y + RightDirection * Value.X) * (bIsInputReversed ? -1.0f : 1.0f));
 		}
 	}
 }

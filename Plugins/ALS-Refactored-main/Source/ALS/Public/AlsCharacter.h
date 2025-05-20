@@ -913,6 +913,11 @@ private:
 public:
 	UFUNCTION(BlueprintCallable, Category = "BlindnessEffect")
 	void SetRemoveBlindness(bool IsSet);
+
+	//Reversed input
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|ReverseEffect")
+	uint8 bIsInputReversed : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
