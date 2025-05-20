@@ -25,6 +25,7 @@ class UAlsCharacterSettings;
 class UAlsMovementSettings;
 class UAlsAnimationInstance;
 class UAlsMantlingSettings;
+class UBlindnessWidget;
 
 UCLASS(AutoExpandCategories = ("Settings|Als Character", "Settings|Als Character|Desired State", "State|Als Character"))
 class ALS_API AAlsCharacter : public ACharacter
@@ -889,7 +890,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|DiscombobulateEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float DiscombobulateEffectPower_01Range = 0.0f;
 
-	protected:
+protected:
 	float DiscombobulateTimeDelay = 0.0001f;
 
 private:
@@ -900,6 +901,18 @@ private:
 	float TargetDiscombobulateCameraYawOffset = 0.0f;
 
 	void DiscombobulateEffect();
+
+	//blind effect
+public:
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UBlindnessWidget> BlindnessWidgetClass;
+
+private:
+	UBlindnessWidget* BlindnessWidget;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "BlindnessEffect")
+	void SetRemoveBlindness(bool IsSet);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

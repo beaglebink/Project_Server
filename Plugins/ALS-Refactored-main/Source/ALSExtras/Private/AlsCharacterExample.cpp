@@ -548,7 +548,7 @@ void AAlsCharacterExample::InitStatWidget()
 			if (AttributesWidget = CreateWidget<UAttributesWidget>(PC, AttributesWidgetClass))
 			{
 				AttributesWidget->InitWithCharacterOwner(this);
-				AttributesWidget->AddToViewport();
+				AttributesWidget->AddToViewport(10);
 			}
 		}
 	}

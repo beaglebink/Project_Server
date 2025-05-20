@@ -18,6 +18,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/WindDirectionalSource.h"
 #include "Components/WindDirectionalSourceComponent.h"
+#include "UI/BlindnessWidget.h"
+#include "Animation/WidgetAnimation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacter)
 
@@ -2330,5 +2332,36 @@ void AAlsCharacter::DiscombobulateEffect()
 		AddControllerYawInput(CurrentDiscombobulateCameraYawOffset);
 
 		DiscombobulateTimeDelay = UKismetMathLibrary::MapRangeClamped(DiscombobulateEffectPower_01Range, 0.0f, 1.0f, 0.0001f, 2.0f);
+	}
+}
+
+void AAlsCharacter::SetRemoveBlindness(bool IsSet)
+{
+	if (IsSet)
+	{
+		if (!BlindnessWidget && BlindnessWidgetClass)
+		{
+			BlindnessWidget = CreateWidget<UBlindnessWidget>(GetWorld(), BlindnessWidgetClass);
+			if (BlindnessWidget)
+			{
+				BlindnessWidget->AddToViewport(9);
+			}
+		}
+	}
+	else if (BlindnessWidget && BlindnessWidget->FadeOut)
+	{
+
+		BlindnessWidget->PlayAnimation(BlindnessWidget->FadeOut, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				BlindnessWidget->RemoveFromParent();
+				BlindnessWidget = nullptr;
+			}, BlindnessWidget->FadeOut->GetEndTime(), false);
+	}
+	else
+	{
+		BlindnessWidget->RemoveFromParent();
+		BlindnessWidget = nullptr;
 	}
 }
