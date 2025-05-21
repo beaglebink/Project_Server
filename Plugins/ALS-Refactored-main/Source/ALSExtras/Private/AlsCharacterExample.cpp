@@ -209,12 +209,14 @@ void AAlsCharacterExample::Input_StartSprint(const FInputActionValue& ActionValu
 				else
 				{
 					SetDesiredGait(GaitTag);
+					OnSetSprintMode(GaitTag == AlsGaitTags::Sprinting ? true : false);
 				}
 			}
 			else if (AbleToSprint && GetDesiredGait() == AlsGaitTags::Sprinting)
 			{
 				AbleToSprint = false;
 				SetDesiredGait(AlsGaitTags::Running);
+				OnSetSprintMode(false);
 				FTimerHandle TimerHandle;
 				GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {AbleToSprint = true; }, ExhaustionPenaltyDuration, false);
 			}

@@ -2317,19 +2317,19 @@ void AAlsCharacter::DiscombobulateEffect()
 {
 	if (bIsDiscombobulated)
 	{
-		//FTimerHandle TimerHandle;
-		//GetWorldTimerManager().SetTimer(TimerHandle, [&]()
-		//	{
-		//		float PitchOffset = UKismetMathLibrary::RandomFloatInRange(0.0f, 3.0f);
-		//		TargetDiscombobulateCameraPitchOffset = PitchOffset * (FMath::RandBool() ? 1 : -1) * DiscombobulateEffectPower_01Range;
-		//		TargetDiscombobulateCameraYawOffset = (3.0f - PitchOffset) * (FMath::RandBool() ? 1 : -1) * DiscombobulateEffectPower_01Range;
-		//	}, UKismetMathLibrary::RandomFloatInRange(0.5f, 1.5f), false);
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [&]()
+			{
+				float PitchOffset = UKismetMathLibrary::RandomFloatInRange(0.0f, 3.0f);
+				TargetDiscombobulateCameraPitchOffset = PitchOffset * (FMath::RandBool() ? 1 : -1) * DiscombobulateEffectPower_01Range;
+				TargetDiscombobulateCameraYawOffset = (3.0f - PitchOffset) * (FMath::RandBool() ? 1 : -1) * DiscombobulateEffectPower_01Range;
+			}, UKismetMathLibrary::RandomFloatInRange(0.5f, 1.5f), false);
 
-		//CurrentDiscombobulateCameraPitchOffset = FMath::FInterpTo(CurrentDiscombobulateCameraPitchOffset, TargetDiscombobulateCameraPitchOffset, GetWorld()->GetDeltaSeconds(), 1.0f);
-		//CurrentDiscombobulateCameraYawOffset = FMath::FInterpTo(CurrentDiscombobulateCameraYawOffset, TargetDiscombobulateCameraYawOffset, GetWorld()->GetDeltaSeconds(), 1.0f);
+		CurrentDiscombobulateCameraPitchOffset = FMath::FInterpTo(CurrentDiscombobulateCameraPitchOffset, TargetDiscombobulateCameraPitchOffset, GetWorld()->GetDeltaSeconds(), 1.0f);
+		CurrentDiscombobulateCameraYawOffset = FMath::FInterpTo(CurrentDiscombobulateCameraYawOffset, TargetDiscombobulateCameraYawOffset, GetWorld()->GetDeltaSeconds(), 1.0f);
 
-		//AddControllerPitchInput(CurrentDiscombobulateCameraPitchOffset);
-		//AddControllerYawInput(CurrentDiscombobulateCameraYawOffset);
+		AddControllerPitchInput(CurrentDiscombobulateCameraPitchOffset);
+		AddControllerYawInput(CurrentDiscombobulateCameraYawOffset);
 
 		DiscombobulateTimeDelay = UKismetMathLibrary::MapRangeClamped(DiscombobulateEffectPower_01Range, 0.0f, 1.0f, 0.0001f, 2.0f);
 	}
