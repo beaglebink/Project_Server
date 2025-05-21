@@ -116,13 +116,14 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValue)
 {
 	const auto Value{ ActionValue.Get<FVector2D>() };
+	ShakeMouseRemoveWireEffect(Value);
 
 	if (!bIsStunned)
 	{
 		if (bIsDiscombobulated)
 		{
-			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier;
-			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier;
+			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range;
+			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range;
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 				{
@@ -132,8 +133,8 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 		}
 		else
 		{
-			AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier);
-			AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier);
+			AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range);
+			AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range);
 		}
 	}
 }
@@ -146,8 +147,8 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 	{
 		if (bIsDiscombobulated)
 		{
-			float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier;
-			float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier;
+			float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range;
+			float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range;
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 				{
@@ -157,8 +158,8 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 		}
 		else
 		{
-			AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier);
-			AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier);
+			AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range);
+			AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range);
 		}
 	}
 }
@@ -250,6 +251,10 @@ void AAlsCharacterExample::Input_OnWalk()
 
 void AAlsCharacterExample::Input_OnCrouch()
 {
+	if (bIsWired)
+	{
+		return;
+	}
 	FTimerHandle TimerHandle;
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
 		{
@@ -261,12 +266,17 @@ void AAlsCharacterExample::Input_OnCrouch()
 			{
 				SetDesiredStance(AlsStanceTags::Standing);
 			}
-			; }, DelayCrouchInOut, false);
+		}, DelayCrouchInOut, false);
 }
 
 void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 {
-	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>() && !bIsStunned && !bIsSliding && !bIsStickyStuck)
+	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsWired)
+	{
+		return;
+	}
+
+	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>())
 	{
 		if (bIsDiscombobulated)
 		{

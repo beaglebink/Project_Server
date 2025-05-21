@@ -1924,7 +1924,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier
-		* SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier * ShockSpeedMultiplier * Slowdown_01Range;
+		* SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier * ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2363,5 +2363,31 @@ void AAlsCharacter::SetRemoveBlindness(bool IsSet)
 	{
 		BlindnessWidget->RemoveFromParent();
 		BlindnessWidget = nullptr;
+	}
+}
+
+void AAlsCharacter::ShakeMouseRemoveWireEffect(FVector2D Value)
+{
+	CurrentMouseValueLength = Value.Length();
+	if (CurrentMouseValueLength > 30.0f && PrevMouseValueLength > 30.0f && PrevPrevMouseValueLength < 10.0f)
+	{
+		SetRemoveWireEffect(false);
+	}
+	PrevPrevMouseValueLength = PrevMouseValueLength;
+	PrevMouseValueLength = CurrentMouseValueLength;
+}
+
+void AAlsCharacter::SetRemoveWireEffect(bool bIsSet, float EffectPower)
+{
+	if (bIsSet)
+	{
+		bIsWired = true;
+		WireEffectPower_01Range = FMath::Clamp(1 - EffectPower, 0.0f, 1.0f);
+
+	}
+	else
+	{
+		bIsWired = false;
+		WireEffectPower_01Range = 1.0f;
 	}
 }

@@ -914,10 +914,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BlindnessEffect")
 	void SetRemoveBlindness(bool IsSet);
 
-	//Reversed input
+	//reversed input
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|ReverseEffect")
 	uint8 bIsInputReversed : 1{false};
+
+	//wire effect
+public:
+	UFUNCTION(BlueprintCallable, Category = "WireEffect")
+	void SetRemoveWireEffect(bool bIsSet, UPARAM(meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0")) float EffectPower = 0.0f);
+
+protected:
+	uint8 bIsWired : 1{false};
+	float WireEffectPower_01Range = 1.0f;
+
+	void ShakeMouseRemoveWireEffect(FVector2D Value);
+
+private:
+	float PrevPrevMouseValueLength = 0.0f;
+	float PrevMouseValueLength = 0.0f;
+	float CurrentMouseValueLength = 0.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
