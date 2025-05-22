@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AlsCharacter.h"
+#include "Enums/EnumLoopStates.h"
 #include <PhysicsEngine/PhysicsConstraintActor.h>
 #include "AlsCharacterExample.generated.h"
 
@@ -133,7 +134,7 @@ private:
 	void Input_OnMove(const FInputActionValue& ActionValue);
 	void Input_OnMove_Released();
 
-	void Input_StartSprint(const FInputActionValue& ActionValue);
+	void Input_OnSprint(const FInputActionValue& ActionValue);
 
 	void Input_OnWalk();
 
@@ -195,4 +196,24 @@ protected:
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void OnSetSprintMode(bool bSprintMode);
+
+	//loop effect
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|LoopEffect", meta = (ClampMin = 1, ClampMax = 10))
+	uint8 HowManyLoops = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|LoopEffect", meta = (ClampMin = 0.0f, ClampMax = 15.0f))
+	float RepeatingPeaceDuration = 0.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "LoopEffect")
+	uint8 bIsLooped : 1 = false;
+
+private:
+	FLoopEffectFrame LoopEffectFrame;
+	
+	TDoubleLinkedList<FLoopEffectFrame> FrameList;
+
+	uint8 FrameListSize = 0;
+
+	void LoopEffect();
 };

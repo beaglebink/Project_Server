@@ -41,6 +41,8 @@ void AAlsCharacterExample::BeginPlay()
 		PhysicsConstraint->SetAngularOrientationDrive(true, true);
 		PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
 	*/
+
+	FrameListSize = static_cast<uint8>(floor(RepeatingPeaceDuration / GetWorld()->GetDeltaSeconds()));
 }
 
 void AAlsCharacterExample::NotifyControllerChanged()
@@ -97,8 +99,8 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLook);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnMove);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnMove_Released);
-		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ThisClass::Input_StartSprint);
-		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ThisClass::Input_StartSprint);
+		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSprint);
+		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnSprint);
 		EnhancedInput->BindAction(WalkAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnWalk);
 		EnhancedInput->BindAction(CrouchAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnCrouch);
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnJump);
@@ -115,6 +117,8 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 
 void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValue)
 {
+	LoopEffectFrame.FrameActionValue_OnLookMouse = ActionValue;
+
 	const auto Value{ ActionValue.Get<FVector2D>() };
 	ShakeMouseRemoveWireEffect(Value);
 
@@ -141,6 +145,8 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 
 void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 {
+	LoopEffectFrame.FrameActionValue_OnLook = ActionValue;
+
 	const auto Value{ ActionValue.Get<FVector2D>() };
 
 	if (!bIsStunned)
@@ -166,6 +172,8 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 {
+	LoopEffectFrame.FrameActionValue_OnMove = ActionValue;
+
 	const auto Value{ UAlsMath::ClampMagnitude012D(ActionValue.Get<FVector2D>()) };
 
 	LastInputDirection = Value;
@@ -195,8 +203,11 @@ void AAlsCharacterExample::Input_OnMove_Released()
 	RemoveSticknessByMash();
 }
 
-void AAlsCharacterExample::Input_StartSprint(const FInputActionValue& ActionValue)
+void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 {
+	LoopEffectFrame.FrameActionValue_OnSprint = ActionValue;
+	LoopEffectFrame.FrameState = EnumLoopStates::Sprint;
+
 	FGameplayTag GaitTag = ActionValue.Get<bool>() ? AlsGaitTags::Sprinting : AlsGaitTags::Running;
 
 	auto StartSprintLambda = [this, GaitTag]()
@@ -239,6 +250,8 @@ void AAlsCharacterExample::Input_StartSprint(const FInputActionValue& ActionValu
 
 void AAlsCharacterExample::Input_OnWalk()
 {
+	LoopEffectFrame.FrameState = EnumLoopStates::Walk;
+
 	if (GetDesiredGait() == AlsGaitTags::Walking)
 	{
 		SetDesiredGait(AlsGaitTags::Running);
@@ -251,6 +264,8 @@ void AAlsCharacterExample::Input_OnWalk()
 
 void AAlsCharacterExample::Input_OnCrouch()
 {
+	LoopEffectFrame.FrameState = EnumLoopStates::Crouch;
+
 	if (bIsWired)
 	{
 		return;
@@ -271,6 +286,9 @@ void AAlsCharacterExample::Input_OnCrouch()
 
 void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 {
+	LoopEffectFrame.FrameActionValue_OnJump = ActionValue;
+	LoopEffectFrame.FrameState = EnumLoopStates::Jump;
+
 	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsWired)
 	{
 		return;
@@ -351,12 +369,17 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnAim(const FInputActionValue& ActionValue)
 {
+	LoopEffectFrame.FrameActionValue_OnAim = ActionValue;
+	LoopEffectFrame.FrameState = EnumLoopStates::Aim;
+
 	if (IsImplementingAIM)
 		SetDesiredAiming(ActionValue.Get<bool>());
 }
 
 void AAlsCharacterExample::Input_OnRagdoll()
 {
+	LoopEffectFrame.FrameState = EnumLoopStates::Ragdoll;
+
 	if (!StopRagdolling())
 	{
 		StartRagdolling();
@@ -365,6 +388,8 @@ void AAlsCharacterExample::Input_OnRagdoll()
 
 void AAlsCharacterExample::Input_OnRoll()
 {
+	LoopEffectFrame.FrameState = EnumLoopStates::Roll;
+
 	static constexpr auto PlayRate{ 1.3f };
 
 	if (GetStamina() > RollStaminaCost && !bIsStunned && !bIsSliding && !bIsSticky)
@@ -497,6 +522,8 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 	*/
 
 	SetStamina(GetStamina() + StaminaRegenerationRate);
+
+	LoopEffect();
 }
 
 void AAlsCharacterExample::PossessedBy(AController* NewController)
@@ -546,5 +573,62 @@ void AAlsCharacterExample::InitStatWidget()
 				AttributesWidget->AddToViewport(10);
 			}
 		}
+	}
+}
+
+void AAlsCharacterExample::LoopEffect()
+{
+	if (bIsLooped)
+	{
+		if (!FrameList.IsEmpty())
+		{
+			switch (FrameList.GetHead()->GetValue().FrameState)
+			{
+			case EnumLoopStates::None:
+				break;
+			case EnumLoopStates::Sprint:
+				Input_OnSprint(FrameList.GetHead()->GetValue().FrameActionValue_OnSprint);
+				break;
+			case EnumLoopStates::Walk:
+				Input_OnWalk();
+				break;
+			case EnumLoopStates::Crouch:
+				Input_OnCrouch();
+				break;
+			case EnumLoopStates::Jump:
+				Input_OnJump(FrameList.GetHead()->GetValue().FrameActionValue_OnJump);
+				break;
+			case EnumLoopStates::Aim:
+				Input_OnAim(FrameList.GetHead()->GetValue().FrameActionValue_OnAim);
+				break;
+			case EnumLoopStates::Ragdoll:
+				Input_OnRagdoll();
+				break;
+			case EnumLoopStates::Roll:
+				Input_OnRoll();
+				break;
+			default:
+				break;
+			}
+
+			Input_OnLookMouse(FrameList.GetHead()->GetValue().FrameActionValue_OnLookMouse);
+			Input_OnLook(FrameList.GetHead()->GetValue().FrameActionValue_OnLook);
+			Input_OnMove(FrameList.GetHead()->GetValue().FrameActionValue_OnMove);
+
+			FrameList.RemoveNode(FrameList.GetHead());
+		}
+		else
+		{
+			LoopEffectFrame = FLoopEffectFrame();
+			bIsLooped = false;
+		}
+	}
+	else
+	{
+		if (FrameList.Num() == FrameListSize)
+		{
+			FrameList.RemoveNode(FrameList.GetHead());
+		}
+		FrameList.AddTail(LoopEffectFrame);
 	}
 }

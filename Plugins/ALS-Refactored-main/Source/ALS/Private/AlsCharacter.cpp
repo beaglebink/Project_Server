@@ -2366,6 +2366,20 @@ void AAlsCharacter::SetRemoveBlindness(bool IsSet)
 	}
 }
 
+void AAlsCharacter::SetRemoveWireEffect(bool bIsSet, float EffectPower)
+{
+	if (bIsSet)
+	{
+		bIsWired = true;
+		WireEffectPower_01Range = FMath::Clamp(1 - EffectPower, 0.0f, 1.0f);
+	}
+	else
+	{
+		bIsWired = false;
+		WireEffectPower_01Range = 1.0f;
+	}
+}
+
 void AAlsCharacter::ShakeMouseRemoveWireEffect(FVector2D Value)
 {
 	CurrentMouseValueLength = Value.Length();
@@ -2375,19 +2389,4 @@ void AAlsCharacter::ShakeMouseRemoveWireEffect(FVector2D Value)
 	}
 	PrevPrevMouseValueLength = PrevMouseValueLength;
 	PrevMouseValueLength = CurrentMouseValueLength;
-}
-
-void AAlsCharacter::SetRemoveWireEffect(bool bIsSet, float EffectPower)
-{
-	if (bIsSet)
-	{
-		bIsWired = true;
-		WireEffectPower_01Range = FMath::Clamp(1 - EffectPower, 0.0f, 1.0f);
-
-	}
-	else
-	{
-		bIsWired = false;
-		WireEffectPower_01Range = 1.0f;
-	}
 }

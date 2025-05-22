@@ -691,7 +691,7 @@ public:
 	uint8 AbleToSprint : 1{true};
 
 	//Fall damage
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|FallEffect", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float MinFallHeightWithoutDamageAndStun = 200.0f;
 
 private:
@@ -702,10 +702,10 @@ private:
 
 	//Stun effect
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stun effect time", meta = (ClampMin = "0.0", ClampMax = "10.0", ToolTip = "Stun time from being heavy attack"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StunEffect", meta = (ClampMin = "0.0", ClampMax = "10.0", ToolTip = "Stun time from being heavy attack"))
 	float StunTime = 0.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stun effect recovery time", meta = (ClampMin = "0.0", ClampMax = "10.0", ToolTip = "Stun recovery time"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StunEffect", meta = (ClampMin = "0.0", ClampMax = "10.0", ToolTip = "Stun recovery time"))
 	float StunRecoveryTime = 5.0f;
 
 	uint8 bIsStunned : 1 = false;
@@ -763,7 +763,7 @@ public:
 	FGameplayTag LastGaitTag;
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character", meta = (ToolTip = "If true - turns on sliding logic in depends on surface physic friction"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character|Effects|SlidingEffect", meta = (ToolTip = "If true - turns on sliding logic in depends on surface physic friction"))
 	uint8 SlidingTurnOnOff : 1 {false};
 
 private:
@@ -784,7 +784,7 @@ private:
 
 	//Wind influence
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character|Wind", meta = (ToolTip = "If true - turns on wind influence"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character|Effects|WindEffect", meta = (ToolTip = "If true - turns on wind influence"))
 	uint8 bDoesWindInfluence : 1 {false};
 
 	UPROPERTY(BlueprintReadOnly, Category = "WindDirectionInfluence")
@@ -806,19 +806,19 @@ private:
 
 	//Sticky surface
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stickness", meta = (ClampMin = 0.0f, ClampMax = 1.0f, ToolTip = "How faster slowdown on sticky surface"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|SticknessEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f, ToolTip = "How faster slowdown on sticky surface"))
 	float StickyStuckSpeed = 0.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stickness", meta = (ClampMin = 0, ClampMax = 10, ToolTip = "How many times need to tap move button quickly and in a row to get rid of stickness"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|SticknessEffect", meta = (ClampMin = 0, ClampMax = 10, ToolTip = "How many times need to tap move button quickly and in a row to get rid of stickness"))
 	uint8 HowManyTaps = 5;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Stickness", meta = (ClampMin = 0.0f, ClampMax = 1.0f, ForceUnits = "s", ToolTip = "How quick should push the button to escape"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|SticknessEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f, ForceUnits = "s", ToolTip = "How quick should push the button to escape"))
 	float TimeBetweenTaps = 0.2f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Stickness")
+	UPROPERTY(BlueprintReadWrite, Category = "SticknessEffect")
 	float StickyStuckMultiplier{ 1.0f };
 
-	UFUNCTION(BlueprintCallable, Category = "Sticky Feet")
+	UFUNCTION(BlueprintCallable, Category = "SticknessEffect")
 	bool IsStickySurface(FName Bone);
 
 protected:
@@ -858,7 +858,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
 	uint8 bIsShocked : 1{false};
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|ShockEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|ShockEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float ShockEffectPower_01Range = 0.0f;
 
 private:
@@ -879,7 +879,7 @@ private:
 
 	//slowdown
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|SlowdownEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|SlowdownEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float Slowdown_01Range = 1.0f;
 
 	//discombobulate Effect
@@ -887,7 +887,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
 	uint8 bIsDiscombobulated : 1{false};
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|DiscombobulateEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|DiscombobulateEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float DiscombobulateEffectPower_01Range = 0.0f;
 
 protected:
@@ -916,7 +916,7 @@ public:
 
 	//reversed input
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|ReverseEffect")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|ReverseEffect")
 	uint8 bIsInputReversed : 1{false};
 
 	//wire effect
