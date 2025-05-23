@@ -208,12 +208,15 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "LoopEffect")
 	uint8 bIsLooped : 1 = false;
 
-private:
 	FLoopEffectFrame LoopEffectFrame;
-	
+
+private:
 	TDoubleLinkedList<FLoopEffectFrame> FrameList;
+	TDoubleLinkedList<FLoopEffectFrame>::TIterator FrameIt = TDoubleLinkedList<FLoopEffectFrame>::TIterator(FrameList.GetHead());
 
 	uint8 FrameListSize = 0;
+
+	uint8 LoopsCounter = 0;
 
 	void LoopEffect();
 };

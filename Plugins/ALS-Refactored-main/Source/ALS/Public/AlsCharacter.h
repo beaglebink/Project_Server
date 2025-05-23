@@ -229,6 +229,9 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "Als Character")
 	void OnDesiredAimingChanged(bool bPreviousDesiredAiming);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Aim input BP")
+	void StartStopAim(bool bIsAim);
+
 	// Desired Rotation Mode
 
 public:

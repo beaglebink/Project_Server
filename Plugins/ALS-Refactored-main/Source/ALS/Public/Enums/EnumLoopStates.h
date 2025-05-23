@@ -7,14 +7,10 @@
 UENUM(BlueprintType)
 enum class EnumLoopStates :uint8
 {
-	None		UMETA(DisplayName = "No Action"),
-	Sprint		UMETA(DisplayName = "On Sprint"),
-	Walk		UMETA(DisplayName = "On Walk"),
-	Crouch		UMETA(DisplayName = "On Crouch"),
-	Jump		UMETA(DisplayName = "On Jump"),
-	Aim			UMETA(DisplayName = "On Aim"),
-	Ragdoll		UMETA(DisplayName = "On Ragdoll"),
-	Roll		UMETA(DisplayName = "On Roll")
+	None			UMETA(DisplayName = "No Action"),
+	Jump			UMETA(DisplayName = "On Jump"),
+	Aim				UMETA(DisplayName = "On Aim"),
+	Roll			UMETA(DisplayName = "On Roll")
 };
 
 USTRUCT(BlueprintType)
@@ -42,4 +38,10 @@ struct FLoopEffectFrame
 
 	UPROPERTY(BlueprintReadWrite, Category = "LoopEffect")
 	FInputActionValue FrameActionValue_OnAim;
+
+	UPROPERTY(BlueprintReadWrite, Category = "LoopEffect")
+	FGameplayTag LoopEffectGaitTag;
+
+	UPROPERTY(BlueprintReadWrite, Category = "LoopEffect")
+	FGameplayTag LoopEffectStanceTag;
 };

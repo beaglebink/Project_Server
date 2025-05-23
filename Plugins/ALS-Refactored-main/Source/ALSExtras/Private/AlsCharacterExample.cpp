@@ -205,9 +205,6 @@ void AAlsCharacterExample::Input_OnMove_Released()
 
 void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 {
-	LoopEffectFrame.FrameActionValue_OnSprint = ActionValue;
-	LoopEffectFrame.FrameState = EnumLoopStates::Sprint;
-
 	FGameplayTag GaitTag = ActionValue.Get<bool>() ? AlsGaitTags::Sprinting : AlsGaitTags::Running;
 
 	auto StartSprintLambda = [this, GaitTag]()
@@ -250,8 +247,6 @@ void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnWalk()
 {
-	LoopEffectFrame.FrameState = EnumLoopStates::Walk;
-
 	if (GetDesiredGait() == AlsGaitTags::Walking)
 	{
 		SetDesiredGait(AlsGaitTags::Running);
@@ -264,8 +259,6 @@ void AAlsCharacterExample::Input_OnWalk()
 
 void AAlsCharacterExample::Input_OnCrouch()
 {
-	LoopEffectFrame.FrameState = EnumLoopStates::Crouch;
-
 	if (bIsWired)
 	{
 		return;
@@ -373,13 +366,14 @@ void AAlsCharacterExample::Input_OnAim(const FInputActionValue& ActionValue)
 	LoopEffectFrame.FrameState = EnumLoopStates::Aim;
 
 	if (IsImplementingAIM)
+	{
 		SetDesiredAiming(ActionValue.Get<bool>());
+		StartStopAim(ActionValue.Get<bool>());
+	}
 }
 
 void AAlsCharacterExample::Input_OnRagdoll()
 {
-	LoopEffectFrame.FrameState = EnumLoopStates::Ragdoll;
-
 	if (!StopRagdolling())
 	{
 		StartRagdolling();
@@ -580,47 +574,47 @@ void AAlsCharacterExample::LoopEffect()
 {
 	if (bIsLooped)
 	{
-		if (!FrameList.IsEmpty())
+		if (LoopsCounter < HowManyLoops)
 		{
-			switch (FrameList.GetHead()->GetValue().FrameState)
+			if (FrameIt)
 			{
-			case EnumLoopStates::None:
-				break;
-			case EnumLoopStates::Sprint:
-				Input_OnSprint(FrameList.GetHead()->GetValue().FrameActionValue_OnSprint);
-				break;
-			case EnumLoopStates::Walk:
-				Input_OnWalk();
-				break;
-			case EnumLoopStates::Crouch:
-				Input_OnCrouch();
-				break;
-			case EnumLoopStates::Jump:
-				Input_OnJump(FrameList.GetHead()->GetValue().FrameActionValue_OnJump);
-				break;
-			case EnumLoopStates::Aim:
-				Input_OnAim(FrameList.GetHead()->GetValue().FrameActionValue_OnAim);
-				break;
-			case EnumLoopStates::Ragdoll:
-				Input_OnRagdoll();
-				break;
-			case EnumLoopStates::Roll:
-				Input_OnRoll();
-				break;
-			default:
-				break;
+				switch (FrameIt.GetNode()->GetValue().FrameState)
+				{
+				case EnumLoopStates::None:
+					SetDesiredGait(FrameIt.GetNode()->GetValue().LoopEffectGaitTag);
+					SetDesiredStance(FrameIt.GetNode()->GetValue().LoopEffectStanceTag);
+					break;
+				case EnumLoopStates::Jump:
+					Input_OnJump(FrameIt.GetNode()->GetValue().FrameActionValue_OnJump);
+					break;
+				case EnumLoopStates::Aim:
+					Input_OnAim(FrameIt.GetNode()->GetValue().FrameActionValue_OnAim);
+					break;
+				case EnumLoopStates::Roll:
+					Input_OnRoll();
+					break;
+				default:
+					break;
+				}
+
+				Input_OnLookMouse(FrameIt.GetNode()->GetValue().FrameActionValue_OnLookMouse);
+				Input_OnLook(FrameIt.GetNode()->GetValue().FrameActionValue_OnLook);
+				Input_OnMove(FrameIt.GetNode()->GetValue().FrameActionValue_OnMove);
+
+				++FrameIt;
 			}
-
-			Input_OnLookMouse(FrameList.GetHead()->GetValue().FrameActionValue_OnLookMouse);
-			Input_OnLook(FrameList.GetHead()->GetValue().FrameActionValue_OnLook);
-			Input_OnMove(FrameList.GetHead()->GetValue().FrameActionValue_OnMove);
-
-			FrameList.RemoveNode(FrameList.GetHead());
+			else
+			{
+				FrameIt = TDoubleLinkedList<FLoopEffectFrame>::TIterator(FrameList.GetHead());
+				++LoopsCounter;
+			}
 		}
 		else
 		{
+			FrameList.Empty();
 			LoopEffectFrame = FLoopEffectFrame();
 			bIsLooped = false;
+			LoopsCounter = 0;
 		}
 	}
 	else
@@ -629,6 +623,10 @@ void AAlsCharacterExample::LoopEffect()
 		{
 			FrameList.RemoveNode(FrameList.GetHead());
 		}
+		LoopEffectFrame.LoopEffectGaitTag = GetDesiredGait();
+		LoopEffectFrame.LoopEffectStanceTag = GetDesiredStance();
 		FrameList.AddTail(LoopEffectFrame);
+		FrameIt = TDoubleLinkedList<FLoopEffectFrame>::TIterator(FrameList.GetHead());
+		LoopEffectFrame = FLoopEffectFrame();
 	}
 }
