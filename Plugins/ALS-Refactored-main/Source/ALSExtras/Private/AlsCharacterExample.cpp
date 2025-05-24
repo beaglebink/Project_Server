@@ -368,7 +368,6 @@ void AAlsCharacterExample::Input_OnAim(const FInputActionValue& ActionValue)
 	if (IsImplementingAIM)
 	{
 		SetDesiredAiming(ActionValue.Get<bool>());
-		StartStopAim(ActionValue.Get<bool>());
 	}
 }
 

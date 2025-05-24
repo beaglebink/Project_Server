@@ -583,6 +583,7 @@ void AAlsCharacter::OnLocomotionModeChanged_Implementation(const FGameplayTag& P
 void AAlsCharacter::SetDesiredAiming(const bool bNewDesiredAiming)
 {
 	SetDesiredAiming(bNewDesiredAiming, true);
+	StartStopAim(bNewDesiredAiming);
 }
 
 void AAlsCharacter::SetDesiredAiming(const bool bNewDesiredAiming, const bool bSendRpc)
