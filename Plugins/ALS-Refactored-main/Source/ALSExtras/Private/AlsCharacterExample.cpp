@@ -112,6 +112,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(SwitchShoulderAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchShoulder);
 		EnhancedInput->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchWeapon);
 		EnhancedInput->BindAction(RemoveSticknessAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnRemoveStickness);
+
 	}
 }
 
@@ -573,6 +574,12 @@ void AAlsCharacterExample::LoopEffect()
 {
 	if (bIsLooped)
 	{
+		auto* InputSubsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(Cast<APlayerController>(GetController())->GetLocalPlayer()) };
+		if (IsValid(InputSubsystem))
+		{
+			InputSubsystem->RemoveMappingContext(InputMappingContext);
+		}
+
 		if (LoopsCounter < HowManyLoops)
 		{
 			if (FrameIt)
@@ -614,6 +621,13 @@ void AAlsCharacterExample::LoopEffect()
 			LoopEffectFrame = FLoopEffectFrame();
 			bIsLooped = false;
 			LoopsCounter = 0;
+
+			InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(Cast<APlayerController>(GetController())->GetLocalPlayer());
+			if (IsValid(InputSubsystem))
+			{
+				InputSubsystem->AddMappingContext(InputMappingContext, 0);
+			}
+
 		}
 	}
 	else
