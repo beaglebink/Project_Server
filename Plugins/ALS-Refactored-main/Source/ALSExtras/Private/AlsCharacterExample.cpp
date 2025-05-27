@@ -113,7 +113,6 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchWeapon);
 		EnhancedInput->BindAction(RemoveSticknessAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnRemoveStickness);
 		EnhancedInput->BindAction(GrappleRemoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRemoveGrapple);
-
 	}
 }
 

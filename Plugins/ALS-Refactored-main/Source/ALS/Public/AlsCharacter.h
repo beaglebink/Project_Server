@@ -887,7 +887,7 @@ public:
 
 	//discombobulate Effect
 public:
-	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
+	UPROPERTY(BlueprintReadWrite, Category = "Discombobulate Effect")
 	uint8 bIsDiscombobulated : 1{false};
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|DiscombobulateEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
@@ -950,6 +950,21 @@ public:
 protected:
 	void PressTwoKeysRemoveGrappleEffect(bool bIsHold);
 	uint8 bIsTwoKeysHold : 1{false};
+
+	//magnetic effect
+private:
+	uint8 bIsMagnetic : 1 {false};
+
+	FVector MagnetLocation;
+
+	float MagneticEffectSpeedMultiplier = 1.0f;
+
+	void MagneticEffect();
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Magnetic Effect")
+	void SetRemoveMagneticEffect(bool bIsSet, FVector ActorLocation = FVector::ZeroVector);
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
