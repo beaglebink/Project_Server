@@ -1925,7 +1925,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier
-		* SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier * ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range;
+		* SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier * ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2381,13 +2381,44 @@ void AAlsCharacter::SetRemoveWireEffect(bool bIsSet, float EffectPower)
 	}
 }
 
-void AAlsCharacter::ShakeMouseRemoveWireEffect(FVector2D Value)
+void AAlsCharacter::ShakeMouseRemoveEffect(FVector2D Value)
 {
 	CurrentMouseValueLength = Value.Length();
 	if (CurrentMouseValueLength > 30.0f && PrevMouseValueLength > 30.0f && PrevPrevMouseValueLength < 10.0f)
 	{
 		SetRemoveWireEffect(false);
+		if (bIsTwoKeysHold)
+		{
+			SetRemoveGrappleEffect(false);
+		}
 	}
 	PrevPrevMouseValueLength = PrevMouseValueLength;
 	PrevMouseValueLength = CurrentMouseValueLength;
+}
+
+void AAlsCharacter::PressTwoKeysRemoveGrappleEffect(bool bIsHold)
+{
+	bIsTwoKeysHold = bIsHold;
+}
+
+void AAlsCharacter::SetRemoveGrappleEffect(bool bIsSet)
+{
+	static uint8 Counter = 0;
+	if (bIsSet)
+	{
+		if (Counter < 3)
+		{
+			++Counter;
+			bIsGrappled = true;
+			GrappleEffectSpeedMultiplier -= 0.33f;
+			SetDesiredGait(AlsGaitTags::Walking);
+		}
+	}
+	else
+	{
+		Counter = 0;
+		bIsGrappled = false;
+		GrappleEffectSpeedMultiplier = 1.0f;
+		SetDesiredGait(AlsGaitTags::Running);
+	}
 }

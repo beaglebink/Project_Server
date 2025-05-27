@@ -112,6 +112,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(SwitchShoulderAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchShoulder);
 		EnhancedInput->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchWeapon);
 		EnhancedInput->BindAction(RemoveSticknessAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnRemoveStickness);
+		EnhancedInput->BindAction(GrappleRemoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRemoveGrapple);
 
 	}
 }
@@ -121,14 +122,14 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 	LoopEffectFrame.FrameActionValue_OnLookMouse = ActionValue;
 
 	const auto Value{ ActionValue.Get<FVector2D>() };
-	ShakeMouseRemoveWireEffect(Value);
+	ShakeMouseRemoveEffect(Value);
 
 	if (!bIsStunned)
 	{
 		if (bIsDiscombobulated)
 		{
-			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range;
-			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range;
+			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 				{
@@ -138,8 +139,8 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 		}
 		else
 		{
-			AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range);
-			AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range);
+			AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
+			AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
 		}
 	}
 }
@@ -154,8 +155,8 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 	{
 		if (bIsDiscombobulated)
 		{
-			float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range;
-			float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range;
+			float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+			float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 				{
@@ -165,8 +166,8 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 		}
 		else
 		{
-			AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range);
-			AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range);
+			AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
+			AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
 		}
 	}
 }
@@ -206,6 +207,11 @@ void AAlsCharacterExample::Input_OnMove_Released()
 
 void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 {
+	if (bIsGrappled)
+	{
+		return;
+	}
+
 	FGameplayTag GaitTag = ActionValue.Get<bool>() ? AlsGaitTags::Sprinting : AlsGaitTags::Running;
 
 	auto StartSprintLambda = [this, GaitTag]()
@@ -248,6 +254,11 @@ void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnWalk()
 {
+	if (bIsGrappled)
+	{
+		return;
+	}
+
 	if (GetDesiredGait() == AlsGaitTags::Walking)
 	{
 		SetDesiredGait(AlsGaitTags::Running);
@@ -283,7 +294,7 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 	LoopEffectFrame.FrameActionValue_OnJump = ActionValue;
 	LoopEffectFrame.FrameState = EnumLoopStates::Jump;
 
-	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsWired)
+	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsWired || bIsGrappled)
 	{
 		return;
 	}
@@ -382,11 +393,16 @@ void AAlsCharacterExample::Input_OnRagdoll()
 
 void AAlsCharacterExample::Input_OnRoll()
 {
+	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled)
+	{
+		return;
+	}
+
 	LoopEffectFrame.FrameState = EnumLoopStates::Roll;
 
 	static constexpr auto PlayRate{ 1.3f };
 
-	if (GetStamina() > RollStaminaCost && !bIsStunned && !bIsSliding && !bIsSticky)
+	if (GetStamina() > RollStaminaCost)
 	{
 		if (bIsDiscombobulated)
 		{
@@ -554,6 +570,13 @@ void AAlsCharacterExample::Input_OnRemoveStickness()
 	RemoveSticknessByMash();
 }
 
+void AAlsCharacterExample::Input_OnRemoveGrapple(const FInputActionValue& ActionValue)
+{
+	float X = ActionValue.Get<FVector2D>().X;
+	float Y = ActionValue.Get<FVector2D>().Y;
+	PressTwoKeysRemoveGrappleEffect(X || Y ? true : false);
+}
+
 // UI
 void AAlsCharacterExample::InitStatWidget()
 {
@@ -627,7 +650,6 @@ void AAlsCharacterExample::LoopEffect()
 			{
 				InputSubsystem->AddMappingContext(InputMappingContext, 0);
 			}
-
 		}
 	}
 	else

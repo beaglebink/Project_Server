@@ -931,12 +931,25 @@ protected:
 	uint8 bIsWired : 1{false};
 	float WireEffectPower_01Range = 1.0f;
 
-	void ShakeMouseRemoveWireEffect(FVector2D Value);
+	void ShakeMouseRemoveEffect(FVector2D Value);
 
 private:
 	float PrevPrevMouseValueLength = 0.0f;
 	float PrevMouseValueLength = 0.0f;
 	float CurrentMouseValueLength = 0.0f;
+
+	//grappling effect
+protected:
+	uint8 bIsGrappled : 1{false};
+	float GrappleEffectSpeedMultiplier = 1.0f;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "WireEffect")
+	void SetRemoveGrappleEffect(bool bIsSet);
+
+protected:
+	void PressTwoKeysRemoveGrappleEffect(bool bIsHold);
+	uint8 bIsTwoKeysHold : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

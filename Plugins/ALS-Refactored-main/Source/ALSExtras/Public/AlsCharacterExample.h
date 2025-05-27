@@ -104,6 +104,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> PauseAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> GrappleRemoveAction;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example", Meta = (ClampMin = 0, ForceUnits = "x"))
 	float LookUpMouseSensitivity{ 1.0f };
 
@@ -186,6 +189,8 @@ private:
 	void Input_OnSwitchWeapon();
 
 	void Input_OnRemoveStickness();
+
+	void Input_OnRemoveGrapple(const FInputActionValue& ActionValue);
 
 protected:
 	UFUNCTION(BlueprintImplementableEvent)
