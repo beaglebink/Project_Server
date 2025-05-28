@@ -2429,9 +2429,26 @@ void AAlsCharacter::MagneticEffect()
 {
 	if (bIsMagnetic)
 	{
-		FVector MagnetForceDirection = (GetActorLocation() - MagnetLocation).GetSafeNormal();
-		MagneticEffectSpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(0.5f, 1.5f), UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), MagnetForceDirection));
-		float DistanceCoefficient = 0;
+		//movement speed influence
+		FVector MagnetForceDirection = (MagnetLocation - GetMesh()->GetSocketLocation("hand_r")).GetSafeNormal();
+		float DistanceToMagnet = FVector::Distance(GetMesh()->GetSocketLocation("hand_r"), MagnetLocation);
+		float MagnetPowerOnDirection = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(-0.8f, 0.8f), UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), MagnetForceDirection));
+		float DistanceCoefficient = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1000.0f), FVector2D(1.0f, 0.01f), DistanceToMagnet);
+		MagneticEffectSpeedMultiplier = 1 + MagnetPowerOnDirection * DistanceCoefficient;
+
+		//aim influence
+		FRotator DeltaMagnetControl = UKismetMathLibrary::NormalizedDeltaRotator(MagnetForceDirection.Rotation(), GetControlRotation());
+		float AngleDistanceToMagnet = hypot(DeltaMagnetControl.Pitch, DeltaMagnetControl.Yaw);
+
+		if (AngleDistanceToMagnet > 2.0f * DistanceCoefficient)
+		{
+			AddControllerPitchInput(DeltaMagnetControl.Pitch / AngleDistanceToMagnet * FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 180.0f), FVector2D(20.0f, 0.01f), AngleDistanceToMagnet) * DistanceCoefficient);
+			AddControllerYawInput(DeltaMagnetControl.Yaw / AngleDistanceToMagnet * FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 180.0f), FVector2D(20.0f, 0.01f), AngleDistanceToMagnet) * DistanceCoefficient);
+		}
+	}
+	else
+	{
+		MagneticEffectSpeedMultiplier = 1.0f;
 	}
 }
 
@@ -2439,4 +2456,15 @@ void AAlsCharacter::SetRemoveMagneticEffect(bool bIsSet, FVector ActorLocation)
 {
 	bIsMagnetic = bIsSet;
 	MagnetLocation = ActorLocation;
+}
+
+void AAlsCharacter::SetRemoveInkEffect(bool bIsSet, float EffectPower)
+{
+	bIsInked = bIsSet;
+	InkEffectPower_01Range = FMath::Clamp(EffectPower, 0.0f, 1.0f);
+	InkTimeDelay = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.0001f, 1.0f), InkEffectPower_01Range);
+}
+
+void AAlsCharacter::InkEffect()
+{
 }

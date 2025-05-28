@@ -136,7 +136,18 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 					AddControllerYawInput(YawDirection);
 				}, DiscombobulateTimeDelay, false);
 		}
-		else
+		if (bIsInked)
+		{
+			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+			FTimerHandle TimerHandle;
+			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
+				{
+					AddControllerPitchInput(PitchDirection);
+					AddControllerYawInput(YawDirection);
+				}, InkTimeDelay, false);
+		}
+		if (!bIsDiscombobulated && !bIsInked)
 		{
 			AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
 			AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
@@ -163,7 +174,18 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 					AddControllerYawInput(YawDirection);
 				}, DiscombobulateTimeDelay, false);
 		}
-		else
+		if (bIsInked)
+		{
+			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+			FTimerHandle TimerHandle;
+			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
+				{
+					AddControllerPitchInput(PitchDirection);
+					AddControllerYawInput(YawDirection);
+				}, InkTimeDelay, false);
+		}
+		if (!bIsDiscombobulated && !bIsInked)
 		{
 			AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
 			AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);

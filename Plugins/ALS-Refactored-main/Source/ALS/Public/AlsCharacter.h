@@ -965,6 +965,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Magnetic Effect")
 	void SetRemoveMagneticEffect(bool bIsSet, FVector ActorLocation = FVector::ZeroVector);
 
+	//ink effect
+public:
+	UFUNCTION(BlueprintCallable, Category = "Ink effect")
+	void SetRemoveInkEffect(bool bIsSet, UPARAM(meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0")) float EffectPower = 0.0f);
+
+protected:
+	uint8 bIsInked : 1{false};
+
+	float InkEffectPower_01Range = 0.0f;
+
+	float InkTimeDelay = 0.0001f;
+
+private:
+	void InkEffect();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
