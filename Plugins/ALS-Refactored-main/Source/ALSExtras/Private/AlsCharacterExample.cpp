@@ -414,7 +414,7 @@ void AAlsCharacterExample::Input_OnRagdoll()
 
 void AAlsCharacterExample::Input_OnRoll()
 {
-	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled)
+	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled || bIsWired)
 	{
 		return;
 	}
