@@ -323,6 +323,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	DiscombobulateEffect();
 
 	MagneticEffect();
+
+	CalculateInkEffect();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2465,6 +2467,39 @@ void AAlsCharacter::SetRemoveInkEffect(bool bIsSet, float EffectPower)
 	InkTimeDelay = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.0001f, 1.0f), InkEffectPower_01Range);
 }
 
-void AAlsCharacter::InkEffect()
+void AAlsCharacter::CalculateInkEffect()
 {
+	if (bIsInked)
+	{
+		if (!bIsInkProcessed)
+		{
+			CurrentControlRotation_Ink = GetControlRotation();
+			FRotator DeltaControlRotatiton = UKismetMathLibrary::NormalizedDeltaRotator(PrevControlRotation_Ink, CurrentControlRotation_Ink);
+			PrevControlRotation_Ink = CurrentControlRotation_Ink;
+
+			CurrentLookDirection = FVector2D(DeltaControlRotatiton.Yaw, DeltaControlRotatiton.Pitch);
+			float DotDirections = FVector2D::DotProduct(PrevLookDirection.GetSafeNormal(), CurrentLookDirection.GetSafeNormal());
+			PrevLookDirection = CurrentLookDirection;
+
+			CurrentLookSpeed = FVector2D(DeltaControlRotatiton.Yaw, DeltaControlRotatiton.Pitch).Length();
+			float DeltaSpeed = PrevLookSpeed - CurrentLookSpeed;
+			PrevLookSpeed = CurrentLookSpeed;
+			
+			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, FString::Printf(TEXT("POLUSHILOS    %2.2f"), CurrentLookSpeed));
+
+			if (DeltaSpeed > 3.0f || DotDirections < 0.0f)
+			{
+				//bIsInkProcessed = true;
+				FTimerHandle TimerHandle;
+				GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+					{
+						bIsInkProcessed = false;
+					}, 2.0f, false);
+			}
+		}
+		else
+		{
+			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Blue, FString::Printf(TEXT("Rotatim Weapon")));
+		}
+	}
 }

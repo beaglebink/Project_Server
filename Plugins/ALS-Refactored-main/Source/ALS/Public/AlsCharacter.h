@@ -967,18 +967,35 @@ public:
 
 	//ink effect
 public:
-	UFUNCTION(BlueprintCallable, Category = "Ink effect")
-	void SetRemoveInkEffect(bool bIsSet, UPARAM(meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0")) float EffectPower = 0.0f);
+	UPROPERTY(BlueprintReadOnly, Category = "Ink Effect")
+	FRotator WeaponRotation_InkEffect;
 
 protected:
 	uint8 bIsInked : 1{false};
+
+	uint8 bIsInkProcessed : 1{false};
 
 	float InkEffectPower_01Range = 0.0f;
 
 	float InkTimeDelay = 0.0001f;
 
+	float PrevLookSpeed = 0.0f;
+	float CurrentLookSpeed = 0.0f;
+
 private:
-	void InkEffect();
+	FRotator PrevControlRotation_Ink;
+	FRotator CurrentControlRotation_Ink;
+
+	FVector2D PrevLookDirection;
+	FVector2D CurrentLookDirection;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Ink effect")
+	void SetRemoveInkEffect(bool bIsSet, UPARAM(meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0")) float EffectPower = 0.0f);
+
+private:
+	void CalculateInkEffect();
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

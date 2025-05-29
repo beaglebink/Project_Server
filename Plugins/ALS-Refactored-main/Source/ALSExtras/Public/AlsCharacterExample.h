@@ -158,6 +158,7 @@ protected:
 
 private:
 	void Input_OnLookMouse(const FInputActionValue& ActionValue);
+	void Input_OnLookMouse_Completed();
 
 	void Input_OnLook(const FInputActionValue& ActionValue);
 

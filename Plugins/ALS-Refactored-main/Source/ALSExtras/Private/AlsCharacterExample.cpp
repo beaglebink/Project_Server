@@ -96,6 +96,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 	if (IsValid(EnhancedInput))
 	{
 		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLookMouse);
+		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnLookMouse_Completed);
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLook);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnMove);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnMove_Released);
@@ -121,14 +122,15 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 	LoopEffectFrame.FrameActionValue_OnLookMouse = ActionValue;
 
 	const auto Value{ ActionValue.Get<FVector2D>() };
+	float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+	float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+
 	ShakeMouseRemoveEffect(Value);
 
 	if (!bIsStunned)
 	{
 		if (bIsDiscombobulated)
 		{
-			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
-			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 				{
@@ -138,8 +140,6 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 		}
 		if (bIsInked)
 		{
-			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
-			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 				{
@@ -149,10 +149,22 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 		}
 		if (!bIsDiscombobulated && !bIsInked)
 		{
-			AddControllerPitchInput(Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
-			AddControllerYawInput(Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
+			AddControllerPitchInput(PitchDirection);
+			AddControllerYawInput(YawDirection);
 		}
 	}
+}
+
+void AAlsCharacterExample::Input_OnLookMouse_Completed()
+{
+	//if (bIsInked)
+	//{
+	//	FTimerHandle TimerHandle;
+	//	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+	//		{
+	//			bIsInkProcessed = true;
+	//		}, InkTimeDelay, false);
+	//}
 }
 
 void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
@@ -160,13 +172,13 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 	LoopEffectFrame.FrameActionValue_OnLook = ActionValue;
 
 	const auto Value{ ActionValue.Get<FVector2D>() };
+	float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
+	float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 
 	if (!bIsStunned)
 	{
 		if (bIsDiscombobulated)
 		{
-			float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
-			float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 				{
@@ -176,8 +188,6 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 		}
 		if (bIsInked)
 		{
-			float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
-			float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 				{
@@ -187,8 +197,8 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 		}
 		if (!bIsDiscombobulated && !bIsInked)
 		{
-			AddControllerPitchInput(Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
-			AddControllerYawInput(Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier);
+			AddControllerPitchInput(PitchDirection);
+			AddControllerYawInput(YawDirection);
 		}
 	}
 }
