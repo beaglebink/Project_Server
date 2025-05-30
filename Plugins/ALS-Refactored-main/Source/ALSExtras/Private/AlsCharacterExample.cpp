@@ -161,37 +161,39 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 
 void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 {
+	if (bIsStunned || bIsInkProcessed)
+	{
+		return;
+	}
+
 	LoopEffectFrame.FrameActionValue_OnLook = ActionValue;
 
 	const auto Value{ ActionValue.Get<FVector2D>() };
 	float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 	float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier;
 
-	if (!bIsStunned)
+	if (bIsDiscombobulated)
 	{
-		if (bIsDiscombobulated)
-		{
-			FTimerHandle TimerHandle;
-			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
-				{
-					AddControllerPitchInput(PitchDirection);
-					AddControllerYawInput(YawDirection);
-				}, DiscombobulateTimeDelay, false);
-		}
-		if (bIsInked)
-		{
-			FTimerHandle TimerHandle;
-			GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
-				{
-					AddControllerPitchInput(PitchDirection);
-					AddControllerYawInput(YawDirection);
-				}, InkTimeDelay, false);
-		}
-		if (!bIsDiscombobulated && !bIsInked)
-		{
-			AddControllerPitchInput(PitchDirection);
-			AddControllerYawInput(YawDirection);
-		}
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
+			{
+				AddControllerPitchInput(PitchDirection);
+				AddControllerYawInput(YawDirection);
+			}, DiscombobulateTimeDelay, false);
+	}
+	if (bIsInked)
+	{
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
+			{
+				AddControllerPitchInput(PitchDirection);
+				AddControllerYawInput(YawDirection);
+			}, InkTimeDelay, false);
+	}
+	if (!bIsDiscombobulated && !bIsInked)
+	{
+		AddControllerPitchInput(PitchDirection);
+		AddControllerYawInput(YawDirection);
 	}
 }
 
