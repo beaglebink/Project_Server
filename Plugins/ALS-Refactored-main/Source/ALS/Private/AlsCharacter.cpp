@@ -2473,8 +2473,9 @@ void AAlsCharacter::CalculateInkEffect()
 	{
 		if (!bIsInkProcessed)
 		{
+			WeaponRotation_InkEffect = FRotator::ZeroRotator;
 			CurrentControlRotation_Ink = GetControlRotation();
-			FRotator DeltaControlRotatiton = UKismetMathLibrary::NormalizedDeltaRotator(PrevControlRotation_Ink, CurrentControlRotation_Ink);
+			DeltaControlRotatiton = UKismetMathLibrary::NormalizedDeltaRotator(CurrentControlRotation_Ink, PrevControlRotation_Ink);
 			PrevControlRotation_Ink = CurrentControlRotation_Ink;
 
 			CurrentLookDirection = FVector2D(DeltaControlRotatiton.Yaw, DeltaControlRotatiton.Pitch);
@@ -2484,22 +2485,37 @@ void AAlsCharacter::CalculateInkEffect()
 			CurrentLookSpeed = FVector2D(DeltaControlRotatiton.Yaw, DeltaControlRotatiton.Pitch).Length();
 			float DeltaSpeed = PrevLookSpeed - CurrentLookSpeed;
 			PrevLookSpeed = CurrentLookSpeed;
-			
-			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, FString::Printf(TEXT("POLUSHILOS    %2.2f"), CurrentLookSpeed));
 
-			if (DeltaSpeed > 3.0f || DotDirections < 0.0f)
+			if (DeltaSpeed > 2.0f || DotDirections < 0.0f)
 			{
-				//bIsInkProcessed = true;
-				FTimerHandle TimerHandle;
-				GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-					{
-						bIsInkProcessed = false;
-					}, 2.0f, false);
+				bIsInkProcessed = true;
+				DeltaControlRotatiton.Pitch *= InkEffectPower_01Range;
+				DeltaControlRotatiton.Yaw *= InkEffectPower_01Range;
 			}
 		}
 		else
 		{
-			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Blue, FString::Printf(TEXT("Rotatim Weapon")));
+			float DeltaLength = FVector2D(DeltaControlRotatiton.Pitch, DeltaControlRotatiton.Yaw).Length();
+			if (DeltaLength > 0.01f)
+			{
+				WeaponRotation_InkEffect += FRotator(DeltaControlRotatiton.Pitch, DeltaControlRotatiton.Yaw, 0.0f);
+				DeltaControlRotatiton.Pitch /= 4.0f;
+				DeltaControlRotatiton.Yaw /= 4.0f;
+			}
+			else
+			{
+				WeaponRotation_InkEffect = FMath::RInterpTo(WeaponRotation_InkEffect, FRotator::ZeroRotator, GetWorld()->GetDeltaSeconds(), 4);
+				float QuatDot = WeaponRotation_InkEffect.Quaternion() | FRotator::ZeroRotator.Quaternion();
+				if (QuatDot > 0.99999f)
+				{
+					WeaponRotation_InkEffect = FRotator::ZeroRotator;
+					bIsInkProcessed = false;
+				}
+			}
 		}
+	}
+	else
+	{
+		PrevControlRotation_Ink = GetControlRotation();
 	}
 }

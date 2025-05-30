@@ -979,10 +979,11 @@ protected:
 
 	float InkTimeDelay = 0.0001f;
 
+private:
 	float PrevLookSpeed = 0.0f;
 	float CurrentLookSpeed = 0.0f;
 
-private:
+	FRotator DeltaControlRotatiton;
 	FRotator PrevControlRotation_Ink;
 	FRotator CurrentControlRotation_Ink;
 
@@ -995,7 +996,6 @@ public:
 
 private:
 	void CalculateInkEffect();
-
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
