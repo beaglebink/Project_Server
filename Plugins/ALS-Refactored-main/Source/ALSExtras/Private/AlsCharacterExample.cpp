@@ -186,8 +186,11 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 		FTimerHandle TimerHandle;
 		GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
 			{
-				AddControllerPitchInput(PitchDirection);
-				AddControllerYawInput(YawDirection);
+				if (!bIsInkProcessed)
+				{
+					AddControllerPitchInput(PitchDirection);
+					AddControllerYawInput(YawDirection);
+				}
 			}, InkTimeDelay, false);
 	}
 	if (!bIsDiscombobulated && !bIsInked)
