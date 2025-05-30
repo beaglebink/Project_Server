@@ -2508,7 +2508,6 @@ void AAlsCharacter::CalculateInkEffect()
 				float QuatDot = WeaponRotation_InkEffect.Quaternion() | FRotator::ZeroRotator.Quaternion();
 				if (QuatDot > 0.99999f)
 				{
-					WeaponRotation_InkEffect = FRotator::ZeroRotator;
 					bIsInkProcessed = false;
 				}
 			}
