@@ -599,3 +599,9 @@ bool UAlsCameraComponent::TryAdjustLocationBlockedByGeometry(FVector& Location, 
 		FCollisionShape::MakeSphere(Settings->ThirdPerson.TraceRadius * MeshScale),
 		{ FreeSpaceTraceTag, false, GetOwner() });
 }
+
+void UAlsCameraComponent::AddBlendable(UMaterialInterface* Material, float Weight)
+{
+	FWeightedBlendable Blendable(Weight, Material);
+	Settings->PostProcess.WeightedBlendables.Array.Add(Blendable);
+}

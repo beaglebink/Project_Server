@@ -10,7 +10,7 @@ class ACharacter;
 UCLASS(HideCategories = ("ComponentTick", "Clothing", "Physics", "MasterPoseComponent", "Collision", "AnimationRig",
 	"Lighting", "Deformer", "Rendering", "PathTracing", "HLOD", "Navigation", "VirtualTexture", "SkeletalMesh",
 	"LeaderPoseComponent", "Optimization", "LOD", "MaterialParameters", "TextureStreaming", "Mobile", "RayTracing"))
-class ALSCAMERA_API UAlsCameraComponent : public USkeletalMeshComponent
+	class ALSCAMERA_API UAlsCameraComponent : public USkeletalMeshComponent
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ protected:
 	TWeakObjectPtr<UAnimInstance> AnimationInstance;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (ForceUnits = "x"))
-	float PreviousGlobalTimeDilation{1.0f};
+	float PreviousGlobalTimeDilation{ 1.0f };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
 	FVector PivotTargetLocation;
@@ -58,10 +58,10 @@ protected:
 	FQuat CameraMovementBaseRelativeRotation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (ClampMin = 0, ClampMax = 1, ForceUnits = "%"))
-	float TraceDistanceRatio{1.0f};
+	float TraceDistanceRatio{ 1.0f };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (ClampMin = 5, ClampMax = 360, ForceUnits = "deg"))
-	float CameraFov{90.0f};
+	float CameraFov{ 90.0f };
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Aiming", Meta = (ClampMin = 0, ClampMax = 90, ForceUnits = "deg"))
 	float AimFOVOffset{ 0.0f };
@@ -120,7 +120,7 @@ private:
 	FVector CalculateCameraOffset() const;
 
 	FVector CalculateCameraTrace(const FVector& CameraTargetLocation, const FVector& PivotOffset,
-	                             float DeltaTime, bool bAllowLag, float& NewTraceDistanceRatio) const;
+		float DeltaTime, bool bAllowLag, float& NewTraceDistanceRatio) const;
 
 	bool TryAdjustLocationBlockedByGeometry(FVector& Location, bool bDisplayDebugCameraTraces) const;
 
@@ -131,13 +131,18 @@ public:
 
 private:
 	static void DisplayDebugHeader(const UCanvas* Canvas, const FText& HeaderText, const FLinearColor& HeaderColor,
-	                               float Scale, float HorizontalLocation, float& VerticalLocation);
+		float Scale, float HorizontalLocation, float& VerticalLocation);
 
 	void DisplayDebugCurves(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 
 	void DisplayDebugShapes(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 
 	void DisplayDebugTraces(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
+
+	//Add Blendable PostProcess
+public:
+	UFUNCTION(BlueprintCallable, Category = "Glitch effect")
+	void AddBlendable(UMaterialInterface* Material, float Weight);
 };
 
 inline float UAlsCameraComponent::GetPostProcessWeight() const
