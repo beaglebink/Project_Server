@@ -2435,14 +2435,14 @@ void AAlsCharacter::MagneticEffect()
 		FVector MagnetForceDirection = (MagnetLocation - GetMesh()->GetSocketLocation("hand_r")).GetSafeNormal();
 		float DistanceToMagnet = FVector::Distance(GetMesh()->GetSocketLocation("hand_r"), MagnetLocation);
 		float MagnetPowerOnDirection = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(-0.8f, 0.8f), UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), MagnetForceDirection));
-		float DistanceCoefficient = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1000.0f), FVector2D(1.0f, 0.01f), DistanceToMagnet);
+		float DistanceCoefficient = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 300.0f), FVector2D(MagneticEffectPower_Range01, 0.01f), DistanceToMagnet);
 		MagneticEffectSpeedMultiplier = 1 + MagnetPowerOnDirection * DistanceCoefficient;
 
 		//aim influence
 		FRotator DeltaMagnetControl = UKismetMathLibrary::NormalizedDeltaRotator(MagnetForceDirection.Rotation(), GetControlRotation());
 		float AngleDistanceToMagnet = hypot(DeltaMagnetControl.Pitch, DeltaMagnetControl.Yaw);
 
-		if (AngleDistanceToMagnet > 2.0f * DistanceCoefficient)
+		if (AngleDistanceToMagnet > 4.0f * DistanceCoefficient)
 		{
 			AddControllerPitchInput(DeltaMagnetControl.Pitch / AngleDistanceToMagnet * FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 180.0f), FVector2D(20.0f, 0.01f), AngleDistanceToMagnet) * DistanceCoefficient);
 			AddControllerYawInput(DeltaMagnetControl.Yaw / AngleDistanceToMagnet * FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 180.0f), FVector2D(20.0f, 0.01f), AngleDistanceToMagnet) * DistanceCoefficient);
@@ -2454,10 +2454,11 @@ void AAlsCharacter::MagneticEffect()
 	}
 }
 
-void AAlsCharacter::SetRemoveMagneticEffect(bool bIsSet, FVector ActorLocation)
+void AAlsCharacter::SetRemoveMagneticEffect(bool bIsSet, float MagnetPower, FVector ActorLocation)
 {
 	bIsMagnetic = bIsSet;
 	MagnetLocation = ActorLocation;
+	MagneticEffectPower_Range01 = FMath::Clamp(MagnetPower, 0.01f, 1.0f);
 }
 
 void AAlsCharacter::SetRemoveInkEffect(bool bIsSet, float EffectPower)
@@ -2499,12 +2500,12 @@ void AAlsCharacter::CalculateInkEffect()
 			if (DeltaLength > 0.01f)
 			{
 				WeaponRotation_InkEffect += FRotator(DeltaControlRotatiton.Pitch, DeltaControlRotatiton.Yaw, 0.0f);
-				DeltaControlRotatiton.Pitch /= 4.0f;
-				DeltaControlRotatiton.Yaw /= 4.0f;
+				DeltaControlRotatiton.Pitch /= 2.0f;
+				DeltaControlRotatiton.Yaw /= 2.0f;
 			}
 			else
 			{
-				WeaponRotation_InkEffect = FMath::RInterpTo(WeaponRotation_InkEffect, FRotator::ZeroRotator, GetWorld()->GetDeltaSeconds(), 4);
+				WeaponRotation_InkEffect = FMath::RInterpTo(WeaponRotation_InkEffect, FRotator::ZeroRotator, GetWorld()->GetDeltaSeconds(), 2);
 				float QuatDot = WeaponRotation_InkEffect.Quaternion() | FRotator::ZeroRotator.Quaternion();
 				if (QuatDot > 0.99999f)
 				{

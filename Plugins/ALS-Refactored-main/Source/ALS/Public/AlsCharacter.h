@@ -959,11 +959,13 @@ private:
 
 	float MagneticEffectSpeedMultiplier = 1.0f;
 
+	float MagneticEffectPower_Range01 = 1.0f;
+
 	void MagneticEffect();
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Magnetic Effect")
-	void SetRemoveMagneticEffect(bool bIsSet, FVector ActorLocation = FVector::ZeroVector);
+	void SetRemoveMagneticEffect(bool bIsSet, float MagnetPower = 1.0f, FVector ActorLocation = FVector::ZeroVector);
 
 	//ink effect
 public:
