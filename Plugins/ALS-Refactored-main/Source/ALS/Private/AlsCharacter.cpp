@@ -2442,7 +2442,7 @@ void AAlsCharacter::MagneticEffect()
 		FRotator DeltaMagnetControl = UKismetMathLibrary::NormalizedDeltaRotator(MagnetForceDirection.Rotation(), GetControlRotation());
 		float AngleDistanceToMagnet = hypot(DeltaMagnetControl.Pitch, DeltaMagnetControl.Yaw);
 
-		if (AngleDistanceToMagnet > 4.0f * DistanceCoefficient)
+		if (AngleDistanceToMagnet > 10.0f * DistanceCoefficient)
 		{
 			AddControllerPitchInput(DeltaMagnetControl.Pitch / AngleDistanceToMagnet * FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 180.0f), FVector2D(20.0f, 0.01f), AngleDistanceToMagnet) * DistanceCoefficient);
 			AddControllerYawInput(DeltaMagnetControl.Yaw / AngleDistanceToMagnet * FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 180.0f), FVector2D(20.0f, 0.01f), AngleDistanceToMagnet) * DistanceCoefficient);
