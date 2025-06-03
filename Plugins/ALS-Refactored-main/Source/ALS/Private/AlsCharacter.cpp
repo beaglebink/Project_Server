@@ -2435,7 +2435,7 @@ void AAlsCharacter::MagneticEffect()
 		FVector MagnetForceDirection = (MagnetLocation - GetMesh()->GetSocketLocation("hand_r")).GetSafeNormal();
 		float DistanceToMagnet = FVector::Distance(GetMesh()->GetSocketLocation("hand_r"), MagnetLocation);
 		float MagnetPowerOnDirection = FMath::GetMappedRangeValueClamped(FVector2D(-1.0f, 1.0f), FVector2D(-0.8f, 0.8f), UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), MagnetForceDirection));
-		float DistanceCoefficient = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 300.0f), FVector2D(MagneticEffectPower_Range01, 0.01f), DistanceToMagnet);
+		float DistanceCoefficient = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, MagneticSphereRadius), FVector2D(MagneticEffectPower_Range01, 0.01f), DistanceToMagnet);
 		MagneticEffectSpeedMultiplier = 1 + MagnetPowerOnDirection * DistanceCoefficient;
 
 		//aim influence
@@ -2454,9 +2454,10 @@ void AAlsCharacter::MagneticEffect()
 	}
 }
 
-void AAlsCharacter::SetRemoveMagneticEffect(bool bIsSet, float MagnetPower, FVector ActorLocation)
+void AAlsCharacter::SetRemoveMagneticEffect(bool bIsSet, float SphereRadius, float MagnetPower, FVector ActorLocation)
 {
 	bIsMagnetic = bIsSet;
+	MagneticSphereRadius = SphereRadius;
 	MagnetLocation = ActorLocation;
 	MagneticEffectPower_Range01 = FMath::Clamp(MagnetPower, 0.01f, 1.0f);
 }
