@@ -218,8 +218,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UAttributesWidget> AttributesWidgetClass;
 
-private:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "Widgets")
 	TObjectPtr<UAttributesWidget> AttributesWidget;
 
 protected:
