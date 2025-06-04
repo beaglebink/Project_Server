@@ -219,6 +219,7 @@ void UAlsCameraComponent::TickCamera(const float DeltaTime, bool bAllowLag)
 		CameraRotation = CameraTargetRotation;
 		CameraFov = Settings->FirstPerson.Fov - AimFOVOffset;
 		return;
+
 	}
 
 	// Force disable camera lag if the character was teleported.
@@ -604,4 +605,10 @@ void UAlsCameraComponent::AddBlendable(UMaterialInterface* Material, float Weigh
 {
 	FWeightedBlendable Blendable(Weight, Material);
 	Settings->PostProcess.WeightedBlendables.Array.Add(Blendable);
+}
+
+void UAlsCameraComponent::SetRemoveMonochromeState(bool bIsSet)
+{
+	Settings->PostProcess.bOverride_ColorSaturation = bIsSet;
+	Settings->PostProcess.ColorSaturation = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 }

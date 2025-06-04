@@ -143,6 +143,11 @@ private:
 public:
 	UFUNCTION(BlueprintCallable, Category = "Glitch effect")
 	void AddBlendable(UMaterialInterface* Material, float Weight);
+
+	//Monochrome
+public:
+	UFUNCTION(BlueprintCallable, Category = "Monochrome effect")
+	void SetRemoveMonochromeState(bool bIsSet);
 };
 
 inline float UAlsCameraComponent::GetPostProcessWeight() const
