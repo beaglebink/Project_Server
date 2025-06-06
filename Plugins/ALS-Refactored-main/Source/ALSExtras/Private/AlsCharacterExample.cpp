@@ -235,7 +235,7 @@ void AAlsCharacterExample::Input_OnMove_Released()
 
 void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 {
-	if (bIsGrappled)
+	if (bIsGrappled || bIsStunned || bIsSliding || bIsSticky)
 	{
 		return;
 	}
@@ -246,7 +246,7 @@ void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 		{
 			if (GetStamina() > SprintStaminaDrainRate && AbleToSprint)
 			{
-				if (GetDesiredGait() == AlsGaitTags::Sprinting && GaitTag == AlsGaitTags::Sprinting)
+				if (GetDesiredGait() == AlsGaitTags::Sprinting && GaitTag == AlsGaitTags::Sprinting && FVector2D(GetVelocity()).Length())
 				{
 					SetStamina(GetStamina() - SprintStaminaDrainRate);
 				}
@@ -266,17 +266,14 @@ void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 			}
 		};
 
-	if (!bIsStunned && !bIsSliding && !bIsSticky)
+	if (bIsDiscombobulated)
 	{
-		if (bIsDiscombobulated)
-		{
-			FTimerHandle TimerHandleDiscombobulate;
-			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, StartSprintLambda, DiscombobulateTimeDelay, false);
-		}
-		else
-		{
-			StartSprintLambda();
-		}
+		FTimerHandle TimerHandleDiscombobulate;
+		GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, StartSprintLambda, DiscombobulateTimeDelay, false);
+	}
+	else
+	{
+		StartSprintLambda();
 	}
 }
 

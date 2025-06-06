@@ -325,6 +325,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	MagneticEffect();
 
 	CalculateInkEffect();
+
+	Restore_Speed_JumpHeight_Health();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2518,5 +2520,56 @@ void AAlsCharacter::CalculateInkEffect()
 	else
 	{
 		PrevControlRotation_Ink = GetControlRotation();
+	}
+}
+
+void AAlsCharacter::Restore_Speed_JumpHeight_Health()
+{
+	if (bIsRestored)
+	{
+		float InterpSpeed = 2.0f;
+
+		SpeedMultiplier = FMath::FInterpTo(SpeedMultiplier, SpeedMultiplier + CurrentDeltaSpeed, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+		CurrentDeltaSpeed = FMath::FInterpTo(CurrentDeltaSpeed, 0.0f, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+
+		AlsCharacterMovement->JumpZVelocity = FMath::FInterpTo(AlsCharacterMovement->JumpZVelocity, AlsCharacterMovement->JumpZVelocity + CurrentDeltaJumpHeight, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+		CurrentDeltaJumpHeight = FMath::FInterpTo(CurrentDeltaJumpHeight, 0.0f, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+
+		SetHealth(FMath::FInterpTo(GetHealth(), GetHealth() + CurrentDeltaHealth, GetWorld()->GetDeltaSeconds(), InterpSpeed));
+		CurrentDeltaHealth = FMath::FInterpTo(CurrentDeltaHealth, 0.0f, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+
+		SetStamina(FMath::FInterpTo(GetStamina(), GetStamina() + CurrentDeltaStamina, GetWorld()->GetDeltaSeconds(), InterpSpeed));
+		CurrentDeltaStamina = FMath::FInterpTo(CurrentDeltaStamina, 0.0f, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+
+		if (CurrentDeltaSpeed == 0.0f && CurrentDeltaJumpHeight == 0.0f && CurrentDeltaHealth == 0.0f)
+		{
+			bIsRestored = false;
+		}
+	}
+}
+
+void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, float DeltaJumpHeight, float DeltaHealth, float DeltaStamina, float TimeToRestore)
+{
+	float TempDeltaSpeed = FMath::Clamp(DeltaSpeed, 0.0f, SpeedMultiplier);
+	float TempDeltaJumpHeight = FMath::Clamp(DeltaJumpHeight, 0.0f, AlsCharacterMovement->JumpZVelocity);
+	float TempDeltaHealth = FMath::Clamp(DeltaHealth, 0.0f, GetHealth());
+	float TempDeltaStamina = FMath::Clamp(DeltaStamina, 0.0f, GetStamina());
+
+	SpeedMultiplier -= TempDeltaSpeed;
+	AlsCharacterMovement->JumpZVelocity -= TempDeltaJumpHeight;
+	SetHealth(GetHealth() - TempDeltaHealth);
+	SetStamina(GetStamina() - TempDeltaStamina);
+
+	if (TimeToRestore)
+	{
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this, TempDeltaSpeed, TempDeltaJumpHeight, TempDeltaHealth, TempDeltaStamina]()
+			{
+				CurrentDeltaSpeed += TempDeltaSpeed;
+				CurrentDeltaJumpHeight += TempDeltaJumpHeight;
+				CurrentDeltaHealth += TempDeltaHealth;
+				CurrentDeltaStamina += TempDeltaStamina;
+				bIsRestored = true;
+			}, TimeToRestore, false);
 	}
 }

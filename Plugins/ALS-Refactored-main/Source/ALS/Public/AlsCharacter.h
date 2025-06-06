@@ -1000,6 +1000,21 @@ public:
 
 private:
 	void CalculateInkEffect();
+
+	// object virus effect
+private:
+	uint8 bIsRestored : 1{false};
+	
+	float CurrentDeltaSpeed = 0.0f;
+	float CurrentDeltaJumpHeight = 0.0f;
+	float CurrentDeltaHealth = 0.0;
+	float CurrentDeltaStamina = 0.0;
+
+	void Restore_Speed_JumpHeight_Health();
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Object Virus Effect")
+	void Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, float DeltaJumpHeight, float DeltaHealth, float DeltaStamina, float TimeToRestore = 0.0f);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
