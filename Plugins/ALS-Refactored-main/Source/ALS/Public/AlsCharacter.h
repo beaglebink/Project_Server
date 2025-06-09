@@ -32,10 +32,11 @@ class ALS_API AAlsCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
-protected:
+public:
 	UPROPERTY(BlueprintReadOnly, Category = "Als Character")
 	TObjectPtr<UAlsCharacterMovementComponent> AlsCharacterMovement;
 
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character")
 	TObjectPtr<UAlsCharacterSettings> Settings;
 
@@ -796,9 +797,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "WindDirectionInfluence")
 	float LeftRight_WindAmount{ 0.0f };
 
-private:
 	FVector2D WindDirectionAndSpeed;
 
+private:
 	float WindIfluenceEffect0_2{ 1.0f };
 
 	void SetWindDirection();
@@ -1004,7 +1005,7 @@ private:
 	// object virus effect
 private:
 	uint8 bIsRestored : 1{false};
-	
+
 	float CurrentDeltaSpeed = 0.0f;
 	float CurrentDeltaJumpHeight = 0.0f;
 	float CurrentDeltaHealth = 0.0;
@@ -1015,6 +1016,11 @@ private:
 public:
 	UFUNCTION(BlueprintCallable, Category = "Object Virus Effect")
 	void Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, float DeltaJumpHeight, float DeltaHealth, float DeltaStamina, float TimeToRestore = 0.0f);
+
+	//bubble effect
+public:
+	UPROPERTY(BlueprintReadWrite, Category = "Bubble effect")
+	uint8 bIsBubbled : 1 {false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

@@ -202,6 +202,11 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 {
+	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsBubbled)
+	{
+		return;
+	}
+
 	LoopEffectFrame.FrameActionValue_OnMove = ActionValue;
 
 	const auto Value{ UAlsMath::ClampMagnitude012D(ActionValue.Get<FVector2D>()) };
@@ -210,21 +215,18 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 
 	const auto ForwardDirection{ UAlsMath::AngleToDirectionXY(UE_REAL_TO_FLOAT(GetViewState().Rotation.Yaw)) };
 	const auto RightDirection{ UAlsMath::PerpendicularCounterClockwiseXY(ForwardDirection) };
-	if (!bIsStunned && !bIsSliding && !bIsStickyStuck)
+	if (bIsDiscombobulated)
 	{
-		if (bIsDiscombobulated)
-		{
-			FVector Direction = ForwardDirection * Value.Y + RightDirection * Value.X;
-			FTimerHandle TimerHandle;
-			GetWorldTimerManager().SetTimer(TimerHandle, [this, Direction]()
-				{
-					AddMovementInput(Direction * (bIsInputReversed ? -1.0f : 1.0f));
-				}, DiscombobulateTimeDelay, false);
-		}
-		else
-		{
-			AddMovementInput((ForwardDirection * Value.Y + RightDirection * Value.X) * (bIsInputReversed ? -1.0f : 1.0f));
-		}
+		FVector Direction = ForwardDirection * Value.Y + RightDirection * Value.X;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this, Direction]()
+			{
+				AddMovementInput(Direction * (bIsInputReversed ? -1.0f : 1.0f));
+			}, DiscombobulateTimeDelay, false);
+	}
+	else
+	{
+		AddMovementInput((ForwardDirection * Value.Y + RightDirection * Value.X) * (bIsInputReversed ? -1.0f : 1.0f));
 	}
 }
 
@@ -319,7 +321,7 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 	LoopEffectFrame.FrameActionValue_OnJump = ActionValue;
 	LoopEffectFrame.FrameState = EnumLoopStates::Jump;
 
-	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsWired || bIsGrappled)
+	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsWired || bIsGrappled || bIsBubbled)
 	{
 		return;
 	}
@@ -418,7 +420,7 @@ void AAlsCharacterExample::Input_OnRagdoll()
 
 void AAlsCharacterExample::Input_OnRoll()
 {
-	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled || bIsWired)
+	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled || bIsWired || bIsBubbled)
 	{
 		return;
 	}

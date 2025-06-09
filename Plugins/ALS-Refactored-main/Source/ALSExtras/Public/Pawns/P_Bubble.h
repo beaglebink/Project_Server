@@ -1,0 +1,46 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Pawn.h"
+#include "P_Bubble.generated.h"
+
+class USphereComponent;
+class UFloatingPawnMovement;
+class AAlsCharacterExample;
+
+UCLASS()
+class ALSEXTRAS_API AP_Bubble : public APawn
+{
+	GENERATED_BODY()
+
+public:
+	AP_Bubble();
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	USphereComponent* SphereCollisionComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UStaticMeshComponent* StaticMeshComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UFloatingPawnMovement* FloatingPawnMovementComp;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EffectTime")
+	float Time;
+
+	UPROPERTY(BlueprintReadWrite, Category = "CharacterRef")
+	AAlsCharacterExample* CatchedCharacter;
+
+	virtual void BeginPlay() override;
+
+public:
+	virtual void Tick(float DeltaTime) override;
+
+protected:
+	UFUNCTION()
+	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+};
