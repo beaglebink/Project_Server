@@ -4,6 +4,7 @@
 #include "AlsCharacterExample.h"
 #include "AlsCameraComponent.h"
 #include "AlsCharacterMovementComponent.h"
+#include "Components/TimelineComponent.h"
 
 AP_Bubble::AP_Bubble()
 {
@@ -12,6 +13,7 @@ AP_Bubble::AP_Bubble()
 	SphereCollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollisionComponent"));
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
 	FloatingPawnMovementComp = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("FloatingPawnMovementComponent"));
+	CatchTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("CatchTimeline"));
 
 	RootComponent = SphereCollisionComponent;
 	StaticMeshComponent->SetupAttachment(RootComponent);
@@ -19,39 +21,54 @@ AP_Bubble::AP_Bubble()
 	SphereCollisionComponent->SetSphereRadius(200.0f);
 	FloatingPawnMovementComp->MaxSpeed = 500.0f;
 
-	SphereCollisionComponent->SetCollisionProfileName("OverlapAllDynamic");
+	SphereCollisionComponent->SetCollisionProfileName(FName(TEXT("OverlapOnlyPawn")));
 
 	StaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	StaticMeshComponent->SetCollisionProfileName("OverlapOnlyPawn");
+	StaticMeshComponent->SetCollisionProfileName(FName(TEXT("OverlapOnlyPawn")));
 	StaticMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_PhysicsBody, ECollisionResponse::ECR_Overlap);
-
 }
 
 void AP_Bubble::BeginPlay()
 {
 	Super::BeginPlay();
 
+	DistanceMeshToCollision = (SphereCollisionComponent->GetScaledSphereRadius() - StaticMeshComponent->Bounds.BoxExtent.X) / 10.0f;
+
 	SphereCollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AP_Bubble::OnBeginOverlap);
 	SphereCollisionComponent->OnComponentEndOverlap.AddDynamic(this, &AP_Bubble::OnEndOverlap);
+
+	DynMaterial = UMaterialInstanceDynamic::Create(StaticMeshComponent->GetMaterial(0), this);
+	StaticMeshComponent->SetMaterial(0, DynMaterial);
+
+	if (FloatCurve)
+	{
+		ProgressFunction.BindUFunction(this, FName("TimelineProgress"));
+		CatchTimeline->AddInterpFloat(FloatCurve, ProgressFunction);
+
+		FinishedFunction.BindUFunction(this, FName("TimelineFinished"));
+		CatchTimeline->SetTimelineFinishedFunc(FinishedFunction);
+
+		CatchTimeline->SetLooping(false);
+	}
 }
 
 void AP_Bubble::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!CatchedCharacter || !CatchedCharacter->bIsBubbled)
+	if (!CatchedCharacter || !bIsCatched)
 	{
 		return;
 	}
 
-	DrawDebugSphere(GetWorld(), CatchedCharacter->GetActorLocation(), 20.0f, 8, FColor::Green, false, -1.0f, 0u, 3.0f);
-	DrawDebugSphere(GetWorld(), GetActorLocation(), 20.0f, 8, FColor::Red, false, -1.0f, 0u, 3.0f);
-
 	float DistanceToBubble = FVector::Distance(CatchedCharacter->GetActorLocation(), GetActorLocation());
+
+	DrawDebugSphere(GetWorld(), GetActorLocation(), 20, 16, FColor::Red, false, -1, 0u, 3);
+	DrawDebugSphere(GetWorld(), CatchedCharacter->GetActorLocation(), 20, 16, FColor::Green, false, -1, 0u, 3);
 
 	if (DistanceToBubble > 30.0f)
 	{
-		CatchedCharacter->SetActorLocation(FMath::VInterpTo(CatchedCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 6.0f));
+		CatchedCharacter->SetActorLocation(FMath::VInterpTo(CatchedCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 4.0f));
 	}
 	else
 	{
@@ -71,21 +88,43 @@ void AP_Bubble::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 
 	CatchedCharacter->bIsBubbled = true;
 
-	float CharacterGravity = CatchedCharacter->AlsCharacterMovement->GravityScale;
+	CharacterGravity = CatchedCharacter->AlsCharacterMovement->GravityScale;
+	PrevViewTag = CatchedCharacter->GetViewMode();
+
+	CatchedCharacter->SetViewMode(CatchedCharacter->GetViewMode() == AlsViewModeTags::FirstPerson ? AlsViewModeTags::ThirdPerson : AlsViewModeTags::ThirdPerson);
+
 	CatchedCharacter->AlsCharacterMovement->Velocity = FVector::ZeroVector;
+	CatchedCharacter->GetMesh()->GetAnimInstance()->StopAllMontages(0.1f);
 	CatchedCharacter->AlsCharacterMovement->SetMovementMode(EMovementMode::MOVE_Flying);
 
-	FTimerHandle TimerHandle;
-	GetWorldTimerManager().SetTimer(TimerHandle, [&, CharacterGravity]()
-		{
-			CatchedCharacter->bIsBubbled = false;
-			CatchedCharacter->AlsCharacterMovement->GravityScale = CharacterGravity;
-			CatchedCharacter->AlsCharacterMovement->SetMovementMode(EMovementMode::MOVE_Walking);
+	DynMaterial->SetVectorParameterValue(TEXT("CharacterPosition"), CatchedCharacter->GetActorLocation());
 
-			Destroy();
-		}, Time, false);
+	CatchTimeline->PlayFromStart();
 }
 
 void AP_Bubble::OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
+}
+
+void AP_Bubble::TimelineProgress(float Value)
+{
+	float Distance = FMath::Lerp(0.0f, DistanceMeshToCollision, Value);
+	DynMaterial->SetScalarParameterValue(TEXT("CatchDistance"), Distance);
+	CatchedCharacter->SetActorLocation(FMath::VInterpTo(CatchedCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 1.0f));
+}
+
+void AP_Bubble::TimelineFinished()
+{
+	bIsCatched = true;
+
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [&]()
+		{
+			CatchedCharacter->bIsBubbled = false;
+			CatchedCharacter->AlsCharacterMovement->GravityScale = CharacterGravity;
+			CatchedCharacter->AlsCharacterMovement->SetMovementMode(EMovementMode::MOVE_Walking);
+			CatchedCharacter->SetViewMode(PrevViewTag);
+
+			Destroy();
+		}, Time, false);
 }
