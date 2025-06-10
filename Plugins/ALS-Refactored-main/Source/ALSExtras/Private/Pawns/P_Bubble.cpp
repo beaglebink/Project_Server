@@ -56,12 +56,15 @@ void AP_Bubble::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!CatchedCharacter || !CatchedCharacter->bIsBubbled)
+	if (!CatchedCharacter || !bIsCatched)
 	{
 		return;
 	}
 
 	float DistanceToBubble = FVector::Distance(CatchedCharacter->GetActorLocation(), GetActorLocation());
+
+	DrawDebugSphere(GetWorld(), GetActorLocation(), 20, 16, FColor::Red, false, -1, 0u, 3);
+	DrawDebugSphere(GetWorld(), CatchedCharacter->GetActorLocation(), 20, 16, FColor::Green, false, -1, 0u, 3);
 
 	if (DistanceToBubble > 30.0f)
 	{
@@ -83,11 +86,15 @@ void AP_Bubble::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 		return;
 	}
 
+	CatchedCharacter->bIsBubbled = true;
+
 	CharacterGravity = CatchedCharacter->AlsCharacterMovement->GravityScale;
 	PrevViewTag = CatchedCharacter->GetViewMode();
 
 	CatchedCharacter->SetViewMode(CatchedCharacter->GetViewMode() == AlsViewModeTags::FirstPerson ? AlsViewModeTags::ThirdPerson : AlsViewModeTags::ThirdPerson);
+
 	CatchedCharacter->AlsCharacterMovement->Velocity = FVector::ZeroVector;
+	CatchedCharacter->GetMesh()->GetAnimInstance()->StopAllMontages(0.1f);
 	CatchedCharacter->AlsCharacterMovement->SetMovementMode(EMovementMode::MOVE_Flying);
 
 	DynMaterial->SetVectorParameterValue(TEXT("CharacterPosition"), CatchedCharacter->GetActorLocation());
@@ -108,7 +115,7 @@ void AP_Bubble::TimelineProgress(float Value)
 
 void AP_Bubble::TimelineFinished()
 {
-	CatchedCharacter->bIsBubbled = true;
+	bIsCatched = true;
 
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [&]()

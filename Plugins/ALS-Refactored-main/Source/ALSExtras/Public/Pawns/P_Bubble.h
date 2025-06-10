@@ -50,6 +50,8 @@ private:
 
 	float DistanceMeshToCollision;
 
+	uint8 bIsCatched : 1{false};
+
 protected:
 	virtual void BeginPlay() override;
 
