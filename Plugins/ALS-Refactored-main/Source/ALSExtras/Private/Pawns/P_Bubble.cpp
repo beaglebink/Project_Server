@@ -15,8 +15,8 @@ AP_Bubble::AP_Bubble()
 	FloatingPawnMovementComp = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("FloatingPawnMovementComponent"));
 	CatchTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("CatchTimeline"));
 
-	RootComponent = SphereCollisionComponent;
-	StaticMeshComponent->SetupAttachment(RootComponent);
+	RootComponent = StaticMeshComponent;
+	SphereCollisionComponent->SetupAttachment(RootComponent);
 
 	SphereCollisionComponent->SetSphereRadius(200.0f);
 	FloatingPawnMovementComp->MaxSpeed = 500.0f;
@@ -62,9 +62,6 @@ void AP_Bubble::Tick(float DeltaTime)
 	}
 
 	float DistanceToBubble = FVector::Distance(CatchedCharacter->GetActorLocation(), GetActorLocation());
-
-	DrawDebugSphere(GetWorld(), GetActorLocation(), 20, 16, FColor::Red, false, -1, 0u, 3);
-	DrawDebugSphere(GetWorld(), CatchedCharacter->GetActorLocation(), 20, 16, FColor::Green, false, -1, 0u, 3);
 
 	if (DistanceToBubble > 30.0f)
 	{
