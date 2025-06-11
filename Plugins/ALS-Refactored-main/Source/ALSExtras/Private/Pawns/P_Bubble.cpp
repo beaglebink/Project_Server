@@ -56,45 +56,45 @@ void AP_Bubble::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!CatchedCharacter || !bIsCatched)
+	if (!CaughtCharacter || !bIsCaught)
 	{
 		return;
 	}
 
-	float DistanceToBubble = FVector::Distance(CatchedCharacter->GetActorLocation(), GetActorLocation());
+	float DistanceToBubble = FVector::Distance(CaughtCharacter->GetActorLocation(), GetActorLocation());
 
 	if (DistanceToBubble > 30.0f)
 	{
-		CatchedCharacter->SetActorLocation(FMath::VInterpTo(CatchedCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 4.0f));
+		CaughtCharacter->SetActorLocation(FMath::VInterpTo(CaughtCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 4.0f));
 	}
 	else
 	{
-		FloatingPawnMovementComp->AddInputVector(FVector(CatchedCharacter->WindDirectionAndSpeed.X, CatchedCharacter->WindDirectionAndSpeed.Y, FloatingPawnMovementComp->GetMaxSpeed()).GetSafeNormal());
-		CatchedCharacter->SetActorLocation(FMath::VInterpTo(CatchedCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 20.0f));
+		FloatingPawnMovementComp->AddInputVector(FVector(CaughtCharacter->WindDirectionAndSpeed.X, CaughtCharacter->WindDirectionAndSpeed.Y, FloatingPawnMovementComp->GetMaxSpeed()).GetSafeNormal());
+		CaughtCharacter->SetActorLocation(FMath::VInterpTo(CaughtCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 20.0f));
 	}
 }
 
 void AP_Bubble::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	CatchedCharacter = Cast<AAlsCharacterExample>(OtherActor);
+	CaughtCharacter = Cast<AAlsCharacterExample>(OtherActor);
 
-	if (!CatchedCharacter)
+	if (!CaughtCharacter)
 	{
 		return;
 	}
 
-	CatchedCharacter->bIsBubbled = true;
+	CaughtCharacter->bIsBubbled = true;
 
-	CharacterGravity = CatchedCharacter->AlsCharacterMovement->GravityScale;
-	PrevViewTag = CatchedCharacter->GetViewMode();
+	CharacterGravity = CaughtCharacter->AlsCharacterMovement->GravityScale;
+	PrevViewTag = CaughtCharacter->GetViewMode();
 
-	CatchedCharacter->SetViewMode(CatchedCharacter->GetViewMode() == AlsViewModeTags::FirstPerson ? AlsViewModeTags::ThirdPerson : AlsViewModeTags::ThirdPerson);
+	CaughtCharacter->SetViewMode(CaughtCharacter->GetViewMode() == AlsViewModeTags::FirstPerson ? AlsViewModeTags::ThirdPerson : AlsViewModeTags::ThirdPerson);
 
-	CatchedCharacter->AlsCharacterMovement->Velocity = FVector::ZeroVector;
-	CatchedCharacter->GetMesh()->GetAnimInstance()->StopAllMontages(0.1f);
-	CatchedCharacter->AlsCharacterMovement->SetMovementMode(EMovementMode::MOVE_Flying);
+	CaughtCharacter->AlsCharacterMovement->Velocity = FVector::ZeroVector;
+	CaughtCharacter->GetMesh()->GetAnimInstance()->StopAllMontages(0.1f);
+	CaughtCharacter->AlsCharacterMovement->SetMovementMode(EMovementMode::MOVE_Flying);
 
-	DynMaterial->SetVectorParameterValue(TEXT("CharacterPosition"), CatchedCharacter->GetActorLocation());
+	DynMaterial->SetVectorParameterValue(TEXT("CharacterPosition"), CaughtCharacter->GetActorLocation());
 
 	CatchTimeline->PlayFromStart();
 }
@@ -107,20 +107,20 @@ void AP_Bubble::TimelineProgress(float Value)
 {
 	float Distance = FMath::Lerp(0.0f, DistanceMeshToCollision, Value);
 	DynMaterial->SetScalarParameterValue(TEXT("CatchDistance"), Distance);
-	CatchedCharacter->SetActorLocation(FMath::VInterpTo(CatchedCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 1.0f));
+	CaughtCharacter->SetActorLocation(FMath::VInterpTo(CaughtCharacter->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 1.0f));
 }
 
 void AP_Bubble::TimelineFinished()
 {
-	bIsCatched = true;
+	bIsCaught = true;
 
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [&]()
 		{
-			CatchedCharacter->bIsBubbled = false;
-			CatchedCharacter->AlsCharacterMovement->GravityScale = CharacterGravity;
-			CatchedCharacter->AlsCharacterMovement->SetMovementMode(EMovementMode::MOVE_Walking);
-			CatchedCharacter->SetViewMode(PrevViewTag);
+			CaughtCharacter->bIsBubbled = false;
+			CaughtCharacter->AlsCharacterMovement->GravityScale = CharacterGravity;
+			CaughtCharacter->AlsCharacterMovement->SetMovementMode(EMovementMode::MOVE_Walking);
+			CaughtCharacter->SetViewMode(PrevViewTag);
 
 			Destroy();
 		}, Time, false);

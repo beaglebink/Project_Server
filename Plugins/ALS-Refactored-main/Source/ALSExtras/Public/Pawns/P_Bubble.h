@@ -35,7 +35,7 @@ protected:
 	float Time;
 
 	UPROPERTY(BlueprintReadWrite, Category = "CharacterRef")
-	AAlsCharacterExample* CatchedCharacter;
+	AAlsCharacterExample* CaughtCharacter;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Timeline")
 	UCurveFloat* FloatCurve;
@@ -50,7 +50,7 @@ private:
 
 	float DistanceMeshToCollision;
 
-	uint8 bIsCatched : 1{false};
+	uint8 bIsCaught : 1{false};
 
 protected:
 	virtual void BeginPlay() override;
