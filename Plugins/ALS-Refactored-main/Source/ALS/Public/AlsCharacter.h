@@ -26,6 +26,7 @@ class UAlsMovementSettings;
 class UAlsAnimationInstance;
 class UAlsMantlingSettings;
 class UBlindnessWidget;
+class USphereComponent;
 
 UCLASS(AutoExpandCategories = ("Settings|Als Character", "Settings|Als Character|Desired State", "State|Als Character"))
 class ALS_API AAlsCharacter : public ACharacter
@@ -1014,13 +1015,30 @@ private:
 	void Restore_Speed_JumpHeight_Health();
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "Object Virus Effect")
+	UFUNCTION(BlueprintCallable, Category = "Object virus effect")
 	void Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, float DeltaJumpHeight, float DeltaHealth, float DeltaStamina, float TimeToRestore = 0.0f);
 
 	//bubble effect
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "Bubble effect")
 	uint8 bIsBubbled : 1 {false};
+
+	//concatenation effect
+public:
+	UPROPERTY(BlueprintReadWrite, Category = "Concatenation effect")
+	TArray<FName> GluedSocketNames;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Concatenation effect")
+	TArray<TObjectPtr<AActor>> GluedActors;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Concatenation effect")
+	uint8 bWeaponReplaced : 1{false};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Concatenation effect")
+	USphereComponent* SphereCollisionForGluedActors;
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Concatenation effect")
+	void ConcatenationEffect(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to4);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

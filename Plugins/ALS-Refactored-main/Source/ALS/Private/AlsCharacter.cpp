@@ -5,6 +5,7 @@
 #include "TimerManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/SphereComponent.h"
 #include "Curves/CurveFloat.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "GameFramework/PlayerController.h"
@@ -2571,5 +2572,47 @@ void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, floa
 				CurrentDeltaStamina += TempDeltaStamina;
 				bIsRestored = true;
 			}, TimeToRestore, false);
+	}
+}
+
+void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to4)
+{
+	if (bIsSet)
+	{
+		SphereCollisionForGluedActors = NewObject<USphereComponent>(this, USphereComponent::StaticClass(), TEXT("GluedActorsSphereCollision"));
+
+		SphereCollisionForGluedActors->RegisterComponent();
+
+		SphereCollisionForGluedActors->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+
+		SphereCollisionForGluedActors->SetSphereRadius(1000.0f);
+		SphereCollisionForGluedActors->SetRelativeLocation(FVector(0.0f, 1000.0f, -40.0f));
+		SphereCollisionForGluedActors->SetHiddenInGame(false);
+		SphereCollisionForGluedActors->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		SphereCollisionForGluedActors->SetCollisionProfileName(FName(TEXT("OverlapAll")));
+		SphereCollisionForGluedActors->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+
+		TArray<FName> SocketNames;
+		SocketNames = GetMesh()->GetAllSocketNames();
+		for (FName SocketName : SocketNames)
+		{
+			if (SocketName.ToString().StartsWith(TEXT("Glued_Socket_")))
+			{
+				GluedSocketNames.AddUnique(SocketName);
+			}
+		}
+
+	}
+	else
+	{
+		if (SphereCollisionForGluedActors)
+		{
+			SphereCollisionForGluedActors->DestroyComponent();
+			for (AActor* GluedActor : GluedActors)
+			{
+				GluedActor->Destroy();
+			}
+			GluedActors.Empty();
+		}
 	}
 }
