@@ -2587,7 +2587,7 @@ void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplac
 
 		SphereCollisionForGluedActors->SetSphereRadius(1000.0f);
 		SphereCollisionForGluedActors->SetRelativeLocation(FVector(0.0f, 1000.0f, -40.0f));
-		SphereCollisionForGluedActors->SetHiddenInGame(false);
+		//SphereCollisionForGluedActors->SetHiddenInGame(false);
 		SphereCollisionForGluedActors->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		SphereCollisionForGluedActors->SetCollisionProfileName(FName(TEXT("OverlapAll")));
 		SphereCollisionForGluedActors->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
@@ -2605,14 +2605,10 @@ void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplac
 	}
 	else
 	{
-		if (SphereCollisionForGluedActors)
+		for (AActor* GluedActor : GluedActors)
 		{
-			SphereCollisionForGluedActors->DestroyComponent();
-			for (AActor* GluedActor : GluedActors)
-			{
-				GluedActor->Destroy();
-			}
-			GluedActors.Empty();
+			GluedActor->Destroy();
 		}
+		GluedActors.Empty();
 	}
 }
