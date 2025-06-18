@@ -2575,7 +2575,7 @@ void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, floa
 	}
 }
 
-void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to4)
+void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to8)
 {
 	if (bIsSet)
 	{

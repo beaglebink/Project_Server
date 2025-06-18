@@ -1038,7 +1038,7 @@ public:
 	USphereComponent* SphereCollisionForGluedActors;
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Concatenation effect")
-	void ConcatenationEffect(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to4);
+	void ConcatenationEffect(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to8);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
