@@ -1932,7 +1932,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
-		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier;
+		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2575,7 +2575,7 @@ void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, floa
 	}
 }
 
-void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to8)
+void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to6)
 {
 	if (bIsSet)
 	{
@@ -2602,6 +2602,8 @@ void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplac
 			}
 		}
 
+		ConcatenationEffectSpeedMultiplier = 1.0f - 0.15f * GluedObjectsQuantity_1to6;
+		ConcatenationEffectLookSpeedMultiplier = 1.0f - 0.075f * GluedObjectsQuantity_1to6;
 	}
 	else
 	{
@@ -2610,5 +2612,7 @@ void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplac
 			GluedActor->Destroy();
 		}
 		GluedActors.Empty();
+		ConcatenationEffectSpeedMultiplier = 1.0f;
+		ConcatenationEffectLookSpeedMultiplier = 1.0f;
 	}
 }
