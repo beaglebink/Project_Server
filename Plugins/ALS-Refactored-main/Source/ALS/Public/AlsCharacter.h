@@ -17,6 +17,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStartRolling, float, AnimationDur
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChanged, float, Health, float, MaxHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStaminaChanged, float, Stamina, float, MaxStamina);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStrengthChanged, float, Strength, float, MaxStrength);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEnduranceChanged, float, Endurance, float, MaxEndurance);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVitalityChanged, float, Vitality, float, MaxVitality);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAgilityChanged, float, Agility, float, MaxAgility);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDexterityChanged, float, Dexterity, float, MaxDexterity);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPerceptionChanged, float, Perception, float, MaxPerception);
 
 struct FAlsMantlingParameters;
 struct FAlsMantlingTraceSettings;
@@ -645,13 +651,69 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
 	float Stamina = 100.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MaxStrength = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float Strength = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MaxEndurance = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float Endurance = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MaxVitality = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float Vitality = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MaxAgility = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float Agility = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MaxDexterity = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float Dexterity = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float MaxPerception = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	float Perception = 100.0f;
+
 public:
+	//delegates
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnHealthChanged OnHealthChanged;
 
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnStaminaChanged OnStaminaChanged;
 
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnStrengthChanged OnStrengthChanged;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnEnduranceChanged OnEnduranceChanged;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnVitalityChanged OnVitalityChanged;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnAgilityChanged OnAgilityChanged;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnDexterityChanged OnDexterityChanged;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnPerceptionChanged OnPerceptionChanged;
+
+	//getters
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetMaxHealth();
 
@@ -664,6 +726,43 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetStamina();
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetMaxStrength();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetStrength();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetMaxEndurance();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetEndurance();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetMaxVitality();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetVitality();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetMaxAgility();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetAgility();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetMaxDexterity();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetDexterity();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetMaxPerception();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetPerception();
+
+	//setters
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetMaxHealth(float NewMaxHealth);
 
@@ -675,6 +774,42 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetStamina(float NewStamina);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetMaxStrength(float NewMaxStrength);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetStrength(float NewStrength);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetMaxEndurance(float NewMaxEndurance);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetEndurance(float NewEndurance);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetMaxVitality(float NewMaxVitality);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetVitality(float NewVitality);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetMaxAgility(float NewMaxAgility);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetAgility(float NewAgility);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetMaxDexterity(float NewMaxDexterity);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetDexterity(float NewDexterity);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetMaxPerception(float NewMaxPerception);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetPerception(float NewPerception);
 
 	// What does stamina affect
 public:

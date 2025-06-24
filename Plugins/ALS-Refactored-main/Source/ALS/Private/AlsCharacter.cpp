@@ -1898,6 +1898,66 @@ float AAlsCharacter::GetStamina()
 	return Stamina;
 }
 
+float AAlsCharacter::GetMaxStrength()
+{
+	return MaxStrength;
+}
+
+float AAlsCharacter::GetStrength()
+{
+	return Strength;
+}
+
+float AAlsCharacter::GetMaxEndurance()
+{
+	return MaxEndurance;
+}
+
+float AAlsCharacter::GetEndurance()
+{
+	return Endurance;
+}
+
+float AAlsCharacter::GetMaxVitality()
+{
+	return MaxVitality;
+}
+
+float AAlsCharacter::GetVitality()
+{
+	return Vitality;
+}
+
+float AAlsCharacter::GetMaxAgility()
+{
+	return MaxAgility;
+}
+
+float AAlsCharacter::GetAgility()
+{
+	return Agility;
+}
+
+float AAlsCharacter::GetMaxDexterity()
+{
+	return MaxDexterity;
+}
+
+float AAlsCharacter::GetDexterity()
+{
+	return Dexterity;
+}
+
+float AAlsCharacter::GetMaxPerception()
+{
+	return MaxPerception;
+}
+
+float AAlsCharacter::GetPerception()
+{
+	return Perception;
+}
+
 void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 {
 	MaxHealth = NewMaxHealth;
@@ -1919,6 +1979,72 @@ void AAlsCharacter::SetStamina(float NewStamina)
 {
 	Stamina = FMath::Clamp(NewStamina, 0.0f, GetMaxStamina());
 	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
+}
+
+void AAlsCharacter::SetMaxStrength(float NewMaxStrength)
+{
+	MaxStrength = NewMaxStrength;
+}
+
+void AAlsCharacter::SetStrength(float NewStrength)
+{
+	Strength = FMath::Clamp(NewStrength, 0.0f, GetMaxStrength());
+	OnStrengthChanged.Broadcast(Strength, MaxStrength);
+}
+
+void AAlsCharacter::SetMaxEndurance(float NewMaxEndurance)
+{
+	MaxEndurance = NewMaxEndurance;
+}
+
+void AAlsCharacter::SetEndurance(float NewEndurance)
+{
+	Endurance = FMath::Clamp(NewEndurance, 0.0f, GetMaxEndurance());
+	OnEnduranceChanged.Broadcast(Endurance, MaxEndurance);
+}
+
+void AAlsCharacter::SetMaxVitality(float NewMaxVitality)
+{
+	MaxVitality = NewMaxVitality;
+}
+
+void AAlsCharacter::SetVitality(float NewVitality)
+{
+	Vitality = FMath::Clamp(NewVitality, 0.0f, GetMaxVitality());
+	OnVitalityChanged.Broadcast(Vitality, MaxVitality);
+}
+
+void AAlsCharacter::SetMaxAgility(float NewMaxAgility)
+{
+	MaxAgility = NewMaxAgility;
+}
+
+void AAlsCharacter::SetAgility(float NewAgility)
+{
+	Agility = FMath::Clamp(NewAgility, 0.0f, GetMaxAgility());
+	OnAgilityChanged.Broadcast(Agility, MaxAgility);
+}
+
+void AAlsCharacter::SetMaxDexterity(float NewMaxDexterity)
+{
+	MaxDexterity = NewMaxDexterity;
+}
+
+void AAlsCharacter::SetDexterity(float NewDexterity)
+{
+	Dexterity = FMath::Clamp(NewDexterity, 0.0f, GetMaxDexterity());
+	OnDexterityChanged.Broadcast(Dexterity, MaxDexterity);
+}
+
+void AAlsCharacter::SetMaxPerception(float NewMaxPerception)
+{
+	MaxPerception = NewMaxPerception;
+}
+
+void AAlsCharacter::SetPerception(float NewPerception)
+{
+	Perception = FMath::Clamp(NewPerception, 0.0f, GetMaxPerception());
+	OnPerceptionChanged.Broadcast(Perception, MaxPerception);
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
