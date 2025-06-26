@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "AC_Inventory.generated.h"
 
+class UInventorySettings;
 struct FInputActionValue;
 class UInputAction;
 class UInputMappingContext;
@@ -27,6 +28,9 @@ private:
 	UEnhancedInputLocalPlayerSubsystem* Subsystem;
 
 protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
+	TObjectPtr<UInventorySettings> Settings;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
 	TObjectPtr<UInputMappingContext> Inventory_IMContext;
 

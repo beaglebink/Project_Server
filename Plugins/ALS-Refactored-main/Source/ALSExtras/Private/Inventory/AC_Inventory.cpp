@@ -1,4 +1,5 @@
 #include "Inventory/AC_Inventory.h"
+#include "Settings/InventorySettings.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 
