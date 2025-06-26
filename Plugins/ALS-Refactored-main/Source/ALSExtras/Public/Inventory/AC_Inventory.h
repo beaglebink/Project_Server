@@ -4,7 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "AC_Inventory.generated.h"
 
-class UInventorySettings;
+class AA_PickUp;
 struct FInputActionValue;
 class UInputAction;
 class UInputMappingContext;
@@ -29,9 +29,6 @@ private:
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
-	TObjectPtr<UInventorySettings> Settings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
 	TObjectPtr<UInputMappingContext> Inventory_IMContext;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
@@ -45,6 +42,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
 	TObjectPtr<UInputAction> DropAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
+	TArray<TObjectPtr<AA_PickUp>> Items;
 
 public:
 	void BindInput(UEnhancedInputComponent* InputComponent);
