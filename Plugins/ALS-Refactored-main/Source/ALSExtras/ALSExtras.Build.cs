@@ -11,8 +11,8 @@ public class ALSExtras : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new[]
 		{
-			"Core", "CoreUObject", "Engine", "AIModule", "ALS", "UMG"
-		});
+			"Core", "CoreUObject", "Engine", "AIModule", "ALS", "UMG", "GameplayTags"
+        });
 
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
