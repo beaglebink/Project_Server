@@ -10,6 +10,7 @@
 #include "AlsCharacterMovementComponent.h"
 #include "UI/AttributesWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "Inventory/AC_Inventory.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
@@ -41,6 +42,7 @@ void AAlsCharacterExample::BeginPlay()
 		PhysicsConstraint->SetAngularOrientationDrive(true, true);
 		PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
 	*/
+	Inventory = FindComponentByClass<UAC_Inventory>();
 
 	FrameListSize = static_cast<uint8>(floor(RepeatingPeaceDuration / GetWorld()->GetDeltaSeconds()));
 }
@@ -113,6 +115,11 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchWeapon);
 		EnhancedInput->BindAction(RemoveSticknessAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnRemoveStickness);
 		EnhancedInput->BindAction(GrappleRemoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRemoveGrapple);
+
+		if (Inventory)
+		{
+			Inventory->BindInput(EnhancedInput);
+		}
 	}
 }
 

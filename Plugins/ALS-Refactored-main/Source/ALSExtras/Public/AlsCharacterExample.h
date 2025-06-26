@@ -10,6 +10,7 @@ class UAlsCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 class UAttributesWidget;
+class UAC_Inventory;
 
 UENUM(BlueprintType)
 enum class EMovementDirection : uint8
@@ -251,4 +252,8 @@ private:
 	uint8 LoopsCounter = 0;
 
 	void LoopEffect();
+
+	//Inventory
+protected:
+	TObjectPtr<UAC_Inventory> Inventory;
 };
