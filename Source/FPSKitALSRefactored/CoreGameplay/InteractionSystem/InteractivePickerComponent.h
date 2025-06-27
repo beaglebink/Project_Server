@@ -24,7 +24,7 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	FORCEINLINE float GetDept() const { return Depth; }
+	FORCEINLINE float GetDepth() const { return Depth; }
 
 	UFUNCTION()
 	void SetCurrentItem(UInteractiveItemComponent* FoundItem);
