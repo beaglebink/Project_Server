@@ -39,14 +39,10 @@ void UAC_Inventory::ToggleInventory()
 {
 	if (!bIsOpen)
 	{
-		bIsOpen = true;
-
 		OpenInventory();
 	}
 	else
 	{
-		bIsOpen = false;
-
 		CloseInventory();
 	}
 }
@@ -55,6 +51,7 @@ void UAC_Inventory::OpenInventory()
 {
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Green, "OPEN INVENTORY");
 
+	bIsOpen = true;
 	Subsystem->AddMappingContext(Inventory_IMContext, 1);
 }
 
@@ -62,7 +59,16 @@ void UAC_Inventory::CloseInventory()
 {
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Red, "CLOSE INVENTORY");
 
+	bIsOpen = false;
 	Subsystem->RemoveMappingContext(Inventory_IMContext);
+}
+
+void UAC_Inventory::AddToInventory(FS_Item Item)
+{
+}
+
+void UAC_Inventory::RemoveFromInventory(FS_Item Item, int32 Quantity)
+{
 }
 
 void UAC_Inventory::SurfInventory(const FInputActionValue& ActionValue)

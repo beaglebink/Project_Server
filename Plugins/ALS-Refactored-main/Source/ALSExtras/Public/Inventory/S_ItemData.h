@@ -1,5 +1,6 @@
 #pragma once
 
+#include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
 #include "CoreMinimal.h"
 #include "S_ItemData.generated.h"
@@ -15,19 +16,31 @@ enum class EnumInventory :uint8
 	Misc			UMETA(DisplayName = "Misc")
 };
 
+USTRUCT(BLueprintType)
+struct ALSEXTRAS_API FS_Item
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item")
+	FName Name;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
+	int32 Quantity = 1;
+};
+
 USTRUCT(BlueprintType, Blueprintable)
 struct ALSEXTRAS_API FS_ItemData :public FTableRowBase
 {
 	GENERATED_BODY()
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
-	FName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	EnumInventory Type;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	UTexture2D* Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
+	UStaticMesh* StaticMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	FText Description;
@@ -48,7 +61,7 @@ public:
 	float Value;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
-	int32 Quantity;
+	uint8 bCanStack : 1 {false};
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	FGameplayTag SpecialTag;

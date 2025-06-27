@@ -1,33 +1,30 @@
 #include "Inventory/A_PickUp.h"
+#include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractiveItemComponent.h"
 
 AA_PickUp::AA_PickUp()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
+	StaticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	InteractiveComponent = CreateDefaultSubobject<UInteractiveItemComponent>(TEXT("InteractiveComponent"));
 }
 
-const FS_ItemData AA_PickUp::GetItemData() const
+FS_ItemData AA_PickUp::GetItemData() const
 {
-    if (ItemDataTable)
-    {
-        const FS_ItemData* FoundRow = ItemDataTable->FindRow<FS_ItemData>(ItemID, TEXT("GetItemData"));
-        if (FoundRow)
-        {
-            return *FoundRow;
-        }
-    }
-    return FS_ItemData();
+	if (ItemDataTable)
+	{
+		const FS_ItemData* FoundRow = ItemDataTable->FindRow<FS_ItemData>(Item.Name, TEXT("GetItemData"));
+		if (FoundRow)
+		{
+			return *FoundRow;
+		}
+	}
+	return FS_ItemData();
 }
 
 void AA_PickUp::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	Item.Quantity = 1;
 }
-
-void AA_PickUp::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
-

@@ -1,10 +1,10 @@
 #pragma once
 
+#include "S_ItemData.h"
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "AC_Inventory.generated.h"
 
-class AA_PickUp;
 struct FInputActionValue;
 class UInputAction;
 class UInputMappingContext;
@@ -44,7 +44,7 @@ protected:
 	TObjectPtr<UInputAction> DropAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
-	TArray<TObjectPtr<AA_PickUp>> Items;
+	TArray<FS_Item> Items;
 
 public:
 	void BindInput(UEnhancedInputComponent* InputComponent);
@@ -54,9 +54,17 @@ private:
 
 	void ToggleInventory();
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void OpenInventory();
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void CloseInventory();
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddToInventory(FS_Item Item);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void RemoveFromInventory(FS_Item Item, int32 Quantity = 1);
 
 	void SurfInventory(const FInputActionValue& ActionValue);
 

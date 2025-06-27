@@ -5,8 +5,6 @@ UInteractiveItemComponent::UInteractiveItemComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 
-	PrimaryComponentTick.bCanEverTick = true;
-
 	bAutoActivate = true;
 }
 
