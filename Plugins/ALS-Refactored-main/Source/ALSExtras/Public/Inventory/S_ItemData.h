@@ -21,11 +21,16 @@ struct ALSEXTRAS_API FS_Item
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
 	FName Name;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
 	int32 Quantity = 1;
+
+	bool operator ==(const FS_Item& Item)
+	{
+		return Item.Name == Name;
+	}
 };
 
 USTRUCT(BlueprintType, Blueprintable)

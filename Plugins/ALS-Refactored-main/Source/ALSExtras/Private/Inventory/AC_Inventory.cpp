@@ -63,14 +63,6 @@ void UAC_Inventory::CloseInventory()
 	Subsystem->RemoveMappingContext(Inventory_IMContext);
 }
 
-void UAC_Inventory::AddToInventory(FS_Item Item)
-{
-}
-
-void UAC_Inventory::RemoveFromInventory(FS_Item Item, int32 Quantity)
-{
-}
-
 void UAC_Inventory::SurfInventory(const FInputActionValue& ActionValue)
 {
 	FVector2D Value = ActionValue.Get<FVector2D>();
@@ -89,3 +81,59 @@ void UAC_Inventory::DropInventory()
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Black, "Drop INVENTORY");
 }
 
+void UAC_Inventory::AddToInventory(FName Name, int32 Quantity)
+{
+	if (GetItemData(Name).bCanStack)
+	{
+		FS_Item* ItemToAdd = Items.FindByPredicate([&](FS_Item& ArrayItem)
+			{
+				return ArrayItem.Name == Name;
+			});
+
+		if (ItemToAdd)
+		{
+			ItemToAdd->Quantity += Quantity;
+		}
+		else
+		{
+			Items.Add(FS_Item(Name, 1));
+		}
+	}
+	else
+	{
+		Items.Add(FS_Item(Name, 1));
+	}
+}
+
+void UAC_Inventory::RemoveFromInventory(FName Name, int32 Quantity)
+{
+	FS_Item* ItemToRemove = Items.FindByPredicate([&](FS_Item& ArrayItem)
+		{
+			return ArrayItem.Name == Name;
+		});
+
+	if (ItemToRemove)
+	{
+		if (ItemToRemove->Quantity > Quantity)
+		{
+			ItemToRemove->Quantity -= Quantity;
+		}
+		else
+		{
+			Items.Remove(*ItemToRemove);
+		}
+	}
+}
+
+FS_ItemData UAC_Inventory::GetItemData(FName Name) const
+{
+	if (ItemDataTable)
+	{
+		const FS_ItemData* FoundRow = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("GetItemData"));
+		if (FoundRow)
+		{
+			return *FoundRow;
+		}
+	}
+	return FS_ItemData();
+}

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "S_ItemData.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "A_PickUp.generated.h"
 
 class UInteractiveItemComponent;
+class UInteractivePickerComponent;
 
 UCLASS(BlueprintType, Blueprintable)
 class ALSEXTRAS_API AA_PickUp : public AActor
@@ -22,15 +22,15 @@ public:
 	UInteractiveItemComponent* InteractiveComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	FS_Item Item;
+	FName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
-	UDataTable* ItemDataTable;
-
-	UFUNCTION(BlueprintCallable, Category = "Item")
-	FS_ItemData GetItemData() const;
+	USoundBase* Sound;
 
 protected:
 	virtual void BeginPlay() override;
 
+private:
+	UFUNCTION()
+	void AddToInventory(UInteractivePickerComponent* Picker);
 };
