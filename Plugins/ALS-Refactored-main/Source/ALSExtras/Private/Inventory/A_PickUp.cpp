@@ -1,5 +1,9 @@
 #include "Inventory/A_PickUp.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractiveItemComponent.h"
+#include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
+#include "Inventory/AC_Inventory.h"
+#include "Kismet/GameplayStatics.h"
+
 
 AA_PickUp::AA_PickUp()
 {
@@ -9,22 +13,23 @@ AA_PickUp::AA_PickUp()
 	InteractiveComponent = CreateDefaultSubobject<UInteractiveItemComponent>(TEXT("InteractiveComponent"));
 }
 
-FS_ItemData AA_PickUp::GetItemData() const
-{
-	if (ItemDataTable)
-	{
-		const FS_ItemData* FoundRow = ItemDataTable->FindRow<FS_ItemData>(Item.Name, TEXT("GetItemData"));
-		if (FoundRow)
-		{
-			return *FoundRow;
-		}
-	}
-	return FS_ItemData();
-}
-
 void AA_PickUp::BeginPlay()
 {
 	Super::BeginPlay();
 
-	Item.Quantity = 1;
+	InteractiveComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_PickUp::AddToInventory);
+	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to pick up"));
+}
+
+void AA_PickUp::AddToInventory(UInteractivePickerComponent* Picker)
+{
+	UAC_Inventory* Inventory = Cast<UAC_Inventory>(Picker->GetOwner()->GetComponentByClass(UAC_Inventory::StaticClass()));
+	Inventory->AddToInventory(Name, 1);
+
+	if (Sound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, Sound, GetActorLocation());
+	}
+
+	Destroy();
 }
