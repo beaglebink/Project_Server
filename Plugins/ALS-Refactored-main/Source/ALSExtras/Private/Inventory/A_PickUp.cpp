@@ -11,6 +11,7 @@ AA_PickUp::AA_PickUp()
 
 	StaticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
 	InteractiveComponent = CreateDefaultSubobject<UInteractiveItemComponent>(TEXT("InteractiveComponent"));
+	RootComponent = StaticMeshComp;
 }
 
 void AA_PickUp::BeginPlay()
