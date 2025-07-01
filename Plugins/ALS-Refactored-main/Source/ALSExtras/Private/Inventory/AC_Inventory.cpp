@@ -83,7 +83,9 @@ void UAC_Inventory::DropInventory()
 
 void UAC_Inventory::AddToInventory(FName Name, int32 Quantity)
 {
-	if (GetItemData(Name).bCanStack)
+	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
+
+	if (ItemData && ItemData->bCanStack)
 	{
 		FS_Item* ItemToAdd = Items.FindByPredicate([&](FS_Item& ArrayItem)
 			{
@@ -107,33 +109,20 @@ void UAC_Inventory::AddToInventory(FName Name, int32 Quantity)
 
 void UAC_Inventory::RemoveFromInventory(FName Name, int32 Quantity)
 {
-	FS_Item* ItemToRemove = Items.FindByPredicate([&](FS_Item& ArrayItem)
+	int32 IndexToRemove = Items.IndexOfByPredicate([&](const FS_Item& ArrayItem)
 		{
 			return ArrayItem.Name == Name;
 		});
 
-	if (ItemToRemove)
+	if (IndexToRemove != INDEX_NONE)
 	{
-		if (ItemToRemove->Quantity > Quantity)
+		if (Items[IndexToRemove].Quantity > Quantity)
 		{
-			ItemToRemove->Quantity -= Quantity;
+			Items[IndexToRemove].Quantity -= Quantity;
 		}
 		else
 		{
-			Items.Remove(*ItemToRemove);
+			Items.RemoveAt(IndexToRemove);
 		}
 	}
-}
-
-FS_ItemData UAC_Inventory::GetItemData(FName Name) const
-{
-	if (ItemDataTable)
-	{
-		const FS_ItemData* FoundRow = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("GetItemData"));
-		if (FoundRow)
-		{
-			return *FoundRow;
-		}
-	}
-	return FS_ItemData();
 }

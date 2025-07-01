@@ -69,8 +69,14 @@ public:
 	USoundBase* CloseSound;
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void OpenChest(UInteractivePickerComponent* Picker);
+	void OpenCloseChest(UInteractivePickerComponent* Picker);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void CloseChest(UInteractivePickerComponent* Picker);
+	void OpenChest();
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void CloseChest();
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void OnLostFocus(ACharacter* Character);
 };

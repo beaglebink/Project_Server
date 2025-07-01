@@ -68,8 +68,9 @@ void AA_Chest::BeginPlay()
 		OpenTimeline->SetLooping(false);
 	}
 
-	InteractiveComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_Chest::OpenChest);
+	InteractiveComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_Chest::OpenCloseChest);
 	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to open"));
+	InteractiveComponent->OnInteractiveLostFocusEvent.AddDynamic(this, &AA_Chest::OnLostFocus);
 
 	if (OpenSound)
 	{
@@ -82,33 +83,42 @@ void AA_Chest::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void AA_Chest::OpenChest(UInteractivePickerComponent* Picker)
+void AA_Chest::OpenCloseChest(UInteractivePickerComponent* Picker)
 {
-	if (!bInProcess)
-	{
-		bInProcess = true;
-		AudioComponent->Play();
-		OpenTimeline->PlayFromStart();
-
-		InteractiveComponent->OnInteractionPressKeyEvent.Clear();
-		InteractiveComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_Chest::CloseChest);
-		InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to close"));
-		Picker->OnInteractiveReceiveFocusEvent.Broadcast(InteractiveComponent);
-	}
+	OpenChest();
+	CloseChest();
 }
 
-void AA_Chest::CloseChest(UInteractivePickerComponent* Picker)
+void AA_Chest::OpenChest()
 {
-	if (!bInProcess)
+	if (bInProcess || bIsOpen)
 	{
-		bInProcess = true;
-		AudioComponent->Play();
-		OpenTimeline->ReverseFromEnd();
-
-		InteractiveComponent->OnInteractionPressKeyEvent.Clear();
-		InteractiveComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_Chest::OpenChest);
-		InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to open"));
-		Picker->OnInteractiveReceiveFocusEvent.Broadcast(InteractiveComponent);
+		return;
 	}
+
+	bInProcess = true;
+
+	AudioComponent->Play();
+	OpenTimeline->PlayFromStart();
+	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to close"));
+}
+
+void AA_Chest::CloseChest()
+{
+	if (bInProcess || !bIsOpen)
+	{
+		return;
+	}
+
+	bInProcess = true;
+
+	AudioComponent->Play();
+	OpenTimeline->ReverseFromEnd();
+	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to open"));
+}
+
+void AA_Chest::OnLostFocus(ACharacter* Character)
+{
+	CloseChest();
 }
 

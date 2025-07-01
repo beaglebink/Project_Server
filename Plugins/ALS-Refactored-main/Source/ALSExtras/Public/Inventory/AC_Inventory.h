@@ -46,11 +46,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
 	TArray<FS_Item> Items;
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
 	UDataTable* ItemDataTable;
 
-
-public:
 	void BindInput(UEnhancedInputComponent* InputComponent);
 
 private:
@@ -76,8 +75,4 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void RemoveFromInventory(FName Name, int32 Quantity);
-
-	UFUNCTION(BlueprintCallable, Category = "Item")
-	FS_ItemData GetItemData(FName Name) const;
-
 };
