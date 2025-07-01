@@ -27,7 +27,7 @@ struct ALSEXTRAS_API FS_Item
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
 	int32 Quantity = 1;
 
-	bool operator ==(const FS_Item& Item)
+	bool operator ==(const FS_Item& Item)const
 	{
 		return Item.Name == Name;
 	}

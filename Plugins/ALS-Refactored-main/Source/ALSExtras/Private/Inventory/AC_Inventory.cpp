@@ -83,8 +83,9 @@ void UAC_Inventory::DropInventory()
 
 void UAC_Inventory::AddToInventory(FName Name, int32 Quantity)
 {
+	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
 
-	if (ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"))->bCanStack)
+	if (ItemData && ItemData->bCanStack)
 	{
 		FS_Item* ItemToAdd = Items.FindByPredicate([&](FS_Item& ArrayItem)
 			{
@@ -108,20 +109,20 @@ void UAC_Inventory::AddToInventory(FName Name, int32 Quantity)
 
 void UAC_Inventory::RemoveFromInventory(FName Name, int32 Quantity)
 {
-	FS_Item* ItemToRemove = Items.FindByPredicate([&](FS_Item& ArrayItem)
+	int32 IndexToRemove = Items.IndexOfByPredicate([&](const FS_Item& ArrayItem)
 		{
 			return ArrayItem.Name == Name;
 		});
 
-	if (ItemToRemove)
+	if (IndexToRemove != INDEX_NONE)
 	{
-		if (ItemToRemove->Quantity > Quantity)
+		if (Items[IndexToRemove].Quantity > Quantity)
 		{
-			ItemToRemove->Quantity -= Quantity;
+			Items[IndexToRemove].Quantity -= Quantity;
 		}
 		else
 		{
-			Items.Remove(*ItemToRemove);
+			Items.RemoveAt(IndexToRemove);
 		}
 	}
 }
