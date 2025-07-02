@@ -2,6 +2,7 @@
 #include "Inventory/A_PickUp.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Inventory/UI/W_Inventory.h"
 
 UAC_Inventory::UAC_Inventory()
 {
@@ -49,18 +50,42 @@ void UAC_Inventory::ToggleInventory()
 
 void UAC_Inventory::OpenInventory()
 {
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Green, "OPEN INVENTORY");
-
 	bIsOpen = true;
 	Subsystem->AddMappingContext(Inventory_IMContext, 1);
+
+	if (InventoryClass)
+	{
+		Inventory = Cast<UW_Inventory>(CreateWidget(GetWorld(), InventoryClass));
+		Inventory->AddToViewport(11);
+
+		APlayerController* PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());
+		if (PC)
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(Inventory->TakeWidget());
+			PC->SetInputMode(InputMode);
+			PC->SetShowMouseCursor(true);
+		}
+	}
 }
 
 void UAC_Inventory::CloseInventory()
 {
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Red, "CLOSE INVENTORY");
-
 	bIsOpen = false;
 	Subsystem->RemoveMappingContext(Inventory_IMContext);
+
+	if (Inventory)
+	{
+		Inventory->RemoveFromViewport();
+
+		APlayerController* PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());
+		if (PC)
+		{
+			FInputModeGameOnly InputMode;
+			PC->SetInputMode(InputMode);
+			PC->SetShowMouseCursor(false);
+		}
+	}
 }
 
 void UAC_Inventory::SurfInventory(const FInputActionValue& ActionValue)

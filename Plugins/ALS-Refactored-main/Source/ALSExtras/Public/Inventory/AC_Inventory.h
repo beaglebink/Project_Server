@@ -9,6 +9,7 @@ struct FInputActionValue;
 class UInputAction;
 class UInputMappingContext;
 class UEnhancedInputLocalPlayerSubsystem;
+class UW_Inventory;
 
 UCLASS(Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_Inventory : public UActorComponent
@@ -47,6 +48,12 @@ protected:
 	TArray<FS_Item> Items;
 
 public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "IU")
+	TSubclassOf<UW_Inventory> InventoryClass;
+
+	UPROPERTY(BlueprintReadWrite, Category = "IU")
+	UW_Inventory* Inventory;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
 	UDataTable* ItemDataTable;
 
