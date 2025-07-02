@@ -16,7 +16,7 @@ enum class EnumInventory :uint8
 	Misc			UMETA(DisplayName = "Misc")
 };
 
-USTRUCT(BLueprintType)
+USTRUCT(BlueprintType)
 struct ALSEXTRAS_API FS_Item
 {
 	GENERATED_BODY()
