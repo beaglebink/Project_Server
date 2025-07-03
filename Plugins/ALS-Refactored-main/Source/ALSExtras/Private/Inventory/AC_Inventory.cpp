@@ -3,6 +3,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Inventory/UI/W_Inventory.h"
+#include "Kismet/GameplayStatics.h"
+#include "AlsCharacterExample.h"
 
 UAC_Inventory::UAC_Inventory()
 {
@@ -51,7 +53,10 @@ void UAC_Inventory::ToggleInventory()
 void UAC_Inventory::OpenInventory()
 {
 	bIsOpen = true;
-	Subsystem->AddMappingContext(Inventory_IMContext, 1);
+	AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(GetOwner());
+	Prev_IMContext = Character->InputMappingContext;
+	Subsystem->ClearAllMappings();
+	Subsystem->AddMappingContext(Inventory_IMContext, 0);
 
 	if (InventoryClass)
 	{
@@ -64,7 +69,11 @@ void UAC_Inventory::OpenInventory()
 			FInputModeGameAndUI InputMode;
 			InputMode.SetWidgetToFocus(Inventory->TakeWidget());
 			PC->SetInputMode(InputMode);
+
+			PC->SetIgnoreLookInput(true);
+			PC->SetIgnoreMoveInput(true);
 			PC->SetShowMouseCursor(true);
+			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.0f);
 		}
 	}
 }
@@ -72,7 +81,8 @@ void UAC_Inventory::OpenInventory()
 void UAC_Inventory::CloseInventory()
 {
 	bIsOpen = false;
-	Subsystem->RemoveMappingContext(Inventory_IMContext);
+	Subsystem->ClearAllMappings();
+	Subsystem->AddMappingContext(Prev_IMContext, 0);
 
 	if (Inventory)
 	{
@@ -83,7 +93,10 @@ void UAC_Inventory::CloseInventory()
 		{
 			FInputModeGameOnly InputMode;
 			PC->SetInputMode(InputMode);
+			PC->SetIgnoreLookInput(false);
+			PC->SetIgnoreMoveInput(false);
 			PC->SetShowMouseCursor(false);
+			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f);
 		}
 	}
 }

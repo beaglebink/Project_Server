@@ -28,6 +28,8 @@ public:
 private:
 	UEnhancedInputLocalPlayerSubsystem* Subsystem;
 
+	TObjectPtr<UInputMappingContext> Prev_IMContext;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
 	TObjectPtr<UInputMappingContext> Inventory_IMContext;
