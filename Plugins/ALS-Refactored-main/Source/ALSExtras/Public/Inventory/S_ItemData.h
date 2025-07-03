@@ -10,10 +10,10 @@ enum class EnumInventory :uint8
 {
 	None			UMETA(DisplayName = "None"),
 	Weapon			UMETA(DisplayName = "Weapon"),
-	Ammo			UMETA(DisplayName = "Ammo"),
-	Clothes			UMETA(DisplayName = "Clothes"),
+	Clothes			UMETA(DisplayName = "Clothes/Armour"),
 	Consumables		UMETA(DisplayName = "Consumables"),
-	Misc			UMETA(DisplayName = "Misc")
+	Miscellaneous	UMETA(DisplayName = "Misc"),
+	Others			UMETA(DisplayName = "Others")
 };
 
 USTRUCT(BlueprintType)
