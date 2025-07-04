@@ -2,9 +2,13 @@
 #include "Inventory/A_PickUp.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "Inventory/UI/W_Inventory.h"
+#include "Inventory/UI/W_InventoryHUD.h"
 #include "Kismet/GameplayStatics.h"
 #include "AlsCharacterExample.h"
+#include "Inventory/AC_Container.h"
+#include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
+#include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractiveItemComponent.h"
+#include "Inventory/I_OnInventoryClose.h"
 
 UAC_Inventory::UAC_Inventory()
 {
@@ -32,7 +36,7 @@ void UAC_Inventory::BindInput(UEnhancedInputComponent* InputComponent)
 		}
 	}
 
-	InputComponent->BindAction(InventoryAction, ETriggerEvent::Triggered, this, &UAC_Inventory::ToggleInventory);
+	InputComponent->BindAction(InventoryAction, ETriggerEvent::Started, this, &UAC_Inventory::ToggleInventory);
 	InputComponent->BindAction(SurfAction, ETriggerEvent::Triggered, this, &UAC_Inventory::SurfInventory);
 	InputComponent->BindAction(UseAction, ETriggerEvent::Triggered, this, &UAC_Inventory::UseInventory);
 	InputComponent->BindAction(DropAction, ETriggerEvent::Triggered, this, &UAC_Inventory::DropInventory);
@@ -50,17 +54,23 @@ void UAC_Inventory::ToggleInventory()
 	}
 }
 
-void UAC_Inventory::OpenInventory()
+void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Container* Container)
 {
+	if (bIsOpen)
+	{
+		return;
+	}
+
 	bIsOpen = true;
-	AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(GetOwner());
-	Prev_IMContext = Character->InputMappingContext;
+
 	Subsystem->ClearAllMappings();
 	Subsystem->AddMappingContext(Inventory_IMContext, 0);
 
 	if (InventoryClass)
 	{
-		Inventory = Cast<UW_Inventory>(CreateWidget(GetWorld(), InventoryClass));
+		Inventory = Cast<UW_InventoryHUD>(CreateWidget(GetWorld(), InventoryClass));
+		Inventory->InventoryType = SentInventoryType;
+		Inventory->OtherContainer = Container;
 		Inventory->AddToViewport(11);
 
 		APlayerController* PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());
@@ -80,9 +90,16 @@ void UAC_Inventory::OpenInventory()
 
 void UAC_Inventory::CloseInventory()
 {
+	if (!bIsOpen)
+	{
+		return;
+	}
+
 	bIsOpen = false;
+
 	Subsystem->ClearAllMappings();
-	Subsystem->AddMappingContext(Prev_IMContext, 0);
+	AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(GetOwner());
+	Subsystem->AddMappingContext(Character->InputMappingContext, 0);
 
 	if (Inventory)
 	{
@@ -98,6 +115,16 @@ void UAC_Inventory::CloseInventory()
 			PC->SetShowMouseCursor(false);
 			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f);
 		}
+	}
+
+	UInteractivePickerComponent* Picker = Cast< UInteractivePickerComponent>(Character->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
+	if (Picker && Picker->CurrentItem)
+	{
+		if (Picker->CurrentItem->GetOwner()->GetClass()->ImplementsInterface(UI_OnInventoryClose::StaticClass()))
+		{
+			II_OnInventoryClose::Execute_OnCloseInventoryEvent(Picker->CurrentItem->GetOwner());
+		}
+		Picker->CurrentItem = nullptr;
 	}
 }
 

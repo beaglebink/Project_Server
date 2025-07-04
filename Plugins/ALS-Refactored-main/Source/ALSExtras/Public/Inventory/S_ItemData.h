@@ -16,6 +16,16 @@ enum class EnumInventory :uint8
 	Others			UMETA(DisplayName = "Others")
 };
 
+UENUM(BlueprintType)
+enum class EnumInventoryType :uint8
+{
+	None		UMETA(DisplayName = "None"),
+	Inventory	UMETA(DisplayName = "Inventory"),
+	Chest		UMETA(DisplayName = "Chest"),
+	Corpse		UMETA(DisplayName = "Corpse"),
+	Vendor		UMETA(DisplayName = "Vendor")
+};
+
 USTRUCT(BlueprintType)
 struct ALSEXTRAS_API FS_Item
 {

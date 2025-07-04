@@ -5,6 +5,7 @@
 #include "Inventory/AC_Container.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
+#include "Inventory/AC_Inventory.h"
 
 
 AA_Chest::AA_Chest()
@@ -85,11 +86,11 @@ void AA_Chest::Tick(float DeltaTime)
 
 void AA_Chest::OpenCloseChest(UInteractivePickerComponent* Picker)
 {
-	OpenChest();
+	OpenChest(Picker);
 	CloseChest();
 }
 
-void AA_Chest::OpenChest()
+void AA_Chest::OpenChest(UInteractivePickerComponent* Picker)
 {
 	if (bInProcess || bIsOpen)
 	{
@@ -101,6 +102,13 @@ void AA_Chest::OpenChest()
 	AudioComponent->Play();
 	OpenTimeline->PlayFromStart();
 	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to close"));
+
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this, Picker]()
+		{
+			UAC_Inventory* Inventory = Cast< UAC_Inventory>(Picker->GetOwner()->GetComponentByClass(UAC_Inventory::StaticClass()));
+			Inventory->OpenInventory(EnumInventoryType::Chest, ContainerComponent);
+		}, 1.0f, false);
 }
 
 void AA_Chest::CloseChest()
@@ -117,8 +125,17 @@ void AA_Chest::CloseChest()
 	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to open"));
 }
 
-void AA_Chest::OnLostFocus(ACharacter* Character)
+void AA_Chest::OnCloseInventoryEvent_Implementation()
 {
 	CloseChest();
+}
+
+void AA_Chest::OnLostFocus(ACharacter* Character)
+{
+	UInteractivePickerComponent* Picker = Cast< UInteractivePickerComponent>(Character->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
+	if (Picker)
+	{
+		CloseChest();
+	}
 }
 

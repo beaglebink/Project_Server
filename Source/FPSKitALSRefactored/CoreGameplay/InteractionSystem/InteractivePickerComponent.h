@@ -72,7 +72,7 @@ public:
 	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Width = 35.f;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "InteractiveComponent")
 	UInteractiveItemComponent* CurrentItem = nullptr;
 
 private:

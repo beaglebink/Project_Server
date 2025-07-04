@@ -4,10 +4,10 @@
 #include "Inventory/AC_Container.h"
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "W_Inventory.generated.h"
+#include "W_InventoryHUD.generated.h"
 
 UCLASS()
-class ALSEXTRAS_API UW_Inventory : public UUserWidget
+class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
 {
 	GENERATED_BODY()
 

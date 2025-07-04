@@ -1,5 +1,6 @@
 #pragma once
 
+#include "I_OnInventoryClose.h"
 #include "Components/TimelineComponent.h"
 #include "S_ItemData.h"
 #include "CoreMinimal.h"
@@ -11,7 +12,7 @@ class UInteractivePickerComponent;
 class UAC_Container;
 
 UCLASS()
-class ALSEXTRAS_API AA_Chest : public AActor
+class ALSEXTRAS_API AA_Chest : public AActor, public II_OnInventoryClose
 {
 	GENERATED_BODY()
 	
@@ -25,7 +26,7 @@ public:
 	UInteractiveItemComponent* InteractiveComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	UAC_Container* ContainerComponent;
+	TObjectPtr<UAC_Container> ContainerComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UAudioComponent* AudioComponent;
@@ -72,10 +73,12 @@ public:
 	void OpenCloseChest(UInteractivePickerComponent* Picker);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void OpenChest();
+	void OpenChest(UInteractivePickerComponent* Picker);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void CloseChest();
+
+	virtual void OnCloseInventoryEvent_Implementation()override;
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void OnLostFocus(ACharacter* Character);
