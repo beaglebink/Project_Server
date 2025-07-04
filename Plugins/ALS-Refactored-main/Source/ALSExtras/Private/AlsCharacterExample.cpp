@@ -94,7 +94,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 {
 	Super::SetupPlayerInputComponent(Input);
 
-	auto* EnhancedInput{ Cast<UEnhancedInputComponent>(Input) };
+	auto* EnhancedInput = Cast<UEnhancedInputComponent>(Input);
 	if (IsValid(EnhancedInput))
 	{
 		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLookMouse);

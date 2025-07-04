@@ -6,7 +6,7 @@
 #include "AC_Container.generated.h"
 
 
-UCLASS(Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class ALSEXTRAS_API UAC_Container : public UActorComponent
 {
 	GENERATED_BODY()
@@ -16,5 +16,5 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
 	TArray<FS_Item> Items;
-
+	
 };

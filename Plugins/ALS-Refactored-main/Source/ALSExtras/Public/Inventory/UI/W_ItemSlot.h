@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Inventory/AC_Container.h"
 #include "Blueprint/UserWidget.h"
 #include "W_ItemSlot.generated.h"
 
@@ -8,7 +9,10 @@ UCLASS()
 class ALSEXTRAS_API UW_ItemSlot : public UUserWidget
 {
 	GENERATED_BODY()
-	
+
 protected:
 	virtual void NativeConstruct() override;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
+	TObjectPtr<UAC_Container> OtherContainer;
 };

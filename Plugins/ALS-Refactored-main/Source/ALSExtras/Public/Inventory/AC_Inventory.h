@@ -9,7 +9,7 @@ struct FInputActionValue;
 class UInputAction;
 class UInputMappingContext;
 class UEnhancedInputLocalPlayerSubsystem;
-class UW_Inventory;
+class UW_InventoryHUD;
 
 UCLASS(Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_Inventory : public UActorComponent
@@ -27,8 +27,6 @@ public:
 
 private:
 	UEnhancedInputLocalPlayerSubsystem* Subsystem;
-
-	TObjectPtr<UInputMappingContext> Prev_IMContext;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
@@ -51,10 +49,10 @@ protected:
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "IU")
-	TSubclassOf<UW_Inventory> InventoryClass;
+	TSubclassOf<UW_InventoryHUD> InventoryClass;
 
 	UPROPERTY(BlueprintReadWrite, Category = "IU")
-	UW_Inventory* Inventory;
+	UW_InventoryHUD* Inventory;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
 	UDataTable* ItemDataTable;
@@ -66,12 +64,14 @@ private:
 
 	void ToggleInventory();
 
+public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void OpenInventory();
+	void OpenInventory(EnumInventoryType SentInventoryType = EnumInventoryType::Inventory, UAC_Container* Container = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void CloseInventory();
 
+private:
 	void SurfInventory(const FInputActionValue& ActionValue);
 
 	void UseInventory();
