@@ -66,6 +66,15 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 	Subsystem->ClearAllMappings();
 	Subsystem->AddMappingContext(Inventory_IMContext, 0);
 
+	if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(GetOwner()))
+	{
+		UInteractivePickerComponent* Picker = Cast< UInteractivePickerComponent>(Character->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
+		if (Picker && Picker->CurrentItem)
+		{
+			CurrentInteractiveObject = Picker->CurrentItem;
+		}
+	}
+
 	if (InventoryClass)
 	{
 		Inventory = Cast<UW_InventoryHUD>(CreateWidget(GetWorld(), InventoryClass));
@@ -117,13 +126,17 @@ void UAC_Inventory::CloseInventory()
 		}
 	}
 
+	if (CurrentInteractiveObject)
+	{
+		if (CurrentInteractiveObject->GetOwner()->GetClass()->ImplementsInterface(UI_OnInventoryClose::StaticClass()))
+		{
+			II_OnInventoryClose::Execute_OnCloseInventoryEvent(CurrentInteractiveObject->GetOwner());
+		}
+	}
+
 	UInteractivePickerComponent* Picker = Cast< UInteractivePickerComponent>(Character->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
 	if (Picker && Picker->CurrentItem)
 	{
-		if (Picker->CurrentItem->GetOwner()->GetClass()->ImplementsInterface(UI_OnInventoryClose::StaticClass()))
-		{
-			II_OnInventoryClose::Execute_OnCloseInventoryEvent(Picker->CurrentItem->GetOwner());
-		}
 		Picker->CurrentItem = nullptr;
 	}
 }

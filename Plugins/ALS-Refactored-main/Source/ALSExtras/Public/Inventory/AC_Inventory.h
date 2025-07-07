@@ -9,7 +9,9 @@ struct FInputActionValue;
 class UInputAction;
 class UInputMappingContext;
 class UEnhancedInputLocalPlayerSubsystem;
+class UEnhancedInputComponent;
 class UW_InventoryHUD;
+class UInteractiveItemComponent;
 
 UCLASS(Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_Inventory : public UActorComponent
@@ -61,6 +63,8 @@ public:
 
 private:
 	uint8 bIsOpen : 1{false};
+
+	TObjectPtr<UInteractiveItemComponent> CurrentInteractiveObject;
 
 	void ToggleInventory();
 
