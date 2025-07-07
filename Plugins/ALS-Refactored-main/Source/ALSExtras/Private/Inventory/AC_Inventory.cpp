@@ -56,6 +56,10 @@ void UAC_Inventory::ToggleInventory()
 
 void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Container* Container)
 {
+	float Rounded = FMath::RoundToFloat(24.45555555 * 100) / 100;
+	FString str = FString::Printf(TEXT("%.2f"), Rounded);
+
+
 	if (bIsOpen)
 	{
 		return;
