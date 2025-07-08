@@ -2,6 +2,7 @@
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractiveItemComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
 #include "Inventory/AC_Inventory.h"
+#include "Inventory/AC_Container.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -25,7 +26,7 @@ void AA_PickUp::BeginPlay()
 void AA_PickUp::AddToInventory(UInteractivePickerComponent* Picker)
 {
 	UAC_Inventory* Inventory = Cast<UAC_Inventory>(Picker->GetOwner()->GetComponentByClass(UAC_Inventory::StaticClass()));
-	Inventory->AddToInventory(Name, 1);
+	Inventory->ContainerComponent->AddToContainer(Name, 1);
 
 	if (Sound)
 	{
