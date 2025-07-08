@@ -19,6 +19,9 @@ public:
 	AA_BaseInteractiveContainer();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	USceneComponent* SceneComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* SkeletalMeshComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
