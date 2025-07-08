@@ -40,7 +40,6 @@ private:
 
 	uint8 bIs_Value_Sort : 1{false};
 
-
 protected:
 	UFUNCTION(BlueprintCallable, Category = "Sorting")
 	void A_Z_Sort();

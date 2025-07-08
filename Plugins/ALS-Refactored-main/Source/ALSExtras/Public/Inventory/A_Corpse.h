@@ -2,15 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "Inventory/A_BaseInteractiveContainer.h"
-#include "A_Chest.generated.h"
+#include "A_Corpse.generated.h"
 
 UCLASS()
-class ALSEXTRAS_API AA_Chest : public AA_BaseInteractiveContainer
+class ALSEXTRAS_API AA_Corpse : public AA_BaseInteractiveContainer
 {
 	GENERATED_BODY()
-
-public:
-	AA_Chest();
+	
+public:	
+	AA_Corpse();
 
 protected:
 
@@ -24,8 +24,4 @@ public:
 	virtual void Open(UInteractivePickerComponent* Picker)override;
 
 	virtual void Close()override;
-
-protected:
-	UPROPERTY(BlueprintReadOnly, Category = "Lid")
-	float OpenAngle;
 };
