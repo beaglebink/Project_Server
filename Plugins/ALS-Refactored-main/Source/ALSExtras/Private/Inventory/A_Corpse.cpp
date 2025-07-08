@@ -11,6 +11,7 @@ AA_Corpse::AA_Corpse()
 
 void AA_Corpse::TimelineProgress(float Value)
 {
+	RotateAngle = FMath::Lerp(0.0f, 180.0f, Value);
 }
 
 void AA_Corpse::BeginPlay()
@@ -31,12 +32,13 @@ void AA_Corpse::Open(UInteractivePickerComponent* Picker)
 
 	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to leave"));
 
+
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this, Picker]()
 		{
 			UAC_Inventory* Inventory = Cast< UAC_Inventory>(Picker->GetOwner()->GetComponentByClass(UAC_Inventory::StaticClass()));
 			Inventory->OpenInventory(EnumInventoryType::Corpse, ContainerComponent);
-		}, 1.0f, false);
+		}, 1.2f, false);
 }
 
 void AA_Corpse::Close()

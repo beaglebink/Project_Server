@@ -8,16 +8,19 @@ AA_BaseInteractiveContainer::AA_BaseInteractiveContainer()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SKM_Chest"));
 	InteractiveComponent = CreateDefaultSubobject<UInteractiveItemComponent>(TEXT("InteractiveComponent"));
 	ContainerComponent = CreateDefaultSubobject<UAC_Container>(TEXT("ContainerComponent"));
 	OpenTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("OpenTimeline"));
 	AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 
-	RootComponent = SkeletalMeshComponent;
+	RootComponent = SceneComponent;
+
+	SkeletalMeshComponent->SetupAttachment(SceneComponent);
+	AudioComponent->SetupAttachment(RootComponent);
 
 	AudioComponent->bAutoActivate = false;
-	AudioComponent->SetupAttachment(RootComponent);
 }
 
 void AA_BaseInteractiveContainer::TimelineProgress(float Value)

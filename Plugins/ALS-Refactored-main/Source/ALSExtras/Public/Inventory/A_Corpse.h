@@ -24,4 +24,8 @@ public:
 	virtual void Open(UInteractivePickerComponent* Picker)override;
 
 	virtual void Close()override;
+
+protected:
+	UPROPERTY(BlueprintReadOnly, Category = "Lid")
+	float RotateAngle;
 };

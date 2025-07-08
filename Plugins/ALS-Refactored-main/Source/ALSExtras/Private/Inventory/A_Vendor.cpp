@@ -36,7 +36,7 @@ void AA_Vendor::Open(UInteractivePickerComponent* Picker)
 		{
 			UAC_Inventory* Inventory = Cast< UAC_Inventory>(Picker->GetOwner()->GetComponentByClass(UAC_Inventory::StaticClass()));
 			Inventory->OpenInventory(EnumInventoryType::Vendor, ContainerComponent);
-		}, 1.0f, false);
+		}, 1.2f, false);
 }
 
 void AA_Vendor::Close()

@@ -6,6 +6,7 @@
 #include "AC_Inventory.generated.h"
 
 struct FInputActionValue;
+class UAC_Container;
 class UInputAction;
 class UInputMappingContext;
 class UEnhancedInputLocalPlayerSubsystem;
@@ -20,6 +21,9 @@ class ALSEXTRAS_API UAC_Inventory : public UActorComponent
 
 public:
 	UAC_Inventory();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
+	TObjectPtr<UAC_Container> ContainerComponent;
 
 protected:
 	virtual void BeginPlay() override;
@@ -46,18 +50,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
 	TObjectPtr<UInputAction> DropAction;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
-	TArray<FS_Item> Items;
-
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "IU")
 	TSubclassOf<UW_InventoryHUD> InventoryClass;
 
 	UPROPERTY(BlueprintReadWrite, Category = "IU")
 	UW_InventoryHUD* Inventory;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
-	UDataTable* ItemDataTable;
 
 	void BindInput(UEnhancedInputComponent* InputComponent);
 
@@ -81,11 +79,4 @@ private:
 	void UseInventory();
 
 	void DropInventory();
-
-public:
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void AddToInventory(FName Name, int32 Quantity);
-
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void RemoveFromInventory(FName Name, int32 Quantity);
 };

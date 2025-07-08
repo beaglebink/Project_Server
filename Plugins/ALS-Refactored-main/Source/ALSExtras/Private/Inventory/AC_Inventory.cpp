@@ -1,11 +1,10 @@
 #include "Inventory/AC_Inventory.h"
-#include "Inventory/A_PickUp.h"
+#include "Inventory/AC_Container.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Inventory/UI/W_InventoryHUD.h"
 #include "Kismet/GameplayStatics.h"
 #include "AlsCharacterExample.h"
-#include "Inventory/AC_Container.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractiveItemComponent.h"
 #include "Inventory/I_OnInventoryClose.h"
@@ -13,6 +12,8 @@
 UAC_Inventory::UAC_Inventory()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+
+	ContainerComponent = CreateDefaultSubobject<UAC_Container>(TEXT("ContainerComponent"));
 }
 
 void UAC_Inventory::BeginPlay()
@@ -56,10 +57,6 @@ void UAC_Inventory::ToggleInventory()
 
 void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Container* Container)
 {
-	float Rounded = FMath::RoundToFloat(24.45555555 * 100) / 100;
-	FString str = FString::Printf(TEXT("%.2f"), Rounded);
-
-
 	if (bIsOpen)
 	{
 		return;
@@ -161,50 +158,4 @@ void UAC_Inventory::UseInventory()
 void UAC_Inventory::DropInventory()
 {
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Black, "Drop INVENTORY");
-}
-
-void UAC_Inventory::AddToInventory(FName Name, int32 Quantity)
-{
-	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
-
-	if (ItemData && ItemData->bCanStack)
-	{
-		FS_Item* ItemToAdd = Items.FindByPredicate([&](FS_Item& ArrayItem)
-			{
-				return ArrayItem.Name == Name;
-			});
-
-		if (ItemToAdd)
-		{
-			ItemToAdd->Quantity += Quantity;
-		}
-		else
-		{
-			Items.Add(FS_Item(Name, 1));
-		}
-	}
-	else
-	{
-		Items.Add(FS_Item(Name, 1));
-	}
-}
-
-void UAC_Inventory::RemoveFromInventory(FName Name, int32 Quantity)
-{
-	int32 IndexToRemove = Items.IndexOfByPredicate([&](const FS_Item& ArrayItem)
-		{
-			return ArrayItem.Name == Name;
-		});
-
-	if (IndexToRemove != INDEX_NONE)
-	{
-		if (Items[IndexToRemove].Quantity > Quantity)
-		{
-			Items[IndexToRemove].Quantity -= Quantity;
-		}
-		else
-		{
-			Items.RemoveAt(IndexToRemove);
-		}
-	}
 }
