@@ -1,10 +1,11 @@
 #pragma once
 
+#include "Inventory/S_ItemData.h"
 #include "CoreMinimal.h"
-#include "Inventory/AC_Container.h"
 #include "Blueprint/UserWidget.h"
 #include "W_ItemSlot.generated.h"
 
+class UW_InventoryHUD;
 class UTextBlock;
 
 UCLASS()
@@ -16,6 +17,12 @@ protected:
 	virtual void NativeConstruct() override;
 
 public:
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
+	TObjectPtr<UW_InventoryHUD> InventoryHUDRef;
+
+	UPROPERTY(BlueprintReadOnly, Category = "UI", meta = (ExposeOnSpawn = "true"))
+	EnumInventoryType InventoryType;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
 	UTextBlock* TextBlock_Name;
 
