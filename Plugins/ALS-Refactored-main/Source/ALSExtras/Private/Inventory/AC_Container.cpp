@@ -50,3 +50,111 @@ void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity)
 		}
 	}
 }
+
+void UAC_Container::A_Z_Sort(bool bIsDecreasing)
+{
+	if (bIsDecreasing)
+	{
+		Items.Sort([](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return ItemA.Name.ToString() > ItemB.Name.ToString();
+			});
+	}
+	else
+	{
+		Items.Sort([](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return ItemA.Name.ToString() < ItemB.Name.ToString();
+			});
+	}
+}
+
+void UAC_Container::Damage_Sort(bool bIsDecreasing)
+{
+	if (bIsDecreasing)
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Damage > ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Damage;
+			});
+	}
+	else
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Damage < ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Damage;
+			});
+	}
+}
+
+void UAC_Container::Armor_Sort(bool bIsDecreasing)
+{
+	if (bIsDecreasing)
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Armor > ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Armor;
+			});
+	}
+	else
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Armor < ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Armor;
+			});
+	}
+}
+
+void UAC_Container::Durability_Sort(bool bIsDecreasing)
+{
+	if (bIsDecreasing)
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Durability > ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Durability;
+			});
+	}
+	else
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Durability < ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Durability;
+			});
+	}
+}
+
+void UAC_Container::Weight_Sort(bool bIsDecreasing)
+{
+	if (bIsDecreasing)
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Weight > ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Weight;
+			});
+	}
+	else
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Weight < ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Weight;
+			});
+	}
+}
+
+void UAC_Container::Value_Sort(bool bIsDecreasing)
+{
+	if (bIsDecreasing)
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Value > ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Value;
+			});
+	}
+	else
+	{
+		Items.Sort([&](const FS_Item& ItemA, const FS_Item& ItemB)
+			{
+				return  ItemDataTable->FindRow<FS_ItemData>(ItemA.Name, TEXT("Find row in datatable"))->Value < ItemDataTable->FindRow<FS_ItemData>(ItemB.Name, TEXT("Find row in datatable"))->Value;
+			});
+	}
+}

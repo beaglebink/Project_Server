@@ -68,7 +68,7 @@ private:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void OpenInventory(EnumInventoryType SentInventoryType = EnumInventoryType::Inventory, UAC_Container* Container = nullptr);
+	void OpenInventory(EnumInventoryType SentInventoryType, UAC_Container* OtherContainer);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void CloseInventory();

@@ -21,7 +21,7 @@ public:
 	EnumInventoryType InventoryType;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
-	TObjectPtr<UAC_Container> OtherContainer;
+	TObjectPtr<UAC_Container> Container;
 
 protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Items")

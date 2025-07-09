@@ -47,7 +47,7 @@ void UAC_Inventory::ToggleInventory()
 {
 	if (!bIsOpen)
 	{
-		OpenInventory();
+		OpenInventory(EnumInventoryType::Inventory, nullptr);
 	}
 	else
 	{
@@ -55,7 +55,7 @@ void UAC_Inventory::ToggleInventory()
 	}
 }
 
-void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Container* Container)
+void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Container* OtherContainer)
 {
 	if (bIsOpen)
 	{
@@ -80,7 +80,7 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 	{
 		Inventory = Cast<UW_InventoryHUD>(CreateWidget(GetWorld(), InventoryClass));
 		Inventory->InventoryType = SentInventoryType;
-		Inventory->OtherContainer = Container;
+		Inventory->Container = OtherContainer;
 		Inventory->AddToViewport(11);
 
 		APlayerController* PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());

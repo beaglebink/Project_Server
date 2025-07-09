@@ -15,9 +15,6 @@ class ALSEXTRAS_API UW_ItemSlot : public UUserWidget
 protected:
 	virtual void NativeConstruct() override;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
-	TObjectPtr<UAC_Container> OtherContainer;
-
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
 	UTextBlock* TextBlock_Name;

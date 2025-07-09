@@ -8,7 +8,7 @@
 UENUM(BlueprintType)
 enum class EnumInventory :uint8
 {
-	None			UMETA(DisplayName = "None"),
+	All 			UMETA(DisplayName = "All"),
 	Weapon			UMETA(DisplayName = "Weapon"),
 	Clothes			UMETA(DisplayName = "Clothes/Armour"),
 	Consumables		UMETA(DisplayName = "Consumables"),
@@ -19,7 +19,6 @@ enum class EnumInventory :uint8
 UENUM(BlueprintType)
 enum class EnumInventoryType :uint8
 {
-	None		UMETA(DisplayName = "None"),
 	Inventory	UMETA(DisplayName = "Inventory"),
 	Chest		UMETA(DisplayName = "Chest"),
 	Corpse		UMETA(DisplayName = "Corpse"),

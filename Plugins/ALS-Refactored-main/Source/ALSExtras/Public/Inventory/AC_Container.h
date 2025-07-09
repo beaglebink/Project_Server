@@ -25,4 +25,22 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
 	void RemoveFromContainer(FName Name, int32 Quantity);
+
+	UFUNCTION(BlueprintCallable, Category = "Sorting")
+	void A_Z_Sort(bool bIsDecreasing);
+
+	UFUNCTION(BlueprintCallable, Category = "Sorting")
+	void Damage_Sort(bool bIsDecreasing);
+
+	UFUNCTION(BlueprintCallable, Category = "Sorting")
+	void Armor_Sort(bool bIsDecreasing);
+
+	UFUNCTION(BlueprintCallable, Category = "Sorting")
+	void Durability_Sort(bool bIsDecreasing);
+
+	UFUNCTION(BlueprintCallable, Category = "Sorting")
+	void Weight_Sort(bool bIsDecreasing);
+
+	UFUNCTION(BlueprintCallable, Category = "Sorting")
+	void Value_Sort(bool bIsDecreasing);
 };

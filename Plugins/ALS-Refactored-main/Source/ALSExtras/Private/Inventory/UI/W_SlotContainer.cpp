@@ -17,6 +17,7 @@ void UW_SlotContainer::A_Z_Sort()
 			{
 				return SlotA.TextBlock_Name->GetText().ToString() > SlotB.TextBlock_Name->GetText().ToString();
 			});
+		Container->A_Z_Sort(true);
 	}
 	else
 	{
@@ -25,6 +26,7 @@ void UW_SlotContainer::A_Z_Sort()
 			{
 				return SlotA.TextBlock_Name->GetText().ToString() < SlotB.TextBlock_Name->GetText().ToString();
 			});
+		Container->A_Z_Sort(false);
 	}
 }
 
@@ -38,6 +40,7 @@ void UW_SlotContainer::Damage_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Damage->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Damage->GetText().ToString()));
 			});
+		Container->Damage_Sort(true);
 	}
 	else
 	{
@@ -46,6 +49,7 @@ void UW_SlotContainer::Damage_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Damage->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Damage->GetText().ToString()));
 			});
+		Container->Damage_Sort(false);
 	}
 }
 
@@ -58,6 +62,7 @@ void UW_SlotContainer::Armor_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Armor->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Armor->GetText().ToString()));
 			});
+		Container->Armor_Sort(true);
 	}
 	else
 	{
@@ -66,6 +71,7 @@ void UW_SlotContainer::Armor_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Armor->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Armor->GetText().ToString()));
 			});
+		Container->Armor_Sort(false);
 	}
 }
 
@@ -78,6 +84,7 @@ void UW_SlotContainer::Durability_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Durability->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Durability->GetText().ToString()));
 			});
+		Container->Durability_Sort(true);
 	}
 	else
 	{
@@ -86,6 +93,7 @@ void UW_SlotContainer::Durability_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Durability->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Durability->GetText().ToString()));
 			});
+		Container->Durability_Sort(false);
 	}
 }
 
@@ -98,6 +106,7 @@ void UW_SlotContainer::Weight_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Weight->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Weight->GetText().ToString()));
 			});
+		Container->Weight_Sort(true);
 	}
 	else
 	{
@@ -106,6 +115,7 @@ void UW_SlotContainer::Weight_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Weight->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Weight->GetText().ToString()));
 			});
+		Container->Weight_Sort(false);
 	}
 }
 
@@ -118,6 +128,7 @@ void UW_SlotContainer::Value_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Value->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Value->GetText().ToString()));
 			});
+		Container->Value_Sort(true);
 	}
 	else
 	{
@@ -126,5 +137,6 @@ void UW_SlotContainer::Value_Sort()
 			{
 				return FCString::Atof(*(SlotA.TextBlock_Value->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Value->GetText().ToString()));
 			});
+		Container->Value_Sort(false);
 	}
 }
