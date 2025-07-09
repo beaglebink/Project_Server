@@ -1,5 +1,6 @@
 #include "Inventory/UI/W_SlotContainer.h"
 #include "Inventory/UI/W_ItemSlot.h"
+#include "Inventory/AC_Container.h"
 #include "Components/TextBlock.h"
 
 void UW_SlotContainer::NativeConstruct()
