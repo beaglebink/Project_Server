@@ -5,3 +5,7 @@ void UW_InventoryHUD::NativeConstruct()
 	Super::NativeConstruct();
 
 }
+
+void UW_InventoryHUD::Recreate_Implementation()
+{
+}
