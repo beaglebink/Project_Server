@@ -81,8 +81,6 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 		Inventory = Cast<UW_InventoryHUD>(CreateWidget(GetWorld(), InventoryClass));
 		Inventory->InventoryType = SentInventoryType;
 		Inventory->Container = OtherContainer;
-		Inventory->MainTabIndex = 0;
-		Inventory->AdditiveTabIndex = 0;
 		Inventory->AddToViewport(11);
 
 		APlayerController* PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());

@@ -30,12 +30,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Refs")
 	TObjectPtr<UW_Inventory> AdditiveInventory;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Refs")
-	int32 MainTabIndex = 0;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Refs")
-	int32 AdditiveTabIndex = 0;
-
 	UPROPERTY(BlueprintReadWrite, Category = "SizeBoxField", meta = (BindWidget))
 	USizeBox* SizeBox_Main;
 
