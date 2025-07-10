@@ -8,6 +8,8 @@
 class UW_InventoryHUD;
 class UAC_Container;
 class UW_SlotContainer;
+class UW_ItemSlot;
+class UScrollBox;
 
 UCLASS()
 class ALSEXTRAS_API UW_Inventory : public UUserWidget
@@ -27,21 +29,26 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
 	TObjectPtr<UAC_Container> Container;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI")
-	TObjectPtr<UW_SlotContainer> SlotContainer_All;
+	UPROPERTY(BlueprintReadWrite, Category = "Items")
+	TArray<TObjectPtr<UW_ItemSlot>> Slots;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI")
-	TObjectPtr<UW_SlotContainer> SlotContainer_Weapon;
+	UPROPERTY(BlueprintReadWrite, Category = "ScrollBox field", meta = (BindWidget))
+	UScrollBox* ScrollBox_Items;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI")
-	TObjectPtr<UW_SlotContainer> SlotContainer_Clothes;
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
+	UDataTable* ItemDataTable;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI")
-	TObjectPtr<UW_SlotContainer> SlotContainer_Consum;
+	UFUNCTION(BlueprintCallable, Category = "Filter")
+	void SlotsFilter(EnumInventory SlotContainerType);
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI")
-	TObjectPtr<UW_SlotContainer> SlotContainer_Misc;
+	//sorting
+private:
+	uint8 bIsDecreased : 1{false};
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI")
-	TObjectPtr<UW_SlotContainer> SlotContainer_Other;
+	EnumSortType PrevSort;
+
+protected:
+	UFUNCTION(BlueprintCallable, Category = "Sorting")
+	void Items_Sort(EnumSortType SortType, EnumInventory SlotContainerType);
 };

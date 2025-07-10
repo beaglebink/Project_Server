@@ -25,6 +25,17 @@ enum class EnumInventoryType :uint8
 	Vendor		UMETA(DisplayName = "Vendor")
 };
 
+UENUM(BlueprintType)
+enum class EnumSortType :uint8
+{
+	A_Z 			UMETA(DisplayName = "A <> Z"),
+	Damage			UMETA(DisplayName = "Damage"),
+	Armour			UMETA(DisplayName = "Armour"),
+	Durability		UMETA(DisplayName = "Durability"),
+	Weight			UMETA(DisplayName = "Weight"),
+	Value			UMETA(DisplayName = "Value")
+};
+
 USTRUCT(BlueprintType)
 struct ALSEXTRAS_API FS_Item
 {
