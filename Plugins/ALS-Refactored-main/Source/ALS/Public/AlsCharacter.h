@@ -1080,6 +1080,11 @@ protected:
 	uint8 bIsGrappled : 1{false};
 	float GrappleEffectSpeedMultiplier = 1.0f;
 
+	//stasis grenade effect
+	public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StaticGrenadeEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float StaticGrenadeEffect = 1.0f;
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "WireEffect")
 	void SetRemoveGrappleEffect(bool bIsSet);
