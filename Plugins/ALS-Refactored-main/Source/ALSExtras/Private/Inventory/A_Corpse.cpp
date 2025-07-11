@@ -3,6 +3,7 @@
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractiveItemComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
 #include "Inventory/AC_Inventory.h"
+#include "Kismet/GameplayStatics.h"
 
 AA_Corpse::AA_Corpse()
 {
@@ -36,6 +37,7 @@ void AA_Corpse::Open(UInteractivePickerComponent* Picker)
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this, Picker]()
 		{
+			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.5f);
 			UAC_Inventory* Inventory = Cast< UAC_Inventory>(Picker->GetOwner()->GetComponentByClass(UAC_Inventory::StaticClass()));
 			Inventory->OpenInventory(EnumInventoryType::Corpse, ContainerComponent);
 		}, 1.2f, false);

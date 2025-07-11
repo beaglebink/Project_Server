@@ -40,7 +40,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return SlotA.TextBlock_Name->GetText().ToString() > SlotB.TextBlock_Name->GetText().ToString();
 				});
-			Container->A_Z_Sort(true);
+			Container->Items_Sort(EnumSortType::A_Z, true);
 		}
 		else
 		{
@@ -49,7 +49,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return SlotA.TextBlock_Name->GetText().ToString() < SlotB.TextBlock_Name->GetText().ToString();
 				});
-			Container->A_Z_Sort(false);
+			Container->Items_Sort(EnumSortType::A_Z, false);
 		}
 		PrevSort = SortType;
 		break;
@@ -62,7 +62,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Damage->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Damage->GetText().ToString()));
 				});
-			Container->Damage_Sort(true);
+			Container->Items_Sort(EnumSortType::Damage, true);
 		}
 		else
 		{
@@ -71,7 +71,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Damage->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Damage->GetText().ToString()));
 				});
-			Container->Damage_Sort(false);
+			Container->Items_Sort(EnumSortType::Damage, false);
 		}
 		PrevSort = SortType;
 		break;
@@ -83,7 +83,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Armor->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Armor->GetText().ToString()));
 				});
-			Container->Armor_Sort(true);
+			Container->Items_Sort(EnumSortType::Armour, true);
 		}
 		else
 		{
@@ -92,7 +92,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Armor->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Armor->GetText().ToString()));
 				});
-			Container->Armor_Sort(false);
+			Container->Items_Sort(EnumSortType::Armour, false);
 		}
 		PrevSort = SortType;
 		break;
@@ -104,7 +104,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Durability->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Durability->GetText().ToString()));
 				});
-			Container->Durability_Sort(true);
+			Container->Items_Sort(EnumSortType::Durability, true);
 		}
 		else
 		{
@@ -113,7 +113,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Durability->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Durability->GetText().ToString()));
 				});
-			Container->Durability_Sort(false);
+			Container->Items_Sort(EnumSortType::Durability, false);
 		}
 		PrevSort = SortType;
 		break;
@@ -125,7 +125,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Weight->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Weight->GetText().ToString()));
 				});
-			Container->Weight_Sort(true);
+			Container->Items_Sort(EnumSortType::Weight, true);
 		}
 		else
 		{
@@ -134,7 +134,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Weight->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Weight->GetText().ToString()));
 				});
-			Container->Weight_Sort(false);
+			Container->Items_Sort(EnumSortType::Weight, false);
 		}
 		PrevSort = SortType;
 		break;
@@ -146,7 +146,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Value->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Value->GetText().ToString()));
 				});
-			Container->Value_Sort(true);
+			Container->Items_Sort(EnumSortType::Value, true);
 		}
 		else
 		{
@@ -155,7 +155,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 				{
 					return FCString::Atof(*(SlotA.TextBlock_Value->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Value->GetText().ToString()));
 				});
-			Container->Value_Sort(false);
+			Container->Items_Sort(EnumSortType::Value, false);
 		}
 		PrevSort = SortType;
 		break;
