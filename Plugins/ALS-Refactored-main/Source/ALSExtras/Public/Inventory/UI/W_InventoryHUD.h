@@ -8,6 +8,7 @@
 class UAC_Container;
 class UW_Inventory;
 class USizeBox;
+class UW_ItemSlot;
 
 UCLASS()
 class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
@@ -41,4 +42,8 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
 	void Recreate();
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void MoveSlot(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToMove);
+
 };

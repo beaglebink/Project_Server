@@ -47,6 +47,7 @@ void UAC_Inventory::ToggleInventory()
 {
 	if (!bIsOpen)
 	{
+		UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.3f);
 		OpenInventory(EnumInventoryType::Inventory, nullptr);
 	}
 	else
@@ -93,7 +94,6 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 			PC->SetIgnoreLookInput(true);
 			PC->SetIgnoreMoveInput(true);
 			PC->SetShowMouseCursor(true);
-			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.0f);
 		}
 	}
 }
