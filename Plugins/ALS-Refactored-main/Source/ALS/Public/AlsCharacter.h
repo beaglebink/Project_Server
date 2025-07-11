@@ -1081,9 +1081,15 @@ protected:
 	float GrappleEffectSpeedMultiplier = 1.0f;
 
 	//stasis grenade effect
-	public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StaticGrenadeEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StasisGrenadeEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float StaticGrenadeEffect = 1.0f;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "StasisGrenadeEffect")
+	float GetStaticGrenadeEffect() const;
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StaticGrenadeEffect")
+	TMap<AActor*, float> StasisGrenadeEffectMap;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "WireEffect")

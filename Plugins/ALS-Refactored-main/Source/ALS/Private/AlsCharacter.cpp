@@ -2534,6 +2534,27 @@ void AAlsCharacter::PressTwoKeysRemoveGrappleEffect(bool bIsHold)
 	bIsTwoKeysHold = bIsHold;
 }
 
+float AAlsCharacter::GetStaticGrenadeEffect() const
+{
+	float Effect = 0;
+	TArray<AActor*> Keys;
+	StasisGrenadeEffectMap.GetKeys(Keys);
+	for(AActor* Key : Keys)
+	{
+		if (Key && Key->IsValidLowLevel())
+		{
+			float EffectValue = StasisGrenadeEffectMap.FindRef(Key);
+
+			if (EffectValue > Effect)
+			{
+				Effect = EffectValue;
+			}
+		}
+	}
+	
+	return Effect;
+}
+
 void AAlsCharacter::SetRemoveGrappleEffect(bool bIsSet)
 {
 	static uint8 Counter = 0;
