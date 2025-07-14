@@ -9,6 +9,7 @@ class UAC_Container;
 class UW_Inventory;
 class USizeBox;
 class UW_ItemSlot;
+class UW_HowMuch;
 
 UCLASS()
 class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
@@ -44,6 +45,18 @@ public:
 	void Recreate();
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void MoveSlot(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToMove);
+	void MoveSlot(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToMove, FName KeyPressed);
 
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void AddToSlotContainer(UW_Inventory* Inventory, UW_ItemSlot* SlotToAdd);
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void RemoveFromSlotContainer(UW_Inventory* Inventory, UW_ItemSlot* SlotToRemove, bool bShouldSpawn = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void RemoveSlotCertainQuantity(UW_Inventory* Inventory, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldSpawn = false);
+
+protected:
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UW_HowMuch> HowMuchWidgetClass;
 };

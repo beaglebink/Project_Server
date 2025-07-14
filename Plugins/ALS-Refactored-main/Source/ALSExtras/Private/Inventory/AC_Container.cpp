@@ -109,6 +109,7 @@ bool UAC_Container::SpawnRemovedItem(FName Name)
 		return false;
 	}
 
+	TempActor->Name = Name;
 	TempActor->StaticMeshComp->SetStaticMesh(ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"))->StaticMesh);
 	TempActor->StaticMeshComp->SetMobility(EComponentMobility::Movable);
 	TempActor->StaticMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);

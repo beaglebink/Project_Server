@@ -18,6 +18,9 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
+	FS_Item Item;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
 	TObjectPtr<UW_InventoryHUD> InventoryHUDRef;
 
 	UPROPERTY(BlueprintReadOnly, Category = "UI", meta = (ExposeOnSpawn = "true"))
@@ -25,6 +28,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
 	UTextBlock* TextBlock_Name;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
+	UTextBlock* TextBlock_Quantity;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
 	UTextBlock* TextBlock_Damage;
