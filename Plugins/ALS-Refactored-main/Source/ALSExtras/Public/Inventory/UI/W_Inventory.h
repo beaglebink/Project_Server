@@ -39,6 +39,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
 	UDataTable* ItemDataTable;
 
+public:
+	UPROPERTY(BlueprintReadWrite, Category = "UI")
+	EnumInventory CurrentTabType;
+
 	UFUNCTION(BlueprintCallable, Category = "Filter")
 	void SlotsFilter(EnumInventory SlotContainerType);
 
