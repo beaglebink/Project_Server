@@ -20,6 +20,9 @@ protected:
 	virtual void NativeConstruct() override;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
+	UDataTable* ItemDataTable;
+
 	UPROPERTY(BlueprintReadOnly, Category = "UI", meta = (ExposeOnSpawn = "true"))
 	EnumInventoryType InventoryType;
 
@@ -45,18 +48,21 @@ public:
 	void Recreate();
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void MoveSlot(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToMove, FName KeyPressed);
+	void Slot_OneClick(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToMove, FName KeyPressed);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void AddToSlotContainer(UW_Inventory* Inventory, UW_ItemSlot* SlotToAdd);
+	void CheckHowMuch(UW_Inventory* Inventory_From, UW_Inventory* Inventory_To, UW_ItemSlot* SlotToRemove, bool bShouldSpawn = false);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void RemoveFromSlotContainer(UW_Inventory* Inventory, UW_ItemSlot* SlotToRemove, bool bShouldSpawn = false);
+	void AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot* SlotToAdd, int32 QuantityToAdd);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void RemoveSlotCertainQuantity(UW_Inventory* Inventory, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldSpawn = false);
+	void RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldSpawn = false);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UW_HowMuch> HowMuchWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UW_ItemSlot> SlotWidgetClass;
 };

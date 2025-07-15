@@ -33,7 +33,10 @@ public:
 	TObjectPtr<UW_InventoryHUD> InventoryHUDRef;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
-	TObjectPtr<UW_Inventory> InventoryRef;
+	TObjectPtr<UW_Inventory> Inventory_FromRef;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
+	TObjectPtr<UW_Inventory> Inventory_ToRef;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
 	TObjectPtr<UW_ItemSlot> SlotRef;

@@ -12,11 +12,13 @@ void UW_Inventory::NativeConstruct()
 
 void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
 {
+	CurrentTabType = SlotContainerType;
+
 	ScrollBox_Items->ClearChildren();
 
 	for (UW_ItemSlot* SlotToFilter : Slots)
 	{
-		if (SlotContainerType == EnumInventory::All || SlotContainerType == ItemDataTable->FindRow<FS_ItemData>(*(SlotToFilter->TextBlock_Name->GetText().ToString()), TEXT("Find row in datatable"))->Type)
+		if (SlotContainerType == EnumInventory::All || SlotContainerType == ItemDataTable->FindRow<FS_ItemData>(SlotToFilter->Item.Name, TEXT("Find row in datatable"))->Type)
 		{
 			ScrollBox_Items->AddChild(SlotToFilter);
 		}
