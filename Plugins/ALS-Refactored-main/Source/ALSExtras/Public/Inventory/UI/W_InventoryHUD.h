@@ -5,11 +5,14 @@
 #include "Blueprint/UserWidget.h"
 #include "W_InventoryHUD.generated.h"
 
+struct FInputActionValue;
+class UInputAction;
 class UAC_Container;
 class UW_Inventory;
 class USizeBox;
 class UW_ItemSlot;
 class UW_HowMuch;
+class UButton;
 
 UCLASS()
 class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
@@ -23,10 +26,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
 	UDataTable* ItemDataTable;
 
-	UPROPERTY(BlueprintReadOnly, Category = "UI", meta = (ExposeOnSpawn = "true"))
+	UPROPERTY(BlueprintReadOnly, Category = "Refs", meta = (ExposeOnSpawn = "true"))
 	EnumInventoryType InventoryType;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
+	UPROPERTY(BlueprintReadWrite, Category = "Refs", meta = (ExposeOnSpawn = "true"))
 	TObjectPtr<UAC_Container> Container;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Refs")
@@ -43,6 +46,15 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "SizeBoxField", meta = (BindWidget))
 	USizeBox* SizeBox_Confirmation_HowMuch;
+
+	UPROPERTY(BlueprintReadWrite, Category = "SizeBoxField", meta = (BindWidget))
+	USizeBox* SizeBox_VisualAndDescription;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UButton* Button_TakeAll;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UButton* Button_DropAll;
 
 	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
 	uint8 bHowMuchIsOpen : 1{false};
@@ -68,4 +80,18 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UW_ItemSlot> SlotWidgetClass;
+
+	//input actions and methods
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
+	TObjectPtr<UInputAction> TakeAllAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
+	TObjectPtr<UInputAction> DropAllAction;
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void TakeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void DropAll();
 };

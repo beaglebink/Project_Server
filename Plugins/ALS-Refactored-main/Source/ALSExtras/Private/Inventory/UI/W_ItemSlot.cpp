@@ -1,4 +1,7 @@
 #include "Inventory/UI/W_ItemSlot.h"
+#include "Inventory/UI/W_VisualDescription.h"
+#include "Inventory/UI/W_InventoryHUD.h"
+#include "Components/SizeBox.h"
 
 void UW_ItemSlot::NativeConstruct()
 {
@@ -40,4 +43,21 @@ FText UW_ItemSlot::FormatFloatFixed(float Value, int32 Precision)
 		break;
 	}
 	return FText::FromString(FloatToString);
+}
+
+void UW_ItemSlot::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	Super::OnMouseEnter(InGeometry, InMouseEvent);
+
+	if (UW_VisualDescription* VisualDescriptionWidget = CreateWidget<UW_VisualDescription>(GetWorld(), VisualDescriptionWidgetClass))
+	{
+		InventoryHUDRef->SizeBox_VisualAndDescription->AddChild(VisualDescriptionWidget);
+	}
+}
+
+void UW_ItemSlot::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+	Super::OnMouseLeave(InMouseEvent);
+
+	InventoryHUDRef->SizeBox_VisualAndDescription->ClearChildren();
 }

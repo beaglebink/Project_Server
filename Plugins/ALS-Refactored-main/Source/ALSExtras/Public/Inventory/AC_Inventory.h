@@ -41,15 +41,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
 	TObjectPtr<UInputAction> InventoryAction;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
-	TObjectPtr<UInputAction> SurfAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
-	TObjectPtr<UInputAction> UseAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
-	TObjectPtr<UInputAction> DropAction;
-
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "IU")
 	TSubclassOf<UW_InventoryHUD> InventoryClass;
@@ -72,11 +63,4 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void CloseInventory();
-
-private:
-	void SurfInventory(const FInputActionValue& ActionValue);
-
-	void UseInventory();
-
-	void DropInventory();
 };
