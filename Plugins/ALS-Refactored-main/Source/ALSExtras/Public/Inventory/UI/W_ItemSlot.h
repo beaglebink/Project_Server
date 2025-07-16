@@ -7,6 +7,7 @@
 
 class UW_InventoryHUD;
 class UTextBlock;
+class UW_VisualDescription;
 
 UCLASS()
 class ALSEXTRAS_API UW_ItemSlot : public UUserWidget
@@ -47,7 +48,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
 	UTextBlock* TextBlock_Value;
 
+	UPROPERTY(EditDefaultsOnly, Category = "ClassRefs")
+	TSubclassOf<UW_VisualDescription> VisualDescriptionWidgetClass;
+
 protected:
 	UFUNCTION(BlueprintPure, Category = "Format")
 	static FText FormatFloatFixed(float Value, int32 Precision);
+
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)override;
+
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent)override;
 };

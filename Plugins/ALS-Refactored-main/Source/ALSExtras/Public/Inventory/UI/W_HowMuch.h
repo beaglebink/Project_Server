@@ -5,11 +5,14 @@
 #include "Blueprint/UserWidget.h"
 #include "W_HowMuch.generated.h"
 
+struct FInputActionValue;
+class UInputAction;
 class UW_InventoryHUD;
 class UW_Inventory;
 class UW_ItemSlot;
 class USlider;
 class UTextBlock;
+class UButton;
 
 UCLASS()
 class ALSEXTRAS_API UW_HowMuch : public UUserWidget
@@ -31,6 +34,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	UTextBlock* TextBlock_Max;
 
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UButton* Button_Yes;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UButton* Button_No;
+
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
 	TObjectPtr<UW_InventoryHUD> InventoryHUDRef;
 
@@ -49,4 +58,22 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Interaction", meta = (ExposeOnSpawn = "true"))
 	uint8 bShouldSpawn : 1{false};
 
+	//input actions and methods
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
+	TObjectPtr<UInputAction> SurfAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
+	TObjectPtr<UInputAction> UseAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
+	TObjectPtr<UInputAction> EscapeAction;
+
+	void SurfSlider(const FInputActionValue& Value);
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void ConfirmSlider();
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void EscapeWidget();
 };

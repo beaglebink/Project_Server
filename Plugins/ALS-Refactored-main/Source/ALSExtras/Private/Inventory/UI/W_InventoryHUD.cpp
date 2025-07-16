@@ -7,10 +7,26 @@
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
+#include "Components/Button.h"
+#include "EnhancedInputComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/Character.h"
 
 void UW_InventoryHUD::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PC->InputComponent))
+		{
+			Input->BindAction(TakeAllAction, ETriggerEvent::Started, this, &UW_InventoryHUD::TakeAll);
+			Input->BindAction(DropAllAction, ETriggerEvent::Started, this, &UW_InventoryHUD::DropAll);
+		}
+	}
+
+	Button_TakeAll->OnPressed.AddDynamic(this, &UW_InventoryHUD::TakeAll);
+	Button_DropAll->OnPressed.AddDynamic(this, &UW_InventoryHUD::DropAll);
 }
 
 void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToInteract, FName KeyPressed)
@@ -163,7 +179,7 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 						ItemSlot->Item.Quantity = QuantityToAdd;
 						ItemSlot->InventoryHUDRef = this;
 						ItemSlot->InventoryType = Inventory_To->InventoryType;
-						
+
 						SlotToAdd = ItemSlot;
 					}
 				}
@@ -198,6 +214,67 @@ void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_I
 		Inventory_From->Slots.Remove(SlotToRemove);
 	}
 	Inventory_From->Container->RemoveFromContainer(SlotToRemove->Item.Name, QuantityToRemove, bShouldSpawn);
+}
+
+void UW_InventoryHUD::TakeAll()
+{
+	if (Button_TakeAll->IsVisible())
+	{
+		switch (InventoryType)
+		{
+		case EnumInventoryType::Inventory:
+			break;
+		case EnumInventoryType::Chest:
+		case EnumInventoryType::Corpse:
+		{
+			if (UAC_Container* PlayerContainer = Cast<UAC_Container>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetComponentByClass(UAC_Container::StaticClass())))
+			{
+				for (const auto& Item : Container->Items)
+				{
+					PlayerContainer->AddToContainer(Item.Name, Item.Quantity);
+				}
+				Container->Items.Empty();
+				Recreate();
+			}
+			break;
+		}
+		case EnumInventoryType::Vendor:
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void UW_InventoryHUD::DropAll()
+{
+	if (Button_DropAll->IsVisible())
+	{
+		switch (InventoryType)
+		{
+		case EnumInventoryType::Inventory:
+			break;
+		case EnumInventoryType::Chest:
+		{
+			if (UAC_Container* PlayerContainer = Cast<UAC_Container>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetComponentByClass(UAC_Container::StaticClass())))
+			{
+				for (const auto& Item : PlayerContainer->Items)
+				{
+					Container->AddToContainer(Item.Name, Item.Quantity);
+				}
+				PlayerContainer->Items.Empty();
+				Recreate();
+			}
+			break;
+		}
+		case EnumInventoryType::Corpse:
+			break;
+		case EnumInventoryType::Vendor:
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 void UW_InventoryHUD::Recreate_Implementation()

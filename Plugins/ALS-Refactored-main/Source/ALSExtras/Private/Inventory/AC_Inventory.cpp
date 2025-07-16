@@ -38,9 +38,6 @@ void UAC_Inventory::BindInput(UEnhancedInputComponent* InputComponent)
 	}
 
 	InputComponent->BindAction(InventoryAction, ETriggerEvent::Started, this, &UAC_Inventory::ToggleInventory);
-	InputComponent->BindAction(SurfAction, ETriggerEvent::Triggered, this, &UAC_Inventory::SurfInventory);
-	InputComponent->BindAction(UseAction, ETriggerEvent::Triggered, this, &UAC_Inventory::UseInventory);
-	InputComponent->BindAction(DropAction, ETriggerEvent::Triggered, this, &UAC_Inventory::DropInventory);
 }
 
 void UAC_Inventory::ToggleInventory()
@@ -140,22 +137,4 @@ void UAC_Inventory::CloseInventory()
 	{
 		Picker->CurrentItem = nullptr;
 	}
-}
-
-void UAC_Inventory::SurfInventory(const FInputActionValue& ActionValue)
-{
-	FVector2D Value = ActionValue.Get<FVector2D>();
-
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Green, FString::Printf(TEXT("SURF %2.2f"), Value.X));
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Red, FString::Printf(TEXT("SURF %2.2f"), Value.Y));
-}
-
-void UAC_Inventory::UseInventory()
-{
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Green, "Use INVENTORY");
-}
-
-void UAC_Inventory::DropInventory()
-{
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 3.0f, FColor::Black, "Drop INVENTORY");
 }
