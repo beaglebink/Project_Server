@@ -115,6 +115,7 @@ void UW_InventoryHUD::CheckHowMuch(UW_Inventory* Inventory_From, UW_Inventory* I
 	{
 		if (UW_HowMuch* HowMuchWidget = CreateWidget<UW_HowMuch>(GetWorld(), HowMuchWidgetClass))
 		{
+			bHowMuchIsOpen = true;
 			HowMuchWidget->Slider_HowMuch->SetMaxValue(SlotToInteract->Item.Quantity);
 			HowMuchWidget->TextBlock_Max->SetText(FText::AsNumber(SlotToInteract->Item.Quantity));
 			HowMuchWidget->bShouldSpawn = bShouldSpawn;

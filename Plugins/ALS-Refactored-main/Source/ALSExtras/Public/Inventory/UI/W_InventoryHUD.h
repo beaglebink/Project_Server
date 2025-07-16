@@ -44,6 +44,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "SizeBoxField", meta = (BindWidget))
 	USizeBox* SizeBox_Confirmation_HowMuch;
 
+	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
+	uint8 bHowMuchIsOpen : 1{false};
+
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
 	void Recreate();
 

@@ -19,6 +19,8 @@ class ALSEXTRAS_API UW_HowMuch : public UUserWidget
 protected:
 	virtual void NativeConstruct() override;
 
+	virtual void NativeDestruct() override;
+
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	USlider* Slider_HowMuch;
@@ -46,4 +48,5 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Interaction", meta = (ExposeOnSpawn = "true"))
 	uint8 bShouldSpawn : 1{false};
+
 };
