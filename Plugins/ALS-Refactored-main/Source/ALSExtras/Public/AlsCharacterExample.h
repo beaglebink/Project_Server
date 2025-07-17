@@ -11,6 +11,7 @@ class UInputMappingContext;
 class UInputAction;
 class UAttributesWidget;
 class UAC_Inventory;
+class USceneCaptureComponent2D;
 
 UENUM(BlueprintType)
 enum class EMovementDirection : uint8
@@ -29,6 +30,9 @@ class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter
 public:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Als Character Example")
 	TObjectPtr<UAlsCameraComponent> Camera;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Als Character Example")
+	USceneCaptureComponent2D* SceneCaptureComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputMappingContext> InputMappingContext;
@@ -255,5 +259,10 @@ private:
 
 	//Inventory
 protected:
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Inventory")
 	TObjectPtr<UAC_Inventory> Inventory;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "SceneRender")
+	void SetSceneRenderComponents(AActor* Actor);
 };

@@ -11,6 +11,7 @@
 #include "UI/AttributesWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Inventory/AC_Inventory.h"
+#include "Components/SceneCaptureComponent2D.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
@@ -19,6 +20,12 @@ AAlsCharacterExample::AAlsCharacterExample()
 	Camera = CreateDefaultSubobject<UAlsCameraComponent>(FName{ TEXTVIEW("Camera") });
 	Camera->SetupAttachment(GetMesh());
 	Camera->SetRelativeRotation_Direct({ 0.0f, 90.0f, 0.0f });
+
+	SceneCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("SceneCaptureCompopent2D"));
+	SceneCaptureComponent->SetupAttachment(RootComponent);
+	SceneCaptureComponent->SetRelativeLocation(FVector(200.0f, 0.0f, 20.0f));
+	SceneCaptureComponent->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+	SceneCaptureComponent->FOVAngle = 50.0f;
 
 	//PhysicsConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("PhysicsConstraint"));
 	//PhysicsConstraint->SetupAttachment(RootComponent);
@@ -698,5 +705,29 @@ void AAlsCharacterExample::LoopEffect()
 		FrameList.AddTail(LoopEffectFrame);
 		FrameIt = TDoubleLinkedList<FLoopEffectFrame>::TIterator(FrameList.GetHead());
 		LoopEffectFrame = FLoopEffectFrame();
+	}
+}
+
+void AAlsCharacterExample::SetSceneRenderComponents(AActor* Actor)
+{
+	TArray<UActorComponent*> Components;
+	Actor->GetComponents(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
+		{
+			if (Primitive->IsVisible() && Primitive->bRenderInMainPass)
+			{
+				SceneCaptureComponent->ShowOnlyComponents.Add(Primitive);
+			}
+		}
+	}
+	TArray<AActor*> AttachedActors;
+	Actor->GetAttachedActors(AttachedActors, true, true);
+
+	for (AActor* Attached : AttachedActors)
+	{
+		SetSceneRenderComponents(Attached);
 	}
 }

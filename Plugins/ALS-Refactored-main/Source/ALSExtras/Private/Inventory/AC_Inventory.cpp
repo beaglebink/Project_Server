@@ -8,6 +8,9 @@
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractiveItemComponent.h"
 #include "Inventory/I_OnInventoryClose.h"
+#include "Inventory/UI/W_CharacterUI.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 
 UAC_Inventory::UAC_Inventory()
 {
@@ -76,10 +79,34 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 
 	if (InventoryClass)
 	{
-		Inventory = Cast<UW_InventoryHUD>(CreateWidget(GetWorld(), InventoryClass));
+		Inventory = CreateWidget<UW_InventoryHUD>(GetWorld(), InventoryClass);
 		Inventory->InventoryType = SentInventoryType;
 		Inventory->Container = OtherContainer;
 		Inventory->AddToViewport(11);
+
+		if (SentInventoryType == EnumInventoryType::Inventory && OtherContainer == nullptr)
+		{
+			if (CharacterWidgetClass)
+			{
+				if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(GetOwner()))
+				{
+					Character->SetSceneRenderComponents(Character);
+				}
+				CharacterWidget = CreateWidget<UW_CharacterUI>(GetWorld(), CharacterWidgetClass);
+				if (CharacterWidget)
+				{
+					Inventory->VerticalBox_Additive->ClearChildren();
+					UVerticalBoxSlot* BoxSlot = Inventory->VerticalBox_Additive->AddChildToVerticalBox(CharacterWidget);
+					if (BoxSlot)
+					{
+						BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+
+						BoxSlot->SetHorizontalAlignment(HAlign_Fill);
+						BoxSlot->SetVerticalAlignment(VAlign_Fill);
+					}
+				}
+			}
+		}
 
 		APlayerController* PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());
 		if (PC)
