@@ -13,6 +13,7 @@ class USizeBox;
 class UW_ItemSlot;
 class UW_HowMuch;
 class UButton;
+class UVerticalBox;
 
 UCLASS()
 class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
@@ -55,6 +56,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	UButton* Button_DropAll;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UVerticalBox* VerticalBox_Additive;
 
 	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
 	uint8 bHowMuchIsOpen : 1{false};

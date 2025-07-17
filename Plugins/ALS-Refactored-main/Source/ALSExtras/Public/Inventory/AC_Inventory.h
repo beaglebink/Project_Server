@@ -13,6 +13,7 @@ class UEnhancedInputLocalPlayerSubsystem;
 class UEnhancedInputComponent;
 class UW_InventoryHUD;
 class UInteractiveItemComponent;
+class UW_CharacterUI;
 
 UCLASS(Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_Inventory : public UActorComponent
@@ -42,11 +43,17 @@ protected:
 	TObjectPtr<UInputAction> InventoryAction;
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "IU")
+	UPROPERTY(EditDefaultsOnly, Category = "IU")
 	TSubclassOf<UW_InventoryHUD> InventoryClass;
 
-	UPROPERTY(BlueprintReadWrite, Category = "IU")
+	UPROPERTY(BlueprintReadOnly, Category = "IU")
 	UW_InventoryHUD* Inventory;
+
+	UPROPERTY(EditDefaultsOnly, Category = "IU")
+	TSubclassOf<UW_CharacterUI> CharacterWidgetClass;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "IU")
+	UW_CharacterUI* CharacterWidget;
 
 	void BindInput(UEnhancedInputComponent* InputComponent);
 
