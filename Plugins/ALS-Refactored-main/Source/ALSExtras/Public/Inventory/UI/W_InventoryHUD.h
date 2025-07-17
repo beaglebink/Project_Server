@@ -14,6 +14,7 @@ class UW_ItemSlot;
 class UW_HowMuch;
 class UButton;
 class UVerticalBox;
+class UCanvasPanel;
 
 UCLASS()
 class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
@@ -59,6 +60,12 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	UVerticalBox* VerticalBox_Additive;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UCanvasPanel* CanvasPanel_Main;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UCanvasPanel* CanvasPanel_Additive;
 
 	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
 	uint8 bHowMuchIsOpen : 1{false};
