@@ -2,6 +2,7 @@
 #include "Inventory/UI/W_VisualDescription.h"
 #include "Inventory/UI/W_InventoryHUD.h"
 #include "Components/SizeBox.h"
+#include "Components/Image.h"
 
 void UW_ItemSlot::NativeConstruct()
 {
@@ -49,8 +50,11 @@ void UW_ItemSlot::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointer
 {
 	Super::OnMouseEnter(InGeometry, InMouseEvent);
 
+	Image_Background->SetBrushTintColor(FLinearColor(0.5f, 0.5f, 0.5f));
+
 	if (UW_VisualDescription* VisualDescriptionWidget = CreateWidget<UW_VisualDescription>(GetWorld(), VisualDescriptionWidgetClass))
 	{
+		VisualDescriptionWidget->ItemName = Item.Name;
 		InventoryHUDRef->SizeBox_VisualAndDescription->AddChild(VisualDescriptionWidget);
 	}
 }
@@ -58,6 +62,8 @@ void UW_ItemSlot::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointer
 void UW_ItemSlot::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
 	Super::OnMouseLeave(InMouseEvent);
+
+	Image_Background->SetBrushTintColor(FLinearColor(1.0f, 1.0f, 1.0f));
 
 	InventoryHUDRef->SizeBox_VisualAndDescription->ClearChildren();
 }

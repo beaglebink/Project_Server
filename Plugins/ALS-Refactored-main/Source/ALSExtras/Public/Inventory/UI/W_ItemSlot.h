@@ -7,6 +7,7 @@
 
 class UW_InventoryHUD;
 class UTextBlock;
+class UImage;
 class UW_VisualDescription;
 
 UCLASS()
@@ -47,6 +48,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
 	UTextBlock* TextBlock_Value;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Slot Image field", meta = (BindWidget))
+	UImage* Image_Background;
 
 	UPROPERTY(EditDefaultsOnly, Category = "ClassRefs")
 	TSubclassOf<UW_VisualDescription> VisualDescriptionWidgetClass;
