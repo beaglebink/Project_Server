@@ -11,6 +11,7 @@
 #include "UI/AttributesWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Inventory/AC_Inventory.h"
+#include "Inventory/AC_Container.h"
 #include "Components/SceneCaptureComponent2D.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
@@ -50,6 +51,8 @@ void AAlsCharacterExample::BeginPlay()
 		PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
 	*/
 	Inventory = FindComponentByClass<UAC_Inventory>();
+
+	Inventory->ContainerComponent->OnWeightChanged.AddDynamic(this, &AAlsCharacter::SetWeightSpeedMultiplier);
 
 	FrameListSize = static_cast<uint8>(floor(RepeatingPeaceDuration / GetWorld()->GetDeltaSeconds()));
 }
@@ -216,7 +219,7 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 
 void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 {
-	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsBubbled)
+	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsBubbled || bIsOverload)
 	{
 		return;
 	}
@@ -251,7 +254,7 @@ void AAlsCharacterExample::Input_OnMove_Released()
 
 void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 {
-	if (bIsGrappled || bIsStunned || bIsSliding || bIsSticky)
+	if (bIsGrappled || bIsStunned || bIsSliding || bIsSticky || bIsOverload)
 	{
 		return;
 	}
@@ -335,7 +338,7 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 	LoopEffectFrame.FrameActionValue_OnJump = ActionValue;
 	LoopEffectFrame.FrameState = EnumLoopStates::Jump;
 
-	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsWired || bIsGrappled || bIsBubbled)
+	if (bIsStunned || bIsSliding || bIsStickyStuck || bIsWired || bIsGrappled || bIsBubbled || bIsOverload)
 	{
 		return;
 	}
@@ -434,7 +437,7 @@ void AAlsCharacterExample::Input_OnRagdoll()
 
 void AAlsCharacterExample::Input_OnRoll()
 {
-	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled || bIsWired || bIsBubbled)
+	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled || bIsWired || bIsBubbled || bIsOverload)
 	{
 		return;
 	}

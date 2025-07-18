@@ -193,6 +193,10 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 	}
 	Inventory_To->SlotsFilter(Inventory_To->CurrentTabType);
 	Inventory_To->Container->AddToContainer(SlotToAdd->Item.Name, QuantityToAdd);
+
+	Inventory_To->RefreshArmour();
+	Inventory_To->RefreshWeight();
+	Inventory_To->RefreshMoney();
 }
 
 void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldSpawn)
@@ -214,6 +218,10 @@ void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_I
 		Inventory_From->Slots.Remove(SlotToRemove);
 	}
 	Inventory_From->Container->RemoveFromContainer(SlotToRemove->Item.Name, QuantityToRemove, bShouldSpawn);
+
+	Inventory_From->RefreshArmour();
+	Inventory_From->RefreshWeight();
+	Inventory_From->RefreshMoney();
 }
 
 void UW_InventoryHUD::TakeAll()
