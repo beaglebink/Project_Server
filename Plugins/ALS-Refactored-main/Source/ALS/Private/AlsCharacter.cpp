@@ -191,6 +191,8 @@ void AAlsCharacter::BeginPlay()
 	RefreshGait();
 
 	OnOverlayModeChanged(OverlayMode);
+
+	CurrentZVelocity = AlsCharacterMovement->JumpZVelocity;
 }
 
 void AAlsCharacter::PostNetReceiveLocationAndRotation()
@@ -2058,7 +2060,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
-		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect;
+		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2539,7 +2541,7 @@ float AAlsCharacter::GetStaticGrenadeEffect() const
 	float Effect = 0;
 	TArray<AActor*> Keys;
 	StasisGrenadeEffectMap.GetKeys(Keys);
-	for(AActor* Key : Keys)
+	for (AActor* Key : Keys)
 	{
 		if (Key && Key->IsValidLowLevel())
 		{
@@ -2551,7 +2553,7 @@ float AAlsCharacter::GetStaticGrenadeEffect() const
 			}
 		}
 	}
-	
+
 	return Effect;
 }
 
@@ -2719,6 +2721,20 @@ void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, floa
 				CurrentDeltaStamina += TempDeltaStamina;
 				bIsRestored = true;
 			}, TimeToRestore, false);
+	}
+}
+
+void AAlsCharacter::SetWeightSpeedMultiplier(float CurrentWeight)
+{
+	WeightMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, GetStrength()), FVector2D(1.0f, 0.0f), CurrentWeight - GetStrength());
+	AlsCharacterMovement->JumpZVelocity = CurrentZVelocity * WeightMultiplier;
+	if (WeightMultiplier == 0.0f)
+	{
+		bIsOverload = true;
+	}
+	else
+	{
+		bIsOverload = false;
 	}
 }
 

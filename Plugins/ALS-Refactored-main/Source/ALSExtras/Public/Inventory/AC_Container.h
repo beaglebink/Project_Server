@@ -5,6 +5,9 @@
 #include "Components/ActorComponent.h"
 #include "AC_Container.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnArmourChanged, float, Armour);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeightChanged, float, Weight);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, float, Money);
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_Container : public UActorComponent
@@ -25,6 +28,24 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	USoundBase* PickUpSound;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Summary")
+	float TotalArmour;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Summary")
+	float TotalWeight;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Summary")
+	float MoneyAmount;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnArmourChanged OnArmourChanged;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnWeightChanged OnWeightChanged;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnMoneyChanged OnMoneyChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
 	void AddToContainer(FName Name, int32 Quantity);

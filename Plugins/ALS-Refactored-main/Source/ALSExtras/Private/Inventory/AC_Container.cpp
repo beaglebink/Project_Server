@@ -31,6 +31,9 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity)
 	{
 		Items.Add(FS_Item(Name, 1));
 	}
+
+	TotalWeight += ItemData->Weight * Quantity;
+	OnWeightChanged.Broadcast(TotalWeight);
 }
 
 void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, bool bShouldSpawn)
@@ -88,6 +91,11 @@ void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, bool bShould
 			Items.RemoveAt(IndexToRemove);
 		}
 	}
+
+	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
+
+	TotalWeight -= ItemData->Weight * Quantity;
+	OnWeightChanged.Broadcast(TotalWeight);
 }
 
 bool UAC_Container::SpawnRemovedItem(FName Name)

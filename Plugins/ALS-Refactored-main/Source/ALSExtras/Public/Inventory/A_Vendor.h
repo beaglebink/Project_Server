@@ -12,6 +12,9 @@ class ALSEXTRAS_API AA_Vendor : public AA_BaseInteractiveContainer
 public:	
 	AA_Vendor();
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Summary")
+	float MoneyAmount;
+
 protected:
 
 	virtual void TimelineProgress(float Value) override;

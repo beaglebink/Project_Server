@@ -3,11 +3,11 @@
 #include "Components/TextBlock.h"
 #include "Inventory/UI/W_ItemSlot.h"
 #include "Inventory/AC_Container.h"
+#include "AlsCharacterExample.h"
 
 void UW_Inventory::NativeConstruct()
 {
 	Super::NativeConstruct();
-
 }
 
 void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
@@ -23,6 +23,31 @@ void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
 			ScrollBox_Items->AddChild(SlotToFilter);
 		}
 	}
+}
+
+void UW_Inventory::RefreshArmour()
+{
+
+}
+
+void UW_Inventory::RefreshWeight()
+{
+
+	if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Container->GetOwner()))
+	{
+		FString OutText(FString::Printf(TEXT("%.0f/%.1f"), Character->GetStrength(), Container->TotalWeight));
+		
+		if (Container->TotalWeight == FMath::Floor(Container->TotalWeight))
+		{
+			OutText = FString::Printf(TEXT("%.0f/%.0f"), Character->GetStrength(), Container->TotalWeight);
+		}
+		
+		TextBlock_TotalWeight->SetText(FText::FromString(OutText));
+	}
+}
+
+void UW_Inventory::RefreshMoney()
+{
 }
 
 void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainerType)

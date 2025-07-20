@@ -10,6 +10,7 @@ class UAC_Container;
 class UW_SlotContainer;
 class UW_ItemSlot;
 class UScrollBox;
+class UTextBlock;
 
 UCLASS()
 class ALSEXTRAS_API UW_Inventory : public UUserWidget
@@ -34,6 +35,15 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "ScrollBox field", meta = (BindWidget))
 	UScrollBox* ScrollBox_Items;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
+	UTextBlock* TextBlock_Armour;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
+	UTextBlock* TextBlock_TotalWeight;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
+	UTextBlock* TextBlock_Money;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
@@ -45,6 +55,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Filter")
 	void SlotsFilter(EnumInventory SlotContainerType);
+
+	UFUNCTION(BlueprintCallable, Category = "Params")
+	void RefreshArmour();
+
+	UFUNCTION(BlueprintCallable, Category = "Params")
+	void RefreshWeight();
+
+	UFUNCTION(BlueprintCallable, Category = "Params")
+	void RefreshMoney();
 
 	//sorting
 private:

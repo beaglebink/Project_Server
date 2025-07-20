@@ -11,6 +11,8 @@
 #include "Inventory/UI/W_CharacterUI.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 
 UAC_Inventory::UAC_Inventory()
 {
@@ -95,14 +97,14 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 				CharacterWidget = CreateWidget<UW_CharacterUI>(GetWorld(), CharacterWidgetClass);
 				if (CharacterWidget)
 				{
-					Inventory->VerticalBox_Additive->ClearChildren();
-					UVerticalBoxSlot* BoxSlot = Inventory->VerticalBox_Additive->AddChildToVerticalBox(CharacterWidget);
+					UCanvasPanelSlot* BoxSlot = Inventory->CanvasPanel_Additive->AddChildToCanvas(CharacterWidget);
 					if (BoxSlot)
 					{
-						BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-
-						BoxSlot->SetHorizontalAlignment(HAlign_Fill);
-						BoxSlot->SetVerticalAlignment(VAlign_Fill);
+						BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+						BoxSlot->SetPosition(FVector2D(0.f, 0.f));
+						BoxSlot->SetSize(FVector2D(600.f, 800.f));
+						BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+						BoxSlot->SetZOrder(1);
 					}
 				}
 			}

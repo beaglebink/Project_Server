@@ -1191,6 +1191,18 @@ protected:
 
 private:
 	float ConcatenationEffectSpeedMultiplier = 1.0f;
+
+	//Weight effect
+protected:
+	uint8 bIsOverload : 1{false};
+
+	float WeightMultiplier = 1.0f;
+
+	float CurrentZVelocity;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Speed")
+	void SetWeightSpeedMultiplier(float CurrentWeight);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

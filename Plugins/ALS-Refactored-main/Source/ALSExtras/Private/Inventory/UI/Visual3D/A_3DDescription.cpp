@@ -17,6 +17,13 @@ AA_3DDescription::AA_3DDescription()
 	StaticMeshComponent->SetupAttachment(SphereComponent);
 	SpotLightComponent->SetupAttachment(RootComponent);
 	SceneCaptureComponent2D->SetupAttachment(RootComponent);
+
+	SceneCaptureComponent2D->SetRelativeLocation(FVector(50.0f, 0.0f, 25.0f));
+	SceneCaptureComponent2D->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+
+	SpotLightComponent->SetRelativeLocation(FVector(250.0f, 0.0f, 0.0f));
+	SpotLightComponent->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+
 }
 
 void AA_3DDescription::BeginPlay()
