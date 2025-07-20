@@ -1,0 +1,159 @@
+#include "NodeGridActor.h"
+#include "DrawDebugHelpers.h"
+
+ANodeGridActor::ANodeGridActor()
+{
+    PrimaryActorTick.bCanEverTick = true;
+}
+
+void ANodeGridActor::BeginPlay()
+{
+    Super::BeginPlay();
+    InitializeGrid();
+}
+
+void ANodeGridActor::InitializeGrid()
+{
+    Nodes.Empty();
+    const int32 TotalCols = GridCols + 1;
+    const int32 TotalRows = GridRows + 1;
+    const float HalfX = GridCols * 0.5f * CellSize;
+    const float HalfY = GridRows * 0.5f * CellSize;
+
+    for (int32 y = 0; y < TotalRows; ++y)
+    {
+        for (int32 x = 0; x < TotalCols; ++x)
+        {
+            const int32 Index = y * TotalCols + x;
+
+            FNode NewNode;
+            FVector LocalOffset(x * CellSize - HalfX, y * CellSize - HalfY, 0);
+            NewNode.Position = GetActorTransform().TransformPosition(LocalOffset);
+            NewNode.Velocity = FVector::ZeroVector;
+            NewNode.bFixed = false;
+
+            if (x < GridCols)
+            {
+                FNodeLink RightLink;
+                RightLink.NeighborIndex = Index + 1;
+                RightLink.RestLength = CellSize;
+                NewNode.Links.Add(RightLink);
+            }
+
+            if (y < GridRows)
+            {
+                FNodeLink DownLink;
+                DownLink.NeighborIndex = Index + TotalCols;
+                DownLink.RestLength = CellSize;
+                NewNode.Links.Add(DownLink);
+            }
+
+            Nodes.Add(NewNode);
+        }
+    }
+}
+
+void ANodeGridActor::PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor)
+{
+    if (InfluenceFactor < MinPropagationThreshold || !Nodes.IsValidIndex(SourceIndex)) return;
+
+    const FNode& Source = Nodes[SourceIndex];
+    if (Source.bFixed) return;
+
+    for (const FNodeLink& Link : Source.Links)
+    {
+        const int32 NeighborIndex = Link.NeighborIndex;
+        if (!Nodes.IsValidIndex(NeighborIndex)) continue;
+
+        FNode& Neighbor = Nodes[NeighborIndex];
+        if (Neighbor.bFixed) continue;
+
+        float Distance = (Neighbor.Position - Source.Position).Size();
+        if (Distance > Link.CriticalLength)
+        {
+            Neighbor.AccumulatedForce += SourceVelocity * InfluenceFactor;
+            PropagateInfluence(NeighborIndex, SourceVelocity, InfluenceFactor * InfluenceAttenuation);
+        }
+    }
+}
+
+void ANodeGridActor::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    // Фаза накопления сил
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        FNode& Node = Nodes[i];
+        if (Node.bFixed) continue;
+
+        for (const FNodeLink& Link : Node.Links)
+        {
+            if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
+            FNode& Neighbor = Nodes[Link.NeighborIndex];
+
+            FVector Delta = Neighbor.Position - Node.Position;
+            float Distance = Delta.Size();
+            float Stretch = FMath::Max(0.f, Distance - Link.RestLength);
+
+            if (Stretch > 0.f)
+            {
+                FVector Dir = Delta / Distance;
+                FVector Force = Dir * Stretch * Link.Stiffness;
+
+                Node.AccumulatedForce += Force;
+                if (!Neighbor.bFixed)
+                    Neighbor.AccumulatedForce -= Force;
+            }
+
+            if (Distance > Link.CriticalLength && !Neighbor.bFixed)
+            {
+                Node.AccumulatedForce += Delta * Link.InfluenceFactor;
+                PropagateInfluence(Link.NeighborIndex, Neighbor.Velocity, Link.InfluenceFactor);
+            }
+        }
+    }
+
+    // Фаза движения
+    const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;
+
+    for (FNode& Node : Nodes)
+    {
+        if (!Node.bFixed)
+        {
+            Node.AccumulatedForce += GravityForce;
+            Node.Velocity += Node.AccumulatedForce * DeltaTime;
+            Node.Position += Node.Velocity * DeltaTime;
+            Node.Velocity *= DampingFactor;
+        }
+
+        Node.AccumulatedForce = FVector::ZeroVector;
+    }
+
+    // Отладочная визуализация
+    if (bEnableDebugDraw)
+    {
+        const FColor FreeColor = FColor::Green;
+        const FColor FixedColor = FColor::Red;
+
+        for (int32 i = 0; i < Nodes.Num(); ++i)
+        {
+            const FNode& Node = Nodes[i];
+            const FColor NodeColor = Node.bFixed ? FixedColor : FreeColor;
+
+            DrawDebugSphere(GetWorld(), Node.Position, DebugSphereRadius, 12, NodeColor, false, -1.f, 0, 0.5f);
+
+            for (const FNodeLink& Link : Node.Links)
+            {
+                if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
+                const FNode& Neighbor = Nodes[Link.NeighborIndex];
+
+                float CurrentLength = (Neighbor.Position - Node.Position).Size();
+                float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, 2.f);
+
+                FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio / 1.1f);
+                DrawDebugLine(GetWorld(), Node.Position, Neighbor.Position, LineColor.ToFColor(true), false, -1.f, 0, DebugLineThickness);
+            }
+        }
+    }
+}
