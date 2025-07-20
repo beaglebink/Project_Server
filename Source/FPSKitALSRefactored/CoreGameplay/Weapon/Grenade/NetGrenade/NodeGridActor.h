@@ -2,47 +2,51 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+
 #include "NodeGridActor.generated.h"
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FNodeLink
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY()
     int32 NeighborIndex;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float RestLength = 100.f;
+    UPROPERTY()
+    float RestLength;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Stiffness = 10.f;
+    UPROPERTY()
+    float CriticalLength;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float CriticalLength = 120.f;
+    UPROPERTY()
+    float Stiffness;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float InfluenceFactor = 0.2f;
+    UPROPERTY()
+    float InfluenceFactor = 1.0f; // <-- Добавлено
 };
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FNode
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY()
     FVector Position;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY()
+    FVector PendingPosition;
+
+    UPROPERTY()
     FVector Velocity;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY()
+    FVector AccumulatedForce;
+
+    UPROPERTY()
     bool bFixed = false;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-    FVector AccumulatedForce = FVector::ZeroVector;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY()
     TArray<FNodeLink> Links;
 };
 
@@ -54,6 +58,24 @@ class FPSKITALSREFACTORED_API ANodeGridActor : public AActor
 public:
     ANodeGridActor();
 
+protected:
+    virtual void BeginPlay() override;
+
+public:
+    virtual void Tick(float DeltaTime) override;
+
+private:
+    void InitializeGrid();
+    void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
+    void OnAsyncTraceResult(const FTraceHandle& Handle, FTraceDatum& Data);
+
+    UPROPERTY()
+    TArray<FNode> Nodes;
+
+    //UPROPERTY()
+    TMap<FTraceHandle, int32> TraceHandleToNode;
+    FTraceDelegate AsyncLineTraceDelegate;
+
     UPROPERTY(EditAnywhere)
     int32 GridRows = 10;
 
@@ -61,49 +83,41 @@ public:
     int32 GridCols = 10;
 
     UPROPERTY(EditAnywhere)
-    float CellSize = 100.f;
+    float CellSize = 50.0f;
 
     UPROPERTY(EditAnywhere)
-    float DampingFactor = 0.98f;
+    float CritLen = 80.0f;
+
+    UPROPERTY(EditAnywhere)
+    float Stiffness = 25.0f;
+
+    UPROPERTY(EditAnywhere)
+    float InfluenceAttenuation = 0.4f;
+
+    UPROPERTY(EditAnywhere)
+    float MinPropagationThreshold = 0.01f;
 
     UPROPERTY(EditAnywhere)
     FVector GravityDirection = FVector(0, 0, -1);
 
     UPROPERTY(EditAnywhere)
-    float GravityStrength = 980.f;
+    float GravityStrength = 980.0f;
 
     UPROPERTY(EditAnywhere)
-    float InfluenceAttenuation = 0.5f;
+    float DampingFactor = 0.96f;
 
     UPROPERTY(EditAnywhere)
-    float MinPropagationThreshold = 0.005f;
-
-    UPROPERTY(EditAnywhere)
-    float CritLen = 150.f;
-
-    UPROPERTY(EditAnywhere)
-    float Stiffness = 10.f;
-
-    UPROPERTY(EditAnywhere)
-    float DebugSphereRadius = 2.f;
-
-    UPROPERTY(EditAnywhere)
-    float DebugLineThickness = 1.f;
-
-    UPROPERTY(EditAnywhere)
-    float RCorrect = 1.5f;
+    float OverlapRadius = 2.0f;
 
     UPROPERTY(EditAnywhere)
     bool bEnableDebugDraw = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TArray<FNode> Nodes;
+    UPROPERTY(EditAnywhere)
+    float DebugSphereRadius = 4.0f;
 
-protected:
-    virtual void BeginPlay() override;
-    virtual void Tick(float DeltaTime) override;
+    UPROPERTY(EditAnywhere)
+    float DebugLineThickness = 0.5f;
 
-private:
-    void InitializeGrid();
-    void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
+    UPROPERTY(EditAnywhere)
+    float RCorrect = 1.0f;
 };
