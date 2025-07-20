@@ -79,10 +79,19 @@ public:
     float MinPropagationThreshold = 0.005f;
 
     UPROPERTY(EditAnywhere)
+    float CritLen = 150.f;
+
+    UPROPERTY(EditAnywhere)
+    float Stiffness = 10.f;
+
+    UPROPERTY(EditAnywhere)
     float DebugSphereRadius = 2.f;
 
     UPROPERTY(EditAnywhere)
     float DebugLineThickness = 1.f;
+
+    UPROPERTY(EditAnywhere)
+    float RCorrect = 1.5f;
 
     UPROPERTY(EditAnywhere)
     bool bEnableDebugDraw = true;

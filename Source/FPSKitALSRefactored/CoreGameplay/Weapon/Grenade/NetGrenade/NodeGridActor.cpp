@@ -37,6 +37,8 @@ void ANodeGridActor::InitializeGrid()
                 FNodeLink RightLink;
                 RightLink.NeighborIndex = Index + 1;
                 RightLink.RestLength = CellSize;
+                RightLink.CriticalLength = CritLen;
+				RightLink.Stiffness = Stiffness;
                 NewNode.Links.Add(RightLink);
             }
 
@@ -45,6 +47,8 @@ void ANodeGridActor::InitializeGrid()
                 FNodeLink DownLink;
                 DownLink.NeighborIndex = Index + TotalCols;
                 DownLink.RestLength = CellSize;
+                DownLink.CriticalLength = CritLen;
+				DownLink.Stiffness = Stiffness;
                 NewNode.Links.Add(DownLink);
             }
 
@@ -149,9 +153,9 @@ void ANodeGridActor::Tick(float DeltaTime)
                 const FNode& Neighbor = Nodes[Link.NeighborIndex];
 
                 float CurrentLength = (Neighbor.Position - Node.Position).Size();
-                float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, 2.f);
+                float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, RCorrect);
 
-                FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio / 1.1f);
+                FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio);
                 DrawDebugLine(GetWorld(), Node.Position, Neighbor.Position, LineColor.ToFColor(true), false, -1.f, 0, DebugLineThickness);
             }
         }
