@@ -9,35 +9,38 @@ UAC_Container::UAC_Container()
 
 void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount)
 {
-	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
-
-	if (ItemData && ItemData->bCanStack)
+	if (ItemDataTable)
 	{
-		FS_Item* ItemToAdd = Items.FindByPredicate([&](FS_Item& ArrayItem)
-			{
-				return ArrayItem.Name == Name;
-			});
+		FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
 
-		if (ItemToAdd)
+		if (ItemData && ItemData->bCanStack)
 		{
-			ItemToAdd->Quantity += Quantity;
+			FS_Item* ItemToAdd = Items.FindByPredicate([&](FS_Item& ArrayItem)
+				{
+					return ArrayItem.Name == Name;
+				});
+
+			if (ItemToAdd)
+			{
+				ItemToAdd->Quantity += Quantity;
+			}
+			else
+			{
+				Items.Add(FS_Item(Name, Quantity));
+			}
 		}
 		else
 		{
-			Items.Add(FS_Item(Name, Quantity));
+			Items.Add(FS_Item(Name, 1));
 		}
-	}
-	else
-	{
-		Items.Add(FS_Item(Name, 1));
-	}
 
-	TotalWeight += ItemData->Weight * Quantity;
-	OnWeightChanged.Broadcast(TotalWeight);
+		TotalWeight += ItemData->Weight * Quantity;
+		OnWeightChanged.Broadcast(TotalWeight);
 
-	if (bShouldCount)
-	{
-		TotalMoney -= ItemData->Value * Quantity * TradeCoeff;
+		if (bShouldCount)
+		{
+			TotalMoney -= ItemData->Value * Quantity * TradeCoeff;
+		}
 	}
 }
 
@@ -96,15 +99,17 @@ void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, float TradeC
 			Items.RemoveAt(IndexToRemove);
 		}
 	}
-
-	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
-
-	TotalWeight -= ItemData->Weight * Quantity;
-	OnWeightChanged.Broadcast(TotalWeight);
-
-	if (bShouldCount)
+	if (ItemDataTable)
 	{
-		TotalMoney += ItemData->Value * Quantity * TradeCoeff;
+		FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
+
+		TotalWeight -= ItemData->Weight * Quantity;
+		OnWeightChanged.Broadcast(TotalWeight);
+
+		if (bShouldCount)
+		{
+			TotalMoney += ItemData->Value * Quantity * TradeCoeff;
+		}
 	}
 }
 
@@ -124,7 +129,7 @@ bool UAC_Container::SpawnRemovedItem(FName Name)
 
 	AA_PickUp* PickUpActor = GetWorld()->SpawnActor<AA_PickUp>(AA_PickUp::StaticClass(), SpawnTransform, SpawnParams);
 
-	if (!PickUpActor)
+	if (!PickUpActor || !ItemDataTable)
 	{
 		return false;
 	}
@@ -146,6 +151,11 @@ bool UAC_Container::SpawnRemovedItem(FName Name)
 
 void UAC_Container::Items_Sort(EnumSortType SortType, bool bIsDecreasing)
 {
+	if (!ItemDataTable)
+	{
+		return;
+	}
+
 	switch (SortType)
 	{
 	case EnumSortType::A_Z:

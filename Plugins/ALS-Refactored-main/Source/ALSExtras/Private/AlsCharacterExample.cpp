@@ -28,6 +28,8 @@ AAlsCharacterExample::AAlsCharacterExample()
 	SceneCaptureComponent->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
 	SceneCaptureComponent->FOVAngle = 50.0f;
 
+	InventoryComponent = CreateDefaultSubobject<UAC_Inventory>(TEXT("InventoryComponent"));
+
 	//PhysicsConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("PhysicsConstraint"));
 	//PhysicsConstraint->SetupAttachment(RootComponent);
 }
