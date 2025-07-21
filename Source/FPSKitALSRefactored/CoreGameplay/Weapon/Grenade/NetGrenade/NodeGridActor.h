@@ -63,18 +63,14 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
 
-    // Доступ к узлам из Blueprint
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TArray<FNode> Nodes;
-
 private:
     void InitializeGrid();
     void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
-    void OnAsyncTraceResult(const FTraceHandle& Handle, FTraceDatum& Data);
+    void EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime);
 
-    //UPROPERTY() // отключённый map трассировки
-    TMap<FTraceHandle, int32> TraceHandleToNode;
-    FTraceDelegate AsyncLineTraceDelegate;
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<FNode> Nodes;
 
     UPROPERTY(EditAnywhere)
     int32 GridRows = 10;
@@ -110,6 +106,12 @@ private:
     float OverlapRadius = 2.0f;
 
     UPROPERTY(EditAnywhere)
+    float StopVelocity = 0.1f;
+
+    UPROPERTY(EditAnywhere)
+    float StopTresholdPart = 0.95f;
+
+    UPROPERTY(EditAnywhere)
     bool bEnableDebugDraw = true;
 
     UPROPERTY(EditAnywhere)
@@ -120,4 +122,8 @@ private:
 
     UPROPERTY(EditAnywhere)
     float RCorrect = 1.0f;
+
+private:
+	int32 StopCount = 0; // Счётчик остановленных узлов
+    
 };

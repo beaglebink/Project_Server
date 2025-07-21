@@ -1,7 +1,7 @@
 #include "NodeGridActor.h"
 #include "DrawDebugHelpers.h"
 #include "Components/StaticMeshComponent.h"
-#include "GameFramework/Character.h" 
+#include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
 
 ANodeGridActor::ANodeGridActor()
@@ -24,10 +24,9 @@ void ANodeGridActor::InitializeGrid()
     const float HalfX = GridCols * 0.5f * CellSize;
     const float HalfY = GridRows * 0.5f * CellSize;
 
-    // Создание узлов
-    for (int32 y = 0; y <= GridRows; ++y)
+    for (int32 y = 0; y < TotalRows; ++y)
     {
-        for (int32 x = 0; x <= GridCols; ++x)
+        for (int32 x = 0; x < TotalCols; ++x)
         {
             FVector LocalOffset(x * CellSize - HalfX, y * CellSize - HalfY, 0);
             FVector Pos = GetActorTransform().TransformPosition(LocalOffset);
@@ -35,14 +34,12 @@ void ANodeGridActor::InitializeGrid()
         }
     }
 
-    // 🔹 Построение связей по узлам (вправо и вниз)
     for (int32 y = 0; y < TotalRows; ++y)
     {
         for (int32 x = 0; x < TotalCols; ++x)
         {
             int32 Index = y * TotalCols + x;
 
-            // Связь вправо
             if (x < TotalCols - 1)
             {
                 int32 Right = Index + 1;
@@ -52,7 +49,6 @@ void ANodeGridActor::InitializeGrid()
                 Nodes[Right].Links.Add(FNodeLink{ Index, Rest, CritLen, Stiffness, InfluenceAttenuation });
             }
 
-            // Связь вниз
             if (y < TotalRows - 1)
             {
                 int32 Down = Index + TotalCols;
@@ -64,6 +60,7 @@ void ANodeGridActor::InitializeGrid()
         }
     }
 }
+
 void ANodeGridActor::PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor)
 {
     if (InfluenceFactor < MinPropagationThreshold || !Nodes.IsValidIndex(SourceIndex)) return;
@@ -82,25 +79,66 @@ void ANodeGridActor::PropagateInfluence(int32 SourceIndex, const FVector& Source
         const float Distance = (Neighbor.Position - Source.Position).Size();
         if (Distance > Link.CriticalLength)
         {
-			Neighbor.AccumulatedForce += SourceVelocity * InfluenceFactor; // Проверить знак! Возможно, нужно инвертировать вектор
+            Neighbor.AccumulatedForce += SourceVelocity * InfluenceFactor;
             PropagateInfluence(NeighborIndex, SourceVelocity, InfluenceFactor * InfluenceAttenuation);
         }
     }
 }
- 
+
+void ANodeGridActor::EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime)
+{
+    FVector Delta = B.Position - A.Position;
+    float CurrentLength = Delta.Size();
+
+    if (CurrentLength <= Link.RestLength)
+        return; // связь в нормальном состоянии — ни импульса, ни ограничения
+
+    FVector Dir = Delta / CurrentLength;
+
+    if (CurrentLength > Link.CriticalLength)
+    {
+        // 🔒 Ограничение длины — не выше критической
+        float ClampedLength = FMath::Min(CurrentLength, Link.CriticalLength);
+        FVector Target = B.Position - Dir * ClampedLength;
+        A.Position = Target;
+
+        // 🔧 Коррекция скорости — удаляем компонент растяжения
+        float RelSpeed = FVector::DotProduct(B.Velocity - A.Velocity, Dir);
+        FVector VelocityCorrection = RelSpeed * Dir/* * Link.Stiffness * DeltaTime*/;
+
+        A.Velocity += VelocityCorrection;
+        B.Velocity -= VelocityCorrection;
+    }
+    /*
+    // 🧲 Сжатие обратно к RestLength, если связь остаётся растянутой
+    if (CurrentLength > Link.RestLength)
+    {
+        float Compression = CurrentLength - Link.RestLength;
+        FVector RestoringForce = -Dir * Compression * Link.Stiffness;
+
+        A.AccumulatedForce += RestoringForce;
+        if (!B.bFixed)
+            B.AccumulatedForce -= RestoringForce;
+    }
+    */
+}
+
 void ANodeGridActor::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-        const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;
+    const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;
     const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(OverlapRadius);
-    FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);
-    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);
+    const FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);
+    const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);
 
-    // Фаза накопления сил
+	StopCount = 0; // Сброс счётчика остановленных узлов
+
+    // ⬇️ Фаза накопления сил
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         FNode& Node = Nodes[i];
+
 
         UE_LOG(LogTemp, Log, TEXT("[Node %d] Fixed: %s | Vel: %s (%f) | Pos: %s"),
             i,
@@ -109,12 +147,18 @@ void ANodeGridActor::Tick(float DeltaTime)
             Node.Velocity.Length(),
             *Node.Position.ToString());
 
+		if (Node.bFixed && Node.Velocity.Length() <= StopVelocity)
+		{
+			StopCount++; // Увеличиваем счётчик остановленных узлов
+		}
+
         if (Node.bFixed) continue;
 
         for (const FNodeLink& Link : Node.Links)
         {
             if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
             FNode& Neighbor = Nodes[Link.NeighborIndex];
+            //if (Neighbor.bFixed) continue;
 
             FVector Delta = Neighbor.Position - Node.Position;
             float Distance = Delta.Size();
@@ -123,46 +167,36 @@ void ANodeGridActor::Tick(float DeltaTime)
             if (Stretch > 0.f)
             {
                 FVector Dir = Delta / Distance;
-
-                float OverStretchRatio = FMath::Max(Distance / Link.RestLength, 1.0f);
-                float StretchMultiplier = FMath::Pow(OverStretchRatio, 2.0f);
-
-
                 FVector Force = Dir * Stretch * Link.Stiffness;
-                //FVector Force = Dir * Stretch * Link.Stiffness * StretchMultiplier;
-
-
                 Node.AccumulatedForce += Force;
-                if (!Neighbor.bFixed)
-                    Neighbor.AccumulatedForce -= Force;
+                Neighbor.AccumulatedForce -= Force;
             }
 
-            if (Distance > Link.CriticalLength && !Neighbor.bFixed)
+            if (Distance > Link.RestLength)
             {
-                Node.AccumulatedForce += Delta * Link.InfluenceFactor; // Проверить знак!
+                Node.AccumulatedForce += Delta * Link.InfluenceFactor;
                 PropagateInfluence(Link.NeighborIndex, Neighbor.Velocity, Link.InfluenceFactor);
             }
         }
     }
 
+    // ⬇️ Фаза движения и фиксации
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         FNode& Node = Nodes[i];
+
+        UE_LOG(LogTemp, Log, TEXT("[Node %d] Accumulated Force: %s"),
+            i,
+            *Node.AccumulatedForce.ToString());
+
         if (Node.bFixed) continue;
 
-        // Движение
         Node.AccumulatedForce += GravityForce;
-
-		UE_LOG(LogTemp, Log, TEXT("[Node %d] Accumulated Force: %s"),
-			i,
-			*Node.AccumulatedForce.ToString());
-
         Node.Velocity += Node.AccumulatedForce * DeltaTime;
         Node.PendingPosition = Node.Position + Node.Velocity * DeltaTime;
 
         bool bFixed = false;
 
-        // Поиск пересекающихся компонентов
         TArray<FOverlapResult> Overlaps;
         GetWorld()->OverlapMultiByObjectType(
             Overlaps,
@@ -178,7 +212,6 @@ void ANodeGridActor::Tick(float DeltaTime)
             UPrimitiveComponent* HitComp = Overlap.Component.Get();
             if (!HitComp) continue;
 
-            // StaticMesh: реагируем сразу
             if (HitComp->IsA<UStaticMeshComponent>())
             {
                 Node.Position = Node.PendingPosition;
@@ -188,7 +221,6 @@ void ANodeGridActor::Tick(float DeltaTime)
                 break;
             }
 
-            // SkeletalMesh: фильтрация через SourceActor
             AActor* SourceActor = HitComp->GetOwner();
             if (!SourceActor) continue;
 
@@ -198,7 +230,6 @@ void ANodeGridActor::Tick(float DeltaTime)
             USkeletalMeshComponent* FixationMesh = Char->GetMesh();
             if (!FixationMesh || !FixationMesh->IsRegistered()) continue;
 
-            // Явная проверка: меш должен быть в OverlapMultiByChannel
             TArray<FOverlapResult> MeshOverlaps;
             FCollisionQueryParams MeshParams(TEXT("FixationMeshCheck"), false, this);
 
@@ -226,7 +257,6 @@ void ANodeGridActor::Tick(float DeltaTime)
             if (bFixed) break;
         }
 
-        // Движение при отсутствии фиксации
         if (!bFixed)
         {
             Node.Position = Node.PendingPosition;
@@ -236,7 +266,23 @@ void ANodeGridActor::Tick(float DeltaTime)
         Node.AccumulatedForce = FVector::ZeroVector;
     }
 
-    // Отладочная визуализация
+    // ⬇️ Архитектурное ограничение растяжения связей
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        FNode& Node = Nodes[i];
+        if (Node.bFixed) continue;
+
+        for (const FNodeLink& Link : Node.Links)
+        {
+            if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
+            FNode& Neighbor = Nodes[Link.NeighborIndex];
+            if (Neighbor.bFixed) continue;
+
+            EnforceRigidLinkConstraint(Node, Neighbor, Link, DeltaTime);
+        }
+    }
+
+    // ⬇️ Визуализация
     if (bEnableDebugDraw)
     {
         const FColor FreeColor = FColor::Green;
@@ -254,9 +300,9 @@ void ANodeGridActor::Tick(float DeltaTime)
                 if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
                 const FNode& Neighbor = Nodes[Link.NeighborIndex];
 
-                const float CurrentLength = (Neighbor.Position - Node.Position).Size();
-                const float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, RCorrect);
-                const FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio);
+                float CurrentLength = (Neighbor.Position - Node.Position).Size();
+                float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, RCorrect);
+                FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio);
 
                 DrawDebugLine(GetWorld(), Node.Position, Neighbor.Position, LineColor.ToFColor(true), false, -1.f, 0, DebugLineThickness);
             }
