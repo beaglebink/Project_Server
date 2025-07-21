@@ -26,7 +26,7 @@ void AA_PickUp::BeginPlay()
 void AA_PickUp::AddToInventory(UInteractivePickerComponent* Picker)
 {
 	UAC_Inventory* Inventory = Cast<UAC_Inventory>(Picker->GetOwner()->GetComponentByClass(UAC_Inventory::StaticClass()));
-	Inventory->ContainerComponent->AddToContainer(Name, 1);
+	Inventory->ContainerComponent->AddToContainer(Name, 1, 1.0f, false);
 
 	if (Sound)
 	{

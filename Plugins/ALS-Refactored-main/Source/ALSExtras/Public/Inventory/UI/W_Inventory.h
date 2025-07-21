@@ -37,13 +37,13 @@ public:
 	UScrollBox* ScrollBox_Items;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
-	UTextBlock* TextBlock_Armour;
+	UTextBlock* TextBlock_TotalArmour;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
 	UTextBlock* TextBlock_TotalWeight;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Slot text field", meta = (BindWidget))
-	UTextBlock* TextBlock_Money;
+	UTextBlock* TextBlock_TotalMoney;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")

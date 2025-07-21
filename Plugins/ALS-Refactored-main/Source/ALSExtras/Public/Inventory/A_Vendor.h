@@ -13,7 +13,7 @@ public:
 	AA_Vendor();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Summary")
-	float MoneyAmount;
+	float TotalMoney;
 
 protected:
 

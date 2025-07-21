@@ -7,7 +7,6 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnArmourChanged, float, Armour);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeightChanged, float, Weight);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, float, Money);
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_Container : public UActorComponent
@@ -36,32 +35,31 @@ public:
 	float TotalWeight;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Summary")
-	float MoneyAmount;
+	float TotalMoney;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Trading")
+	float TradeCoefficient = 1.0f;
+
+	UPROPERTY(BlueprintAssignable)
 	FOnArmourChanged OnArmourChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnWeightChanged OnWeightChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
-	FOnMoneyChanged OnMoneyChanged;
+	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
+	void AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount);
 
 	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
-	void AddToContainer(FName Name, int32 Quantity);
-
-private:
-	TMap<FName, int32> ItemsToSpawn;
-
-	FTimerHandle RemoveItemsHandle;
-
-public:
-	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
-	void RemoveFromContainer(FName Name, int32 Quantity, bool bShouldSpawn = false);
+	void RemoveFromContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn = false);
 
 	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
 	bool SpawnRemovedItem(FName Name);
 
 	UFUNCTION(BlueprintCallable, Category = "Sorting")
 	void Items_Sort(EnumSortType SortType, bool bIsDecreasing);
+
+private:
+	TMap<FName, int32> ItemsToSpawn;
+
+	FTimerHandle RemoveItemsHandle;
 };
