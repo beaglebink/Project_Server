@@ -36,7 +36,7 @@ void UW_InventoryHUD::NativeConstruct()
 		NotEnoughWidget = CreateWidget<UW_NotEnough>(GetWorld(), NotEnoughWidgetClass);
 		if (NotEnoughWidget)
 		{
-			UCanvasPanelSlot* BoxSlot = CanvasPanel_Confirmation_HowMuch_NotEnough->AddChildToCanvas(NotEnoughWidget);
+			UCanvasPanelSlot* BoxSlot = CanvasPanel_HowMuch_NotEnough->AddChildToCanvas(NotEnoughWidget);
 			if (BoxSlot)
 			{
 				BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
@@ -51,6 +51,8 @@ void UW_InventoryHUD::NativeConstruct()
 
 void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToInteract, FName KeyPressed)
 {
+	bIsMoneyEnough = true;
+
 	switch (SlotInventoryType)
 	{
 	case EnumInventoryType::Inventory:
@@ -168,7 +170,16 @@ void UW_InventoryHUD::CheckHowMuch(UW_Inventory* Inventory_From, UW_Inventory* I
 			HowMuchWidget->Inventory_FromRef = Inventory_From;
 			HowMuchWidget->Inventory_ToRef = Inventory_To;
 			HowMuchWidget->SlotRef = SlotToInteract;
-			CanvasPanel_Confirmation_HowMuch_NotEnough->AddChild(HowMuchWidget);
+
+			UCanvasPanelSlot* BoxSlot = CanvasPanel_HowMuch_NotEnough->AddChildToCanvas(HowMuchWidget);
+			if (BoxSlot)
+			{
+				BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+				BoxSlot->SetPosition(FVector2D(0.f, 0.f));
+				BoxSlot->SetSize(FVector2D(300.f, 150.f));
+				BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+				BoxSlot->SetZOrder(0);
+			}
 		}
 	}
 }
@@ -179,12 +190,18 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 	{
 		return;
 	}
+	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(SlotToAdd->Item.Name, TEXT("Find row in datatable"));
+
+	if (ItemData && Inventory_To->Container->TotalMoney)
+	{
+
 
 	NotEnoughWidget->PlayAppearing();
+	return;
+	}
 
 	SlotToAdd->InventoryType = Inventory_To->InventoryType;
 
-	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(SlotToAdd->Item.Name, TEXT("Find row in datatable"));
 
 	if (ItemData && ItemData->bCanStack)
 	{
@@ -234,6 +251,11 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 
 void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldCount, bool bShouldSpawn)
 {
+	if (!bIsMoneyEnough)
+	{
+		return;
+	}
+
 	if (SlotToRemove->Item.Quantity != QuantityToRemove)
 	{
 		int32 SlotIndex = Inventory_From->ScrollBox_Items->GetChildIndex(SlotToRemove);

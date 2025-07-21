@@ -66,7 +66,7 @@ public:
 	UCanvasPanel* CanvasPanel_Additive;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
-	UCanvasPanel* CanvasPanel_Confirmation_HowMuch_NotEnough;
+	UCanvasPanel* CanvasPanel_HowMuch_NotEnough;
 
 	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
 	uint8 bHowMuchIsOpen : 1{false};
@@ -115,4 +115,6 @@ protected:
 
 private:
 	float CurrentTradeCoeff = 1.0f;
+
+	uint8 bIsMoneyEnough : 1{true};
 };
