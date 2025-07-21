@@ -124,6 +124,5 @@ public:
     float RCorrect = 1.0f;
 
 private:
-	int32 StopCount = 0; // —чЄтчик остановленных узлов
-    
+    int32 StopCount = 0;
 };

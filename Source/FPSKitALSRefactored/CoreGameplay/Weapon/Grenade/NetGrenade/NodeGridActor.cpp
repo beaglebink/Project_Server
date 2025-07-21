@@ -77,7 +77,7 @@ void ANodeGridActor::PropagateInfluence(int32 SourceIndex, const FVector& Source
         if (Neighbor.bFixed) continue;
 
         const float Distance = (Neighbor.Position - Source.Position).Size();
-        if (Distance > Link.CriticalLength)
+        if (Distance > Link.RestLength)
         {
             Neighbor.AccumulatedForce += SourceVelocity * InfluenceFactor;
             PropagateInfluence(NeighborIndex, SourceVelocity, InfluenceFactor * InfluenceAttenuation);
@@ -97,30 +97,18 @@ void ANodeGridActor::EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeL
 
     if (CurrentLength > Link.CriticalLength)
     {
-        // 🔒 Ограничение длины — не выше критической
+        // Ограничение длины — не выше критической
         float ClampedLength = FMath::Min(CurrentLength, Link.CriticalLength);
         FVector Target = B.Position - Dir * ClampedLength;
         A.Position = Target;
 
-        // 🔧 Коррекция скорости — удаляем компонент растяжения
+        // Коррекция скорости — удаляем компонент растяжения
         float RelSpeed = FVector::DotProduct(B.Velocity - A.Velocity, Dir);
         FVector VelocityCorrection = RelSpeed * Dir/* * Link.Stiffness * DeltaTime*/;
 
         A.Velocity += VelocityCorrection;
         B.Velocity -= VelocityCorrection;
     }
-    /*
-    // 🧲 Сжатие обратно к RestLength, если связь остаётся растянутой
-    if (CurrentLength > Link.RestLength)
-    {
-        float Compression = CurrentLength - Link.RestLength;
-        FVector RestoringForce = -Dir * Compression * Link.Stiffness;
-
-        A.AccumulatedForce += RestoringForce;
-        if (!B.bFixed)
-            B.AccumulatedForce -= RestoringForce;
-    }
-    */
 }
 
 void ANodeGridActor::Tick(float DeltaTime)
@@ -132,63 +120,96 @@ void ANodeGridActor::Tick(float DeltaTime)
     const FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);
     const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);
 
-	StopCount = 0; // Сброс счётчика остановленных узлов
+    StopCount = 0;
 
-    // ⬇️ Фаза накопления сил
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        FNode& Node = Nodes[i];
+    // Распараллеленный расчёт сил и импульсов
+    TArray<FVector> LocalForces;
+    LocalForces.SetNumZeroed(Nodes.Num());
 
+    TArray<TTuple<int32, FVector, float>> PendingInfluences;
+    FCriticalSection InfluenceLock;
 
-        UE_LOG(LogTemp, Log, TEXT("[Node %d] Fixed: %s | Vel: %s (%f) | Pos: %s"),
-            i,
-            Node.bFixed ? TEXT("true") : TEXT("false"),
-            *Node.Velocity.ToString(),
-            Node.Velocity.Length(),
-            *Node.Position.ToString());
-
-		if (Node.bFixed || Node.Velocity.Length() <= StopVelocity)
-		{
-			StopCount++; // Увеличиваем счётчик остановленных узлов
-		}
-
-        if (Node.bFixed) continue;
-
-        for (const FNodeLink& Link : Node.Links)
+    ParallelFor(Nodes.Num(), [&](int32 i)
         {
-            if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
-            FNode& Neighbor = Nodes[Link.NeighborIndex];
-            //if (Neighbor.bFixed) continue;
+            const FNode& Node = Nodes[i];
+            if (Node.bFixed) return;
 
-            FVector Delta = Neighbor.Position - Node.Position;
-            float Distance = Delta.Size();
-            float Stretch = FMath::Max(0.f, Distance - Link.RestLength);
+            FVector AccForce = FVector::ZeroVector;
 
-            if (Stretch > 0.f)
+            for (const FNodeLink& Link : Node.Links)
             {
-                FVector Dir = Delta / Distance;
-                FVector Force = Dir * Stretch * Link.Stiffness;
-                Node.AccumulatedForce += Force;
-                Neighbor.AccumulatedForce -= Force;
+                int32 NeighborIndex = Link.NeighborIndex;
+
+                if (!Nodes.IsValidIndex(NeighborIndex)) continue;
+                const FNode& Neighbor = Nodes[NeighborIndex];
+
+                FVector Delta = Neighbor.Position - Node.Position;
+                float Distance = Delta.Size();
+                float Stretch = FMath::Max(0.f, Distance - Link.RestLength);
+
+                UE_LOG(LogTemp, Warning, TEXT("Stretch %f"), Stretch);
+
+                if (Stretch > 0.f)
+                {
+                    FVector Dir = Delta / Distance;
+                    FVector Force = Dir * Stretch * Link.Stiffness;
+                    AccForce += Force;
+                    LocalForces[NeighborIndex] -= Force;
+                }
+
+                if (Distance > Link.RestLength)
+                {
+                    float Ratio = Distance / Link.RestLength;
+                    float CriticalRatio = FMath::Max(Link.CriticalLength / Link.RestLength, 1.1f);
+
+                    float InfluenceScale = FMath::GetMappedRangeValueClamped(
+                        TRange<float>(1.1f, CriticalRatio),
+                        TRange<float>(0.1f, 1.0f),
+                        Ratio
+                    );
+
+                    FVector Dir = Delta / Distance;
+                    FVector Impulse = Dir * Link.InfluenceFactor * InfluenceScale;
+
+                    LocalForces[NeighborIndex] += Impulse;
+                    LocalForces[i] -= Impulse;
+
+                    InfluenceLock.Lock();
+                    PendingInfluences.Add({ NeighborIndex, Impulse, Link.InfluenceFactor * InfluenceScale });
+                    InfluenceLock.Unlock();
+                }
             }
 
-            if (Distance > Link.RestLength)
-            {
-                Node.AccumulatedForce += Delta * Link.InfluenceFactor;
-                PropagateInfluence(Link.NeighborIndex, Neighbor.Velocity, Link.InfluenceFactor);
-            }
-        }
+            LocalForces[i] += AccForce;
+        });
+
+    // Каскадная передача импульса
+    for (const auto& Entry : PendingInfluences)
+    {
+        int32 Index;
+        FVector Velocity;
+        float Influence;
+        Tie(Index, Velocity, Influence) = Entry;
+
+        PropagateInfluence(Index, Velocity, Influence);
     }
 
-    // ⬇️ Фаза движения и фиксации
+    // Применение сил + фиксация
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         FNode& Node = Nodes[i];
 
-        UE_LOG(LogTemp, Log, TEXT("[Node %d] Accumulated Force: %s"),
-            i,
-            *Node.AccumulatedForce.ToString());
+        if (Node.bFixed || Node.Velocity.Length() <= StopVelocity)
+            StopCount++;
 
+        if (Node.bFixed) continue;
+        Node.AccumulatedForce += LocalForces[i];
+    }
+
+    // Движение и фиксация
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        FNode& Node = Nodes[i];
         if (Node.bFixed) continue;
 
         Node.AccumulatedForce += GravityForce;
@@ -214,7 +235,7 @@ void ANodeGridActor::Tick(float DeltaTime)
 
             if (HitComp->IsA<UStaticMeshComponent>())
             {
-                Node.Position = Node.PendingPosition;
+                //Node.Position = Node.PendingPosition;
                 Node.Velocity = FVector::ZeroVector;
                 Node.bFixed = true;
                 bFixed = true;
@@ -246,7 +267,7 @@ void ANodeGridActor::Tick(float DeltaTime)
             {
                 if (MeshOverlap.Component.Get() == FixationMesh)
                 {
-                    Node.Position = Node.PendingPosition;
+                    //Node.Position = Node.PendingPosition;
                     Node.Velocity = FVector::ZeroVector;
                     Node.bFixed = true;
                     bFixed = true;
@@ -266,7 +287,7 @@ void ANodeGridActor::Tick(float DeltaTime)
         Node.AccumulatedForce = FVector::ZeroVector;
     }
 
-    // ⬇️ Архитектурное ограничение растяжения связей
+    // Ограничение растяжения
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         FNode& Node = Nodes[i];
@@ -282,15 +303,12 @@ void ANodeGridActor::Tick(float DeltaTime)
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("Stop count %d"), StopCount);
+    // Визуализация
+    const float SPart = float(StopCount) / float(Nodes.Num());
+    const float DrawLifeTime = SPart >= StopTresholdPart ? 20.f : -1.f;
 
-    float SPart = float(StopCount) / float(Nodes.Num());
-
-    // ⬇️ Визуализация
     if (bEnableDebugDraw)
     {
-        float DrawLifeTime = SPart >= StopTresholdPart ? 20.0 : -1.f;
-
         const FColor FreeColor = FColor::Green;
         const FColor FixedColor = FColor::Red;
 
@@ -315,10 +333,9 @@ void ANodeGridActor::Tick(float DeltaTime)
         }
     }
 
-
     if (StopCount > 0 && SPart >= StopTresholdPart)
     {
-        SetActorTickEnabled(false); // Отключаем тики, если узлы остановились
+        SetActorTickEnabled(false);
         UE_LOG(LogTemp, Log, TEXT("Process stop %d"), StopCount);
     }
 }
