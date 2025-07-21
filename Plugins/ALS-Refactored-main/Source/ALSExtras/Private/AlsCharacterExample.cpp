@@ -50,9 +50,6 @@ void AAlsCharacterExample::BeginPlay()
 		PhysicsConstraint->SetAngularOrientationDrive(true, true);
 		PhysicsConstraint->SetAngularDriveParams(500.0f, 50.0f, 0.0f);
 	*/
-	Inventory = FindComponentByClass<UAC_Inventory>();
-
-	Inventory->ContainerComponent->OnWeightChanged.AddDynamic(this, &AAlsCharacter::SetWeightSpeedMultiplier);
 
 	FrameListSize = static_cast<uint8>(floor(RepeatingPeaceDuration / GetWorld()->GetDeltaSeconds()));
 }
@@ -586,6 +583,12 @@ void AAlsCharacterExample::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 
 	InitStatWidget();
+
+	Inventory = FindComponentByClass<UAC_Inventory>();
+	if (Inventory)
+	{
+		Inventory->ContainerComponent->OnWeightChanged.AddDynamic(this, &AAlsCharacter::SetWeightSpeedMultiplier);
+	}
 }
 
 void AAlsCharacterExample::UnPossessed()
