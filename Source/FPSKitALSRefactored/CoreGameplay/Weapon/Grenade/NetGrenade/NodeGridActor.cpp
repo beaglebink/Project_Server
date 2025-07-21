@@ -147,7 +147,7 @@ void ANodeGridActor::Tick(float DeltaTime)
             Node.Velocity.Length(),
             *Node.Position.ToString());
 
-		if (Node.bFixed && Node.Velocity.Length() <= StopVelocity)
+		if (Node.bFixed || Node.Velocity.Length() <= StopVelocity)
 		{
 			StopCount++; // Увеличиваем счётчик остановленных узлов
 		}
@@ -282,9 +282,15 @@ void ANodeGridActor::Tick(float DeltaTime)
         }
     }
 
+    UE_LOG(LogTemp, Log, TEXT("Stop count %d"), StopCount);
+
+    float SPart = float(StopCount) / float(Nodes.Num());
+
     // ⬇️ Визуализация
     if (bEnableDebugDraw)
     {
+        float DrawLifeTime = SPart >= StopTresholdPart ? 20.0 : -1.f;
+
         const FColor FreeColor = FColor::Green;
         const FColor FixedColor = FColor::Red;
 
@@ -293,7 +299,7 @@ void ANodeGridActor::Tick(float DeltaTime)
             const FNode& Node = Nodes[i];
             const FColor NodeColor = Node.bFixed ? FixedColor : FreeColor;
 
-            DrawDebugSphere(GetWorld(), Node.Position, DebugSphereRadius, 12, NodeColor, false, -1.f, 0, 0.5f);
+            DrawDebugSphere(GetWorld(), Node.Position, DebugSphereRadius, 12, NodeColor, false, DrawLifeTime, 0, 0.5f);
 
             for (const FNodeLink& Link : Node.Links)
             {
@@ -304,8 +310,15 @@ void ANodeGridActor::Tick(float DeltaTime)
                 float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, RCorrect);
                 FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio);
 
-                DrawDebugLine(GetWorld(), Node.Position, Neighbor.Position, LineColor.ToFColor(true), false, -1.f, 0, DebugLineThickness);
+                DrawDebugLine(GetWorld(), Node.Position, Neighbor.Position, LineColor.ToFColor(true), false, DrawLifeTime, 0, DebugLineThickness);
             }
         }
+    }
+
+
+    if (StopCount > 0 && SPart >= StopTresholdPart)
+    {
+        SetActorTickEnabled(false); // Отключаем тики, если узлы остановились
+        UE_LOG(LogTemp, Log, TEXT("Process stop %d"), StopCount);
     }
 }
