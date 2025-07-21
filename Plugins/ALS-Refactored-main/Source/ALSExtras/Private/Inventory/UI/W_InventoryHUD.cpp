@@ -193,7 +193,7 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 
 	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(SlotToAdd->Item.Name, TEXT("Find row in datatable"));
 
-	if (ItemData && Inventory_To->Container->TotalMoney - ItemData->Value * QuantityToAdd * CurrentTradeCoeff < 0.0f)
+	if (bShouldCount && ItemData && Inventory_To->Container->TotalMoney - ItemData->Value * QuantityToAdd * CurrentTradeCoeff < 0.0f)
 	{
 		NotEnoughWidget->PlayAppearing();
 		bIsMoneyEnough = false;
