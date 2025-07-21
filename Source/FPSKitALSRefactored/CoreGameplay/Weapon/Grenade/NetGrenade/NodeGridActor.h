@@ -2,55 +2,54 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-
 #include "NodeGridActor.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FNodeLink
 {
     GENERATED_BODY()
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 NeighborIndex;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float RestLength;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float CriticalLength;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float Stiffness;
 
-    UPROPERTY()
-    float InfluenceFactor = 1.0f; // <-- Добавлено
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float InfluenceFactor = 1.0f;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FNode
 {
     GENERATED_BODY()
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector Position;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector PendingPosition;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector Velocity;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector AccumulatedForce;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bFixed = false;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FNodeLink> Links;
 };
 
-UCLASS()
+UCLASS(Blueprintable)
 class FPSKITALSREFACTORED_API ANodeGridActor : public AActor
 {
     GENERATED_BODY()
@@ -64,15 +63,16 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
 
+    // Доступ к узлам из Blueprint
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<FNode> Nodes;
+
 private:
     void InitializeGrid();
     void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
     void OnAsyncTraceResult(const FTraceHandle& Handle, FTraceDatum& Data);
 
-    UPROPERTY()
-    TArray<FNode> Nodes;
-
-    //UPROPERTY()
+    //UPROPERTY() // отключённый map трассировки
     TMap<FTraceHandle, int32> TraceHandleToNode;
     FTraceDelegate AsyncLineTraceDelegate;
 
