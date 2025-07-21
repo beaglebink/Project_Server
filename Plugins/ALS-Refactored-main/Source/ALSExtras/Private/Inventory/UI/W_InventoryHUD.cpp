@@ -8,9 +8,12 @@
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
 #include "Components/Button.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "EnhancedInputComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
+#include "Inventory/UI/W_NotEnough.h"
 
 void UW_InventoryHUD::NativeConstruct()
 {
@@ -27,6 +30,23 @@ void UW_InventoryHUD::NativeConstruct()
 
 	Button_TakeAll->OnPressed.AddDynamic(this, &UW_InventoryHUD::TakeAll);
 	Button_DropAll->OnPressed.AddDynamic(this, &UW_InventoryHUD::DropAll);
+
+	if (NotEnoughWidgetClass)
+	{
+		NotEnoughWidget = CreateWidget<UW_NotEnough>(GetWorld(), NotEnoughWidgetClass);
+		if (NotEnoughWidget)
+		{
+			UCanvasPanelSlot* BoxSlot = CanvasPanel_Confirmation_HowMuch_NotEnough->AddChildToCanvas(NotEnoughWidget);
+			if (BoxSlot)
+			{
+				BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+				BoxSlot->SetPosition(FVector2D(0.f, 0.f));
+				BoxSlot->SetSize(FVector2D(300.f, 150.f));
+				BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+				BoxSlot->SetZOrder(1);
+			}
+		}
+	}
 }
 
 void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToInteract, FName KeyPressed)
@@ -39,11 +59,11 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 		{
 			if (SlotToInteract->Item.Quantity > 1)
 			{
-				CheckHowMuch(MainInventory, nullptr, SlotToInteract, true);
+				CheckHowMuch(MainInventory, nullptr, SlotToInteract, false, true);
 			}
 			else
 			{
-				RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, true);
+				RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, true);
 			}
 		}
 
@@ -53,14 +73,16 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 			{
 			case EnumInventoryType::Chest:
 			{
+				CurrentTradeCoeff = 1.0f;
+
 				if (SlotToInteract->Item.Quantity > 1)
 				{
-					CheckHowMuch(MainInventory, AdditiveInventory, SlotToInteract, false);
+					CheckHowMuch(MainInventory, AdditiveInventory, SlotToInteract, false, false);
 				}
 				else
 				{
-					AddToSlotContainer(AdditiveInventory, SlotToInteract, 1);
-					RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false);
+					AddToSlotContainer(AdditiveInventory, SlotToInteract, 1, false);
+					RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, false);
 				}
 				break;
 			}
@@ -70,14 +92,16 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 			}
 			case EnumInventoryType::Vendor:
 			{
+				CurrentTradeCoeff = 1 / AdditiveInventory->Container->TradeCoefficient;
+
 				if (SlotToInteract->Item.Quantity > 1)
 				{
-					CheckHowMuch(MainInventory, AdditiveInventory, SlotToInteract, false);
+					CheckHowMuch(MainInventory, AdditiveInventory, SlotToInteract, true, false);
 				}
 				else
 				{
-					AddToSlotContainer(AdditiveInventory, SlotToInteract, 1);
-					RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false);
+					AddToSlotContainer(AdditiveInventory, SlotToInteract, 1, true);
+					RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, true, false);
 				}
 				break;
 			}
@@ -92,14 +116,16 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 	{
 		if (KeyPressed == "Left")
 		{
+			CurrentTradeCoeff = 1.0f;
+
 			if (SlotToInteract->Item.Quantity > 1)
 			{
-				CheckHowMuch(AdditiveInventory, MainInventory, SlotToInteract, false);
+				CheckHowMuch(AdditiveInventory, MainInventory, SlotToInteract, false, false);
 			}
 			else
 			{
-				AddToSlotContainer(MainInventory, SlotToInteract, 1);
-				RemoveFromSlotContainer(AdditiveInventory, SlotToInteract, 1, false);
+				AddToSlotContainer(MainInventory, SlotToInteract, 1, false);
+				RemoveFromSlotContainer(AdditiveInventory, SlotToInteract, 1, false, false);
 			}
 		}
 		break;
@@ -108,14 +134,16 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 	{
 		if (KeyPressed == "Left")
 		{
+			CurrentTradeCoeff = AdditiveInventory->Container->TradeCoefficient;
+
 			if (SlotToInteract->Item.Quantity > 1)
 			{
-				CheckHowMuch(AdditiveInventory, MainInventory, SlotToInteract, false);
+				CheckHowMuch(AdditiveInventory, MainInventory, SlotToInteract, true, false);
 			}
 			else
 			{
-				AddToSlotContainer(MainInventory, SlotToInteract, 1);
-				RemoveFromSlotContainer(AdditiveInventory, SlotToInteract, 1, false);
+				AddToSlotContainer(MainInventory, SlotToInteract, 1, true);
+				RemoveFromSlotContainer(AdditiveInventory, SlotToInteract, 1, true, false);
 			}
 		}
 		break;
@@ -125,7 +153,7 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 	}
 }
 
-void UW_InventoryHUD::CheckHowMuch(UW_Inventory* Inventory_From, UW_Inventory* Inventory_To, UW_ItemSlot* SlotToInteract, bool bShouldSpawn)
+void UW_InventoryHUD::CheckHowMuch(UW_Inventory* Inventory_From, UW_Inventory* Inventory_To, UW_ItemSlot* SlotToInteract, bool bShouldCount, bool bShouldSpawn)
 {
 	if (HowMuchWidgetClass)
 	{
@@ -134,22 +162,25 @@ void UW_InventoryHUD::CheckHowMuch(UW_Inventory* Inventory_From, UW_Inventory* I
 			bHowMuchIsOpen = true;
 			HowMuchWidget->Slider_HowMuch->SetMaxValue(SlotToInteract->Item.Quantity);
 			HowMuchWidget->TextBlock_Max->SetText(FText::AsNumber(SlotToInteract->Item.Quantity));
+			HowMuchWidget->bShouldCount = bShouldCount;
 			HowMuchWidget->bShouldSpawn = bShouldSpawn;
 			HowMuchWidget->InventoryHUDRef = this;
 			HowMuchWidget->Inventory_FromRef = Inventory_From;
 			HowMuchWidget->Inventory_ToRef = Inventory_To;
 			HowMuchWidget->SlotRef = SlotToInteract;
-			SizeBox_Confirmation_HowMuch->AddChild(HowMuchWidget);
+			CanvasPanel_Confirmation_HowMuch_NotEnough->AddChild(HowMuchWidget);
 		}
 	}
 }
 
-void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot* SlotToAdd, int32 QuantityToAdd)
+void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot* SlotToAdd, int32 QuantityToAdd, bool bShouldCount)
 {
 	if (!Inventory_To)
 	{
 		return;
 	}
+
+	NotEnoughWidget->PlayAppearing();
 
 	SlotToAdd->InventoryType = Inventory_To->InventoryType;
 
@@ -184,22 +215,24 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 					}
 				}
 			}
+			SlotToAdd->TextBlock_Value->SetText(SlotToAdd->FormatFloatFixed(ItemData->Value / CurrentTradeCoeff, 2));
 			Inventory_To->Slots.Add(SlotToAdd);
 		}
 	}
 	else
 	{
+		SlotToAdd->TextBlock_Value->SetText(SlotToAdd->FormatFloatFixed(ItemData->Value / CurrentTradeCoeff, 2));
 		Inventory_To->Slots.Add(SlotToAdd);
 	}
 	Inventory_To->SlotsFilter(Inventory_To->CurrentTabType);
-	Inventory_To->Container->AddToContainer(SlotToAdd->Item.Name, QuantityToAdd);
+	Inventory_To->Container->AddToContainer(SlotToAdd->Item.Name, QuantityToAdd, CurrentTradeCoeff, bShouldCount);
 
 	Inventory_To->RefreshArmour();
 	Inventory_To->RefreshWeight();
 	Inventory_To->RefreshMoney();
 }
 
-void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldSpawn)
+void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldCount, bool bShouldSpawn)
 {
 	if (SlotToRemove->Item.Quantity != QuantityToRemove)
 	{
@@ -217,7 +250,7 @@ void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_I
 		Inventory_From->ScrollBox_Items->RemoveChild(SlotToRemove);
 		Inventory_From->Slots.Remove(SlotToRemove);
 	}
-	Inventory_From->Container->RemoveFromContainer(SlotToRemove->Item.Name, QuantityToRemove, bShouldSpawn);
+	Inventory_From->Container->RemoveFromContainer(SlotToRemove->Item.Name, QuantityToRemove, CurrentTradeCoeff, bShouldCount, bShouldSpawn);
 
 	Inventory_From->RefreshArmour();
 	Inventory_From->RefreshWeight();
@@ -239,7 +272,7 @@ void UW_InventoryHUD::TakeAll()
 			{
 				for (const auto& Item : Container->Items)
 				{
-					PlayerContainer->AddToContainer(Item.Name, Item.Quantity);
+					PlayerContainer->AddToContainer(Item.Name, Item.Quantity, 1.0f, false);
 				}
 				Container->Items.Empty();
 				Recreate();
@@ -268,7 +301,7 @@ void UW_InventoryHUD::DropAll()
 			{
 				for (const auto& Item : PlayerContainer->Items)
 				{
-					Container->AddToContainer(Item.Name, Item.Quantity);
+					Container->AddToContainer(Item.Name, Item.Quantity, 1.0f, false);
 				}
 				PlayerContainer->Items.Empty();
 				Recreate();

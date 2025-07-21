@@ -7,7 +7,7 @@ UAC_Container::UAC_Container()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UAC_Container::AddToContainer(FName Name, int32 Quantity)
+void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount)
 {
 	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
 
@@ -34,9 +34,14 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity)
 
 	TotalWeight += ItemData->Weight * Quantity;
 	OnWeightChanged.Broadcast(TotalWeight);
+
+	if (bShouldCount)
+	{
+		TotalMoney -= ItemData->Value * Quantity * TradeCoeff;
+	}
 }
 
-void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, bool bShouldSpawn)
+void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn)
 {
 	if (bShouldSpawn)
 	{
@@ -96,6 +101,11 @@ void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, bool bShould
 
 	TotalWeight -= ItemData->Weight * Quantity;
 	OnWeightChanged.Broadcast(TotalWeight);
+
+	if (bShouldCount)
+	{
+		TotalMoney += ItemData->Value * Quantity * TradeCoeff;
+	}
 }
 
 bool UAC_Container::SpawnRemovedItem(FName Name)
@@ -109,32 +119,27 @@ bool UAC_Container::SpawnRemovedItem(FName Name)
 	SpawnTransform.SetLocation(SpawnLocation);
 	SpawnTransform.SetRotation(FQuat::Identity);
 	SpawnTransform.SetScale3D(FVector(1.f));
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 
-	AA_PickUp* TempActor = GetWorld()->SpawnActorDeferred<AA_PickUp>(AA_PickUp::StaticClass(), SpawnTransform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding);
+	AA_PickUp* PickUpActor = GetWorld()->SpawnActor<AA_PickUp>(AA_PickUp::StaticClass(), SpawnTransform, SpawnParams);
 
-	if (!TempActor)
+	if (!PickUpActor)
 	{
 		return false;
 	}
 
-	TempActor->Name = Name;
-	TempActor->StaticMeshComp->SetStaticMesh(ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"))->StaticMesh);
-	TempActor->StaticMeshComp->SetMobility(EComponentMobility::Movable);
-	TempActor->StaticMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	TempActor->StaticMeshComp->SetCollisionProfileName(TEXT("PhysicsActor"));
-	TempActor->StaticMeshComp->SetSimulatePhysics(true);
-	TempActor->Sound = PickUpSound;
-
-	AA_PickUp* FinalActor = Cast<AA_PickUp>(UGameplayStatics::FinishSpawningActor(TempActor, SpawnTransform));
-
-	if (!FinalActor)
-	{
-		return false;
-	}
+	PickUpActor->Name = Name;
+	PickUpActor->StaticMeshComp->SetStaticMesh(ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"))->StaticMesh);
+	PickUpActor->StaticMeshComp->SetMobility(EComponentMobility::Movable);
+	PickUpActor->StaticMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	PickUpActor->StaticMeshComp->SetCollisionProfileName(TEXT("PhysicsActor"));
+	PickUpActor->StaticMeshComp->SetSimulatePhysics(true);
+	PickUpActor->Sound = PickUpSound;
 
 	if (SpawnSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(GetWorld(), SpawnSound, FinalActor->GetActorLocation());
+		UGameplayStatics::PlaySoundAtLocation(GetWorld(), SpawnSound, PickUpActor->GetActorLocation());
 	}
 	return true;
 }

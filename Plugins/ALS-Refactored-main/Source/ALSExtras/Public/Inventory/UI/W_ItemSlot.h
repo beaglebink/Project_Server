@@ -55,10 +55,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "ClassRefs")
 	TSubclassOf<UW_VisualDescription> VisualDescriptionWidgetClass;
 
-protected:
 	UFUNCTION(BlueprintPure, Category = "Format")
 	static FText FormatFloatFixed(float Value, int32 Precision);
 
+protected:
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)override;
 
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent)override;

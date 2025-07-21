@@ -4,6 +4,8 @@
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "EnhancedInputComponent.h"
+#include "Inventory/UI/W_Inventory.h"
+#include "Inventory/AC_Container.h"
 
 void UW_HowMuch::NativeConstruct()
 {
@@ -39,8 +41,8 @@ void UW_HowMuch::SurfSlider(const FInputActionValue& Value)
 
 void UW_HowMuch::ConfirmSlider()
 {
-	InventoryHUDRef->AddToSlotContainer(Inventory_ToRef, SlotRef,FMath::RoundToInt32(Slider_HowMuch->GetValue()));
-	InventoryHUDRef->RemoveFromSlotContainer(Inventory_FromRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldSpawn);
+	InventoryHUDRef->AddToSlotContainer(Inventory_ToRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldCount);
+	InventoryHUDRef->RemoveFromSlotContainer(Inventory_FromRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldCount, bShouldSpawn);
 	RemoveFromParent();
 	MarkAsGarbage();
 }

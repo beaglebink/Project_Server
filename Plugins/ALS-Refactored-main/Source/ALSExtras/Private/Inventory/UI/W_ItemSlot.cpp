@@ -13,6 +13,12 @@ FText UW_ItemSlot::FormatFloatFixed(float Value, int32 Precision)
 {
 	Precision = FMath::Clamp(Precision, 0, 4);
 	FString FloatToString;
+
+	if (Value == FMath::RoundToInt32(Value))
+	{
+		return FText::FromString(FString::Printf(TEXT("%.0f"), Value));
+	}
+
 	switch (Precision)
 	{
 	case 0:

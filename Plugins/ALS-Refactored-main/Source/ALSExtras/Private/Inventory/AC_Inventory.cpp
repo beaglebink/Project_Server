@@ -120,6 +120,9 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 			PC->SetIgnoreLookInput(true);
 			PC->SetIgnoreMoveInput(true);
 			PC->SetShowMouseCursor(true);
+
+			Inventory->bIsFocusable = true;
+			Inventory->SetFocus();
 		}
 	}
 }

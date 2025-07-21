@@ -12,6 +12,7 @@ class UW_Inventory;
 class USizeBox;
 class UW_ItemSlot;
 class UW_HowMuch;
+class UW_NotEnough;
 class UButton;
 class UVerticalBox;
 class UCanvasPanel;
@@ -40,16 +41,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Refs")
 	TObjectPtr<UW_Inventory> AdditiveInventory;
 
-	UPROPERTY(BlueprintReadWrite, Category = "SizeBoxField", meta = (BindWidget))
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	USizeBox* SizeBox_Main;
 
-	UPROPERTY(BlueprintReadWrite, Category = "SizeBoxField", meta = (BindWidget))
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	USizeBox* SizeBox_Additive;
 
-	UPROPERTY(BlueprintReadWrite, Category = "SizeBoxField", meta = (BindWidget))
-	USizeBox* SizeBox_Confirmation_HowMuch;
-
-	UPROPERTY(BlueprintReadWrite, Category = "SizeBoxField", meta = (BindWidget))
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	USizeBox* SizeBox_VisualAndDescription;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
@@ -67,6 +65,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	UCanvasPanel* CanvasPanel_Additive;
 
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UCanvasPanel* CanvasPanel_Confirmation_HowMuch_NotEnough;
+
 	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
 	uint8 bHowMuchIsOpen : 1{false};
 
@@ -77,13 +78,13 @@ public:
 	void Slot_OneClick(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToMove, FName KeyPressed);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void CheckHowMuch(UW_Inventory* Inventory_From, UW_Inventory* Inventory_To, UW_ItemSlot* SlotToRemove, bool bShouldSpawn = false);
+	void CheckHowMuch(UW_Inventory* Inventory_From, UW_Inventory* Inventory_To, UW_ItemSlot* SlotToRemove, bool bShouldCount, bool bShouldSpawn = false);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot* SlotToAdd, int32 QuantityToAdd);
+	void AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot* SlotToAdd, int32 QuantityToAdd, bool bShouldCount);
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldSpawn = false);
+	void RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldCount, bool bShouldSpawn = false);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
@@ -91,6 +92,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UW_ItemSlot> SlotWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UW_NotEnough> NotEnoughWidgetClass;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	UW_NotEnough* NotEnoughWidget;
 
 	//input actions and methods
 protected:
@@ -105,4 +112,7 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void DropAll();
+
+private:
+	float CurrentTradeCoeff = 1.0f;
 };

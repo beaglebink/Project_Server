@@ -56,6 +56,9 @@ public:
 	EnumInventoryType InventoryType;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Interaction", meta = (ExposeOnSpawn = "true"))
+	uint8 bShouldCount : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "Interaction", meta = (ExposeOnSpawn = "true"))
 	uint8 bShouldSpawn : 1{false};
 
 	//input actions and methods
