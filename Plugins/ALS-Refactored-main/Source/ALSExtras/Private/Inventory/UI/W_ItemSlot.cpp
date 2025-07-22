@@ -7,6 +7,9 @@
 void UW_ItemSlot::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	bIsFocusable = true;
+	SetKeyboardFocus();
 }
 
 FText UW_ItemSlot::FormatFloatFixed(float Value, int32 Precision)
@@ -52,24 +55,50 @@ FText UW_ItemSlot::FormatFloatFixed(float Value, int32 Precision)
 	return FText::FromString(FloatToString);
 }
 
+void UW_ItemSlot::SetTintOnSelected(bool IsSet)
+{
+	if (IsSet)
+	{
+		Image_Background->SetBrushTintColor(FLinearColor(0.5f, 0.5f, 0.5f));
+
+		if (UW_VisualDescription* VisualDescriptionWidget = CreateWidget<UW_VisualDescription>(GetWorld(), VisualDescriptionWidgetClass))
+		{
+			VisualDescriptionWidget->ItemName = Item.Name;
+			InventoryHUDRef->SizeBox_VisualAndDescription->AddChild(VisualDescriptionWidget);
+		}
+	}
+	else
+	{
+		Image_Background->SetBrushTintColor(FLinearColor(1.0f, 1.0f, 1.0f));
+
+		InventoryHUDRef->SizeBox_VisualAndDescription->ClearChildren();
+	}
+}
+
 void UW_ItemSlot::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	Super::OnMouseEnter(InGeometry, InMouseEvent);
 
-	Image_Background->SetBrushTintColor(FLinearColor(0.5f, 0.5f, 0.5f));
-
-	if (UW_VisualDescription* VisualDescriptionWidget = CreateWidget<UW_VisualDescription>(GetWorld(), VisualDescriptionWidgetClass))
-	{
-		VisualDescriptionWidget->ItemName = Item.Name;
-		InventoryHUDRef->SizeBox_VisualAndDescription->AddChild(VisualDescriptionWidget);
-	}
+	SetTintOnSelected(true);
 }
 
 void UW_ItemSlot::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
 	Super::OnMouseLeave(InMouseEvent);
 
-	Image_Background->SetBrushTintColor(FLinearColor(1.0f, 1.0f, 1.0f));
+	SetTintOnSelected(false);
+}
 
-	InventoryHUDRef->SizeBox_VisualAndDescription->ClearChildren();
+FReply UW_ItemSlot::NativeOnFocusReceived(const FGeometry& InGeometry, const FFocusEvent& InFocusEvent)
+{
+	FReply Reply = Super::NativeOnFocusReceived(InGeometry, InFocusEvent);
+
+	SetTintOnSelected(true);
+
+	return Reply;
+}
+
+void UW_ItemSlot::NativeOnFocusLost(const FFocusEvent& InFocusEvent)
+{
+	SetTintOnSelected(false);
 }
