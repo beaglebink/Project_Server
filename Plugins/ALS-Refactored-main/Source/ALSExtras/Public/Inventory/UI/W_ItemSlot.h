@@ -59,7 +59,13 @@ public:
 	static FText FormatFloatFixed(float Value, int32 Precision);
 
 protected:
+	void SetTintOnSelected(bool IsSet);
+
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)override;
 
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent)override;
+
+	virtual FReply NativeOnFocusReceived(const FGeometry& InGeometry, const FFocusEvent& InFocusEvent)override;
+
+	virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent)override;
 };

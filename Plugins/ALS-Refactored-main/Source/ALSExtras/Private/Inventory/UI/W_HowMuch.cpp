@@ -11,6 +11,9 @@ void UW_HowMuch::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	bIsFocusable = true;
+	SetKeyboardFocus();
+
 	if (APlayerController* PC = GetOwningPlayer())
 	{
 		if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PC->InputComponent))
