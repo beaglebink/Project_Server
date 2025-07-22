@@ -319,18 +319,53 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
 void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
 {
+    TSet<TPair<int32, int32>> ProcessedLinks;
+
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        FNode& Node = Nodes[i];
-        if (Node.bFixed) continue;
+        FNode& A = Nodes[i];
+        if (A.bFixed) continue;
 
-        for (const FNodeLink& Link : Node.Links)
+        for (const FNodeLink& Link : A.Links)
         {
-            if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
-            FNode& Neighbor = Nodes[Link.NeighborIndex];
-            if (Neighbor.bFixed) continue;
+            int32 j = Link.NeighborIndex;
+            if (!Nodes.IsValidIndex(j)) continue;
 
-            EnforceRigidLinkConstraint(Node, Neighbor, Link, DeltaTime);
+            FNode& B = Nodes[j];
+            if (B.bFixed) continue;
+
+            // Обрабатываем каждую пару один раз
+            TPair<int32, int32> Key = (i < j) ? TPair<int32, int32>(i, j) : TPair<int32, int32>(j, i);
+            if (ProcessedLinks.Contains(Key)) continue;
+            ProcessedLinks.Add(Key);
+
+            FVector Delta = B.Position - A.Position;
+            float CurrentLength = Delta.Size();
+
+            if (CurrentLength <= Link.RestLength) continue;
+
+            FVector Dir = Delta / CurrentLength;
+
+            if (CurrentLength > Link.CriticalLength)
+            {
+                float ClampedLength = FMath::Min(CurrentLength, Link.CriticalLength);
+                FVector MidPoint = (A.Position + B.Position) * 0.5f;
+                FVector TargetA = MidPoint - Dir * ClampedLength * 0.5f;
+                FVector TargetB = MidPoint + Dir * ClampedLength * 0.5f;
+
+                FVector PosCorrectionA = TargetA - A.Position;
+                FVector PosCorrectionB = TargetB - B.Position;
+
+                A.Position += PosCorrectionA;
+                B.Position += PosCorrectionB;
+
+                FVector RelVel = B.Velocity - A.Velocity;
+                float RelSpeed = FVector::DotProduct(RelVel, Dir);
+                FVector VelCorrection = RelSpeed * Dir;
+
+                A.Velocity += VelCorrection;
+                B.Velocity -= VelCorrection;
+            }
         }
     }
 }
