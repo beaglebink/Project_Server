@@ -41,8 +41,11 @@ void UW_HowMuch::SurfSlider(const FInputActionValue& Value)
 
 void UW_HowMuch::ConfirmSlider()
 {
-	InventoryHUDRef->AddToSlotContainer(Inventory_ToRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldCount);
-	InventoryHUDRef->RemoveFromSlotContainer(Inventory_FromRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldCount, bShouldSpawn);
+	if (FMath::RoundToInt32(Slider_HowMuch->GetValue()) != 0)
+	{
+		InventoryHUDRef->AddToSlotContainer(Inventory_ToRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldCount);
+		InventoryHUDRef->RemoveFromSlotContainer(Inventory_FromRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldCount, bShouldSpawn);
+	}
 	RemoveFromParent();
 	MarkAsGarbage();
 }

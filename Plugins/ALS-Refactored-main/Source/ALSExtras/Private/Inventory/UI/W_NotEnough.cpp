@@ -5,6 +5,7 @@
 void UW_NotEnough::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 void UW_NotEnough::PlayAppearing()

@@ -8,6 +8,13 @@
 void UW_Inventory::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	if (Container)
+	{
+		Container->OnArmourChanged.AddDynamic(this, &UW_Inventory::RefreshArmour);
+		Container->OnWeightChanged.AddDynamic(this, &UW_Inventory::RefreshWeight);
+		Container->OnMoneyChanged.AddDynamic(this, &UW_Inventory::RefreshMoney);
+	}
 }
 
 void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
@@ -25,33 +32,33 @@ void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
 	}
 }
 
-void UW_Inventory::RefreshArmour()
+void UW_Inventory::RefreshArmour(float Armour)
 {
 
 }
 
-void UW_Inventory::RefreshWeight()
+void UW_Inventory::RefreshWeight(float Weight)
 {
 	if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Container->GetOwner()))
 	{
-		FString OutText(FString::Printf(TEXT("%.0f/%.1f"), Character->GetStrength(), Container->TotalWeight));
+		FString OutText(FString::Printf(TEXT("%.0f/%.1f"), Character->GetStrength(), Weight));
 
-		if (Container->TotalWeight == FMath::Floor(Container->TotalWeight))
+		if (Weight == FMath::Floor(Weight))
 		{
-			OutText = FString::Printf(TEXT("%.0f/%.0f"), Character->GetStrength(), Container->TotalWeight);
+			OutText = FString::Printf(TEXT("%.0f/%.0f"), Character->GetStrength(), Weight);
 		}
 
 		TextBlock_TotalWeight->SetText(FText::FromString(OutText));
 	}
 }
 
-void UW_Inventory::RefreshMoney()
+void UW_Inventory::RefreshMoney(float Money)
 {
-	FString OutText(FString::Printf(TEXT("%.2f"), Container->TotalMoney));
+	FString OutText(FString::Printf(TEXT("%.2f"), Money));
 
-	if (Container->TotalMoney == FMath::Floor(Container->TotalMoney))
+	if (Money == FMath::Floor(Money))
 	{
-		OutText = FString::Printf(TEXT("%.0f"), Container->TotalMoney);
+		OutText = FString::Printf(TEXT("%.0f"), Money);
 	}
 
 	TextBlock_TotalMoney->SetText(FText::FromString(OutText));

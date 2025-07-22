@@ -57,13 +57,13 @@ public:
 	void SlotsFilter(EnumInventory SlotContainerType);
 
 	UFUNCTION(BlueprintCallable, Category = "Params")
-	void RefreshArmour();
+	void RefreshArmour(float Armour);
 
 	UFUNCTION(BlueprintCallable, Category = "Params")
-	void RefreshWeight();
+	void RefreshWeight(float Weight);
 
 	UFUNCTION(BlueprintCallable, Category = "Params")
-	void RefreshMoney();
+	void RefreshMoney(float Money);
 
 	//sorting
 private:

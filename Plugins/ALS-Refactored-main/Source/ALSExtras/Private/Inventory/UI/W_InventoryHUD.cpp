@@ -193,7 +193,7 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 
 	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(SlotToAdd->Item.Name, TEXT("Find row in datatable"));
 
-	if (bShouldCount && ItemData && Inventory_To->Container->TotalMoney - ItemData->Value * QuantityToAdd * CurrentTradeCoeff < 0.0f)
+	if (bShouldCount && ItemData && Inventory_To->Container->GetMoney() - ItemData->Value * QuantityToAdd * CurrentTradeCoeff < 0.0f)
 	{
 		NotEnoughWidget->PlayAppearing();
 		bIsMoneyEnough = false;
@@ -243,10 +243,6 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 	}
 	Inventory_To->SlotsFilter(Inventory_To->CurrentTabType);
 	Inventory_To->Container->AddToContainer(SlotToAdd->Item.Name, QuantityToAdd, CurrentTradeCoeff, bShouldCount);
-
-	Inventory_To->RefreshArmour();
-	Inventory_To->RefreshWeight();
-	Inventory_To->RefreshMoney();
 }
 
 void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldCount, bool bShouldSpawn)
@@ -273,10 +269,6 @@ void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_I
 		Inventory_From->Slots.Remove(SlotToRemove);
 	}
 	Inventory_From->Container->RemoveFromContainer(SlotToRemove->Item.Name, QuantityToRemove, CurrentTradeCoeff, bShouldCount, bShouldSpawn);
-
-	Inventory_From->RefreshArmour();
-	Inventory_From->RefreshWeight();
-	Inventory_From->RefreshMoney();
 }
 
 void UW_InventoryHUD::TakeAll()
@@ -297,6 +289,7 @@ void UW_InventoryHUD::TakeAll()
 					PlayerContainer->AddToContainer(Item.Name, Item.Quantity, 1.0f, false);
 				}
 				Container->Items.Empty();
+				Container->SetWeight(0.0f);
 				Recreate();
 			}
 			break;
@@ -326,6 +319,7 @@ void UW_InventoryHUD::DropAll()
 					Container->AddToContainer(Item.Name, Item.Quantity, 1.0f, false);
 				}
 				PlayerContainer->Items.Empty();
+				PlayerContainer->SetWeight(0.0f);
 				Recreate();
 			}
 			break;

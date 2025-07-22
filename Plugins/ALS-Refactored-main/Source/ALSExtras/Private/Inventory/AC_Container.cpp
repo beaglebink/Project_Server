@@ -34,12 +34,11 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff,
 			Items.Add(FS_Item(Name, 1));
 		}
 
-		TotalWeight += ItemData->Weight * Quantity;
-		OnWeightChanged.Broadcast(TotalWeight);
+		SetWeight(GetWeight() + ItemData->Weight * Quantity);
 
 		if (bShouldCount)
 		{
-			TotalMoney -= ItemData->Value * Quantity * TradeCoeff;
+			SetMoney(GetMoney() - ItemData->Value * Quantity * TradeCoeff);
 		}
 	}
 }
@@ -103,12 +102,11 @@ void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, float TradeC
 	{
 		FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
 
-		TotalWeight -= ItemData->Weight * Quantity;
-		OnWeightChanged.Broadcast(TotalWeight);
+		SetWeight(GetWeight() - ItemData->Weight * Quantity);
 
 		if (bShouldCount)
 		{
-			TotalMoney += ItemData->Value * Quantity * TradeCoeff;
+			SetMoney(GetMoney() + ItemData->Value * Quantity * TradeCoeff);
 		}
 	}
 }
@@ -269,4 +267,37 @@ void UAC_Container::Items_Sort(EnumSortType SortType, bool bIsDecreasing)
 	default:
 		break;
 	}
+}
+
+float UAC_Container::GetArmour()
+{
+	return TotalArmour;
+}
+
+float UAC_Container::GetWeight()
+{
+	return TotalWeight;
+}
+
+float UAC_Container::GetMoney()
+{
+	return TotalMoney;
+}
+
+void UAC_Container::SetArmour(float NewArmour)
+{
+	TotalArmour = NewArmour;
+	OnArmourChanged.Broadcast(TotalArmour);
+}
+
+void UAC_Container::SetWeight(float NewWeight)
+{
+	TotalWeight = NewWeight;
+	OnWeightChanged.Broadcast(NewWeight);
+}
+
+void UAC_Container::SetMoney(float NewValue)
+{
+	TotalMoney = NewValue;
+	OnMoneyChanged.Broadcast(NewValue);
 }
