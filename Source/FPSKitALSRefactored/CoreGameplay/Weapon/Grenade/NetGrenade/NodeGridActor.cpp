@@ -3,6 +3,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
+#include <Kismet/KismetMathLibrary.h>
 
 ANodeGridActor::ANodeGridActor()
 {
@@ -30,7 +31,8 @@ void ANodeGridActor::InitializeGrid()
         {
             FVector LocalOffset(x * CellSize - HalfX, y * CellSize - HalfY, 0);
             FVector Pos = GetActorTransform().TransformPosition(LocalOffset);
-            Nodes.Add(FNode{ Pos, Pos, FVector::ZeroVector, FVector::ZeroVector, false });
+            FVector W_Velocity = UKismetMathLibrary::TransformDirection(GetActorTransform(), FVector(0.f, 0.f, Vel));
+            Nodes.Add(FNode{ Pos, Pos, W_Velocity, FVector::ZeroVector, false });
         }
     }
 
