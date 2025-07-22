@@ -49,6 +49,13 @@ struct FNode
     TArray<FNodeLink> Links;
 };
 
+struct FInfluenceEntry
+{
+    int32 Index;
+    FVector Velocity;
+    float Factor;
+};
+
 UCLASS(Blueprintable)
 class FPSKITALSREFACTORED_API ANodeGridActor : public AActor
 {

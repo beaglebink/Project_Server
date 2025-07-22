@@ -134,14 +134,69 @@ void ANodeGridActor::ApplyForcesParallel()
 
 void ANodeGridActor::ProcessInfluenceCascade()
 {
+    TQueue<FInfluenceEntry> InfluenceQueue;
+
+    // Инициализация очереди из предварительных импульсов
     for (const auto& Entry : PendingInfluences)
     {
         int32 Index;
         FVector Velocity;
-        float Influence;
-        Tie(Index, Velocity, Influence) = Entry;
+        float Factor;
+        Tie(Index, Velocity, Factor) = Entry;
 
-        PropagateInfluence(Index, Velocity, Influence);
+        InfluenceQueue.Enqueue({ Index, Velocity, Factor });
+    }
+
+    // Массив посещённых узлов (опционально)
+    TSet<TPair<int32, int32>> VisitedLinks;
+
+    while (!InfluenceQueue.IsEmpty())
+    {
+        FInfluenceEntry Current;
+        InfluenceQueue.Dequeue(Current);
+
+        if (Current.Factor < MinPropagationThreshold || !Nodes.IsValidIndex(Current.Index)) continue;
+
+        const FNode& Source = Nodes[Current.Index];
+        if (Source.bFixed) continue;
+
+        for (const FNodeLink& Link : Source.Links)
+        {
+            int32 NeighborIndex = Link.NeighborIndex;
+            if (!Nodes.IsValidIndex(NeighborIndex)) continue;
+
+            FNode& Neighbor = Nodes[NeighborIndex];
+            if (Neighbor.bFixed) continue;
+
+            FVector Delta = Neighbor.Position - Source.Position;
+            float Distance = Delta.Size();
+
+            if (Distance > Link.RestLength)
+            {
+                float Ratio = Distance / Link.RestLength;
+                float CriticalRatio = Link.CriticalLength / Link.RestLength;
+
+                float InfluenceScale = (Ratio < CriticalRatio)
+                    ? FMath::GetMappedRangeValueClamped(
+                        TRange<float>(1.0f, CriticalRatio),
+                        TRange<float>(0.1f, 1.0f),
+                        Ratio)
+                    : 2.0f;
+
+                FVector Impulse = Current.Velocity * Current.Factor * InfluenceScale;
+                Neighbor.AccumulatedForce += Impulse;
+
+                TPair<int32, int32> LinkKey = (Current.Index < NeighborIndex)
+                    ? TPair<int32, int32>(Current.Index, NeighborIndex)
+                    : TPair<int32, int32>(NeighborIndex, Current.Index);
+
+                if (!VisitedLinks.Contains(LinkKey))
+                {
+                    VisitedLinks.Add(LinkKey);
+                    InfluenceQueue.Enqueue({ NeighborIndex, Current.Velocity, Current.Factor * InfluenceScale * InfluenceAttenuation });
+                }
+            }
+        }
     }
 }
 
