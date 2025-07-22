@@ -206,6 +206,30 @@ void ANodeGridActor::EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeL
 void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 {
     const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;
+
+    // Буферы для параллельной фазы
+    TArray<FVector> PendingPositions;
+    TArray<FVector> PendingVelocities;
+    TArray<bool> FixationFlags;
+
+    PendingPositions.SetNumUninitialized(Nodes.Num());
+    PendingVelocities.SetNumUninitialized(Nodes.Num());
+    FixationFlags.SetNumZeroed(Nodes.Num());
+
+    // 🔁 Расчёт движения в потоке
+    ParallelFor(Nodes.Num(), [&](int32 i)
+        {
+            const FNode& Node = Nodes[i];
+            if (Node.bFixed) return;
+
+            FVector Velocity = Node.Velocity + (Node.AccumulatedForce + GravityForce) * DeltaTime;
+            FVector Position = Node.Position + Velocity * DeltaTime;
+
+            PendingPositions[i] = Position;
+            PendingVelocities[i] = Velocity * DampingFactor;
+        });
+
+    // 🔍 Фиксация в основном потоке
     const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(OverlapRadius);
     const FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);
     const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);
@@ -215,16 +239,12 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
         FNode& Node = Nodes[i];
         if (Node.bFixed) continue;
 
-        Node.AccumulatedForce += GravityForce;
-        Node.Velocity += Node.AccumulatedForce * DeltaTime;
-        Node.PendingPosition = Node.Position + Node.Velocity * DeltaTime;
-
-        bool bFixed = false;
+        const FVector& TestPosition = PendingPositions[i];
 
         TArray<FOverlapResult> Overlaps;
         GetWorld()->OverlapMultiByObjectType(
             Overlaps,
-            Node.PendingPosition,
+            TestPosition,
             FQuat::Identity,
             ObjectParams,
             ProbeShape,
@@ -238,9 +258,7 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
             if (HitComp->IsA<UStaticMeshComponent>())
             {
-                Node.Velocity = FVector::ZeroVector;
-                Node.bFixed = true;
-                bFixed = true;
+                FixationFlags[i] = true;
                 break;
             }
 
@@ -258,7 +276,7 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
             GetWorld()->OverlapMultiByChannel(
                 MeshOverlaps,
-                Node.PendingPosition,
+                TestPosition,
                 FQuat::Identity,
                 ECC_Visibility,
                 ProbeShape,
@@ -269,20 +287,30 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
             {
                 if (MeshOverlap.Component.Get() == FixationMesh)
                 {
-                    Node.Velocity = FVector::ZeroVector;
-                    Node.bFixed = true;
-                    bFixed = true;
+                    FixationFlags[i] = true;
                     break;
                 }
             }
 
-            if (bFixed) break;
+            if (FixationFlags[i]) break;
         }
+    }
 
-        if (!bFixed)
+    // 📦 Применение результатов
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        FNode& Node = Nodes[i];
+        if (Node.bFixed) continue;
+
+        if (FixationFlags[i])
         {
-            Node.Position = Node.PendingPosition;
-            Node.Velocity *= DampingFactor;
+            Node.Velocity = FVector::ZeroVector;
+            Node.bFixed = true;
+        }
+        else
+        {
+            Node.Position = PendingPositions[i];
+            Node.Velocity = PendingVelocities[i];
         }
 
         Node.AccumulatedForce = FVector::ZeroVector;
