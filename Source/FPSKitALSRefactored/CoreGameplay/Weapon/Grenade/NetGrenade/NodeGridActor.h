@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -68,6 +68,13 @@ private:
     void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
     void EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime);
 
+    // 🔁 Вынесенные фазы
+    void ApplyForcesParallel();
+    void ProcessInfluenceCascade();
+    void ApplyMotionAndFixation(float DeltaTime);
+    void ApplyRigidConstraints(float DeltaTime);
+    void DrawDebugState();
+
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FNode> Nodes;
@@ -125,4 +132,7 @@ public:
 
 private:
     int32 StopCount = 0;
+
+    // 🔁 Каскадная очередь импульсов
+    TArray<TTuple<int32, FVector, float>> PendingInfluences;
 };

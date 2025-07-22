@@ -61,73 +61,13 @@ void ANodeGridActor::InitializeGrid()
     }
 }
 
-void ANodeGridActor::PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor)
+void ANodeGridActor::ApplyForcesParallel()
 {
-    if (InfluenceFactor < MinPropagationThreshold || !Nodes.IsValidIndex(SourceIndex)) return;
-
-    const FNode& Source = Nodes[SourceIndex];
-    if (Source.bFixed) return;
-
-    for (const FNodeLink& Link : Source.Links)
-    {
-        const int32 NeighborIndex = Link.NeighborIndex;
-        if (!Nodes.IsValidIndex(NeighborIndex)) continue;
-
-        FNode& Neighbor = Nodes[NeighborIndex];
-        if (Neighbor.bFixed) continue;
-
-        const float Distance = (Neighbor.Position - Source.Position).Size();
-        if (Distance > Link.RestLength)
-        {
-            Neighbor.AccumulatedForce += SourceVelocity * InfluenceFactor;
-            PropagateInfluence(NeighborIndex, SourceVelocity, InfluenceFactor * InfluenceAttenuation);
-        }
-    }
-}
-
-void ANodeGridActor::EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime)
-{
-    FVector Delta = B.Position - A.Position;
-    float CurrentLength = Delta.Size();
-
-    if (CurrentLength <= Link.RestLength)
-        return; // связь в нормальном состоянии — ни импульса, ни ограничения
-
-    FVector Dir = Delta / CurrentLength;
-
-    if (CurrentLength > Link.CriticalLength)
-    {
-        // Ограничение длины — не выше критической
-        float ClampedLength = FMath::Min(CurrentLength, Link.CriticalLength);
-        FVector Target = B.Position - Dir * ClampedLength;
-        A.Position = Target;
-
-        // Коррекция скорости — удаляем компонент растяжения
-        float RelSpeed = FVector::DotProduct(B.Velocity - A.Velocity, Dir);
-        FVector VelocityCorrection = RelSpeed * Dir/* * Link.Stiffness * DeltaTime*/;
-
-        A.Velocity += VelocityCorrection;
-        B.Velocity -= VelocityCorrection;
-    }
-}
-
-void ANodeGridActor::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
-
-    const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;
-    const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(OverlapRadius);
-    const FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);
-    const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);
-
-    StopCount = 0;
-
-    // Распараллеленный расчёт сил и импульсов
     TArray<FVector> LocalForces;
     LocalForces.SetNumZeroed(Nodes.Num());
 
-    TArray<TTuple<int32, FVector, float>> PendingInfluences;
     FCriticalSection InfluenceLock;
+    PendingInfluences.Reset();
 
     ParallelFor(Nodes.Num(), [&](int32 i)
         {
@@ -139,15 +79,12 @@ void ANodeGridActor::Tick(float DeltaTime)
             for (const FNodeLink& Link : Node.Links)
             {
                 int32 NeighborIndex = Link.NeighborIndex;
-
                 if (!Nodes.IsValidIndex(NeighborIndex)) continue;
                 const FNode& Neighbor = Nodes[NeighborIndex];
 
                 FVector Delta = Neighbor.Position - Node.Position;
                 float Distance = Delta.Size();
                 float Stretch = FMath::Max(0.f, Distance - Link.RestLength);
-
-                UE_LOG(LogTemp, Warning, TEXT("Stretch %f"), Stretch);
 
                 if (Stretch > 0.f)
                 {
@@ -183,18 +120,6 @@ void ANodeGridActor::Tick(float DeltaTime)
             LocalForces[i] += AccForce;
         });
 
-    // Каскадная передача импульса
-    for (const auto& Entry : PendingInfluences)
-    {
-        int32 Index;
-        FVector Velocity;
-        float Influence;
-        Tie(Index, Velocity, Influence) = Entry;
-
-        PropagateInfluence(Index, Velocity, Influence);
-    }
-
-    // Применение сил + фиксация
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         FNode& Node = Nodes[i];
@@ -205,8 +130,86 @@ void ANodeGridActor::Tick(float DeltaTime)
         if (Node.bFixed) continue;
         Node.AccumulatedForce += LocalForces[i];
     }
+}
 
-    // Движение и фиксация
+void ANodeGridActor::ProcessInfluenceCascade()
+{
+    for (const auto& Entry : PendingInfluences)
+    {
+        int32 Index;
+        FVector Velocity;
+        float Influence;
+        Tie(Index, Velocity, Influence) = Entry;
+
+        PropagateInfluence(Index, Velocity, Influence);
+    }
+}
+
+void ANodeGridActor::PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor)
+{
+    if (InfluenceFactor < MinPropagationThreshold || !Nodes.IsValidIndex(SourceIndex)) return;
+
+    const FNode& Source = Nodes[SourceIndex];
+    if (Source.bFixed) return;
+
+    for (const FNodeLink& Link : Source.Links)
+    {
+        int32 NeighborIndex = Link.NeighborIndex;
+        if (!Nodes.IsValidIndex(NeighborIndex)) continue;
+
+        FNode& Neighbor = Nodes[NeighborIndex];
+        if (Neighbor.bFixed) continue;
+
+        FVector Delta = Neighbor.Position - Source.Position;
+        float Distance = Delta.Size();
+        float Ratio = Distance / Link.RestLength;
+        float CriticalRatio = Link.CriticalLength / Link.RestLength;
+
+        float InfluenceScale = (Ratio < CriticalRatio)
+            ? FMath::GetMappedRangeValueClamped(
+                TRange<float>(1.0f, CriticalRatio),
+                TRange<float>(0.1f, 1.0f),
+                Ratio)
+            : 2.0f;
+
+        FVector Impulse = SourceVelocity * InfluenceFactor * InfluenceScale;
+        Neighbor.AccumulatedForce += Impulse;
+
+        PropagateInfluence(NeighborIndex, SourceVelocity, InfluenceFactor * InfluenceScale * InfluenceAttenuation);
+    }
+}
+
+void ANodeGridActor::EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime)
+{
+    FVector Delta = B.Position - A.Position;
+    float CurrentLength = Delta.Size();
+
+    if (CurrentLength <= Link.RestLength)
+        return;
+
+    FVector Dir = Delta / CurrentLength;
+
+    if (CurrentLength > Link.CriticalLength)
+    {
+        float ClampedLength = FMath::Min(CurrentLength, Link.CriticalLength);
+        FVector Target = B.Position - Dir * ClampedLength;
+        A.Position = Target;
+
+        float RelSpeed = FVector::DotProduct(B.Velocity - A.Velocity, Dir);
+        FVector VelocityCorrection = RelSpeed * Dir;
+
+        A.Velocity += VelocityCorrection;
+        B.Velocity -= VelocityCorrection;
+    }
+}
+
+void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
+{
+    const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;
+    const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(OverlapRadius);
+    const FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);
+    const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);
+
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         FNode& Node = Nodes[i];
@@ -235,7 +238,6 @@ void ANodeGridActor::Tick(float DeltaTime)
 
             if (HitComp->IsA<UStaticMeshComponent>())
             {
-                //Node.Position = Node.PendingPosition;
                 Node.Velocity = FVector::ZeroVector;
                 Node.bFixed = true;
                 bFixed = true;
@@ -267,7 +269,6 @@ void ANodeGridActor::Tick(float DeltaTime)
             {
                 if (MeshOverlap.Component.Get() == FixationMesh)
                 {
-                    //Node.Position = Node.PendingPosition;
                     Node.Velocity = FVector::ZeroVector;
                     Node.bFixed = true;
                     bFixed = true;
@@ -286,8 +287,10 @@ void ANodeGridActor::Tick(float DeltaTime)
 
         Node.AccumulatedForce = FVector::ZeroVector;
     }
+}
 
-    // Ограничение растяжения
+void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
+{
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         FNode& Node = Nodes[i];
@@ -302,37 +305,53 @@ void ANodeGridActor::Tick(float DeltaTime)
             EnforceRigidLinkConstraint(Node, Neighbor, Link, DeltaTime);
         }
     }
+}
 
-    // Визуализация
+void ANodeGridActor::DrawDebugState()
+{
     const float SPart = float(StopCount) / float(Nodes.Num());
     const float DrawLifeTime = SPart >= StopTresholdPart ? 20.f : -1.f;
 
-    if (bEnableDebugDraw)
+    if (!bEnableDebugDraw) return;
+
+    const FColor FreeColor = FColor::Green;
+    const FColor FixedColor = FColor::Red;
+
+    for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        const FColor FreeColor = FColor::Green;
-        const FColor FixedColor = FColor::Red;
+        const FNode& Node = Nodes[i];
+        const FColor NodeColor = Node.bFixed ? FixedColor : FreeColor;
 
-        for (int32 i = 0; i < Nodes.Num(); ++i)
+        DrawDebugSphere(GetWorld(), Node.Position, DebugSphereRadius, 12, NodeColor, false, DrawLifeTime, 0, 0.5f);
+
+        for (const FNodeLink& Link : Node.Links)
         {
-            const FNode& Node = Nodes[i];
-            const FColor NodeColor = Node.bFixed ? FixedColor : FreeColor;
+            if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
+            const FNode& Neighbor = Nodes[Link.NeighborIndex];
 
-            DrawDebugSphere(GetWorld(), Node.Position, DebugSphereRadius, 12, NodeColor, false, DrawLifeTime, 0, 0.5f);
+            float CurrentLength = (Neighbor.Position - Node.Position).Size();
+            float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, RCorrect);
+            FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio);
 
-            for (const FNodeLink& Link : Node.Links)
-            {
-                if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
-                const FNode& Neighbor = Nodes[Link.NeighborIndex];
-
-                float CurrentLength = (Neighbor.Position - Node.Position).Size();
-                float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, RCorrect);
-                FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio);
-
-                DrawDebugLine(GetWorld(), Node.Position, Neighbor.Position, LineColor.ToFColor(true), false, DrawLifeTime, 0, DebugLineThickness);
-            }
+            DrawDebugLine(GetWorld(), Node.Position, Neighbor.Position, LineColor.ToFColor(true), false, DrawLifeTime, 0, DebugLineThickness);
         }
     }
+}
 
+void ANodeGridActor::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    StopCount = 0;
+    PendingInfluences.Reset();
+
+    ApplyForcesParallel();
+    ProcessInfluenceCascade();
+    ApplyMotionAndFixation(DeltaTime);
+    ApplyRigidConstraints(DeltaTime);
+    DrawDebugState();
+
+    const float SPart = float(StopCount) / float(Nodes.Num());
     if (StopCount > 0 && SPart >= StopTresholdPart)
     {
         SetActorTickEnabled(false);
