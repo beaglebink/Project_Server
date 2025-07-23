@@ -19,6 +19,7 @@ void ANodeGridActor::BeginPlay()
 void ANodeGridActor::InitializeGrid()
 {
     Nodes.Empty();
+    NodePositions.Empty();
 
     const int32 TotalCols = GridCols + 1;
     const int32 TotalRows = GridRows + 1;
@@ -32,7 +33,11 @@ void ANodeGridActor::InitializeGrid()
             FVector LocalOffset(x * CellSize - HalfX, y * CellSize - HalfY, 0);
             FVector Pos = GetActorTransform().TransformPosition(LocalOffset);
             FVector W_Velocity = UKismetMathLibrary::TransformDirection(GetActorTransform(), FVector(0.f, 0.f, Vel));
-            Nodes.Add(FNode{ Pos, Pos, W_Velocity, FVector::ZeroVector, false });
+
+            int32 Index = NodePositions.Num();
+            NodePositions.Add(Pos);
+
+            Nodes.Add(FNode{ Index, Pos, W_Velocity, FVector::ZeroVector, false });
         }
     }
 
@@ -45,7 +50,7 @@ void ANodeGridActor::InitializeGrid()
             if (x < TotalCols - 1)
             {
                 int32 Right = Index + 1;
-                float Rest = (Nodes[Right].Position - Nodes[Index].Position).Size();
+                float Rest = (NodePositions[Right] - NodePositions[Index]).Size();
 
                 Nodes[Index].Links.Add(FNodeLink{ Right, Rest, CritLen, Stiffness, InfluenceAttenuation });
                 Nodes[Right].Links.Add(FNodeLink{ Index, Rest, CritLen, Stiffness, InfluenceAttenuation });
@@ -54,7 +59,7 @@ void ANodeGridActor::InitializeGrid()
             if (y < TotalRows - 1)
             {
                 int32 Down = Index + TotalCols;
-                float Rest = (Nodes[Down].Position - Nodes[Index].Position).Size();
+                float Rest = (NodePositions[Down] - NodePositions[Index]).Size();
 
                 Nodes[Index].Links.Add(FNodeLink{ Down, Rest, CritLen, Stiffness, InfluenceAttenuation });
                 Nodes[Down].Links.Add(FNodeLink{ Index, Rest, CritLen, Stiffness, InfluenceAttenuation });
@@ -84,7 +89,7 @@ void ANodeGridActor::ApplyForcesParallel()
                 if (!Nodes.IsValidIndex(NeighborIndex)) continue;
                 const FNode& Neighbor = Nodes[NeighborIndex];
 
-                FVector Delta = Neighbor.Position - Node.Position;
+                FVector Delta = NodePositions[Neighbor.PositionIndex] - NodePositions[Node.PositionIndex];
                 float Distance = Delta.Size();
                 float Stretch = FMath::Max(0.f, Distance - Link.RestLength);
 
@@ -138,7 +143,6 @@ void ANodeGridActor::ProcessInfluenceCascade()
 {
     TQueue<FInfluenceEntry> InfluenceQueue;
 
-    // Инициализация очереди из предварительных импульсов
     for (const auto& Entry : PendingInfluences)
     {
         int32 Index;
@@ -149,7 +153,6 @@ void ANodeGridActor::ProcessInfluenceCascade()
         InfluenceQueue.Enqueue({ Index, Velocity, Factor });
     }
 
-    // Массив посещённых узлов (опционально)
     TSet<TPair<int32, int32>> VisitedLinks;
 
     while (!InfluenceQueue.IsEmpty())
@@ -170,7 +173,7 @@ void ANodeGridActor::ProcessInfluenceCascade()
             FNode& Neighbor = Nodes[NeighborIndex];
             if (Neighbor.bFixed) continue;
 
-            FVector Delta = Neighbor.Position - Source.Position;
+            FVector Delta = NodePositions[Neighbor.PositionIndex] - NodePositions[Source.PositionIndex];
             float Distance = Delta.Size();
 
             if (Distance > Link.RestLength)
@@ -202,69 +205,10 @@ void ANodeGridActor::ProcessInfluenceCascade()
     }
 }
 
-void ANodeGridActor::PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor)
-{
-    if (InfluenceFactor < MinPropagationThreshold || !Nodes.IsValidIndex(SourceIndex)) return;
-
-    const FNode& Source = Nodes[SourceIndex];
-    if (Source.bFixed) return;
-
-    for (const FNodeLink& Link : Source.Links)
-    {
-        int32 NeighborIndex = Link.NeighborIndex;
-        if (!Nodes.IsValidIndex(NeighborIndex)) continue;
-
-        FNode& Neighbor = Nodes[NeighborIndex];
-        if (Neighbor.bFixed) continue;
-
-        FVector Delta = Neighbor.Position - Source.Position;
-        float Distance = Delta.Size();
-        float Ratio = Distance / Link.RestLength;
-        float CriticalRatio = Link.CriticalLength / Link.RestLength;
-
-        float InfluenceScale = (Ratio < CriticalRatio)
-            ? FMath::GetMappedRangeValueClamped(
-                TRange<float>(1.0f, CriticalRatio),
-                TRange<float>(0.1f, 1.0f),
-                Ratio)
-            : 2.0f;
-
-        FVector Impulse = SourceVelocity * InfluenceFactor * InfluenceScale;
-        Neighbor.AccumulatedForce += Impulse;
-
-        PropagateInfluence(NeighborIndex, SourceVelocity, InfluenceFactor * InfluenceScale * InfluenceAttenuation);
-    }
-}
-
-void ANodeGridActor::EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime)
-{
-    FVector Delta = B.Position - A.Position;
-    float CurrentLength = Delta.Size();
-
-    if (CurrentLength <= Link.RestLength)
-        return;
-
-    FVector Dir = Delta / CurrentLength;
-
-    if (CurrentLength > Link.CriticalLength)
-    {
-        float ClampedLength = FMath::Min(CurrentLength, Link.CriticalLength);
-        FVector Target = B.Position - Dir * ClampedLength;
-        A.Position = Target;
-
-        float RelSpeed = FVector::DotProduct(B.Velocity - A.Velocity, Dir);
-        FVector VelocityCorrection = RelSpeed * Dir;
-
-        A.Velocity += VelocityCorrection;
-        B.Velocity -= VelocityCorrection;
-    }
-}
-
 void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 {
     const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;
 
-    // Буферы для параллельной фазы
     TArray<FVector> PendingPositions;
     TArray<FVector> PendingVelocities;
     TArray<bool> FixationFlags;
@@ -273,20 +217,18 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
     PendingVelocities.SetNumUninitialized(Nodes.Num());
     FixationFlags.SetNumZeroed(Nodes.Num());
 
-    // 🔁 Расчёт движения в потоке
     ParallelFor(Nodes.Num(), [&](int32 i)
         {
             const FNode& Node = Nodes[i];
             if (Node.bFixed) return;
 
             FVector Velocity = Node.Velocity + (Node.AccumulatedForce + GravityForce) * DeltaTime;
-            FVector Position = Node.Position + Velocity * DeltaTime;
+            FVector Position = NodePositions[Node.PositionIndex] + Velocity * DeltaTime;
 
             PendingPositions[i] = Position;
             PendingVelocities[i] = Velocity * DampingFactor;
         });
 
-    // 🔍 Фиксация в основном потоке
     const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(OverlapRadius);
     const FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);
     const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);
@@ -300,12 +242,7 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
         TArray<FOverlapResult> Overlaps;
         GetWorld()->OverlapMultiByObjectType(
-            Overlaps,
-            TestPosition,
-            FQuat::Identity,
-            ObjectParams,
-            ProbeShape,
-            QueryParams
+            Overlaps, TestPosition, FQuat::Identity, ObjectParams, ProbeShape, QueryParams
         );
 
         for (const FOverlapResult& Overlap : Overlaps)
@@ -319,10 +256,7 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
                 break;
             }
 
-            AActor* SourceActor = HitComp->GetOwner();
-            if (!SourceActor) continue;
-
-            ACharacter* Char = Cast<ACharacter>(SourceActor);
+            ACharacter* Char = Cast<ACharacter>(HitComp->GetOwner());
             if (!Char) continue;
 
             USkeletalMeshComponent* FixationMesh = Char->GetMesh();
@@ -332,12 +266,8 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
             FCollisionQueryParams MeshParams(TEXT("FixationMeshCheck"), false, this);
 
             GetWorld()->OverlapMultiByChannel(
-                MeshOverlaps,
-                TestPosition,
-                FQuat::Identity,
-                ECC_Visibility,
-                ProbeShape,
-                MeshParams
+                MeshOverlaps, TestPosition, FQuat::Identity,
+                ECC_Visibility, ProbeShape, MeshParams
             );
 
             for (const FOverlapResult& MeshOverlap : MeshOverlaps)
@@ -353,7 +283,6 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
         }
     }
 
-    // 📦 Применение результатов
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         FNode& Node = Nodes[i];
@@ -361,12 +290,13 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
         if (FixationFlags[i])
         {
+            NodePositions[Node.PositionIndex] = (PendingPositions[i] + NodePositions[Node.PositionIndex]) / 2;
             Node.Velocity = FVector::ZeroVector;
             Node.bFixed = true;
         }
         else
         {
-            Node.Position = PendingPositions[i];
+            NodePositions[Node.PositionIndex] = PendingPositions[i];
             Node.Velocity = PendingVelocities[i];
         }
 
@@ -391,14 +321,12 @@ void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
             FNode& B = Nodes[j];
             if (B.bFixed) continue;
 
-            // Обрабатываем каждую пару один раз
             TPair<int32, int32> Key = (i < j) ? TPair<int32, int32>(i, j) : TPair<int32, int32>(j, i);
             if (ProcessedLinks.Contains(Key)) continue;
             ProcessedLinks.Add(Key);
 
-            FVector Delta = B.Position - A.Position;
+            FVector Delta = NodePositions[B.PositionIndex] - NodePositions[A.PositionIndex];
             float CurrentLength = Delta.Size();
-
             if (CurrentLength <= Link.RestLength) continue;
 
             FVector Dir = Delta / CurrentLength;
@@ -406,15 +334,12 @@ void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
             if (CurrentLength > Link.CriticalLength)
             {
                 float ClampedLength = FMath::Min(CurrentLength, Link.CriticalLength);
-                FVector MidPoint = (A.Position + B.Position) * 0.5f;
+                FVector MidPoint = (NodePositions[A.PositionIndex] + NodePositions[B.PositionIndex]) * 0.5f;
                 FVector TargetA = MidPoint - Dir * ClampedLength * 0.5f;
                 FVector TargetB = MidPoint + Dir * ClampedLength * 0.5f;
 
-                FVector PosCorrectionA = TargetA - A.Position;
-                FVector PosCorrectionB = TargetB - B.Position;
-
-                A.Position += PosCorrectionA;
-                B.Position += PosCorrectionB;
+                NodePositions[A.PositionIndex] = TargetA;
+                NodePositions[B.PositionIndex] = TargetB;
 
                 FVector RelVel = B.Velocity - A.Velocity;
                 float RelSpeed = FVector::DotProduct(RelVel, Dir);
@@ -441,19 +366,20 @@ void ANodeGridActor::DrawDebugState()
     {
         const FNode& Node = Nodes[i];
         const FColor NodeColor = Node.bFixed ? FixedColor : FreeColor;
+        const FVector& Pos = NodePositions[Node.PositionIndex];
 
-        DrawDebugSphere(GetWorld(), Node.Position, DebugSphereRadius, 12, NodeColor, false, DrawLifeTime, 0, 0.5f);
+        DrawDebugSphere(GetWorld(), Pos, DebugSphereRadius, 12, NodeColor, false, DrawLifeTime, 0, 0.5f);
 
         for (const FNodeLink& Link : Node.Links)
         {
             if (!Nodes.IsValidIndex(Link.NeighborIndex)) continue;
             const FNode& Neighbor = Nodes[Link.NeighborIndex];
 
-            float CurrentLength = (Neighbor.Position - Node.Position).Size();
+            float CurrentLength = (NodePositions[Neighbor.PositionIndex] - Pos).Size();
             float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, RCorrect);
             FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio);
 
-            DrawDebugLine(GetWorld(), Node.Position, Neighbor.Position, LineColor.ToFColor(true), false, DrawLifeTime, 0, DebugLineThickness);
+            DrawDebugLine(GetWorld(), Pos, NodePositions[Neighbor.PositionIndex], LineColor.ToFColor(true), false, DrawLifeTime, 0, DebugLineThickness);
         }
     }
 }
@@ -477,4 +403,7 @@ void ANodeGridActor::Tick(float DeltaTime)
         SetActorTickEnabled(false);
         UE_LOG(LogTemp, Log, TEXT("Process stop %d"), StopCount);
     }
+
+    // 🔁 Передача координат в Niagara (если подключена)
+    // NiagaraComp->SetNiagaraVariableVec3Array("NodePositions", NodePositions);
 }

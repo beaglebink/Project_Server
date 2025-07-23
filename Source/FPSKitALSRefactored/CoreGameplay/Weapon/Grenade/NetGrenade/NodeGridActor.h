@@ -31,7 +31,7 @@ struct FNode
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FVector Position;
+    int32 PositionIndex;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector PendingPosition;
@@ -72,19 +72,20 @@ public:
 
 private:
     void InitializeGrid();
-    void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
-    void EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime);
-
-    // 🔁 Вынесенные фазы
     void ApplyForcesParallel();
     void ProcessInfluenceCascade();
     void ApplyMotionAndFixation(float DeltaTime);
     void ApplyRigidConstraints(float DeltaTime);
     void DrawDebugState();
+    void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
+    void EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime);
 
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FNode> Nodes;
+
+    UPROPERTY()
+    TArray<FVector> NodePositions;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     int32 GridRows = 10;
@@ -143,6 +144,5 @@ public:
 private:
     int32 StopCount = 0;
 
-    // 🔁 Каскадная очередь импульсов
     TArray<TTuple<int32, FVector, float>> PendingInfluences;
 };
