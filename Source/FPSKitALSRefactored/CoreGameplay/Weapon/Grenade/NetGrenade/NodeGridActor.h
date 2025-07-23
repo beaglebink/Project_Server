@@ -2,18 +2,61 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "SimulationTypes.h"
-#include "NiagaraFunctionLibrary.h"
 #include "NodeGridActor.generated.h"
 
-// 🔍 Forward declarations
-class URibbonLinkAdapter;
-class UNiagaraComponent;
-class UNiagaraSystem;
-class UNiagaraDataInterface_RibbonLinks;
-class UNiagaraDataInterfaceArrayVector;
+USTRUCT(BlueprintType)
+struct FNodeLink
+{
+    GENERATED_BODY()
 
-UCLASS()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 NeighborIndex;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float RestLength;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CriticalLength;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float Stiffness;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float InfluenceFactor = 1.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FNode
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 PositionIndex;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FVector PendingPosition;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FVector Velocity;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FVector AccumulatedForce;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bFixed = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<FNodeLink> Links;
+};
+
+struct FInfluenceEntry
+{
+    int32 Index;
+    FVector Velocity;
+    float Factor;
+};
+
+UCLASS(Blueprintable)
 class FPSKITALSREFACTORED_API ANodeGridActor : public AActor
 {
     GENERATED_BODY()
@@ -23,47 +66,27 @@ public:
 
 protected:
     virtual void BeginPlay() override;
-    virtual void PostInitializeComponents() override;
+
+public:
     virtual void Tick(float DeltaTime) override;
 
+private:
     void InitializeGrid();
     void ApplyForcesParallel();
     void ProcessInfluenceCascade();
     void ApplyMotionAndFixation(float DeltaTime);
     void ApplyRigidConstraints(float DeltaTime);
     void DrawDebugState();
+    void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
+    void EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime);
 
-    // 🧠 Симуляционные данные
-    UPROPERTY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FNode> Nodes;
 
     UPROPERTY()
     TArray<FVector> NodePositions;
 
-    UPROPERTY()
-    TArray<FInfluenceEntry> PendingInfluences;
-
-    UPROPERTY()
-    int32 StopCount = 0;
-
-    // 🔁 Niagara визуализация
-    UPROPERTY()
-    UNiagaraComponent* NiagaraComp;
-
-    UPROPERTY(EditAnywhere)
-    UNiagaraSystem* NiagaraSystemAsset;
-
-    UPROPERTY()
-    UNiagaraDataInterface_RibbonLinks* RibbonNDI;
-
-    UPROPERTY()
-    URibbonLinkAdapter* RibbonLinkAdapter;
-
-    UPROPERTY(EditAnywhere)
-    UNiagaraParameterCollection* NiagaraParamCollection;
-
-public:
-    // 📦 Параметры сетки и симуляции
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     int32 GridRows = 10;
 
@@ -117,4 +140,9 @@ public:
 
     UPROPERTY(EditAnywhere)
     float RCorrect = 1.0f;
+
+private:
+    int32 StopCount = 0;
+
+    TArray<TTuple<int32, FVector, float>> PendingInfluences;
 };

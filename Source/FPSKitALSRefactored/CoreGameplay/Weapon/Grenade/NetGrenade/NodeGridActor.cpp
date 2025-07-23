@@ -1,12 +1,7 @@
 #include "NodeGridActor.h"
-#include "NiagaraComponent.h"
-#include "NiagaraSystem.h"
-#include "NiagaraDataInterface_RibbonLinks.h"
-#include "RibbonLinkAdapter.h"
 #include "DrawDebugHelpers.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
-#include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "Components/SkeletalMeshComponent.h"
 #include <Kismet/KismetMathLibrary.h>
 
@@ -15,21 +10,62 @@ ANodeGridActor::ANodeGridActor()
     PrimaryActorTick.bCanEverTick = true;
 }
 
-void ANodeGridActor::PostInitializeComponents()
+void ANodeGridActor::BeginPlay()
 {
-    Super::PostInitializeComponents();
+    Super::BeginPlay();
+    InitializeGrid();
+}
 
-    NiagaraComp = NewObject<UNiagaraComponent>(this, TEXT("NodeNiagara"));
-    NiagaraComp->SetupAttachment(RootComponent);
-    NiagaraComp->RegisterComponent();
-    NiagaraComp->SetAsset(NiagaraSystemAsset);
+void ANodeGridActor::InitializeGrid()
+{
+    Nodes.Empty();
+    NodePositions.Empty();
 
-    // 🔍 Получаем NDI из Niagara параметров
-    FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface_RibbonLinks::StaticClass()), TEXT("RibbonNDI"));
-    UNiagaraDataInterface* DI = NiagaraComp->GetOverrideParameters().GetDataInterface(Var);
-    RibbonNDI = Cast<UNiagaraDataInterface_RibbonLinks>(DI);
+    const int32 TotalCols = GridCols + 1;
+    const int32 TotalRows = GridRows + 1;
+    const float HalfX = GridCols * 0.5f * CellSize;
+    const float HalfY = GridRows * 0.5f * CellSize;
 
-    RibbonLinkAdapter = NewObject<URibbonLinkAdapter>(this);
+    for (int32 y = 0; y < TotalRows; ++y)
+    {
+        for (int32 x = 0; x < TotalCols; ++x)
+        {
+            FVector LocalOffset(x * CellSize - HalfX, y * CellSize - HalfY, 0);
+            FVector Pos = GetActorTransform().TransformPosition(LocalOffset);
+            FVector W_Velocity = UKismetMathLibrary::TransformDirection(GetActorTransform(), FVector(0.f, 0.f, Vel));
+
+            int32 Index = NodePositions.Num();
+            NodePositions.Add(Pos);
+
+            Nodes.Add(FNode{ Index, Pos, W_Velocity, FVector::ZeroVector, false });
+        }
+    }
+
+    for (int32 y = 0; y < TotalRows; ++y)
+    {
+        for (int32 x = 0; x < TotalCols; ++x)
+        {
+            int32 Index = y * TotalCols + x;
+
+            if (x < TotalCols - 1)
+            {
+                int32 Right = Index + 1;
+                float Rest = (NodePositions[Right] - NodePositions[Index]).Size();
+
+                Nodes[Index].Links.Add(FNodeLink{ Right, Rest, CritLen, Stiffness, InfluenceAttenuation });
+                Nodes[Right].Links.Add(FNodeLink{ Index, Rest, CritLen, Stiffness, InfluenceAttenuation });
+            }
+
+            if (y < TotalRows - 1)
+            {
+                int32 Down = Index + TotalCols;
+                float Rest = (NodePositions[Down] - NodePositions[Index]).Size();
+
+                Nodes[Index].Links.Add(FNodeLink{ Down, Rest, CritLen, Stiffness, InfluenceAttenuation });
+                Nodes[Down].Links.Add(FNodeLink{ Index, Rest, CritLen, Stiffness, InfluenceAttenuation });
+            }
+        }
+    }
 }
 
 void ANodeGridActor::ApplyForcesParallel()
@@ -109,9 +145,10 @@ void ANodeGridActor::ProcessInfluenceCascade()
 
     for (const auto& Entry : PendingInfluences)
     {
-        int32 Index = Entry.Index;
-        FVector Velocity = Entry.Velocity;
-        float Factor = Entry.Factor;
+        int32 Index;
+        FVector Velocity;
+        float Factor;
+        Tie(Index, Velocity, Factor) = Entry;
 
         InfluenceQueue.Enqueue({ Index, Velocity, Factor });
     }
@@ -154,9 +191,9 @@ void ANodeGridActor::ProcessInfluenceCascade()
                 FVector Impulse = Current.Velocity * Current.Factor * InfluenceScale;
                 Neighbor.AccumulatedForce += Impulse;
 
-                int32 A = FMath::Min(Current.Index, NeighborIndex);
-                int32 B = FMath::Max(Current.Index, NeighborIndex);
-                TPair<int32, int32> LinkKey(A, B);
+                TPair<int32, int32> LinkKey = (Current.Index < NeighborIndex)
+                    ? TPair<int32, int32>(Current.Index, NeighborIndex)
+                    : TPair<int32, int32>(NeighborIndex, Current.Index);
 
                 if (!VisitedLinks.Contains(LinkKey))
                 {
@@ -165,39 +202,6 @@ void ANodeGridActor::ProcessInfluenceCascade()
                 }
             }
         }
-    }
-}
-
-void ANodeGridActor::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
-
-    StopCount = 0;
-    PendingInfluences.Reset();
-
-    ApplyForcesParallel();
-    ProcessInfluenceCascade();
-    ApplyMotionAndFixation(DeltaTime);
-    ApplyRigidConstraints(DeltaTime);
-    DrawDebugState();
-
-    // 🔁 Передача координат в Niagara через Data Interface
-    UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(
-        NiagaraComp,
-        FName("NodePositions"),
-        NodePositions
-    );
-
-    if (RibbonLinkAdapter && RibbonNDI)
-    {
-        RibbonLinkAdapter->UpdateRibbonLinks(Nodes, RibbonNDI);
-    }
-
-    const float SPart = float(StopCount) / float(Nodes.Num());
-    if (StopCount > 0 && SPart >= StopTresholdPart)
-    {
-        SetActorTickEnabled(false);
-        UE_LOG(LogTemp, Log, TEXT("Process stop %d"), StopCount);
     }
 }
 
@@ -380,56 +384,26 @@ void ANodeGridActor::DrawDebugState()
     }
 }
 
-void ANodeGridActor::BeginPlay()
+void ANodeGridActor::Tick(float DeltaTime)
 {
-    Super::BeginPlay();
-    InitializeGrid();
-}
+    Super::Tick(DeltaTime);
 
-void ANodeGridActor::InitializeGrid()
-{
-    Nodes.Reset();
-    NodePositions.Reset();
+    StopCount = 0;
+    PendingInfluences.Reset();
 
-    const int32 Total = GridRows * GridCols;
-    Nodes.SetNum(Total);
-    NodePositions.SetNum(Total);
+    ApplyForcesParallel();
+    ProcessInfluenceCascade();
+    ApplyMotionAndFixation(DeltaTime);
+    ApplyRigidConstraints(DeltaTime);
+    DrawDebugState();
 
-    const float HalfX = GridCols * 0.5f * CellSize;
-    const float HalfY = GridRows * 0.5f * CellSize;
-
-    for (int32 Row = 0; Row < GridRows; ++Row)
+    const float SPart = float(StopCount) / float(Nodes.Num());
+    if (StopCount > 0 && SPart >= StopTresholdPart)
     {
-        for (int32 Col = 0; Col < GridCols; ++Col)
-        {
-            const int32 Index = Row * GridCols + Col;
-			FVector LocalOffset = FVector(Col * CellSize - HalfX, Row * CellSize - HalfY, 0);
-            FVector Position = GetActorTransform().TransformPosition(LocalOffset);//GetActorLocation() + FVector(Row * CellSize, Col * CellSize, 0);
-            FVector W_Velocity = UKismetMathLibrary::TransformDirection(GetActorTransform(), FVector(0.f, 0.f, Vel));
-
-            NodePositions[Index] = Position;
-
-            FNode& Node = Nodes[Index];
-            Node.PositionIndex = Index;
-            Node.Velocity = W_Velocity;
-            Node.bFixed = false;
-            Node.AccumulatedForce = FVector::ZeroVector;
-
-            // Связи по сетке
-            auto TryAddLink = [&](int32 NeighborIndex)
-                {
-                    if (!Nodes.IsValidIndex(NeighborIndex)) return;
-                    FNodeLink Link;
-                    Link.NeighborIndex = NeighborIndex;
-                    Link.RestLength = CellSize;
-                    Link.CriticalLength = CritLen;
-                    Node.Links.Add(Link);
-                };
-
-            if (Row > 0) TryAddLink((Row - 1) * GridCols + Col);     // вверх
-            if (Row < GridRows - 1) TryAddLink((Row + 1) * GridCols + Col); // вниз
-            if (Col > 0) TryAddLink(Row * GridCols + (Col - 1));     // влево
-            if (Col < GridCols - 1) TryAddLink(Row * GridCols + (Col + 1)); // вправо
-        }
+        SetActorTickEnabled(false);
+        UE_LOG(LogTemp, Log, TEXT("Process stop %d"), StopCount);
     }
+
+    // 🔁 Передача координат в Niagara (если подключена)
+    // NiagaraComp->SetNiagaraVariableVec3Array("NodePositions", NodePositions);
 }
