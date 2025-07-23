@@ -17,8 +17,6 @@ class UButton;
 class UVerticalBox;
 class UCanvasPanel;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFocusChangingWidget);
-
 UCLASS()
 class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
 {
@@ -119,14 +117,4 @@ private:
 	float CurrentTradeCoeff = 1.0f;
 
 	uint8 bIsMoneyEnough : 1{true};
-
-	//keyboard focus
-	void OnFocusChangingSlate(const FFocusEvent& FocusEvent, const FWeakWidgetPath& Path, const TSharedPtr<SWidget>& Widget, const FWidgetPath& WidgetPath, const TSharedPtr<SWidget>& SharedWidget);
-
-public:
-	UPROPERTY(BlueprintAssignable, Category = "Focus")
-	FOnFocusChangingWidget OnFocusChangingWidget;
-
-	UFUNCTION(BlueprintNativeEvent, Category = "Focus")
-	void OnFocusChanging();
 };

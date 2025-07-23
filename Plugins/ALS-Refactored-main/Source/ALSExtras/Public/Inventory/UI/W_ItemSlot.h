@@ -58,9 +58,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Format")
 	static FText FormatFloatFixed(float Value, int32 Precision);
 
-protected:
+public:
 	void SetTintOnSelected(bool IsSet);
 
+protected:
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)override;
 
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent)override;

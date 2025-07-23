@@ -47,14 +47,14 @@ void UW_InventoryHUD::NativeConstruct()
 			}
 		}
 	}
-
-	FSlateApplication::Get().OnFocusChanging().AddUObject(this, &UW_InventoryHUD::OnFocusChangingSlate);
-	OnFocusChangingWidget.AddDynamic(this, &UW_InventoryHUD::OnFocusChanging);
 }
 
 void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToInteract, FName KeyPressed)
 {
 	bIsMoneyEnough = true;
+
+	SlotToInteract->SetTintOnSelected(false);
+	FSlateApplication;
 
 	switch (SlotInventoryType)
 	{
@@ -338,14 +338,5 @@ void UW_InventoryHUD::DropAll()
 }
 
 void UW_InventoryHUD::Recreate_Implementation()
-{
-}
-
-void UW_InventoryHUD::OnFocusChangingSlate(const FFocusEvent& FocusEvent, const FWeakWidgetPath& Path, const TSharedPtr<SWidget>& Widget, const FWidgetPath& WidgetPath, const TSharedPtr<SWidget>& SharedWidget)
-{
-	OnFocusChangingWidget.Broadcast();
-}
-
-void UW_InventoryHUD::OnFocusChanging_Implementation()
 {
 }
