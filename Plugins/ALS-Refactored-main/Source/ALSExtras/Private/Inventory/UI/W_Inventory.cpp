@@ -4,6 +4,7 @@
 #include "Inventory/UI/W_ItemSlot.h"
 #include "Inventory/AC_Container.h"
 #include "AlsCharacterExample.h"
+#include "Inventory/UI/W_InventoryHUD.h"
 
 void UW_Inventory::NativeConstruct()
 {
@@ -15,6 +16,8 @@ void UW_Inventory::NativeConstruct()
 		Container->OnWeightChanged.AddDynamic(this, &UW_Inventory::RefreshWeight);
 		Container->OnMoneyChanged.AddDynamic(this, &UW_Inventory::RefreshMoney);
 	}
+
+	InventoryHUDRef->OnFocusChangingWidget.AddDynamic(this, &UW_Inventory::OnFocusChanging);
 }
 
 void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
@@ -205,4 +208,8 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 	}
 
 	SlotsFilter(SlotContainerType);
+}
+
+void UW_Inventory::OnFocusChanging_Implementation()
+{
 }

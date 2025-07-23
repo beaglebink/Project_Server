@@ -74,4 +74,7 @@ private:
 protected:
 	UFUNCTION(BlueprintCallable, Category = "Sorting")
 	void Items_Sort(EnumSortType SortType, EnumInventory SlotContainerType);
+
+	UFUNCTION(BlueprintNativeEvent, Category = "Focus")
+	void OnFocusChanging();
 };
