@@ -6,6 +6,7 @@
 #include "EnhancedInputComponent.h"
 #include "Inventory/UI/W_Inventory.h"
 #include "Inventory/AC_Container.h"
+#include "Inventory/UI/W_ItemSlot.h"
 
 void UW_HowMuch::NativeConstruct()
 {
@@ -44,6 +45,7 @@ void UW_HowMuch::SurfSlider(const FInputActionValue& Value)
 
 void UW_HowMuch::ConfirmSlider()
 {
+	SlotRef->SetKeyboardFocus();
 	if (FMath::RoundToInt32(Slider_HowMuch->GetValue()) != 0)
 	{
 		InventoryHUDRef->AddToSlotContainer(Inventory_ToRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldCount);
@@ -55,6 +57,7 @@ void UW_HowMuch::ConfirmSlider()
 
 void UW_HowMuch::EscapeWidget()
 {
+	SlotRef->SetKeyboardFocus();
 	RemoveFromParent();
 	MarkAsGarbage();
 }

@@ -13,7 +13,7 @@ class USizeBox;
 class UW_ItemSlot;
 class UW_HowMuch;
 class UW_NotEnough;
-class UButton;
+class UW_FocusableButton;
 class UVerticalBox;
 class UCanvasPanel;
 
@@ -50,11 +50,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	USizeBox* SizeBox_VisualAndDescription;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
-	UButton* Button_TakeAll;
+	UPROPERTY(BlueprintReadWrite, Category = "Button", meta = (BindWidget))
+	UW_FocusableButton* Button_TakeAll;
 
-	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
-	UButton* Button_DropAll;
+	UPROPERTY(BlueprintReadWrite, Category = "Button", meta = (BindWidget))
+	UW_FocusableButton* Button_DropAll;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	UVerticalBox* VerticalBox_Additive;
@@ -117,4 +117,6 @@ private:
 	float CurrentTradeCoeff = 1.0f;
 
 	uint8 bIsMoneyEnough : 1{true};
+
+	void SetKeyboardFocusOnPrevSlot(UW_ItemSlot* FocusedSlot);
 };

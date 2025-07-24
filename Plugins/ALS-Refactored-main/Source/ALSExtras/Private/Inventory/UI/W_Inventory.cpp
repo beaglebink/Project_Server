@@ -5,6 +5,7 @@
 #include "Inventory/AC_Container.h"
 #include "AlsCharacterExample.h"
 #include "Inventory/UI/W_InventoryHUD.h"
+#include "Inventory/UI/W_FocusableButton.h"
 
 void UW_Inventory::NativeConstruct()
 {
@@ -16,6 +17,20 @@ void UW_Inventory::NativeConstruct()
 		Container->OnWeightChanged.AddDynamic(this, &UW_Inventory::RefreshWeight);
 		Container->OnMoneyChanged.AddDynamic(this, &UW_Inventory::RefreshMoney);
 	}
+
+	Button_Tab_All->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Tab_All_Pressed);
+	Button_Tab_Weapon->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Tab_Weapon_Pressed);
+	Button_Tab_Clothes->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Tab_Clothes_Pressed);
+	Button_Tab_Consumables->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Tab_Consumables_Pressed);
+	Button_Tab_Miscellaneous->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Tab_Miscellaneous_Pressed);
+	Button_Tab_Others->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Tab_Others_Pressed);
+
+	Button_Sort_AZ->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_AZ_Pressed);
+	Button_Sort_Damage->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_Damage_Pressed);
+	Button_Sort_Armour->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_Armour_Pressed);
+	Button_Sort_Durability->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_Durability_Pressed);
+	Button_Sort_Weight->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_Weight_Pressed);
+	Button_Sort_Value->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_Value_Pressed);
 }
 
 void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
@@ -206,4 +221,58 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 	}
 
 	SlotsFilter(SlotContainerType);
+}
+
+void UW_Inventory::Handle_Button_Tab_All_Pressed_Implementation()
+{
+}
+
+void UW_Inventory::Handle_Button_Tab_Weapon_Pressed_Implementation()
+{
+}
+
+void UW_Inventory::Handle_Button_Tab_Clothes_Pressed_Implementation()
+{
+}
+
+void UW_Inventory::Handle_Button_Tab_Consumables_Pressed_Implementation()
+{
+}
+
+void UW_Inventory::Handle_Button_Tab_Miscellaneous_Pressed_Implementation()
+{
+}
+
+void UW_Inventory::Handle_Button_Tab_Others_Pressed_Implementation()
+{
+}
+
+void UW_Inventory::Handle_Button_Sort_AZ_Pressed_Implementation()
+{
+	Items_Sort(EnumSortType::A_Z, ActiveTab);
+}
+
+void UW_Inventory::Handle_Button_Sort_Damage_Pressed_Implementation()
+{
+	Items_Sort(EnumSortType::Damage, ActiveTab);
+}
+
+void UW_Inventory::Handle_Button_Sort_Armour_Pressed_Implementation()
+{
+	Items_Sort(EnumSortType::Armour, ActiveTab);
+}
+
+void UW_Inventory::Handle_Button_Sort_Durability_Pressed_Implementation()
+{
+	Items_Sort(EnumSortType::Durability, ActiveTab);
+}
+
+void UW_Inventory::Handle_Button_Sort_Weight_Pressed_Implementation()
+{
+	Items_Sort(EnumSortType::Weight, ActiveTab);
+}
+
+void UW_Inventory::Handle_Button_Sort_Value_Pressed_Implementation()
+{
+	Items_Sort(EnumSortType::Value, ActiveTab);
 }

@@ -7,6 +7,8 @@
 void UW_ItemSlot::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	bIsFocusable = true;
 }
 
 FText UW_ItemSlot::FormatFloatFixed(float Value, int32 Precision)

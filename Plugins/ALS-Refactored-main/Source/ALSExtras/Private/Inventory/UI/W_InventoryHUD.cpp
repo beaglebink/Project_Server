@@ -7,7 +7,7 @@
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
-#include "Components/Button.h"
+#include "Inventory/UI/W_FocusableButton.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "EnhancedInputComponent.h"
@@ -52,9 +52,6 @@ void UW_InventoryHUD::NativeConstruct()
 void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToInteract, FName KeyPressed)
 {
 	bIsMoneyEnough = true;
-
-	SlotToInteract->SetTintOnSelected(false);
-	FSlateApplication;
 
 	switch (SlotInventoryType)
 	{
@@ -203,8 +200,9 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 		return;
 	}
 
-	SlotToAdd->InventoryType = Inventory_To->InventoryType;
+	SetKeyboardFocusOnPrevSlot(SlotToAdd);
 
+	SlotToAdd->InventoryType = Inventory_To->InventoryType;
 
 	if (ItemData && ItemData->bCanStack)
 	{
@@ -253,6 +251,11 @@ void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_I
 	if (!bIsMoneyEnough)
 	{
 		return;
+	}
+
+	if (SlotToRemove->HasKeyboardFocus())
+	{
+		SetKeyboardFocusOnPrevSlot(SlotToRemove);
 	}
 
 	if (SlotToRemove->Item.Quantity != QuantityToRemove)
@@ -334,6 +337,26 @@ void UW_InventoryHUD::DropAll()
 		default:
 			break;
 		}
+	}
+}
+
+void UW_InventoryHUD::SetKeyboardFocusOnPrevSlot(UW_ItemSlot* FocusedSlot)
+{
+	UW_Inventory* Inventory = AdditiveInventory;
+	if (FocusedSlot->InventoryType == EnumInventoryType::Inventory)
+	{
+		Inventory = MainInventory;
+	}
+
+	int Index = Inventory->ScrollBox_Items->GetChildIndex(FocusedSlot);
+
+	if (Index > 0)
+	{
+		Inventory->ScrollBox_Items->GetChildAt(Index - 1)->SetKeyboardFocus();
+	}
+	else if (Index == 0)
+	{
+		Inventory->Button_Sort_AZ->SetKeyboardFocus();
 	}
 }
 
