@@ -3,6 +3,7 @@
 #include "AlsCharacter.h"
 #include "Enums/EnumLoopStates.h"
 #include <PhysicsEngine/PhysicsConstraintActor.h>
+#include "AlsCharacterExample_I.h"
 #include "AlsCharacterExample.generated.h"
 
 struct FInputActionValue;
@@ -23,7 +24,7 @@ enum class EMovementDirection : uint8
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMovementInputEvent, EMovementDirection, MovementDirection, float, Value);
 
 UCLASS(AutoExpandCategories = ("Settings|Als Character Example", "State|Als Character Example"))
-class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter
+class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter, public IAlsCharacter_I
 {
 	GENERATED_BODY()
 
@@ -145,6 +146,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example")
 	bool IsImplementingAIM = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example")
+	float NetGrenadeParalyseTime = 5.0f;
+
 private:
 	FTimerHandle JumpTimerHandle;
 
@@ -155,7 +159,11 @@ public:
 
 	virtual void NotifyControllerChanged() override;
 
-	// Camera
+	virtual float GetNetGrenadeParalyseTime() const;
+
+	virtual void ParalyzeNPC(float Time);
+
+	void EndStun();
 
 protected:
 	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& ViewInfo) override;

@@ -88,6 +88,57 @@ void AAlsCharacterExample::NotifyControllerChanged()
 	Super::NotifyControllerChanged();
 }
 
+float AAlsCharacterExample::GetNetGrenadeParalyseTime() const
+{
+	return NetGrenadeParalyseTime;
+}
+void AAlsCharacterExample::ParalyzeNPC(float Time)
+{
+	if (bIsStunned || bIsGrappled || bIsWired || bIsSliding || bIsStickyStuck || bIsBubbled || bIsOverload)
+	{
+		return;
+	}
+	if (Time > 0.0f)
+	{
+		bIsStunned = true;
+		GetCharacterMovement()->DisableMovement();
+		GetCharacterMovement()->StopMovementImmediately();
+		GetWorldTimerManager().SetTimer(StunTimerHandle, this, &AAlsCharacterExample::EndStun, Time, false);
+	}
+	else
+	{
+		EndStun();
+	}
+}
+void AAlsCharacterExample::EndStun()
+{
+	bIsStunned = false;
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+	GetCharacterMovement()->SetDefaultMovementMode();
+	GetWorldTimerManager().ClearTimer(StunTimerHandle);
+	/*
+	if (bIsDiscombobulated)
+	{
+		DiscombobulateEffect();
+	}
+	if (bIsInked)
+	{
+		CalculateInkEffect();
+	}
+	if (bIsWired)
+	{
+		SetRemoveWireEffect(false, 0.0f);
+	}
+	if (bIsGrappled)
+	{
+		SetRemoveGrapple(false);
+	}
+	if (bIsStickyStuck)
+	{
+		SetRemoveStickyStuck(false);
+	}
+	*/
+}
 void AAlsCharacterExample::CalcCamera(const float DeltaTime, FMinimalViewInfo& ViewInfo)
 {
 	if (Camera->IsActive())

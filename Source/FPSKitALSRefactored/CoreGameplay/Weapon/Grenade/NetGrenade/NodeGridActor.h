@@ -2,7 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NiagaraFunctionLibrary.h"
 #include "NodeGridActor.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnParalysisNPCEvent, ACharacter*, NPC);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRevivalNPCEvent, ACharacter*, User);
 
 USTRUCT(BlueprintType)
 struct FNodeLink
@@ -64,6 +68,8 @@ class FPSKITALSREFACTORED_API ANodeGridActor : public AActor
 public:
     ANodeGridActor();
 
+    void PostInitializeComponents();
+
 protected:
     virtual void BeginPlay() override;
 
@@ -75,8 +81,10 @@ private:
     void ApplyForcesParallel();
     void ProcessInfluenceCascade();
     void ApplyMotionAndFixation(float DeltaTime);
+    void ParalyzeCharacter(ACharacter* Char);
     void ApplyRigidConstraints(float DeltaTime);
     void DrawDebugState();
+    void IterateUniqueLinks();
     void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
     void EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime);
 
@@ -84,7 +92,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FNode> Nodes;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FVector> NodePositions;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
@@ -141,8 +149,38 @@ public:
     UPROPERTY(EditAnywhere)
     float RCorrect = 1.0f;
 
+    UPROPERTY(BlueprintAssignable)
+	FOnParalysisNPCEvent OnParalysisNPC;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnRevivalNPCEvent OnRevivalNPC;
+
+protected:
+    UPROPERTY()
+    UNiagaraComponent* NiagaraComp;
+
+    UPROPERTY(EditAnywhere)
+    UNiagaraSystem* NiagaraSystemAsset;
+
+    UPROPERTY()
+	TArray< UNiagaraComponent*> NiagaraComponents;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<int32> RibbonStartIndices;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<int32> RibbonEndIndices;
+
 private:
     int32 StopCount = 0;
 
     TArray<TTuple<int32, FVector, float>> PendingInfluences;
+
+
+
+   // UPROPERTY()
+    TSet<TPair<int32, int32>> UniqueLinks;
+
+    UPROPERTY()
+    TArray<FVector> Ribbons;
 };

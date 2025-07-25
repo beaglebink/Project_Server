@@ -4,22 +4,60 @@
 #include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
 #include <Kismet/KismetMathLibrary.h>
+#include <NiagaraDataInterfaceArrayFunctionLibrary.h>
+#include "AlsCharacterExample_I.h"
+#include "AlsCharacterExample.h"
+#include "NiagaraComponent.h"
+
 
 ANodeGridActor::ANodeGridActor()
 {
     PrimaryActorTick.bCanEverTick = true;
 }
 
+void ANodeGridActor::PostInitializeComponents()
+{
+    Super::PostInitializeComponents();
+
+    //NiagaraComp = NewObject<UNiagaraComponent>(this, TEXT("NodeNiagara"));
+    //NiagaraComp->SetupAttachment(RootComponent);
+    //NiagaraComp->RegisterComponent();
+    //NiagaraComp->SetAsset(NiagaraSystemAsset);
+
+        //UNiagaraComponent* Niagara = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSystemAsset, RootComponent, FName(TEXT("")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, true);
+
+
+}
+
 void ANodeGridActor::BeginPlay()
 {
     Super::BeginPlay();
+
     InitializeGrid();
+
+    for (const TPair<int32, int32>& Link : UniqueLinks)
+    {
+        //UNiagaraComponent* Niagara = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSystemAsset, RootComponent, FName(TEXT("")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, true);
+        UNiagaraComponent* Niagara = NewObject<UNiagaraComponent>(this, TEXT("NodeNiagara"));
+        if (Niagara)
+        {
+            if (NiagaraSystemAsset)
+            {
+				Niagara->SetAsset(NiagaraSystemAsset);
+				Niagara->SetupAttachment(RootComponent);
+				Niagara->RegisterComponent();
+				NiagaraComponents.Add(Niagara);
+			}
+        }
+    }
 }
 
 void ANodeGridActor::InitializeGrid()
 {
     Nodes.Empty();
     NodePositions.Empty();
+    RibbonStartIndices.Reset();
+    RibbonEndIndices.Reset();
 
     const int32 TotalCols = GridCols + 1;
     const int32 TotalRows = GridRows + 1;
@@ -66,6 +104,40 @@ void ANodeGridActor::InitializeGrid()
             }
         }
     }
+
+    // 🧩 Сохранение уникальных связей для риббонов
+    
+
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        const FNode& Node = Nodes[i];
+        for (const FNodeLink& Link : Node.Links)
+        {
+            int32 j = Link.NeighborIndex;
+            if (!Nodes.IsValidIndex(j)) continue;
+
+            int32 A = FMath::Min(i, j);
+            int32 B = FMath::Max(i, j);
+            TPair<int32, int32> Key(A, B);
+
+            if (!UniqueLinks.Contains(Key))
+            {
+                UniqueLinks.Add(Key);
+                RibbonStartIndices.Add(A);
+                RibbonEndIndices.Add(B);
+            }
+        }
+    }
+
+    if (NiagaraComp)
+    {
+        UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(
+            NiagaraComp, FName("RibbonStart"), RibbonStartIndices);
+
+        UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(
+            NiagaraComp, FName("RibbonEnd"), RibbonEndIndices);
+    }
+
 }
 
 void ANodeGridActor::ApplyForcesParallel()
@@ -205,103 +277,120 @@ void ANodeGridActor::ProcessInfluenceCascade()
     }
 }
 
-void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
+void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)  
+{  
+   const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;  
+
+   TArray<FVector> PendingPositions;  
+   TArray<FVector> PendingVelocities;  
+   TArray<bool> FixationFlags;  
+
+   PendingPositions.SetNumUninitialized(Nodes.Num());  
+   PendingVelocities.SetNumUninitialized(Nodes.Num());  
+   FixationFlags.SetNumZeroed(Nodes.Num());  
+
+   ParallelFor(Nodes.Num(), [&](int32 i)  
+       {  
+           const FNode& Node = Nodes[i];  
+           if (Node.bFixed) return;  
+
+           FVector Velocity = Node.Velocity + (Node.AccumulatedForce + GravityForce) * DeltaTime;  
+           FVector Position = NodePositions[Node.PositionIndex] + Velocity * DeltaTime;  
+
+           PendingPositions[i] = Position;  
+           PendingVelocities[i] = Velocity * DampingFactor;  
+       });  
+
+   const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(OverlapRadius);  
+   const FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);  
+   const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);  
+
+   for (int32 i = 0; i < Nodes.Num(); ++i)  
+   {  
+       FNode& Node = Nodes[i];  
+       if (Node.bFixed) continue;  
+
+       const FVector& TestPosition = PendingPositions[i];  
+
+       TArray<FOverlapResult> Overlaps;  
+       GetWorld()->OverlapMultiByObjectType(  
+           Overlaps, TestPosition, FQuat::Identity, ObjectParams, ProbeShape, QueryParams  
+       );  
+
+       for (const FOverlapResult& Overlap : Overlaps)  
+       {  
+           UPrimitiveComponent* HitComp = Overlap.Component.Get();  
+           if (!HitComp) continue;  
+
+           if (HitComp->IsA<UStaticMeshComponent>())  
+           {  
+               FixationFlags[i] = true;  
+               break;  
+           }  
+
+           ACharacter* Char = Cast<ACharacter>(HitComp->GetOwner());  
+           if (!Char) continue;  
+
+		   ParalyzeCharacter(Char);
+
+           USkeletalMeshComponent* FixationMesh = Char->GetMesh();  
+           if (!FixationMesh || !FixationMesh->IsRegistered()) continue;  
+
+           TArray<FOverlapResult> MeshOverlaps;  
+           FCollisionQueryParams MeshParams(TEXT("FixationMeshCheck"), false, this);  
+
+           GetWorld()->OverlapMultiByChannel(  
+               MeshOverlaps, TestPosition, FQuat::Identity,  
+               ECC_Visibility, ProbeShape, MeshParams  
+           );  
+
+           for (const FOverlapResult& MeshOverlap : MeshOverlaps)  
+           {  
+               if (MeshOverlap.Component.Get() == FixationMesh)  
+               {  
+                   FixationFlags[i] = true;  
+                   break;  
+               }  
+           }  
+
+           if (FixationFlags[i]) break;  
+       }  
+   } 
+
+   for (int32 i = 0; i < Nodes.Num(); ++i)  
+   {  
+       FNode& Node = Nodes[i];  
+       if (Node.bFixed) continue;  
+
+       if (FixationFlags[i])  
+       {  
+           NodePositions[Node.PositionIndex] = (PendingPositions[i] + NodePositions[Node.PositionIndex]) / 2;  
+           Node.Velocity = FVector::ZeroVector;  
+           Node.bFixed = true;  
+       }  
+       else  
+       {  
+           NodePositions[Node.PositionIndex] = PendingPositions[i];  
+           Node.Velocity = PendingVelocities[i];  
+       }  
+
+       Node.AccumulatedForce = FVector::ZeroVector;  
+   }  
+}
+
+void ANodeGridActor::ParalyzeCharacter(ACharacter* Char)
 {
-    const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;
-
-    TArray<FVector> PendingPositions;
-    TArray<FVector> PendingVelocities;
-    TArray<bool> FixationFlags;
-
-    PendingPositions.SetNumUninitialized(Nodes.Num());
-    PendingVelocities.SetNumUninitialized(Nodes.Num());
-    FixationFlags.SetNumZeroed(Nodes.Num());
-
-    ParallelFor(Nodes.Num(), [&](int32 i)
-        {
-            const FNode& Node = Nodes[i];
-            if (Node.bFixed) return;
-
-            FVector Velocity = Node.Velocity + (Node.AccumulatedForce + GravityForce) * DeltaTime;
-            FVector Position = NodePositions[Node.PositionIndex] + Velocity * DeltaTime;
-
-            PendingPositions[i] = Position;
-            PendingVelocities[i] = Velocity * DampingFactor;
-        });
-
-    const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(OverlapRadius);
-    const FCollisionObjectQueryParams ObjectParams(ECC_WorldStatic | ECC_PhysicsBody | ECC_WorldDynamic);
-    const FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeshFixationProbe), false, this);
-
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        FNode& Node = Nodes[i];
-        if (Node.bFixed) continue;
-
-        const FVector& TestPosition = PendingPositions[i];
-
-        TArray<FOverlapResult> Overlaps;
-        GetWorld()->OverlapMultiByObjectType(
-            Overlaps, TestPosition, FQuat::Identity, ObjectParams, ProbeShape, QueryParams
-        );
-
-        for (const FOverlapResult& Overlap : Overlaps)
-        {
-            UPrimitiveComponent* HitComp = Overlap.Component.Get();
-            if (!HitComp) continue;
-
-            if (HitComp->IsA<UStaticMeshComponent>())
-            {
-                FixationFlags[i] = true;
-                break;
-            }
-
-            ACharacter* Char = Cast<ACharacter>(HitComp->GetOwner());
-            if (!Char) continue;
-
-            USkeletalMeshComponent* FixationMesh = Char->GetMesh();
-            if (!FixationMesh || !FixationMesh->IsRegistered()) continue;
-
-            TArray<FOverlapResult> MeshOverlaps;
-            FCollisionQueryParams MeshParams(TEXT("FixationMeshCheck"), false, this);
-
-            GetWorld()->OverlapMultiByChannel(
-                MeshOverlaps, TestPosition, FQuat::Identity,
-                ECC_Visibility, ProbeShape, MeshParams
-            );
-
-            for (const FOverlapResult& MeshOverlap : MeshOverlaps)
-            {
-                if (MeshOverlap.Component.Get() == FixationMesh)
-                {
-                    FixationFlags[i] = true;
-                    break;
-                }
-            }
-
-            if (FixationFlags[i]) break;
-        }
-    }
-
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        FNode& Node = Nodes[i];
-        if (Node.bFixed) continue;
-
-        if (FixationFlags[i])
-        {
-            NodePositions[Node.PositionIndex] = (PendingPositions[i] + NodePositions[Node.PositionIndex]) / 2;
-            Node.Velocity = FVector::ZeroVector;
-            Node.bFixed = true;
-        }
-        else
-        {
-            NodePositions[Node.PositionIndex] = PendingPositions[i];
-            Node.Velocity = PendingVelocities[i];
-        }
-
-        Node.AccumulatedForce = FVector::ZeroVector;
-    }
+	if (!Char) return;
+    AAlsCharacterExample* AlsCharacter = Cast<AAlsCharacterExample>(Char);
+	if (AlsCharacter)
+	{
+		float ParalyseTime = AlsCharacter->GetNetGrenadeParalyseTime();
+		AAlsCharacterExample* ALSChar = Cast<AAlsCharacterExample>(Char);
+		if (ALSChar)
+		{
+			ALSChar->ParalyzeNPC(ParalyseTime);
+		}
+	}
 }
 
 void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
@@ -384,6 +473,39 @@ void ANodeGridActor::DrawDebugState()
     }
 }
 
+
+
+void ANodeGridActor::IterateUniqueLinks()
+{
+    /*
+    int32 ID = 0;
+
+    //UNiagaraComponent* Niagara = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSystemAsset, RootComponent, FName(TEXT("")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, true);
+
+    for (const TPair<int32, int32>& Link : UniqueLinks)
+    {
+        int32 StartIndex = Link.Key;
+        int32 EndIndex = Link.Value;
+
+		UNiagaraComponent* Niagara = NiagaraComponents.IsValidIndex(ID) ? NiagaraComponents[ID] : nullptr;
+
+        if (Niagara)
+        {
+            FVector StartPos = NodePositions[StartIndex];
+            FVector EndPos = NodePositions[EndIndex];
+            TArray<FVector> Positions;
+            Positions.Add(StartPos);
+            Positions.Add(EndPos);
+
+            UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("Positions"), Positions);
+            Niagara->SetVariableInt(TEXT("RibID"), ID);
+
+            ID++;
+        }
+    }
+    */
+}
+
 void ANodeGridActor::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
@@ -397,13 +519,12 @@ void ANodeGridActor::Tick(float DeltaTime)
     ApplyRigidConstraints(DeltaTime);
     DrawDebugState();
 
+	//IterateUniqueLinks();
+
     const float SPart = float(StopCount) / float(Nodes.Num());
     if (StopCount > 0 && SPart >= StopTresholdPart)
     {
         SetActorTickEnabled(false);
         UE_LOG(LogTemp, Log, TEXT("Process stop %d"), StopCount);
     }
-
-    // 🔁 Передача координат в Niagara (если подключена)
-    // NiagaraComp->SetNiagaraVariableVec3Array("NodePositions", NodePositions);
 }

@@ -139,12 +139,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool IsFirstJumpClick = true;
 
-
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnStartMantling OnStartmantling;
 
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnStartRolling OnStartRolling;
+
+	FTimerHandle StunTimerHandle; // Ensure StunTimerHandle is accessible to derived classes.
 
 public:
 	explicit AAlsCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
@@ -854,9 +855,6 @@ public:
 	void StunEffect(float Time);
 
 	float StunRecoveryMultiplier = 1.0f;
-
-private:
-	FTimerHandle StunTimerHandle;
 
 private:
 	void StunRecovery();
