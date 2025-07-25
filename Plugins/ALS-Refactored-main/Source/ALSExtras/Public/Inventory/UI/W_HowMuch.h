@@ -12,7 +12,7 @@ class UW_Inventory;
 class UW_ItemSlot;
 class USlider;
 class UTextBlock;
-class UButton;
+class UW_FocusableButton;
 
 UCLASS()
 class ALSEXTRAS_API UW_HowMuch : public UUserWidget
@@ -35,10 +35,10 @@ public:
 	UTextBlock* TextBlock_Max;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
-	UButton* Button_Yes;
+	UW_FocusableButton* Button_Yes;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
-	UButton* Button_No;
+	UW_FocusableButton* Button_No;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
 	TObjectPtr<UW_InventoryHUD> InventoryHUDRef;
@@ -65,12 +65,6 @@ public:
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
 	TObjectPtr<UInputAction> SurfAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
-	TObjectPtr<UInputAction> UseAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
-	TObjectPtr<UInputAction> EscapeAction;
 
 	void SurfSlider(const FInputActionValue& Value);
 

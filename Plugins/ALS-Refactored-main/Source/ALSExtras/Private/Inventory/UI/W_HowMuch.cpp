@@ -2,30 +2,29 @@
 #include "Inventory/UI/W_InventoryHUD.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
-#include "Components/Button.h"
+#include "Inventory/UI/W_FocusableButton.h"
 #include "EnhancedInputComponent.h"
 #include "Inventory/UI/W_Inventory.h"
 #include "Inventory/AC_Container.h"
+#include "Inventory/UI/W_ItemSlot.h"
 
 void UW_HowMuch::NativeConstruct()
 {
 	Super::NativeConstruct();
 
 	bIsFocusable = true;
-	SetKeyboardFocus();
+	Button_Yes->SetKeyboardFocus();
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
 		if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PC->InputComponent))
 		{
 			Input->BindAction(SurfAction, ETriggerEvent::Triggered, this, &UW_HowMuch::SurfSlider);
-			Input->BindAction(UseAction, ETriggerEvent::Started, this, &UW_HowMuch::ConfirmSlider);
-			Input->BindAction(EscapeAction, ETriggerEvent::Started, this, &UW_HowMuch::EscapeWidget);
 		}
 	}
 
-	Button_Yes->OnReleased.AddDynamic(this, &UW_HowMuch::ConfirmSlider);
-	Button_No->OnReleased.AddDynamic(this, &UW_HowMuch::EscapeWidget);
+	Button_Yes->OnPressed.AddDynamic(this, &UW_HowMuch::ConfirmSlider);
+	Button_No->OnPressed.AddDynamic(this, &UW_HowMuch::EscapeWidget);
 }
 
 void UW_HowMuch::NativeDestruct()
@@ -44,6 +43,7 @@ void UW_HowMuch::SurfSlider(const FInputActionValue& Value)
 
 void UW_HowMuch::ConfirmSlider()
 {
+	SlotRef->SetKeyboardFocus();
 	if (FMath::RoundToInt32(Slider_HowMuch->GetValue()) != 0)
 	{
 		InventoryHUDRef->AddToSlotContainer(Inventory_ToRef, SlotRef, FMath::RoundToInt32(Slider_HowMuch->GetValue()), bShouldCount);
@@ -55,6 +55,7 @@ void UW_HowMuch::ConfirmSlider()
 
 void UW_HowMuch::EscapeWidget()
 {
+	SlotRef->SetKeyboardFocus();
 	RemoveFromParent();
 	MarkAsGarbage();
 }
