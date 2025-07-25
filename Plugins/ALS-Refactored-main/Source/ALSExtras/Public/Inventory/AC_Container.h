@@ -20,7 +20,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
 	TArray<FS_Item> Items;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Items")
 	UDataTable* ItemDataTable;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
