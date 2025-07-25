@@ -90,4 +90,10 @@ struct ALSEXTRAS_API FS_ItemData :public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	FGameplayTag SpecialTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
+	UTexture2D* ImageDescription;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
+	FText FullDescription;
 };
