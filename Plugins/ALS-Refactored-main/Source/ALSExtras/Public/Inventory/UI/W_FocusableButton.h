@@ -25,6 +25,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
 	FButtonStyle Style;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
+	FLinearColor BackgroundColor;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Text", meta = (BindWidget))
 	UTextBlock* TextBlock;
 

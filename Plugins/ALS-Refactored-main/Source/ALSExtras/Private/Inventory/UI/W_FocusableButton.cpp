@@ -8,12 +8,7 @@ void UW_FocusableButton::NativePreConstruct()
 
 	bIsFocusable = true;
 
-	Button->SetStyle(Style);
-
-	TextBlock->SetText(Text);
-	TextBlock->SetFont(Font);
-	TextBlock->SetColorAndOpacity(TextColor);
-	TextBlock->SetJustification(Justification);
+	RefreshButtonStyle();
 }
 
 void UW_FocusableButton::NativeConstruct()
@@ -68,4 +63,12 @@ void UW_FocusableButton::HandleUnhovered()
 void UW_FocusableButton::RefreshButtonStyle()
 {
 	Button->SetStyle(Style);
+	Button->BackgroundColor = BackgroundColor;
+	
+	TextBlock->SetText(Text);
+	TextBlock->SetFont(Font);
+	TextBlock->SetColorAndOpacity(TextColor);
+	TextBlock->SetJustification(Justification);
+
+	Button->SynchronizeProperties();
 }
