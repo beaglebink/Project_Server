@@ -22,6 +22,7 @@ enum class EMovementDirection : uint8
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMovementInputEvent, EMovementDirection, MovementDirection, float, Value);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNetParalyse, AActor*, NetReason);
 
 UCLASS(AutoExpandCategories = ("Settings|Als Character Example", "State|Als Character Example"))
 class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter, public IAlsCharacter_I
@@ -40,6 +41,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputMappingContext> InputMappingContext;
+
+	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	FOnNetParalyse OnNetParalyse;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
@@ -152,6 +156,14 @@ protected:
 private:
 	FTimerHandle JumpTimerHandle;
 
+	UObject* Target = nullptr;
+
+	AActor* FocusActor = nullptr;
+
+	AController* TestController = nullptr;
+
+	AActor* ReasonParalyse = nullptr;
+
 public:
 	AAlsCharacterExample();
 
@@ -161,7 +173,7 @@ public:
 
 	virtual float GetNetGrenadeParalyseTime() const;
 
-	virtual void ParalyzeNPC(float Time);
+	virtual void ParalyzeNPC(AActor* Reason, float Time);
 
 	void EndStun();
 

@@ -2556,7 +2556,12 @@ float AAlsCharacter::GetStaticGrenadeEffect() const
 
 	return Effect;
 }
-
+/*
+void AAlsCharacter::SetStaticGrenadeEffect(float NewStaticGrenadeEffect)
+{
+	StaticGrenadeEffect = FMath::Clamp(NewStaticGrenadeEffect, 0.0f, 1.0f);
+}
+*/
 void AAlsCharacter::SetRemoveGrappleEffect(bool bIsSet)
 {
 	static uint8 Counter = 0;

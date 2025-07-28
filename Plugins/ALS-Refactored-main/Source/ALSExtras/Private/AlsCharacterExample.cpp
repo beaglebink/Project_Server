@@ -12,7 +12,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "Inventory/AC_Inventory.h"
 #include "Inventory/AC_Container.h"
+#include "AIController.h"
+#include "BrainComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include <Blueprint/AIBlueprintHelperLibrary.h>
+#include "BehaviorTree/BlackboardComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
@@ -92,30 +96,81 @@ float AAlsCharacterExample::GetNetGrenadeParalyseTime() const
 {
 	return NetGrenadeParalyseTime;
 }
-void AAlsCharacterExample::ParalyzeNPC(float Time)
-{
-	if (bIsStunned || bIsGrappled || bIsWired || bIsSliding || bIsStickyStuck || bIsBubbled || bIsOverload)
-	{
-		return;
-	}
-	if (Time > 0.0f)
-	{
-		bIsStunned = true;
-		GetCharacterMovement()->DisableMovement();
-		GetCharacterMovement()->StopMovementImmediately();
-		GetWorldTimerManager().SetTimer(StunTimerHandle, this, &AAlsCharacterExample::EndStun, Time, false);
-	}
-	else
-	{
-		EndStun();
-	}
+void AAlsCharacterExample::ParalyzeNPC(AActor* Reason, float Time)  
+{  
+	if (Reason == ReasonParalyse) return;
+
+	ReasonParalyse = Reason;
+
+	if (bIsStunned || bIsGrappled || bIsWired || bIsSliding || bIsStickyStuck || bIsBubbled || bIsOverload)  
+	{  
+		return;  
+	}  
+	if (Time > 0.0f)  
+	{  
+		bIsStunned = true;  
+		GetCharacterMovement()->DisableMovement();  
+		GetCharacterMovement()->StopMovementImmediately();  
+
+		AAIController* AIController = Cast<AAIController>(GetController());
+		if (AIController)
+		{
+			TestController = GetController();
+			FocusActor = AIController->GetFocusActor();
+			AIController->SetFocus(nullptr);
+			UBlackboardComponent* BlackBoard = UAIBlueprintHelperLibrary::GetBlackboard(AIController);
+			if (BlackBoard)
+			{
+				Target = BlackBoard->GetValueAsObject(TEXT("Target"));
+				BlackBoard->SetValueAsObject(TEXT("Target"), nullptr);
+			}
+
+			Controller = nullptr; // Clear the controller to prevent any further input processing
+		}
+
+		/*
+		if (AAIController* AIController = Cast<AAIController>(GetController()))  
+		{  
+			UBrainComponent* BrainComponent = AIController->GetBrainComponent();
+			if (BrainComponent)
+			{  
+				BrainComponent->StopLogic(TEXT("Paralyzed"));  
+			}  
+		}  
+		*/
+		GetWorldTimerManager().SetTimer(StunTimerHandle, this, &AAlsCharacterExample::EndStun, Time, false);  
+	}    
 }
 void AAlsCharacterExample::EndStun()
 {
+	OnNetParalyse.Broadcast(ReasonParalyse);
 	bIsStunned = false;
 	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+
+	if (AAIController* AIController = Cast<AAIController>(GetController()))
+	{
+		AIController->SetFocus(FocusActor);
+		UBlackboardComponent* BlackBoard = UAIBlueprintHelperLibrary::GetBlackboard(AIController);
+		if (BlackBoard)
+		{
+			BlackBoard->SetValueAsObject(TEXT("Target"), Target);
+		}
+	}
+
+	/*
+	if (AAIController* AIController = Cast<AAIController>(GetController()))
+	{
+		UBrainComponent* BrainComponent = AIController->GetBrainComponent();
+		if (BrainComponent)
+		{
+			BrainComponent->RestartLogic();
+		}
+	}
+	*/
 	GetCharacterMovement()->SetDefaultMovementMode();
 	GetWorldTimerManager().ClearTimer(StunTimerHandle);
+
+	Controller = TestController; // Restore the controller after stun ends
 	/*
 	if (bIsDiscombobulated)
 	{

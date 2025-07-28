@@ -1085,6 +1085,12 @@ protected:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "StasisGrenadeEffect")
 	float GetStaticGrenadeEffect() const;
+
+	/*
+public:
+	UFUNCTION(BlueprintCallable, Category = "StasisGrenadeEffect")
+	void SetStaticGrenadeEffect(float NewStaticGrenadeEffect);// Debug function
+	*/
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StaticGrenadeEffect")
 	TMap<AActor*, float> StasisGrenadeEffectMap;

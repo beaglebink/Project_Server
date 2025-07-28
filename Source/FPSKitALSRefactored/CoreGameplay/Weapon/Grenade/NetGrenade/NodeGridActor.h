@@ -50,6 +50,21 @@ struct FNode
     bool bFixed = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPrimitiveComponent* AttachedComponent = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    USkeletalMeshComponent* AttachedMesh = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName AttachedBoneName = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FTransform BoneInitialTransform;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FTransform NodeLocalTransform;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FNodeLink> Links;
 };
 
@@ -77,10 +92,13 @@ public:
     virtual void Tick(float DeltaTime) override;
 
 private:
+    UFUNCTION()
+    void DestroyNet(AActor* Reason);
     void InitializeGrid();
     void ApplyForcesParallel();
     void ProcessInfluenceCascade();
     void ApplyMotionAndFixation(float DeltaTime);
+    FName FindClosestBoneToPoint(USkeletalMeshComponent* SkeletalMesh, const FVector& Point) const;
     void ParalyzeCharacter(ACharacter* Char);
     void ApplyRigidConstraints(float DeltaTime);
     void DrawDebugState();
@@ -129,13 +147,16 @@ public:
     float DampingFactor = 0.96f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
-    float OverlapRadius = 2.0f;
+    float OverlapRadius = 0.5f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     float StopVelocity = 0.1f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     float StopTresholdPart = 0.95f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
+	float DesrtoyTime = 5.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     bool bEnableDebugDraw = true;
@@ -176,9 +197,8 @@ private:
 
     TArray<TTuple<int32, FVector, float>> PendingInfluences;
 
+    FTimerHandle StunTimerHandle;
 
-
-   // UPROPERTY()
     TSet<TPair<int32, int32>> UniqueLinks;
 
     UPROPERTY()

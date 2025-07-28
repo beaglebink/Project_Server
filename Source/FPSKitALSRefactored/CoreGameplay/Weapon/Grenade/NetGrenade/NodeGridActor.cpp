@@ -52,6 +52,13 @@ void ANodeGridActor::BeginPlay()
     }
 }
 
+
+void ANodeGridActor::DestroyNet(AActor* Reason)
+{
+    if (Reason != this) return;
+	this->Destroy();
+}
+
 void ANodeGridActor::InitializeGrid()
 {
     Nodes.Empty();
@@ -203,8 +210,8 @@ void ANodeGridActor::ApplyForcesParallel()
     {
         FNode& Node = Nodes[i];
 
-        if (Node.bFixed || Node.Velocity.Length() <= StopVelocity)
-            StopCount++;
+        //if (Node.bFixed || Node.Velocity.Length() <= StopVelocity)
+        //    StopCount++;
 
         if (Node.bFixed) continue;
         Node.AccumulatedForce += LocalForces[i];
@@ -324,7 +331,8 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
            if (HitComp->IsA<UStaticMeshComponent>())  
            {  
-               FixationFlags[i] = true;  
+               FixationFlags[i] = true; 
+			   Node.AttachedComponent = HitComp;
                break;  
            }  
 
@@ -348,6 +356,14 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
            {  
                if (MeshOverlap.Component.Get() == FixationMesh)  
                {  
+                   FTransform NodeTransform = FTransform(FRotator::ZeroRotator, NodePositions[i]/*TestPosition*/);
+
+				   Node.AttachedMesh = FixationMesh;
+				   FName ClosestBone = FindClosestBoneToPoint(FixationMesh, NodePositions[i]);
+				   Node.AttachedBoneName = ClosestBone;
+				   FTransform BoneTransform = FixationMesh->GetSocketTransform(ClosestBone, ERelativeTransformSpace::RTS_World);
+				   Node.NodeLocalTransform = NodeTransform.GetRelativeTransform(BoneTransform);
+
                    FixationFlags[i] = true;  
                    break;  
                }  
@@ -378,9 +394,38 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
    }  
 }
 
+FName ANodeGridActor::FindClosestBoneToPoint(USkeletalMeshComponent* SkeletalMesh, const FVector& Point) const
+{
+    if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
+    {
+        return NAME_None;
+    }
+
+    int32 NumBones = SkeletalMesh->GetNumBones();
+    float MinDistSqr = FLT_MAX;
+    FName ClosestBone = NAME_None;
+
+    for (int32 i = 0; i < NumBones; ++i)
+    {
+        FName BoneName = SkeletalMesh->GetBoneName(i);
+        FVector BoneWorldPos = SkeletalMesh->GetBoneLocation(BoneName);
+
+        float DistSqr = FVector::DistSquared(BoneWorldPos, Point);
+        if (DistSqr < MinDistSqr)
+        {
+            MinDistSqr = DistSqr;
+            ClosestBone = BoneName;
+        }
+    }
+
+    return ClosestBone;
+}
+
 void ANodeGridActor::ParalyzeCharacter(ACharacter* Char)
 {
+
 	if (!Char) return;
+    
     AAlsCharacterExample* AlsCharacter = Cast<AAlsCharacterExample>(Char);
 	if (AlsCharacter)
 	{
@@ -388,9 +433,19 @@ void ANodeGridActor::ParalyzeCharacter(ACharacter* Char)
 		AAlsCharacterExample* ALSChar = Cast<AAlsCharacterExample>(Char);
 		if (ALSChar)
 		{
-			ALSChar->ParalyzeNPC(ParalyseTime);
+			ALSChar->ParalyzeNPC(this, ParalyseTime);
+			ALSChar->OnNetParalyse.AddDynamic(this, &ANodeGridActor::DestroyNet);
+            //GetWorldTimerManager().SetTimer(StunTimerHandle, this, &ANodeGridActor::DestroyNet, ParalyseTime - 0.1f, false);
 		}
 	}
+    
+    /*
+	AAlsCharacter* AlsCharacter = Cast<AAlsCharacter>(Char);
+	if (AlsCharacter)
+	{
+        AlsCharacter->SetStaticGrenadeEffect(0.1f);
+	}
+    */
 }
 
 void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
@@ -443,8 +498,8 @@ void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
 
 void ANodeGridActor::DrawDebugState()
 {
-    const float SPart = float(StopCount) / float(Nodes.Num());
-    const float DrawLifeTime = SPart >= StopTresholdPart ? 20.f : -1.f;
+    //const float SPart = float(StopCount) / float(Nodes.Num());
+    const float DrawLifeTime = -1;//SPart >= StopTresholdPart ? 60.f : -1.f;
 
     if (!bEnableDebugDraw) return;
 
@@ -521,10 +576,37 @@ void ANodeGridActor::Tick(float DeltaTime)
 
 	//IterateUniqueLinks();
 
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        FNode& Node = Nodes[i];
+
+        if (Node.bFixed)
+        {
+            if (Node.AttachedComponent)
+            {
+                Node.Velocity = FVector::ZeroVector;
+                Node.bFixed = true;
+                continue;
+            }
+
+            if (Node.AttachedMesh)
+            {
+                FTransform BoneTransform = Node.AttachedMesh->GetSocketTransform(Node.AttachedBoneName, ERelativeTransformSpace::RTS_World);
+                FTransform WorldTransform = Node.NodeLocalTransform * BoneTransform;
+
+                NodePositions[Node.PositionIndex] = WorldTransform.GetLocation();
+                Node.Velocity = FVector::ZeroVector;
+                Node.bFixed = true;
+                continue;
+            }
+        }
+    }
+    /*
     const float SPart = float(StopCount) / float(Nodes.Num());
     if (StopCount > 0 && SPart >= StopTresholdPart)
     {
         SetActorTickEnabled(false);
         UE_LOG(LogTemp, Log, TEXT("Process stop %d"), StopCount);
     }
+    */
 }
