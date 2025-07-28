@@ -40,8 +40,8 @@ void UW_InventoryHUD::NativeConstruct()
 			if (BoxSlot)
 			{
 				BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
-				BoxSlot->SetPosition(FVector2D(0.f, 0.f));
-				BoxSlot->SetSize(FVector2D(300.f, 150.f));
+				BoxSlot->SetPosition(FVector2D(0.0f, 0.0f));
+				BoxSlot->SetSize(FVector2D(300.0f, 150.0f));
 				BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
 				BoxSlot->SetZOrder(1);
 			}
@@ -191,7 +191,11 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 		return;
 	}
 
-	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(SlotToAdd->Item.Name, TEXT("Find row in datatable"));
+	FS_ItemData* ItemData = nullptr;
+	if (ItemDataTable)
+	{
+		ItemData = ItemDataTable->FindRow<FS_ItemData>(SlotToAdd->Item.Name, TEXT("Find row in datatable"));
+	}
 
 	if (bShouldCount && ItemData && Inventory_To->Container->GetMoney() - ItemData->Value * QuantityToAdd * CurrentTradeCoeff < 0.0f)
 	{
@@ -204,43 +208,48 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 
 	SlotToAdd->InventoryType = Inventory_To->InventoryType;
 
-	if (ItemData && ItemData->bCanStack)
+	if (ItemData)
 	{
-		TObjectPtr<UW_ItemSlot>* SlotToCorrect = Inventory_To->Slots.FindByPredicate([&](TObjectPtr<UW_ItemSlot> SlotToFind)
-			{
-				return SlotToFind->Item.Name == SlotToAdd->Item.Name;
-			});
-
-		if (SlotToCorrect)
+		if (ItemData->bCanStack)
 		{
-			(*SlotToCorrect)->Item.Quantity += QuantityToAdd;
-			(*SlotToCorrect)->TextBlock_Quantity->SetText(FText::AsNumber((*SlotToCorrect)->Item.Quantity));
+			TObjectPtr<UW_ItemSlot>* SlotToCorrect = Inventory_To->Slots.FindByPredicate([&](TObjectPtr<UW_ItemSlot> SlotToFind)
+				{
+					return SlotToFind->Item.Name == SlotToAdd->Item.Name;
+				});
+
+			if (SlotToCorrect)
+			{
+				(*SlotToCorrect)->Item.Quantity += QuantityToAdd;
+				(*SlotToCorrect)->TextBlock_Quantity->SetText(FText::AsNumber((*SlotToCorrect)->Item.Quantity));
+			}
+			else
+			{
+				if (SlotToAdd->Item.Quantity != QuantityToAdd)
+				{
+					if (SlotWidgetClass)
+					{
+						if (TObjectPtr<UW_ItemSlot> ItemSlot = CreateWidget<UW_ItemSlot>(GetWorld(), SlotWidgetClass))
+						{
+							ItemSlot->Item.Name = SlotToAdd->Item.Name;
+							ItemSlot->Item.Quantity = QuantityToAdd;
+							ItemSlot->InventoryHUDRef = this;
+							ItemSlot->InventoryType = Inventory_To->InventoryType;
+
+							SlotToAdd = ItemSlot;
+						}
+					}
+				}
+				SlotToAdd->TextBlock_Value->SetText(SlotToAdd->FormatFloatFixed(ItemData->Value / CurrentTradeCoeff, 2));
+				Inventory_To->Slots.Add(SlotToAdd);
+				Inventory_To->ScrollBox_Items->AddChild(SlotToAdd);
+			}
 		}
 		else
 		{
-			if (SlotToAdd->Item.Quantity != QuantityToAdd)
-			{
-				if (SlotWidgetClass)
-				{
-					if (TObjectPtr<UW_ItemSlot> ItemSlot = CreateWidget<UW_ItemSlot>(GetWorld(), SlotWidgetClass))
-					{
-						ItemSlot->Item.Name = SlotToAdd->Item.Name;
-						ItemSlot->Item.Quantity = QuantityToAdd;
-						ItemSlot->InventoryHUDRef = this;
-						ItemSlot->InventoryType = Inventory_To->InventoryType;
-
-						SlotToAdd = ItemSlot;
-					}
-				}
-			}
 			SlotToAdd->TextBlock_Value->SetText(SlotToAdd->FormatFloatFixed(ItemData->Value / CurrentTradeCoeff, 2));
 			Inventory_To->Slots.Add(SlotToAdd);
+			Inventory_To->ScrollBox_Items->AddChild(SlotToAdd);
 		}
-	}
-	else
-	{
-		SlotToAdd->TextBlock_Value->SetText(SlotToAdd->FormatFloatFixed(ItemData->Value / CurrentTradeCoeff, 2));
-		Inventory_To->Slots.Add(SlotToAdd);
 	}
 	Inventory_To->SlotsFilter(Inventory_To->CurrentTabType);
 	Inventory_To->Container->AddToContainer(SlotToAdd->Item.Name, QuantityToAdd, CurrentTradeCoeff, bShouldCount);

@@ -37,13 +37,12 @@ void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
 {
 	CurrentTabType = SlotContainerType;
 
-	ScrollBox_Items->ClearChildren();
-
 	for (UW_ItemSlot* SlotToFilter : Slots)
 	{
+		SlotToFilter->SetVisibility(ESlateVisibility::Collapsed);
 		if (SlotContainerType == EnumInventory::All || SlotContainerType == ItemDataTable->FindRow<FS_ItemData>(SlotToFilter->Item.Name, TEXT("Find row in datatable"))->Type)
 		{
-			ScrollBox_Items->AddChild(SlotToFilter);
+			SlotToFilter->SetVisibility(ESlateVisibility::Visible);
 		}
 	}
 }

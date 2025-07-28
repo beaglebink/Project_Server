@@ -9,6 +9,8 @@ class UW_InventoryHUD;
 class UTextBlock;
 class UImage;
 class UW_VisualDescription;
+class UW_FocusableButton;
+class UInputAction;
 
 UCLASS()
 class ALSEXTRAS_API UW_ItemSlot : public UUserWidget
@@ -51,6 +53,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Slot Image field", meta = (BindWidget))
 	UImage* Image_Background;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Button", meta = (BindWidget))
+	UW_FocusableButton* Button_Description;
 
 	UPROPERTY(EditDefaultsOnly, Category = "ClassRefs")
 	TSubclassOf<UW_VisualDescription> VisualDescriptionWidgetClass;
@@ -62,6 +67,9 @@ public:
 	void SetTintOnSelected(bool IsSet);
 
 protected:
+	UFUNCTION(BlueprintCallable)
+	void FullDescriptionCreate();
+
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)override;
 
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent)override;

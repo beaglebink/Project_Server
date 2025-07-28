@@ -16,6 +16,7 @@ class UW_NotEnough;
 class UW_FocusableButton;
 class UVerticalBox;
 class UCanvasPanel;
+class UW_FullDescription;
 
 UCLASS()
 class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
@@ -96,8 +97,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UW_NotEnough> NotEnoughWidgetClass;
 
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	UPROPERTY(BlueprintReadOnly, Category = "UI")
 	UW_NotEnough* NotEnoughWidget;
+
+public:
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UW_FullDescription> FullDescriptionWidgetClass;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI")
+	TObjectPtr<UW_FullDescription> FullDescriptionWidgetRef;
 
 	//input actions and methods
 protected:

@@ -7,7 +7,7 @@ void UW_FullDescription::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (ItemDataTable)
+	if (ItemDataTable && Name != "")
 	{
 		Image_Description->SetBrushFromTexture(ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"))->ImageDescription, true);
 

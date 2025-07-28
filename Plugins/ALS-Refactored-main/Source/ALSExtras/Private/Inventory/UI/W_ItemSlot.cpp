@@ -3,12 +3,19 @@
 #include "Inventory/UI/W_InventoryHUD.h"
 #include "Components/SizeBox.h"
 #include "Components/Image.h"
+#include "Inventory/UI/W_FullDescription.h"
+#include "Inventory/UI/W_FocusableButton.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "EnhancedInputComponent.h"
 
 void UW_ItemSlot::NativeConstruct()
 {
 	Super::NativeConstruct();
 
 	bIsFocusable = true;
+
+	Button_Description->OnPressed.AddDynamic(this, &UW_ItemSlot::FullDescriptionCreate);
 }
 
 FText UW_ItemSlot::FormatFloatFixed(float Value, int32 Precision)
@@ -72,6 +79,54 @@ void UW_ItemSlot::SetTintOnSelected(bool IsSet)
 
 		InventoryHUDRef->SizeBox_VisualAndDescription->ClearChildren();
 	}
+}
+
+void UW_ItemSlot::FullDescriptionCreate()
+{
+	if (InventoryHUDRef->FullDescriptionWidgetRef)
+	{
+		if (InventoryHUDRef->FullDescriptionWidgetRef->Name == Item.Name)
+		{
+			InventoryHUDRef->FullDescriptionWidgetRef->RemoveFromParent();
+			InventoryHUDRef->FullDescriptionWidgetRef = nullptr;
+			return;
+		}
+		InventoryHUDRef->FullDescriptionWidgetRef->RemoveFromParent();
+		InventoryHUDRef->FullDescriptionWidgetRef = nullptr;
+	}
+
+	if (InventoryHUDRef->FullDescriptionWidgetClass)
+	{
+		InventoryHUDRef->FullDescriptionWidgetRef = CreateWidget<UW_FullDescription>(GetWorld(), InventoryHUDRef->FullDescriptionWidgetClass);
+		InventoryHUDRef->FullDescriptionWidgetRef->Name = Item.Name;
+
+		if (InventoryType == EnumInventoryType::Inventory)
+		{
+			UCanvasPanelSlot* BoxSlot = InventoryHUDRef->CanvasPanel_Additive->AddChildToCanvas(InventoryHUDRef->FullDescriptionWidgetRef);
+			if (BoxSlot)
+			{
+				BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+				BoxSlot->SetPosition(FVector2D(0.0f, 0.0f));
+				BoxSlot->SetSize(FVector2D(600.0f, 800.0f));
+				BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+				BoxSlot->SetZOrder(1);
+			}
+		}
+		else
+		{
+			UCanvasPanelSlot* BoxSlot = InventoryHUDRef->CanvasPanel_Main->AddChildToCanvas(InventoryHUDRef->FullDescriptionWidgetRef);
+			if (BoxSlot)
+			{
+				BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+				BoxSlot->SetPosition(FVector2D(0.0f, 0.0f));
+				BoxSlot->SetSize(FVector2D(600.0f, 800.0f));
+				BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+				BoxSlot->SetZOrder(1);
+			}
+		}
+	}
+
+	Button_Description->SetKeyboardFocus();
 }
 
 void UW_ItemSlot::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
