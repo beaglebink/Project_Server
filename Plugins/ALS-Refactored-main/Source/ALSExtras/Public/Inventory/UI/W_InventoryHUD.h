@@ -16,6 +16,7 @@ class UW_NotEnough;
 class UW_FocusableButton;
 class UVerticalBox;
 class UCanvasPanel;
+class UOverlay;
 class UW_FullDescription;
 
 UCLASS()
@@ -67,10 +68,19 @@ public:
 	UCanvasPanel* CanvasPanel_Additive;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UCanvasPanel* CanvasPanel_Description;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	UCanvasPanel* CanvasPanel_HowMuch_NotEnough;
+
+	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
+	UOverlay* Overlay_Sort_Temp;
 
 	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
 	uint8 bHowMuchIsOpen : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
+	uint8 bDescriptionIsOpen : 1{false};
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
 	void Recreate();

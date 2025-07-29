@@ -7,6 +7,7 @@
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
+#include "Components/Overlay.h"
 #include "Inventory/UI/W_FocusableButton.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -212,7 +213,7 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 	{
 		if (ItemData->bCanStack)
 		{
-			TObjectPtr<UW_ItemSlot>* SlotToCorrect = Inventory_To->Slots.FindByPredicate([&](TObjectPtr<UW_ItemSlot> SlotToFind)
+			TObjectPtr<UW_ItemSlot>* SlotToCorrect = Inventory_To->ItemSlots.FindByPredicate([&](TObjectPtr<UW_ItemSlot> SlotToFind)
 				{
 					return SlotToFind->Item.Name == SlotToAdd->Item.Name;
 				});
@@ -240,14 +241,14 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 					}
 				}
 				SlotToAdd->TextBlock_Value->SetText(SlotToAdd->FormatFloatFixed(ItemData->Value / CurrentTradeCoeff, 2));
-				Inventory_To->Slots.Add(SlotToAdd);
+				Inventory_To->ItemSlots.Add(SlotToAdd);
 				Inventory_To->ScrollBox_Items->AddChild(SlotToAdd);
 			}
 		}
 		else
 		{
 			SlotToAdd->TextBlock_Value->SetText(SlotToAdd->FormatFloatFixed(ItemData->Value / CurrentTradeCoeff, 2));
-			Inventory_To->Slots.Add(SlotToAdd);
+			Inventory_To->ItemSlots.Add(SlotToAdd);
 			Inventory_To->ScrollBox_Items->AddChild(SlotToAdd);
 		}
 	}
@@ -281,7 +282,7 @@ void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_I
 	else
 	{
 		Inventory_From->ScrollBox_Items->RemoveChild(SlotToRemove);
-		Inventory_From->Slots.Remove(SlotToRemove);
+		Inventory_From->ItemSlots.Remove(SlotToRemove);
 	}
 	Inventory_From->Container->RemoveFromContainer(SlotToRemove->Item.Name, QuantityToRemove, CurrentTradeCoeff, bShouldCount, bShouldSpawn);
 }

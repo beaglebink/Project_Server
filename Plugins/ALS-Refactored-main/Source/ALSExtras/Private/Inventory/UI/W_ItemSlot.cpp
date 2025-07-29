@@ -9,9 +9,9 @@
 #include "Components/CanvasPanelSlot.h"
 #include "EnhancedInputComponent.h"
 
-void UW_ItemSlot::NativeConstruct()
+void UW_ItemSlot::NativeOnInitialized()
 {
-	Super::NativeConstruct();
+	Super::NativeOnInitialized();
 
 	bIsFocusable = true;
 
@@ -67,11 +67,11 @@ void UW_ItemSlot::SetTintOnSelected(bool IsSet)
 	{
 		Image_Background->SetBrushTintColor(FLinearColor(0.5f, 0.5f, 0.5f));
 
-		if (UW_VisualDescription* VisualDescriptionWidget = CreateWidget<UW_VisualDescription>(GetWorld(), VisualDescriptionWidgetClass))
-		{
-			VisualDescriptionWidget->ItemName = Item.Name;
-			InventoryHUDRef->SizeBox_VisualAndDescription->AddChild(VisualDescriptionWidget);
-		}
+		//if (UW_VisualDescription* VisualDescriptionWidget = CreateWidget<UW_VisualDescription>(GetWorld(), VisualDescriptionWidgetClass))
+		//{
+		//	VisualDescriptionWidget->ItemName = Item.Name;
+		//	InventoryHUDRef->SizeBox_VisualAndDescription->AddChild(VisualDescriptionWidget);
+		//}
 	}
 	else
 	{
@@ -83,46 +83,41 @@ void UW_ItemSlot::SetTintOnSelected(bool IsSet)
 
 void UW_ItemSlot::FullDescriptionCreate()
 {
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 1.0f, FColor::Red, "Call");
+
+	if (InventoryHUDRef->AdditiveInventory)
+	{
+		return;
+	}
+
 	if (InventoryHUDRef->FullDescriptionWidgetRef)
 	{
 		if (InventoryHUDRef->FullDescriptionWidgetRef->Name == Item.Name)
 		{
 			InventoryHUDRef->FullDescriptionWidgetRef->RemoveFromParent();
 			InventoryHUDRef->FullDescriptionWidgetRef = nullptr;
+			InventoryHUDRef->bDescriptionIsOpen = false;
+
 			return;
 		}
 		InventoryHUDRef->FullDescriptionWidgetRef->RemoveFromParent();
 		InventoryHUDRef->FullDescriptionWidgetRef = nullptr;
 	}
 
+	InventoryHUDRef->bDescriptionIsOpen = true;
 	if (InventoryHUDRef->FullDescriptionWidgetClass)
 	{
 		InventoryHUDRef->FullDescriptionWidgetRef = CreateWidget<UW_FullDescription>(GetWorld(), InventoryHUDRef->FullDescriptionWidgetClass);
 		InventoryHUDRef->FullDescriptionWidgetRef->Name = Item.Name;
 
-		if (InventoryType == EnumInventoryType::Inventory)
+		UCanvasPanelSlot* BoxSlot = InventoryHUDRef->CanvasPanel_Description->AddChildToCanvas(InventoryHUDRef->FullDescriptionWidgetRef);
+		if (BoxSlot)
 		{
-			UCanvasPanelSlot* BoxSlot = InventoryHUDRef->CanvasPanel_Additive->AddChildToCanvas(InventoryHUDRef->FullDescriptionWidgetRef);
-			if (BoxSlot)
-			{
-				BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
-				BoxSlot->SetPosition(FVector2D(0.0f, 0.0f));
-				BoxSlot->SetSize(FVector2D(600.0f, 800.0f));
-				BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-				BoxSlot->SetZOrder(1);
-			}
-		}
-		else
-		{
-			UCanvasPanelSlot* BoxSlot = InventoryHUDRef->CanvasPanel_Main->AddChildToCanvas(InventoryHUDRef->FullDescriptionWidgetRef);
-			if (BoxSlot)
-			{
-				BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
-				BoxSlot->SetPosition(FVector2D(0.0f, 0.0f));
-				BoxSlot->SetSize(FVector2D(600.0f, 800.0f));
-				BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-				BoxSlot->SetZOrder(1);
-			}
+			BoxSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+			BoxSlot->SetPosition(FVector2D(0.0f, 0.0f));
+			BoxSlot->SetSize(FVector2D(600.0f, 800.0f));
+			BoxSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+			BoxSlot->SetZOrder(1);
 		}
 	}
 
