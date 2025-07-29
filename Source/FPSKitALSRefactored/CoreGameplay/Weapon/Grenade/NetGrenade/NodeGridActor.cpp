@@ -326,6 +326,7 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
        for (const FOverlapResult& Overlap : Overlaps)  
        {  
+           Node.AttachedActor = Overlap.GetActor();
            UPrimitiveComponent* HitComp = Overlap.Component.Get();  
            if (!HitComp) continue;  
 
@@ -354,6 +355,7 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
            for (const FOverlapResult& MeshOverlap : MeshOverlaps)  
            {  
+               Node.AttachedActor = MeshOverlap.GetActor();
                if (MeshOverlap.Component.Get() == FixationMesh)  
                {  
                    FTransform NodeTransform = FTransform(FRotator::ZeroRotator, NodePositions[i]/*TestPosition*/);
@@ -574,39 +576,87 @@ void ANodeGridActor::Tick(float DeltaTime)
     ApplyRigidConstraints(DeltaTime);
     DrawDebugState();
 
-	//IterateUniqueLinks();
+    // Подготовка временных массивов для параллельной обработки
+    TArray<FVector> UpdatedPositions;
+    TArray<bool> Updated;
+    TArray<bool> SetFixation;
+    UpdatedPositions.SetNumUninitialized(Nodes.Num());
+    Updated.SetNumZeroed(Nodes.Num());
+	SetFixation.SetNumZeroed(Nodes.Num());
 
-    for (int32 i = 0; i < Nodes.Num(); ++i)
+    // Параллельная обработка фиксированных узлов
+    ParallelFor(Nodes.Num(), [&](int32 i)
     {
         FNode& Node = Nodes[i];
 
         if (Node.bFixed)
         {
-            if (Node.AttachedComponent)
+
+            if (!IsValid(Node.AttachedActor))
             {
-                Node.Velocity = FVector::ZeroVector;
-                Node.bFixed = true;
-                continue;
+				Updated[i] = true;
+				SetFixation[i] = false;
+                return;
             }
 
-            if (Node.AttachedMesh)
+            if (!Node.AttachedComponent && !Node.AttachedMesh)
             {
-                FTransform BoneTransform = Node.AttachedMesh->GetSocketTransform(Node.AttachedBoneName, ERelativeTransformSpace::RTS_World);
-                FTransform WorldTransform = Node.NodeLocalTransform * BoneTransform;
+                Updated[i] = true;
+                SetFixation[i] = false;
+                return;
+            }
 
-                NodePositions[Node.PositionIndex] = WorldTransform.GetLocation();
+            AAlsCharacter* Char = Cast<AAlsCharacter>(Node.AttachedActor);
+            
+            if (!Char)
+            {
+                Updated[i] = false;
+                return;
+            }
+
+            float Health = Char->GetHealth();
+            if (Health <= 0.f || Char->IsRagdollingAllowedToStop())
+            {
+                Updated[i] = true;
+                SetFixation[i] = false;
+                return;
+            }
+
+            FTransform BoneTransform = Node.AttachedMesh->GetSocketTransform(Node.AttachedBoneName, RTS_World);
+            FTransform WorldTransform = Node.NodeLocalTransform * BoneTransform;
+
+            UpdatedPositions[i] = WorldTransform.GetLocation();
+            Updated[i] = true;
+            SetFixation[i] = true;
+
+        }
+    });
+
+    // Применение результатов в основном потоке
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        FNode& Node = Nodes[i];
+
+        if (Updated[i])
+        {
+            if (SetFixation[i])
+            {
+                NodePositions[Node.PositionIndex] = UpdatedPositions[i];
                 Node.Velocity = FVector::ZeroVector;
                 Node.bFixed = true;
-                continue;
+            }
+            else
+            {
+                Node.Velocity = FVector::ZeroVector;
+                Node.bFixed = false;
             }
         }
+        /*
+        else if (Node.bFixed)
+        {
+            Node.Velocity = FVector::ZeroVector;
+            Node.bFixed = false;
+        }
+        */
     }
-    /*
-    const float SPart = float(StopCount) / float(Nodes.Num());
-    if (StopCount > 0 && SPart >= StopTresholdPart)
-    {
-        SetActorTickEnabled(false);
-        UE_LOG(LogTemp, Log, TEXT("Process stop %d"), StopCount);
-    }
-    */
 }

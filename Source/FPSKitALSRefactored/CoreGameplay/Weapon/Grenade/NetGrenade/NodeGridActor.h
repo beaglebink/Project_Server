@@ -50,6 +50,9 @@ struct FNode
     bool bFixed = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    AActor* AttachedActor = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UPrimitiveComponent* AttachedComponent = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -155,8 +158,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     float StopTresholdPart = 0.95f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
-	float DesrtoyTime = 5.0f;
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
+	//float DesrtoyTime = 5.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     bool bEnableDebugDraw = true;
