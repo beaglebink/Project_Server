@@ -112,7 +112,21 @@ void AAlsCharacterExample::ParalyzeNPC(AActor* Reason, float Time)
 		GetCharacterMovement()->DisableMovement();  
 		GetCharacterMovement()->StopMovementImmediately();  
 
-		Controller = nullptr;
+		AAIController* AIController = Cast<AAIController>(GetController());
+		if (AIController)
+		{
+			TestController = GetController();
+			FocusActor = AIController->GetFocusActor();
+			AIController->SetFocus(nullptr);
+			UBlackboardComponent* BlackBoard = UAIBlueprintHelperLibrary::GetBlackboard(AIController);
+			if (BlackBoard)
+			{
+				Target = BlackBoard->GetValueAsObject(TEXT("Target"));
+				BlackBoard->SetValueAsObject(TEXT("Target"), nullptr);
+			}
+
+			Controller = nullptr; // Clear the controller to prevent any further input processing
+		}
 		GetWorldTimerManager().SetTimer(StunTimerHandle, this, &AAlsCharacterExample::EndStun, Time, false);  
 	}    
 }

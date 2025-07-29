@@ -91,6 +91,8 @@ public:
 protected:
     virtual void BeginPlay() override;
 
+    void DestroyThis();
+
 public:
     virtual void Tick(float DeltaTime) override;
 
@@ -158,8 +160,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     float StopTresholdPart = 0.95f;
 
-    //UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
-	//float DesrtoyTime = 5.0f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
+	float DesrtoyTime = 5.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     bool bEnableDebugDraw = true;

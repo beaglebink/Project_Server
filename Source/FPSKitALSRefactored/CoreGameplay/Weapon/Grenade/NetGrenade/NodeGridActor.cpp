@@ -33,6 +33,8 @@ void ANodeGridActor::BeginPlay()
 {
     Super::BeginPlay();
 
+    GetWorldTimerManager().SetTimer(StunTimerHandle, this, &ANodeGridActor::DestroyThis, DesrtoyTime, false);
+
     InitializeGrid();
 
     for (const TPair<int32, int32>& Link : UniqueLinks)
@@ -52,6 +54,10 @@ void ANodeGridActor::BeginPlay()
     }
 }
 
+void ANodeGridActor::DestroyThis()
+{
+	DestroyNet(this);
+}
 
 void ANodeGridActor::DestroyNet(AActor* Reason)
 {
@@ -437,7 +443,6 @@ void ANodeGridActor::ParalyzeCharacter(ACharacter* Char)
 		{
 			ALSChar->ParalyzeNPC(this, ParalyseTime);
 			ALSChar->OnNetParalyse.AddDynamic(this, &ANodeGridActor::DestroyNet);
-            //GetWorldTimerManager().SetTimer(StunTimerHandle, this, &ANodeGridActor::DestroyNet, ParalyseTime - 0.1f, false);
 		}
 	}
     
