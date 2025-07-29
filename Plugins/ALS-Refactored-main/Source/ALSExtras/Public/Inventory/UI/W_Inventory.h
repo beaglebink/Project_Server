@@ -32,7 +32,7 @@ public:
 	TObjectPtr<UAC_Container> Container;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Items")
-	TArray<TObjectPtr<UW_ItemSlot>> Slots;
+	TArray<TObjectPtr<UW_ItemSlot>> ItemSlots;
 
 	UPROPERTY(BlueprintReadWrite, Category = "ScrollBox field", meta = (BindWidget))
 	UScrollBox* ScrollBox_Items;
