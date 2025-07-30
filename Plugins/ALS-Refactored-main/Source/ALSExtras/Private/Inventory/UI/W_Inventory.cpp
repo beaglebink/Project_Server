@@ -228,9 +228,9 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		break;
 	}
 
-	for (UW_ItemSlot* SlotTest:ItemSlots)
+	for (UW_ItemSlot* SlotToAdd:ItemSlots)
 	{
-		ScrollBox_Items->AddChild(SlotTest);
+		ScrollBox_Items->AddChild(SlotToAdd);
 	}
 
 	SlotsFilter(SlotContainerType);
