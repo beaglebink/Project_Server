@@ -19,7 +19,9 @@ class ALSEXTRAS_API UW_Inventory : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-	virtual void NativeConstruct() override;
+	virtual void NativeOnInitialized() override;
+
+	virtual void NativePreConstruct() override;
 
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
@@ -89,9 +91,6 @@ protected:
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI")
 	EnumInventory CurrentTabType;
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void RefreshAfterSort();
 
 	UFUNCTION(BlueprintCallable, Category = "Filter")
 	void SlotsFilter(EnumInventory SlotContainerType);

@@ -59,9 +59,9 @@ public:
 	FOnUnhoveredDelegate OnUnhovered;
 
 protected:
-	virtual void NativePreConstruct()override;
+	virtual void NativeOnInitialized()override;
 
-	virtual void NativeConstruct()override;
+	virtual void NativePreConstruct()override;
 
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)override;
 

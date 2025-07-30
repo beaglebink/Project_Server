@@ -8,12 +8,11 @@
 #include "Inventory/AC_Container.h"
 #include "Inventory/UI/W_ItemSlot.h"
 
-void UW_HowMuch::NativeConstruct()
+void UW_HowMuch::NativeOnInitialized()
 {
-	Super::NativeConstruct();
+	Super::NativeOnInitialized();
 
 	bIsFocusable = true;
-	Button_Yes->SetKeyboardFocus();
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
@@ -25,6 +24,13 @@ void UW_HowMuch::NativeConstruct()
 
 	Button_Yes->OnPressed.AddDynamic(this, &UW_HowMuch::ConfirmSlider);
 	Button_No->OnPressed.AddDynamic(this, &UW_HowMuch::EscapeWidget);
+}
+
+void UW_HowMuch::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+
+	Button_Yes->SetKeyboardFocus();
 }
 
 void UW_HowMuch::NativeDestruct()

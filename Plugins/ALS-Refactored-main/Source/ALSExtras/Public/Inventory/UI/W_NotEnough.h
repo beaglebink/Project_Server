@@ -10,7 +10,7 @@ class ALSEXTRAS_API UW_NotEnough : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-	virtual void NativeConstruct() override;
+	virtual void NativeOnInitialized() override;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (BindWidgetAnim), Transient)
 	UWidgetAnimation* Appearing;

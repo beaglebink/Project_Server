@@ -13,7 +13,7 @@ class ALSEXTRAS_API UW_FullDescription : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-	virtual void NativeConstruct() override;
+	virtual void NativePreConstruct() override;
 
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "Name", meta = (ExposeOnSpawn = "true"))

@@ -30,7 +30,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "RenderActor")
 	TSubclassOf<AA_3DDescription> RenderActorClass;
 
-	virtual void NativeConstruct() override;
+	virtual void NativePreConstruct() override;
 	
 	virtual void NativeDestruct() override;
 };

@@ -3,9 +3,9 @@
 #include "Components/TextBlock.h"
 #include "Inventory/S_ItemData.h"
 
-void UW_FullDescription::NativeConstruct()
+void UW_FullDescription::NativePreConstruct()
 {
-	Super::NativeConstruct();
+	Super::NativePreConstruct();
 
 	if (ItemDataTable && Name != "")
 	{

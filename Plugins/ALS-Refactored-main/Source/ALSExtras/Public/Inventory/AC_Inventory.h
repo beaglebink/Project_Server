@@ -57,9 +57,9 @@ public:
 
 	void BindInput(UEnhancedInputComponent* InputComponent);
 
-private:
 	uint8 bIsOpen : 1{false};
 
+private:
 	TObjectPtr<UInteractiveItemComponent> CurrentInteractiveObject;
 
 	void ToggleInventory();

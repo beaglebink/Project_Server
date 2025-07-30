@@ -2,24 +2,24 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 
-void UW_FocusableButton::NativePreConstruct()
+void UW_FocusableButton::NativeOnInitialized()
 {
-	Super::NativePreConstruct();
+	Super::NativeOnInitialized();
 
 	bIsFocusable = true;
-
-	RefreshButtonStyle();
-}
-
-void UW_FocusableButton::NativeConstruct()
-{
-	Super::NativeConstruct();
 
 	Button->OnClicked.AddDynamic(this, &UW_FocusableButton::HandleClicked);
 	Button->OnPressed.AddDynamic(this, &UW_FocusableButton::HandlePressed);
 	Button->OnReleased.AddDynamic(this, &UW_FocusableButton::HandleReleased);
 	Button->OnHovered.AddDynamic(this, &UW_FocusableButton::HandleHovered);
 	Button->OnUnhovered.AddDynamic(this, &UW_FocusableButton::HandleUnhovered);
+}
+
+void UW_FocusableButton::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+
+	RefreshButtonStyle();
 }
 
 FReply UW_FocusableButton::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)//For visible widget, not for NonTestable

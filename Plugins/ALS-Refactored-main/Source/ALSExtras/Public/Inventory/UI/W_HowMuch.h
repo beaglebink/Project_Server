@@ -20,7 +20,9 @@ class ALSEXTRAS_API UW_HowMuch : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-	virtual void NativeConstruct() override;
+	virtual void NativeOnInitialized() override;
+
+	virtual void NativePreConstruct() override;
 
 	virtual void NativeDestruct() override;
 

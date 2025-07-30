@@ -3,9 +3,9 @@
 #include "Inventory/S_ItemData.h"
 #include "Components/TextBlock.h"
 
-void UW_VisualDescription::NativeConstruct()
+void UW_VisualDescription::NativePreConstruct()
 {
-	Super::NativeConstruct();
+	Super::NativePreConstruct();
 
 	if (RenderActorClass)
 	{

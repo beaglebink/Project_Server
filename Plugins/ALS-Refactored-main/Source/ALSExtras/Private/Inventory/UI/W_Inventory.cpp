@@ -8,16 +8,9 @@
 #include "Inventory/UI/W_InventoryHUD.h"
 #include "Inventory/UI/W_FocusableButton.h"
 
-void UW_Inventory::NativeConstruct()
+void UW_Inventory::NativeOnInitialized()
 {
-	Super::NativeConstruct();
-
-	if (Container)
-	{
-		Container->OnArmourChanged.AddDynamic(this, &UW_Inventory::RefreshArmour);
-		Container->OnWeightChanged.AddDynamic(this, &UW_Inventory::RefreshWeight);
-		Container->OnMoneyChanged.AddDynamic(this, &UW_Inventory::RefreshMoney);
-	}
+	Super::NativeOnInitialized();
 
 	Button_Tab_All->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Tab_All_Pressed);
 	Button_Tab_Weapon->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Tab_Weapon_Pressed);
@@ -32,6 +25,18 @@ void UW_Inventory::NativeConstruct()
 	Button_Sort_Durability->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_Durability_Pressed);
 	Button_Sort_Weight->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_Weight_Pressed);
 	Button_Sort_Value->OnPressed.AddDynamic(this, &UW_Inventory::Handle_Button_Sort_Value_Pressed);
+}
+
+void UW_Inventory::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+
+	if (Container)
+	{
+		Container->OnArmourChanged.AddDynamic(this, &UW_Inventory::RefreshArmour);
+		Container->OnWeightChanged.AddDynamic(this, &UW_Inventory::RefreshWeight);
+		Container->OnMoneyChanged.AddDynamic(this, &UW_Inventory::RefreshMoney);
+	}
 }
 
 void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
@@ -96,19 +101,19 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		if (bIsDecreased)
 		{
 			bIsDecreased = false;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return SlotA.TextBlock_Name->GetText().ToString() > SlotB.TextBlock_Name->GetText().ToString();
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return SlotA.TextBlock_Name->GetText().ToString() > SlotB.TextBlock_Name->GetText().ToString();
+				});
 			Container->Items_Sort(EnumSortType::A_Z, true);
 		}
 		else
 		{
 			bIsDecreased = true;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return SlotA.TextBlock_Name->GetText().ToString() < SlotB.TextBlock_Name->GetText().ToString();
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return SlotA.TextBlock_Name->GetText().ToString() < SlotB.TextBlock_Name->GetText().ToString();
+				});
 			Container->Items_Sort(EnumSortType::A_Z, false);
 		}
 		PrevSort = SortType;
@@ -118,19 +123,19 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		{
 
 			bIsDecreased = false;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Damage->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Damage->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Damage->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Damage->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Damage, true);
 		}
 		else
 		{
 			bIsDecreased = true;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Damage->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Damage->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Damage->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Damage->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Damage, false);
 		}
 		PrevSort = SortType;
@@ -139,19 +144,19 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		if (bIsDecreased)
 		{
 			bIsDecreased = false;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Armor->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Armor->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Armor->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Armor->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Armour, true);
 		}
 		else
 		{
 			bIsDecreased = true;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Armor->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Armor->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Armor->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Armor->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Armour, false);
 		}
 		PrevSort = SortType;
@@ -160,19 +165,19 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		if (bIsDecreased)
 		{
 			bIsDecreased = false;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Durability->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Durability->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Durability->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Durability->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Durability, true);
 		}
 		else
 		{
 			bIsDecreased = true;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Durability->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Durability->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Durability->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Durability->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Durability, false);
 		}
 		PrevSort = SortType;
@@ -181,19 +186,19 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		if (bIsDecreased)
 		{
 			bIsDecreased = false;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Weight->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Weight->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Weight->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Weight->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Weight, true);
 		}
 		else
 		{
 			bIsDecreased = true;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Weight->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Weight->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Weight->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Weight->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Weight, false);
 		}
 		PrevSort = SortType;
@@ -202,19 +207,19 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		if (bIsDecreased)
 		{
 			bIsDecreased = false;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Value->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Value->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Value->GetText().ToString())) > FCString::Atof(*(SlotB.TextBlock_Value->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Value, true);
 		}
 		else
 		{
 			bIsDecreased = true;
-			//ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
-			//	{
-			//		return FCString::Atof(*(SlotA.TextBlock_Value->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Value->GetText().ToString()));
-			//	});
+			ItemSlots.Sort([](const UW_ItemSlot& SlotA, const UW_ItemSlot& SlotB)
+				{
+					return FCString::Atof(*(SlotA.TextBlock_Value->GetText().ToString())) < FCString::Atof(*(SlotB.TextBlock_Value->GetText().ToString()));
+				});
 			Container->Items_Sort(EnumSortType::Value, false);
 		}
 		PrevSort = SortType;
@@ -223,7 +228,10 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		break;
 	}
 
-	RefreshAfterSort();
+	for (UW_ItemSlot* SlotTest:ItemSlots)
+	{
+		ScrollBox_Items->AddChild(SlotTest);
+	}
 
 	SlotsFilter(SlotContainerType);
 }

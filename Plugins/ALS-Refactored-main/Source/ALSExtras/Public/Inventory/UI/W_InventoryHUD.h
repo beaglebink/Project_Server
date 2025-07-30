@@ -25,7 +25,7 @@ class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-	virtual void NativeConstruct() override;
+	virtual void NativeOnInitialized() override;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
@@ -72,9 +72,6 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
 	UCanvasPanel* CanvasPanel_HowMuch_NotEnough;
-
-	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (BindWidget))
-	UOverlay* Overlay_Sort_Temp;
 
 	UPROPERTY(BlueprintReadWrite, Category = "KeyFlag")
 	uint8 bHowMuchIsOpen : 1{false};
@@ -136,5 +133,5 @@ private:
 
 	uint8 bIsMoneyEnough : 1{true};
 
-	void SetKeyboardFocusOnPrevSlot(UW_ItemSlot* FocusedSlot);
+	void SetKeyboardFocusOnNextSlot(UW_ItemSlot* FocusedSlot);
 };

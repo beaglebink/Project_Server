@@ -83,8 +83,6 @@ void UW_ItemSlot::SetTintOnSelected(bool IsSet)
 
 void UW_ItemSlot::FullDescriptionCreate()
 {
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 1.0f, FColor::Red, "Call");
-
 	if (InventoryHUDRef->AdditiveInventory)
 	{
 		return;

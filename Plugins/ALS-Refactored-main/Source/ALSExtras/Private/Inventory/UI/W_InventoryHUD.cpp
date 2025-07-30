@@ -16,9 +16,9 @@
 #include "GameFramework/Character.h"
 #include "Inventory/UI/W_NotEnough.h"
 
-void UW_InventoryHUD::NativeConstruct()
+void UW_InventoryHUD::NativeOnInitialized()
 {
-	Super::NativeConstruct();
+	Super::NativeOnInitialized();
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
@@ -205,7 +205,7 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 		return;
 	}
 
-	SetKeyboardFocusOnPrevSlot(SlotToAdd);
+	SetKeyboardFocusOnNextSlot(SlotToAdd);
 
 	SlotToAdd->InventoryType = Inventory_To->InventoryType;
 
@@ -265,7 +265,7 @@ void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_I
 
 	if (SlotToRemove->HasKeyboardFocus())
 	{
-		SetKeyboardFocusOnPrevSlot(SlotToRemove);
+		SetKeyboardFocusOnNextSlot(SlotToRemove);
 	}
 
 	if (SlotToRemove->Item.Quantity != QuantityToRemove)
@@ -350,7 +350,7 @@ void UW_InventoryHUD::DropAll()
 	}
 }
 
-void UW_InventoryHUD::SetKeyboardFocusOnPrevSlot(UW_ItemSlot* FocusedSlot)
+void UW_InventoryHUD::SetKeyboardFocusOnNextSlot(UW_ItemSlot* FocusedSlot)
 {
 	UW_Inventory* Inventory = AdditiveInventory;
 	if (FocusedSlot->InventoryType == EnumInventoryType::Inventory)
@@ -360,13 +360,17 @@ void UW_InventoryHUD::SetKeyboardFocusOnPrevSlot(UW_ItemSlot* FocusedSlot)
 
 	int Index = Inventory->ScrollBox_Items->GetChildIndex(FocusedSlot);
 
-	if (Index > 0)
+	if (Index + 1 < Inventory->ScrollBox_Items->GetAllChildren().Num())
 	{
-		Inventory->ScrollBox_Items->GetChildAt(Index - 1)->SetKeyboardFocus();
+		Inventory->ScrollBox_Items->GetChildAt(Index + 1)->SetKeyboardFocus();
 	}
 	else if (Index == 0)
 	{
 		Inventory->Button_Sort_AZ->SetKeyboardFocus();
+	}
+	else
+	{
+		Inventory->ScrollBox_Items->GetChildAt(Index - 1)->SetKeyboardFocus();
 	}
 }
 
