@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NiagaraFunctionLibrary.h"
+#include "AlsCharacterExample.h"
 #include "NodeGridActor.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnParalysisNPCEvent, ACharacter*, NPC);
@@ -208,4 +209,7 @@ private:
 
     UPROPERTY()
     TArray<FVector> Ribbons;
+
+    UPROPERTY()
+    TArray <AAlsCharacterExample*> ParalysedCharacters;
 };

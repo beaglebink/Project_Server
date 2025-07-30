@@ -6,7 +6,6 @@
 #include <Kismet/KismetMathLibrary.h>
 #include <NiagaraDataInterfaceArrayFunctionLibrary.h>
 #include "AlsCharacterExample_I.h"
-#include "AlsCharacterExample.h"
 #include "NiagaraComponent.h"
 
 
@@ -31,6 +30,8 @@ void ANodeGridActor::PostInitializeComponents()
 
 void ANodeGridActor::BeginPlay()
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(BeginPlay);
+
     Super::BeginPlay();
 
     GetWorldTimerManager().SetTimer(StunTimerHandle, this, &ANodeGridActor::DestroyThis, DesrtoyTime, false);
@@ -155,6 +156,8 @@ void ANodeGridActor::InitializeGrid()
 
 void ANodeGridActor::ApplyForcesParallel()
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(ApplyForcesParallel);
+
     TArray<FVector> LocalForces;
     LocalForces.SetNumZeroed(Nodes.Num());
 
@@ -226,6 +229,8 @@ void ANodeGridActor::ApplyForcesParallel()
 
 void ANodeGridActor::ProcessInfluenceCascade()
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(ProcessInfluenceCascade);
+
     TQueue<FInfluenceEntry> InfluenceQueue;
 
     for (const auto& Entry : PendingInfluences)
@@ -292,6 +297,8 @@ void ANodeGridActor::ProcessInfluenceCascade()
 
 void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)  
 {  
+    TRACE_CPUPROFILER_EVENT_SCOPE(ApplyMotionAndFixation);
+
    const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;  
 
    TArray<FVector> PendingPositions;  
@@ -404,6 +411,8 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
 FName ANodeGridActor::FindClosestBoneToPoint(USkeletalMeshComponent* SkeletalMesh, const FVector& Point) const
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(FindClosestBoneToPoint);
+
     if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
     {
         return NAME_None;
@@ -431,8 +440,10 @@ FName ANodeGridActor::FindClosestBoneToPoint(USkeletalMeshComponent* SkeletalMes
 
 void ANodeGridActor::ParalyzeCharacter(ACharacter* Char)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(ParalyzeCharacter);
 
 	if (!Char) return;
+	if (ParalysedCharacters.Contains(Cast<AAlsCharacterExample>(Char))) return;
     
     AAlsCharacterExample* AlsCharacter = Cast<AAlsCharacterExample>(Char);
 	if (AlsCharacter)
@@ -444,19 +455,15 @@ void ANodeGridActor::ParalyzeCharacter(ACharacter* Char)
 			ALSChar->ParalyzeNPC(this, ParalyseTime);
 			ALSChar->OnNetParalyse.AddDynamic(this, &ANodeGridActor::DestroyNet);
 		}
+
+		ParalysedCharacters.Add(AlsCharacter);
 	}
-    
-    /*
-	AAlsCharacter* AlsCharacter = Cast<AAlsCharacter>(Char);
-	if (AlsCharacter)
-	{
-        AlsCharacter->SetStaticGrenadeEffect(0.1f);
-	}
-    */
 }
 
 void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(ApplyRigidConstraints);
+
     TSet<TPair<int32, int32>> ProcessedLinks;
 
     for (int32 i = 0; i < Nodes.Num(); ++i)
@@ -505,6 +512,8 @@ void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
 
 void ANodeGridActor::DrawDebugState()
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(DrawDebugState);
+
     //const float SPart = float(StopCount) / float(Nodes.Num());
     const float DrawLifeTime = -1;//SPart >= StopTresholdPart ? 60.f : -1.f;
 
@@ -570,6 +579,8 @@ void ANodeGridActor::IterateUniqueLinks()
 
 void ANodeGridActor::Tick(float DeltaTime)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(Tick);
+
     Super::Tick(DeltaTime);
 
     StopCount = 0;
