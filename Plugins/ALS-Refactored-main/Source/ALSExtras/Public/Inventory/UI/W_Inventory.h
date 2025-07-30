@@ -90,6 +90,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI")
 	EnumInventory CurrentTabType;
 
+	UFUNCTION(BlueprintImplementableEvent)
+	void RefreshAfterSort();
+
 	UFUNCTION(BlueprintCallable, Category = "Filter")
 	void SlotsFilter(EnumInventory SlotContainerType);
 
