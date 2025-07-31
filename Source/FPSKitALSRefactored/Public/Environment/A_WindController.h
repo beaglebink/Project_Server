@@ -5,6 +5,8 @@
 #include "Engine/WindDirectionalSource.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/ArrowComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "A_WindController.generated.h"
 
 class UTextRenderComponent;
