@@ -30,7 +30,7 @@ void ANodeGridActor::PostInitializeComponents()
 
 void ANodeGridActor::BeginPlay()
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(BeginPlay);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::BeginPlay);
 
     Super::BeginPlay();
 
@@ -68,6 +68,7 @@ void ANodeGridActor::DestroyNet(AActor* Reason)
 
 void ANodeGridActor::InitializeGrid()
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::InitializeGrid);
     Nodes.Empty();
     NodePositions.Empty();
     RibbonStartIndices.Reset();
@@ -156,7 +157,7 @@ void ANodeGridActor::InitializeGrid()
 
 void ANodeGridActor::ApplyForcesParallel()
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(ApplyForcesParallel);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::ApplyForcesParallel);
 
     TArray<FVector> LocalForces;
     LocalForces.SetNumZeroed(Nodes.Num());
@@ -229,7 +230,7 @@ void ANodeGridActor::ApplyForcesParallel()
 
 void ANodeGridActor::ProcessInfluenceCascade()
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(ProcessInfluenceCascade);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::ProcessInfluenceCascade);
 
     TQueue<FInfluenceEntry> InfluenceQueue;
 
@@ -297,7 +298,7 @@ void ANodeGridActor::ProcessInfluenceCascade()
 
 void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)  
 {  
-    TRACE_CPUPROFILER_EVENT_SCOPE(ApplyMotionAndFixation);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::ApplyMotionAndFixation);
 
    const FVector GravityForce = GravityDirection.GetSafeNormal() * GravityStrength;  
 
@@ -411,7 +412,7 @@ void ANodeGridActor::ApplyMotionAndFixation(float DeltaTime)
 
 FName ANodeGridActor::FindClosestBoneToPoint(USkeletalMeshComponent* SkeletalMesh, const FVector& Point) const
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(FindClosestBoneToPoint);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::FindClosestBoneToPoint);
 
     if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
     {
@@ -440,7 +441,7 @@ FName ANodeGridActor::FindClosestBoneToPoint(USkeletalMeshComponent* SkeletalMes
 
 void ANodeGridActor::ParalyzeCharacter(ACharacter* Char)
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(ParalyzeCharacter);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::ParalyzeCharacter);
 
 	if (!Char) return;
 	if (ParalysedCharacters.Contains(Cast<AAlsCharacterExample>(Char))) return;
@@ -462,7 +463,7 @@ void ANodeGridActor::ParalyzeCharacter(ACharacter* Char)
 
 void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(ApplyRigidConstraints);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::ApplyRigidConstraints);
 
     TSet<TPair<int32, int32>> ProcessedLinks;
 
@@ -512,7 +513,7 @@ void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
 
 void ANodeGridActor::DrawDebugState()
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(DrawDebugState);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::DrawDebugState);
 
     //const float SPart = float(StopCount) / float(Nodes.Num());
     const float DrawLifeTime = -1;//SPart >= StopTresholdPart ? 60.f : -1.f;
@@ -579,7 +580,7 @@ void ANodeGridActor::IterateUniqueLinks()
 
 void ANodeGridActor::Tick(float DeltaTime)
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(Tick);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::Tick);
 
     Super::Tick(DeltaTime);
 
