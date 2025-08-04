@@ -1210,8 +1210,8 @@ public:
 
 	//Delay before grenade throw after sprint
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character|Effects|Delay before grenade throw after sprint", meta = (ClampMin = "0.0", ClampMax = "10.0"))
-	float SprintTimeDelayMax = 1.25f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character|Effects|Delay before grenade throw after sprint")
+	float SprintTimeDelayMax = 3.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Effects")
 	float SprintTimeDelay = 0.0f;
