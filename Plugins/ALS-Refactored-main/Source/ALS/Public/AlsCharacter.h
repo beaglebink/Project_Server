@@ -1207,6 +1207,18 @@ protected:
 public:
 	UFUNCTION(BlueprintCallable, Category = "Speed")
 	void SetWeightSpeedMultiplier(float CurrentWeight);
+
+	//Delay before grenade throw after sprint
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character|Effects|Delay before grenade throw after sprint")
+	float SprintTimeDelayMax = 3.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Effects")
+	float SprintTimeDelay = 0.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "Effects")
+	void SprintTimeDelayCount();
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

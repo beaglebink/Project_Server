@@ -2743,6 +2743,19 @@ void AAlsCharacter::SetWeightSpeedMultiplier(float CurrentWeight)
 	}
 }
 
+void AAlsCharacter::SprintTimeDelayCount()
+{
+	if (GetDesiredGait() == AlsGaitTags::Sprinting)
+	{
+		SprintTimeDelay += GetWorld()->GetDeltaSeconds();
+	}
+	else
+	{
+		SprintTimeDelay -= GetWorld()->GetDeltaSeconds();
+	}
+	SprintTimeDelay = FMath::Clamp(SprintTimeDelay, 0.0f, SprintTimeDelayMax);
+}
+
 void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to6)
 {
 	if (bIsSet)

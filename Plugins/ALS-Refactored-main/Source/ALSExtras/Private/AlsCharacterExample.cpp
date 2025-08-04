@@ -96,21 +96,21 @@ float AAlsCharacterExample::GetNetGrenadeParalyseTime() const
 {
 	return NetGrenadeParalyseTime;
 }
-void AAlsCharacterExample::ParalyzeNPC(AActor* Reason, float Time)  
-{  
+void AAlsCharacterExample::ParalyzeNPC(AActor* Reason, float Time)
+{
 	if (Reason == ReasonParalyse) return;
 
 	ReasonParalyse = Reason;
 
-	if (bIsStunned || bIsGrappled || bIsWired || bIsSliding || bIsStickyStuck || bIsBubbled || bIsOverload)  
-	{  
-		return;  
-	}  
-	if (Time > 0.0f)  
-	{  
-		bIsStunned = true;  
-		GetCharacterMovement()->DisableMovement();  
-		GetCharacterMovement()->StopMovementImmediately();  
+	if (bIsStunned || bIsGrappled || bIsWired || bIsSliding || bIsStickyStuck || bIsBubbled || bIsOverload)
+	{
+		return;
+	}
+	if (Time > 0.0f)
+	{
+		bIsStunned = true;
+		GetCharacterMovement()->DisableMovement();
+		GetCharacterMovement()->StopMovementImmediately();
 
 		AAIController* AIController = Cast<AAIController>(GetController());
 		if (AIController)
@@ -127,8 +127,8 @@ void AAlsCharacterExample::ParalyzeNPC(AActor* Reason, float Time)
 
 			Controller = nullptr; // Clear the controller to prevent any further input processing
 		}
-		GetWorldTimerManager().SetTimer(StunTimerHandle, this, &AAlsCharacterExample::EndStun, Time, false);  
-	}    
+		GetWorldTimerManager().SetTimer(StunTimerHandle, this, &AAlsCharacterExample::EndStun, Time, false);
+	}
 }
 void AAlsCharacterExample::EndStun()
 {
@@ -671,6 +671,8 @@ void AAlsCharacterExample::Tick(float DeltaTime)
 	*/
 
 	SetStamina(GetStamina() + StaminaRegenerationRate);
+
+	SprintTimeDelayCount();
 
 	LoopEffect();
 }
