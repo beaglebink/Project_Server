@@ -1223,10 +1223,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effects")
 	void SprintTimeDelayCount();
 
-	//Effects
-public:
-	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
-	float RecoilMultiplier = 1.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
