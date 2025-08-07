@@ -812,6 +812,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetPerception(float NewPerception);
 
+	// Health recovery
+private:
+	void HealthRecovery();
+
 	// What does stamina affect
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attributes|Stamina affects", meta = (ClampMin = "0.0", ClampMax = "10.0"))

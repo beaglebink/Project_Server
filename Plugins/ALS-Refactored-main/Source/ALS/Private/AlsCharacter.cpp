@@ -330,6 +330,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CalculateInkEffect();
 
 	Restore_Speed_JumpHeight_Health();
+
+	HealthRecovery();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2047,6 +2049,22 @@ void AAlsCharacter::SetPerception(float NewPerception)
 {
 	Perception = FMath::Clamp(NewPerception, 0.0f, GetMaxPerception());
 	OnPerceptionChanged.Broadcast(Perception, MaxPerception);
+}
+
+void AAlsCharacter::HealthRecovery()
+{
+	if (GetHealth() <= 33.0f)
+	{
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f, 0.0f, 33.0f));
+	}
+	else if (GetHealth() <= 67.0f)
+	{
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f, 34.0f, 67.0f));
+	}
+	else if (GetHealth() <= 100.0f)
+	{
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f, 68.0f, 100.0f));
+	}
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
