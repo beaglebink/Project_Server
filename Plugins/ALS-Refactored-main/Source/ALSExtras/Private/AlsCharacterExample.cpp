@@ -841,7 +841,7 @@ void AAlsCharacterExample::SetSceneRenderComponents(AActor* Actor)
 
 void AAlsCharacterExample::InitializeFoodEffectMap()
 {
-	FoodEffectMap.Add(FoodEffectTags::Effect_1, [this](bool) { SetEffect_1(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_1, [this](bool Apply) { SetEffect_1(Apply); });
 	FoodEffectMap.Add(FoodEffectTags::Effect_2, [this](bool) { SetEffect_2(); });
 	FoodEffectMap.Add(FoodEffectTags::Effect_3, [this](bool) { SetEffect_3(); });
 	FoodEffectMap.Add(FoodEffectTags::Effect_4, [this](bool) { SetEffect_4(); });
@@ -908,10 +908,18 @@ void AAlsCharacterExample::FoodEffectByTag(const FGameplayTag& Tag, bool Apply)
 
 void AAlsCharacterExample::SetEffect_1(bool Apply)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, "Effect_1");
 	if (Apply)
 	{
-
+		RecoilMultiplier = 0.7f;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_1();
+			}, 900.0f, false);
+	}
+	else
+	{
+		RecoilMultiplier = 1.0f;
 	}
 }
 
