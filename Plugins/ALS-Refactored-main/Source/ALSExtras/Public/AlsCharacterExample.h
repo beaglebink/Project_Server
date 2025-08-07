@@ -4,6 +4,7 @@
 #include "Enums/EnumLoopStates.h"
 #include <PhysicsEngine/PhysicsConstraintActor.h>
 #include "AlsCharacterExample_I.h"
+#include "Utility/AlsGameplayTags.h"
 #include "AlsCharacterExample.generated.h"
 
 struct FInputActionValue;
@@ -288,4 +289,12 @@ protected:
 public:
 	UFUNCTION(BlueprintCallable, Category = "SceneRender")
 	void SetSceneRenderComponents(AActor* Actor);
+
+	//Food effects
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FoodEffect")
+	FGameplayTag FoodTag{ FoodEffectTags::Default };
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	void SetFoodEffect(const FGameplayTag& EffectTag);
 };

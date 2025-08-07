@@ -836,3 +836,8 @@ void AAlsCharacterExample::SetSceneRenderComponents(AActor* Actor)
 		SetSceneRenderComponents(Attached);
 	}
 }
+
+void AAlsCharacterExample::SetFoodEffect(const FGameplayTag& EffectTag)
+{
+
+}
