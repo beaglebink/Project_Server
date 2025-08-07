@@ -14,6 +14,7 @@
 #include "EnhancedInputComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
+#include "AlsCharacterExample.h"
 #include "Inventory/UI/W_NotEnough.h"
 
 void UW_InventoryHUD::NativeOnInitialized()
@@ -67,6 +68,50 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 			else
 			{
 				RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, true);
+			}
+		}
+
+		if (KeyPressed == "Left" && AdditiveInventory == nullptr)
+		{
+			if (AAlsCharacterExample* AlsCharacterExample = Cast< AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
+			{
+				if (ItemDataTable)
+				{
+					EnumInventory SlotType = ItemDataTable->FindRow<FS_ItemData>(SlotToInteract->Item.Name, TEXT("Find row in datatable"))->Type;
+					switch (SlotType)
+					{
+					case EnumInventory::Weapon:
+					{
+						break;
+					}
+					case EnumInventory::Clothes:
+					{
+						break;
+					}
+					case EnumInventory::Consumables:
+					{
+						FGameplayTag FoodTag = ItemDataTable->FindRow<FS_ItemData>(SlotToInteract->Item.Name, TEXT("Find row in datatable"))->SpecialTag;
+						if (!FoodTag.IsValid() || FoodTag == FoodEffectTags::Default)
+						{
+							break;
+						}
+						AlsCharacterExample->FoodEffectByTag(FoodTag, true);
+						RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, false);
+						break;
+					}
+					case EnumInventory::Miscellaneous:
+					{
+						break;
+					}
+					case EnumInventory::Others:
+					{
+						break;
+					}
+					default:
+						break;
+					}
+
+				}
 			}
 		}
 
@@ -352,6 +397,11 @@ void UW_InventoryHUD::DropAll()
 
 void UW_InventoryHUD::SetKeyboardFocusOnNextSlot(UW_ItemSlot* FocusedSlot)
 {
+	if (FocusedSlot->Item.Quantity > 1)
+	{
+		return;
+	}
+
 	UW_Inventory* Inventory = AdditiveInventory;
 	if (FocusedSlot->InventoryType == EnumInventoryType::Inventory)
 	{
