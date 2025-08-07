@@ -292,9 +292,67 @@ public:
 
 	//Food effects
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FoodEffect")
-	FGameplayTag FoodTag{ FoodEffectTags::Default };
-
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
-	void SetFoodEffect(const FGameplayTag& EffectTag);
+	void FoodEffectByTag(const FGameplayTag& Tag, bool Apply);
+
+private:
+	TMap<FGameplayTag, TFunction<void(bool)>> FoodEffectMap;
+
+	void InitializeFoodEffectMap();
+
+	void SetEffect_1(bool Apply = false);
+	void SetEffect_2(bool Apply = false);
+	void SetEffect_3(bool Apply = false);
+	void SetEffect_4(bool Apply = false);
+	void SetEffect_5(bool Apply = false);
+	void SetEffect_6(bool Apply = false);
+	void SetEffect_7(bool Apply = false);
+	void SetEffect_8(bool Apply = false);
+	void SetEffect_9(bool Apply = false);
+	void SetEffect_10(bool Apply = false);
+	void SetEffect_11(bool Apply = false);
+	void SetEffect_12(bool Apply = false);
+	void SetEffect_13(bool Apply = false);
+	void SetEffect_14(bool Apply = false);
+	void SetEffect_15(bool Apply = false);
+	void SetEffect_16(bool Apply = false);
+	void SetEffect_17(bool Apply = false);
+	void SetEffect_18(bool Apply = false);
+	void SetEffect_19(bool Apply = false);
+	void SetEffect_20(bool Apply = false);
+	void SetEffect_21(bool Apply = false);
+	void SetEffect_22(bool Apply = false);
+	void SetEffect_23(bool Apply = false);
+	void SetEffect_24(bool Apply = false);
+	void SetEffect_25(bool Apply = false);
+	void SetEffect_26(bool Apply = false);
+	void SetEffect_27(bool Apply = false);
+	void SetEffect_28(bool Apply = false);
+	void SetEffect_29(bool Apply = false);
+	void SetEffect_30(bool Apply = false);
+	void SetEffect_31(bool Apply = false);
+	void SetEffect_32(bool Apply = false);
+	void SetEffect_33(bool Apply = false);
+	void SetEffect_34(bool Apply = false);
+	void SetEffect_35(bool Apply = false);
+	void SetEffect_36(bool Apply = false);
+	void SetEffect_37(bool Apply = false);
+	void SetEffect_38(bool Apply = false);
+	void SetEffect_39(bool Apply = false);
+	void SetEffect_40(bool Apply = false);
+	void SetEffect_41(bool Apply = false);
+	void SetEffect_42(bool Apply = false);
+	void SetEffect_43(bool Apply = false);
+	void SetEffect_44(bool Apply = false);
+	void SetEffect_45(bool Apply = false);
+	void SetEffect_46(bool Apply = false);
+	void SetEffect_47(bool Apply = false);
+	void SetEffect_48(bool Apply = false);
+	void SetEffect_49(bool Apply = false);
+	void SetEffect_50(bool Apply = false);
+	void SetEffect_51(bool Apply = false);
+	void SetEffect_52(bool Apply = false);
+	void SetEffect_53(bool Apply = false);
+	void SetEffect_54(bool Apply = false);
+	void SetEffect_55(bool Apply = false);
 };

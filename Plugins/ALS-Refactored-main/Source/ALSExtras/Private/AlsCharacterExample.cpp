@@ -58,6 +58,8 @@ void AAlsCharacterExample::BeginPlay()
 	*/
 
 	FrameListSize = static_cast<uint8>(floor(RepeatingPeaceDuration / GetWorld()->GetDeltaSeconds()));
+
+	InitializeFoodEffectMap();
 }
 
 void AAlsCharacterExample::NotifyControllerChanged()
@@ -837,7 +839,297 @@ void AAlsCharacterExample::SetSceneRenderComponents(AActor* Actor)
 	}
 }
 
-void AAlsCharacterExample::SetFoodEffect(const FGameplayTag& EffectTag)
+void AAlsCharacterExample::InitializeFoodEffectMap()
 {
+	FoodEffectMap.Add(FoodEffectTags::Effect_1, [this](bool) { SetEffect_1(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_2, [this](bool) { SetEffect_2(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_3, [this](bool) { SetEffect_3(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_4, [this](bool) { SetEffect_4(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_5, [this](bool) { SetEffect_5(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_6, [this](bool) { SetEffect_6(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_7, [this](bool) { SetEffect_7(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_8, [this](bool) { SetEffect_8(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_9, [this](bool) { SetEffect_9(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_10, [this](bool) { SetEffect_10(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_11, [this](bool) { SetEffect_11(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_12, [this](bool) { SetEffect_12(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_13, [this](bool) { SetEffect_13(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_14, [this](bool) { SetEffect_14(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_15, [this](bool) { SetEffect_15(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_16, [this](bool) { SetEffect_16(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_17, [this](bool) { SetEffect_17(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_18, [this](bool) { SetEffect_18(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_19, [this](bool) { SetEffect_19(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_20, [this](bool) { SetEffect_20(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_21, [this](bool) { SetEffect_21(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_22, [this](bool) { SetEffect_22(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_23, [this](bool) { SetEffect_23(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_24, [this](bool) { SetEffect_24(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_25, [this](bool) { SetEffect_25(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_26, [this](bool) { SetEffect_26(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_27, [this](bool) { SetEffect_27(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_28, [this](bool) { SetEffect_28(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_29, [this](bool) { SetEffect_29(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_30, [this](bool) { SetEffect_30(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_31, [this](bool) { SetEffect_31(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_32, [this](bool) { SetEffect_32(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_33, [this](bool) { SetEffect_33(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_34, [this](bool) { SetEffect_34(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_35, [this](bool) { SetEffect_35(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_36, [this](bool) { SetEffect_36(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_37, [this](bool) { SetEffect_37(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_38, [this](bool) { SetEffect_38(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_39, [this](bool) { SetEffect_39(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_40, [this](bool) { SetEffect_40(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_41, [this](bool) { SetEffect_41(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_42, [this](bool) { SetEffect_42(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_43, [this](bool) { SetEffect_43(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_44, [this](bool) { SetEffect_44(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_45, [this](bool) { SetEffect_45(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_46, [this](bool) { SetEffect_46(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_47, [this](bool) { SetEffect_47(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_48, [this](bool) { SetEffect_48(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_49, [this](bool) { SetEffect_49(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_50, [this](bool) { SetEffect_50(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_51, [this](bool) { SetEffect_51(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_52, [this](bool) { SetEffect_52(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_53, [this](bool) { SetEffect_53(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_54, [this](bool) { SetEffect_54(); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_55, [this](bool) { SetEffect_55(); });
+}
 
+void AAlsCharacterExample::FoodEffectByTag(const FGameplayTag& Tag, bool Apply)
+{
+	if (const TFunction<void(bool)>* Func = FoodEffectMap.Find(Tag))
+	{
+		(*Func)(Apply);
+	}
+}
+
+void AAlsCharacterExample::SetEffect_1(bool Apply)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, "Effect_1");
+	if (Apply)
+	{
+
+	}
+}
+
+void AAlsCharacterExample::SetEffect_2(bool Apply)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, "Effect_2");
+}
+
+void AAlsCharacterExample::SetEffect_3(bool Apply)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, "Effect_3");
+}
+
+void AAlsCharacterExample::SetEffect_4(bool Apply)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, "Effect_4");
+}
+
+void AAlsCharacterExample::SetEffect_5(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_6(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_7(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_8(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_9(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_10(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_11(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_12(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_13(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_14(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_15(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_16(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_17(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_18(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_19(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_20(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_21(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_22(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_23(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_24(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_25(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_26(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_27(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_28(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_29(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_30(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_31(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_32(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_33(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_34(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_35(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_36(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_37(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_38(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_39(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_40(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_41(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_42(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_43(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_44(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_45(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_46(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_47(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_48(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_49(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_50(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_51(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_52(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_53(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_54(bool Apply)
+{
+}
+
+void AAlsCharacterExample::SetEffect_55(bool Apply)
+{
 }
