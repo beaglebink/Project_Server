@@ -944,7 +944,19 @@ void AAlsCharacterExample::SetEffect_2(bool Apply)
 
 void AAlsCharacterExample::SetEffect_3(bool Apply)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, "Effect_3");
+	if (Apply)
+	{
+		HealthRecoveryRate_50 = 1.5f;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_3();
+			}, 900.0f, false);
+	}
+	else
+	{
+		HealthRecoveryRate_50 = 1.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_4(bool Apply)

@@ -639,53 +639,53 @@ private:
 	void DisplayDebugMantling(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 
 	// Attributes
-protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+private:
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float MaxHealth = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Health = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float MaxStamina = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Stamina = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float MaxStrength = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Strength = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float MaxEndurance = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Endurance = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float MaxVitality = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Vitality = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float MaxAgility = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Agility = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float MaxDexterity = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Dexterity = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float MaxPerception = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Perception = 100.0f;
 
 public:
@@ -1233,6 +1233,10 @@ public:
 	//Effect_2
 protected:
 	float HealthAdd_25 = 0.0f;
+
+	//Effect_2
+protected:
+	float HealthRecoveryRate_50 = 1.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

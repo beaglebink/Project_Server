@@ -14,6 +14,7 @@ public class ALS : ModuleRules
 			"Core", "CoreUObject", "Engine", "GameplayTags", "AnimGraphRuntime", "RigVM", "ControlRig", "UMG", "EnhancedInput"
         });
 
+		
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
 			"EngineSettings", "NetCore", "PhysicsCore", "Niagara"

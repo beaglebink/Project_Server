@@ -2055,15 +2055,15 @@ void AAlsCharacter::HealthRecovery()
 {
 	if (GetHealth() <= 33.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f, 0.0f, 33.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50, 0.0f, 33.0f));
 	}
 	else if (GetHealth() <= 67.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f, 34.0f, 67.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50, 34.0f, 67.0f));
 	}
 	else if (GetHealth() <= 100.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f, 68.0f, 100.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50, 68.0f, 100.0f));
 	}
 }
 
