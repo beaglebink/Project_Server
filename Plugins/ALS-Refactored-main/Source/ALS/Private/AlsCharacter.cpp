@@ -1971,8 +1971,13 @@ void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 
 void AAlsCharacter::SetHealth(float NewHealth)
 {
-	CalculateDamageSlowdownDuration(NewHealth);
 	Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
+	if (bShouldReplenish_50 && Health <= 10.0f)
+	{
+		bShouldReplenish_50 = false;
+		Health = 50.0f;
+	}
+	CalculateDamageSlowdownDuration(Health);
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
 

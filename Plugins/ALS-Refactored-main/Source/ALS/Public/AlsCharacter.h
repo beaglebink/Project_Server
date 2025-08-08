@@ -1236,13 +1236,17 @@ public:
 protected:
 	float HealthAdd_25 = 0.0f;
 
-	//Effect_2
+	//Effect_3
 protected:
 	float HealthRecoveryRate_50 = 1.0f;
 
-	//Effect_3
+	//Effect_4
 protected:
 	float StaminaRecoveryRate_50 = 1.0f;
+
+	//Effect_5
+protected:
+	uint8 bShouldReplenish_50 : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

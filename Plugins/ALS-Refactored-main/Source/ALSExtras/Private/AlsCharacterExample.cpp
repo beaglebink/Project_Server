@@ -976,6 +976,19 @@ void AAlsCharacterExample::SetEffect_4(bool Apply)
 
 void AAlsCharacterExample::SetEffect_5(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldReplenish_50 = true;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_5();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bShouldReplenish_50 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_6(bool Apply)
