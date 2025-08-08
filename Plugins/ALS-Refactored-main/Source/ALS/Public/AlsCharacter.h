@@ -1224,9 +1224,15 @@ public:
 	void SprintTimeDelayCount();
 
 	//Effects
+
+	//Effect_1
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
 	float RecoilMultiplier = 1.0f;
+
+	//Effect_2
+protected:
+	float HealthAdd_25 = 0.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

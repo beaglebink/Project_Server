@@ -925,7 +925,21 @@ void AAlsCharacterExample::SetEffect_1(bool Apply)
 
 void AAlsCharacterExample::SetEffect_2(bool Apply)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, "Effect_2");
+	if (Apply)
+	{
+		HealthAdd_25 = GetHealth() * 0.25f;
+		SetHealth(GetHealth() + HealthAdd_25);
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_2();
+			}, 300.0f, false);
+	}
+	else
+	{
+		SetHealth(GetHealth() - HealthAdd_25);
+		HealthAdd_25 = 0.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_3(bool Apply)
