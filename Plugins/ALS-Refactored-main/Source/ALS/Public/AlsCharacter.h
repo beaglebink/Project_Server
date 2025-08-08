@@ -1255,6 +1255,14 @@ protected:
 	float StaminaHealthStandingMultiplier = 1.0f;
 
 	void RefreshStaminaHealthStandingMultiplier();
+
+	//Effect_7
+protected:
+	uint8 bIsStaminaHealthRunningMultiplierApplied : 1{false};
+
+	float StaminaHealthRunningMultiplier = 1.0f;
+
+	void RefreshStaminaHealthRunningMultiplier();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

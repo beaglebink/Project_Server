@@ -335,6 +335,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	RefreshStaminaHealthStandingMultiplier();
 
+	RefreshStaminaHealthRunningMultiplier();
+
 	StaminaRecovery();
 }
 
@@ -2064,21 +2066,21 @@ void AAlsCharacter::HealthRecovery()
 {
 	if (GetHealth() <= 33.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier, 0.0f, 33.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 0.0f, 33.0f));
 	}
 	else if (GetHealth() <= 67.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier, 34.0f, 67.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 34.0f, 67.0f));
 	}
 	else if (GetHealth() <= 100.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier, 68.0f, 100.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 68.0f, 100.0f));
 	}
 }
 
 void AAlsCharacter::StaminaRecovery()
 {
-	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier);
+	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier);
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
@@ -2797,6 +2799,18 @@ void AAlsCharacter::RefreshStaminaHealthStandingMultiplier()
 	else
 	{
 		StaminaHealthStandingMultiplier = 1.0f;
+	}
+}
+
+void AAlsCharacter::RefreshStaminaHealthRunningMultiplier()
+{
+	if (bIsStaminaHealthRunningMultiplierApplied && GetVelocity().Length() > 0.0f && GetGait() != AlsGaitTags::Sprinting)
+	{
+		StaminaHealthRunningMultiplier = 1.25f;
+	}
+	else
+	{
+		StaminaHealthRunningMultiplier = 1.0f;
 	}
 }
 

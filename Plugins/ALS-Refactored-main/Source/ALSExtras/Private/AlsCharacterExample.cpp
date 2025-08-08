@@ -1010,6 +1010,19 @@ void AAlsCharacterExample::SetEffect_6(bool Apply)
 
 void AAlsCharacterExample::SetEffect_7(bool Apply)
 {
+	if (Apply)
+	{
+		bIsStaminaHealthRunningMultiplierApplied = true;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_7();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bIsStaminaHealthRunningMultiplierApplied = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_8(bool Apply)
