@@ -332,6 +332,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	Restore_Speed_JumpHeight_Health();
 
 	HealthRecovery();
+
+	StaminaRecovery();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2065,6 +2067,11 @@ void AAlsCharacter::HealthRecovery()
 	{
 		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50, 68.0f, 100.0f));
 	}
+}
+
+void AAlsCharacter::StaminaRecovery()
+{
+	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50);
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()

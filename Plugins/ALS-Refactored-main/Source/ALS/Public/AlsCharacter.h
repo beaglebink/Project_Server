@@ -812,9 +812,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetPerception(float NewPerception);
 
-	// Health recovery
+	// Recovery
 private:
 	void HealthRecovery();
+
+	void StaminaRecovery();
 
 	// What does stamina affect
 public:
@@ -1237,6 +1239,10 @@ protected:
 	//Effect_2
 protected:
 	float HealthRecoveryRate_50 = 1.0f;
+
+	//Effect_3
+protected:
+	float StaminaRecoveryRate_50 = 1.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
