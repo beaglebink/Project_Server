@@ -66,6 +66,9 @@ protected:
 		ReplicatedUsing = "OnReplicated_DesiredAiming")
 	uint8 bDesiredAiming : 1;
 
+	UPROPERTY(BlueprintReadWrite, Category = "UFPSKADS")
+	uint8 IsAiming : 1{false};
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated)
 	FGameplayTag DesiredRotationMode{ AlsRotationModeTags::ViewDirection };
 
@@ -1247,7 +1250,7 @@ protected:
 	//Effect_5
 protected:
 	uint8 bShouldReplenish_50 : 1{false};
-	
+
 	//Effect_6
 protected:
 	uint8 bIsStaminaHealthStandingMultiplierApplied : 1{false};
@@ -1263,6 +1266,16 @@ protected:
 	float StaminaHealthRunningMultiplier = 1.0f;
 
 	void RefreshStaminaHealthRunningMultiplier();
+
+	//Effect_8
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
+	float AimPrecisionOnMoveMultiplier = 1.0f;
+
+protected:
+	uint8 bIsAimPrecisionOnMoveApplied : 1{false};
+
+	void RefreshAimPrecisionOnMoveMultiplier();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

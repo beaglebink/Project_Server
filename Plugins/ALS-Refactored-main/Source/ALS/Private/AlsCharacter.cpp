@@ -338,6 +338,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	RefreshStaminaHealthRunningMultiplier();
 
 	StaminaRecovery();
+
+	RefreshAimPrecisionOnMoveMultiplier();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2811,6 +2813,25 @@ void AAlsCharacter::RefreshStaminaHealthRunningMultiplier()
 	else
 	{
 		StaminaHealthRunningMultiplier = 1.0f;
+	}
+}
+
+void AAlsCharacter::RefreshAimPrecisionOnMoveMultiplier()
+{
+	if (bIsAimPrecisionOnMoveApplied && IsAiming)
+	{
+		if (GetVelocity().Length() == 0.0f)
+		{
+			AimPrecisionOnMoveMultiplier = 1.25f;
+		}
+		else
+		{
+			AimPrecisionOnMoveMultiplier = 0.75f;
+		}
+	}
+	else
+	{
+		AimPrecisionOnMoveMultiplier = 1.0f;
 	}
 }
 

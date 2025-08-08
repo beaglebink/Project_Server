@@ -1027,6 +1027,19 @@ void AAlsCharacterExample::SetEffect_7(bool Apply)
 
 void AAlsCharacterExample::SetEffect_8(bool Apply)
 {
+	if (Apply)
+	{
+		bIsAimPrecisionOnMoveApplied = true;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_8();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bIsAimPrecisionOnMoveApplied = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_9(bool Apply)
