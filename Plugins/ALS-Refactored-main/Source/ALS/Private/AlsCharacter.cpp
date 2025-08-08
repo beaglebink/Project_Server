@@ -333,6 +333,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	HealthRecovery();
 
+	RefreshStaminaHealthStandingMultiplier();
+
 	StaminaRecovery();
 }
 
@@ -2062,21 +2064,21 @@ void AAlsCharacter::HealthRecovery()
 {
 	if (GetHealth() <= 33.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50, 0.0f, 33.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier, 0.0f, 33.0f));
 	}
 	else if (GetHealth() <= 67.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50, 34.0f, 67.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier, 34.0f, 67.0f));
 	}
 	else if (GetHealth() <= 100.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50, 68.0f, 100.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier, 68.0f, 100.0f));
 	}
 }
 
 void AAlsCharacter::StaminaRecovery()
 {
-	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50);
+	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier);
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
@@ -2784,6 +2786,18 @@ void AAlsCharacter::SprintTimeDelayCount()
 		SprintTimeDelay -= GetWorld()->GetDeltaSeconds();
 	}
 	SprintTimeDelay = FMath::Clamp(SprintTimeDelay, 0.0f, SprintTimeDelayMax);
+}
+
+void AAlsCharacter::RefreshStaminaHealthStandingMultiplier()
+{
+	if (bIsStaminaHealthStandingMultiplierApplied && GetVelocity().Length() == 0.0f)
+	{
+		StaminaHealthStandingMultiplier = 1.33f;
+	}
+	else
+	{
+		StaminaHealthStandingMultiplier = 1.0f;
+	}
 }
 
 void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to6)
