@@ -15,5 +15,5 @@ public:
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
-	FText DestinationID;
+	FString DestinationID;
 };

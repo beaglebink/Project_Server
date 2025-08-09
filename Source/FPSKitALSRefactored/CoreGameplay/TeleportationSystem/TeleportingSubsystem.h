@@ -14,7 +14,7 @@ struct FPSKITALSREFACTORED_API FTeleportTableRow : public FTableRowBase
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FText ObjectID;
+    FString ObjectID;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FString DestinationID;
@@ -39,9 +39,21 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Teleportation")
     void UnregistrationTeleportingDestination(AActor* Destination);
 
+    UFUNCTION(BlueprintCallable, Category = "Teleportation")
+	void RegistrationTeleportingActor(AActor* Actor);
+
+    UFUNCTION(BlueprintCallable, Category = "Teleportation")
+	void UnregistrationTeleportingActor(AActor* Actor);
+
+    UFUNCTION(BlueprintCallable, Category = "Teleportation")
+	void TeleportToDestination(FString ObjectId, FString DestinationId);
+
 private:
     UPROPERTY()
     TArray<AActor*> TeleportingDestinations;
+
+    UPROPERTY()
+    TArray<AActor*> TeleportingActors;
 
     UDataTable* LoadedSceneTable;
 
