@@ -1057,6 +1057,8 @@ public:
 private:
 	UBlindnessWidget* BlindnessWidget;
 
+	FTimerHandle BlindnessEffectTimerHandle;
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "BlindnessEffect")
 	void SetRemoveBlindness(bool IsSet);
@@ -1276,6 +1278,11 @@ protected:
 	uint8 bIsAimPrecisionOnMoveApplied : 1{false};
 
 	void RefreshAimPrecisionOnMoveMultiplier();
+
+	//Effect_9
+
+protected:
+	uint8 bShouldIgnoreBlindnessEffect : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

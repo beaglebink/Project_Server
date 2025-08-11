@@ -1044,6 +1044,21 @@ void AAlsCharacterExample::SetEffect_8(bool Apply)
 
 void AAlsCharacterExample::SetEffect_9(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreBlindnessEffect = true;
+		SetRemoveBlindness(false);
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_9();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreBlindnessEffect = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_10(bool Apply)

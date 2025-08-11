@@ -2509,7 +2509,7 @@ void AAlsCharacter::DiscombobulateEffect()
 
 void AAlsCharacter::SetRemoveBlindness(bool IsSet)
 {
-	if (IsSet)
+	if (IsSet && !bShouldIgnoreBlindnessEffect)
 	{
 		if (!BlindnessWidget && BlindnessWidgetClass)
 		{
@@ -2519,22 +2519,34 @@ void AAlsCharacter::SetRemoveBlindness(bool IsSet)
 				BlindnessWidget->AddToViewport(9);
 			}
 		}
-	}
-	else if (BlindnessWidget && BlindnessWidget->FadeOut)
-	{
-
-		BlindnessWidget->PlayAnimation(BlindnessWidget->FadeOut, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+		if (BlindnessWidget)
+		{
+			if (BlindnessEffectTimerHandle.IsValid())
 			{
-				BlindnessWidget->RemoveFromParent();
-				BlindnessWidget = nullptr;
-			}, BlindnessWidget->FadeOut->GetEndTime(), false);
+				GetWorldTimerManager().ClearTimer(BlindnessEffectTimerHandle);
+			}
+			BlindnessWidget->StopAnimation(BlindnessWidget->FadeOut);
+		}
 	}
-	else
+	else if (BlindnessWidget)
 	{
-		BlindnessWidget->RemoveFromParent();
-		BlindnessWidget = nullptr;
+		if (BlindnessWidget->FadeOut)
+		{
+			BlindnessWidget->PlayAnimation(BlindnessWidget->FadeOut, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
+			GetWorldTimerManager().SetTimer(BlindnessEffectTimerHandle, [this]()
+				{
+					if (BlindnessWidget)
+					{
+						BlindnessWidget->RemoveFromParent();
+						BlindnessWidget = nullptr;
+					}
+				}, BlindnessWidget->FadeOut->GetEndTime(), false);
+		}
+		else
+		{
+			BlindnessWidget->RemoveFromParent();
+			BlindnessWidget = nullptr;
+		}
 	}
 }
 
