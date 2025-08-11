@@ -1117,6 +1117,20 @@ void AAlsCharacterExample::SetEffect_12(bool Apply)
 
 void AAlsCharacterExample::SetEffect_13(bool Apply)
 {
+	if (Apply)
+	{
+		bIsDamagedOnMovingOrOnStanding = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_13();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bIsDamagedOnMovingOrOnStanding = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_14(bool Apply)

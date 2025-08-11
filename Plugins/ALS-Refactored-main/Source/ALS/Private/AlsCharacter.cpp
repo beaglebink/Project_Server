@@ -346,6 +346,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	RefreshStaminaAndRecoilIfHealthIsUnder_20();
 
 	RefreshHealthIfStaminaIsUnder_30();
+
+	RefreshDamageAmountOnMovingOrOnStanding();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -1996,6 +1998,7 @@ void AAlsCharacter::SetHealth(float NewHealth)
 	{
 		Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
 	}
+
 	CheckForHealthReplenish(Health);
 	CalculateDamageSlowdownDuration(Health);
 	OnHealthChanged.Broadcast(Health, MaxHealth);
@@ -2940,5 +2943,24 @@ void AAlsCharacter::RefreshHealthIfStaminaIsUnder_30()
 	else
 	{
 		HealthRecoveryRateValue_12 = 1.0f;
+	}
+}
+
+void AAlsCharacter::RefreshDamageAmountOnMovingOrOnStanding()
+{
+	if (bIsDamagedOnMovingOrOnStanding)
+	{
+		if (GetVelocity().Length() > 0.0f)
+		{
+			DamageMultiplier_13 = 0.7f;
+		}
+		else
+		{
+			DamageMultiplier_13 = 1.3f;
+		}
+	}
+	else
+	{
+		DamageMultiplier_13 = 1.0f;
 	}
 }

@@ -1311,6 +1311,14 @@ protected:
 
 	void RefreshHealthIfStaminaIsUnder_30();
 
+	//Effect_13
+protected:
+	uint8 bIsDamagedOnMovingOrOnStanding : 1{false};
+
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
+	float DamageMultiplier_13 = 1.0f;
+
+	void RefreshDamageAmountOnMovingOrOnStanding();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
