@@ -1,19 +1,47 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "GameFramework/Actor.h"
 #include "TeleportDestination.generated.h"
+
+class USlotSceneComponent;
 
 UCLASS()
 class FPSKITALSREFACTORED_API ATeleportDestination : public AActor
 {
-	GENERATED_BODY()
-public:
-	void BeginPlay() override;
-
-	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
-	FString DestinationID;
+    ATeleportDestination();
+
+    // Root-компонент, к которому слоты прикрепляются
+    UPROPERTY(VisibleDefaultsOnly, Category = "Slots")
+    TObjectPtr<USceneComponent> Root = nullptr;
+
+    // Все слоты телепортации, как Instanced-компоненты
+    UPROPERTY(EditAnywhere, Category = "Slots", Instanced, meta = (TitleProperty = "SlotName"))
+    TArray<TObjectPtr<USlotSceneComponent>> Slots;
+
+    // Идентификатор точки назначения, используется логикой перемещения
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
+    FString DestinationID;
+
+    // Удобная кнопка в Details Panel и вызов из блюпринтов
+    UFUNCTION(CallInEditor, BlueprintCallable, Category = "Slots")
+    USlotSceneComponent* AddSlot();
+
+#if WITH_EDITOR
+    // Отслеживание изменений массива Slots (ручное добавление)
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+    // Поддержка Undo/Redo — восстановление привязки и регистрации
+    virtual void PostEditUndo() override;
+
+private:
+    // Уникальное имя для SlotName и имени объекта
+    FName GenerateUniqueSlotName(const FName& Base = TEXT("Slot")) const;
+
+    // Защищает от отрыва компонента от Root, гарантирует регистрацию
+    void EnsureSlotAttached(USlotSceneComponent* Slot);
+#endif
 };
