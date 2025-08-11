@@ -63,11 +63,13 @@ void UW_Inventory::RefreshArmour(float Armour)
 
 void UW_Inventory::RefreshWeight(float Weight)
 {
+	Weight = FMath::Max(Weight, 0.0f);
+
 	if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Container->GetOwner()))
 	{
-		FString OutText(FString::Printf(TEXT("%.0f/%.1f"), Character->GetStrength(), Weight));
+		FString OutText(FString::Printf(TEXT("%.0f/%.3f"), Character->GetStrength(), Weight));
 
-		if (Weight == FMath::Floor(Weight))
+		if (FMath::IsNearlyEqual(Weight, FMath::RoundToFloat(Weight), 0.0001f))
 		{
 			OutText = FString::Printf(TEXT("%.0f/%.0f"), Character->GetStrength(), Weight);
 		}
@@ -228,7 +230,7 @@ void UW_Inventory::Items_Sort(EnumSortType SortType, EnumInventory SlotContainer
 		break;
 	}
 
-	for (UW_ItemSlot* SlotToAdd:ItemSlots)
+	for (UW_ItemSlot* SlotToAdd : ItemSlots)
 	{
 		ScrollBox_Items->AddChild(SlotToAdd);
 	}

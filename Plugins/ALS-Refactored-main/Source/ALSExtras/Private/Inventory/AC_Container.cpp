@@ -269,6 +269,13 @@ void UAC_Container::Items_Sort(EnumSortType SortType, bool bIsDecreasing)
 	}
 }
 
+void UAC_Container::BeginPlay()
+{
+	Super::BeginPlay();
+
+	CountContainerWeight();
+}
+
 float UAC_Container::GetArmour()
 {
 	return TotalArmour;
@@ -300,4 +307,16 @@ void UAC_Container::SetMoney(float NewValue)
 {
 	TotalMoney = NewValue;
 	OnMoneyChanged.Broadcast(NewValue);
+}
+
+void UAC_Container::CountContainerWeight()
+{
+	if (ItemDataTable)
+	{
+		for (const auto& Item : Items)
+		{
+			float Weight = ItemDataTable->FindRow<FS_ItemData>(Item.Name, TEXT("Find row in datatable"))->Weight;
+			TotalWeight += Weight * Item.Quantity;
+		}
+	}
 }

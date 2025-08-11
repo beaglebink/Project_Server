@@ -53,6 +53,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sorting")
 	void Items_Sort(EnumSortType SortType, bool bIsDecreasing);
 
+protected:
+	virtual void BeginPlay() override;
+
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Summary")
 	float TotalArmour;
@@ -85,4 +88,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Summary")
 	void SetMoney(float NewValue);
+
+	void CountContainerWeight();
 };
