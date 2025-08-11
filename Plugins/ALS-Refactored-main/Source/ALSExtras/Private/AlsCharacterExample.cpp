@@ -1063,6 +1063,20 @@ void AAlsCharacterExample::SetEffect_9(bool Apply)
 
 void AAlsCharacterExample::SetEffect_10(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldReduceStamina = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_10();
+			}, 15.0f, false);
+	}
+	else
+	{
+		bShouldReduceStamina = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_11(bool Apply)

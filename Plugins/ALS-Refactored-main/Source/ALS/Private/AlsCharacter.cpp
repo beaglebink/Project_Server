@@ -1977,12 +1977,20 @@ void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 
 void AAlsCharacter::SetHealth(float NewHealth)
 {
-	Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
-	if (bShouldReplenish_50 && Health <= 10.0f)
+	if (bShouldReduceStamina && GetHealth() > NewHealth)
 	{
-		bShouldReplenish_50 = false;
-		Health = 50.0f;
+		float HealthDiff = GetHealth() - NewHealth;
+		if (GetStamina() - HealthDiff < 0)
+		{
+			Health = FMath::Clamp(GetHealth() - (HealthDiff - GetStamina()), 0.0f, GetMaxHealth());
+		}
+		SetStamina(GetStamina() - HealthDiff);
 	}
+	else
+	{
+		Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
+	}
+	CheckForHealthReplenish(Health);
 	CalculateDamageSlowdownDuration(Health);
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
@@ -2072,11 +2080,11 @@ void AAlsCharacter::HealthRecovery()
 	}
 	else if (GetHealth() <= 67.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 34.0f, 67.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 0.0f, 67.0f));
 	}
 	else if (GetHealth() <= 100.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 68.0f, 100.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 0.0f, 100.0f));
 	}
 }
 
@@ -2802,6 +2810,15 @@ void AAlsCharacter::SprintTimeDelayCount()
 		SprintTimeDelay -= GetWorld()->GetDeltaSeconds();
 	}
 	SprintTimeDelay = FMath::Clamp(SprintTimeDelay, 0.0f, SprintTimeDelayMax);
+}
+
+void AAlsCharacter::CheckForHealthReplenish(float HealthValue)
+{
+	if (bShouldReplenish_50 && HealthValue <= 10.0f)
+	{
+		bShouldReplenish_50 = false;
+		Health = 50.0f;
+	}
 }
 
 void AAlsCharacter::RefreshStaminaHealthStandingMultiplier()

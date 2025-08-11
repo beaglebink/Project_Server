@@ -1231,7 +1231,6 @@ public:
 	void SprintTimeDelayCount();
 
 	//Effects
-
 	//Effect_1
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
@@ -1252,6 +1251,9 @@ protected:
 	//Effect_5
 protected:
 	uint8 bShouldReplenish_50 : 1{false};
+
+private:
+	void CheckForHealthReplenish(float HealthValue);
 
 	//Effect_6
 protected:
@@ -1280,9 +1282,13 @@ protected:
 	void RefreshAimPrecisionOnMoveMultiplier();
 
 	//Effect_9
-
 protected:
 	uint8 bShouldIgnoreBlindnessEffect : 1{false};
+
+	//Effect_10
+public:
+	uint8 bShouldReduceStamina : 1{false};
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
