@@ -344,6 +344,10 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	RefreshAimPrecisionOnMoveMultiplier();
 
 	RefreshStaminaAndRecoilIfHealthIsUnder_20();
+
+	RefreshHealthIfStaminaIsUnder_30();
+
+	RefreshDamageAmountOnMovingOrOnStanding();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -1994,6 +1998,7 @@ void AAlsCharacter::SetHealth(float NewHealth)
 	{
 		Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
 	}
+
 	CheckForHealthReplenish(Health);
 	CalculateDamageSlowdownDuration(Health);
 	OnHealthChanged.Broadcast(Health, MaxHealth);
@@ -2080,15 +2085,15 @@ void AAlsCharacter::HealthRecovery()
 {
 	if (GetHealth() <= 33.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 0.0f, 33.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 33.0f));
 	}
 	else if (GetHealth() <= 67.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 0.0f, 67.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 67.0f));
 	}
 	else if (GetHealth() <= 100.0f)
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier, 0.0f, 100.0f));
+		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 100.0f));
 	}
 }
 
@@ -2794,6 +2799,48 @@ void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, floa
 	}
 }
 
+void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to6)
+{
+	if (bIsSet)
+	{
+		SphereCollisionForGluedActors = NewObject<USphereComponent>(this, USphereComponent::StaticClass(), TEXT("GluedActorsSphereCollision"));
+
+		SphereCollisionForGluedActors->RegisterComponent();
+
+		SphereCollisionForGluedActors->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+
+		SphereCollisionForGluedActors->SetSphereRadius(1000.0f);
+		SphereCollisionForGluedActors->SetRelativeLocation(FVector(0.0f, 1000.0f, -40.0f));
+		//SphereCollisionForGluedActors->SetHiddenInGame(false);
+		SphereCollisionForGluedActors->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		SphereCollisionForGluedActors->SetCollisionProfileName(FName(TEXT("OverlapAll")));
+		SphereCollisionForGluedActors->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+
+		TArray<FName> SocketNames;
+		SocketNames = GetMesh()->GetAllSocketNames();
+		for (FName SocketName : SocketNames)
+		{
+			if (SocketName.ToString().StartsWith(TEXT("Glued_Socket_")))
+			{
+				GluedSocketNames.AddUnique(SocketName);
+			}
+		}
+
+		ConcatenationEffectSpeedMultiplier = 1.0f - 0.15f * GluedObjectsQuantity_1to6;
+		ConcatenationEffectLookSpeedMultiplier = 1.0f - 0.075f * GluedObjectsQuantity_1to6;
+	}
+	else
+	{
+		for (AActor* GluedActor : GluedActors)
+		{
+			GluedActor->Destroy();
+		}
+		GluedActors.Empty();
+		ConcatenationEffectSpeedMultiplier = 1.0f;
+		ConcatenationEffectLookSpeedMultiplier = 1.0f;
+	}
+}
+
 void AAlsCharacter::SetWeightSpeedMultiplier(float CurrentWeight)
 {
 	WeightMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, GetStrength()), FVector2D(1.0f, 0.0f), CurrentWeight - GetStrength());
@@ -2887,44 +2934,33 @@ void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
 	}
 }
 
-void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to6)
+void AAlsCharacter::RefreshHealthIfStaminaIsUnder_30()
 {
-	if (bIsSet)
+	if (bIsStaminaIsUnder_30 && GetStamina() < 30.0f)
 	{
-		SphereCollisionForGluedActors = NewObject<USphereComponent>(this, USphereComponent::StaticClass(), TEXT("GluedActorsSphereCollision"));
-
-		SphereCollisionForGluedActors->RegisterComponent();
-
-		SphereCollisionForGluedActors->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-
-		SphereCollisionForGluedActors->SetSphereRadius(1000.0f);
-		SphereCollisionForGluedActors->SetRelativeLocation(FVector(0.0f, 1000.0f, -40.0f));
-		//SphereCollisionForGluedActors->SetHiddenInGame(false);
-		SphereCollisionForGluedActors->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		SphereCollisionForGluedActors->SetCollisionProfileName(FName(TEXT("OverlapAll")));
-		SphereCollisionForGluedActors->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
-
-		TArray<FName> SocketNames;
-		SocketNames = GetMesh()->GetAllSocketNames();
-		for (FName SocketName : SocketNames)
-		{
-			if (SocketName.ToString().StartsWith(TEXT("Glued_Socket_")))
-			{
-				GluedSocketNames.AddUnique(SocketName);
-			}
-		}
-
-		ConcatenationEffectSpeedMultiplier = 1.0f - 0.15f * GluedObjectsQuantity_1to6;
-		ConcatenationEffectLookSpeedMultiplier = 1.0f - 0.075f * GluedObjectsQuantity_1to6;
+		HealthRecoveryRateValue_12 = 1.5f;
 	}
 	else
 	{
-		for (AActor* GluedActor : GluedActors)
+		HealthRecoveryRateValue_12 = 1.0f;
+	}
+}
+
+void AAlsCharacter::RefreshDamageAmountOnMovingOrOnStanding()
+{
+	if (bIsDamagedOnMovingOrOnStanding)
+	{
+		if (GetVelocity().Length() > 0.0f)
 		{
-			GluedActor->Destroy();
+			DamageMultiplier_13 = 0.7f;
 		}
-		GluedActors.Empty();
-		ConcatenationEffectSpeedMultiplier = 1.0f;
-		ConcatenationEffectLookSpeedMultiplier = 1.0f;
+		else
+		{
+			DamageMultiplier_13 = 1.3f;
+		}
+	}
+	else
+	{
+		DamageMultiplier_13 = 1.0f;
 	}
 }

@@ -1302,6 +1302,23 @@ protected:
 	float RecoilMultiplierValue_11 = 1.0f;
 
 	void RefreshStaminaAndRecoilIfHealthIsUnder_20();
+
+	//Effect_12
+protected:
+	uint8 bIsStaminaIsUnder_30 : 1{false};
+
+	float HealthRecoveryRateValue_12 = 1.0f;
+
+	void RefreshHealthIfStaminaIsUnder_30();
+
+	//Effect_13
+protected:
+	uint8 bIsDamagedOnMovingOrOnStanding : 1{false};
+
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
+	float DamageMultiplier_13 = 1.0f;
+
+	void RefreshDamageAmountOnMovingOrOnStanding();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

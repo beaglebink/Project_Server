@@ -1099,10 +1099,38 @@ void AAlsCharacterExample::SetEffect_11(bool Apply)
 
 void AAlsCharacterExample::SetEffect_12(bool Apply)
 {
+	if (Apply)
+	{
+		bIsStaminaIsUnder_30 = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_12();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bIsStaminaIsUnder_30 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_13(bool Apply)
 {
+	if (Apply)
+	{
+		bIsDamagedOnMovingOrOnStanding = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_13();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bIsDamagedOnMovingOrOnStanding = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_14(bool Apply)
