@@ -339,7 +339,11 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	StaminaRecovery();
 
+	RefreshRecoil();
+
 	RefreshAimPrecisionOnMoveMultiplier();
+
+	RefreshStaminaAndRecoilIfHealthIsUnder_20();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2090,7 +2094,12 @@ void AAlsCharacter::HealthRecovery()
 
 void AAlsCharacter::StaminaRecovery()
 {
-	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier);
+	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11);
+}
+
+void AAlsCharacter::RefreshRecoil()
+{
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11;
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
@@ -2861,6 +2870,20 @@ void AAlsCharacter::RefreshAimPrecisionOnMoveMultiplier()
 	else
 	{
 		AimPrecisionOnMoveMultiplier = 1.0f;
+	}
+}
+
+void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
+{
+	if (bIsHealthIsUnder_20 && GetHealth() < 20.0f)
+	{
+		StaminaRegenerationRateValue_11 = 10.0f;
+		RecoilMultiplierValue_11 = 0.5f;
+	}
+	else
+	{
+		StaminaRegenerationRateValue_11 = 1.0f;
+		RecoilMultiplierValue_11 = 1.0f;
 	}
 }
 

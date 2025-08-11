@@ -908,7 +908,7 @@ void AAlsCharacterExample::SetEffect_1(bool Apply)
 {
 	if (Apply)
 	{
-		RecoilMultiplier = 0.7f;
+		RecoilMultiplier_1 = 0.7f;
 		FTimerHandle TimerHandle;
 		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 			{
@@ -917,7 +917,7 @@ void AAlsCharacterExample::SetEffect_1(bool Apply)
 	}
 	else
 	{
-		RecoilMultiplier = 1.0f;
+		RecoilMultiplier_1 = 1.0f;
 	}
 }
 
@@ -1081,6 +1081,20 @@ void AAlsCharacterExample::SetEffect_10(bool Apply)
 
 void AAlsCharacterExample::SetEffect_11(bool Apply)
 {
+	if (Apply)
+	{
+		bIsHealthIsUnder_20 = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_11();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bIsHealthIsUnder_20 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_12(bool Apply)

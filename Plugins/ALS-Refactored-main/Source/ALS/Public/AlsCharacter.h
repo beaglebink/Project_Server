@@ -691,6 +691,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Perception = 100.0f;
 
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
+	float RecoilMultiplier = 1.0f;
+
 public:
 	//delegates
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
@@ -820,6 +823,8 @@ private:
 	void HealthRecovery();
 
 	void StaminaRecovery();
+
+	void RefreshRecoil();
 
 	// What does stamina affect
 public:
@@ -1233,8 +1238,7 @@ public:
 	//Effects
 	//Effect_1
 public:
-	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
-	float RecoilMultiplier = 1.0f;
+	float RecoilMultiplier_1 = 1.0f;
 
 	//Effect_2
 protected:
@@ -1286,9 +1290,18 @@ protected:
 	uint8 bShouldIgnoreBlindnessEffect : 1{false};
 
 	//Effect_10
-public:
+protected:
 	uint8 bShouldReduceStamina : 1{false};
 
+	//Effect_11
+protected:
+	uint8 bIsHealthIsUnder_20 : 1{false};
+
+	float StaminaRegenerationRateValue_11 = 1.0f;
+
+	float RecoilMultiplierValue_11 = 1.0f;
+
+	void RefreshStaminaAndRecoilIfHealthIsUnder_20();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
