@@ -1351,6 +1351,10 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	float IgnoreDamageOnRoll(float Damage);
+
+	//Effect_22
+protected:
+	uint8 bShouldIgnoreStun : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

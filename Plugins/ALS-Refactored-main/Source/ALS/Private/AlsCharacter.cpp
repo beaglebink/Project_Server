@@ -2179,6 +2179,11 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 
 void AAlsCharacter::StunEffect(float Time)
 {
+	if (bShouldIgnoreStun)
+	{
+		return;
+	}
+
 	float StunTimeLocal = Time;
 	if (bIsStunned)
 	{

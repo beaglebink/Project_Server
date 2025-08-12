@@ -1261,6 +1261,22 @@ void AAlsCharacterExample::SetEffect_21(bool Apply)
 
 void AAlsCharacterExample::SetEffect_22(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreStun = true;
+		bIsStunned = false;
+		StunRecoveryMultiplier = 1.0f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_22();
+			}, 180.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreStun = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_23(bool Apply)
