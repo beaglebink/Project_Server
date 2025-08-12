@@ -1339,7 +1339,9 @@ protected:
 	float HigherJumpBy_40 = 1.0f;
 
 	//Effect_19
-
+protected:
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
+	float FasterRollRate = 1.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

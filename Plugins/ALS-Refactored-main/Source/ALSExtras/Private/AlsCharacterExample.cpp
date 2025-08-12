@@ -541,20 +541,22 @@ void AAlsCharacterExample::Input_OnRoll()
 	LoopEffectFrame.FrameState = EnumLoopStates::Roll;
 
 	static constexpr auto PlayRate{ 1.3f };
+	float CurrentPlayRate = PlayRate * FasterRollRate;
+
 
 	if (GetStamina() > RollStaminaCost)
 	{
 		if (bIsDiscombobulated)
 		{
 			FTimerHandle TimerHandleDiscombobulate;
-			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, [this]()
+			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, [this, CurrentPlayRate]()
 				{
-					StartRolling(PlayRate);
+					StartRolling(CurrentPlayRate);
 				}, DiscombobulateTimeDelay, false);
 		}
 		else
 		{
-			StartRolling(PlayRate);
+			StartRolling(CurrentPlayRate);
 		}
 	}
 }
@@ -1203,6 +1205,20 @@ void AAlsCharacterExample::SetEffect_18(bool Apply)
 
 void AAlsCharacterExample::SetEffect_19(bool Apply)
 {
+	if (Apply)
+	{
+		FasterRollRate = 1.5f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_19();
+			}, 900.0f, false);
+	}
+	else
+	{
+		FasterRollRate = 1.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_20(bool Apply)
