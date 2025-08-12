@@ -1135,10 +1135,14 @@ void AAlsCharacterExample::SetEffect_13(bool Apply)
 
 void AAlsCharacterExample::SetEffect_14(bool Apply)
 {
+	SetStamina(GetStamina() - GetStamina() * 0.5f);
+	SetHealth(GetHealth() + GetHealth() * 0.25f);
 }
 
 void AAlsCharacterExample::SetEffect_15(bool Apply)
 {
+	SetStamina(GetStamina() + GetStamina() * 0.5f);
+	SetHealth(GetHealth() - GetHealth() * 0.25f);
 }
 
 void AAlsCharacterExample::SetEffect_16(bool Apply)

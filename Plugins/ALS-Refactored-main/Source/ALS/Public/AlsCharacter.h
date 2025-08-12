@@ -1319,6 +1319,12 @@ protected:
 	float DamageMultiplier_13 = 1.0f;
 
 	void RefreshDamageAmountOnMovingOrOnStanding();
+
+	//Effect_14
+	//Effect_15
+
+	//Effect_16
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
