@@ -541,20 +541,22 @@ void AAlsCharacterExample::Input_OnRoll()
 	LoopEffectFrame.FrameState = EnumLoopStates::Roll;
 
 	static constexpr auto PlayRate{ 1.3f };
+	float CurrentPlayRate = PlayRate * FasterRollRate;
+
 
 	if (GetStamina() > RollStaminaCost)
 	{
 		if (bIsDiscombobulated)
 		{
 			FTimerHandle TimerHandleDiscombobulate;
-			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, [this]()
+			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, [this, CurrentPlayRate]()
 				{
-					StartRolling(PlayRate);
+					StartRolling(CurrentPlayRate);
 				}, DiscombobulateTimeDelay, false);
 		}
 		else
 		{
-			StartRolling(PlayRate);
+			StartRolling(CurrentPlayRate);
 		}
 	}
 }
@@ -1135,50 +1137,200 @@ void AAlsCharacterExample::SetEffect_13(bool Apply)
 
 void AAlsCharacterExample::SetEffect_14(bool Apply)
 {
+	SetStamina(GetStamina() - GetStamina() * 0.5f);
+	SetHealth(GetHealth() + GetHealth() * 0.25f);
 }
 
 void AAlsCharacterExample::SetEffect_15(bool Apply)
 {
+	SetStamina(GetStamina() + GetStamina() * 0.5f);
+	SetHealth(GetHealth() - GetHealth() * 0.25f);
 }
 
 void AAlsCharacterExample::SetEffect_16(bool Apply)
 {
+	if (Apply)
+	{
+		StaminaLossRate = 0.5f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_16();
+			}, 900.0f, false);
+	}
+	else
+	{
+		StaminaLossRate = 1.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_17(bool Apply)
 {
+	if (Apply)
+	{
+		HealthLossRate = 0.5f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_17();
+			}, 900.0f, false);
+	}
+	else
+	{
+		HealthLossRate = 1.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_18(bool Apply)
 {
+	if (Apply)
+	{
+		HigherJumpBy_40 = 1.4f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_18();
+			}, 900.0f, false);
+	}
+	else
+	{
+		HigherJumpBy_40 = 1.0f;
+	}
+
+	RefreshJumpZVelocity();
 }
 
 void AAlsCharacterExample::SetEffect_19(bool Apply)
 {
+	if (Apply)
+	{
+		FasterRollRate = 1.5f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_19();
+			}, 900.0f, false);
+	}
+	else
+	{
+		FasterRollRate = 1.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_20(bool Apply)
 {
+	if (Apply)
+	{
+		JumpStaminaCost *= 0.8f;
+		RollStaminaCost *= 0.8f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_20();
+			}, 900.0f, false);
+	}
+	else
+	{
+		JumpStaminaCost *= 1.25f;
+		RollStaminaCost *= 1.25f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_21(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreDamageOnRoll = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_21();
+			}, 60.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreDamageOnRoll = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_22(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreStun = true;
+		bIsStunned = false;
+		StunRecoveryMultiplier = 1.0f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_22();
+			}, 180.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreStun = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_23(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreDamage = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_23();
+			}, 20.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreDamage = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_24(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldReduceDamageMelee = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_24();
+			}, 20.0f, false);
+	}
+	else
+	{
+		bShouldReduceDamageMelee = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_25(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldReduceDamageProjectile = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_25();
+			}, 20.0f, false);
+	}
+	else
+	{
+		bShouldReduceDamageProjectile = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_26(bool Apply)

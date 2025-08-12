@@ -1224,6 +1224,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Speed")
 	void SetWeightSpeedMultiplier(float CurrentWeight);
 
+protected:
+	void RefreshJumpZVelocity();
+
 	//Delay before grenade throw after sprint
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character|Effects|Delay before grenade throw after sprint", meta = (ClampMin = "0.0", ClampMax = "10.0"))
@@ -1319,6 +1322,51 @@ protected:
 	float DamageMultiplier_13 = 1.0f;
 
 	void RefreshDamageAmountOnMovingOrOnStanding();
+
+	//Effect_14
+	//Effect_15
+
+	//Effect_16
+protected:
+	float StaminaLossRate = 1.0f;
+
+	//Effect_17
+protected:
+	float HealthLossRate = 1.0f;
+
+	//Effect_18
+protected:
+	float HigherJumpBy_40 = 1.0f;
+
+	//Effect_19
+protected:
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
+	float FasterRollRate = 1.0f;
+
+	//Effect_20
+
+	//Effect_21
+protected:
+	uint8 bShouldIgnoreDamageOnRoll : 1{false};
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	float RecalculateDamage(float Damage, FText WeaponName);
+
+	//Effect_22
+protected:
+	uint8 bShouldIgnoreStun : 1{false};
+
+	//Effect_23
+protected:
+	uint8 bShouldIgnoreDamage : 1{false};
+	
+	//Effect_24
+protected:
+	uint8 bShouldReduceDamageMelee : 1{false};
+	
+	//Effect_25
+protected:
+	uint8 bShouldReduceDamageProjectile : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
