@@ -8,6 +8,7 @@
 #include "ScopedTransaction.h"           // FScopedTransaction (requires UnrealEd in Build.cs for editor builds)
 #include "UObject/UObjectGlobals.h"      // NewObject
 #endif
+#include "TeleportingSubsystem.h"
 
 ATeleportDestination::ATeleportDestination()
 {
@@ -49,6 +50,19 @@ ATeleportDestination::ATeleportDestination()
 #endif
 }
 
+UTeleportingSubsystem* GetTeleportingSubsystem(UObject* Context)
+{
+    if (!Context) return nullptr;
+
+    UWorld* World = Context->GetWorld();
+    if (!World) return nullptr;
+
+    UGameInstance* GI = World->GetGameInstance();
+    if (!GI) return nullptr;
+
+    return GI->GetSubsystem<UTeleportingSubsystem>();
+}
+
 void ATeleportDestination::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
@@ -71,6 +85,42 @@ void ATeleportDestination::OnConstruction(const FTransform& Transform)
 #endif
 }
 
+void ATeleportDestination::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UTeleportingSubsystem* TeleportSubsystem = GetTeleportingSubsystem(this);
+
+    // Register this teleport destination with the teleporting subsystem
+
+    if (TeleportSubsystem)
+    {
+        TeleportSubsystem->RegistrationTeleportingDestination(this);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("TeleportingSubsystem not found!"));
+    }
+
+}
+
+void ATeleportDestination::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    Super::EndPlay(EndPlayReason);
+    // Unregister this teleport destination from the teleporting subsystem
+
+    UTeleportingSubsystem* TeleportSubsystem = GetTeleportingSubsystem(this);
+
+    if (TeleportSubsystem)
+    {
+        TeleportSubsystem->UnregistrationTeleportingDestination(this);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("TeleportingSubsystem not found during EndPlay!"));
+    }
+
+}
 
 // Важно: даем тело и для не-редакторских сборок, чтобы не было линковочных ошибок
 USlotSceneComponent* ATeleportDestination::AddSlot()

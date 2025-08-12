@@ -4,6 +4,8 @@
 #include "Engine/DataTable.h"
 #include "TeleportDestination.h"
 #include "TeleportingComponent.h"
+#include "SlotSceneComponent.h"
+#include <Kismet/KismetSystemLibrary.h>
 
 void UTeleportingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -110,12 +112,82 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 				}
 			}
 
+			FVector TeleportingActorLocation = TeleportingActor->GetActorLocation();
+
 			if (DestinationActor && TeleportingActor)
 			{
-				FVector DestinationLocation = DestinationActor->GetActorLocation();
-				FRotator DestinationRotation = DestinationActor->GetActorRotation();
-				TeleportingActor->SetActorLocationAndRotation(DestinationLocation, DestinationRotation);
-				UE_LOG(LogTemp, Log, TEXT("Teleported %s to %s"), *TeleportingActor->GetName(), *DestinationActor->GetName());
+				FString SlotName = FString(TEXT(""));
+				USlotSceneComponent* SlotComponent = nullptr;
+
+				ATeleportDestination* TeleportDestination = Cast<ATeleportDestination>(DestinationActor);
+				for (USlotSceneComponent* Slot : TeleportDestination->Slots)
+				{
+					if (!Slot) continue;
+
+					FVector Origin;
+					FVector BoxExtent;
+					TeleportingActor->GetActorBounds(true, Origin, BoxExtent, true);
+
+					FVector DestinationLocation = Slot->GetComponentLocation();
+					FRotator DestinationRotation = Slot->GetComponentRotation();
+
+					FVector RootShift = FVector(0, 0, 1);//Origin - TeleportingActorLocation;
+
+					FVector OriginNew;
+					FVector BoxExtentNew;
+
+					RelativeReorientation(TeleportingActor, Slot, OriginNew, BoxExtentNew);
+
+					TArray<AActor*> ActorsToIgnore;
+					ActorsToIgnore.Add(DestinationActor);
+
+					FHitResult HitResult;
+
+					float Shift = -10000;
+
+					for (float i = 0; i < BoxExtentNew.Z * 2; i += 0.1f)
+					{
+						UKismetSystemLibrary::BoxTraceSingle(
+							TeleportingActor->GetWorld(),
+							DestinationLocation + RootShift * i,
+							DestinationLocation + RootShift * i,
+							BoxExtentNew,
+							DestinationRotation,
+							UEngineTypes::ConvertToTraceType(ECC_Visibility),
+							false,
+							ActorsToIgnore,
+							EDrawDebugTrace::None,
+							HitResult,
+							false
+						);
+
+						if (!HitResult.bBlockingHit)
+						{
+							SlotName = Slot->SlotName.ToString();
+							SlotComponent = Slot;
+
+							Shift = i;
+
+							break; // Выходим из цикла, если нашли подходящий слот
+						}
+					}
+
+					if (Shift >= 0)
+					{
+						// Если нашли подходящий слот, выходим из цикла
+						break;
+					}
+				}
+
+				if (SlotComponent)
+				{
+					TeleportingActor->SetActorLocationAndRotation(SlotComponent->GetComponentLocation(), SlotComponent->GetComponentRotation());
+					UE_LOG(LogTemp, Log, TEXT("Teleported %s to %s slot %s"), *TeleportingActor->GetName(), *DestinationActor->GetName(), *SlotName);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("No suitable slot found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
+				}
 				return;
 			}
 			else
@@ -125,4 +197,11 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 		}
 	}
 	UE_LOG(LogTemp, Warning, TEXT("No teleport row found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
+}
+
+void UTeleportingSubsystem::RelativeReorientation(const AActor* TargetActor, USceneComponent* TeleportSlot, FVector& NewOrigin, FVector& NewExtent)
+{
+	AActor* CopyActor = const_cast<AActor*>(TargetActor);
+	CopyActor->SetActorRotation(TeleportSlot->GetComponentRotation());
+	CopyActor->GetActorBounds(true, NewOrigin, NewExtent);
 }

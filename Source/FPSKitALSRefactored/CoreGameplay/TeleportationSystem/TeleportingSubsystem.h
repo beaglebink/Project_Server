@@ -49,6 +49,9 @@ public:
 	void TeleportToDestination(FString ObjectId, FString DestinationId);
 
 private:
+    void RelativeReorientation(const AActor* TargetActor, USceneComponent* TeleportSlot, FVector& NewOrigin, FVector& NewExtent);
+
+private:
     UPROPERTY()
     TArray<AActor*> TeleportingDestinations;
 

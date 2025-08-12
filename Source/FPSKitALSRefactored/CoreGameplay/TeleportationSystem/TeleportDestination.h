@@ -18,6 +18,10 @@ public:
 
     void OnConstruction(const FTransform& Transform);
 
+    void BeginPlay();
+
+    void EndPlay(const EEndPlayReason::Type EndPlayReason);
+
     // Root-компонент, к которому слоты прикрепл€ютс€
     UPROPERTY(VisibleDefaultsOnly, Category = "Slots")
     TObjectPtr<USceneComponent> Root = nullptr;
