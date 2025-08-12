@@ -7,7 +7,7 @@
 class UArrowComponent;
 class UTextRenderComponent;
 
-UCLASS(ClassGroup = (Gameplay), BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced)
+UCLASS(ClassGroup = (Custom), BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, meta = (BlueprintSpawnableComponent), HideCategories = ("Rendering", "Physics", "Mobility", "LOD", "Tags", "AssetUserData", "Activation", "Navigation", "Cooking"))
 class FPSKITALSREFACTORED_API USlotSceneComponent : public USceneComponent
 {
     GENERATED_BODY()
@@ -17,6 +17,8 @@ public:
     // Единственный источник правды
     UPROPERTY(EditAnywhere, Category = "Slot")
     FName SlotName = NAME_None;
+
+    void SetOwnerName(const FString Name);
 
 #if WITH_EDITORONLY_DATA
 protected:
@@ -37,9 +39,13 @@ protected:
 #endif
 
 private:
+    FString OwnerName;
+
 #if WITH_EDITOR
-    void EnsureHelpers();
+public:
     void UpdateVisualsFromName();
+private:
+    void EnsureHelpers();
     void TryRenameObjectToMatchSlotName();
     static FName MakeSafeUniqueName(UObject* Outer, UClass* Class, const FName& Desired);
 #endif

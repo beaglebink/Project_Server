@@ -20,6 +20,11 @@ USlotSceneComponent::USlotSceneComponent()
     bHiddenInGame = true; // слоты Ч редакторные ориентиры
 }
 
+void USlotSceneComponent::SetOwnerName(const FString Name)
+{
+    OwnerName = Name;
+}
+
 void USlotSceneComponent::OnRegister()
 {
     Super::OnRegister();
@@ -33,6 +38,11 @@ void USlotSceneComponent::OnRegister()
             {
                 //SetupAttachment(Root);
 				AttachToComponent(Root, FAttachmentTransformRules::KeepRelativeTransform);
+
+                Modify();
+
+                Owner->PostEditChange();
+                Owner->RerunConstructionScripts();
             }
         }
     }
@@ -43,7 +53,6 @@ void USlotSceneComponent::OnRegister()
 
     if (GEditor)
     {
-        UE_LOG(LogTemp, Warning, TEXT("AddSlot-- %s"), *GetName());
         GEditor->NoteSelectionChange(); // обновл€ет Details и компонентную схему
     }
 #endif
@@ -104,10 +113,10 @@ void USlotSceneComponent::EnsureHelpers()
         Label->SetIsVisualizationComponent(true);
         Label->SetHiddenInGame(true);
         Label->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-        Label->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
-        Label->SetTextRenderColor(FColor::White);
-        Label->SetWorldSize(24.f);
-        Label->SetRelativeLocation(FVector(0.f, 0.f, 28.f));
+        Label->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextBottom);
+        Label->SetTextRenderColor(FColor::Red);
+        Label->SetWorldSize(14.f);
+        Label->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
         Label->SetupAttachment(this);
         Label->RegisterComponent();
         GetOwner()->AddInstanceComponent(Label);
@@ -121,7 +130,8 @@ void USlotSceneComponent::UpdateVisualsFromName()
 #if WITH_EDITORONLY_DATA
     if (Label)
     {
-        const FText Text = SlotName.IsNone() ? FText::FromString(TEXT("(Slot)")) : FText::FromName(SlotName);
+        FString T = SlotName.IsNone() ? FString(TEXT("(Slot)")) : SlotName.ToString();
+        const FText Text = FText::FromString(OwnerName + FString(TEXT(" (")) + T + FString(TEXT(")")));
         Label->SetText(Text);
     }
 #endif
