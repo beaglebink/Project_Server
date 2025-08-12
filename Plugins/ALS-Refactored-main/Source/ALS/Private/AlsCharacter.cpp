@@ -2988,11 +2988,18 @@ void AAlsCharacter::RefreshDamageAmountOnMovingOrOnStanding()
 	}
 }
 
-float AAlsCharacter::IgnoreDamageOnRoll(float Damage)
+float AAlsCharacter::RecalculateDamage(float Damage, FText WeaponName)
 {
-	if (bShouldIgnoreDamageOnRoll && LocomotionAction == AlsLocomotionActionTags::Rolling)
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, WeaponName.ToString());
+
+	if (bShouldIgnoreDamageOnRoll && LocomotionAction == AlsLocomotionActionTags::Rolling || bShouldIgnoreDamage)
 	{
 		return 0.0f;
+	}
+
+	if ((bShouldReduceDamageMelee && WeaponName.ToString() == "Melee") || (bShouldReduceDamageProjectile && WeaponName.ToString() == "Projectile"))
+	{
+		return Damage * 0.5f;
 	}
 
 	return Damage;

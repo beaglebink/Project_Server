@@ -1281,14 +1281,56 @@ void AAlsCharacterExample::SetEffect_22(bool Apply)
 
 void AAlsCharacterExample::SetEffect_23(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreDamage = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_23();
+			}, 20.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreDamage = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_24(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldReduceDamageMelee = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_24();
+			}, 20.0f, false);
+	}
+	else
+	{
+		bShouldReduceDamageMelee = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_25(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldReduceDamageProjectile = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_25();
+			}, 20.0f, false);
+	}
+	else
+	{
+		bShouldReduceDamageProjectile = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_26(bool Apply)

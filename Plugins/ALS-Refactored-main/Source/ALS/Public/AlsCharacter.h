@@ -1350,11 +1350,23 @@ protected:
 	uint8 bShouldIgnoreDamageOnRoll : 1{false};
 
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
-	float IgnoreDamageOnRoll(float Damage);
+	float RecalculateDamage(float Damage, FText WeaponName);
 
 	//Effect_22
 protected:
 	uint8 bShouldIgnoreStun : 1{false};
+
+	//Effect_23
+protected:
+	uint8 bShouldIgnoreDamage : 1{false};
+	
+	//Effect_24
+protected:
+	uint8 bShouldReduceDamageMelee : 1{false};
+	
+	//Effect_25
+protected:
+	uint8 bShouldReduceDamageProjectile : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
