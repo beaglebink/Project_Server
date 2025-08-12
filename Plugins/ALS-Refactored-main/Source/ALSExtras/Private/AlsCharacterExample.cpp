@@ -1183,6 +1183,22 @@ void AAlsCharacterExample::SetEffect_17(bool Apply)
 
 void AAlsCharacterExample::SetEffect_18(bool Apply)
 {
+	if (Apply)
+	{
+		HigherJumpBy_40 = 1.4f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_18();
+			}, 900.0f, false);
+	}
+	else
+	{
+		HigherJumpBy_40 = 1.0f;
+	}
+
+	RefreshJumpZVelocity();
 }
 
 void AAlsCharacterExample::SetEffect_19(bool Apply)

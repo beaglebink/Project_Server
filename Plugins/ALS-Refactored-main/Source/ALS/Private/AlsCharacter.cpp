@@ -2855,7 +2855,7 @@ void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplac
 void AAlsCharacter::SetWeightSpeedMultiplier(float CurrentWeight)
 {
 	WeightMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, GetStrength()), FVector2D(1.0f, 0.0f), CurrentWeight - GetStrength());
-	AlsCharacterMovement->JumpZVelocity = CurrentZVelocity * WeightMultiplier;
+	RefreshJumpZVelocity();
 	if (WeightMultiplier == 0.0f)
 	{
 		bIsOverload = true;
@@ -2864,6 +2864,11 @@ void AAlsCharacter::SetWeightSpeedMultiplier(float CurrentWeight)
 	{
 		bIsOverload = false;
 	}
+}
+
+void AAlsCharacter::RefreshJumpZVelocity()
+{
+	AlsCharacterMovement->JumpZVelocity = CurrentZVelocity * WeightMultiplier * HigherJumpBy_40;
 }
 
 void AAlsCharacter::SprintTimeDelayCount()

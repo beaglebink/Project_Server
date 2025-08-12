@@ -1224,6 +1224,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Speed")
 	void SetWeightSpeedMultiplier(float CurrentWeight);
 
+protected:
+	void RefreshJumpZVelocity();
+
 	//Delay before grenade throw after sprint
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character|Effects|Delay before grenade throw after sprint", meta = (ClampMin = "0.0", ClampMax = "10.0"))
@@ -1330,6 +1333,13 @@ protected:
 	//Effect_17
 protected:
 	float HealthLossRate = 1.0f;
+
+	//Effect_18
+protected:
+	float HigherJumpBy_40 = 1.0f;
+
+	//Effect_19
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
