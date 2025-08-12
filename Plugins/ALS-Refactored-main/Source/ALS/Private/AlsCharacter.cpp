@@ -343,10 +343,6 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	RefreshAimPrecisionOnMoveMultiplier();
 
-	RefreshStaminaAndRecoilIfHealthIsUnder_20();
-
-	RefreshHealthIfStaminaIsUnder_30();
-
 	RefreshDamageAmountOnMovingOrOnStanding();
 }
 
@@ -1985,20 +1981,28 @@ void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 
 void AAlsCharacter::SetHealth(float NewHealth)
 {
-	if (bShouldReduceStamina && GetHealth() > NewHealth)
+	float HealthDiff = GetHealth() - NewHealth;
+	if (HealthDiff > 0)
 	{
-		float HealthDiff = GetHealth() - NewHealth;
-		if (GetStamina() - HealthDiff < 0)
-		{
-			Health = FMath::Clamp(GetHealth() - (HealthDiff - GetStamina()), 0.0f, GetMaxHealth());
-		}
-		SetStamina(GetStamina() - HealthDiff);
-	}
-	else
-	{
-		Health = FMath::Clamp(NewHealth, 0.0f, GetMaxHealth());
-	}
+		HealthDiff *= HealthLossRate;
 
+		if (bShouldReduceStamina)
+		{
+			if (GetStamina() - HealthDiff < 0)
+			{
+				HealthDiff -= GetStamina();
+				SetStamina(0.0f);
+			}
+			else
+			{
+				SetStamina(GetStamina() - HealthDiff);
+				HealthDiff = 0.0f;
+			}
+		}
+	}
+	Health = FMath::Clamp(GetHealth() - HealthDiff, 0.0f, GetMaxHealth());
+
+	RefreshStaminaAndRecoilIfHealthIsUnder_20();
 	CheckForHealthReplenish(Health);
 	CalculateDamageSlowdownDuration(Health);
 	OnHealthChanged.Broadcast(Health, MaxHealth);
@@ -2011,7 +2015,14 @@ void AAlsCharacter::SetMaxStamina(float NewMaxStamina)
 
 void AAlsCharacter::SetStamina(float NewStamina)
 {
-	Stamina = FMath::Clamp(NewStamina, 0.0f, GetMaxStamina());
+	float StaminaDiff = GetStamina() - NewStamina;
+	if (StaminaDiff > 0)
+	{
+		StaminaDiff *= StaminaLossRate;
+	}
+	Stamina = FMath::Clamp(GetStamina() - StaminaDiff, 0.0f, GetMaxStamina());
+
+	RefreshHealthIfStaminaIsUnder_30();
 	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
 }
 

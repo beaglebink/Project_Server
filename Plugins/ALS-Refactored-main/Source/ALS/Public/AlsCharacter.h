@@ -1324,7 +1324,12 @@ protected:
 	//Effect_15
 
 	//Effect_16
+protected:
+	float StaminaLossRate = 1.0f;
 
+	//Effect_17
+protected:
+	float HealthLossRate = 1.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

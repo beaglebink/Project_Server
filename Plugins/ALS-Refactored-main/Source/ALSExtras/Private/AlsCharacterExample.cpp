@@ -1147,10 +1147,38 @@ void AAlsCharacterExample::SetEffect_15(bool Apply)
 
 void AAlsCharacterExample::SetEffect_16(bool Apply)
 {
+	if (Apply)
+	{
+		StaminaLossRate = 0.5f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_16();
+			}, 900.0f, false);
+	}
+	else
+	{
+		StaminaLossRate = 1.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_17(bool Apply)
 {
+	if (Apply)
+	{
+		HealthLossRate = 0.5f;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_17();
+			}, 900.0f, false);
+	}
+	else
+	{
+		HealthLossRate = 1.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_18(bool Apply)
