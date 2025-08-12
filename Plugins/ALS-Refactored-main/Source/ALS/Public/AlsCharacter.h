@@ -1342,6 +1342,11 @@ protected:
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
 	float FasterRollRate = 1.0f;
+
+	//Effect_20
+	
+	//Effect_21
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
