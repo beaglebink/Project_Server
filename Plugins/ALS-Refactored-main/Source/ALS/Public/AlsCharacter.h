@@ -1344,9 +1344,13 @@ protected:
 	float FasterRollRate = 1.0f;
 
 	//Effect_20
-	
-	//Effect_21
 
+	//Effect_21
+protected:
+	uint8 bShouldIgnoreDamageOnRoll : 1{false};
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	float IgnoreDamageOnRoll(float Damage);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

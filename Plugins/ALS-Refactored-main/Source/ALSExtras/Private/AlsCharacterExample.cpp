@@ -1245,19 +1245,17 @@ void AAlsCharacterExample::SetEffect_21(bool Apply)
 {
 	if (Apply)
 	{
-		JumpStaminaCost *= 0.8f;
-		RollStaminaCost *= 0.8f;
+		bShouldIgnoreDamageOnRoll = true;
 
 		FTimerHandle TimerHandle;
 		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 			{
 				SetEffect_21();
-			}, 900.0f, false);
+			}, 60.0f, false);
 	}
 	else
 	{
-		JumpStaminaCost *= 1.25f;
-		RollStaminaCost *= 1.25f;
+		bShouldIgnoreDamageOnRoll = false;
 	}
 }
 

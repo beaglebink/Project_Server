@@ -1982,8 +1982,10 @@ void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 void AAlsCharacter::SetHealth(float NewHealth)
 {
 	float HealthDiff = GetHealth() - NewHealth;
+
 	if (HealthDiff > 0)
 	{
+
 		HealthDiff *= HealthLossRate;
 
 		if (bShouldReduceStamina)
@@ -2979,4 +2981,14 @@ void AAlsCharacter::RefreshDamageAmountOnMovingOrOnStanding()
 	{
 		DamageMultiplier_13 = 1.0f;
 	}
+}
+
+float AAlsCharacter::IgnoreDamageOnRoll(float Damage)
+{
+	if (bShouldIgnoreDamageOnRoll && LocomotionAction == AlsLocomotionActionTags::Rolling)
+	{
+		return 0.0f;
+	}
+
+	return Damage;
 }
