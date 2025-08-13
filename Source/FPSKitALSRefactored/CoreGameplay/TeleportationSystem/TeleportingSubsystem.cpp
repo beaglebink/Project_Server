@@ -148,7 +148,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					FRotator BoxRotation;
 
 
-					RelativeReorientation(TeleportingActor, Slot, OriginNew, BoxExtentNew, BoxRotation);
+					GetReorientedActorBounds(TeleportingActor, Slot, OriginNew, BoxExtentNew, BoxRotation);
 
 					TArray<AActor*> ActorsToIgnore;
 					ActorsToIgnore.Add(DestinationActor);
@@ -163,8 +163,8 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 							TeleportingActor->GetWorld(),
 							DestinationLocation + RootShift * i,
 							DestinationLocation + RootShift * i,
-							BoxExtentNew,
-							BoxRotation,
+							BoxExtent,
+							Slot->GetComponentRotation(),
 							UEngineTypes::ConvertToTraceType(ECC_Visibility),
 							false,
 							ActorsToIgnore,
@@ -213,9 +213,9 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 	UE_LOG(LogTemp, Warning, TEXT("No teleport row found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
 }
 
-void UTeleportingSubsystem::RelativeReorientation(const AActor* TargetActor, USceneComponent* TeleportSlot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation)
+void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation)
 {
-	if (!TargetActor || !TeleportSlot)
+	if (!Actor || !Slot)
 	{
 		OutOrigin = FVector::ZeroVector;
 		OutExtent = FVector::ZeroVector;
@@ -223,28 +223,46 @@ void UTeleportingSubsystem::RelativeReorientation(const AActor* TargetActor, USc
 		return;
 	}
 
-	USceneComponent* RootComponent = TargetActor->GetRootComponent();
-	if (!RootComponent)
+	FVector Origin, BoxExtent;
+	Actor->GetActorBounds(true, Origin, BoxExtent);
+
+	// Построим 8 вершин OBB актора в его текущей ориентации
+	FQuat ActorRotation = Actor->GetActorQuat();
+	TArray<FVector> ActorCorners;
+	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(BoxExtent.X, BoxExtent.Y, BoxExtent.Z)));
+	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(BoxExtent.X, BoxExtent.Y, -BoxExtent.Z)));
+	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(BoxExtent.X, -BoxExtent.Y, BoxExtent.Z)));
+	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(BoxExtent.X, -BoxExtent.Y, -BoxExtent.Z)));
+	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(-BoxExtent.X, BoxExtent.Y, BoxExtent.Z)));
+	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(-BoxExtent.X, BoxExtent.Y, -BoxExtent.Z)));
+	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(-BoxExtent.X, -BoxExtent.Y, BoxExtent.Z)));
+	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(-BoxExtent.X, -BoxExtent.Y, -BoxExtent.Z)));
+
+	// Получаем ориентацию слота
+	FQuat SlotRotation = Slot->GetComponentQuat();
+
+	// Переориентируем вершины: как если бы актор был повернут как слот
+	TArray<FVector> ReorientedCorners;
+	for (const FVector& Corner : ActorCorners)
 	{
-		OutOrigin = FVector::ZeroVector;
-		OutExtent = FVector::ZeroVector;
-		OutRotation = FRotator::ZeroRotator;
-		return;
+		// Переводим Corner в локальные координаты актора
+		FVector Local = ActorRotation.Inverse().RotateVector(Corner - Origin);
+
+		// Поворачиваем локальные координаты по ориентации слота
+		FVector Rotated = SlotRotation.RotateVector(Local);
+
+		// Смещаем обратно в Origin
+		ReorientedCorners.Add(Rotated + Origin);
 	}
 
-	// Получаем локальный Transform RootComponent относительно актора
-	const FTransform LocalTransform = RootComponent->GetComponentTransform();
+	// Строим новый FBox
+	FBox ReorientedBox(EForceInit::ForceInit);
+	for (const FVector& Corner : ReorientedCorners)
+	{
+		ReorientedBox += Corner;
+	}
 
-	// Получаем Transform слота
-	const FTransform SlotTransform = TeleportSlot->GetComponentTransform();
-
-	// Виртуальный ComponentToWorld: как если бы RootComponent был прикреплён к слоту
-	const FTransform VirtualTransform = LocalTransform * SlotTransform;
-
-	// Вычисляем Bounds
-	const FBoxSphereBounds VirtualBounds = RootComponent->CalcBounds(VirtualTransform);
-
-	OutOrigin = VirtualBounds.Origin;
-	OutExtent = VirtualBounds.BoxExtent;
-	OutRotation = VirtualTransform.GetRotation().Rotator(); // ориентация бокса
+	OutOrigin = ReorientedBox.GetCenter();
+	OutExtent = ReorientedBox.GetExtent();
+	OutRotation = SlotRotation.Rotator(); // ориентация бокса
 }

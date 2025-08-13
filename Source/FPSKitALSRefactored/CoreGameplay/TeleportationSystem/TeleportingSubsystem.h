@@ -45,7 +45,7 @@ public:
 	void TeleportToDestination(FString ObjectId, FString DestinationId);
 
 private:
-    void RelativeReorientation(const AActor* TargetActor, USceneComponent* TeleportSlot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation);
+    void GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation);
 
 private:
     UPROPERTY()
