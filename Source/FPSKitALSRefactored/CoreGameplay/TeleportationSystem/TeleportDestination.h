@@ -7,6 +7,9 @@
 #include "TeleportDestination.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChangeActiveDestination, ATeleportDestination*, Destination, bool, IsActive);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorFinishCooldown, ATeleportDestination*, Destination);
+
+class UTeleportingSubsystem;
 
 UCLASS()
 class FPSKITALSREFACTORED_API ATeleportDestination : public AActor
@@ -40,6 +43,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Teleportation")
     bool GetActiveDestination() const;
 
+    UFUNCTION(BlueprintCallable, Category = "Teleportation")
+	void SetCoolDownTime(float Time) { CoolDownTime = Time; }
+
+    UFUNCTION(BlueprintCallable, Category = "Teleportation")
+	float GetCoolDownTime() const { return CoolDownTime; }
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+    bool IsInCooldown() const { return isCooldown; }
+
+    void StartCooldown();
+
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -71,4 +85,12 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Teleportation")
 	FOnChangeActiveDestination OnChangeActiveDestination;
+
+    UPROPERTY(EditInstanceOnly, Category = "Teleportation", meta = (AllowPrivateAccess = "true"))
+	float CoolDownTime = 0.0f;
+
+	FOnActorFinishCooldown OnDestinationFinishCooldown;
+
+private:
+	bool isCooldown = false;
 };

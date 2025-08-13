@@ -4,6 +4,7 @@
 #include "UObject/UnrealType.h"          
 #include "Components/TextRenderComponent.h"
 
+
 #if WITH_EDITOR
 #include "ScopedTransaction.h"           
 #include "UObject/UObjectGlobals.h"      
@@ -152,6 +153,51 @@ TArray<USlotSceneComponent*> ATeleportDestination::GetSlots() const
     return Slots;
 }
 
+USlotSceneComponent* ATeleportDestination::GetSlotByName(const FName& SlotName) const
+{
+    for (USlotSceneComponent* Slot : Slots)
+    {
+        if (Slot && Slot->SlotName == SlotName)
+        {
+            return Slot;
+        }
+    }
+    return nullptr;
+}
+
+USlotSceneComponent* ATeleportDestination::GetSlotByIndex(int32 Index) const
+{
+    if (Slots.IsValidIndex(Index))
+    {
+        return Slots[Index];
+    }
+    return nullptr;
+}
+
+void ATeleportDestination::SetActiveDestination(bool bActive)
+{
+    IsActiveDestination = bActive;
+    OnChangeActiveDestination.Broadcast(this, IsActiveDestination);
+}
+
+bool ATeleportDestination::GetActiveDestination() const
+{
+    return IsActiveDestination;
+}
+
+void ATeleportDestination::StartCooldown()
+{
+    if (isCooldown) return;
+
+    isCooldown = true;
+    FTimerHandle TimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
+        {
+            isCooldown = false;
+            OnDestinationFinishCooldown.Broadcast(this);
+        }, CoolDownTime, false);
+}
+
 #if WITH_EDITOR
 
 FName ATeleportDestination::GenerateUniqueSlotName(const FName& Base) const
@@ -193,38 +239,6 @@ void ATeleportDestination::EnsureSlotAttached(USlotSceneComponent* Slot)
     {
         Slot->RegisterComponent();
     }
-}
-
-USlotSceneComponent* ATeleportDestination::GetSlotByName(const FName& SlotName) const
-{
-    for (USlotSceneComponent* Slot : Slots)
-    {
-        if (Slot && Slot->SlotName == SlotName)
-        {
-            return Slot;
-        }
-    }
-    return nullptr;
-}
-
-USlotSceneComponent* ATeleportDestination::GetSlotByIndex(int32 Index) const
-{
-    if (Slots.IsValidIndex(Index))
-    {
-        return Slots[Index];
-    }
-    return nullptr;
-}
-
-void ATeleportDestination::SetActiveDestination(bool bActive)
-{
-	IsActiveDestination = bActive;
-	OnChangeActiveDestination.Broadcast(this, IsActiveDestination);
-}
-
-bool ATeleportDestination::GetActiveDestination() const
-{
-    return IsActiveDestination;
 }
 
 void ATeleportDestination::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

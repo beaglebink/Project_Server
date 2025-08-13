@@ -107,6 +107,9 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					if (TeleportDestination->IsActiveDestination == false)
 						continue;
 
+					if (TeleportDestination->IsInCooldown())
+						continue;
+
 					DestinationActor = TeleportDestination;
 					UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination DestinationActor %s"), *DestinationActor->GetName());
 				}
@@ -138,6 +141,11 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					if (!Slot) continue;
 
 					if (Slot->GetActiveSlot() == false)
+					{
+						continue;
+					}
+
+					if (Slot->IsInCooldown())
 					{
 						continue;
 					}
@@ -204,22 +212,75 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 				if (SlotComponent)
 				{
 					TeleportingActor->SetActorLocationAndRotation(SlotComponent->GetComponentLocation(), SlotComponent->GetComponentRotation());
-					OnTeleportation.Broadcast(Cast<ATeleportDestination>(DestinationActor), SlotComponent, TeleportingActor);
+
+					if (TeleportDestination->GetCoolDownTime() > 0)
+					{
+						if (!TeleportDestination->IsInCooldown())
+						{
+							OnDestinationStartCooldown.Broadcast(TeleportDestination);
+							TeleportDestination->OnDestinationFinishCooldown.AddDynamic(this, &UTeleportingSubsystem::DestinationFinishCooldown);
+							TeleportDestination->StartCooldown();
+						}
+					}
+
+					if (SlotComponent->GetCoolDownTime() > 0)
+					{
+						if (!SlotComponent->IsInCooldown())
+						{
+							OnSlotStartCooldown.Broadcast(TeleportDestination, SlotComponent);
+							SlotComponent->OnStopSlotCooldown.AddDynamic(this, &UTeleportingSubsystem::SlotFinishCooldown);
+							SlotComponent->StartCooldown();
+						}
+					}
+
+					OnTeleportation.Broadcast(TeleportDestination, SlotComponent, TeleportingActor);
 					UE_LOG(LogTemp, Log, TEXT("Teleported %s to %s slot %s"), *TeleportingActor->GetName(), *DestinationActor->GetName(), *SlotName);
 				}
 				else
 				{
+					OnTeleportationFailed.Broadcast(ObjectId, DestinationId);
 					UE_LOG(LogTemp, Warning, TEXT("No suitable slot found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
 				}
 				return;
 			}
 			else
 			{
+				OnTeleportationFailed.Broadcast(ObjectId, DestinationId);
 				UE_LOG(LogTemp, Warning, TEXT("Destination or Teleporting Actor not found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
 			}
 		}
 	}
+
+	OnTeleportationFailed.Broadcast(ObjectId, DestinationId);
 	UE_LOG(LogTemp, Warning, TEXT("No teleport row found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
+}
+
+void UTeleportingSubsystem::DestinationFinishCooldown(ATeleportDestination* Destination)
+{
+	if (Destination)
+	{
+		Destination->OnDestinationFinishCooldown.Clear();
+		OnDestinationFinishCooldown.Broadcast(Destination);
+		Destination->OnDestinationFinishCooldown.RemoveDynamic(this, &UTeleportingSubsystem::DestinationFinishCooldown);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("OnDestinationFinishCooldown called with null Destination"));
+	}
+}
+
+void UTeleportingSubsystem::SlotFinishCooldown(ATeleportDestination* Destination, USlotSceneComponent* Slot)
+{
+	if (Slot)
+	{
+		Slot->OnStopSlotCooldown.Clear();
+		OnSlotFinishCooldown.Broadcast(Destination, Slot);
+		Slot->OnStopSlotCooldown.RemoveDynamic(this, &UTeleportingSubsystem::SlotFinishCooldown);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("OnStopSlotCooldown called with null Slot"));
+	}
 }
 
 void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation)

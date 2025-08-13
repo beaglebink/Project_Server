@@ -6,6 +6,11 @@
 #include "TeleportingSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTeleportation, ATeleportDestination*, Destination, USlotSceneComponent*, Slot, AActor*, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTeleportationFailed, FString, ActorId, FString, DestinationId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorStartCooldown, ATeleportDestination*, Destination);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorFinishCooldownSub, ATeleportDestination*, Destination);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartSlotCooldown, ATeleportDestination*, Destination, USlotSceneComponent*, Slot);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStopSlotCooldownSub, ATeleportDestination*, Destination, USlotSceneComponent*, Slot);
 
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FTeleportTableRow : public FTableRowBase
@@ -45,9 +50,30 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Teleportation")
 	void TeleportToDestination(FString ObjectId, FString DestinationId);
 
+    UFUNCTION()
+    void DestinationFinishCooldown(ATeleportDestination* Destination);
+
+    UFUNCTION()
+    void SlotFinishCooldown(ATeleportDestination* Destination, USlotSceneComponent* Slot);
+
 public:
     UPROPERTY(BlueprintAssignable, Category = "Teleportation")
 	FOnTeleportation OnTeleportation;
+
+    UPROPERTY(BlueprintAssignable, Category = "Teleportation")
+    FOnTeleportationFailed OnTeleportationFailed;
+
+    UPROPERTY(BlueprintAssignable, Category = "Teleportation")
+    FOnActorStartCooldown OnDestinationStartCooldown;
+
+    UPROPERTY(BlueprintAssignable, Category = "Teleportation")
+    FOnActorFinishCooldownSub OnDestinationFinishCooldown;
+
+    UPROPERTY(BlueprintAssignable, Category = "Slot")
+    FOnStartSlotCooldown OnSlotStartCooldown;
+
+    UPROPERTY(BlueprintAssignable, Category = "Slot")
+    FOnStopSlotCooldownSub OnSlotFinishCooldown;
 
 private:
     void GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation);

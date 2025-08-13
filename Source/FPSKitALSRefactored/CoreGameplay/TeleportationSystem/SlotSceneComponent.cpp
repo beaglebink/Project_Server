@@ -3,6 +3,7 @@
 #include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "TeleportDestination.h"
 
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
@@ -56,8 +57,6 @@ void USlotSceneComponent::OnRegister()
 #endif
 }
 
-#if WITH_EDITOR
-
 void USlotSceneComponent::SetActiveSlot(bool bActive)
 {
     IsActiveSlot = bActive;
@@ -69,6 +68,21 @@ bool USlotSceneComponent::GetActiveSlot() const
     return IsActiveSlot;
 }
 
+void USlotSceneComponent::StartCooldown()
+{
+    if (isCooldown) return;
+
+    isCooldown = true;
+    FTimerHandle TimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
+        {
+            isCooldown = false;
+            ATeleportDestination* Destination = Cast<ATeleportDestination>(GetOwner());
+            OnStopSlotCooldown.Broadcast(Destination, this);
+        }, CoolDownTime, false);
+}
+
+#if WITH_EDITOR
 void USlotSceneComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);

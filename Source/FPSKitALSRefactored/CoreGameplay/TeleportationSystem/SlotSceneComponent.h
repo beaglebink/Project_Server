@@ -2,12 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "TeleportingSubsystem.h"
 #include "SlotSceneComponent.generated.h"
 
 class UArrowComponent;
 class UTextRenderComponent;
 
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChangeActive, USlotSceneComponent*, Slot, bool, IsActive);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStopSlotCooldown, ATeleportDestination*, Destination, USlotSceneComponent*, Slot);
+
 
 UCLASS(ClassGroup = (Custom), BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, meta = (BlueprintSpawnableComponent), HideCategories = ("Rendering", "Physics", "Mobility", "LOD", "Tags", "AssetUserData", "Activation", "Navigation", "Cooking"))
 class FPSKITALSREFACTORED_API USlotSceneComponent : public USceneComponent
@@ -27,6 +31,18 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Slot")
 	FName GetSlotName() const { return SlotName; }
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+    void SetCoolDownTime(float Time) { CoolDownTime = Time; }
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+    float GetCoolDownTime() const { return CoolDownTime; }
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+	bool IsInCooldown() const { return isCooldown; }
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+    void StartCooldown();
 
 #if WITH_EDITOR
     void UpdateVisualsFromName();
@@ -49,6 +65,11 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "Slot", meta = (AllowPrivateAccess = "true"))
 	bool IsActiveSlot = true;
 
+    UPROPERTY(EditInstanceOnly, Category = "Slot", meta = (AllowPrivateAccess = "true"))
+    float CoolDownTime = 0.0f;
+
+    FOnStopSlotCooldown OnStopSlotCooldown;
+
 #if WITH_EDITORONLY_DATA
 protected:
     UPROPERTY(Transient)
@@ -60,4 +81,5 @@ protected:
 
 private:
     FString OwnerName;
+	bool isCooldown = false;
 };
