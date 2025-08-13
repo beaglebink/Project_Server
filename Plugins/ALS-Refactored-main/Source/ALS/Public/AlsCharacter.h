@@ -1000,6 +1000,15 @@ private:
 
 	FVector2D PrevInputDirection;
 
+	//ArmLock effect
+protected:
+	UPROPERTY(BlueprintReadWrite, Category = "ArmLockEffect")
+	uint8 bArmLockEffectIsActive :1 {false};
+
+public:
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ArmLockEffect")
+	void SetArmLockEffect(bool bIsSet, bool bShouldResetEffect = true);
+
 	//stumble effect
 public:
 	UFUNCTION(BlueprintCallable, Category = "StumbleEffect")
@@ -1094,11 +1103,6 @@ private:
 	float PrevMouseValueLength = 0.0f;
 	float CurrentMouseValueLength = 0.0f;
 
-	//grappling effect
-protected:
-	uint8 bIsGrappled : 1{false};
-	float GrappleEffectSpeedMultiplier = 1.0f;
-
 	//stasis grenade effect
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StasisGrenadeEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
@@ -1115,6 +1119,11 @@ public:
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|StaticGrenadeEffect")
 	TMap<AActor*, float> StasisGrenadeEffectMap;
+
+	//grappling effect
+protected:
+	uint8 bIsGrappled : 1{false};
+	float GrappleEffectSpeedMultiplier = 1.0f;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "WireEffect")
@@ -1384,6 +1393,11 @@ protected:
 	float AimAccuracyOnWalking = 1.0f;
 
 	void RefreshAimAccuracyOnWalking();
+
+	//Effect_28
+protected:
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
+	uint8 bShouldIgnoreArmLock : 1{false};
 
 };
 

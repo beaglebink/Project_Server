@@ -2428,6 +2428,10 @@ void AAlsCharacter::RemoveSticknessByMash()
 
 }
 
+void AAlsCharacter::SetArmLockEffect_Implementation(bool bIsSet, bool bShouldResetEffect)
+{
+}
+
 void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPower)
 {
 	float Power = FMath::Clamp(InstigatorPower - UKismetMathLibrary::Vector_Distance(InstigatorLocation, GetActorLocation()), 0.0f, 1000.0f);

@@ -1371,6 +1371,28 @@ void AAlsCharacterExample::SetEffect_27(bool Apply)
 
 void AAlsCharacterExample::SetEffect_28(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreArmLock = true;
+		if (bArmLockEffectIsActive)
+		{
+			SetArmLockEffect(false, false);
+		}
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_28();
+			}, 10.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreArmLock = false;
+		if (bArmLockEffectIsActive)
+		{
+			SetArmLockEffect(true, false);
+		}
+	}
 }
 
 void AAlsCharacterExample::SetEffect_29(bool Apply)
