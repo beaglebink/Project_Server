@@ -1,3 +1,5 @@
+#if WITH_EDITOR
+
 #include "TeleportDestinationDetails.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -91,3 +93,4 @@ FReply FTeleportDestinationDetails::OnAddSlotClicked()
 }
 
 #undef LOCTEXT_NAMESPACE
+#endif // WITH_EDITOR

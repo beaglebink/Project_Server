@@ -1,12 +1,12 @@
 ﻿#include "TeleportDestination.h"
 #include "Components/SceneComponent.h"
 #include "SlotSceneComponent.h"
-#include "UObject/UnrealType.h"          // FPropertyChangedEvent, GET_MEMBER_NAME_CHECKED
+#include "UObject/UnrealType.h"          
 #include "Components/TextRenderComponent.h"
 
 #if WITH_EDITOR
-#include "ScopedTransaction.h"           // FScopedTransaction (requires UnrealEd in Build.cs for editor builds)
-#include "UObject/UObjectGlobals.h"      // NewObject
+#include "ScopedTransaction.h"           
+#include "UObject/UObjectGlobals.h"      
 #endif
 #include "TeleportingSubsystem.h"
 
@@ -18,7 +18,7 @@ ATeleportDestination::ATeleportDestination()
     LabelComponent = CreateDefaultSubobject<UBillboardComponent>(TEXT("Label"));
     LabelComponent->SetupAttachment(RootComponent);
     LabelComponent->bIsScreenSizeScaled = true;
-    LabelComponent->SetHiddenInGame(true); // Только в редакторе
+    LabelComponent->SetHiddenInGame(true);
     LabelComponent->SetRelativeLocation(FVector(0, 0, 3));
 
     Label = CreateDefaultSubobject<UTextRenderComponent>(TEXT("TextLabel"));
@@ -30,8 +30,6 @@ ATeleportDestination::ATeleportDestination()
     Label->SetWorldSize(14.f);
     Label->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
     Label->SetupAttachment(RootComponent);
-    //Label->RegisterComponent();
-    //AddInstanceComponent(Label);
 
 #endif
 
@@ -91,8 +89,6 @@ void ATeleportDestination::BeginPlay()
 
     UTeleportingSubsystem* TeleportSubsystem = GetTeleportingSubsystem(this);
 
-    // Register this teleport destination with the teleporting subsystem
-
     if (TeleportSubsystem)
     {
         TeleportSubsystem->RegistrationTeleportingDestination(this);
@@ -107,7 +103,6 @@ void ATeleportDestination::BeginPlay()
 void ATeleportDestination::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     Super::EndPlay(EndPlayReason);
-    // Unregister this teleport destination from the teleporting subsystem
 
     UTeleportingSubsystem* TeleportSubsystem = GetTeleportingSubsystem(this);
 
@@ -122,7 +117,6 @@ void ATeleportDestination::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 }
 
-// Важно: даем тело и для не-редакторских сборок, чтобы не было линковочных ошибок
 USlotSceneComponent* ATeleportDestination::AddSlot()
 {
 #if WITH_EDITOR
@@ -131,7 +125,7 @@ USlotSceneComponent* ATeleportDestination::AddSlot()
 
     const FName UniqueName = GenerateUniqueSlotName(TEXT("Slot"));
 
-    USlotSceneComponent* NewSlot = NewObject<USlotSceneComponent>(this, /*DesiredSlotType*/USlotSceneComponent::StaticClass(), UniqueName, RF_Transactional);
+    USlotSceneComponent* NewSlot = NewObject<USlotSceneComponent>(this, USlotSceneComponent::StaticClass(), UniqueName, RF_Transactional);
 
 
     NewSlot->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
@@ -157,7 +151,6 @@ USlotSceneComponent* ATeleportDestination::AddSlot()
 
 FName ATeleportDestination::GenerateUniqueSlotName(const FName& Base) const
 {
-    // Собираем занятые пользовательские имена
     TSet<FName> UsedNames;
     for (const USlotSceneComponent* S : Slots)
     {
@@ -167,7 +160,6 @@ FName ATeleportDestination::GenerateUniqueSlotName(const FName& Base) const
         }
     }
 
-    // Подбираем “Base1”, “Base2”, ...
     int32 Index = 1;
     FName Candidate;
     do
@@ -175,8 +167,7 @@ FName ATeleportDestination::GenerateUniqueSlotName(const FName& Base) const
         Candidate = *FString::Printf(TEXT("%s%d"), *Base.ToString(), Index++);
     } while (UsedNames.Contains(Candidate));
 
-    // Обеспечиваем уникальность имени UObject среди компонентов
-    return Candidate;//MakeUniqueObjectName(this, USlotSceneComponent::StaticClass(), Candidate);
+    return Candidate;
 }
 
 void ATeleportDestination::EnsureSlotAttached(USlotSceneComponent* Slot)
@@ -186,7 +177,6 @@ void ATeleportDestination::EnsureSlotAttached(USlotSceneComponent* Slot)
         return;
     }
 
-    // Безопасно: AddInstanceComponent сам проверяет наличие
     AddInstanceComponent(Slot);
 
     if (!Slot->GetAttachParent())
@@ -202,35 +192,30 @@ void ATeleportDestination::EnsureSlotAttached(USlotSceneComponent* Slot)
 
 void ATeleportDestination::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-    //if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATeleportDestination, Slots))
-    //{
-        if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == FName("Slots"))
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Slots array changed"));
+    if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == FName("Slots"))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Slots array changed"));
 
-            // Можно проверить последний элемент:
-            if (Slots.Num() > 0 && Slots.Last() == nullptr)
-            {
-                // Автоматически создать слот
-                USlotSceneComponent* NewSlot = NewObject<USlotSceneComponent>(this, USlotSceneComponent::StaticClass(), NAME_None, RF_Transactional);
-                Slots[Slots.Num() - 1] = NewSlot;
-                NewSlot->SetIsVisualizationComponent(false);
-                NewSlot->SetOwnerName(DestinationID);
-                NewSlot->UpdateVisualsFromName();
-                Modify();
-            }
+        if (Slots.Num() > 0 && Slots.Last() == nullptr)
+        {
+            USlotSceneComponent* NewSlot = NewObject<USlotSceneComponent>(this, USlotSceneComponent::StaticClass(), NAME_None, RF_Transactional);
+            Slots[Slots.Num() - 1] = NewSlot;
+            NewSlot->SetIsVisualizationComponent(false);
+            NewSlot->SetOwnerName(DestinationID);
+            NewSlot->UpdateVisualsFromName();
+            Modify();
         }
+    }
 
-        if (GEditor)
-        {
-            GEditor->NoteSelectionChange(); // обновляет компонентную схему
-        }
-        // Страхуемся на случай ручных правок массива в Details
-        for (USlotSceneComponent* Slot : Slots)
-        {
-            EnsureSlotAttached(Slot);
-        }
-    //}
+    if (GEditor)
+    {
+        GEditor->NoteSelectionChange();
+    }
+
+    for (USlotSceneComponent* Slot : Slots)
+    {
+        EnsureSlotAttached(Slot);
+    }
 
     if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATeleportDestination, DestinationID))
     {
@@ -257,7 +242,6 @@ void ATeleportDestination::PostEditUndo()
 {
     Super::PostEditUndo();
 
-    // Восстанавливаем корректную регистрацию и прикрепление после Undo/Redo
     for (USlotSceneComponent* Slot : Slots)
     {
         EnsureSlotAttached(Slot);

@@ -1,3 +1,5 @@
+#if WITH_EDITOR
+
 #pragma once
 
 #include "IDetailCustomization.h"
@@ -7,9 +9,6 @@
 
 class IDetailLayoutBuilder;
 
-/**
- * Кастомизация Details Panel для ATeleportDestination
- */
 class FTeleportDestinationDetails : public IDetailCustomization
 {
 public:
@@ -18,12 +17,10 @@ public:
     virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 private:
-    // Обработчик кнопки "Add Slot"
     FReply OnAddSlotClicked();
 
-    // Ссылка на редактируемый актор
     TWeakObjectPtr<class ATeleportDestination> EditedActor;
 
-    // Хелпер для доступа к редакторским функциям
     IDetailLayoutBuilder* CachedDetailBuilder = nullptr;
 };
+#endif // WITH_EDITOR

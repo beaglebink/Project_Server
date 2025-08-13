@@ -24,14 +24,15 @@ void UTeleportingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
         return;
     }
 
-    TSoftObjectPtr<UDataTable> TablePtr = ISceneDataProvider::Execute_GetLevelDataTable(GI);
-    if (!TablePtr.IsValid())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Scene DataTable is not loaded, loading synchronously"));
-        TablePtr.LoadSynchronous();
-    }
+	LoadedSceneTable = ISceneDataProvider::Execute_TeleportDataTable(GI);
 
-    LoadedSceneTable = TablePtr.Get();
+
+	if (!LoadedSceneTable || !LoadedSceneTable->RowStruct)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Scene DataTable is invalid or missing RowStruct"));
+		return;
+	}
+
     if (LoadedSceneTable)
     {
         UE_LOG(LogTemp, Log, TEXT("Scene DataTable loaded: %s"), *LoadedSceneTable->GetName());
@@ -45,7 +46,6 @@ void UTeleportingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UTeleportingSubsystem::Deinitialize()
 {
-    //LoadedTeleportTable = nullptr;
     Super::Deinitialize();
 }
 
@@ -83,6 +83,14 @@ void UTeleportingSubsystem::UnregistrationTeleportingActor(AActor* Actor)
 
 void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString DestinationId)
 {
+	UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination ObjectId %s DestinationId %s"), *ObjectId, *DestinationId);
+
+	if (!LoadedSceneTable)
+	{
+		UE_LOG(LogTemp, Log, TEXT("DataTable not loaded, cannot teleport"));
+		return;
+	}
+
 	TArray<FName> RowNames = LoadedSceneTable->GetRowNames();
 	AActor* DestinationActor = nullptr;
 	AActor* TeleportingActor = nullptr;
@@ -97,6 +105,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 				if (TeleportDestination && TeleportDestination->DestinationID == DestinationId)
 				{
 					DestinationActor = TeleportDestination;
+					UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination DestinationActor %s"), *DestinationActor->GetName());
 				}
 			}
             
@@ -108,6 +117,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					if (TeleportingComponent && TeleportingComponent->ObjectID == ObjectId)
 					{
 						TeleportingActor = Actor;
+						UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination TeleportingActor %s"), *TeleportingActor->GetName());
 					}
 				}
 			}
@@ -131,12 +141,14 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					FVector DestinationLocation = Slot->GetComponentLocation();
 					FRotator DestinationRotation = Slot->GetComponentRotation();
 
-					FVector RootShift = FVector(0, 0, 1);//Origin - TeleportingActorLocation;
+					FVector RootShift = FVector(0, 0, 1);
 
 					FVector OriginNew;
 					FVector BoxExtentNew;
+					FRotator BoxRotation;
 
-					RelativeReorientation(TeleportingActor, Slot, OriginNew, BoxExtentNew);
+
+					RelativeReorientation(TeleportingActor, Slot, OriginNew, BoxExtentNew, BoxRotation);
 
 					TArray<AActor*> ActorsToIgnore;
 					ActorsToIgnore.Add(DestinationActor);
@@ -152,13 +164,16 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 							DestinationLocation + RootShift * i,
 							DestinationLocation + RootShift * i,
 							BoxExtentNew,
-							DestinationRotation,
+							BoxRotation,
 							UEngineTypes::ConvertToTraceType(ECC_Visibility),
 							false,
 							ActorsToIgnore,
-							EDrawDebugTrace::None,
+							EDrawDebugTrace::ForDuration,
 							HitResult,
-							false
+							false, 
+							FLinearColor::Red,
+							FLinearColor::Green,
+							10.f
 						);
 
 						if (!HitResult.bBlockingHit)
@@ -168,13 +183,12 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 							Shift = i;
 
-							break; // Выходим из цикла, если нашли подходящий слот
+							break;
 						}
 					}
 
 					if (Shift >= 0)
 					{
-						// Если нашли подходящий слот, выходим из цикла
 						break;
 					}
 				}
@@ -199,9 +213,38 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 	UE_LOG(LogTemp, Warning, TEXT("No teleport row found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
 }
 
-void UTeleportingSubsystem::RelativeReorientation(const AActor* TargetActor, USceneComponent* TeleportSlot, FVector& NewOrigin, FVector& NewExtent)
+void UTeleportingSubsystem::RelativeReorientation(const AActor* TargetActor, USceneComponent* TeleportSlot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation)
 {
-	AActor* CopyActor = const_cast<AActor*>(TargetActor);
-	CopyActor->SetActorRotation(TeleportSlot->GetComponentRotation());
-	CopyActor->GetActorBounds(true, NewOrigin, NewExtent);
+	if (!TargetActor || !TeleportSlot)
+	{
+		OutOrigin = FVector::ZeroVector;
+		OutExtent = FVector::ZeroVector;
+		OutRotation = FRotator::ZeroRotator;
+		return;
+	}
+
+	USceneComponent* RootComponent = TargetActor->GetRootComponent();
+	if (!RootComponent)
+	{
+		OutOrigin = FVector::ZeroVector;
+		OutExtent = FVector::ZeroVector;
+		OutRotation = FRotator::ZeroRotator;
+		return;
+	}
+
+	// Получаем локальный Transform RootComponent относительно актора
+	const FTransform LocalTransform = RootComponent->GetComponentTransform();
+
+	// Получаем Transform слота
+	const FTransform SlotTransform = TeleportSlot->GetComponentTransform();
+
+	// Виртуальный ComponentToWorld: как если бы RootComponent был прикреплён к слоту
+	const FTransform VirtualTransform = LocalTransform * SlotTransform;
+
+	// Вычисляем Bounds
+	const FBoxSphereBounds VirtualBounds = RootComponent->CalcBounds(VirtualTransform);
+
+	OutOrigin = VirtualBounds.Origin;
+	OutExtent = VirtualBounds.BoxExtent;
+	OutRotation = VirtualTransform.GetRotation().Rotator(); // ориентация бокса
 }

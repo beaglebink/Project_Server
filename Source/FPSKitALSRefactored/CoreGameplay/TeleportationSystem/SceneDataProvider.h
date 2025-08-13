@@ -18,7 +18,6 @@ class FPSKITALSREFACTORED_API ISceneDataProvider
     GENERATED_BODY()
 
 public:
-
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SceneData")
-    TSoftObjectPtr<UDataTable> GetLevelDataTable();
+    UDataTable* TeleportDataTable() const;
 };

@@ -5,9 +5,7 @@
 #include "Engine/DataTable.h"
 #include "TeleportingSubsystem.generated.h"
 
-/**
- * Строка таблицы телепортации.
- */
+
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FTeleportTableRow : public FTableRowBase
 {
@@ -20,9 +18,7 @@ struct FPSKITALSREFACTORED_API FTeleportTableRow : public FTableRowBase
     FString DestinationID;
 };
 
-/**
- * Подсистема телепортации, получающая доступ к таблице сцен через интерфейс GameInstance.
- */
+
 UCLASS()
 class FPSKITALSREFACTORED_API UTeleportingSubsystem : public UGameInstanceSubsystem
 {
@@ -49,7 +45,7 @@ public:
 	void TeleportToDestination(FString ObjectId, FString DestinationId);
 
 private:
-    void RelativeReorientation(const AActor* TargetActor, USceneComponent* TeleportSlot, FVector& NewOrigin, FVector& NewExtent);
+    void RelativeReorientation(const AActor* TargetActor, USceneComponent* TeleportSlot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation);
 
 private:
     UPROPERTY()
@@ -59,18 +55,4 @@ private:
     TArray<AActor*> TeleportingActors;
 
     UDataTable* LoadedSceneTable;
-
-    /*
-
-
-    UFUNCTION(BlueprintCallable, Category = "Teleporting")
-    FTeleportTableRow GetTeleportRowByID(FName RowID) const;
-
-protected:
-
-    UPROPERTY()
-    UDataTable* LoadedTeleportTable;
-
-
-    */
 };

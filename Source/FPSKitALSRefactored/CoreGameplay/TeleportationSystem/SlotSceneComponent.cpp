@@ -8,7 +8,6 @@
 #include "ScopedTransaction.h"
 #include "UObject/UObjectGlobals.h"
 #if WITH_EDITORONLY_DATA
-// ƒл€ санитайза имени Ч в .Build.cs добавьте условную зависимость на UnrealEd в Editor-сборках
 #include "ObjectTools.h"
 #endif
 #endif
@@ -17,7 +16,7 @@ USlotSceneComponent::USlotSceneComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
     SetMobility(EComponentMobility::Movable);
-    bHiddenInGame = true; // слоты Ч редакторные ориентиры
+    bHiddenInGame = true; 
 }
 
 void USlotSceneComponent::SetOwnerName(const FString Name)
@@ -29,20 +28,19 @@ void USlotSceneComponent::OnRegister()
 {
     Super::OnRegister();
 
-    // √арантированное присоединение к корню актора, если компонент не приаттачен €вно
     if (!GetAttachParent())
     {
         if (AActor* Owner = GetOwner())
         {
             if (USceneComponent* Root = Owner->GetRootComponent())
             {
-                //SetupAttachment(Root);
 				AttachToComponent(Root, FAttachmentTransformRules::KeepRelativeTransform);
 
                 Modify();
-
+#if WITH_EDITOR
                 Owner->PostEditChange();
                 Owner->RerunConstructionScripts();
+#endif // WITH_EDITOR
             }
         }
     }
@@ -53,7 +51,7 @@ void USlotSceneComponent::OnRegister()
 
     if (GEditor)
     {
-        GEditor->NoteSelectionChange(); // обновл€ет Details и компонентную схему
+        GEditor->NoteSelectionChange();
     }
 #endif
 }
@@ -70,10 +68,8 @@ void USlotSceneComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 
     if (PropName == GET_MEMBER_NAME_CHECKED(USlotSceneComponent, SlotName))
     {
-        // ƒержим UI синхронизированным
         UpdateVisualsFromName();
 
-        // ќпционально Ч переименовать сам объект компонента под SlotName (дл€ чистой иерархии)
         TryRenameObjectToMatchSlotName();
     }
 }
@@ -81,7 +77,6 @@ void USlotSceneComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 void USlotSceneComponent::PostDuplicate(bool bDuplicateForPIE)
 {
     Super::PostDuplicate(bDuplicateForPIE);
-    // ƒублирование в редакторе Ч обеспечим уникальные имена
     TryRenameObjectToMatchSlotName();
     UpdateVisualsFromName();
 }
@@ -152,9 +147,8 @@ FName USlotSceneComponent::MakeSafeUniqueName(UObject* Outer, UClass* Class, con
 
 void USlotSceneComponent::TryRenameObjectToMatchSlotName()
 {
-    if (IsTemplate() || !GetOuter()) return; // не трогаем CDO/шаблоны
+    if (IsTemplate() || !GetOuter()) return;
 
-    // ѕустое им€ не трогаем
     if (SlotName.IsNone()) return;
 
     const FName Desired = MakeSafeUniqueName(GetOuter(), GetClass(), SlotName);
@@ -164,7 +158,6 @@ void USlotSceneComponent::TryRenameObjectToMatchSlotName()
     const FScopedTransaction Tx(NSLOCTEXT("NamedSlot", "RenameSlotComponent", "Rename Slot Component"));
     Modify();
 
-    // Rename внутри того же Outer, чтобы сохранить инстанс
     Rename(*Desired.ToString(), GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors);
 }
 

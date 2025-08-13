@@ -14,11 +14,24 @@ class FPSKITALSREFACTORED_API USlotSceneComponent : public USceneComponent
 public:
     USlotSceneComponent();
 
-    // Единственный источник правды
-    UPROPERTY(EditAnywhere, Category = "Slot")
-    FName SlotName = NAME_None;
 
     void SetOwnerName(const FString Name);
+    virtual void OnRegister() override;
+
+#if WITH_EDITOR
+    void UpdateVisualsFromName();
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+    virtual void PostDuplicate(bool bDuplicateForPIE) override;
+    virtual void PostEditUndo() override;
+private:
+    void EnsureHelpers();
+    void TryRenameObjectToMatchSlotName();
+    static FName MakeSafeUniqueName(UObject* Outer, UClass* Class, const FName& Desired);
+#endif
+
+public:
+    UPROPERTY(EditAnywhere, Category = "Slot")
+    FName SlotName = NAME_None;
 
 #if WITH_EDITORONLY_DATA
 protected:
@@ -29,24 +42,6 @@ protected:
     TObjectPtr<UTextRenderComponent> Label = nullptr;
 #endif
 
-    // USceneComponent
-    virtual void OnRegister() override;
-
-#if WITH_EDITOR
-    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-    virtual void PostDuplicate(bool bDuplicateForPIE) override;
-    virtual void PostEditUndo() override;
-#endif
-
 private:
     FString OwnerName;
-
-#if WITH_EDITOR
-public:
-    void UpdateVisualsFromName();
-private:
-    void EnsureHelpers();
-    void TryRenameObjectToMatchSlotName();
-    static FName MakeSafeUniqueName(UObject* Outer, UClass* Class, const FName& Desired);
-#endif
 };
