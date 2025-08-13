@@ -168,7 +168,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 							UEngineTypes::ConvertToTraceType(ECC_Visibility),
 							false,
 							ActorsToIgnore,
-							EDrawDebugTrace::ForDuration,
+							EDrawDebugTrace::None,
 							HitResult,
 							false, 
 							FLinearColor::Red,
