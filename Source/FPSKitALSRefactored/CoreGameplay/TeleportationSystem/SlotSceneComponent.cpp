@@ -58,6 +58,17 @@ void USlotSceneComponent::OnRegister()
 
 #if WITH_EDITOR
 
+void USlotSceneComponent::SetActiveSlot(bool bActive)
+{
+    IsActiveSlot = bActive;
+    OnChangeActive.Broadcast(this, IsActiveSlot);
+}
+
+bool USlotSceneComponent::GetActiveSlot() const
+{
+    return IsActiveSlot;
+}
+
 void USlotSceneComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -99,6 +110,7 @@ void USlotSceneComponent::EnsureHelpers()
         Arrow->SetArrowColor(FColor::Cyan);
         Arrow->SetupAttachment(this);
         Arrow->RegisterComponent();
+		Arrow->SetRelativeLocation(FVector(0.f, 0.f, 5.f));
         GetOwner()->AddInstanceComponent(Arrow);
     }
 

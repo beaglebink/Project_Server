@@ -7,6 +7,8 @@
 class UArrowComponent;
 class UTextRenderComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChangeActive, USlotSceneComponent*, Slot, bool, IsActive);
+
 UCLASS(ClassGroup = (Custom), BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, meta = (BlueprintSpawnableComponent), HideCategories = ("Rendering", "Physics", "Mobility", "LOD", "Tags", "AssetUserData", "Activation", "Navigation", "Cooking"))
 class FPSKITALSREFACTORED_API USlotSceneComponent : public USceneComponent
 {
@@ -14,9 +16,17 @@ class FPSKITALSREFACTORED_API USlotSceneComponent : public USceneComponent
 public:
     USlotSceneComponent();
 
-
     void SetOwnerName(const FString Name);
     virtual void OnRegister() override;
+
+	UFUNCTION(BlueprintCallable, Category = "Slot")
+    void SetActiveSlot(bool bActive);
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+    bool GetActiveSlot() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+	FName GetSlotName() const { return SlotName; }
 
 #if WITH_EDITOR
     void UpdateVisualsFromName();
@@ -32,6 +42,12 @@ private:
 public:
     UPROPERTY(EditAnywhere, Category = "Slot")
     FName SlotName = NAME_None;
+
+    UPROPERTY(BlueprintAssignable, Category = "Slot")
+	FOnChangeActive OnChangeActive;
+
+	UPROPERTY(EditInstanceOnly, Category = "Slot", meta = (AllowPrivateAccess = "true"))
+	bool IsActiveSlot = true;
 
 #if WITH_EDITORONLY_DATA
 protected:

@@ -104,6 +104,9 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 				ATeleportDestination* TeleportDestination = Cast<ATeleportDestination>(Destination);
 				if (TeleportDestination && TeleportDestination->DestinationID == DestinationId)
 				{
+					if (TeleportDestination->IsActiveDestination == false)
+						continue;
+
 					DestinationActor = TeleportDestination;
 					UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination DestinationActor %s"), *DestinationActor->GetName());
 				}
@@ -133,6 +136,11 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 				for (USlotSceneComponent* Slot : TeleportDestination->Slots)
 				{
 					if (!Slot) continue;
+
+					if (Slot->GetActiveSlot() == false)
+					{
+						continue;
+					}
 
 					FVector Origin;
 					FVector BoxExtent;
@@ -196,6 +204,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 				if (SlotComponent)
 				{
 					TeleportingActor->SetActorLocationAndRotation(SlotComponent->GetComponentLocation(), SlotComponent->GetComponentRotation());
+					OnTeleportation.Broadcast(Cast<ATeleportDestination>(DestinationActor), SlotComponent, TeleportingActor);
 					UE_LOG(LogTemp, Log, TEXT("Teleported %s to %s slot %s"), *TeleportingActor->GetName(), *DestinationActor->GetName(), *SlotName);
 				}
 				else

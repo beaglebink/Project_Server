@@ -6,6 +6,7 @@
 #include "Components/BillboardComponent.h"
 #include "TeleportDestination.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChangeActiveDestination, ATeleportDestination*, Destination, bool, IsActive);
 
 UCLASS()
 class FPSKITALSREFACTORED_API ATeleportDestination : public AActor
@@ -23,6 +24,21 @@ public:
 
     UFUNCTION(CallInEditor, BlueprintCallable, Category = "Slots")
     USlotSceneComponent* AddSlot();
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+    TArray<USlotSceneComponent*> GetSlots() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Slot")
+    USlotSceneComponent* GetSlotByName(const FName& SlotName) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Slot")
+    USlotSceneComponent* GetSlotByIndex(int32 Index) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Teleportation")
+    void SetActiveDestination(bool bActive);
+
+    UFUNCTION(BlueprintCallable, Category = "Teleportation")
+    bool GetActiveDestination() const;
 
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -49,4 +65,10 @@ public:
 
     UPROPERTY(Transient)
     TObjectPtr<UTextRenderComponent> Label = nullptr;
+
+    UPROPERTY(EditInstanceOnly, Category = "Teleportation", meta = (AllowPrivateAccess = "true"))
+    bool IsActiveDestination = true;
+
+    UPROPERTY(BlueprintAssignable, Category = "Teleportation")
+	FOnChangeActiveDestination OnChangeActiveDestination;
 };

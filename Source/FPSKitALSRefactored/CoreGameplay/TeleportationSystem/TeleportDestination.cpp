@@ -147,6 +147,11 @@ USlotSceneComponent* ATeleportDestination::AddSlot()
 #endif
 }
 
+TArray<USlotSceneComponent*> ATeleportDestination::GetSlots() const
+{
+    return Slots;
+}
+
 #if WITH_EDITOR
 
 FName ATeleportDestination::GenerateUniqueSlotName(const FName& Base) const
@@ -188,6 +193,38 @@ void ATeleportDestination::EnsureSlotAttached(USlotSceneComponent* Slot)
     {
         Slot->RegisterComponent();
     }
+}
+
+USlotSceneComponent* ATeleportDestination::GetSlotByName(const FName& SlotName) const
+{
+    for (USlotSceneComponent* Slot : Slots)
+    {
+        if (Slot && Slot->SlotName == SlotName)
+        {
+            return Slot;
+        }
+    }
+    return nullptr;
+}
+
+USlotSceneComponent* ATeleportDestination::GetSlotByIndex(int32 Index) const
+{
+    if (Slots.IsValidIndex(Index))
+    {
+        return Slots[Index];
+    }
+    return nullptr;
+}
+
+void ATeleportDestination::SetActiveDestination(bool bActive)
+{
+	IsActiveDestination = bActive;
+	OnChangeActiveDestination.Broadcast(this, IsActiveDestination);
+}
+
+bool ATeleportDestination::GetActiveDestination() const
+{
+    return IsActiveDestination;
 }
 
 void ATeleportDestination::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

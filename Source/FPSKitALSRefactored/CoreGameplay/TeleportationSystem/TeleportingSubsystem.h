@@ -5,6 +5,7 @@
 #include "Engine/DataTable.h"
 #include "TeleportingSubsystem.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTeleportation, ATeleportDestination*, Destination, USlotSceneComponent*, Slot, AActor*, Actor);
 
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FTeleportTableRow : public FTableRowBase
@@ -43,6 +44,10 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Teleportation")
 	void TeleportToDestination(FString ObjectId, FString DestinationId);
+
+public:
+    UPROPERTY(BlueprintAssignable, Category = "Teleportation")
+	FOnTeleportation OnTeleportation;
 
 private:
     void GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation);
