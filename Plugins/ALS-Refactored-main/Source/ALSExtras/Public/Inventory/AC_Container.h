@@ -5,7 +5,6 @@
 #include "Components/ActorComponent.h"
 #include "AC_Container.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnArmourChanged, float, Armour);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeightChanged, float, Weight);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, float, Money);
 
@@ -33,9 +32,6 @@ public:
 	float TradeCoefficient = 1.0f;
 
 	UPROPERTY(BlueprintAssignable)
-	FOnArmourChanged OnArmourChanged;
-
-	UPROPERTY(BlueprintAssignable)
 	FOnWeightChanged OnWeightChanged;
 
 	UPROPERTY(BlueprintAssignable)
@@ -58,9 +54,6 @@ protected:
 
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Summary")
-	float TotalArmour;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Summary")
 	float TotalWeight;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Summary")
@@ -72,16 +65,10 @@ private:
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Summary")
-	float GetArmour();
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Summary")
 	float GetWeight();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Summary")
 	float GetMoney();
-
-	UFUNCTION(BlueprintCallable, Category = "Summary")
-	void SetArmour(float NewArmour);
 
 	UFUNCTION(BlueprintCallable, Category = "Summary")
 	void SetWeight(float NewWeight);

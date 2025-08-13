@@ -23,6 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVitalityChanged, float, Vitality
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAgilityChanged, float, Agility, float, MaxAgility);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDexterityChanged, float, Dexterity, float, MaxDexterity);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPerceptionChanged, float, Perception, float, MaxPerception);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnArmourChanged, float, Armour);
 
 struct FAlsMantlingParameters;
 struct FAlsMantlingTraceSettings;
@@ -691,6 +692,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Attributes", meta = (ClampMin = "0.0", ClampMax = "1000.0", AllowPrivateAccess = "true"))
 	float Perception = 100.0f;
 
+	UPROPERTY(VisibleDefaultsOnly, Category = "Attributes", meta = (AllowPrivateAccess = "true"))
+	float Armour = 0.0f;
+	
+	//Multipliers
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
 	float RecoilMultiplier = 1.0f;
 
@@ -699,29 +704,32 @@ private:
 
 public:
 	//delegates
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnHealthChanged OnHealthChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnStaminaChanged OnStaminaChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnStrengthChanged OnStrengthChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnEnduranceChanged OnEnduranceChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnVitalityChanged OnVitalityChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnAgilityChanged OnAgilityChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnDexterityChanged OnDexterityChanged;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable)
 	FOnPerceptionChanged OnPerceptionChanged;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnArmourChanged OnArmourChanged;
 
 	//getters
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
@@ -772,6 +780,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetPerception();
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
+	float GetArmour();
+
 	//setters
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetMaxHealth(float NewMaxHealth);
@@ -820,6 +831,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetPerception(float NewPerception);
+
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
+	void SetArmour(float NewArmour);
 
 	// Recovery
 private:
@@ -1003,7 +1017,7 @@ private:
 	//ArmLock effect
 protected:
 	UPROPERTY(BlueprintReadWrite, Category = "ArmLockEffect")
-	uint8 bArmLockEffectIsActive :1 {false};
+	uint8 bArmLockEffectIsActive : 1 {false};
 
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ArmLockEffect")
@@ -1398,6 +1412,10 @@ protected:
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
 	uint8 bShouldIgnoreArmLock : 1{false};
+
+	//Effect_29
+protected:
+	uint8 bShouldConvertDamageToStamina_30 : 1{false};
 
 };
 

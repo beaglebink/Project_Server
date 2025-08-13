@@ -276,11 +276,6 @@ void UAC_Container::BeginPlay()
 	CountContainerWeight();
 }
 
-float UAC_Container::GetArmour()
-{
-	return TotalArmour;
-}
-
 float UAC_Container::GetWeight()
 {
 	return TotalWeight;
@@ -289,12 +284,6 @@ float UAC_Container::GetWeight()
 float UAC_Container::GetMoney()
 {
 	return TotalMoney;
-}
-
-void UAC_Container::SetArmour(float NewArmour)
-{
-	TotalArmour = NewArmour;
-	OnArmourChanged.Broadcast(TotalArmour);
 }
 
 void UAC_Container::SetWeight(float NewWeight)

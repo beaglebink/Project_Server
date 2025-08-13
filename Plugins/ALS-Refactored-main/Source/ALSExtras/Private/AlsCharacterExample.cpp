@@ -1383,7 +1383,7 @@ void AAlsCharacterExample::SetEffect_28(bool Apply)
 		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 			{
 				SetEffect_28();
-			}, 10.0f, false);
+			}, 120.0f, false);
 	}
 	else
 	{
@@ -1397,6 +1397,20 @@ void AAlsCharacterExample::SetEffect_28(bool Apply)
 
 void AAlsCharacterExample::SetEffect_29(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldConvertDamageToStamina_30 = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_29();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bShouldConvertDamageToStamina_30 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_30(bool Apply)

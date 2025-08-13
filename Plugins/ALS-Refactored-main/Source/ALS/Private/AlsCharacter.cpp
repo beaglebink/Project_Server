@@ -1974,6 +1974,11 @@ float AAlsCharacter::GetPerception()
 	return Perception;
 }
 
+float AAlsCharacter::GetArmour()
+{
+	return Armour;
+}
+
 void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 {
 	MaxHealth = NewMaxHealth;
@@ -1985,7 +1990,6 @@ void AAlsCharacter::SetHealth(float NewHealth)
 
 	if (HealthDiff > 0)
 	{
-
 		HealthDiff *= HealthLossRate;
 
 		if (bShouldReduceStamina)
@@ -1999,6 +2003,20 @@ void AAlsCharacter::SetHealth(float NewHealth)
 			{
 				SetStamina(GetStamina() - HealthDiff);
 				HealthDiff = 0.0f;
+			}
+		}
+
+		if (bShouldConvertDamageToStamina_30)
+		{
+			if (GetStamina() - HealthDiff * 0.3f < 0)
+			{
+				HealthDiff -= GetStamina();
+				SetStamina(0.0f);
+			}
+			else
+			{
+				SetStamina(GetStamina() - HealthDiff * 0.3f);
+				HealthDiff *= 0.7f;
 			}
 		}
 	}
@@ -2092,6 +2110,12 @@ void AAlsCharacter::SetPerception(float NewPerception)
 {
 	Perception = FMath::Clamp(NewPerception, 0.0f, GetMaxPerception());
 	OnPerceptionChanged.Broadcast(Perception, MaxPerception);
+}
+
+void AAlsCharacter::SetArmour(float NewArmour)
+{
+	Armour = FMath::Max(NewArmour, 0.0f);
+	OnArmourChanged.Broadcast(Armour);
 }
 
 void AAlsCharacter::HealthRecovery()

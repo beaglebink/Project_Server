@@ -31,9 +31,13 @@ void UW_Inventory::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
+	if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Container->GetOwner()))
+	{
+		Character->OnArmourChanged.AddDynamic(this, &UW_Inventory::RefreshArmour);
+	}
+
 	if (Container)
 	{
-		Container->OnArmourChanged.AddDynamic(this, &UW_Inventory::RefreshArmour);
 		Container->OnWeightChanged.AddDynamic(this, &UW_Inventory::RefreshWeight);
 		Container->OnMoneyChanged.AddDynamic(this, &UW_Inventory::RefreshMoney);
 	}
@@ -58,7 +62,11 @@ void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
 
 void UW_Inventory::RefreshArmour(float Armour)
 {
+	Armour = FMath::Max(Armour, 0.0f);
 
+	FString OutText = FString::Printf(TEXT("%.0f"), Armour);
+
+	TextBlock_TotalArmour->SetText(FText::FromString(OutText));
 }
 
 void UW_Inventory::RefreshWeight(float Weight)
@@ -80,6 +88,8 @@ void UW_Inventory::RefreshWeight(float Weight)
 
 void UW_Inventory::RefreshMoney(float Money)
 {
+	Money = FMath::Max(Money, 0.0f);
+
 	FString OutText(FString::Printf(TEXT("%.2f"), Money));
 
 	if (Money == FMath::Floor(Money))
