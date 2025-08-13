@@ -1335,10 +1335,38 @@ void AAlsCharacterExample::SetEffect_25(bool Apply)
 
 void AAlsCharacterExample::SetEffect_26(bool Apply)
 {
+	if (Apply)
+	{
+		bAimAccuracyOnStrafing_30 = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_26();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bAimAccuracyOnStrafing_30 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_27(bool Apply)
 {
+	if (Apply)
+	{
+		bAimAccuracyOnWalking_30 = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_27();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bAimAccuracyOnWalking_30 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_28(bool Apply)

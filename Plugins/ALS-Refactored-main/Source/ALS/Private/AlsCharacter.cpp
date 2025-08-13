@@ -341,7 +341,7 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	RefreshRecoil();
 
-	RefreshAimPrecisionOnMoveMultiplier();
+	RefreshAimAccuracy();
 
 	RefreshDamageAmountOnMovingOrOnStanding();
 }
@@ -2924,23 +2924,38 @@ void AAlsCharacter::RefreshStaminaHealthRunningMultiplier()
 	}
 }
 
-void AAlsCharacter::RefreshAimPrecisionOnMoveMultiplier()
+void AAlsCharacter::RefreshAimAccuracy()
 {
-	if (bIsAimPrecisionOnMoveApplied && IsAiming)
+	AimAccuracyOnMove = 1.0f;
+	AimAccuracyOnStrafing = 1.0f;
+	AimAccuracyOnWalking = 1.0f;
+
+	if (IsAiming)
 	{
-		if (GetVelocity().Length() == 0.0f)
+		if (bIsAimPrecisionOnMoveApplied)
 		{
-			AimPrecisionOnMoveMultiplier = 1.25f;
+			if (GetVelocity().Length() == 0.0f)
+			{
+				AimAccuracyOnMove = 1.25f;
+			}
+			else
+			{
+				AimAccuracyOnMove = 0.75f;
+			}
 		}
-		else
+
+		if (bAimAccuracyOnStrafing_30 && GetVelocity().Length() > 0.0f && FMath::IsNearlyEqual(FVector::DotProduct(GetVelocity().GetSafeNormal(), GetActorForwardVector()), 0.0f, 0.001f))
 		{
-			AimPrecisionOnMoveMultiplier = 0.75f;
+			AimAccuracyOnStrafing = 0.7f;
+		}
+
+		if (bAimAccuracyOnWalking_30 && GetVelocity().Length() > 0.0f && GetGait() == AlsGaitTags::Walking)
+		{
+			AimAccuracyOnWalking = 0.7f;
 		}
 	}
-	else
-	{
-		AimPrecisionOnMoveMultiplier = 1.0f;
-	}
+
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking;
 }
 
 void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()

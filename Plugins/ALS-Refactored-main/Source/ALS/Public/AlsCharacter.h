@@ -694,6 +694,9 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
 	float RecoilMultiplier = 1.0f;
 
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
+	float AimAccuracyMultiplier = 1.0f;
+
 public:
 	//delegates
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
@@ -825,6 +828,8 @@ private:
 	void StaminaRecovery();
 
 	void RefreshRecoil();
+
+	void RefreshAimAccuracy();
 
 	// What does stamina affect
 public:
@@ -1279,14 +1284,10 @@ protected:
 	void RefreshStaminaHealthRunningMultiplier();
 
 	//Effect_8
-public:
-	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
-	float AimPrecisionOnMoveMultiplier = 1.0f;
-
 protected:
 	uint8 bIsAimPrecisionOnMoveApplied : 1{false};
 
-	void RefreshAimPrecisionOnMoveMultiplier();
+	float AimAccuracyOnMove = 1.0f;
 
 	//Effect_9
 protected:
@@ -1359,14 +1360,31 @@ protected:
 	//Effect_23
 protected:
 	uint8 bShouldIgnoreDamage : 1{false};
-	
+
 	//Effect_24
 protected:
 	uint8 bShouldReduceDamageMelee : 1{false};
-	
+
 	//Effect_25
 protected:
 	uint8 bShouldReduceDamageProjectile : 1{false};
+
+	//Effect_26
+protected:
+	uint8 bAimAccuracyOnStrafing_30 : 1{false};
+
+	float AimAccuracyOnStrafing = 1.0f;
+
+	void RefreshAimAccuracyOnStrafing();
+
+	//Effect_27
+protected:
+	uint8 bAimAccuracyOnWalking_30 : 1{false};
+
+	float AimAccuracyOnWalking = 1.0f;
+
+	void RefreshAimAccuracyOnWalking();
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
