@@ -344,6 +344,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	RefreshAimAccuracy();
 
 	RefreshDamageAmountOnMovingOrOnStanding();
+
+	RefreshDamage();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2020,11 +2022,14 @@ void AAlsCharacter::SetHealth(float NewHealth)
 			}
 		}
 	}
+	CalculateDamageSlowdownDuration(NewHealth);
+
 	Health = FMath::Clamp(GetHealth() - HealthDiff, 0.0f, GetMaxHealth());
 
 	RefreshStaminaAndRecoilIfHealthIsUnder_20();
-	CheckForHealthReplenish(Health);
-	CalculateDamageSlowdownDuration(Health);
+	CheckForHealthReplenish();
+	CheckIfHealthIsUnder_20();
+
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
 
@@ -2155,7 +2160,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
-		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier;
+		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier * LastStandSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2241,14 +2246,16 @@ void AAlsCharacter::StunRecovery()
 void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)
 {
 	float DeltaHealth = GetHealth() - NewHealth;
-	float DamageSlowdownDuration = DeltaHealth / 10.0f * DamageSlowdownTime;
-	if (DeltaHealth > 0)
+	if (DeltaHealth <= 0)
 	{
-		DamageSlowdownMultiplier -= (DeltaHealth / GetMaxHealth() * DamageSlowdownEffect);
-
-		FTimerHandle TimerHandle;
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {DamageSlowdownMultiplier = 1.0f; }, DamageSlowdownDuration + 0.001f, false);
+		return;
 	}
+
+	float DamageSlowdownDuration = DeltaHealth / 10.0f * DamageSlowdownTime;
+	DamageSlowdownMultiplier -= (DeltaHealth / GetMaxHealth() * DamageSlowdownEffect);
+
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {DamageSlowdownMultiplier = 1.0f; }, DamageSlowdownDuration + 0.001f, false);
 }
 
 void AAlsCharacter::CalculateSpeedMultiplierOnGoingUpOrDown()
@@ -2919,9 +2926,9 @@ void AAlsCharacter::SprintTimeDelayCount()
 	SprintTimeDelay = FMath::Clamp(SprintTimeDelay, 0.0f, SprintTimeDelayMax);
 }
 
-void AAlsCharacter::CheckForHealthReplenish(float HealthValue)
+void AAlsCharacter::CheckForHealthReplenish()
 {
-	if (bShouldReplenish_50 && HealthValue <= 10.0f)
+	if (bShouldReplenish_50 && GetHealth() <= 10.0f)
 	{
 		bShouldReplenish_50 = false;
 		Health = 50.0f;
@@ -2986,6 +2993,11 @@ void AAlsCharacter::RefreshAimAccuracy()
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking;
 }
 
+void AAlsCharacter::RefreshDamage()
+{
+	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier;
+}
+
 void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
 {
 	if (bIsHealthIsUnder_20 && GetHealth() < 20.0f)
@@ -3046,4 +3058,18 @@ float AAlsCharacter::RecalculateDamage(float Damage, FText WeaponName)
 	}
 
 	return Damage;
+}
+
+void AAlsCharacter::CheckIfHealthIsUnder_20()
+{
+	if (GetHealth() < GetMaxHealth() * 0.2f)
+	{
+		LastStandSpeedMultiplier = 1.2f;
+		LastStandDamageMultiplier = 0.8f;
+	}
+	else
+	{
+		LastStandSpeedMultiplier = 1.0f;
+		LastStandDamageMultiplier = 1.0f;
+	}
 }

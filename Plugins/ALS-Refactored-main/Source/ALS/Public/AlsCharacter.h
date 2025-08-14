@@ -701,6 +701,9 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
 	float AimAccuracyMultiplier = 1.0f;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
+	float MainDamageMultiplier = 1.0f;
 
 public:
 	//delegates
@@ -844,6 +847,8 @@ private:
 	void RefreshRecoil();
 
 	void RefreshAimAccuracy();
+
+	void RefreshDamage();
 
 	// What does stamina affect
 public:
@@ -1288,7 +1293,7 @@ protected:
 	uint8 bShouldReplenish_50 : 1{false};
 
 private:
-	void CheckForHealthReplenish(float HealthValue);
+	void CheckForHealthReplenish();
 
 	//Effect_6
 protected:
@@ -1342,7 +1347,6 @@ protected:
 protected:
 	uint8 bIsDamagedOnMovingOrOnStanding : 1{false};
 
-	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
 	float DamageMultiplier_13 = 1.0f;
 
 	void RefreshDamageAmountOnMovingOrOnStanding();
@@ -1417,6 +1421,15 @@ protected:
 protected:
 	uint8 bShouldConvertDamageToStamina_30 : 1{false};
 
+	//Effect_30
+protected:
+	uint8 bIsLastStandActive : 1{false};
+
+	float LastStandSpeedMultiplier = 1.0f;
+
+	float LastStandDamageMultiplier = 1.0f;
+
+	void CheckIfHealthIsUnder_20();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

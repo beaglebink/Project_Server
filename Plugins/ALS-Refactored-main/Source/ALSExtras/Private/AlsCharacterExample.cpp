@@ -1415,6 +1415,20 @@ void AAlsCharacterExample::SetEffect_29(bool Apply)
 
 void AAlsCharacterExample::SetEffect_30(bool Apply)
 {
+	if (Apply)
+	{
+		bIsLastStandActive = true;
+
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				SetEffect_30();
+			}, 900.0f, false);
+	}
+	else
+	{
+		bIsLastStandActive = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_31(bool Apply)
