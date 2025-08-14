@@ -36,6 +36,8 @@ AAlsCharacterExample::AAlsCharacterExample()
 
 	//PhysicsConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("PhysicsConstraint"));
 	//PhysicsConstraint->SetupAttachment(RootComponent);
+
+	EffectTimerHandles.SetNum(56);
 }
 
 void AAlsCharacterExample::BeginPlay()
@@ -60,6 +62,7 @@ void AAlsCharacterExample::BeginPlay()
 	FrameListSize = static_cast<uint8>(floor(RepeatingPeaceDuration / GetWorld()->GetDeltaSeconds()));
 
 	InitializeFoodEffectMap();
+	InitializeFoodEffectTimerDelegates();
 }
 
 void AAlsCharacterExample::NotifyControllerChanged()
@@ -839,6 +842,65 @@ void AAlsCharacterExample::SetSceneRenderComponents(AActor* Actor)
 	}
 }
 
+void AAlsCharacterExample::InitializeFoodEffectTimerDelegates()
+{
+	EffectTimerHandles[1].EffectDelegate.BindLambda([this]() {SetEffect_1(); });
+	EffectTimerHandles[2].EffectDelegate.BindLambda([this]() {SetEffect_2(); });
+	EffectTimerHandles[3].EffectDelegate.BindLambda([this]() {SetEffect_3(); });
+	EffectTimerHandles[4].EffectDelegate.BindLambda([this]() {SetEffect_4(); });
+	EffectTimerHandles[5].EffectDelegate.BindLambda([this]() {SetEffect_5(); });
+	EffectTimerHandles[6].EffectDelegate.BindLambda([this]() {SetEffect_6(); });
+	EffectTimerHandles[7].EffectDelegate.BindLambda([this]() {SetEffect_7(); });
+	EffectTimerHandles[8].EffectDelegate.BindLambda([this]() {SetEffect_8(); });
+	EffectTimerHandles[9].EffectDelegate.BindLambda([this]() {SetEffect_9(); });
+	EffectTimerHandles[10].EffectDelegate.BindLambda([this]() {SetEffect_10(); });
+	EffectTimerHandles[11].EffectDelegate.BindLambda([this]() {SetEffect_11(); });
+	EffectTimerHandles[12].EffectDelegate.BindLambda([this]() {SetEffect_12(); });
+	EffectTimerHandles[13].EffectDelegate.BindLambda([this]() {SetEffect_13(); });
+	EffectTimerHandles[14].EffectDelegate.BindLambda([this]() {SetEffect_14(); });
+	EffectTimerHandles[15].EffectDelegate.BindLambda([this]() {SetEffect_15(); });
+	EffectTimerHandles[16].EffectDelegate.BindLambda([this]() {SetEffect_16(); });
+	EffectTimerHandles[17].EffectDelegate.BindLambda([this]() {SetEffect_17(); });
+	EffectTimerHandles[18].EffectDelegate.BindLambda([this]() {SetEffect_18(); });
+	EffectTimerHandles[19].EffectDelegate.BindLambda([this]() {SetEffect_19(); });
+	EffectTimerHandles[20].EffectDelegate.BindLambda([this]() {SetEffect_20(); });
+	EffectTimerHandles[21].EffectDelegate.BindLambda([this]() {SetEffect_21(); });
+	EffectTimerHandles[22].EffectDelegate.BindLambda([this]() {SetEffect_22(); });
+	EffectTimerHandles[23].EffectDelegate.BindLambda([this]() {SetEffect_23(); });
+	EffectTimerHandles[24].EffectDelegate.BindLambda([this]() {SetEffect_24(); });
+	EffectTimerHandles[25].EffectDelegate.BindLambda([this]() {SetEffect_25(); });
+	EffectTimerHandles[26].EffectDelegate.BindLambda([this]() {SetEffect_26(); });
+	EffectTimerHandles[27].EffectDelegate.BindLambda([this]() {SetEffect_27(); });
+	EffectTimerHandles[28].EffectDelegate.BindLambda([this]() {SetEffect_28(); });
+	EffectTimerHandles[29].EffectDelegate.BindLambda([this]() {SetEffect_29(); });
+	EffectTimerHandles[30].EffectDelegate.BindLambda([this]() {SetEffect_30(); });
+	EffectTimerHandles[31].EffectDelegate.BindLambda([this]() {SetEffect_31(); });
+	EffectTimerHandles[32].EffectDelegate.BindLambda([this]() {SetEffect_32(); });
+	EffectTimerHandles[33].EffectDelegate.BindLambda([this]() {SetEffect_33(); });
+	EffectTimerHandles[34].EffectDelegate.BindLambda([this]() {SetEffect_34(); });
+	EffectTimerHandles[35].EffectDelegate.BindLambda([this]() {SetEffect_35(); });
+	EffectTimerHandles[36].EffectDelegate.BindLambda([this]() {SetEffect_36(); });
+	EffectTimerHandles[37].EffectDelegate.BindLambda([this]() {SetEffect_37(); });
+	EffectTimerHandles[38].EffectDelegate.BindLambda([this]() {SetEffect_38(); });
+	EffectTimerHandles[39].EffectDelegate.BindLambda([this]() {SetEffect_39(); });
+	EffectTimerHandles[40].EffectDelegate.BindLambda([this]() {SetEffect_40(); });
+	EffectTimerHandles[41].EffectDelegate.BindLambda([this]() {SetEffect_41(); });
+	EffectTimerHandles[42].EffectDelegate.BindLambda([this]() {SetEffect_42(); });
+	EffectTimerHandles[43].EffectDelegate.BindLambda([this]() {SetEffect_43(); });
+	EffectTimerHandles[44].EffectDelegate.BindLambda([this]() {SetEffect_44(); });
+	EffectTimerHandles[45].EffectDelegate.BindLambda([this]() {SetEffect_45(); });
+	EffectTimerHandles[46].EffectDelegate.BindLambda([this]() {SetEffect_46(); });
+	EffectTimerHandles[47].EffectDelegate.BindLambda([this]() {SetEffect_47(); });
+	EffectTimerHandles[48].EffectDelegate.BindLambda([this]() {SetEffect_48(); });
+	EffectTimerHandles[49].EffectDelegate.BindLambda([this]() {SetEffect_49(); });
+	EffectTimerHandles[50].EffectDelegate.BindLambda([this]() {SetEffect_50(); });
+	EffectTimerHandles[51].EffectDelegate.BindLambda([this]() {SetEffect_51(); });
+	EffectTimerHandles[52].EffectDelegate.BindLambda([this]() {SetEffect_52(); });
+	EffectTimerHandles[53].EffectDelegate.BindLambda([this]() {SetEffect_53(); });
+	EffectTimerHandles[54].EffectDelegate.BindLambda([this]() {SetEffect_54(); });
+	EffectTimerHandles[55].EffectDelegate.BindLambda([this]() {SetEffect_55(); });
+}
+
 void AAlsCharacterExample::InitializeFoodEffectMap()
 {
 	FoodEffectMap.Add(FoodEffectTags::Effect_1, [this](bool Apply) { SetEffect_1(Apply); });
@@ -911,11 +973,8 @@ void AAlsCharacterExample::SetEffect_1(bool Apply)
 	if (Apply)
 	{
 		RecoilMultiplier_1 = 0.7f;
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_1();
-			}, 900.0f, false);
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[1].EffectTimerHandle, EffectTimerHandles[1].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -929,11 +988,8 @@ void AAlsCharacterExample::SetEffect_2(bool Apply)
 	{
 		HealthAdd_25 = GetHealth() * 0.25f;
 		SetHealth(GetHealth() + HealthAdd_25);
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_2();
-			}, 300.0f, false);
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[2].EffectTimerHandle, EffectTimerHandles[2].EffectDelegate, 300.0f, false);
 	}
 	else
 	{
@@ -947,11 +1003,8 @@ void AAlsCharacterExample::SetEffect_3(bool Apply)
 	if (Apply)
 	{
 		HealthRecoveryRate_50 = 1.5f;
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_3();
-			}, 900.0f, false);
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[3].EffectTimerHandle, EffectTimerHandles[3].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -964,11 +1017,8 @@ void AAlsCharacterExample::SetEffect_4(bool Apply)
 	if (Apply)
 	{
 		StaminaRecoveryRate_50 = 1.5f;
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_4();
-			}, 900.0f, false);
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[4].EffectTimerHandle, EffectTimerHandles[4].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -981,11 +1031,8 @@ void AAlsCharacterExample::SetEffect_5(bool Apply)
 	if (Apply)
 	{
 		bShouldReplenish_50 = true;
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_5();
-			}, 900.0f, false);
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[5].EffectTimerHandle, EffectTimerHandles[5].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -998,11 +1045,8 @@ void AAlsCharacterExample::SetEffect_6(bool Apply)
 	if (Apply)
 	{
 		bIsStaminaHealthStandingMultiplierApplied = true;
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_6();
-			}, 900.0f, false);
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[6].EffectTimerHandle, EffectTimerHandles[6].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1015,11 +1059,8 @@ void AAlsCharacterExample::SetEffect_7(bool Apply)
 	if (Apply)
 	{
 		bIsStaminaHealthRunningMultiplierApplied = true;
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_7();
-			}, 900.0f, false);
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[7].EffectTimerHandle, EffectTimerHandles[7].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1032,11 +1073,8 @@ void AAlsCharacterExample::SetEffect_8(bool Apply)
 	if (Apply)
 	{
 		bIsAimPrecisionOnMoveApplied = true;
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_8();
-			}, 900.0f, false);
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[8].EffectTimerHandle, EffectTimerHandles[8].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1051,11 +1089,7 @@ void AAlsCharacterExample::SetEffect_9(bool Apply)
 		bShouldIgnoreBlindnessEffect = true;
 		SetRemoveBlindness(false);
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_9();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[9].EffectTimerHandle, EffectTimerHandles[9].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1069,11 +1103,7 @@ void AAlsCharacterExample::SetEffect_10(bool Apply)
 	{
 		bShouldReduceStamina = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_10();
-			}, 15.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[10].EffectTimerHandle, EffectTimerHandles[10].EffectDelegate, 15.0f, false);
 	}
 	else
 	{
@@ -1087,11 +1117,7 @@ void AAlsCharacterExample::SetEffect_11(bool Apply)
 	{
 		bIsHealthIsUnder_20 = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_11();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[11].EffectTimerHandle, EffectTimerHandles[11].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1105,11 +1131,7 @@ void AAlsCharacterExample::SetEffect_12(bool Apply)
 	{
 		bIsStaminaIsUnder_30 = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_12();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[12].EffectTimerHandle, EffectTimerHandles[12].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1123,11 +1145,7 @@ void AAlsCharacterExample::SetEffect_13(bool Apply)
 	{
 		bIsDamagedOnMovingOrOnStanding = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_13();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[13].EffectTimerHandle, EffectTimerHandles[13].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1153,11 +1171,7 @@ void AAlsCharacterExample::SetEffect_16(bool Apply)
 	{
 		StaminaLossRate = 0.5f;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_16();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[16].EffectTimerHandle, EffectTimerHandles[16].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1171,11 +1185,7 @@ void AAlsCharacterExample::SetEffect_17(bool Apply)
 	{
 		HealthLossRate = 0.5f;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_17();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[17].EffectTimerHandle, EffectTimerHandles[17].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1189,11 +1199,7 @@ void AAlsCharacterExample::SetEffect_18(bool Apply)
 	{
 		HigherJumpBy_40 = 1.4f;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_18();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[18].EffectTimerHandle, EffectTimerHandles[18].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1209,11 +1215,7 @@ void AAlsCharacterExample::SetEffect_19(bool Apply)
 	{
 		FasterRollRate = 1.5f;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_19();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[19].EffectTimerHandle, EffectTimerHandles[19].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1228,11 +1230,7 @@ void AAlsCharacterExample::SetEffect_20(bool Apply)
 		JumpStaminaCost *= 0.8f;
 		RollStaminaCost *= 0.8f;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_20();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[20].EffectTimerHandle, EffectTimerHandles[20].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1247,11 +1245,7 @@ void AAlsCharacterExample::SetEffect_21(bool Apply)
 	{
 		bShouldIgnoreDamageOnRoll = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_21();
-			}, 60.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[21].EffectTimerHandle, EffectTimerHandles[21].EffectDelegate, 60.0f, false);
 	}
 	else
 	{
@@ -1267,11 +1261,7 @@ void AAlsCharacterExample::SetEffect_22(bool Apply)
 		bIsStunned = false;
 		StunRecoveryMultiplier = 1.0f;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_22();
-			}, 180.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[22].EffectTimerHandle, EffectTimerHandles[22].EffectDelegate, 180.0f, false);
 	}
 	else
 	{
@@ -1285,11 +1275,7 @@ void AAlsCharacterExample::SetEffect_23(bool Apply)
 	{
 		bShouldIgnoreDamage = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_23();
-			}, 20.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[23].EffectTimerHandle, EffectTimerHandles[23].EffectDelegate, 20.0f, false);
 	}
 	else
 	{
@@ -1303,11 +1289,7 @@ void AAlsCharacterExample::SetEffect_24(bool Apply)
 	{
 		bShouldReduceDamageMelee = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_24();
-			}, 20.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[24].EffectTimerHandle, EffectTimerHandles[24].EffectDelegate, 20.0f, false);
 	}
 	else
 	{
@@ -1321,11 +1303,7 @@ void AAlsCharacterExample::SetEffect_25(bool Apply)
 	{
 		bShouldReduceDamageProjectile = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_25();
-			}, 20.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[25].EffectTimerHandle, EffectTimerHandles[25].EffectDelegate, 20.0f, false);
 	}
 	else
 	{
@@ -1339,11 +1317,7 @@ void AAlsCharacterExample::SetEffect_26(bool Apply)
 	{
 		bAimAccuracyOnStrafing_30 = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_26();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[26].EffectTimerHandle, EffectTimerHandles[26].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1357,11 +1331,7 @@ void AAlsCharacterExample::SetEffect_27(bool Apply)
 	{
 		bAimAccuracyOnWalking_30 = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_27();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[27].EffectTimerHandle, EffectTimerHandles[27].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1379,11 +1349,7 @@ void AAlsCharacterExample::SetEffect_28(bool Apply)
 			SetArmLockEffect(false, false);
 		}
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_28();
-			}, 120.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[28].EffectTimerHandle, EffectTimerHandles[28].EffectDelegate, 120.0f, false);
 	}
 	else
 	{
@@ -1401,11 +1367,7 @@ void AAlsCharacterExample::SetEffect_29(bool Apply)
 	{
 		bShouldConvertDamageToStamina_30 = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_29();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[29].EffectTimerHandle, EffectTimerHandles[29].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1419,11 +1381,7 @@ void AAlsCharacterExample::SetEffect_30(bool Apply)
 	{
 		bIsLastStandActive = true;
 
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				SetEffect_30();
-			}, 900.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[30].EffectTimerHandle, EffectTimerHandles[30].EffectDelegate, 900.0f, false);
 	}
 	else
 	{
@@ -1433,6 +1391,17 @@ void AAlsCharacterExample::SetEffect_30(bool Apply)
 
 void AAlsCharacterExample::SetEffect_31(bool Apply)
 {
+	for (FEffectTimer& EffectTimer : EffectTimerHandles)
+	{
+		if (GetWorldTimerManager().IsTimerActive(EffectTimer.EffectTimerHandle))
+		{
+			float RemainingTime = GetWorldTimerManager().GetTimerRemaining(EffectTimer.EffectTimerHandle);
+			RemainingTime *= 1.5f;
+
+			GetWorldTimerManager().ClearTimer(EffectTimer.EffectTimerHandle);
+			GetWorldTimerManager().SetTimer(EffectTimer.EffectTimerHandle, EffectTimer.EffectDelegate, RemainingTime, false);
+		}
+	}
 }
 
 void AAlsCharacterExample::SetEffect_32(bool Apply)

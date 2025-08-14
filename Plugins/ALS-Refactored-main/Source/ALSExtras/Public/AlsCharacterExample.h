@@ -22,6 +22,12 @@ enum class EMovementDirection : uint8
 	Right_Left
 };
 
+struct FEffectTimer
+{
+	FTimerHandle EffectTimerHandle;
+	FTimerDelegate EffectDelegate;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMovementInputEvent, EMovementDirection, MovementDirection, float, Value);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNetParalyse, AActor*, NetReason);
 
@@ -296,6 +302,10 @@ public:
 	void FoodEffectByTag(const FGameplayTag& Tag, bool Apply);
 
 private:
+	TArray<FEffectTimer> EffectTimerHandles;
+
+	void InitializeFoodEffectTimerDelegates();
+
 	TMap<FGameplayTag, TFunction<void(bool)>> FoodEffectMap;
 
 	void InitializeFoodEffectMap();

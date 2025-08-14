@@ -694,14 +694,14 @@ private:
 
 	UPROPERTY(VisibleDefaultsOnly, Category = "Attributes", meta = (AllowPrivateAccess = "true"))
 	float Armour = 0.0f;
-	
+
 	//Multipliers
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
 	float RecoilMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
 	float AimAccuracyMultiplier = 1.0f;
-	
+
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects", meta = (AllowPrivateAccess = "true"))
 	float MainDamageMultiplier = 1.0f;
 
@@ -1430,6 +1430,10 @@ protected:
 	float LastStandDamageMultiplier = 1.0f;
 
 	void CheckIfHealthIsUnder_20();
+
+	//Effect_31
+protected:
+	uint8 bExtendsActiveBuffDurationsBy_50 : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
