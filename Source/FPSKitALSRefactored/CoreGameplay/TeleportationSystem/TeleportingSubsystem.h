@@ -1,16 +1,40 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TeleportFailResponseObject.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/DataTable.h"
 #include "TeleportingSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTeleportation, ATeleportDestination*, Destination, USlotSceneComponent*, Slot, AActor*, Actor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTeleportationFailed, FString, ActorId, FString, DestinationId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorStartCooldown, ATeleportDestination*, Destination);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorFinishCooldownSub, ATeleportDestination*, Destination);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartSlotCooldown, ATeleportDestination*, Destination, USlotSceneComponent*, Slot);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStopSlotCooldownSub, ATeleportDestination*, Destination, USlotSceneComponent*, Slot);
+
+/*
+USTRUCT(BlueprintType)
+struct FPSKITALSREFACTORED_API UTeleportFailResponseObject : public UObject
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString ObjectId;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString DestinationId;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString Response;
+};
+*/
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTeleportationFailed, FString, ActorId, FString, DestinationId, TArray< FTeleportFailResponse>, TeleportationFailResponses);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+    FOnTeleportationFailed,
+    FString, ObjectId,
+    FString, DestinationId
+);
+
 
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FTeleportTableRow : public FTableRowBase
@@ -23,7 +47,6 @@ struct FPSKITALSREFACTORED_API FTeleportTableRow : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FString DestinationID;
 };
-
 
 UCLASS()
 class FPSKITALSREFACTORED_API UTeleportingSubsystem : public UGameInstanceSubsystem
@@ -56,11 +79,15 @@ public:
     UFUNCTION()
     void SlotFinishCooldown(ATeleportDestination* Destination, USlotSceneComponent* Slot);
 
+    UFUNCTION(BlueprintCallable, Category = "Teleportation")
+	TArray<UTeleportFailResponseObject*> GetTeleportFailResponses() const { return TeleportFailResponses; }
+
 public:
     UPROPERTY(BlueprintAssignable, Category = "Teleportation")
 	FOnTeleportation OnTeleportation;
 
     UPROPERTY(BlueprintAssignable, Category = "Teleportation")
+    //FOnTeleportationFailed OnTeleportationFailed;
     FOnTeleportationFailed OnTeleportationFailed;
 
     UPROPERTY(BlueprintAssignable, Category = "Teleportation")
@@ -78,6 +105,9 @@ public:
 private:
     void GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation);
 
+protected:
+    UPROPERTY(EditAnywhere)
+    TArray< UTeleportFailResponseObject*> TeleportFailResponses;
 private:
     UPROPERTY()
     TArray<AActor*> TeleportingDestinations;
@@ -86,4 +116,6 @@ private:
     TArray<AActor*> TeleportingActors;
 
     UDataTable* LoadedSceneTable;
+
+
 };

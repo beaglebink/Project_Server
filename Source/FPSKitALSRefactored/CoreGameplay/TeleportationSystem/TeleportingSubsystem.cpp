@@ -83,6 +83,8 @@ void UTeleportingSubsystem::UnregistrationTeleportingActor(AActor* Actor)
 
 void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString DestinationId)
 {
+	TeleportFailResponses.Empty();
+
 	UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination ObjectId %s DestinationId %s"), *ObjectId, *DestinationId);
 
 	if (!LoadedSceneTable)
@@ -101,14 +103,37 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 		{
 			for (AActor* Destination : TeleportingDestinations)
 			{
+				if (!Destination)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("UTeleportingSubsystem::TeleportToDestination Destination is null"));	
+					continue;
+				}
+
 				ATeleportDestination* TeleportDestination = Cast<ATeleportDestination>(Destination);
 				if (TeleportDestination && TeleportDestination->DestinationID == DestinationId)
 				{
 					if (TeleportDestination->IsActiveDestination == false)
-						continue;
+					{
+						UTeleportFailResponseObject* FailResponse = NewObject<UTeleportFailResponseObject>(this);
+						FailResponse->ObjectId = ObjectId;
+						FailResponse->DestinationId = DestinationId;
+						FailResponse->Response = FString(TEXT("Destination ")) + DestinationId + FString(TEXT(" is not active"));
+						TeleportFailResponses.Add(FailResponse);
+						UE_LOG(LogTemp, Warning, TEXT("UTeleportingSubsystem::TeleportToDestination Destination is not active"));
 
-					if (TeleportDestination->IsInCooldown())
 						continue;
+					}
+						
+					if (TeleportDestination->IsInCooldown())
+					{
+						UTeleportFailResponseObject* FailResponse = NewObject<UTeleportFailResponseObject>(this);
+						FailResponse->ObjectId = ObjectId;
+						FailResponse->DestinationId = DestinationId;
+						FailResponse->Response = FString(TEXT("Destination ")) + DestinationId + FString(TEXT(" is in cooldown"));
+						TeleportFailResponses.Add(FailResponse);
+						UE_LOG(LogTemp, Warning, TEXT("UTeleportingSubsystem::TeleportToDestination Destination is in cooldown"));
+						continue;
+					}
 
 					DestinationActor = TeleportDestination;
 					UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination DestinationActor %s"), *DestinationActor->GetName());
@@ -126,30 +151,51 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 						UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination TeleportingActor %s"), *TeleportingActor->GetName());
 					}
 				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("UTeleportingSubsystem::TeleportToDestination Actor is null"));
+				}
 			}
-
-			FVector TeleportingActorLocation = TeleportingActor->GetActorLocation();
-			FVector Difference = FVector::ZeroVector;
-			FVector RootShiftNew;
-			float Shift = -10000;
 
 			if (DestinationActor && TeleportingActor)
 			{
+				FVector TeleportingActorLocation = TeleportingActor->GetActorLocation();
+				FVector Difference = FVector::ZeroVector;
+				FVector RootShiftNew;
+				float Shift = -10000;
+
 				FString SlotName = FString(TEXT(""));
 				USlotSceneComponent* SlotComponent = nullptr;
 
 				ATeleportDestination* TeleportDestination = Cast<ATeleportDestination>(DestinationActor);
 				for (USlotSceneComponent* Slot : TeleportDestination->Slots)
 				{
-					if (!Slot) continue;
+					if (!Slot)
+					{
+						continue;
+					}
 
 					if (Slot->GetActiveSlot() == false)
 					{
+						UE_LOG(LogTemp, Warning, TEXT("Slot %s is not active"), *Slot->GetName());
+						UTeleportFailResponseObject* FailResponse = NewObject<UTeleportFailResponseObject>(this);
+						FailResponse->ObjectId = ObjectId;
+						FailResponse->DestinationId = DestinationId;
+						FailResponse->Response = FString(TEXT("Destination ")) + DestinationId + FString(TEXT(" Slot ")) + Slot->SlotName.ToString() + FString(TEXT(" is not active"));
+						TeleportFailResponses.Add(FailResponse);
+
 						continue;
 					}
 
 					if (Slot->IsInCooldown())
 					{
+						UE_LOG(LogTemp, Warning, TEXT("Slot %s is in cooldown"), *Slot->GetName());
+						UTeleportFailResponseObject* FailResponse = NewObject<UTeleportFailResponseObject>(this);
+						FailResponse->ObjectId = ObjectId;
+						FailResponse->DestinationId = DestinationId;
+						FailResponse->Response = FString(TEXT("Destination ")) + DestinationId + FString(TEXT(" Slot ")) + Slot->SlotName.ToString() + FString(TEXT(" is in cooldown"));
+						TeleportFailResponses.Add(FailResponse);
+
 						continue;
 					}
 
@@ -160,7 +206,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					FVector BoxExtent;
 					TeleportingActor->GetActorBounds(true, Origin, BoxExtent, true);
 
-					float H1 = BoxExtent.Z * 2.f; // высота актора
+					float H1 = BoxExtent.Z * 2.f;
 
 					TeleportingActor->SetActorTransform(OriginalTransform);
 
@@ -174,9 +220,6 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					FVector OriginNew;
 					FVector BoxExtentNew;
 					FRotator BoxRotation;
-					//RootShiftNew = Slot->GetComponentTransform().GetRotation().RotateVector(RootShift);
-					//Difference = Slot->GetComponentTransform().GetRotation().RotateVector(Difference);
-					//float H = 0;
 
 					GetReorientedActorBounds(TeleportingActor, Slot, OriginNew, BoxExtentNew, BoxRotation);
 
@@ -224,6 +267,14 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					{
 						break;
 					}
+					else
+					{
+						UTeleportFailResponseObject* FailResponse = NewObject<UTeleportFailResponseObject>(this);
+						FailResponse->ObjectId = ObjectId;
+						FailResponse->DestinationId = DestinationId;
+						FailResponse->Response = FString(TEXT("Destination ")) + DestinationId + FString(TEXT(" Slot ")) + Slot->SlotName.ToString() + FString(TEXT(" is blocked"));
+						TeleportFailResponses.Add(FailResponse);
+					}
 				}
 
 				if (SlotComponent)
@@ -255,6 +306,12 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 				}
 				else
 				{
+					UTeleportFailResponseObject* FailResponse = NewObject<UTeleportFailResponseObject>(this);
+					FailResponse->ObjectId = ObjectId;
+					FailResponse->DestinationId = DestinationId;
+					FailResponse->Response = FString(TEXT("Destination ")) + DestinationId + FString(TEXT(" No suitable slot found for teleportation"));
+					TeleportFailResponses.Add(FailResponse);
+
 					OnTeleportationFailed.Broadcast(ObjectId, DestinationId);
 					UE_LOG(LogTemp, Warning, TEXT("No suitable slot found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
 				}
@@ -268,7 +325,6 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 		}
 	}
 
-	OnTeleportationFailed.Broadcast(ObjectId, DestinationId);
 	UE_LOG(LogTemp, Warning, TEXT("No teleport row found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
 }
 
@@ -299,7 +355,7 @@ void UTeleportingSubsystem::SlotFinishCooldown(ATeleportDestination* Destination
 		UE_LOG(LogTemp, Warning, TEXT("OnStopSlotCooldown called with null Slot"));
 	}
 }
-/*
+
 void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation)
 {
 	if (!Actor || !Slot)
@@ -313,63 +369,6 @@ void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const 
 	FVector Origin, BoxExtent;
 	Actor->GetActorBounds(true, Origin, BoxExtent);
 
-	// ѕостроим 8 вершин OBB актора в его текущей ориентации
-	FQuat ActorRotation = Actor->GetActorQuat();
-	TArray<FVector> ActorCorners;
-	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(BoxExtent.X, BoxExtent.Y, BoxExtent.Z)));
-	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(BoxExtent.X, BoxExtent.Y, -BoxExtent.Z)));
-	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(BoxExtent.X, -BoxExtent.Y, BoxExtent.Z)));
-	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(BoxExtent.X, -BoxExtent.Y, -BoxExtent.Z)));
-	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(-BoxExtent.X, BoxExtent.Y, BoxExtent.Z)));
-	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(-BoxExtent.X, BoxExtent.Y, -BoxExtent.Z)));
-	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(-BoxExtent.X, -BoxExtent.Y, BoxExtent.Z)));
-	ActorCorners.Add(Origin + ActorRotation.RotateVector(FVector(-BoxExtent.X, -BoxExtent.Y, -BoxExtent.Z)));
-
-	// ѕолучаем ориентацию слота
-	FQuat SlotRotation = Slot->GetComponentQuat();
-
-	// ѕереориентируем вершины: как если бы актор был повернут как слот
-	TArray<FVector> ReorientedCorners;
-	for (const FVector& Corner : ActorCorners)
-	{
-		// ѕереводим Corner в локальные координаты актора
-		FVector Local = ActorRotation.Inverse().RotateVector(Corner - Origin);
-
-		// ѕоворачиваем локальные координаты по ориентации слота
-		FVector Rotated = SlotRotation.RotateVector(Local);
-
-		// —мещаем обратно в Origin
-		ReorientedCorners.Add(Rotated + Origin);
-	}
-
-	// —троим новый FBox
-	FBox ReorientedBox(EForceInit::ForceInit);
-	for (const FVector& Corner : ReorientedCorners)
-	{
-		ReorientedBox += Corner;
-	}
-
-	OutOrigin = ReorientedBox.GetCenter();
-	OutExtent = ReorientedBox.GetExtent();
-	OutRotation = SlotRotation.Rotator(); // ориентаци€ бокса
-}
-*/
-
-void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation)
-{
-	if (!Actor || !Slot)
-	{
-		OutOrigin = FVector::ZeroVector;
-		OutExtent = FVector::ZeroVector;
-		OutRotation = FRotator::ZeroRotator;
-		return;
-	}
-
-	// ѕолучаем исходный bounding box
-	FVector Origin, BoxExtent;
-	Actor->GetActorBounds(true, Origin, BoxExtent);
-
-	// —троим локальные вершины бокса (в системе координат актора до поворота)
 	TArray<FVector> LocalCorners;
 	LocalCorners.Add(FVector(BoxExtent.X, BoxExtent.Y, BoxExtent.Z));
 	LocalCorners.Add(FVector(BoxExtent.X, BoxExtent.Y, -BoxExtent.Z));
@@ -380,7 +379,6 @@ void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const 
 	LocalCorners.Add(FVector(-BoxExtent.X, -BoxExtent.Y, BoxExtent.Z));
 	LocalCorners.Add(FVector(-BoxExtent.X, -BoxExtent.Y, -BoxExtent.Z));
 
-	// ѕоворачиваем локальные вершины по ориентации слота
 	FQuat SlotRotation = Slot->GetComponentQuat();
 	TArray<FVector> RotatedCorners;
 	for (const FVector& Local : LocalCorners)
@@ -388,25 +386,13 @@ void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const 
 		RotatedCorners.Add(SlotRotation.RotateVector(Local));
 	}
 
-	//FVector SlotZ = Slot->GetComponentQuat().GetAxisZ(); // нормализованный вектор
-	//float MinZ = FLT_MAX;
-	//float MaxZ = -FLT_MAX;
-
-	// —троим новый FBox
 	FBox ReorientedBox(EForceInit::ForceInit);
 	for (const FVector& Corner : RotatedCorners)
 	{
 		ReorientedBox += Corner;
-
-		//float Projection = FVector::DotProduct(Corner, SlotZ);
-		//MinZ = FMath::Min(MinZ, Projection);
-		//MaxZ = FMath::Max(MaxZ, Projection);
-
 	}
 
-	//H = MaxZ - MinZ; // высота в направлении оси Z слота
-
-	OutOrigin = ReorientedBox.GetCenter() + Origin; // центр в мире
+	OutOrigin = ReorientedBox.GetCenter() + Origin;
 	OutExtent = ReorientedBox.GetExtent();
 	OutRotation = SlotRotation.Rotator();
 }
