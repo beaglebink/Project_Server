@@ -129,6 +129,9 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 			}
 
 			FVector TeleportingActorLocation = TeleportingActor->GetActorLocation();
+			FVector Difference;
+			FVector RootShiftNew;
+			float Shift = -10000;
 
 			if (DestinationActor && TeleportingActor)
 			{
@@ -154,6 +157,8 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					FVector BoxExtent;
 					TeleportingActor->GetActorBounds(true, Origin, BoxExtent, true);
 
+					Difference = Origin - TeleportingActorLocation;
+
 					FVector DestinationLocation = Slot->GetComponentLocation();
 					FRotator DestinationRotation = Slot->GetComponentRotation();
 
@@ -162,7 +167,8 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					FVector OriginNew;
 					FVector BoxExtentNew;
 					FRotator BoxRotation;
-
+					RootShiftNew = Slot->GetComponentTransform().GetRotation().RotateVector(RootShift);
+					Difference = Slot->GetComponentTransform().GetRotation().RotateVector(Difference);
 
 					GetReorientedActorBounds(TeleportingActor, Slot, OriginNew, BoxExtentNew, BoxRotation);
 
@@ -171,20 +177,20 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 					FHitResult HitResult;
 
-					float Shift = -10000;
+					
 
 					for (float i = 0; i < BoxExtentNew.Z * 2; i += 0.1f)
 					{
 						UKismetSystemLibrary::BoxTraceSingle(
 							TeleportingActor->GetWorld(),
-							DestinationLocation + RootShift * i,
-							DestinationLocation + RootShift * i,
+							DestinationLocation + RootShiftNew * i,
+							DestinationLocation + RootShiftNew * i,
 							BoxExtent,
 							Slot->GetComponentRotation(),
 							UEngineTypes::ConvertToTraceType(ECC_Visibility),
 							false,
 							ActorsToIgnore,
-							EDrawDebugTrace::None,
+							EDrawDebugTrace::ForDuration,
 							HitResult,
 							false, 
 							FLinearColor::Red,
@@ -197,7 +203,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 							SlotName = Slot->SlotName.ToString();
 							SlotComponent = Slot;
 
-							Shift = i;
+							Shift = i + 0.1f;
 
 							break;
 						}
@@ -211,7 +217,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 				if (SlotComponent)
 				{
-					TeleportingActor->SetActorLocationAndRotation(SlotComponent->GetComponentLocation(), SlotComponent->GetComponentRotation());
+					TeleportingActor->SetActorLocationAndRotation(SlotComponent->GetComponentLocation() + RootShiftNew * Shift - Difference, SlotComponent->GetComponentRotation());
 
 					if (TeleportDestination->GetCoolDownTime() > 0)
 					{
