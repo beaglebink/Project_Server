@@ -129,7 +129,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 			}
 
 			FVector TeleportingActorLocation = TeleportingActor->GetActorLocation();
-			FVector Difference;
+			FVector Difference = FVector::ZeroVector;
 			FVector RootShiftNew;
 			float Shift = -10000;
 
@@ -153,9 +153,16 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 						continue;
 					}
 
+					FTransform OriginalTransform = TeleportingActor->GetActorTransform();
+					TeleportingActor->SetActorRotation(FRotator::ZeroRotator);
+
 					FVector Origin;
 					FVector BoxExtent;
 					TeleportingActor->GetActorBounds(true, Origin, BoxExtent, true);
+
+					float H1 = BoxExtent.Z * 2.f; // высота актора
+
+					TeleportingActor->SetActorTransform(OriginalTransform);
 
 					Difference = Origin - TeleportingActorLocation;
 
@@ -167,10 +174,14 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					FVector OriginNew;
 					FVector BoxExtentNew;
 					FRotator BoxRotation;
-					RootShiftNew = Slot->GetComponentTransform().GetRotation().RotateVector(RootShift);
-					Difference = Slot->GetComponentTransform().GetRotation().RotateVector(Difference);
+					//RootShiftNew = Slot->GetComponentTransform().GetRotation().RotateVector(RootShift);
+					//Difference = Slot->GetComponentTransform().GetRotation().RotateVector(Difference);
+					//float H = 0;
 
 					GetReorientedActorBounds(TeleportingActor, Slot, OriginNew, BoxExtentNew, BoxRotation);
+
+					RootShiftNew = BoxRotation.RotateVector(RootShift);
+					Difference = BoxRotation.RotateVector(Difference);
 
 					TArray<AActor*> ActorsToIgnore;
 					ActorsToIgnore.Add(DestinationActor);
@@ -179,7 +190,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 					
 
-					for (float i = 0; i < BoxExtentNew.Z * 2; i += 0.1f)
+					for (float i = 0; i < H1; i += 0.1f)
 					{
 						UKismetSystemLibrary::BoxTraceSingle(
 							TeleportingActor->GetWorld(),
@@ -190,7 +201,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 							UEngineTypes::ConvertToTraceType(ECC_Visibility),
 							false,
 							ActorsToIgnore,
-							EDrawDebugTrace::ForDuration,
+							EDrawDebugTrace::None,
 							HitResult,
 							false, 
 							FLinearColor::Red,
@@ -288,7 +299,7 @@ void UTeleportingSubsystem::SlotFinishCooldown(ATeleportDestination* Destination
 		UE_LOG(LogTemp, Warning, TEXT("OnStopSlotCooldown called with null Slot"));
 	}
 }
-
+/*
 void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation)
 {
 	if (!Actor || !Slot)
@@ -341,4 +352,61 @@ void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const 
 	OutOrigin = ReorientedBox.GetCenter();
 	OutExtent = ReorientedBox.GetExtent();
 	OutRotation = SlotRotation.Rotator(); // ориентация бокса
+}
+*/
+
+void UTeleportingSubsystem::GetReorientedActorBounds(const AActor* Actor, const USceneComponent* Slot, FVector& OutOrigin, FVector& OutExtent, FRotator& OutRotation)
+{
+	if (!Actor || !Slot)
+	{
+		OutOrigin = FVector::ZeroVector;
+		OutExtent = FVector::ZeroVector;
+		OutRotation = FRotator::ZeroRotator;
+		return;
+	}
+
+	// Получаем исходный bounding box
+	FVector Origin, BoxExtent;
+	Actor->GetActorBounds(true, Origin, BoxExtent);
+
+	// Строим локальные вершины бокса (в системе координат актора до поворота)
+	TArray<FVector> LocalCorners;
+	LocalCorners.Add(FVector(BoxExtent.X, BoxExtent.Y, BoxExtent.Z));
+	LocalCorners.Add(FVector(BoxExtent.X, BoxExtent.Y, -BoxExtent.Z));
+	LocalCorners.Add(FVector(BoxExtent.X, -BoxExtent.Y, BoxExtent.Z));
+	LocalCorners.Add(FVector(BoxExtent.X, -BoxExtent.Y, -BoxExtent.Z));
+	LocalCorners.Add(FVector(-BoxExtent.X, BoxExtent.Y, BoxExtent.Z));
+	LocalCorners.Add(FVector(-BoxExtent.X, BoxExtent.Y, -BoxExtent.Z));
+	LocalCorners.Add(FVector(-BoxExtent.X, -BoxExtent.Y, BoxExtent.Z));
+	LocalCorners.Add(FVector(-BoxExtent.X, -BoxExtent.Y, -BoxExtent.Z));
+
+	// Поворачиваем локальные вершины по ориентации слота
+	FQuat SlotRotation = Slot->GetComponentQuat();
+	TArray<FVector> RotatedCorners;
+	for (const FVector& Local : LocalCorners)
+	{
+		RotatedCorners.Add(SlotRotation.RotateVector(Local));
+	}
+
+	//FVector SlotZ = Slot->GetComponentQuat().GetAxisZ(); // нормализованный вектор
+	//float MinZ = FLT_MAX;
+	//float MaxZ = -FLT_MAX;
+
+	// Строим новый FBox
+	FBox ReorientedBox(EForceInit::ForceInit);
+	for (const FVector& Corner : RotatedCorners)
+	{
+		ReorientedBox += Corner;
+
+		//float Projection = FVector::DotProduct(Corner, SlotZ);
+		//MinZ = FMath::Min(MinZ, Projection);
+		//MaxZ = FMath::Max(MaxZ, Projection);
+
+	}
+
+	//H = MaxZ - MinZ; // высота в направлении оси Z слота
+
+	OutOrigin = ReorientedBox.GetCenter() + Origin; // центр в мире
+	OutExtent = ReorientedBox.GetExtent();
+	OutRotation = SlotRotation.Rotator();
 }
