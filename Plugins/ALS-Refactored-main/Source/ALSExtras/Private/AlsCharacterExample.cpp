@@ -1406,6 +1406,16 @@ void AAlsCharacterExample::SetEffect_31(bool Apply)
 
 void AAlsCharacterExample::SetEffect_32(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreEnemyAbilityEffect = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[32].EffectTimerHandle, EffectTimerHandles[32].EffectDelegate, 180.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreEnemyAbilityEffect = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_33(bool Apply)

@@ -2208,7 +2208,7 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 
 void AAlsCharacter::StunEffect(float Time)
 {
-	if (bShouldIgnoreStun)
+	if (bShouldIgnoreStun || ShouldIgnoreEnemyAbilityEffect())
 	{
 		return;
 	}
@@ -2465,6 +2465,11 @@ void AAlsCharacter::SetArmLockEffect_Implementation(bool bIsSet, bool bShouldRes
 
 void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPower)
 {
+	if (ShouldIgnoreEnemyAbilityEffect())
+	{
+		return;
+	}
+
 	float Power = FMath::Clamp(InstigatorPower - UKismetMathLibrary::Vector_Distance(InstigatorLocation, GetActorLocation()), 0.0f, 1000.0f);
 	FVector Direction = (GetActorLocation() - InstigatorLocation).GetSafeNormal() * Power;
 	Direction.Z = FMath::Clamp(Direction.Z, 0.0f, 1000.0f);
@@ -2476,6 +2481,11 @@ void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPo
 
 void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius)
 {
+	if (ShouldIgnoreEnemyAbilityEffect())
+	{
+		return;
+	}
+
 	if (UKismetMathLibrary::Vector_Distance(InstigatorLocation, GetActorLocation()) <= InfluenceRadius)
 	{
 		float Force = GetMesh()->IsSimulatingPhysics("pelvis") ? 200.0f : 5000.0f;
@@ -2560,6 +2570,18 @@ void AAlsCharacter::ShockEffect()
 	ShockSpeedMultiplier = FMath::FInterpTo(ShockSpeedMultiplier, 1.0f, GetWorld()->GetDeltaSeconds(), 1.0f);
 }
 
+void AAlsCharacter::SetSlowedEffect(float SlowdownValue)
+{
+	if (ShouldIgnoreEnemyAbilityEffect())
+	{
+		Slowdown_01Range = 1.0f;
+	}
+	else
+	{
+		Slowdown_01Range = FMath::Clamp(SlowdownValue, 0.0f, 1.0f);
+	}
+}
+
 void AAlsCharacter::DiscombobulateEffect()
 {
 	if (bIsDiscombobulated)
@@ -2584,7 +2606,7 @@ void AAlsCharacter::DiscombobulateEffect()
 
 void AAlsCharacter::SetRemoveBlindness(bool IsSet)
 {
-	if (IsSet && !bShouldIgnoreBlindnessEffect)
+	if (IsSet && !bShouldIgnoreBlindnessEffect && !ShouldIgnoreEnemyAbilityEffect())
 	{
 		if (!BlindnessWidget && BlindnessWidgetClass)
 		{
@@ -2605,7 +2627,7 @@ void AAlsCharacter::SetRemoveBlindness(bool IsSet)
 	}
 	else if (BlindnessWidget)
 	{
-		if (BlindnessWidget->FadeOut)
+		if (BlindnessWidget->FadeOut && !BlindnessWidget->IsAnimationPlaying(BlindnessWidget->FadeOut))
 		{
 			BlindnessWidget->PlayAnimation(BlindnessWidget->FadeOut, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
 			GetWorldTimerManager().SetTimer(BlindnessEffectTimerHandle, [this]()
@@ -2617,11 +2639,11 @@ void AAlsCharacter::SetRemoveBlindness(bool IsSet)
 					}
 				}, BlindnessWidget->FadeOut->GetEndTime(), false);
 		}
-		else
-		{
-			BlindnessWidget->RemoveFromParent();
-			BlindnessWidget = nullptr;
-		}
+		//else
+		//{
+		//	BlindnessWidget->RemoveFromParent();
+		//	BlindnessWidget = nullptr;
+		//}
 	}
 }
 
@@ -3072,4 +3094,15 @@ void AAlsCharacter::CheckIfHealthIsUnder_20()
 		LastStandSpeedMultiplier = 1.0f;
 		LastStandDamageMultiplier = 1.0f;
 	}
+}
+
+bool AAlsCharacter::ShouldIgnoreEnemyAbilityEffect()
+{
+	float RandomChance = FMath::FRandRange(0.0f, 100.0f);
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), RandomChance));
+	if (bShouldIgnoreEnemyAbilityEffect && RandomChance < 30.0f)
+	{
+		return true;
+	}
+	return false;
 }

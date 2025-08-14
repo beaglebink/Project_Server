@@ -1028,17 +1028,17 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ArmLockEffect")
 	void SetArmLockEffect(bool bIsSet, bool bShouldResetEffect = true);
 
-	//stumble effect
+	//Stumble effect
 public:
 	UFUNCTION(BlueprintCallable, Category = "StumbleEffect")
 	void StumbleEffect(FVector InstigatorLocation, float InstigatorPower);
 
-	//knockdown effect
+	//Knockdown effect
 public:
 	UFUNCTION(BlueprintCallable, Category = "KnockdownEffect")
 	void KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius);
 
-	//shock effect
+	//Shock effect
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
 	uint8 bIsShocked : 1{false};
@@ -1062,14 +1062,17 @@ private:
 
 	void ShockEffect();
 
-	//slowdown
-public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|SlowdownEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	//Slowed effect
+protected:
 	float Slowdown_01Range = 1.0f;
 
-	//discombobulate Effect
 public:
-	UPROPERTY(BlueprintReadWrite, Category = "Discombobulate Effect")
+	UFUNCTION(BlueprintCallable, Category = "SlowedEffect")
+	void SetSlowedEffect(float SlowdownValue);
+
+	//Discombobulate effect
+public:
+	UPROPERTY(BlueprintReadWrite, Category = "DiscombobulateEffect")
 	uint8 bIsDiscombobulated : 1{false};
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|DiscombobulateEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
@@ -1432,8 +1435,13 @@ protected:
 	void CheckIfHealthIsUnder_20();
 
 	//Effect_31
+	//Effect_32
 protected:
-	uint8 bExtendsActiveBuffDurationsBy_50 : 1{false};
+	uint8 bShouldIgnoreEnemyAbilityEffect : 1 {false};
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	bool ShouldIgnoreEnemyAbilityEffect();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
