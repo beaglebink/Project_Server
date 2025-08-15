@@ -18,7 +18,34 @@ USlotSceneComponent::USlotSceneComponent()
     PrimaryComponentTick.bCanEverTick = false;
     SetMobility(EComponentMobility::Movable);
     bHiddenInGame = true; 
+
+    Arrow = CreateDefaultSubobject<UArrowComponent>(TEXT("Arrow"));
+    Arrow->SetupAttachment(this); 
+    Arrow->SetHiddenInGame(true);
+
+    Arrow->SetIsVisualizationComponent(true);
+    Arrow->SetUsingAbsoluteRotation(false);
+
+    Arrow->SetArrowColor(FColor::Cyan);
+    Arrow->SetRelativeLocation(FVector(0.f, 0.f, 5.f));
+
+    //Arrow->RegisterComponent();
+    //GetOwner()->AddInstanceComponent(Arrow);
+
+    Label = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Label"));
+    Label->SetupAttachment(this);
+    Label->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
+    Label->SetWorldSize(14.f);
+    Label->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+    Label->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextBottom);
+    Label->SetHiddenInGame(true);
+    Label->SetTextRenderColor(FColor::Red);
+
+    //Label->SetIsVisualizationComponent(true);
+    //Label->RegisterComponent();
+    //GetOwner()->AddInstanceComponent(Label);
 }
+
 
 void USlotSceneComponent::SetOwnerName(const FString Name)
 {
@@ -90,6 +117,18 @@ void USlotSceneComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
     {
         Owner->RemoveSlot(this); // твой метод, удал€ющий из массива
     }
+
+    if (Arrow)
+    {
+        Arrow->DestroyComponent();
+        Arrow = nullptr;
+    }
+
+    if (Label)
+    {
+        Label->DestroyComponent();
+        Label = nullptr;
+    }
 }
 
 
@@ -126,6 +165,7 @@ void USlotSceneComponent::PostEditUndo()
 void USlotSceneComponent::EnsureHelpers()
 {
 #if WITH_EDITORONLY_DATA
+    /*
     if (!Arrow)
     {
         Arrow = NewObject<UArrowComponent>(this, TEXT("Arrow"));
@@ -154,6 +194,7 @@ void USlotSceneComponent::EnsureHelpers()
         GetOwner()->AddInstanceComponent(Label);
 
     }
+    */
 #endif
 }
 
