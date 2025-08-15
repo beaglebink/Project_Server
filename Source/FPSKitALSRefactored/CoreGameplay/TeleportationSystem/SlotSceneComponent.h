@@ -44,6 +44,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Slot")
     void StartCooldown();
 
+    void OnComponentDestroyed(bool bDestroyingHierarchy);
+
 #if WITH_EDITOR
     void UpdateVisualsFromName();
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

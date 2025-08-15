@@ -198,6 +198,33 @@ void ATeleportDestination::StartCooldown()
         }, CoolDownTime, false);
 }
 
+void ATeleportDestination::RemoveSlot(USlotSceneComponent* SlotToRemove)
+{
+    if (!SlotToRemove)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("RemoveSlot called with nullptr"));
+        return;
+    }
+
+    const int32 Index = Slots.IndexOfByKey(SlotToRemove);
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Slot not found in array, skipping removal"));
+        return;
+    }
+
+    Modify(); // 🔄 для поддержки undo/redo
+
+    Slots.RemoveAt(Index);
+
+    UE_LOG(LogTemp, Warning, TEXT("Removed slot at index %d"), Index);
+
+    if (GEditor)
+    {
+        GEditor->NoteSelectionChange(); // 🔁 обновление визуального выбора
+    }
+}
+
 #if WITH_EDITOR
 
 FName ATeleportDestination::GenerateUniqueSlotName(const FName& Base) const
