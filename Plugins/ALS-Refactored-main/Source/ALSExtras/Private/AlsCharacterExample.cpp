@@ -1446,6 +1446,16 @@ void AAlsCharacterExample::SetEffect_33(bool Apply)
 
 void AAlsCharacterExample::SetEffect_34(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreJitterynessShockEffect = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[34].EffectTimerHandle, EffectTimerHandles[34].EffectDelegate, 180.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreJitterynessShockEffect = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_35(bool Apply)

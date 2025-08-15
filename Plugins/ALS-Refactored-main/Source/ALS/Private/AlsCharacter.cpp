@@ -2497,7 +2497,7 @@ void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceR
 
 void AAlsCharacter::ShockEffect()
 {
-	if (bIsShocked)
+	if (bIsShocked && !bShouldIgnoreJitterynessShockEffect)
 	{
 		// moving
 		ShockSpeedMultiplier = 1.0f - UKismetMathLibrary::RandomFloatInRange(0.0f, ShockEffectPower_01Range);

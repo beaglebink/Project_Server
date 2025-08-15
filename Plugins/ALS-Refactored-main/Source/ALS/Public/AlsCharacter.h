@@ -1450,6 +1450,11 @@ public:
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
 	uint8 bShouldIgnorePainAndLowStamina : 1{false};
+
+	//Effect_34
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
+	uint8 bShouldIgnoreJitterynessShockEffect : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
