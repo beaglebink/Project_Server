@@ -11,7 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorFinishCooldown, ATeleportDes
 
 class UTeleportingSubsystem;
 
-UCLASS()
+UCLASS(HideCategories = ("Replication", "Rendering", "Collision", "HLOD", "Input", "Physics", "Networking", "Actor", "LevelInstance", "Cooking", "DataLayers"))
 class FPSKITALSREFACTORED_API ATeleportDestination : public AActor
 {
     GENERATED_BODY()
@@ -53,6 +53,8 @@ public:
     bool IsInCooldown() const { return isCooldown; }
 
     void StartCooldown();
+
+	void RemoveSlot(USlotSceneComponent* SlotToRemove);
 
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

@@ -82,6 +82,17 @@ void USlotSceneComponent::StartCooldown()
         }, CoolDownTime, false);
 }
 
+void USlotSceneComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
+{
+    Super::OnComponentDestroyed(bDestroyingHierarchy);
+
+    if (ATeleportDestination* Owner = Cast<ATeleportDestination>(GetOwner()))
+    {
+        Owner->RemoveSlot(this); // твой метод, удал€ющий из массива
+    }
+}
+
+
 #if WITH_EDITOR
 void USlotSceneComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
