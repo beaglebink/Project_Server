@@ -11,7 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorFinishCooldown, ATeleportDes
 
 class UTeleportingSubsystem;
 
-UCLASS()
+UCLASS(HideCategories = ("Replication", "Rendering", "Collision", "HLOD", "Input", "Physics", "Networking", "Actor", "LevelInstance", "Cooking", "DataLayers"))
 class FPSKITALSREFACTORED_API ATeleportDestination : public AActor
 {
     GENERATED_BODY()
