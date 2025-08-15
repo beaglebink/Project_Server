@@ -16,4 +16,7 @@ public:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
 	FString ObjectID;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
+	bool ActorIsFree = true;
 };

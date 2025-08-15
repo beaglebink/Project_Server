@@ -147,8 +147,20 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					UTeleportingComponent* TeleportingComponent = Actor->FindComponentByClass<UTeleportingComponent>();
 					if (TeleportingComponent && TeleportingComponent->ObjectID == ObjectId)
 					{
-						TeleportingActor = Actor;
-						UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination TeleportingActor %s"), *TeleportingActor->GetName());
+						if (TeleportingComponent->ActorIsFree)
+						{
+							TeleportingActor = Actor;
+							UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination TeleportingActor %s"), *TeleportingActor->GetName());
+						}
+						else
+						{
+							UTeleportFailResponseObject* FailResponse = NewObject<UTeleportFailResponseObject>(this);
+							FailResponse->ObjectId = ObjectId;
+							FailResponse->DestinationId = DestinationId;
+							FailResponse->Response = FString(TEXT("Actor ")) + ObjectId + FString(TEXT(" is not free for teleportation"));
+							TeleportFailResponses.Add(FailResponse);
+							UE_LOG(LogTemp, Warning, TEXT("UTeleportingSubsystem::TeleportToDestination Actor is not free for teleportation"));
+						}
 					}
 				}
 				else
