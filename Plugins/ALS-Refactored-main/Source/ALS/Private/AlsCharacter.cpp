@@ -331,7 +331,7 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	Restore_Speed_JumpHeight_Health();
 
-	HealthRecovery();
+	//HealthRecovery();
 
 	RefreshStaminaHealthStandingMultiplier();
 
@@ -350,6 +350,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CheckIfShouldIncreaseWalkAndRunSpeed();
 
 	CheckIfShouldDecreaseWalkRunSpeedAnDamage();
+
+	IncreaseHealth_30_20c();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -3158,5 +3160,13 @@ void AAlsCharacter::CheckIfShouldDecreaseWalkRunSpeedAnDamage()
 	{
 		WalkRunSpeedMultiplier_25 = 1.0f;
 		DamageMultiplier_25 = 1.0f;
+	}
+}
+
+void AAlsCharacter::IncreaseHealth_30_20c()
+{
+	if (bShouldIncreaseHealth_30)
+	{
+		SetHealth(GetHealth() + 30.0f * GetWorld()->GetDeltaSeconds() / 20.0f);
 	}
 }

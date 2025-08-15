@@ -1488,14 +1488,45 @@ void AAlsCharacterExample::SetEffect_36(bool Apply)
 
 void AAlsCharacterExample::SetEffect_37(bool Apply)
 {
+	if (!bShouldWaitToUseEffect_20 || bShouldResetWaitToUseEffect_20)
+	{
+		SetHealth(GetHealth() + 15.0f);
+		bShouldWaitToUseEffect_20 = true;
+
+		GetWorldTimerManager().SetTimer(WaitEffectTimerHandle, [&]()
+			{
+				bShouldWaitToUseEffect_20 = false;
+				//GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, "Can eat");
+			}, 20.0f, false);
+	}
 }
 
 void AAlsCharacterExample::SetEffect_38(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIncreaseHealth_30 = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[38].EffectTimerHandle, EffectTimerHandles[38].EffectDelegate, 20.0f, false);
+	}
+	else
+	{
+		bShouldIncreaseHealth_30 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_39(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldResetWaitToUseEffect_20 = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[39].EffectTimerHandle, EffectTimerHandles[39].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		bShouldResetWaitToUseEffect_20 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_40(bool Apply)
