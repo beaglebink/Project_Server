@@ -78,7 +78,7 @@ void AP_Bubble::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 {
 	CaughtCharacter = Cast<AAlsCharacterExample>(OtherActor);
 
-	if (!CaughtCharacter)
+	if (!CaughtCharacter || CaughtCharacter->ShouldIgnoreEnemyAbilityEffect())
 	{
 		return;
 	}

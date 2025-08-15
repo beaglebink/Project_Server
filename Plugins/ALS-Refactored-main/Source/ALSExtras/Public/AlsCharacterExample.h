@@ -277,6 +277,9 @@ public:
 
 	FLoopEffectFrame LoopEffectFrame;
 
+	UFUNCTION(BlueprintCallable, Category = "LoopEffect")
+	void SetLoopEffect(bool bIsSet);
+
 private:
 	TDoubleLinkedList<FLoopEffectFrame> FrameList;
 	TDoubleLinkedList<FLoopEffectFrame>::TIterator FrameIt = TDoubleLinkedList<FLoopEffectFrame>::TIterator(FrameList.GetHead());

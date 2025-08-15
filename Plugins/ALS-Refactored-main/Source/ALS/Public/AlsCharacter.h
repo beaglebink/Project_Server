@@ -1105,9 +1105,12 @@ public:
 	void SetRemoveBlindness(bool IsSet);
 
 	//reversed input
-public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|ReverseEffect")
+protected:
 	uint8 bIsInputReversed : 1{false};
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "ReverseEffect")
+	void SetReverseEffect(bool IsSet);
 
 	//wire effect
 public:
@@ -1225,7 +1228,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Bubble effect")
 	uint8 bIsBubbled : 1 {false};
 
-	//concatenation effect
+	//Concatenation effect
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "Concatenation effect")
 	TArray<FName> GluedSocketNames;
@@ -1239,7 +1242,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Concatenation effect")
 	USphereComponent* SphereCollisionForGluedActors;
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Concatenation effect")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Effects")
 	void ConcatenationEffect(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to6);
 
 protected:

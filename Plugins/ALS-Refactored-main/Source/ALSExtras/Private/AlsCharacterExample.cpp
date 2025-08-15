@@ -745,6 +745,18 @@ void AAlsCharacterExample::InitStatWidget()
 	}
 }
 
+void AAlsCharacterExample::SetLoopEffect(bool bIsSet)
+{
+	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
+	{
+		bIsLooped = true;
+	}
+	else
+	{
+		bIsLooped = false;
+	}
+}
+
 void AAlsCharacterExample::LoopEffect()
 {
 	if (bIsLooped)

@@ -2625,31 +2625,35 @@ void AAlsCharacter::SetRemoveBlindness(bool IsSet)
 			BlindnessWidget->StopAnimation(BlindnessWidget->FadeOut);
 		}
 	}
-	else if (BlindnessWidget)
+	else if (BlindnessWidget && !BlindnessWidget->IsAnimationPlaying(BlindnessWidget->FadeOut))
 	{
-		if (BlindnessWidget->FadeOut && !BlindnessWidget->IsAnimationPlaying(BlindnessWidget->FadeOut))
-		{
-			BlindnessWidget->PlayAnimation(BlindnessWidget->FadeOut, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
-			GetWorldTimerManager().SetTimer(BlindnessEffectTimerHandle, [this]()
+		BlindnessWidget->PlayAnimation(BlindnessWidget->FadeOut, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
+		GetWorldTimerManager().SetTimer(BlindnessEffectTimerHandle, [this]()
+			{
+				if (BlindnessWidget)
 				{
-					if (BlindnessWidget)
-					{
-						BlindnessWidget->RemoveFromParent();
-						BlindnessWidget = nullptr;
-					}
-				}, BlindnessWidget->FadeOut->GetEndTime(), false);
-		}
-		//else
-		//{
-		//	BlindnessWidget->RemoveFromParent();
-		//	BlindnessWidget = nullptr;
-		//}
+					BlindnessWidget->RemoveFromParent();
+					BlindnessWidget = nullptr;
+				}
+			}, BlindnessWidget->FadeOut->GetEndTime(), false);
+	}
+}
+
+void AAlsCharacter::SetReverseEffect(bool IsSet)
+{
+	if (IsSet && !ShouldIgnoreEnemyAbilityEffect())
+	{
+		bIsInputReversed = true;
+	}
+	else
+	{
+		bIsInputReversed = false;
 	}
 }
 
 void AAlsCharacter::SetRemoveWireEffect(bool bIsSet, float EffectPower)
 {
-	if (bIsSet)
+	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
 	{
 		bIsWired = true;
 		WireEffectPower_01Range = FMath::Clamp(1 - EffectPower, 0.0f, 1.0f);
@@ -2710,7 +2714,7 @@ void AAlsCharacter::SetStaticGrenadeEffect(float NewStaticGrenadeEffect)
 void AAlsCharacter::SetRemoveGrappleEffect(bool bIsSet)
 {
 	static uint8 Counter = 0;
-	if (bIsSet)
+	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
 	{
 		if (Counter < 3)
 		{
@@ -2758,7 +2762,15 @@ void AAlsCharacter::MagneticEffect()
 
 void AAlsCharacter::SetRemoveMagneticEffect(bool bIsSet, float SphereRadius, float MagnetPower, FVector ActorLocation)
 {
-	bIsMagnetic = bIsSet;
+	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
+	{
+		bIsMagnetic = true;
+	}
+	else
+	{
+		bIsMagnetic = false;
+	}
+
 	MagneticSphereRadius = SphereRadius;
 	MagnetLocation = ActorLocation;
 	MagneticEffectPower_Range01 = FMath::Clamp(MagnetPower, 0.01f, 1.0f);
@@ -2766,7 +2778,14 @@ void AAlsCharacter::SetRemoveMagneticEffect(bool bIsSet, float SphereRadius, flo
 
 void AAlsCharacter::SetRemoveInkEffect(bool bIsSet, float EffectPower)
 {
-	bIsInked = bIsSet;
+	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
+	{
+		bIsInked = true;
+	}
+	else
+	{
+		bIsInked = false;
+	}
 	InkEffectPower_01Range = FMath::Clamp(EffectPower, 0.0f, 1.0f);
 	InkTimeDelay = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.0001f, 1.0f), InkEffectPower_01Range);
 }
@@ -2850,6 +2869,11 @@ void AAlsCharacter::Restore_Speed_JumpHeight_Health()
 
 void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, float DeltaJumpHeight, float DeltaHealth, float DeltaStamina, float TimeToRestore)
 {
+	if (bShouldIgnoreEnemyAbilityEffect)
+	{
+		return;
+	}
+
 	float TempDeltaSpeed = FMath::Clamp(DeltaSpeed, 0.0f, SpeedMultiplier);
 	float TempDeltaJumpHeight = FMath::Clamp(DeltaJumpHeight, 0.0f, AlsCharacterMovement->JumpZVelocity);
 	float TempDeltaHealth = FMath::Clamp(DeltaHealth, 0.0f, GetHealth());
@@ -2876,7 +2900,7 @@ void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, floa
 
 void AAlsCharacter::ConcatenationEffect_Implementation(bool bIsSet, bool bReplaceWeapon, int32 GluedObjectsQuantity_1to6)
 {
-	if (bIsSet)
+	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
 	{
 		SphereCollisionForGluedActors = NewObject<USphereComponent>(this, USphereComponent::StaticClass(), TEXT("GluedActorsSphereCollision"));
 
@@ -3099,7 +3123,6 @@ void AAlsCharacter::CheckIfHealthIsUnder_20()
 bool AAlsCharacter::ShouldIgnoreEnemyAbilityEffect()
 {
 	float RandomChance = FMath::FRandRange(0.0f, 100.0f);
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), RandomChance));
 	if (bShouldIgnoreEnemyAbilityEffect && RandomChance < 30.0f)
 	{
 		return true;
