@@ -348,6 +348,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	RefreshDamage();
 
 	CheckIfShouldIncreaseWalkAndRunSpeed();
+
+	CheckIfShouldDecreaseWalkRunSpeedAnDamage();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2163,7 +2165,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
-		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15;
+		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3039,7 +3041,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 
 void AAlsCharacter::RefreshDamage()
 {
-	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier;
+	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25;
 }
 
 void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
@@ -3137,5 +3139,19 @@ void AAlsCharacter::CheckIfShouldIncreaseWalkAndRunSpeed()
 	else
 	{
 		WalkAndRunSpeedMultiplier_15 = 1.0f;
+	}
+}
+
+void AAlsCharacter::CheckIfShouldDecreaseWalkRunSpeedAnDamage()
+{
+	if (bShouldDecreaseWalkRunSpeedAndDamage && GetVelocity().Length() > 0.0f)
+	{
+		WalkRunSpeedMultiplier_25 = 0.75f;
+		DamageMultiplier_25 = 0.75f;
+	}
+	else
+	{
+		WalkRunSpeedMultiplier_25 = 1.0f;
+		DamageMultiplier_25 = 1.0f;
 	}
 }

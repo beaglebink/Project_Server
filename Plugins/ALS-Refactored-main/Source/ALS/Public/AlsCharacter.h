@@ -1463,6 +1463,19 @@ protected:
 	float WalkAndRunSpeedMultiplier_15 = 1.0f;
 
 	void CheckIfShouldIncreaseWalkAndRunSpeed();
+
+	//Effect_36
+protected:
+	uint8 bShouldDecreaseWalkRunSpeedAndDamage : 1{false};
+
+	float WalkRunSpeedMultiplier_25 = 1.0f;
+
+	float DamageMultiplier_25 = 1.0f;
+
+	void CheckIfShouldDecreaseWalkRunSpeedAnDamage();
+
+	//Effect_37
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
