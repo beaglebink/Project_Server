@@ -1445,6 +1445,11 @@ protected:
 public:
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	bool ShouldIgnoreEnemyAbilityEffect();
+
+	//Effect_33
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
+	uint8 bShouldIgnorePainAndLowStamina : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

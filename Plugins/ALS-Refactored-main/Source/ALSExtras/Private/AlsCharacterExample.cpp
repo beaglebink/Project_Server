@@ -1432,6 +1432,16 @@ void AAlsCharacterExample::SetEffect_32(bool Apply)
 
 void AAlsCharacterExample::SetEffect_33(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnorePainAndLowStamina = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[33].EffectTimerHandle, EffectTimerHandles[33].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		bShouldIgnorePainAndLowStamina = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_34(bool Apply)
