@@ -1455,6 +1455,14 @@ public:
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "FoodEffects")
 	uint8 bShouldIgnoreJitterynessShockEffect : 1{false};
+
+	//Effect_35
+protected:
+	uint8 bShouldIncreaseWalkAndRunSpeed : 1{false};
+
+	float WalkAndRunSpeedMultiplier_15 = 1.0f;
+
+	void CheckIfShouldIncreaseWalkAndRunSpeed();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

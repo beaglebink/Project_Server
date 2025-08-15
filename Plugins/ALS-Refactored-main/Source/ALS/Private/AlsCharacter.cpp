@@ -346,6 +346,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	RefreshDamageAmountOnMovingOrOnStanding();
 
 	RefreshDamage();
+
+	CheckIfShouldIncreaseWalkAndRunSpeed();
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2160,7 +2162,8 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
-		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier * LastStandSpeedMultiplier;
+		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
+		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3128,4 +3131,16 @@ bool AAlsCharacter::ShouldIgnoreEnemyAbilityEffect()
 		return true;
 	}
 	return false;
+}
+
+void AAlsCharacter::CheckIfShouldIncreaseWalkAndRunSpeed()
+{
+	if (bShouldIncreaseWalkAndRunSpeed && GetGait() != AlsGaitTags::Sprinting)
+	{
+		WalkAndRunSpeedMultiplier_15 = 1.15f;
+	}
+	else
+	{
+		WalkAndRunSpeedMultiplier_15 = 1.0f;
+	}
 }

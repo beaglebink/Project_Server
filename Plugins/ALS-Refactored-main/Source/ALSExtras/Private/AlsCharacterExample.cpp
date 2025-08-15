@@ -1460,6 +1460,16 @@ void AAlsCharacterExample::SetEffect_34(bool Apply)
 
 void AAlsCharacterExample::SetEffect_35(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIncreaseWalkAndRunSpeed = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[35].EffectTimerHandle, EffectTimerHandles[35].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		bShouldIncreaseWalkAndRunSpeed = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_36(bool Apply)
