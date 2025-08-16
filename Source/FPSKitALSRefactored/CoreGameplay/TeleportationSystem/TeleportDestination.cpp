@@ -128,7 +128,6 @@ USlotSceneComponent* ATeleportDestination::AddSlot()
 
     USlotSceneComponent* NewSlot = NewObject<USlotSceneComponent>(this, USlotSceneComponent::StaticClass(), UniqueName, RF_Transactional);
 
-
     NewSlot->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
     NewSlot->SetFlags(RF_Transactional);
     NewSlot->SlotName = UniqueName;
@@ -213,7 +212,7 @@ void ATeleportDestination::RemoveSlot(USlotSceneComponent* SlotToRemove)
         return;
     }
 
-    Modify(); // 🔄 для поддержки undo/redo
+    Modify();
 
     Slots.RemoveAt(Index);
 
@@ -221,7 +220,7 @@ void ATeleportDestination::RemoveSlot(USlotSceneComponent* SlotToRemove)
 
     if (GEditor)
     {
-        GEditor->NoteSelectionChange(); // 🔁 обновление визуального выбора
+        GEditor->NoteSelectionChange();
     }
 }
 

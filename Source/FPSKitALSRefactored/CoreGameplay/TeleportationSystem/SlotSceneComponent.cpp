@@ -29,9 +29,6 @@ USlotSceneComponent::USlotSceneComponent()
     Arrow->SetArrowColor(FColor::Cyan);
     Arrow->SetRelativeLocation(FVector(0.f, 0.f, 5.f));
 
-    //Arrow->RegisterComponent();
-    //GetOwner()->AddInstanceComponent(Arrow);
-
     Label = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Label"));
     Label->SetupAttachment(this);
     Label->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
@@ -40,10 +37,6 @@ USlotSceneComponent::USlotSceneComponent()
     Label->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextBottom);
     Label->SetHiddenInGame(true);
     Label->SetTextRenderColor(FColor::Red);
-
-    //Label->SetIsVisualizationComponent(true);
-    //Label->RegisterComponent();
-    //GetOwner()->AddInstanceComponent(Label);
 }
 
 
@@ -115,7 +108,7 @@ void USlotSceneComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 
     if (ATeleportDestination* Owner = Cast<ATeleportDestination>(GetOwner()))
     {
-        Owner->RemoveSlot(this); // твой метод, удал€ющий из массива
+        Owner->RemoveSlot(this);
     }
 
     if (Arrow)
