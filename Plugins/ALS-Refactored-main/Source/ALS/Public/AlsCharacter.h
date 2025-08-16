@@ -1475,7 +1475,19 @@ protected:
 	void CheckIfShouldDecreaseWalkRunSpeedAnDamage();
 
 	//Effect_37
+	//Effect_38
+protected:
+	uint8 bShouldIncreaseHealth_30 : 1{false};
 
+	void IncreaseHealth_30_20c();
+
+	//Effect_39
+protected:
+	uint8 bShouldWaitToUseEffect_20 : 1{false};
+
+	uint8 bShouldResetWaitToUseEffect_20 : 1{false};
+
+	FTimerHandle WaitEffectTimerHandle;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
