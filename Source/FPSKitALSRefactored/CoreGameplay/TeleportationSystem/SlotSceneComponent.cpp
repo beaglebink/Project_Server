@@ -152,8 +152,22 @@ void USlotSceneComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 void USlotSceneComponent::PostDuplicate(bool bDuplicateForPIE)
 {
     Super::PostDuplicate(bDuplicateForPIE);
+
+    AActor* Owner = GetOwner();
+    ATeleportDestination* Destination = Cast<ATeleportDestination>(Owner);
+    if (Destination)
+    {
+        OwnerName = Destination->DestinationID;
+    }
+
     TryRenameObjectToMatchSlotName();
     UpdateVisualsFromName();
+
+    if (Destination)
+    {
+        Destination->Slots.Add(this);
+    }
+
 }
 
 void USlotSceneComponent::PostEditUndo()
@@ -165,7 +179,7 @@ void USlotSceneComponent::PostEditUndo()
 void USlotSceneComponent::EnsureHelpers()
 {
 #if WITH_EDITORONLY_DATA
-    /*
+
     if (!Arrow)
     {
         Arrow = NewObject<UArrowComponent>(this, TEXT("Arrow"));
@@ -194,7 +208,7 @@ void USlotSceneComponent::EnsureHelpers()
         GetOwner()->AddInstanceComponent(Label);
 
     }
-    */
+
 #endif
 }
 
