@@ -225,6 +225,16 @@ void ATeleportDestination::RemoveSlot(USlotSceneComponent* SlotToRemove)
 #endif // WITH_EDITOR
 }
 
+void ATeleportDestination::StartTeleportation()
+{
+	TeleportBusy = true;
+}
+
+void ATeleportDestination::FinishTeleportation()
+{
+	TeleportBusy = false;
+}
+
 #if WITH_EDITOR
 
 FName ATeleportDestination::GenerateUniqueSlotName(const FName& Base) const

@@ -6,6 +6,7 @@
 #include "TeleportingComponent.h"
 #include "SlotSceneComponent.h"
 #include <Kismet/KismetSystemLibrary.h>
+#include <NiagaraFunctionLibrary.h>
 
 void UTeleportingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -123,6 +124,11 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 						continue;
 					}
+
+					if (TeleportDestination->IsTeleportBusy())
+					{
+						continue;
+					}
 						
 					if (TeleportDestination->IsInCooldown())
 					{
@@ -175,9 +181,15 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 				FVector Difference = FVector::ZeroVector;
 				FVector RootShiftNew;
 				float Shift = -10000;
+				FVector EffectScale = FVector(1.f, 1.f, 1.f);
+				FRotator EffectRotation = FRotator::ZeroRotator;
 
 				FString SlotName = FString(TEXT(""));
 				USlotSceneComponent* SlotComponent = nullptr;
+
+				FVector OriginalScale = FVector(1.f, 1.f, 1.f);
+
+				FVector ODifference = FVector::ZeroVector;
 
 				ATeleportDestination* TeleportDestination = Cast<ATeleportDestination>(DestinationActor);
 				for (USlotSceneComponent* Slot : TeleportDestination->Slots)
@@ -211,6 +223,12 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 						continue;
 					}
 
+					FVector OriginalOrigin;
+					FVector OriginalBoxExtent;
+					TeleportingActor->GetActorBounds(true, OriginalOrigin, OriginalBoxExtent, true);
+					OriginalScale = FVector(OriginalBoxExtent.X / 50, OriginalBoxExtent.Y / 50, OriginalBoxExtent.Z / 50);
+					ODifference = OriginalOrigin - TeleportingActorLocation;
+
 					FTransform OriginalTransform = TeleportingActor->GetActorTransform();
 					TeleportingActor->SetActorRotation(FRotator::ZeroRotator);
 
@@ -237,13 +255,13 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 					RootShiftNew = BoxRotation.RotateVector(RootShift);
 					Difference = BoxRotation.RotateVector(Difference);
+					EffectScale = FVector(BoxExtent.X / 50, BoxExtent.Y / 50, BoxExtent.Z / 50);
+					EffectRotation = BoxRotation;
 
 					TArray<AActor*> ActorsToIgnore;
 					ActorsToIgnore.Add(DestinationActor);
 
 					FHitResult HitResult;
-
-					
 
 					for (float i = 0; i < H1; i += 0.1f)
 					{
@@ -291,8 +309,65 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 				if (SlotComponent)
 				{
-					TeleportingActor->SetActorLocationAndRotation(SlotComponent->GetComponentLocation() + RootShiftNew * Shift - Difference, SlotComponent->GetComponentRotation());
 
+					if (TeleportDestination->TeleportingEffect)
+					{
+						//TeleportDestination->StartTeleportEffect->SetFloat
+
+						Niagara = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+							TeleportingActor->GetWorld(),
+							TeleportDestination->TeleportingEffect,
+							TeleportingActor->GetActorLocation() + ODifference,
+							TeleportingActor->GetActorRotation(),
+							EffectScale,
+							true
+						);
+
+						if (Niagara)
+						{
+							Niagara->SetVariableFloat(TEXT("Duration"), TeleportDestination->TeleportationDuration);
+						}
+					}
+
+					if (TeleportDestination->TeleportingEffect)
+					{
+						Niagara = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+							TeleportingActor->GetWorld(),
+							TeleportDestination->TeleportingEffect,
+							SlotComponent->GetComponentLocation() + RootShiftNew * Shift,// - Difference,
+							EffectRotation,
+							EffectScale,
+							true
+						);
+
+						if (Niagara)
+						{
+							Niagara->SetVariableFloat(TEXT("Duration"), TeleportDestination->TeleportationDuration);
+						}
+					}
+
+					ActorTeleport = TeleportingActor;
+					ActorDestination = TeleportDestination;
+					TeleportLocation = SlotComponent->GetComponentLocation() + RootShiftNew * Shift - Difference;
+					TeleportRotation = SlotComponent->GetComponentRotation();
+
+					if (TeleportDestination->TeleportationDuration > 0)
+					{
+						TeleportDestination->StartTeleportation();
+						FTimerHandle TimerHandle;
+
+						GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UTeleportingSubsystem::Teleporting, TeleportDestination->TeleportationDuration / 2, false);
+					}
+					/*
+					if (TeleportDestination->TeleportationDuration > 0)
+					{
+						FTimerHandle TimerHandle;
+						GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+							{
+								if(Niagara) Niagara->DestroyComponent();
+							}, TeleportDestination->TeleportationDuration, false);
+					}
+					*/
 					if (TeleportDestination->GetCoolDownTime() > 0)
 					{
 						if (!TeleportDestination->IsInCooldown())
@@ -338,6 +413,13 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("No teleport row found for Object ID: %s and Destination ID: %s"), *ObjectId, *DestinationId);
+}
+
+void UTeleportingSubsystem::Teleporting()
+{
+	ActorTeleport->SetActorLocationAndRotation(TeleportLocation, TeleportRotation);
+
+	ActorDestination->FinishTeleportation();
 }
 
 void UTeleportingSubsystem::DestinationFinishCooldown(ATeleportDestination* Destination)

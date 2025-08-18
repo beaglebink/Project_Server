@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "SlotSceneComponent.h"
 #include "Components/BillboardComponent.h"
+#include <NiagaraSystem.h>
 #include "TeleportDestination.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChangeActiveDestination, ATeleportDestination*, Destination, bool, IsActive);
@@ -56,6 +57,12 @@ public:
 
 	void RemoveSlot(USlotSceneComponent* SlotToRemove);
 
+	void StartTeleportation();
+
+	void FinishTeleportation();
+
+	bool IsTeleportBusy() const { return TeleportBusy; }
+
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -93,6 +100,14 @@ public:
 
 	FOnActorFinishCooldown OnDestinationFinishCooldown;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
+	UNiagaraSystem* TeleportingEffect;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
+	float TeleportationDuration = 1.0f;
+
 private:
 	bool isCooldown = false;
+
+	bool TeleportBusy = false;
 };

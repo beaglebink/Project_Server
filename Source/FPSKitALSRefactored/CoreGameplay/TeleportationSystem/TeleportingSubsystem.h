@@ -4,6 +4,7 @@
 #include "TeleportFailResponseObject.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/DataTable.h"
+#include "NiagaraComponent.h"
 #include "TeleportingSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTeleportation, ATeleportDestination*, Destination, USlotSceneComponent*, Slot, AActor*, Actor);
@@ -74,6 +75,9 @@ public:
 	void TeleportToDestination(FString ObjectId, FString DestinationId);
 
     UFUNCTION()
+    void Teleporting();
+
+    UFUNCTION()
     void DestinationFinishCooldown(ATeleportDestination* Destination);
 
     UFUNCTION()
@@ -117,5 +121,10 @@ private:
 
     UDataTable* LoadedSceneTable;
 
+    AActor* ActorTeleport = nullptr;
+    ATeleportDestination* ActorDestination = nullptr;
+	FVector TeleportLocation = FVector::ZeroVector;
+	FRotator TeleportRotation = FRotator::ZeroRotator;
 
+	UNiagaraComponent* Niagara = nullptr;
 };
