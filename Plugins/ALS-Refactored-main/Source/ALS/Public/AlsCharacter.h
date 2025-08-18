@@ -1408,15 +1408,11 @@ protected:
 
 	float AimAccuracyOnStrafing = 1.0f;
 
-	void RefreshAimAccuracyOnStrafing();
-
 	//Effect_27
 protected:
 	uint8 bAimAccuracyOnWalking_30 : 1{false};
 
 	float AimAccuracyOnWalking = 1.0f;
-
-	void RefreshAimAccuracyOnWalking();
 
 	//Effect_28
 protected:
@@ -1488,6 +1484,13 @@ protected:
 	uint8 bShouldResetWaitToUseEffect_20 : 1{false};
 
 	FTimerHandle WaitEffectTimerHandle;
+
+	//Effect_40
+protected:
+	float AimAccuracy_50 = 1.0f;
+
+	//Effect_41
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
