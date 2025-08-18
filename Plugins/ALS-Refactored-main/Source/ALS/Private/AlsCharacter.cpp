@@ -2180,6 +2180,11 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 {
+	if (bShouldIgnoreFallDamageAndStun)
+	{
+		return;
+	}
+
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(this);
 	FHitResult HitResult;

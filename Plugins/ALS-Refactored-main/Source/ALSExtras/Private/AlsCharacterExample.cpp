@@ -1559,6 +1559,16 @@ void AAlsCharacterExample::SetEffect_41(bool Apply)
 
 void AAlsCharacterExample::SetEffect_42(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreFallDamageAndStun = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[42].EffectTimerHandle, EffectTimerHandles[42].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreFallDamageAndStun = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_43(bool Apply)

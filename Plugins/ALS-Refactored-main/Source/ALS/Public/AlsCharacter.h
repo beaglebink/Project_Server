@@ -1496,6 +1496,13 @@ protected:
 	uint8 bShouldIgnoreStun_41 : 1{false};
 
 	void CheckIfHealthIsUnder_50();
+
+	//Effect_42
+protected:
+	uint8 bShouldIgnoreFallDamageAndStun : 1{false};
+
+	//Effect_43
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
