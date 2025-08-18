@@ -1629,6 +1629,18 @@ void AAlsCharacterExample::SetEffect_46(bool Apply)
 
 void AAlsCharacterExample::SetEffect_47(bool Apply)
 {
+	if (Apply)
+	{
+		bIsSetEffect_47 = true;
+
+		CheckIfOnCrouchShouldReduceDamage();
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[46].EffectTimerHandle, EffectTimerHandles[46].EffectDelegate, 240.0f, false);
+	}
+	else
+	{
+		bIsSetEffect_47 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_48(bool Apply)

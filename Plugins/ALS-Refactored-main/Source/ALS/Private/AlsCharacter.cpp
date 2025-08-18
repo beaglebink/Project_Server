@@ -3052,7 +3052,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 
 void AAlsCharacter::RefreshDamage()
 {
-	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25 * DamageMultiplierIfHealthIsUnder_30;
+	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25 * DamageMultiplierIfHealthIsUnder_30 * DamageMultiplierOnCrouch;
 }
 
 void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
@@ -3251,6 +3251,19 @@ void AAlsCharacter::CheckIfMeleeDamageIsMoreThan_40(FText DamageType, float Dama
 						SetStamina(GetStamina() - StaminaIncreaseAmount);
 					}, 30.0f, false);
 			}
+		}
+	}
+}
+
+void AAlsCharacter::CheckIfOnCrouchShouldReduceDamage()
+{
+	DamageMultiplierOnCrouch = 1.0f;
+
+	if (bIsSetEffect_47)
+	{
+		if (GetStance() == AlsStanceTags::Crouching)
+		{
+			DamageMultiplierOnCrouch = 0.6f;
 		}
 	}
 }

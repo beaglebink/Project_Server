@@ -1529,6 +1529,18 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	void CheckIfMeleeDamageIsMoreThan_40(FText DamageType, float DamageAmount);
+
+	//Effect_47
+protected:
+	uint8 bIsSetEffect_47 : 1{false};
+
+	float DamageMultiplierOnCrouch = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	void CheckIfOnCrouchShouldReduceDamage();
+
+	//Effect_48
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
