@@ -3288,3 +3288,16 @@ void AAlsCharacter::CheckIfOnSprintShouldRemoveArmLockAndDiscombobulateEffects()
 		GetWorldTimerManager().ClearTimer(CheckIfOnSprintTimerHandle);
 	}
 }
+
+void AAlsCharacter::CheckIfShouldDoubleHealEffect()
+{
+	if (bIsSetEffect_49)
+	{
+		HealAmountMultiplier = 2.0f;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				HealAmountMultiplier = 1.0f;
+			}, 3.0f, false);
+	}
+}

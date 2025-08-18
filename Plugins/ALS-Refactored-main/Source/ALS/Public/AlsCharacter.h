@@ -1479,8 +1479,6 @@ protected:
 
 	//Effect_39
 protected:
-	uint8 bShouldWaitToUseEffect_20 : 1{false};
-
 	uint8 bShouldResetWaitToUseEffect_20 : 1{false};
 
 	FTimerHandle WaitEffectTimerHandle;
@@ -1544,12 +1542,18 @@ protected:
 	uint8 bIsSetEffect_48 : 1{false};
 
 	FTimerHandle CheckIfOnSprintTimerHandle;
-		
+
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	void CheckIfOnSprintShouldRemoveArmLockAndDiscombobulateEffects();
 
 	//Effect_49
+protected:
+	uint8 bIsSetEffect_49 : 1{false};
 
+	float HealAmountMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	void CheckIfShouldDoubleHealEffect();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
