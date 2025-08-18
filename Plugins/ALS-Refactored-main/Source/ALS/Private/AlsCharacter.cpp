@@ -2035,7 +2035,8 @@ void AAlsCharacter::SetHealth(float NewHealth)
 	RefreshStaminaAndRecoilIfHealthIsUnder_20();
 	CheckForHealthReplenish();
 	CheckIfHealthIsUnder_20();
-	CheckIfHealthIsUnder_50();
+	ShouldIgnoreStunIfHealthIsUnder_50();
+	CheckIfHealthIsUnder_30();
 
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
@@ -2223,7 +2224,7 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 
 void AAlsCharacter::StunEffect(float Time)
 {
-	if (bShouldIgnoreStun || ShouldIgnoreEnemyAbilityEffect() || bShouldIgnoreStun_41)
+	if (bShouldIgnoreStun || ShouldIgnoreEnemyAbilityEffect() || ShouldIgnoreStunIfHealthIsUnder_50())
 	{
 		return;
 	}
@@ -3051,7 +3052,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 
 void AAlsCharacter::RefreshDamage()
 {
-	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25;
+	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25 * DamageMultiplierIfHealthIsUnder_30;
 }
 
 void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
@@ -3118,15 +3119,13 @@ float AAlsCharacter::RecalculateDamage(float Damage, FText WeaponName)
 
 void AAlsCharacter::CheckIfHealthIsUnder_20()
 {
+	LastStandSpeedMultiplier = 1.0f;
+	LastStandDamageMultiplier = 1.0f;
+
 	if (GetHealth() < GetMaxHealth() * 0.2f)
 	{
 		LastStandSpeedMultiplier = 1.2f;
 		LastStandDamageMultiplier = 0.8f;
-	}
-	else
-	{
-		LastStandSpeedMultiplier = 1.0f;
-		LastStandDamageMultiplier = 1.0f;
 	}
 }
 
@@ -3142,13 +3141,11 @@ bool AAlsCharacter::ShouldIgnoreEnemyAbilityEffect()
 
 void AAlsCharacter::CheckIfShouldIncreaseWalkAndRunSpeed()
 {
+	WalkAndRunSpeedMultiplier_15 = 1.0f;
+
 	if (bShouldIncreaseWalkAndRunSpeed && GetGait() != AlsGaitTags::Sprinting)
 	{
 		WalkAndRunSpeedMultiplier_15 = 1.15f;
-	}
-	else
-	{
-		WalkAndRunSpeedMultiplier_15 = 1.0f;
 	}
 }
 
@@ -3174,7 +3171,7 @@ void AAlsCharacter::IncreaseHealth_30_20c()
 	}
 }
 
-void AAlsCharacter::CheckIfHealthIsUnder_50()
+bool AAlsCharacter::ShouldIgnoreStunIfHealthIsUnder_50()
 {
 	if (bIsSetEffect_41)
 	{
@@ -3183,25 +3180,24 @@ void AAlsCharacter::CheckIfHealthIsUnder_50()
 			float ChanceToIgnore = FMath::FRandRange(0.0f, 100.0f);
 			if (ChanceToIgnore > 70.0)
 			{
-				bShouldIgnoreStun_41 = true;
-				return;
+				return true;
 			}
 		}
 	}
-	bShouldIgnoreStun_41 = false;
+	return false;
 }
 
 void AAlsCharacter::CheckIfStaminaIsUnder_70()
 {
+	SpeedMultiplierIfStaminaLess_70 = 1.0f;
+
 	if (bShouldIncreaseSpeedIfStaminaLess_70)
 	{
 		if (GetStamina() < 70.0f)
 		{
 			SpeedMultiplierIfStaminaLess_70 = 1.2f;
-			return;
 		}
 	}
-	SpeedMultiplierIfStaminaLess_70 = 1.0f;
 }
 
 bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect()
@@ -3218,4 +3214,17 @@ bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect()
 		}
 	}
 	return false;
+}
+
+void AAlsCharacter::CheckIfHealthIsUnder_30()
+{
+	DamageMultiplierIfHealthIsUnder_30 = 1.0f;
+
+	if (bIsSetEffect_45)
+	{
+		if (GetHealth() < GetMaxHealth() * 0.3f)
+		{
+			DamageMultiplierIfHealthIsUnder_30 = 1.3f;
+		}
+	}
 }

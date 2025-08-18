@@ -1493,9 +1493,7 @@ protected:
 protected:
 	uint8 bIsSetEffect_41 : 1 {false};
 
-	uint8 bShouldIgnoreStun_41 : 1{false};
-
-	void CheckIfHealthIsUnder_50();
+	bool ShouldIgnoreStunIfHealthIsUnder_50();
 
 	//Effect_42
 protected:
@@ -1514,6 +1512,14 @@ protected:
 	uint8 bIsSetEffect_44 : 1{false};
 
 	bool CheckIfShouldIgnoreKnockdownEffect();
+
+	//Effect_45:
+protected:
+	uint8 bIsSetEffect_45 : 1{false};
+
+	float DamageMultiplierIfHealthIsUnder_30 = 1.0f;
+
+	void CheckIfHealthIsUnder_30();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
