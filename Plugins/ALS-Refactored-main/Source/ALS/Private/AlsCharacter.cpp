@@ -2496,7 +2496,7 @@ void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPo
 
 void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius)
 {
-	if (ShouldIgnoreEnemyAbilityEffect())
+	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownEffect())
 	{
 		return;
 	}
@@ -3202,4 +3202,20 @@ void AAlsCharacter::CheckIfStaminaIsUnder_70()
 		}
 	}
 	SpeedMultiplierIfStaminaLess_70 = 1.0f;
+}
+
+bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect()
+{
+	if (bIsSetEffect_44)
+	{
+		if (GetVelocity().Length() == 0.0f)
+		{
+			float ChanceToIgnoreKnockdownEffect = FMath::FRandRange(0.0f, 100.0f);
+			if (ChanceToIgnoreKnockdownEffect > 50.0f)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }

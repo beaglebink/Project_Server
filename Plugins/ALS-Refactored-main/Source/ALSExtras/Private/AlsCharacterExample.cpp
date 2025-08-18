@@ -1587,6 +1587,16 @@ void AAlsCharacterExample::SetEffect_43(bool Apply)
 
 void AAlsCharacterExample::SetEffect_44(bool Apply)
 {
+	if (Apply)
+	{
+		bIsSetEffect_44 = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[44].EffectTimerHandle, EffectTimerHandles[44].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		bIsSetEffect_44 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_45(bool Apply)

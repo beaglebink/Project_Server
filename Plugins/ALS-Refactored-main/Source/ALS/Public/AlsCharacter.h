@@ -1502,12 +1502,18 @@ protected:
 	uint8 bShouldIgnoreFallDamageAndStun : 1{false};
 
 	//Effect_43
-	protected:
-		uint8 bShouldIncreaseSpeedIfStaminaLess_70 : 1{false};
+protected:
+	uint8 bShouldIncreaseSpeedIfStaminaLess_70 : 1{false};
 
-		float SpeedMultiplierIfStaminaLess_70 = 1.0f;
+	float SpeedMultiplierIfStaminaLess_70 = 1.0f;
 
-		void CheckIfStaminaIsUnder_70();
+	void CheckIfStaminaIsUnder_70();
+
+	//Effect_44:
+protected:
+	uint8 bIsSetEffect_44 : 1{false};
+
+	bool CheckIfShouldIgnoreKnockdownEffect();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
