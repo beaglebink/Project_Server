@@ -1684,6 +1684,16 @@ void AAlsCharacterExample::SetEffect_49(bool Apply)
 
 void AAlsCharacterExample::SetEffect_50(bool Apply)
 {
+	if (Apply)
+	{
+		RecoilMultiplierOnRapidFire = 0.4f;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[50].EffectTimerHandle, EffectTimerHandles[50].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		RecoilMultiplierOnRapidFire = 1.0f;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_51(bool Apply)

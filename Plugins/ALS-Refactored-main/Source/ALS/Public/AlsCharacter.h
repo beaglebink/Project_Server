@@ -1554,6 +1554,10 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	void CheckIfShouldDoubleHealEffect();
+
+	//Effect_50 
+protected:
+	float RecoilMultiplierOnRapidFire = 1.0f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

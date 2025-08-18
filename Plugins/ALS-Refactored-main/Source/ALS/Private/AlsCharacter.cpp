@@ -2156,7 +2156,7 @@ void AAlsCharacter::StaminaRecovery()
 
 void AAlsCharacter::RefreshRecoil()
 {
-	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11;
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire;
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
