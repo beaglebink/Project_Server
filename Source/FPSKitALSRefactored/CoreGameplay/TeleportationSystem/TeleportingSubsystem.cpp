@@ -312,8 +312,6 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 					if (TeleportDestination->TeleportingEffect)
 					{
-						//TeleportDestination->StartTeleportEffect->SetFloat
-
 						Niagara = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 							TeleportingActor->GetWorld(),
 							TeleportDestination->TeleportingEffect,
@@ -358,16 +356,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 
 						GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UTeleportingSubsystem::Teleporting, TeleportDestination->TeleportationDuration / 2, false);
 					}
-					/*
-					if (TeleportDestination->TeleportationDuration > 0)
-					{
-						FTimerHandle TimerHandle;
-						GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
-							{
-								if(Niagara) Niagara->DestroyComponent();
-							}, TeleportDestination->TeleportationDuration, false);
-					}
-					*/
+
 					if (TeleportDestination->GetCoolDownTime() > 0)
 					{
 						if (!TeleportDestination->IsInCooldown())
