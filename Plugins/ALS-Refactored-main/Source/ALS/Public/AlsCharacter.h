@@ -1509,7 +1509,7 @@ protected:
 protected:
 	uint8 bIsSetEffect_44 : 1{false};
 
-	bool CheckIfShouldIgnoreKnockdownEffect();
+	bool CheckIfShouldIgnoreKnockdownEffect_44();
 
 	//Effect_45
 protected:
@@ -1558,6 +1558,35 @@ protected:
 	//Effect_50 
 protected:
 	float RecoilMultiplierOnRapidFire = 1.0f;
+
+	//Effect_51
+	
+
+	//Effect_52
+protected:
+	uint8 bIsSetEffect_52 : 1{false};
+
+	bool CheckIfShouldIgnoreKnockdownEffect_52();
+
+	//Effect_53
+protected:
+	uint8 bIsSetEffect_53 : 1{false};
+
+	bool CheckIfShouldIgnoreKnockdownAndStumbleEffect();
+	
+	//Effect_54
+protected:
+	uint8 bShouldIgnoreSlowEffect : 1{false};
+
+	//Effect_55
+protected:
+	uint8 bIsSetEffect_55 : 1{false};
+
+	float TakenDamageMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	void GetDamageFromPlayer(AController* DamageInstigator);
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

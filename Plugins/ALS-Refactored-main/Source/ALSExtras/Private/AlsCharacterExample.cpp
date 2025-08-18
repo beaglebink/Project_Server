@@ -1702,16 +1702,58 @@ void AAlsCharacterExample::SetEffect_51(bool Apply)
 
 void AAlsCharacterExample::SetEffect_52(bool Apply)
 {
+	if (Apply)
+	{
+		bIsSetEffect_52 = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[52].EffectTimerHandle, EffectTimerHandles[52].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		bIsSetEffect_52 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_53(bool Apply)
 {
+	if (Apply)
+	{
+		bIsSetEffect_53 = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[53].EffectTimerHandle, EffectTimerHandles[53].EffectDelegate, 240.0f, false);
+	}
+	else
+	{
+		bIsSetEffect_53 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_54(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIgnoreSlowEffect = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[54].EffectTimerHandle, EffectTimerHandles[54].EffectDelegate, 240.0f, false);
+	}
+	else
+	{
+		bShouldIgnoreSlowEffect = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_55(bool Apply)
 {
+	if (Apply)
+	{
+		bIsSetEffect_55 = true;
+		TakenDamageMultiplier = 1.5f;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[55].EffectTimerHandle, EffectTimerHandles[55].EffectDelegate, 240.0f, false);
+	}
+	else
+	{
+		bIsSetEffect_55 = false;
+		TakenDamageMultiplier = 1.0f;
+	}
 }

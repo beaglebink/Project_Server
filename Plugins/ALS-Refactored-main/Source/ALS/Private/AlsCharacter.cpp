@@ -331,7 +331,7 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	Restore_Speed_JumpHeight_Health();
 
-	//HealthRecovery();
+	HealthRecovery();
 
 	RefreshStaminaHealthStandingMultiplier();
 
@@ -2481,7 +2481,7 @@ void AAlsCharacter::SetArmLockEffect_Implementation(bool bIsSet, bool bShouldRes
 
 void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPower)
 {
-	if (ShouldIgnoreEnemyAbilityEffect())
+	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownAndStumbleEffect())
 	{
 		return;
 	}
@@ -2497,7 +2497,7 @@ void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPo
 
 void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius)
 {
-	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownEffect())
+	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownEffect_44() || CheckIfShouldIgnoreKnockdownEffect_52() || CheckIfShouldIgnoreKnockdownAndStumbleEffect())
 	{
 		return;
 	}
@@ -2588,7 +2588,7 @@ void AAlsCharacter::ShockEffect()
 
 void AAlsCharacter::SetSlowedEffect(float SlowdownValue)
 {
-	if (ShouldIgnoreEnemyAbilityEffect())
+	if (ShouldIgnoreEnemyAbilityEffect() || bShouldIgnoreSlowEffect)
 	{
 		Slowdown_01Range = 1.0f;
 	}
@@ -3052,7 +3052,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 
 void AAlsCharacter::RefreshDamage()
 {
-	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25 * DamageMultiplierIfHealthIsUnder_30 * DamageMultiplierOnCrouch;
+	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25 * DamageMultiplierIfHealthIsUnder_30 * DamageMultiplierOnCrouch * TakenDamageMultiplier;
 }
 
 void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
@@ -3200,7 +3200,7 @@ void AAlsCharacter::CheckIfStaminaIsUnder_70()
 	}
 }
 
-bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect()
+bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect_44()
 {
 	if (bIsSetEffect_44)
 	{
@@ -3299,5 +3299,46 @@ void AAlsCharacter::CheckIfShouldDoubleHealEffect()
 			{
 				HealAmountMultiplier = 1.0f;
 			}, 3.0f, false);
+	}
+}
+
+bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect_52()
+{
+	if (bIsSetEffect_52)
+	{
+		float ChanceToIgnoreKnockdownEffect = FMath::FRandRange(0.0f, 100.0f);
+		if (ChanceToIgnoreKnockdownEffect > 65.0f)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool AAlsCharacter::CheckIfShouldIgnoreKnockdownAndStumbleEffect()
+{
+	if (bIsSetEffect_53)
+	{
+		if (GetVelocity().Length() > 0.0f)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void AAlsCharacter::GetDamageFromPlayer(AController* DamageInstigator)
+{
+	if (APlayerController* PC = Cast<APlayerController>(DamageInstigator))
+	{
+		TakenDamageMultiplier = 1.0f;
+
+		AAlsCharacter* Player = Cast<AAlsCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+		if (Player && Player->bIsSetEffect_55)
+		{
+			TakenDamageMultiplier = 1.5f;
+		}
+		RefreshDamage();
 	}
 }
