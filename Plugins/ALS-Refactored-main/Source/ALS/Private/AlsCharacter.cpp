@@ -2497,7 +2497,7 @@ void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPo
 
 void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius)
 {
-	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownEffect())
+	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownEffect_44() || CheckIfShouldIgnoreKnockdownEffect_52())
 	{
 		return;
 	}
@@ -3200,7 +3200,7 @@ void AAlsCharacter::CheckIfStaminaIsUnder_70()
 	}
 }
 
-bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect()
+bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect_44()
 {
 	if (bIsSetEffect_44)
 	{
@@ -3300,4 +3300,17 @@ void AAlsCharacter::CheckIfShouldDoubleHealEffect()
 				HealAmountMultiplier = 1.0f;
 			}, 3.0f, false);
 	}
+}
+
+bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect_52()
+{
+	if (bIsSetEffect_52)
+	{
+		float ChanceToIgnoreKnockdownEffect = FMath::FRandRange(0.0f, 100.0f);
+		if (ChanceToIgnoreKnockdownEffect > 65.0f)
+		{
+			return true;
+		}
+	}
+	return false;
 }
