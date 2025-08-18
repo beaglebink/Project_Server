@@ -15,6 +15,7 @@
 
 USlotSceneComponent::USlotSceneComponent()
 {
+#if WITH_EDITOR
     PrimaryComponentTick.bCanEverTick = false;
     SetMobility(EComponentMobility::Movable);
     bHiddenInGame = true; 
@@ -37,6 +38,7 @@ USlotSceneComponent::USlotSceneComponent()
     Label->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextBottom);
     Label->SetHiddenInGame(true);
     Label->SetTextRenderColor(FColor::Red);
+#endif
 }
 
 
@@ -110,7 +112,7 @@ void USlotSceneComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
     {
         Owner->RemoveSlot(this);
     }
-
+#if WITH_EDITOR
     if (Arrow)
     {
         Arrow->DestroyComponent();
@@ -122,6 +124,7 @@ void USlotSceneComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
         Label->DestroyComponent();
         Label = nullptr;
     }
+#endif // WITH_EDITOR
 }
 
 

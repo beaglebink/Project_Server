@@ -217,11 +217,12 @@ void ATeleportDestination::RemoveSlot(USlotSceneComponent* SlotToRemove)
     Slots.RemoveAt(Index);
 
     UE_LOG(LogTemp, Warning, TEXT("Removed slot at index %d"), Index);
-
+#if WITH_EDITOR
     if (GEditor)
     {
         GEditor->NoteSelectionChange();
     }
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
