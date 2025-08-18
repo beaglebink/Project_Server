@@ -1747,11 +1747,13 @@ void AAlsCharacterExample::SetEffect_55(bool Apply)
 	if (Apply)
 	{
 		bIsSetEffect_55 = true;
+		TakenDamageMultiplier = 1.5f;
 
 		GetWorldTimerManager().SetTimer(EffectTimerHandles[55].EffectTimerHandle, EffectTimerHandles[55].EffectDelegate, 240.0f, false);
 	}
 	else
 	{
 		bIsSetEffect_55 = false;
+		TakenDamageMultiplier = 1.0f;
 	}
 }

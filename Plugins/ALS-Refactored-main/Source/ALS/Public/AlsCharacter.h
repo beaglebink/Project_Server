@@ -1581,6 +1581,12 @@ protected:
 	//Effect_55
 protected:
 	uint8 bIsSetEffect_55 : 1{false};
+
+	float TakenDamageMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	void GetDamageFromPlayer(AController* DamageInstigator);
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

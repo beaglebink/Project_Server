@@ -3052,7 +3052,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 
 void AAlsCharacter::RefreshDamage()
 {
-	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25 * DamageMultiplierIfHealthIsUnder_30 * DamageMultiplierOnCrouch;
+	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25 * DamageMultiplierIfHealthIsUnder_30 * DamageMultiplierOnCrouch * TakenDamageMultiplier;
 }
 
 void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
@@ -3325,4 +3325,20 @@ bool AAlsCharacter::CheckIfShouldIgnoreKnockdownAndStumbleEffect()
 		}
 	}
 	return false;
+}
+
+void AAlsCharacter::GetDamageFromPlayer(AController* DamageInstigator)
+{
+	if (APlayerController* PC = Cast<APlayerController>(DamageInstigator))
+	{
+		TakenDamageMultiplier = 1.0f;
+
+		AAlsCharacter* Player = Cast<AAlsCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+		if (Player && Player->bIsSetEffect_55)
+		{
+			TakenDamageMultiplier = 1.5f;
+		}
+		RefreshDamage();
+	}
 }
