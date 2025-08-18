@@ -1507,19 +1507,28 @@ protected:
 
 	void CheckIfStaminaIsUnder_70();
 
-	//Effect_44:
+	//Effect_44
 protected:
 	uint8 bIsSetEffect_44 : 1{false};
 
 	bool CheckIfShouldIgnoreKnockdownEffect();
 
-	//Effect_45:
+	//Effect_45
 protected:
 	uint8 bIsSetEffect_45 : 1{false};
 
 	float DamageMultiplierIfHealthIsUnder_30 = 1.0f;
 
 	void CheckIfHealthIsUnder_30();
+
+	//Effect_46
+protected:
+	uint8 bIsSetEffect_46 : 1{false};
+
+	float SpeedMultiplierOnMeleeDamage_40 = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	void CheckIfMeleeDamageIsMoreThan_40(FText DamageType, float DamageAmount);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

@@ -2171,7 +2171,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
-		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70;
+		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3225,6 +3225,32 @@ void AAlsCharacter::CheckIfHealthIsUnder_30()
 		if (GetHealth() < GetMaxHealth() * 0.3f)
 		{
 			DamageMultiplierIfHealthIsUnder_30 = 1.3f;
+		}
+	}
+}
+
+void AAlsCharacter::CheckIfMeleeDamageIsMoreThan_40(FText DamageType, float DamageAmount)
+{
+	if (bIsSetEffect_46)
+	{
+		if (DamageType.ToString() == "Melee")
+		{
+			bIsSetEffect_46 = false;
+
+			if (DamageAmount >= 40.0f)
+			{
+				SpeedMultiplierOnMeleeDamage_40 = 1.4f;
+
+				float StaminaIncreaseAmount = GetStamina() * 0.4f;
+				SetStamina(GetStamina() + StaminaIncreaseAmount);
+
+				FTimerHandle TimerHandle;
+				GetWorldTimerManager().SetTimer(TimerHandle, [this, StaminaIncreaseAmount]()
+					{
+						SpeedMultiplierOnMeleeDamage_40 = 1.0f;
+						SetStamina(GetStamina() - StaminaIncreaseAmount);
+					}, 30.0f, false);
+			}
 		}
 	}
 }
