@@ -1569,11 +1569,20 @@ protected:
 	bool CheckIfShouldIgnoreKnockdownEffect_52();
 
 	//Effect_53
-	 
+protected:
+	uint8 bIsSetEffect_53 : 1{false};
+
+	bool CheckIfShouldIgnoreKnockdownAndStumbleEffect();
+	
 	//Effect_54
+protected:
+	uint8 bIsSetEffect_54 : 1{false};
+
+	bool CheckIfShouldIgnoreSlowdownEffect();
 	
 	//Effect_55
-
+protected:
+	uint8 bIsSetEffect_55 : 1{false};
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

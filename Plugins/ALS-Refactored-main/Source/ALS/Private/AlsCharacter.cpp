@@ -331,7 +331,7 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	Restore_Speed_JumpHeight_Health();
 
-	//HealthRecovery();
+	HealthRecovery();
 
 	RefreshStaminaHealthStandingMultiplier();
 
@@ -2481,7 +2481,7 @@ void AAlsCharacter::SetArmLockEffect_Implementation(bool bIsSet, bool bShouldRes
 
 void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPower)
 {
-	if (ShouldIgnoreEnemyAbilityEffect())
+	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownAndStumbleEffect())
 	{
 		return;
 	}
@@ -2497,7 +2497,7 @@ void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPo
 
 void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius)
 {
-	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownEffect_44() || CheckIfShouldIgnoreKnockdownEffect_52())
+	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownEffect_44() || CheckIfShouldIgnoreKnockdownEffect_52() || CheckIfShouldIgnoreKnockdownAndStumbleEffect())
 	{
 		return;
 	}
@@ -3308,6 +3308,18 @@ bool AAlsCharacter::CheckIfShouldIgnoreKnockdownEffect_52()
 	{
 		float ChanceToIgnoreKnockdownEffect = FMath::FRandRange(0.0f, 100.0f);
 		if (ChanceToIgnoreKnockdownEffect > 65.0f)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool AAlsCharacter::CheckIfShouldIgnoreKnockdownAndStumbleEffect()
+{
+	if (bIsSetEffect_53)
+	{
+		if (GetVelocity().Length() > 0.0f)
 		{
 			return true;
 		}
