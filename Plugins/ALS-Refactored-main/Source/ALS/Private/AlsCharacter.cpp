@@ -2035,6 +2035,7 @@ void AAlsCharacter::SetHealth(float NewHealth)
 	RefreshStaminaAndRecoilIfHealthIsUnder_20();
 	CheckForHealthReplenish();
 	CheckIfHealthIsUnder_20();
+	CheckIfHealthIsUnder_50();
 
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
@@ -2215,7 +2216,7 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 
 void AAlsCharacter::StunEffect(float Time)
 {
-	if (bShouldIgnoreStun || ShouldIgnoreEnemyAbilityEffect())
+	if (bShouldIgnoreStun || ShouldIgnoreEnemyAbilityEffect() || bShouldIgnoreStun_41)
 	{
 		return;
 	}
@@ -3164,4 +3165,21 @@ void AAlsCharacter::IncreaseHealth_30_20c()
 	{
 		SetHealth(GetHealth() + 30.0f * GetWorld()->GetDeltaSeconds() / 20.0f);
 	}
+}
+
+void AAlsCharacter::CheckIfHealthIsUnder_50()
+{
+	if (bIsSetEffect_41)
+	{
+		if (GetHealth() < 50.0f)
+		{
+			float ChanceToIgnore = FMath::FRandRange(0.0f, 100.0f);
+			if (ChanceToIgnore > 70.0)
+			{
+				bShouldIgnoreStun_41 = true;
+				return;
+			}
+		}
+	}
+	bShouldIgnoreStun_41 = false;
 }

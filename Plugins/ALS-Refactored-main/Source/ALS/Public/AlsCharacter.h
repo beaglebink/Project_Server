@@ -1490,7 +1490,12 @@ protected:
 	float AimAccuracy_50 = 1.0f;
 
 	//Effect_41
+protected:
+	uint8 bIsSetEffect_41 : 1 {false};
 
+	uint8 bShouldIgnoreStun_41 : 1{false};
+
+	void CheckIfHealthIsUnder_50();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
