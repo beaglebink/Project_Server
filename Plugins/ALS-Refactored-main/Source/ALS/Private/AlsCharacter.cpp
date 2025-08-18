@@ -2055,6 +2055,8 @@ void AAlsCharacter::SetStamina(float NewStamina)
 	Stamina = FMath::Clamp(GetStamina() - StaminaDiff, 0.0f, GetMaxStamina());
 
 	RefreshHealthIfStaminaIsUnder_30();
+	CheckIfStaminaIsUnder_70();
+
 	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
 }
 
@@ -2168,7 +2170,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
-		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25;
+		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3187,4 +3189,17 @@ void AAlsCharacter::CheckIfHealthIsUnder_50()
 		}
 	}
 	bShouldIgnoreStun_41 = false;
+}
+
+void AAlsCharacter::CheckIfStaminaIsUnder_70()
+{
+	if (bShouldIncreaseSpeedIfStaminaLess_70)
+	{
+		if (GetStamina() < 70.0f)
+		{
+			SpeedMultiplierIfStaminaLess_70 = 1.2f;
+			return;
+		}
+	}
+	SpeedMultiplierIfStaminaLess_70 = 1.0f;
 }

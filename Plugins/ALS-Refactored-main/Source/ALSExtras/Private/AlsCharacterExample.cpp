@@ -1573,6 +1573,16 @@ void AAlsCharacterExample::SetEffect_42(bool Apply)
 
 void AAlsCharacterExample::SetEffect_43(bool Apply)
 {
+	if (Apply)
+	{
+		bShouldIncreaseSpeedIfStaminaLess_70 = true;
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[43].EffectTimerHandle, EffectTimerHandles[43].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		bShouldIncreaseSpeedIfStaminaLess_70 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_44(bool Apply)
