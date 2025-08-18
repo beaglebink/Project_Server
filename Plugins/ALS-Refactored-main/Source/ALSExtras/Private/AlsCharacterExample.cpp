@@ -1732,13 +1732,13 @@ void AAlsCharacterExample::SetEffect_54(bool Apply)
 {
 	if (Apply)
 	{
-		bIsSetEffect_54 = true;
+		bShouldIgnoreSlowEffect = true;
 
 		GetWorldTimerManager().SetTimer(EffectTimerHandles[54].EffectTimerHandle, EffectTimerHandles[54].EffectDelegate, 240.0f, false);
 	}
 	else
 	{
-		bIsSetEffect_54 = false;
+		bShouldIgnoreSlowEffect = false;
 	}
 }
 

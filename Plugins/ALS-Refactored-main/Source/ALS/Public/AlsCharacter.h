@@ -1576,10 +1576,8 @@ protected:
 	
 	//Effect_54
 protected:
-	uint8 bIsSetEffect_54 : 1{false};
+	uint8 bShouldIgnoreSlowEffect : 1{false};
 
-	bool CheckIfShouldIgnoreSlowdownEffect();
-	
 	//Effect_55
 protected:
 	uint8 bIsSetEffect_55 : 1{false};

@@ -2588,7 +2588,7 @@ void AAlsCharacter::ShockEffect()
 
 void AAlsCharacter::SetSlowedEffect(float SlowdownValue)
 {
-	if (ShouldIgnoreEnemyAbilityEffect())
+	if (ShouldIgnoreEnemyAbilityEffect() || bShouldIgnoreSlowEffect)
 	{
 		Slowdown_01Range = 1.0f;
 	}
