@@ -3267,3 +3267,24 @@ void AAlsCharacter::CheckIfOnCrouchShouldReduceDamage()
 		}
 	}
 }
+
+void AAlsCharacter::CheckIfOnSprintShouldRemoveArmLockAndDiscombobulateEffects()
+{
+	if (GetGait() == AlsGaitTags::Sprinting)
+	{
+		if (bIsSetEffect_48)
+		{
+			GetWorldTimerManager().SetTimer(CheckIfOnSprintTimerHandle, [this]()
+				{
+					bIsSetEffect_48 = false;
+
+					SetArmLockEffect(false);
+					bIsDiscombobulated = false;
+				}, 7.0f, false);
+		}
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(CheckIfOnSprintTimerHandle);
+	}
+}

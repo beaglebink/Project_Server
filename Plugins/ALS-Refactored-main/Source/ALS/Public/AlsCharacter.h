@@ -1540,6 +1540,15 @@ protected:
 	void CheckIfOnCrouchShouldReduceDamage();
 
 	//Effect_48
+protected:
+	uint8 bIsSetEffect_48 : 1{false};
+
+	FTimerHandle CheckIfOnSprintTimerHandle;
+		
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	void CheckIfOnSprintShouldRemoveArmLockAndDiscombobulateEffects();
+
+	//Effect_49
 
 };
 

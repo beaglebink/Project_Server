@@ -1635,7 +1635,7 @@ void AAlsCharacterExample::SetEffect_47(bool Apply)
 
 		CheckIfOnCrouchShouldReduceDamage();
 
-		GetWorldTimerManager().SetTimer(EffectTimerHandles[46].EffectTimerHandle, EffectTimerHandles[46].EffectDelegate, 240.0f, false);
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[47].EffectTimerHandle, EffectTimerHandles[47].EffectDelegate, 240.0f, false);
 	}
 	else
 	{
@@ -1645,6 +1645,18 @@ void AAlsCharacterExample::SetEffect_47(bool Apply)
 
 void AAlsCharacterExample::SetEffect_48(bool Apply)
 {
+	if (Apply)
+	{
+		bIsSetEffect_48 = true;
+
+		CheckIfOnSprintShouldRemoveArmLockAndDiscombobulateEffects();
+
+		GetWorldTimerManager().SetTimer(EffectTimerHandles[48].EffectTimerHandle, EffectTimerHandles[48].EffectDelegate, 900.0f, false);
+	}
+	else
+	{
+		bIsSetEffect_48 = false;
+	}
 }
 
 void AAlsCharacterExample::SetEffect_49(bool Apply)
