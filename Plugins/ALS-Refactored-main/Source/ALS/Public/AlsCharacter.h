@@ -1554,12 +1554,19 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	void CheckIfShouldDoubleHealEffect();
-
 	//Effect_50 
 protected:
 	float RecoilMultiplierOnRapidFire = 1.0f;
 
 	//Effect_51
+protected:
+	uint8 bIsSetEffect_51 : 1{false};
+
+	float AfterMeleeImpactMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
+	void CheckIfShouldReduceRecoveryTime(FText DamageType);
+
 	
 
 	//Effect_52
@@ -1586,7 +1593,6 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	void GetDamageFromPlayer(AController* DamageInstigator);
-
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

@@ -2267,11 +2267,14 @@ void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)
 		return;
 	}
 
-	float DamageSlowdownDuration = DeltaHealth / 10.0f * DamageSlowdownTime;
+	float DamageSlowdownDuration = DeltaHealth / 10.0f * DamageSlowdownTime * AfterMeleeImpactMultiplier;
 	DamageSlowdownMultiplier -= (DeltaHealth / GetMaxHealth() * DamageSlowdownEffect);
 
 	FTimerHandle TimerHandle;
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]() {DamageSlowdownMultiplier = 1.0f; }, DamageSlowdownDuration + 0.001f, false);
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
+		{
+			DamageSlowdownMultiplier = 1.0f;
+		}, DamageSlowdownDuration + 0.001f, false);
 }
 
 void AAlsCharacter::CalculateSpeedMultiplierOnGoingUpOrDown()
@@ -3299,6 +3302,19 @@ void AAlsCharacter::CheckIfShouldDoubleHealEffect()
 			{
 				HealAmountMultiplier = 1.0f;
 			}, 3.0f, false);
+	}
+}
+
+void AAlsCharacter::CheckIfShouldReduceRecoveryTime(FText DamageType)
+{
+	AfterMeleeImpactMultiplier = 1.0f;
+
+	if (bIsSetEffect_51)
+	{
+		if (DamageType.ToString() == "Melee")
+		{
+			AfterMeleeImpactMultiplier = 0.5f;
+		}
 	}
 }
 
