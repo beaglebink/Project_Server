@@ -31,7 +31,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NodeProperty", meta = (AllowPrivateAccess = "true"))
 	int32 NodeNumber;
 
-	UPROPERTY(Transient, BlueprintReadWrite, Category = "Material", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadWrite, Category = "Material", meta = (AllowPrivateAccess = "true"))
 	UMaterialInstanceDynamic* DMI_BorderMaterial;
 
 	UFUNCTION(BlueprintCallable, Category = "Material", meta = (AllowPrivateAccess = "true"))
