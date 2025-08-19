@@ -1708,7 +1708,6 @@ void AAlsCharacterExample::SetEffect_51(bool Apply)
 	{
 		bIsSetEffect_51 = false;
 	}
-
 }
 
 void AAlsCharacterExample::SetEffect_52(bool Apply)

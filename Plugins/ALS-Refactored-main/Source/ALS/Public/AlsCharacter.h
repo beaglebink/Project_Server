@@ -1567,8 +1567,6 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	void CheckIfShouldReduceRecoveryTime(FText DamageType);
 
-	
-
 	//Effect_52
 protected:
 	uint8 bIsSetEffect_52 : 1{false};
