@@ -28,19 +28,47 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* SKM_Node;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UAudioComponent* NodeAudio;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NodeProperty", meta = (AllowPrivateAccess = "true"))
+	USoundBase* NodeSoundCorrectWork;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NodeProperty", meta = (AllowPrivateAccess = "true"))
+	USoundBase* NodeSoundUncorrectWork;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NodeProperty", meta = (AllowPrivateAccess = "true"))
 	int32 NodeNumber;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Material", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY()
+	int32 CurrentNodeNumber;
+
+	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_BorderMaterial;
+
+	uint8 bIsActivated : 1{false};
 
 	UFUNCTION(BlueprintCallable, Category = "Material", meta = (AllowPrivateAccess = "true"))
 	void UpdateBorderMaterial();
 
-public:
-	UPROPERTY(BlueprintReadWrite, Category = "NodeProperty")
-	uint8 bIsActivated : 1{false};
+	UFUNCTION(BlueprintCallable, Category = "Sound", meta = (AllowPrivateAccess = "true"))
+	void NodeSound();
 
-	UPROPERTY(BlueprintReadWrite, Category = "NodeProperty")
-	int32 CurrentNodeNumber;
+public:
+	UFUNCTION(BlueprintCallable, Category = "NodeParameters")
+	void SetNodeActivation(bool IsActive);
+
+	UFUNCTION(BlueprintCallable, Category = "NodeParameters")
+	bool GetNodeActivation() const;
+
+	UFUNCTION(BlueprintCallable, Category = "NodeParameters")
+	void SetNodeNumber(FText NewNumber);
+
+	UFUNCTION(BlueprintCallable, Category = "NodeParameters")
+	int32 GetNodeNumber() const;
+
+private:
+	void OnActivationChanged();
+
+	void OnNumberChanged();
 };
