@@ -13,29 +13,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorFinishCooldownSub, ATeleport
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartSlotCooldown, ATeleportDestination*, Destination, USlotSceneComponent*, Slot);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStopSlotCooldownSub, ATeleportDestination*, Destination, USlotSceneComponent*, Slot);
 
-/*
-USTRUCT(BlueprintType)
-struct FPSKITALSREFACTORED_API UTeleportFailResponseObject : public UObject
-{
-    GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString ObjectId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString DestinationId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString Response;
-};
-*/
-//DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTeleportationFailed, FString, ActorId, FString, DestinationId, TArray< FTeleportFailResponse>, TeleportationFailResponses);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-    FOnTeleportationFailed,
-    FString, ObjectId,
-    FString, DestinationId
-);
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTeleportationFailed, FString, ObjectId, FString, DestinationId);
 
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FTeleportTableRow : public FTableRowBase
@@ -59,16 +37,12 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
     
-    UFUNCTION(BlueprintCallable, Category = "Teleportation")
     void RegistrationTeleportingDestination(AActor* Destination);
 
-    UFUNCTION(BlueprintCallable, Category = "Teleportation")
     void UnregistrationTeleportingDestination(AActor* Destination);
 
-    UFUNCTION(BlueprintCallable, Category = "Teleportation")
 	void RegistrationTeleportingActor(AActor* Actor);
 
-    UFUNCTION(BlueprintCallable, Category = "Teleportation")
 	void UnregistrationTeleportingActor(AActor* Actor);
 
     UFUNCTION(BlueprintCallable, Category = "Teleportation")

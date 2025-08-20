@@ -13,10 +13,16 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	UFUNCTION(BlueprintCallable, Category = "Teleportation")
+	bool IsActorFree() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Teleportation")
+	void SetActorFree(bool bIsFree);
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
 	FString ObjectID;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
+private:
 	bool ActorIsFree = true;
 };

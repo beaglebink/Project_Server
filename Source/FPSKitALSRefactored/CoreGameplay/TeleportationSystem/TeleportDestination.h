@@ -45,10 +45,10 @@ public:
     bool GetActiveDestination() const;
 
     UFUNCTION(BlueprintCallable, Category = "Teleportation")
-	void SetCoolDownTime(float Time) { CoolDownTime = Time; }
+	void SetCoolDownTime(float Time) { CooldownTime = Time; }
 
     UFUNCTION(BlueprintCallable, Category = "Teleportation")
-	float GetCoolDownTime() const { return CoolDownTime; }
+	float GetCoolDownTime() const { return CooldownTime; }
 
     UFUNCTION(BlueprintCallable, Category = "Slot")
     bool IsInCooldown() const { return isCooldown; }
@@ -80,6 +80,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleportation")
     FString DestinationID;
 
+    UPROPERTY(EditInstanceOnly, Category = "Teleportation", meta = (AllowPrivateAccess = "true"))
+    bool IsActiveDestination = true;
+
+    UPROPERTY(EditInstanceOnly, Category = "Teleportation", meta = (AllowPrivateAccess = "true"))
+    float CooldownTime = 0.0f;
+
     UPROPERTY(EditAnywhere, Category = "Teleportation", Instanced, meta = (TitleProperty = "SlotName"))
     TArray<TObjectPtr<USlotSceneComponent>> Slots;
 
@@ -89,14 +95,8 @@ public:
     UPROPERTY(Transient)
     TObjectPtr<UTextRenderComponent> Label = nullptr;
 
-    UPROPERTY(EditInstanceOnly, Category = "Teleportation", meta = (AllowPrivateAccess = "true"))
-    bool IsActiveDestination = true;
-
     UPROPERTY(BlueprintAssignable, Category = "Teleportation")
 	FOnChangeActiveDestination OnChangeActiveDestination;
-
-    UPROPERTY(EditInstanceOnly, Category = "Teleportation", meta = (AllowPrivateAccess = "true"))
-	float CoolDownTime = 0.0f;
 
 	FOnActorFinishCooldown OnDestinationFinishCooldown;
 

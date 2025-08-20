@@ -194,7 +194,7 @@ void ATeleportDestination::StartCooldown()
         {
             isCooldown = false;
             OnDestinationFinishCooldown.Broadcast(this);
-        }, CoolDownTime, false);
+        }, CooldownTime, false);
 }
 
 void ATeleportDestination::RemoveSlot(USlotSceneComponent* SlotToRemove)

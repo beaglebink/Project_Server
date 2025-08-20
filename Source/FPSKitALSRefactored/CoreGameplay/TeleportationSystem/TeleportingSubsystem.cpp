@@ -153,7 +153,7 @@ void UTeleportingSubsystem::TeleportToDestination(FString ObjectId, FString Dest
 					UTeleportingComponent* TeleportingComponent = Actor->FindComponentByClass<UTeleportingComponent>();
 					if (TeleportingComponent && TeleportingComponent->ObjectID == ObjectId)
 					{
-						if (TeleportingComponent->ActorIsFree)
+						if (TeleportingComponent->IsActorFree())
 						{
 							TeleportingActor = Actor;
 							UE_LOG(LogTemp, Log, TEXT("UTeleportingSubsystem::TeleportToDestination TeleportingActor %s"), *TeleportingActor->GetName());

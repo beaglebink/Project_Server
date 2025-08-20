@@ -41,7 +41,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Slot")
 	bool IsInCooldown() const { return isCooldown; }
 
-    UFUNCTION(BlueprintCallable, Category = "Slot")
     void StartCooldown();
 
     void OnComponentDestroyed(bool bDestroyingHierarchy);
@@ -70,6 +69,7 @@ public:
     UPROPERTY(EditInstanceOnly, Category = "Slot", meta = (AllowPrivateAccess = "true"))
     float CoolDownTime = 0.0f;
 
+    UPROPERTY(BlueprintAssignable, Category = "Slot")
     FOnStopSlotCooldown OnStopSlotCooldown;
 
 #if WITH_EDITORONLY_DATA

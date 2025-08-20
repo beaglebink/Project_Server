@@ -33,3 +33,21 @@ void UTeleportingComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		UE_LOG(LogTemp, Warning, TEXT("TeleportingSubsystem not found during EndPlay!"));
 	}
 }
+
+bool UTeleportingComponent::IsActorFree() const
+{
+	return ActorIsFree;
+}
+
+void UTeleportingComponent::SetActorFree(bool bIsFree)
+{
+	ActorIsFree = bIsFree;
+	if (bIsFree)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Actor %s is now free for teleportation."), *GetOwner()->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Actor %s is now busy and cannot be teleported."), *GetOwner()->GetName());
+	}
+}
