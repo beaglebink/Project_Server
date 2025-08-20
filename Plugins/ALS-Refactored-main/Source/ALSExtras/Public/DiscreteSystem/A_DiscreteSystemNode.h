@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "A_DiscreteSystemNode.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLogicFinished);
+
 UCLASS()
 class ALSEXTRAS_API AA_DiscreteSystemNode : public AActor
 {
@@ -26,10 +28,13 @@ private:
 	UStaticMeshComponent* SM_ZoneBorder;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* SM_Node;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* SKM_Node;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UAudioComponent* NodeAudio;
+	UAudioComponent* NodeBorderAudio;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NodeProperty", meta = (AllowPrivateAccess = "true"))
 	USoundBase* NodeSoundCorrectWork;
@@ -71,4 +76,15 @@ private:
 	void OnActivationChanged();
 
 	void OnNumberChanged();
+
+public:
+	UPROPERTY(BlueprintCallable, BlueprintAssignable, Category = "Delegate")
+	FOnLogicFinished OnLogicFinished;
+
+protected:
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NodeLogic")
+	void NormalLogic();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NodeLogic")
+	void AbnormalLogic();
 };

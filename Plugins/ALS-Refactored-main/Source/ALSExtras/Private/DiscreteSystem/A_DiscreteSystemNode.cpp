@@ -8,12 +8,14 @@ AA_DiscreteSystemNode::AA_DiscreteSystemNode()
 
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	SM_ZoneBorder = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ZoneBorder"));
-	SKM_Node = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("NodeMesh"));
-	NodeAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("NodeAudio"));
+	SM_Node = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NodeStaticMesh"));
+	SKM_Node = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("NodeSkeletalMesh"));
+	NodeBorderAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("NodeAudio"));
 
 	RootComponent = SceneComponent;
 	SM_ZoneBorder->SetupAttachment(RootComponent);
-	SKM_Node->SetupAttachment(SM_ZoneBorder);
+	SM_Node->SetupAttachment(RootComponent);
+	SKM_Node->SetupAttachment(RootComponent);
 }
 
 void AA_DiscreteSystemNode::BeginPlay()
@@ -39,6 +41,22 @@ void AA_DiscreteSystemNode::UpdateBorderMaterial()
 		{
 			SM_ZoneBorder->SetMaterial(0, DMI_BorderMaterial);
 			DMI_BorderMaterial->SetScalarParameterValue(FName("NodeNumber"), CurrentNodeNumber);
+		}
+	}
+}
+
+void AA_DiscreteSystemNode::NodeSound()
+{
+	if (NodeSoundCorrectWork && NodeSoundUncorrectWork)
+	{
+		NodeBorderAudio->Stop();
+		if (NodeNumber - CurrentNodeNumber)
+		{
+			NodeBorderAudio = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), NodeSoundUncorrectWork, GetActorLocation(), GetActorRotation(), 1.0f);
+		}
+		else
+		{
+			NodeBorderAudio = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), NodeSoundCorrectWork, GetActorLocation(), GetActorRotation(), 1.0f);
 		}
 	}
 }
@@ -87,7 +105,18 @@ void AA_DiscreteSystemNode::OnActivationChanged()
 	//Node logic if active
 	if (bIsActivated)
 	{
-
+		if (NodeNumber - CurrentNodeNumber)
+		{
+			AbnormalLogic();
+		}
+		else
+		{
+			NormalLogic();
+		}
+	}
+	else
+	{
+		OnLogicFinished.Broadcast();
 	}
 }
 
@@ -102,19 +131,11 @@ void AA_DiscreteSystemNode::OnNumberChanged()
 	NodeSound();
 }
 
-void AA_DiscreteSystemNode::NodeSound()
+void AA_DiscreteSystemNode::NormalLogic_Implementation()
 {
-	if (NodeSoundCorrectWork && NodeSoundUncorrectWork)
-	{
-		NodeAudio->Stop();
-		if (NodeNumber - CurrentNodeNumber)
-		{
-			NodeAudio = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), NodeSoundUncorrectWork, GetActorLocation(), GetActorRotation(), 1.0f);
-		}
-		else
-		{
-			NodeAudio = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), NodeSoundCorrectWork, GetActorLocation(), GetActorRotation(), 1.0f);
-		}
-	}
+}
+
+void AA_DiscreteSystemNode::AbnormalLogic_Implementation()
+{
 }
 
