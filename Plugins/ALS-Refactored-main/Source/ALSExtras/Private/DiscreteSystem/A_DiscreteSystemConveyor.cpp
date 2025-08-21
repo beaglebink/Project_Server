@@ -5,27 +5,23 @@ AA_DiscreteSystemConveyor::AA_DiscreteSystemConveyor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
+
+	RootComponent = SceneComponent;
 }
 
 void AA_DiscreteSystemConveyor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	for (UChildActorComponent* ChildComp : NodeActors)
-	{
-		if (ChildComp && ChildComp->GetChildActor())
-		{
-			if (AA_DiscreteSystemNode* Node = Cast<AA_DiscreteSystemNode>(ChildComp->GetChildActor()))
-			{
-				Node->OnLogicFinished.AddDynamic(this, &AA_DiscreteSystemConveyor::OnNodeLogicFinished);
-			}
-		}
-	}
 
-	for (size_t i = 0; i < NodeActors.Num(); ++i)
-	{
-		NodeOrder[i] = i + 1;
-	}
+}
+
+void AA_DiscreteSystemConveyor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	ArraysInitialization();
 }
 
 void AA_DiscreteSystemConveyor::Tick(float DeltaTime)
@@ -36,21 +32,68 @@ void AA_DiscreteSystemConveyor::Tick(float DeltaTime)
 
 void AA_DiscreteSystemConveyor::OnNodeLogicFinished()
 {
-	if (CurrentNodeIndex == NodeActors.Num() - 1)
+	++CurrentNodeIndex;
+	if (CurrentNodeIndex == NodeActors.Num())
 	{
 		CurrentNodeIndex = 0;
 	}
 	else
 	{
-		if (AA_DiscreteSystemNode* Node = Cast<AA_DiscreteSystemNode>(NodeActors[NodeOrder[++CurrentNodeIndex]]))
+		StartSystemLogic();
+	}
+}
+
+void AA_DiscreteSystemConveyor::OrderCorrection()
+{
+	for (AA_DiscreteSystemNode* SystemNode : NodeActors)
+	{
+		int32 Index = SystemNode->GetNodeNumber() - 1;
+		if (Index >= NodeActors.Num())
 		{
-			Node->SetNodeActivation(true);
+			continue;
+		}
+		NodeOrder[Index] = SystemNode->GetNodeNumberDefault() - 1;
+	}
+}
+
+void AA_DiscreteSystemConveyor::ArraysInitialization()
+{
+	NodeActors.Empty();
+	NodeOrder.Empty();
+
+	int32 Index = 0;
+	TArray<UChildActorComponent*> ChildComps;
+	GetComponents<UChildActorComponent>(ChildComps);
+
+	for (UChildActorComponent* ChildComp : ChildComps)
+	{
+		if (AA_DiscreteSystemNode* SystemNode = Cast<AA_DiscreteSystemNode>(ChildComp->GetChildActor()))
+		{
+			SystemNode->OnLogicFinished.Clear();
+			SystemNode->OnLogicFinished.AddDynamic(this, &AA_DiscreteSystemConveyor::OnNodeLogicFinished);
+			SystemNode->OnNumberChangedDel.AddDynamic(this, &AA_DiscreteSystemConveyor::OrderCorrection);
+			NodeActors.Add(SystemNode);
+			NodeOrder.Add(Index++);
 		}
 	}
 }
 
 void AA_DiscreteSystemConveyor::StartSystemLogic()
 {
+	int32 Index = NodeOrder[CurrentNodeIndex];
+	if (Index >= NodeActors.Num())
+	{
+		OnNodeLogicFinished();
+	}
+	else
+	{
+		NodeActors[Index]->SetNodeActivation(true);
+	}
+}
+
+void AA_DiscreteSystemConveyor::StopSystemLogic()
+{
+	CurrentNodeIndex = NodeActors.Num() - 1;
 }
 
 void AA_DiscreteSystemConveyor::ShuffleSystemLogic()
@@ -62,6 +105,11 @@ void AA_DiscreteSystemConveyor::ShuffleSystemLogic()
 		{
 			NodeOrder.Swap(i, Index);
 		}
+	}
+
+	for (size_t i = 0; i < NodeActors.Num(); ++i)
+	{
+		NodeActors[NodeOrder[i]]->SetNodeNumber(FText::AsNumber(i + 1));
 	}
 }
 

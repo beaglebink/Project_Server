@@ -77,6 +77,11 @@ bool AA_DiscreteSystemNode::GetNodeActivation() const
 	return bIsActivated;
 }
 
+int32 AA_DiscreteSystemNode::GetNodeNumberDefault() const
+{
+	return NodeNumber;
+}
+
 void AA_DiscreteSystemNode::SetNodeNumber(FText NewNumber)
 {
 	int NumberToSet = FCString::Atoi(*NewNumber.ToString());
@@ -129,6 +134,8 @@ void AA_DiscreteSystemNode::OnNumberChanged()
 	}
 
 	NodeSound();
+
+	OnNumberChangedDel.Broadcast();
 }
 
 void AA_DiscreteSystemNode::NormalLogic_Implementation()
