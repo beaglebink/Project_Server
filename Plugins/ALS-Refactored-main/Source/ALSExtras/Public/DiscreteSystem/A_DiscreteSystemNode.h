@@ -5,7 +5,7 @@
 #include "A_DiscreteSystemNode.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLogicFinished);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnNumberChanged, int32, NodeNumberDefault, int32, NodeNumber);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNumberChanged);
 
 UCLASS()
 class ALSEXTRAS_API AA_DiscreteSystemNode : public AActor
