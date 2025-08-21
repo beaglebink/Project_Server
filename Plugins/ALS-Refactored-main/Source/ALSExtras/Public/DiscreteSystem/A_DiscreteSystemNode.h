@@ -5,6 +5,7 @@
 #include "A_DiscreteSystemNode.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLogicFinished);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnNumberChanged, int32, NodeNumberDefault, int32, NodeNumber);
 
 UCLASS()
 class ALSEXTRAS_API AA_DiscreteSystemNode : public AActor
@@ -67,6 +68,9 @@ public:
 	bool GetNodeActivation() const;
 
 	UFUNCTION(BlueprintCallable, Category = "NodeParameters")
+	int32 GetNodeNumberDefault() const;
+
+	UFUNCTION(BlueprintCallable, Category = "NodeParameters")
 	void SetNodeNumber(FText NewNumber);
 
 	UFUNCTION(BlueprintCallable, Category = "NodeParameters")
@@ -80,6 +84,9 @@ private:
 public:
 	UPROPERTY(BlueprintCallable, BlueprintAssignable, Category = "Delegate")
 	FOnLogicFinished OnLogicFinished;
+
+	UPROPERTY(BlueprintCallable, BlueprintAssignable, Category = "Delegate")
+	FOnNumberChanged OnNumberChangedDel;
 
 protected:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NodeLogic")
