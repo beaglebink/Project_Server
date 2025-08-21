@@ -65,7 +65,6 @@ public:
 	FOnTeleportation OnTeleportation;
 
     UPROPERTY(BlueprintAssignable, Category = "Teleportation")
-    //FOnTeleportationFailed OnTeleportationFailed;
     FOnTeleportationFailed OnTeleportationFailed;
 
     UPROPERTY(BlueprintAssignable, Category = "Teleportation")
