@@ -115,6 +115,7 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 		}
 
 		FName TableActorId = Row->ActorID;
+		FName TypeName = Row->PropertyValue.VariableTypeName;
 		FName PropertyName = Row->PropertyName;
 		FVariantProperty PropertyValue = Row->PropertyValue;
 
@@ -124,7 +125,9 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 			continue;
 		}
 		KeyActor->ApplyProperty(PropertyName, PropertyValue);
+		//KeyActor->TypeName = TypeName;
 		KeyActor->KeyValues.Add(PropertyName, PropertyValue.ValueName);
+		KeyActor->KeyTypes.Add(PropertyName, PropertyValue.VariableTypeName);
 		UE_LOG(LogTemp, Log, TEXT("Applied property %s to Keys Actor: %s"), *PropertyName.ToString(), *KeyActor->GetName());
 	}
 }

@@ -48,6 +48,9 @@ struct FVariantProperty
     EPropertyValueType Type;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName VariableTypeName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FName ValueName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -94,6 +97,9 @@ struct FDictionaryActorStruct : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FName ActorID;
+
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    //FName TypeName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FName PropertyName;

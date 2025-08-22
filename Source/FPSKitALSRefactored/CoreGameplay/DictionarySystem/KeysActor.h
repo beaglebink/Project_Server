@@ -25,8 +25,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
 	FName KeyActorName;
 
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
+	//FName TypeName;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
 	TMap<FName, FName> KeyValues;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
+	TMap<FName, FName> KeyTypes;
 
 protected:
 
