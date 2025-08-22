@@ -7,7 +7,6 @@ void ADictionaryManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &ADictionaryManager::Initialize, 0.5f, true);
 	Initialize();
 }
 
@@ -42,55 +41,6 @@ void ADictionaryManager::Initialize()
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to load DictionaryActorsTable"));
 	}
-/*
-	TArray<FName> RowNames = DictionaryActorsTable->GetRowNames();
-
-	if (RowNames.Num() != RegisteredKeysActors.Num())
-		return;
-
-	//TimerHandle.Invalidate();
-
-	for (const FName& RowName : RowNames)
-	{
-		const FDictionaryActorStruct* Row = DictionaryActorsTable->FindRow<FDictionaryActorStruct>(RowName, TEXT("Dictionary system Row Lookup"));
-
-		if (!Row)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Row %s not found in DictionaryActorsTable"), *RowName.ToString());
-			continue;
-		}
-
-		FName ActorId = Row->ActorID;
-		FName PropertyName = Row->PropertyName;
-		FVariantProperty PropertyValue = Row->PropertyValue;
-
-		for (ADictionaryObjectBase* KeysActor : RegisteredKeysActors)
-		{
-			if (KeysActor)
-			{
-				AKeysActor* Keys = Cast<AKeysActor>(KeysActor);
-
-				if (!Keys)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Actor %s is not a valid KeysActor"), *KeysActor->GetName());
-					continue;
-				}
-
-				if (Keys->KeyActorName != ActorId)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Keys Actor %s does not match ID: %s"), *KeysActor->GetName(), *ActorId.ToString());
-					continue;
-				}
-				Keys->ApplyProperty(PropertyName, PropertyValue);
-				UE_LOG(LogTemp, Log, TEXT("Applied property %s to Keys Actor: %s"), *PropertyName.ToString(), *KeysActor->GetName());
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("No matching Keys Actor found for ID: %s"), *ActorId.ToString());
-			}
-		}
-	}
-*/
 }
 
 void ADictionaryManager::RegisterKeysActor(ADictionaryObjectBase* KeysActor)
@@ -174,6 +124,7 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 			continue;
 		}
 		KeyActor->ApplyProperty(PropertyName, PropertyValue);
+		KeyActor->KeyValues.Add(PropertyName, PropertyValue.ValueName);
 		UE_LOG(LogTemp, Log, TEXT("Applied property %s to Keys Actor: %s"), *PropertyName.ToString(), *KeyActor->GetName());
 	}
 }

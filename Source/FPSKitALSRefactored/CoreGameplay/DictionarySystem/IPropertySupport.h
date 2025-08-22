@@ -15,5 +15,4 @@ class FPSKITALSREFACTORED_API IPropertySupport
 public:
     // ѕрименить свойство по имени с новым значением
     virtual void ApplyProperty(const FName PropertyName, const FVariantProperty Value) = 0;
-	virtual void AddPropertyDescription(const FName PropertyName, const FName ValueName) = 0;
 };
