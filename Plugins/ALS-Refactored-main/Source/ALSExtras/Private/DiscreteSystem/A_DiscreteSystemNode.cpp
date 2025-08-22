@@ -16,6 +16,8 @@ AA_DiscreteSystemNode::AA_DiscreteSystemNode()
 	SM_ZoneBorder->SetupAttachment(RootComponent);
 	SM_Node->SetupAttachment(RootComponent);
 	SKM_Node->SetupAttachment(RootComponent);
+
+	CurrentNodeNumber = NodeNumber;
 }
 
 void AA_DiscreteSystemNode::BeginPlay()
@@ -34,14 +36,18 @@ void AA_DiscreteSystemNode::UpdateBorderMaterial()
 {
 	CurrentNodeNumber = NodeNumber;
 
-	if (SM_ZoneBorder && SM_ZoneBorder->GetMaterial(0))
+	if (!DMI_BorderMaterial)
 	{
-		DMI_BorderMaterial = SM_ZoneBorder->CreateDynamicMaterialInstance(0, SM_ZoneBorder->GetMaterial(0));
-		if (DMI_BorderMaterial)
+		if (SM_ZoneBorder && SM_ZoneBorder->GetMaterial(0))
 		{
+			DMI_BorderMaterial = SM_ZoneBorder->CreateDynamicMaterialInstance(0, SM_ZoneBorder->GetMaterial(0));
 			SM_ZoneBorder->SetMaterial(0, DMI_BorderMaterial);
-			DMI_BorderMaterial->SetScalarParameterValue(FName("NodeNumber"), CurrentNodeNumber);
 		}
+	}
+
+	if (DMI_BorderMaterial)
+	{
+		DMI_BorderMaterial->SetScalarParameterValue(FName("NodeNumber"), CurrentNodeNumber);
 	}
 }
 
@@ -135,7 +141,7 @@ void AA_DiscreteSystemNode::OnNumberChanged()
 
 	NodeSound();
 
-	OnNumberChangedDel.Broadcast();
+	OnNumberChangedDel.Broadcast(GetNodeNumberDefault(), GetNodeNumber());
 }
 
 void AA_DiscreteSystemNode::NormalLogic_Implementation()

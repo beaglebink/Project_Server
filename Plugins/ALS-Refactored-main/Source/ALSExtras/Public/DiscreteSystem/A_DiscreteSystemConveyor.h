@@ -38,7 +38,7 @@ private:
 	void OnNodeLogicFinished();
 
 	UFUNCTION()
-	void OrderCorrection();
+	void OrderCorrection(int32 NodeNumberDefault, int32 NodeNumber);
 
 	void ArraysInitialization();
 

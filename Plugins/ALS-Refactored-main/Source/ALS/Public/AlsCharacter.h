@@ -1578,7 +1578,7 @@ protected:
 	uint8 bIsSetEffect_53 : 1{false};
 
 	bool CheckIfShouldIgnoreKnockdownAndStumbleEffect();
-	
+
 	//Effect_54
 protected:
 	uint8 bShouldIgnoreSlowEffect : 1{false};
