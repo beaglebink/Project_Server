@@ -135,7 +135,7 @@ void AA_DiscreteSystemNode::OnNumberChanged()
 
 	NodeSound();
 
-	OnNumberChangedDel.Broadcast();
+	OnNumberChangedDel.Broadcast(GetNodeNumberDefault(), GetNodeNumber());
 }
 
 void AA_DiscreteSystemNode::NormalLogic_Implementation()

@@ -43,7 +43,7 @@ void AA_DiscreteSystemConveyor::OnNodeLogicFinished()
 	}
 }
 
-void AA_DiscreteSystemConveyor::OrderCorrection()
+void AA_DiscreteSystemConveyor::OrderCorrection(int32 NodeNumberDefault, int32 NodeNumber)
 {
 	for (AA_DiscreteSystemNode* SystemNode : NodeActors)
 	{
@@ -54,6 +54,12 @@ void AA_DiscreteSystemConveyor::OrderCorrection()
 		}
 		NodeOrder[Index] = SystemNode->GetNodeNumberDefault() - 1;
 	}
+
+	if (NodeNumber > NodeActors.Num())
+	{
+		return;
+	}
+	NodeOrder[NodeNumber - 1] = NodeNumberDefault - 1;
 }
 
 void AA_DiscreteSystemConveyor::ArraysInitialization()
