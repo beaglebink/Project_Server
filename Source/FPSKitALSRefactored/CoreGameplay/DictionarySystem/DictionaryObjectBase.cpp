@@ -2,9 +2,9 @@
 #include "DictionaryManager.h"
 #include "TimerManager.h"
 
-ADictionaryManager* ADictionaryOnjectBase::ManagerInstance = nullptr;
+ADictionaryManager* ADictionaryObjectBase::ManagerInstance = nullptr;
 
-void ADictionaryOnjectBase::BeginPlay()
+void ADictionaryObjectBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
@@ -19,7 +19,7 @@ void ADictionaryOnjectBase::BeginPlay()
     }
 }
 
-    void ADictionaryOnjectBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+    void ADictionaryObjectBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
     {
 		Super::EndPlay(EndPlayReason);
 		if (ManagerInstance)

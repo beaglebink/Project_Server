@@ -18,6 +18,9 @@ class FPSKITALSREFACTORED_API ISceneDataProvider
     GENERATED_BODY()
 
 public:
-    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SceneData")
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Teleporting system")
     UDataTable* TeleportDataTable() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Dictionary system")
+    UDataTable* DictionaryDataTable() const;
 };

@@ -7,7 +7,7 @@
 #include "PropertyActor.generated.h"
 
 UCLASS()
-class FPSKITALSREFACTORED_API APropertyActor : public ADictionaryOnjectBase
+class FPSKITALSREFACTORED_API APropertyActor : public ADictionaryObjectBase
 {
     GENERATED_BODY()
 

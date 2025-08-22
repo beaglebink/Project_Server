@@ -28,7 +28,8 @@ void AKeysActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		UE_LOG(LogTemp, Warning, TEXT("KeysActor: ManagerInstance is null during EndPlay!"));
 	}
 }
-
-void AKeysActor::ApplyProperty(const FName PropertyName, const FString& Value)
+void AKeysActor::ApplyProperty_Implementation(const FName PropertyName, const FVariantProperty Value)
 {
 }
+
+

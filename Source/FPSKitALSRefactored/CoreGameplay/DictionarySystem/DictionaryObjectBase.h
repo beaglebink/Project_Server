@@ -19,8 +19,9 @@ enum class EPropertyValueType : uint8
 	Object   UMETA(DisplayName = "Object")
 };
 
+
 UCLASS()
-class FPSKITALSREFACTORED_API ADictionaryOnjectBase : public AActor
+class FPSKITALSREFACTORED_API ADictionaryObjectBase : public AActor
 {
     GENERATED_BODY()
 
@@ -31,6 +32,8 @@ protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+public:
+	FName KeyActorName = NAME_None;
 
 protected:
     static ADictionaryManager* ManagerInstance;
@@ -66,7 +69,7 @@ struct FVariantProperty
     FLinearColor ColorValue;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    ADictionaryOnjectBase* ObjectValue;
+    ADictionaryObjectBase* ObjectValue;
 
     FString ToString() const
     {
@@ -82,4 +85,19 @@ struct FVariantProperty
         default: return TEXT("Unknown");
         }
     }
+};
+
+USTRUCT(BlueprintType)
+struct FDictionaryActorStruct : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName ActorID;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName PropertyName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FVariantProperty PropertyValue;
 };

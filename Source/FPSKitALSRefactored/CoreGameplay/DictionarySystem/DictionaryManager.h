@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "DictionaryObjectBase.h"
+#include "Engine/DataTable.h"
 
 #include "DictionaryManager.generated.h"
 
@@ -12,15 +13,29 @@ class FPSKITALSREFACTORED_API ADictionaryManager : public AActor
 {
     GENERATED_BODY()
 public:
-	void RegisterKeysActor(ADictionaryOnjectBase* KeysActor);
-	void UnregisterKeysActor(ADictionaryOnjectBase* KeysActor);
+	void BeginPlay() override;
 
-	void RegisterPropertyActor(ADictionaryOnjectBase* PropertyActor);
-	void UnregisterPropertyActor(ADictionaryOnjectBase* PropertyActor);
+	
+
+	
+
+	void RegisterKeysActor(ADictionaryObjectBase* KeysActor);
+	void UnregisterKeysActor(ADictionaryObjectBase* KeysActor);
+
+	void RegisterPropertyActor(ADictionaryObjectBase* PropertyActor);
+	void UnregisterPropertyActor(ADictionaryObjectBase* PropertyActor);
+
+private:
+	UFUNCTION()
+	void Initialize();
 
 private:
 	UPROPERTY()
-	TArray<ADictionaryOnjectBase*> RegisteredKeysActors;
+	TArray<ADictionaryObjectBase*> RegisteredKeysActors;
 	UPROPERTY()
-	TArray<ADictionaryOnjectBase*> RegisteredPropertyActors;
+	TArray<ADictionaryObjectBase*> RegisteredPropertyActors;
+
+	UDataTable* DictionaryActorsTable;
+
+	FTimerHandle TimerHandle;
 };
