@@ -48,7 +48,7 @@ struct FVariantProperty
     EPropertyValueType Type;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FName PropertyName;
+    FName ValueName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool BoolValue;

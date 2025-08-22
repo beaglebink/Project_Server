@@ -16,8 +16,11 @@ public:
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent /*BlueprintImplementableEvent*/, Category = "KeysActor")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "KeysActor")
 	void ApplyProperty(const FName PropertyName, const FVariantProperty Value) override;
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "KeysActor")
+	void AddPropertyDescription(const FName PropertyName, const FName ValueName) override;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")

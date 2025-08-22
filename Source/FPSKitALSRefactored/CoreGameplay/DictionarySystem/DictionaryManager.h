@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "DictionaryObjectBase.h"
 #include "Engine/DataTable.h"
+#include "KeysActor.h"
 
 #include "DictionaryManager.generated.h"
 
@@ -15,15 +16,13 @@ class FPSKITALSREFACTORED_API ADictionaryManager : public AActor
 public:
 	void BeginPlay() override;
 
-	
-
-	
-
 	void RegisterKeysActor(ADictionaryObjectBase* KeysActor);
 	void UnregisterKeysActor(ADictionaryObjectBase* KeysActor);
 
 	void RegisterPropertyActor(ADictionaryObjectBase* PropertyActor);
 	void UnregisterPropertyActor(ADictionaryObjectBase* PropertyActor);
+
+	void InitializeKeyActor(AKeysActor* KeyActor);
 
 private:
 	UFUNCTION()
@@ -37,5 +36,5 @@ private:
 
 	UDataTable* DictionaryActorsTable;
 
-	FTimerHandle TimerHandle;
+	//FTimerHandle TimerHandle;
 };
