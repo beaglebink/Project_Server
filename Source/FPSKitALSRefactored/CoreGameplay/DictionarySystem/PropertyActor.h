@@ -16,9 +16,8 @@ public:
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
-	FName TypeName;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
+	//FName TypeName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
-	FVariantProperty Property;
+
 };
