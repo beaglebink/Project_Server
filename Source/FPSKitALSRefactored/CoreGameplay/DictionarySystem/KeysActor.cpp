@@ -7,6 +7,7 @@ void AKeysActor::BeginPlay()
 	if (ManagerInstance)
 	{
 		// Register this actor with the dictionary manager
+		KeyValues.Empty();
 		ManagerInstance->RegisterKeysActor(this);
 		ManagerInstance->InitializeKeyActor(this);
 	}
@@ -29,11 +30,12 @@ void AKeysActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		UE_LOG(LogTemp, Warning, TEXT("KeysActor: ManagerInstance is null during EndPlay!"));
 	}
 }
-void AKeysActor::AddPropertyDescription_Implementation(const FName PropertyName, const FName ValueName)
+void AKeysActor::AddPropertyDescription(const FName PropertyName, const FName ValueName)
 {
+	
 }
+
 void AKeysActor::ApplyProperty_Implementation(const FName PropertyName, const FVariantProperty Value)
 {
 }
-
 

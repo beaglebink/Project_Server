@@ -55,10 +55,13 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 			}
 
 			OtherComp->SetSimulatePhysics(false);
+			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Ignore);
 			OtherComp->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepWorldTransform);
 			GrabbedComponent = OtherComp;
 			bIsOccupied = true;
 			bShouldGrab = true;
+
+			OnGrabDel.Broadcast();
 		}
 	}
 }
@@ -77,6 +80,16 @@ void AA_ArrayNode::ComponentGrabbing()
 	}
 }
 
+void AA_ArrayNode::DeleteNode()
+{
+	GrabbedComponent->SetSimulatePhysics(true);
+	GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Block);
+	GrabbedComponent->AddForce((UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation() - GetActorLocation()).GetSafeNormal() * 1000.0f);
+	GrabbedComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+
+	OnDeleteDel.Broadcast(NodeIndex);
+}
+
 void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
 {
 	if (!DMI_BorderMaterial)
@@ -92,4 +105,19 @@ void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
 	{
 		DMI_BorderMaterial->SetScalarParameterValue(FName("Index"), NewIndex);
 	}
+}
+
+void AA_ArrayNode::GetTextCommand(FText Command)
+{
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "DELETE");
+	if (Command.ToString() == "del")
+	{
+		DeleteNode();
+	}
+
+	if (Command.ToString() == "swap")
+	{
+		//SwapNode(Index);
+	}
+
 }

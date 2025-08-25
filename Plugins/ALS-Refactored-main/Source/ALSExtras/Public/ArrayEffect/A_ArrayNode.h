@@ -4,6 +4,9 @@
 #include "GameFramework/Actor.h"
 #include "A_ArrayNode.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGrab);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDelete, int32, Index);
+
 UCLASS()
 class ALSEXTRAS_API AA_ArrayNode : public AActor
 {
@@ -42,6 +45,8 @@ private:
 
 	void ComponentGrabbing();
 
+	void DeleteNode();
+
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "ArrayIndex")
 	int32 NodeIndex;
@@ -51,4 +56,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Material")
 	void SetBorderMaterialAndIndex(int32 NewIndex = -1);
+	
+	UFUNCTION(BlueprintCallable, Category = "ArrayInteraction")
+	void GetTextCommand(FText Command);
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Delegate")
+	FOnGrab OnGrabDel;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Delegate")
+	FOnDelete OnDeleteDel;
 };

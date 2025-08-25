@@ -5,9 +5,11 @@
 #include "DictionaryObjectBase.h"
 #include "Engine/DataTable.h"
 #include "KeysActor.h"
+#include "FVariantProperty.h"
 
 #include "DictionaryManager.generated.h"
 
+class ADictionaryObjectBase;
 
 UCLASS()
 class FPSKITALSREFACTORED_API ADictionaryManager : public AActor

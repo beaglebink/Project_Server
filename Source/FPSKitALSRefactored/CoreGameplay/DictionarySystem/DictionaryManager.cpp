@@ -1,5 +1,6 @@
 #include "DictionaryManager.h"
 #include <FPSKitALSRefactored/CoreGameplay/TeleportationSystem/SceneDataProvider.h>
+#include "PropertyActor.h"
 
 
 
@@ -7,7 +8,6 @@ void ADictionaryManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &ADictionaryManager::Initialize, 0.5f, true);
 	Initialize();
 }
 
@@ -42,55 +42,6 @@ void ADictionaryManager::Initialize()
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to load DictionaryActorsTable"));
 	}
-/*
-	TArray<FName> RowNames = DictionaryActorsTable->GetRowNames();
-
-	if (RowNames.Num() != RegisteredKeysActors.Num())
-		return;
-
-	//TimerHandle.Invalidate();
-
-	for (const FName& RowName : RowNames)
-	{
-		const FDictionaryActorStruct* Row = DictionaryActorsTable->FindRow<FDictionaryActorStruct>(RowName, TEXT("Dictionary system Row Lookup"));
-
-		if (!Row)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Row %s not found in DictionaryActorsTable"), *RowName.ToString());
-			continue;
-		}
-
-		FName ActorId = Row->ActorID;
-		FName PropertyName = Row->PropertyName;
-		FVariantProperty PropertyValue = Row->PropertyValue;
-
-		for (ADictionaryObjectBase* KeysActor : RegisteredKeysActors)
-		{
-			if (KeysActor)
-			{
-				AKeysActor* Keys = Cast<AKeysActor>(KeysActor);
-
-				if (!Keys)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Actor %s is not a valid KeysActor"), *KeysActor->GetName());
-					continue;
-				}
-
-				if (Keys->KeyActorName != ActorId)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Keys Actor %s does not match ID: %s"), *KeysActor->GetName(), *ActorId.ToString());
-					continue;
-				}
-				Keys->ApplyProperty(PropertyName, PropertyValue);
-				UE_LOG(LogTemp, Log, TEXT("Applied property %s to Keys Actor: %s"), *PropertyName.ToString(), *KeysActor->GetName());
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("No matching Keys Actor found for ID: %s"), *ActorId.ToString());
-			}
-		}
-	}
-*/
 }
 
 void ADictionaryManager::RegisterKeysActor(ADictionaryObjectBase* KeysActor)
@@ -125,6 +76,62 @@ void ADictionaryManager::RegisterPropertyActor(ADictionaryObjectBase* PropertyAc
 	{
 		RegisteredPropertyActors.Add(PropertyActor);
 		UE_LOG(LogTemp, Log, TEXT("Registered Property Actor: %s"), *PropertyActor->GetName());
+
+		APropertyActor* PropertyActorCast = Cast<APropertyActor>(PropertyActor);
+
+		
+		FVariantProperty ActorPropertyValue = PropertyActorCast->Property;
+		FName PropertyTypeName = ActorPropertyValue.VariableTypeName;
+		FName PropertyValueName = ActorPropertyValue.ValueName;
+
+		for (auto KeysActor : RegisteredKeysActors)
+		{
+			AKeysActor* KeysActorCast = Cast<AKeysActor>(KeysActor);
+
+			if (!KeysActorCast)
+			{
+				continue;
+			}
+
+			TArray<FName> RowNames = DictionaryActorsTable->GetRowNames();
+
+			for (const FName& RowName : RowNames)
+			{
+				const FDictionaryActorStruct* Row = DictionaryActorsTable->FindRow<FDictionaryActorStruct>(RowName, TEXT("Dictionary system Row Lookup"));
+
+				if (!Row)
+				{
+					//UE_LOG(LogTemp, Warning, TEXT("Row %s not found in DictionaryActorsTable %s"), *RowName.ToString());
+					continue;
+				}
+
+				FName TableActorId = Row->ActorID;
+				FName TableTypeName = Row->PropertyValue.VariableTypeName;
+				FName TablePropertyName = Row->PropertyName;
+				FVariantProperty TablePropertyValue = Row->PropertyValue;
+				FName TablePropertyValueName = TablePropertyValue.ValueName;
+
+				if (KeysActorCast->KeyTypes.Contains(TablePropertyName))
+				{
+					if (KeysActorCast->KeyTypes.Find(TablePropertyName) && *KeysActorCast->KeyTypes.Find(TablePropertyName) == PropertyTypeName)
+					{
+						if (KeysActorCast->KeyValues.Contains(TablePropertyName))
+						{
+							if (KeysActorCast->KeyValues.Find(TablePropertyName) && *KeysActorCast->KeyValues.Find(TablePropertyName) == PropertyValueName)
+							{
+
+
+								//if (PropertyTypeName == TableTypeName && PropertyValueName == PropertyValueName/*PropertyTypeName == TablePropertyName && ActorPropertyValue.ValueName == PropertyValueName*/)
+								//{
+								UE_LOG(LogTemp, Warning, TEXT("Draw link KeysActor %s and PropertyActor %s"), *KeysActor->GetName(), *PropertyActor->GetName());
+								DrawDebugLine(GetWorld(), KeysActor->GetActorLocation(), PropertyActor->GetActorLocation(), FColor::Green, true, 50.0f, 0, 1.0f);
+								//}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	else
 	{
@@ -165,6 +172,7 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 		}
 
 		FName TableActorId = Row->ActorID;
+		FName TypeName = Row->PropertyValue.VariableTypeName;
 		FName PropertyName = Row->PropertyName;
 		FVariantProperty PropertyValue = Row->PropertyValue;
 
@@ -174,6 +182,24 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 			continue;
 		}
 		KeyActor->ApplyProperty(PropertyName, PropertyValue);
+		//KeyActor->TypeName = TypeName;
+		KeyActor->KeyTypes.Add(PropertyName, PropertyValue.VariableTypeName);
+		KeyActor->KeyValues.Add(PropertyName, PropertyValue.ValueName);
+
 		UE_LOG(LogTemp, Log, TEXT("Applied property %s to Keys Actor: %s"), *PropertyName.ToString(), *KeyActor->GetName());
+
+		for (auto ValueActor : RegisteredPropertyActors)
+		{
+			APropertyActor* PropertyActor = Cast<APropertyActor>(ValueActor);
+			if (!PropertyActor)
+			{
+				continue;
+			}
+
+			if (PropertyActor->Property.VariableTypeName == TypeName && PropertyValue.ValueName == PropertyActor->Property.ValueName)
+			{
+				DrawDebugLine(GetWorld(), KeyActor->GetActorLocation(), PropertyActor->GetActorLocation(), FColor::Green, true, 50.0f, 0, 1.0f);
+			}
+		}
 	}
 }
