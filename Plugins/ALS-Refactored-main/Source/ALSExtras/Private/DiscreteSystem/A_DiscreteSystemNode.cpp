@@ -41,12 +41,12 @@ void AA_DiscreteSystemNode::UpdateBorderMaterial()
 		if (SM_ZoneBorder && SM_ZoneBorder->GetMaterial(0))
 		{
 			DMI_BorderMaterial = SM_ZoneBorder->CreateDynamicMaterialInstance(0, SM_ZoneBorder->GetMaterial(0));
-			SM_ZoneBorder->SetMaterial(0, DMI_BorderMaterial);
 		}
 	}
 
 	if (DMI_BorderMaterial)
 	{
+		SM_ZoneBorder->SetMaterial(0, DMI_BorderMaterial);
 		DMI_BorderMaterial->SetScalarParameterValue(FName("NodeNumber"), CurrentNodeNumber);
 	}
 }

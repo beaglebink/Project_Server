@@ -30,11 +30,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* NodeBorder;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* NodeContainer;
-
 	UPROPERTY()
 	UPrimitiveComponent* GrabbedComponent;
+
+	int32 NodeIndex = -1;
 
 	uint8 bIsOccupied : 1{false};
 
@@ -48,15 +47,20 @@ private:
 	void DeleteNode();
 
 public:
-	UPROPERTY(BlueprintReadWrite, Category = "ArrayIndex")
-	int32 NodeIndex;
+	uint8 bIsMoving : 1{false};
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_BorderMaterial;
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Getter")
+	int32 GetIndex() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Setter")
+	void SetIndex(int32 NewIndex);
+
 	UFUNCTION(BlueprintCallable, Category = "Material")
 	void SetBorderMaterialAndIndex(int32 NewIndex = -1);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "ArrayInteraction")
 	void GetTextCommand(FText Command);
 

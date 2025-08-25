@@ -10,11 +10,9 @@ AA_ArrayNode::AA_ArrayNode()
 
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	NodeBorder = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NodeBorderComponent"));
-	NodeContainer = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NodeContainerComponent"));
 
 	RootComponent = SceneComponent;
 	NodeBorder->SetupAttachment(RootComponent);
-	NodeContainer->SetupAttachment(RootComponent);
 }
 
 void AA_ArrayNode::BeginPlay()
@@ -40,7 +38,7 @@ void AA_ArrayNode::Tick(float DeltaTime)
 
 void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!OtherActor || bIsOccupied) return;
+	if (!OtherActor || bIsOccupied || bIsMoving) return;
 
 	if (AAlsCharacterExample* Player = Cast<AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
 	{
@@ -56,6 +54,7 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 
 			OtherComp->SetSimulatePhysics(false);
 			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Ignore);
+			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Ignore);
 			OtherComp->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepWorldTransform);
 			GrabbedComponent = OtherComp;
 			bIsOccupied = true;
@@ -82,12 +81,30 @@ void AA_ArrayNode::ComponentGrabbing()
 
 void AA_ArrayNode::DeleteNode()
 {
-	GrabbedComponent->SetSimulatePhysics(true);
+	bIsOccupied = false;
 	GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Block);
-	GrabbedComponent->AddForce((UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation() - GetActorLocation()).GetSafeNormal() * 1000.0f);
+	GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Overlap);
 	GrabbedComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	GrabbedComponent->SetSimulatePhysics(true);
+	GrabbedComponent->AddImpulse((UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation() - GetActorLocation()).GetSafeNormal() * 1000.0f, NAME_None, true);
 
 	OnDeleteDel.Broadcast(NodeIndex);
+
+	Destroy();
+}
+
+int32 AA_ArrayNode::GetIndex() const
+{
+	return NodeIndex;
+}
+
+void AA_ArrayNode::SetIndex(int32 NewIndex)
+{
+	if (NodeIndex != NewIndex)
+	{
+		NodeIndex = NewIndex;
+		SetBorderMaterialAndIndex(NodeIndex);
+	}
 }
 
 void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
@@ -97,19 +114,19 @@ void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
 		if (NodeBorder && NodeBorder->GetMaterial(0))
 		{
 			DMI_BorderMaterial = NodeBorder->CreateDynamicMaterialInstance(0, NodeBorder->GetMaterial(0));
-			NodeBorder->SetMaterial(0, DMI_BorderMaterial);
 		}
 	}
 
 	if (DMI_BorderMaterial)
 	{
+		NodeBorder->SetMaterial(0, DMI_BorderMaterial);
 		DMI_BorderMaterial->SetScalarParameterValue(FName("Index"), NewIndex);
 	}
 }
 
 void AA_ArrayNode::GetTextCommand(FText Command)
 {
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "DELETE");
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "DELETE");
 	if (Command.ToString() == "del")
 	{
 		DeleteNode();
