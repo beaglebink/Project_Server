@@ -125,7 +125,7 @@ void AKeysActor::ParseText(const FText Text)
 					{
 						KeyValues.Add(Key, Value);
 						ApplyProperty(Key, VarProperty);
-						ManagerInstance->ConnectActorChain(this, PropertyActor, OldActor);
+						ManagerInstance->ConnectActorChain(this, Key, PropertyActor, OldActor);
 					}
 					else
 					{

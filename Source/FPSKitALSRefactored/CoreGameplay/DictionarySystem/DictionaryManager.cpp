@@ -137,9 +137,8 @@ void ADictionaryManager::RegisterPropertyActor(ADictionaryObjectBase* PropertyAc
 							if (KeysActorCast->KeyValues.Find(TablePropertyName) && *KeysActorCast->KeyValues.Find(TablePropertyName) == PropertyValueName)
 							{
 								UE_LOG(LogTemp, Warning, TEXT("Draw link KeysActor %s and PropertyActor %s"), *KeysActor->GetName(), *PropertyActor->GetName());
-								//DrawDebugLine(GetWorld(), KeysActor->GetActorLocation(), PropertyActor->GetActorLocation(), FColor::Green, true, 50.0f, 0, 1.0f);
 
-								ConnectActorChain(KeysActor, PropertyActor, nullptr);
+								ConnectActorChain(KeysActor, TablePropertyName, PropertyActor, nullptr);
 							}
 						}
 					}
@@ -211,9 +210,7 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 
 			if (PropertyActor->Property.VariableTypeName == TypeName && PropertyValue.ValueName == PropertyActor->Property.ValueName)
 			{
-				//DrawDebugLine(GetWorld(), KeyActor->GetActorLocation(), PropertyActor->GetActorLocation(), FColor::Green, true, 50.0f, 0, 1.0f);
-
-				ConnectActorChain(KeyActor, PropertyActor, nullptr);
+				ConnectActorChain(KeyActor, PropertyName, PropertyActor, nullptr);
 			}
 		}
 	}
@@ -225,42 +222,31 @@ AActor* ADictionaryManager::VerifyProperty(const FName& PropertyType, const FNam
 		if (ValueActor->Property.VariableTypeName == PropertyType && ValueActor->Property.ValueName == PropertyValue)
 		{
 			VariantProperty = ValueActor->Property;
-			//PropertyActor = ValueActor;
+
 			return ValueActor;
 		}
 	}
 	return nullptr;
 }
 
-void ADictionaryManager::ConnectActorChain(AActor* Start, AActor* Finish, AActor* Old/*const FVector& StartLocation, const FVector& FinishLocation*/)
+void ADictionaryManager::ConnectActorChain(AActor* Start, const FName& Key, AActor* Finish, AActor* Old)
 {
 	FEffectsStruct EStruct;
 	EStruct.KeyActor = Start;
+	EStruct.KeyName = Key;
 	EStruct.PropertyActor = Old;
 
 	if (ActiveEffects.Find(EStruct))
 	{
 		auto Effect = ActiveEffects.FindRef(EStruct);
-		//Effect->SetVisibility(false, true);
-		
-		//Effect->DestroyComponent();
 
 		ActiveEffects.Remove(EStruct);
 
-		//Effect->DeactivateImmediate();   // остановить немедленно
-		//Effect->DestroyComponent(true);  // удалить компонент
-
-		
-
-
-		//Effect->Deactivate();
 		FVector StartPoint = Start->GetActorLocation();
 		FVector EndPoint = Finish->GetActorLocation();
 
 		Effect->SetVectorParameter(FName("Beam Start"), StartPoint);
 		Effect->SetVectorParameter(FName("Beam End"), EndPoint);
-
-		//Effect->Activate(true);
 
 		FEffectsStruct EStruct_New;
 		EStruct_New.KeyActor = Start;
@@ -278,7 +264,6 @@ void ADictionaryManager::ConnectActorChain(AActor* Start, AActor* Finish, AActor
 		FVector StartPoint = Start->GetActorLocation();
 		FVector EndPoint = Finish->GetActorLocation();
 
-		//UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), ConnectionEffect, FVector::ZeroVector);
 		UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(ConnectionEffect, Start->GetRootComponent(), FName(TEXT("Niagara")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true, true);
 		if (NiagaraComp)
 		{
@@ -288,6 +273,7 @@ void ADictionaryManager::ConnectActorChain(AActor* Start, AActor* Finish, AActor
 
 			FEffectsStruct EStruct_New;
 			EStruct_New.KeyActor = Start;
+			EStruct_New.KeyName = Key;
 			EStruct_New.PropertyActor = Finish;
 
 			ActiveEffects.Add(EStruct_New, NiagaraComp);

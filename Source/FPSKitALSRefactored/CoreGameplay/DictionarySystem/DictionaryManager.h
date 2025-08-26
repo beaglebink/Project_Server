@@ -35,18 +35,25 @@ struct FEffectsStruct
 	AActor* KeyActor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName KeyName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* PropertyActor;
 
 	// Оператор сравнения
 	bool operator==(const FEffectsStruct& Other) const
 	{
-		return KeyActor == Other.KeyActor && PropertyActor == Other.PropertyActor;
+		return KeyActor == Other.KeyActor && KeyName == Other.KeyName && PropertyActor == Other.PropertyActor;
 	}
 };
 
 FORCEINLINE uint32 GetTypeHash(const FEffectsStruct& Struct)
 {
-	return HashCombine(GetTypeHash(Struct.KeyActor), GetTypeHash(Struct.PropertyActor));
+	uint32 Hash = GetTypeHash(Struct.KeyActor);
+	Hash = HashCombine(Hash, GetTypeHash(Struct.KeyName));
+	Hash = HashCombine(Hash, GetTypeHash(Struct.PropertyActor));
+
+	return Hash;
 }
 
 
@@ -70,7 +77,7 @@ public:
 	AActor* VerifyProperty(const FName& PropertyType, const FName& PropertyValue, FVariantProperty& VariantProperty);
 
 	UFUNCTION(BlueprintCallable)
-	void ConnectActorChain(AActor* Start, AActor* Finish, AActor* Old);
+	void ConnectActorChain(AActor* Start, const FName& Key, AActor* Finish, AActor* Old);
 
 private:
 	UFUNCTION()
