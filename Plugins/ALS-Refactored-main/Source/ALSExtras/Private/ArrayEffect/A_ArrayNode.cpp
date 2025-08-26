@@ -3,17 +3,21 @@
 #include "Kismet/GameplayStatics.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
+#include "Components/AudioComponent.h"
 
 AA_ArrayNode::AA_ArrayNode()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	NodeBorder = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NodeBorderComponent"));
+	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	MoveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveTimeline"));
+	NodeBorderAudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("NodeAudioComponent"));
 
 	RootComponent = SceneComponent;
 	NodeBorder->SetupAttachment(RootComponent);
+	NodeBorderAudioComp->SetupAttachment(RootComponent);
+	NodeBorderAudioComp->bAutoActivate = false;
 }
 
 void AA_ArrayNode::BeginPlay()
@@ -156,28 +160,24 @@ void AA_ArrayNode::GetTextCommand(FText Command)
 
 }
 
-void AA_ArrayNode::MoveNode(bool Direction)
+void AA_ArrayNode::MoveNode(FVector NewTargetLocation)
 {
 	bIsMoving = true;
-	bIsMoveLeft = Direction;
+	CurrentLocation = GetActorLocation();
+	TargetLocation = NewTargetLocation;
+
+	NodeBorderAudioComp->Play();
+
 	MoveTimeline->PlayFromStart();
 }
 
 void AA_ArrayNode::TimelineProgress(float Value)
 {
-	float MoveDistance = FMath::Lerp(0.0f, NodeBorder->Bounds.BoxExtent.Y * 2 * (bIsMoveLeft * 2 - 1), Value);
-	FVector TargetLocation = CurrentLocation;
-	TargetLocation.Y += MoveDistance;
-	SetActorLocation(TargetLocation);
-
-	if (NodeMoveSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(GetWorld(), NodeMoveSound, GetActorLocation());
-	}
+	SetActorLocation(FMath::Lerp(CurrentLocation, TargetLocation, Value));
 }
 
 void AA_ArrayNode::TimelineFinished()
 {
 	bIsMoving = false;
-	CurrentLocation = GetActorLocation();
+	NodeBorderAudioComp->Stop();
 }

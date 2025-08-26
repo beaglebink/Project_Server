@@ -24,18 +24,22 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UStaticMeshComponent* NodeBorder;
+
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* SceneComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* NodeBorder;
+	UAudioComponent* NodeBorderAudioComp;
 
 	UPROPERTY()
 	UPrimitiveComponent* GrabbedComponent;
+	
+	FVector CurrentLocation;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USoundBase* NodeMoveSound;
+	FVector TargetLocation;
 
 	int32 NodeIndex = -1;
 
@@ -43,11 +47,7 @@ private:
 
 	uint8 bShouldGrab : 1{false};
 
-	uint8 bIsMoveLeft : 1{false};
-
 	uint8 bIsMoving : 1{false};
-
-	FVector CurrentLocation;
 
 	UFUNCTION()
 	void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -57,8 +57,6 @@ private:
 	void DeleteNode();
 
 public:
-	float NodeBorderYSize;
-
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_BorderMaterial;
 
@@ -74,7 +72,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ArrayInteraction")
 	void GetTextCommand(FText Command);
 
-	void MoveNode(bool Direction);
+	void MoveNode(FVector TargetLocation);
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Delegate")
 	FOnGrab OnGrabDel;

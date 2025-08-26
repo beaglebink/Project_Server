@@ -34,6 +34,8 @@ private:
 
 	TArray<AA_ArrayNode*> NodeArray;
 
+	TArray<FVector> LocationArray;
+
 	UFUNCTION()
 	void AddNewNode();
 	
