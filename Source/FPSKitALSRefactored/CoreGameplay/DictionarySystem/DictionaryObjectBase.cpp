@@ -24,7 +24,6 @@ void ADictionaryObjectBase::BeginPlay()
 		Super::EndPlay(EndPlayReason);
 		if (ManagerInstance)
 		{
-			// Удаляем менеджер, если он был создан
 			if (HasAuthority())
 			{
 				ManagerInstance->Destroy();

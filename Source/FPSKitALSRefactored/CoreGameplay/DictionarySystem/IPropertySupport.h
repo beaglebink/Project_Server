@@ -13,6 +13,5 @@ class FPSKITALSREFACTORED_API IPropertySupport
     GENERATED_BODY()
 
 public:
-    // ѕрименить свойство по имени с новым значением
     virtual void ApplyProperty(const FName PropertyName, const FVariantProperty Value) = 0;
 };

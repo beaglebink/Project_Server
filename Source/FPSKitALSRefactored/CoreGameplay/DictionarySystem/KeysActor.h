@@ -21,12 +21,17 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "KeysActor")
 	void AddPropertyDescription(const FName PropertyName, const FName ValueName);
+
+	UFUNCTION(BlueprintCallable, Category = "KeysActor")
+	void ParseText(const FText Text);
+
+private:
+	TArray<FString> ParseCommands(const FText& InputText) const;
+	void ParseCommand(const FString& Command, FName& Type, FName& Key, FName& Value) const;
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
 	FName KeyActorName;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
-	//FName TypeName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
 	TMap<FName, FName> KeyValues;
@@ -35,5 +40,7 @@ public:
 	TMap<FName, FName> KeyTypes;
 
 protected:
+
+private:
 
 };

@@ -8,17 +8,12 @@
 
 class ADictionaryManager;
 
-
-
-
-
 UCLASS()
 class FPSKITALSREFACTORED_API ADictionaryObjectBase : public AActor
 {
     GENERATED_BODY()
 
 public:
-
 
 protected:
     virtual void BeginPlay() override;
@@ -43,9 +38,6 @@ struct FDictionaryActorStruct : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FName ActorID;
-
-    //UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    //FName TypeName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FName PropertyName;

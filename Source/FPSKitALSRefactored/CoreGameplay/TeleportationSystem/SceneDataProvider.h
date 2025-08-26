@@ -1,5 +1,3 @@
-// SceneDataProvider.h
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -23,4 +21,7 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Dictionary system")
     UDataTable* DictionaryDataTable() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Dictionary system")
+	UNiagaraSystem* ConnectionEffect() const;
 };

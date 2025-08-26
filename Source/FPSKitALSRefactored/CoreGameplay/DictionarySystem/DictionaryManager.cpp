@@ -1,8 +1,15 @@
 #include "DictionaryManager.h"
 #include <FPSKitALSRefactored/CoreGameplay/TeleportationSystem/SceneDataProvider.h>
 #include "PropertyActor.h"
+#include <NiagaraFunctionLibrary.h>
+#include "NiagaraComponent.h"
 
 
+
+ADictionaryManager::ADictionaryManager()
+{
+	PrimaryActorTick.bCanEverTick = false;
+}
 
 void ADictionaryManager::BeginPlay()
 {
@@ -41,6 +48,17 @@ void ADictionaryManager::Initialize()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to load DictionaryActorsTable"));
+	}
+
+	ConnectionEffect = ISceneDataProvider::Execute_ConnectionEffect(GI);
+
+	if (ConnectionEffect)
+	{
+		UE_LOG(LogTemp, Log, TEXT("ConnectionEffect loaded: %s"), *ConnectionEffect->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load ConnectionEffect"));
 	}
 }
 
@@ -101,7 +119,6 @@ void ADictionaryManager::RegisterPropertyActor(ADictionaryObjectBase* PropertyAc
 
 				if (!Row)
 				{
-					//UE_LOG(LogTemp, Warning, TEXT("Row %s not found in DictionaryActorsTable %s"), *RowName.ToString());
 					continue;
 				}
 
@@ -119,13 +136,10 @@ void ADictionaryManager::RegisterPropertyActor(ADictionaryObjectBase* PropertyAc
 						{
 							if (KeysActorCast->KeyValues.Find(TablePropertyName) && *KeysActorCast->KeyValues.Find(TablePropertyName) == PropertyValueName)
 							{
-
-
-								//if (PropertyTypeName == TableTypeName && PropertyValueName == PropertyValueName/*PropertyTypeName == TablePropertyName && ActorPropertyValue.ValueName == PropertyValueName*/)
-								//{
 								UE_LOG(LogTemp, Warning, TEXT("Draw link KeysActor %s and PropertyActor %s"), *KeysActor->GetName(), *PropertyActor->GetName());
-								DrawDebugLine(GetWorld(), KeysActor->GetActorLocation(), PropertyActor->GetActorLocation(), FColor::Green, true, 50.0f, 0, 1.0f);
-								//}
+								//DrawDebugLine(GetWorld(), KeysActor->GetActorLocation(), PropertyActor->GetActorLocation(), FColor::Green, true, 50.0f, 0, 1.0f);
+
+								ConnectActorChain(KeysActor, PropertyActor, nullptr);
 							}
 						}
 					}
@@ -182,7 +196,6 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 			continue;
 		}
 		KeyActor->ApplyProperty(PropertyName, PropertyValue);
-		//KeyActor->TypeName = TypeName;
 		KeyActor->KeyTypes.Add(PropertyName, PropertyValue.VariableTypeName);
 		KeyActor->KeyValues.Add(PropertyName, PropertyValue.ValueName);
 
@@ -198,8 +211,86 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 
 			if (PropertyActor->Property.VariableTypeName == TypeName && PropertyValue.ValueName == PropertyActor->Property.ValueName)
 			{
-				DrawDebugLine(GetWorld(), KeyActor->GetActorLocation(), PropertyActor->GetActorLocation(), FColor::Green, true, 50.0f, 0, 1.0f);
+				//DrawDebugLine(GetWorld(), KeyActor->GetActorLocation(), PropertyActor->GetActorLocation(), FColor::Green, true, 50.0f, 0, 1.0f);
+
+				ConnectActorChain(KeyActor, PropertyActor, nullptr);
 			}
+		}
+	}
+}
+AActor* ADictionaryManager::VerifyProperty(const FName& PropertyType, const FName& PropertyValue, FVariantProperty& VariantProperty)
+{
+	for (auto ValueActor : RegisteredPropertyActors)
+	{
+		if (ValueActor->Property.VariableTypeName == PropertyType && ValueActor->Property.ValueName == PropertyValue)
+		{
+			VariantProperty = ValueActor->Property;
+			//PropertyActor = ValueActor;
+			return ValueActor;
+		}
+	}
+	return nullptr;
+}
+
+void ADictionaryManager::ConnectActorChain(AActor* Start, AActor* Finish, AActor* Old/*const FVector& StartLocation, const FVector& FinishLocation*/)
+{
+	FEffectsStruct EStruct;
+	EStruct.KeyActor = Start;
+	EStruct.PropertyActor = Old;
+
+	if (ActiveEffects.Find(EStruct))
+	{
+		auto Effect = ActiveEffects.FindRef(EStruct);
+		//Effect->SetVisibility(false, true);
+		
+		//Effect->DestroyComponent();
+
+		ActiveEffects.Remove(EStruct);
+
+		//Effect->DeactivateImmediate();   // остановить немедленно
+		//Effect->DestroyComponent(true);  // удалить компонент
+
+		
+
+
+		//Effect->Deactivate();
+		FVector StartPoint = Start->GetActorLocation();
+		FVector EndPoint = Finish->GetActorLocation();
+
+		Effect->SetVectorParameter(FName("Beam Start"), StartPoint);
+		Effect->SetVectorParameter(FName("Beam End"), EndPoint);
+
+		//Effect->Activate(true);
+
+		FEffectsStruct EStruct_New;
+		EStruct_New.KeyActor = Start;
+		EStruct_New.PropertyActor = Finish;
+
+		ActiveEffects.Remove(EStruct);
+		ActiveEffects.Add(EStruct_New, Effect);
+
+		return;
+
+	}
+
+	if (ConnectionEffect)
+	{
+		FVector StartPoint = Start->GetActorLocation();
+		FVector EndPoint = Finish->GetActorLocation();
+
+		//UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), ConnectionEffect, FVector::ZeroVector);
+		UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(ConnectionEffect, Start->GetRootComponent(), FName(TEXT("Niagara")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true, true);
+		if (NiagaraComp)
+		{
+			NiagaraComp->SetVectorParameter(FName("Beam Start"), StartPoint);
+			NiagaraComp->SetVectorParameter(FName("Beam End"), EndPoint);
+			NiagaraComp->SetAutoDestroy(true);
+
+			FEffectsStruct EStruct_New;
+			EStruct_New.KeyActor = Start;
+			EStruct_New.PropertyActor = Finish;
+
+			ActiveEffects.Add(EStruct_New, NiagaraComp);
 		}
 	}
 }
