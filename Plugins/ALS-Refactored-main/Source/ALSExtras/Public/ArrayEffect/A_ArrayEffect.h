@@ -10,20 +10,20 @@ UCLASS()
 class ALSEXTRAS_API AA_ArrayEffect : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	AA_ArrayEffect();
 
 protected:
 	virtual void BeginPlay() override;
 
-public:	
+public:
 	virtual void Tick(float DeltaTime) override;
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* SceneComponent;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UChildActorComponent* AppendNodeComponent;
 
@@ -38,7 +38,10 @@ private:
 
 	UFUNCTION()
 	void AddNewNode();
-	
+
 	UFUNCTION()
 	void DeleteNode(int32 Index);
+
+public:
+	void SwapNode(int32 Node1, int32 Node2);
 };

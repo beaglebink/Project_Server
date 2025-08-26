@@ -4,6 +4,7 @@
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
 #include "Components/AudioComponent.h"
+#include "ArrayEffect/A_ArrayEffect.h"
 
 AA_ArrayNode::AA_ArrayNode()
 {
@@ -110,6 +111,24 @@ void AA_ArrayNode::DeleteNode()
 	Destroy();
 }
 
+bool AA_ArrayNode::ParseArrayIndexToSwap(FText Command, int32& OutIndex)
+{
+	FString Input = Command.ToString();
+
+	int32 OpenBracket = 0;
+	int32 CloseBracket = 0;
+
+	if (!Input.FindChar('[', OpenBracket) || !Input.FindChar(']', CloseBracket) || OpenBracket >= CloseBracket || Input.Left(OpenBracket) != "arr") return false;
+
+	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
+
+	if (!IndexStr.IsNumeric()) return false;
+
+	OutIndex = FCString::Atoi(*IndexStr);
+
+	return true;
+}
+
 int32 AA_ArrayNode::GetIndex() const
 {
 	return NodeIndex;
@@ -148,16 +167,18 @@ void AA_ArrayNode::GetTextCommand(FText Command)
 		return;
 	}
 
+	//delete
 	if (Command.ToString() == "del")
 	{
 		DeleteNode();
 	}
 
-	if (Command.ToString() == "swap")
+	//swap
+	int32 OutIndex = -1;
+	if (ParseArrayIndexToSwap(Command, OutIndex))
 	{
-		//SwapNode(Index);
+		OwnerActor->SwapNode(NodeIndex, OutIndex);
 	}
-
 }
 
 void AA_ArrayNode::MoveNode(FVector NewTargetLocation)

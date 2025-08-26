@@ -8,6 +8,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGrab);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDelete, int32, Index);
 
+class AA_ArrayEffect;
+
 UCLASS()
 class ALSEXTRAS_API AA_ArrayNode : public AActor
 {
@@ -56,7 +58,12 @@ private:
 
 	void DeleteNode();
 
+	bool ParseArrayIndexToSwap(FText Command, int32& OutIndex);
+
 public:
+	UPROPERTY()
+	AA_ArrayEffect* OwnerActor;
+
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_BorderMaterial;
 
