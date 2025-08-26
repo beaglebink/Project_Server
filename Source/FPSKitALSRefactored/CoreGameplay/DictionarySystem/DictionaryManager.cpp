@@ -99,8 +99,8 @@ void ADictionaryManager::RegisterPropertyActor(ADictionaryObjectBase* PropertyAc
 
 		
 		FVariantProperty ActorPropertyValue = PropertyActorCast->Property;
-		FName PropertyTypeName = ActorPropertyValue.VariableTypeName;
-		FName PropertyValueName = ActorPropertyValue.ValueName;
+		FString PropertyTypeName = ActorPropertyValue.VariableTypeName;
+		FString PropertyValueName = ActorPropertyValue.ValueName;
 
 		for (auto KeysActor : RegisteredKeysActors)
 		{
@@ -123,10 +123,10 @@ void ADictionaryManager::RegisterPropertyActor(ADictionaryObjectBase* PropertyAc
 				}
 
 				FName TableActorId = Row->ActorID;
-				FName TableTypeName = Row->PropertyValue.VariableTypeName;
-				FName TablePropertyName = Row->PropertyName;
+				FString TableTypeName = Row->PropertyValue.VariableTypeName;
+				FString TablePropertyName = Row->PropertyName;
 				FVariantProperty TablePropertyValue = Row->PropertyValue;
-				FName TablePropertyValueName = TablePropertyValue.ValueName;
+				FString TablePropertyValueName = TablePropertyValue.ValueName;
 
 				if (KeysActorCast->KeyTypes.Contains(TablePropertyName))
 				{
@@ -185,8 +185,8 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 		}
 
 		FName TableActorId = Row->ActorID;
-		FName TypeName = Row->PropertyValue.VariableTypeName;
-		FName PropertyName = Row->PropertyName;
+		FString TypeName = Row->PropertyValue.VariableTypeName;
+		FString PropertyName = Row->PropertyName;
 		FVariantProperty PropertyValue = Row->PropertyValue;
 
 		if (KeyActor->KeyActorName != TableActorId)
@@ -198,7 +198,7 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 		KeyActor->KeyTypes.Add(PropertyName, PropertyValue.VariableTypeName);
 		KeyActor->KeyValues.Add(PropertyName, PropertyValue.ValueName);
 
-		UE_LOG(LogTemp, Log, TEXT("Applied property %s to Keys Actor: %s"), *PropertyName.ToString(), *KeyActor->GetName());
+		UE_LOG(LogTemp, Log, TEXT("Applied property %s to Keys Actor: %s"), *PropertyName, *KeyActor->GetName());
 
 		for (auto ValueActor : RegisteredPropertyActors)
 		{
@@ -215,7 +215,7 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 		}
 	}
 }
-AActor* ADictionaryManager::VerifyProperty(const FName& PropertyType, const FName& PropertyValue, FVariantProperty& VariantProperty)
+AActor* ADictionaryManager::VerifyProperty(const FString& PropertyType, const FString& PropertyValue, FVariantProperty& VariantProperty)
 {
 	for (auto ValueActor : RegisteredPropertyActors)
 	{
@@ -229,7 +229,7 @@ AActor* ADictionaryManager::VerifyProperty(const FName& PropertyType, const FNam
 	return nullptr;
 }
 
-void ADictionaryManager::ConnectActorChain(AActor* Start, const FName& Key, AActor* Finish, AActor* Old)
+void ADictionaryManager::ConnectActorChain(AActor* Start, const FString& Key, AActor* Finish, AActor* Old)
 {
 	FEffectsStruct EStruct;
 	EStruct.KeyActor = Start;
@@ -250,6 +250,7 @@ void ADictionaryManager::ConnectActorChain(AActor* Start, const FName& Key, AAct
 
 		FEffectsStruct EStruct_New;
 		EStruct_New.KeyActor = Start;
+		EStruct_New.KeyName = Key;
 		EStruct_New.PropertyActor = Finish;
 
 		ActiveEffects.Remove(EStruct);

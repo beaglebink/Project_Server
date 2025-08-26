@@ -17,27 +17,29 @@ public:
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "KeysActor")
-	void ApplyProperty(const FName PropertyName, const FVariantProperty Value) override;
+	void ApplyProperty(const FString& PropertyName, const FVariantProperty& Value) override;
 
 	UFUNCTION(BlueprintCallable, Category = "KeysActor")
-	void AddPropertyDescription(const FName PropertyName, const FName ValueName);
+	void AddPropertyDescription(const FString& PropertyName, const FString& ValueName);
 
 	UFUNCTION(BlueprintCallable, Category = "KeysActor")
 	void ParseText(const FText Text);
 
+	FString* FindStrict(TMap<FString, FString>& Map, const FString& Key);
+
 private:
 	TArray<FString> ParseCommands(const FText& InputText) const;
-	void ParseCommand(const FString& Command, FName& Type, FName& Key, FName& Value) const;
+	void ParseCommand(const FString& Command, FString& Type, FString& Key, FString& Value) const;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
 	FName KeyActorName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
-	TMap<FName, FName> KeyValues;
+	TMap<FString, FString> KeyValues;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Keys")
-	TMap<FName, FName> KeyTypes;
+	TMap<FString, FString> KeyTypes;
 
 protected:
 

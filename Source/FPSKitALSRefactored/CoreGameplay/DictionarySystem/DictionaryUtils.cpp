@@ -17,5 +17,5 @@ FString UDictionaryUtils::GetPropertyTypeName(EPropertyValueType Type)
 
 FString UDictionaryUtils::GetValueText(const FVariantProperty& Property)
 {
-	return GetPropertyTypeName(Property.Type) + TEXT(": ") + Property.ValueName.ToString();
+	return GetPropertyTypeName(Property.Type) + TEXT(": ") + Property.ValueName;
 }

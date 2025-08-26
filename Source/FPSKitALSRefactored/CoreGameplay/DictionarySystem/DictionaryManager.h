@@ -35,7 +35,7 @@ struct FEffectsStruct
 	AActor* KeyActor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FName KeyName;
+	FString KeyName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* PropertyActor;
@@ -74,10 +74,10 @@ public:
 
 	void InitializeKeyActor(AKeysActor* KeyActor);
 
-	AActor* VerifyProperty(const FName& PropertyType, const FName& PropertyValue, FVariantProperty& VariantProperty);
+	AActor* VerifyProperty(const FString& PropertyType, const FString& PropertyValue, FVariantProperty& VariantProperty);
 
 	UFUNCTION(BlueprintCallable)
-	void ConnectActorChain(AActor* Start, const FName& Key, AActor* Finish, AActor* Old);
+	void ConnectActorChain(AActor* Start, const FString& Key, AActor* Finish, AActor* Old);
 
 private:
 	UFUNCTION()

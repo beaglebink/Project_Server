@@ -13,5 +13,5 @@ class FPSKITALSREFACTORED_API IPropertySupport
     GENERATED_BODY()
 
 public:
-    virtual void ApplyProperty(const FName PropertyName, const FVariantProperty Value) = 0;
+    virtual void ApplyProperty(const FString& PropertyName, const FVariantProperty& Value) = 0;
 };

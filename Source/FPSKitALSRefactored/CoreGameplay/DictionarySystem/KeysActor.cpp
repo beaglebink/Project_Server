@@ -29,7 +29,7 @@ void AKeysActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		UE_LOG(LogTemp, Warning, TEXT("KeysActor: ManagerInstance is null during EndPlay!"));
 	}
 }
-void AKeysActor::AddPropertyDescription(const FName PropertyName, const FName ValueName)
+void AKeysActor::AddPropertyDescription(const FString& PropertyName, const FString& ValueName)
 {
 	
 }
@@ -43,7 +43,7 @@ TArray<FString> AKeysActor::ParseCommands(const FText& InputText) const
 	return Commands;
 }
 
-void AKeysActor::ParseCommand(const FString& Command, FName& Type, FName& Key, FName& Value) const  
+void AKeysActor::ParseCommand(const FString& Command, FString& Type, FString& Key, FString& Value) const
 {  
    FString TrimmedCommand = Command.TrimStartAndEnd();  
    FString Left, Right;  
@@ -51,31 +51,31 @@ void AKeysActor::ParseCommand(const FString& Command, FName& Type, FName& Key, F
 
    if (TrimmedCommand.Split(TEXT(":"), &Left, &Right))  
    {  
-       Key = FName(*Left.TrimStartAndEnd());  
+       Key = *Left.TrimStartAndEnd();  
 
 	   if (TrimmedCommand.Split(TEXT("="), &Left, &Right))
 	   {
-		   Type = FName(TrimmedCommand.Mid(TrimmedCommand.Find(TEXT(":")) + 1, TrimmedCommand.Find(TEXT("=")) - TrimmedCommand.Find(TEXT(":")) - 1).TrimStartAndEnd());
-		   Value = FName(*Right.TrimStartAndEnd());
+		   Type = TrimmedCommand.Mid(TrimmedCommand.Find(TEXT(":")) + 1, TrimmedCommand.Find(TEXT("=")) - TrimmedCommand.Find(TEXT(":")) - 1).TrimStartAndEnd();
+		   Value = *Right.TrimStartAndEnd();
 	   }
 	   else
 	   {
-		   Type = FName();
-		   Key = FName(*TrimmedCommand);
-		   Value = FName();
+		   Type = FString();
+		   Key = *TrimmedCommand;
+		   Value = FString();
 	   }
    }  
    else if (TrimmedCommand.Split(TEXT("="), &Left, &Right))  
    {  
-	   Type = FName();
-       Key = FName(*Left.TrimStartAndEnd());  
-       Value = FName(*Right.TrimStartAndEnd());  
+	   Type = FString();
+       Key = *Left.TrimStartAndEnd();  
+       Value = *Right.TrimStartAndEnd();
    }  
    else  
    {  
-	   Type = FName();
-       Key = FName(*TrimmedCommand);  
-       Value = FName();  
+	   Type = FString();
+       Key = *TrimmedCommand;  
+       Value = FString();
    }  
 }
 
@@ -85,64 +85,76 @@ void AKeysActor::ParseText(const FText Text)
 	TArray<FString> Commands = ParseCommands(Text);
 	for (auto Command : Commands)
 	{
-		FName Type, Key, Value;
+		FString Type, Key, Value;
 		ParseCommand(Command, Type, Key, Value);
-		if (Key != NAME_None)
+		if (!Key.IsEmpty())
 		{
-			if (Value != NAME_None)
+			if (!Value.IsEmpty())
 			{
-				if (!KeyTypes.Contains(Key) || !KeyValues.Contains(Key))
+				if (FString* T = FindStrict(KeyTypes, Key))
 				{
-					UE_LOG(LogTemp, Log, TEXT("No property: %s"), *Key.ToString());
-					continue;
-				}
-
-				FName MapValue;
-				if (!Type.IsNone())
-				{
-					FName MapType = *KeyTypes.Find(Key);
-					if (MapType == Type)
+					if (FString* T1 = FindStrict(KeyValues, Key))
 					{
-						MapValue = *KeyValues.Find(Key);
+						if (!KeyTypes.Contains(Key) || !KeyValues.Contains(Key))
+						{
+							UE_LOG(LogTemp, Log, TEXT("No property: %s"), *Key);
+							continue;
+						}
+
+						FString MapValue;
+						if (!Type.IsEmpty())
+						{
+							FString MapType = *KeyTypes.Find(Key);
+							if (MapType == Type)
+							{
+								MapValue = *KeyValues.Find(Key);
+							}
+						}
+						else
+						{
+							Type = *KeyTypes.Find(Key);
+							MapValue = *KeyValues.Find(Key);
+						}
+
+						if (!MapValue.IsEmpty() && MapValue != Value)
+						{
+							UE_LOG(LogTemp, Warning, TEXT("Key %s already has a different value: %s. Overwriting with new value: %s"), *Key, *MapValue, *Value);
+
+							FVariantProperty VarProperty;
+
+							AActor* OldActor = ManagerInstance->VerifyProperty(Type, MapValue, VarProperty);
+							AActor* PropertyActor = ManagerInstance->VerifyProperty(Type, Value, VarProperty);
+
+							if (PropertyActor)
+							{
+								KeyValues.Add(Key, Value);
+								ApplyProperty(Key, VarProperty);
+								ManagerInstance->ConnectActorChain(this, Key, PropertyActor, OldActor);
+							}
+							else
+							{
+								UE_LOG(LogTemp, Warning, TEXT("Property value %s not found in DictionaryManager."), *Value);
+							}
+						}
 					}
 				}
-				else
-				{
-					Type = *KeyTypes.Find(Key);
-					MapValue = *KeyValues.Find(Key);
-				}
-
-				if (!MapValue.IsNone() && MapValue != Value)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Key %s already has a different value: %s. Overwriting with new value: %s"), *Key.ToString(), *MapValue.ToString(), *Value.ToString());
-
-					FVariantProperty VarProperty;
-
-					AActor* OldActor = ManagerInstance->VerifyProperty(Type, MapValue, VarProperty);
-					AActor* PropertyActor = ManagerInstance->VerifyProperty(Type, Value, VarProperty);
-
-					if (PropertyActor)
-					{
-						KeyValues.Add(Key, Value);
-						ApplyProperty(Key, VarProperty);
-						ManagerInstance->ConnectActorChain(this, Key, PropertyActor, OldActor);
-					}
-					else
-					{
-						UE_LOG(LogTemp, Warning, TEXT("Property value %s not found in DictionaryManager."), *Value.ToString());
-					}
-				}
-
-
-				
-
-				
 			}
 		}
 	}
 }
 
-void AKeysActor::ApplyProperty_Implementation(const FName PropertyName, const FVariantProperty Value)
+void AKeysActor::ApplyProperty_Implementation(const FString& PropertyName, const FVariantProperty& Value)
 {
 }
 
+FString* AKeysActor::FindStrict(TMap<FString, FString>& Map, const FString& Key)
+{
+	for (auto& Pair : Map)
+	{
+		if (Pair.Key.Equals(Key, ESearchCase::CaseSensitive))
+		{
+			return &Pair.Value;
+		}
+	}
+	return nullptr;
+}

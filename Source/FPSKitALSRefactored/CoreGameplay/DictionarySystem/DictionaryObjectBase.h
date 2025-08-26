@@ -40,7 +40,7 @@ struct FDictionaryActorStruct : public FTableRowBase
     FName ActorID;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FName PropertyName;
+    FString PropertyName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVariantProperty PropertyValue;

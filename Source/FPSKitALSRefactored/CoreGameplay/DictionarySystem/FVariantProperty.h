@@ -29,10 +29,10 @@ struct FVariantProperty
     EPropertyValueType Type;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FName VariableTypeName;
+    FString VariableTypeName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FName ValueName;
+    FString ValueName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool BoolValue;
