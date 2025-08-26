@@ -3,17 +3,22 @@
 #include "Kismet/GameplayStatics.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
+#include "Components/AudioComponent.h"
+#include "ArrayEffect/A_ArrayEffect.h"
 
 AA_ArrayNode::AA_ArrayNode()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	NodeBorder = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NodeBorderComponent"));
+	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	MoveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveTimeline"));
+	NodeBorderAudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("NodeAudioComponent"));
 
 	RootComponent = SceneComponent;
 	NodeBorder->SetupAttachment(RootComponent);
+	NodeBorderAudioComp->SetupAttachment(RootComponent);
+	NodeBorderAudioComp->bAutoActivate = false;
 }
 
 void AA_ArrayNode::BeginPlay()
@@ -106,6 +111,24 @@ void AA_ArrayNode::DeleteNode()
 	Destroy();
 }
 
+bool AA_ArrayNode::ParseArrayIndexToSwap(FText Command, int32& OutIndex)
+{
+	FString Input = Command.ToString();
+
+	int32 OpenBracket = 0;
+	int32 CloseBracket = 0;
+
+	if (!Input.FindChar('[', OpenBracket) || !Input.FindChar(']', CloseBracket) || OpenBracket >= CloseBracket || Input.Left(OpenBracket) != "arr") return false;
+
+	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
+
+	if (!IndexStr.IsNumeric()) return false;
+
+	OutIndex = FCString::Atoi(*IndexStr);
+
+	return true;
+}
+
 int32 AA_ArrayNode::GetIndex() const
 {
 	return NodeIndex;
@@ -144,40 +167,38 @@ void AA_ArrayNode::GetTextCommand(FText Command)
 		return;
 	}
 
+	//delete
 	if (Command.ToString() == "del")
 	{
 		DeleteNode();
 	}
 
-	if (Command.ToString() == "swap")
+	//swap
+	int32 OutIndex = -1;
+	if (ParseArrayIndexToSwap(Command, OutIndex))
 	{
-		//SwapNode(Index);
+		OwnerActor->SwapNode(NodeIndex, OutIndex);
 	}
-
 }
 
-void AA_ArrayNode::MoveNode(bool Direction)
+void AA_ArrayNode::MoveNode(FVector NewTargetLocation)
 {
 	bIsMoving = true;
-	bIsMoveLeft = Direction;
+	CurrentLocation = GetActorLocation();
+	TargetLocation = NewTargetLocation;
+
+	NodeBorderAudioComp->Play();
+
 	MoveTimeline->PlayFromStart();
 }
 
 void AA_ArrayNode::TimelineProgress(float Value)
 {
-	float MoveDistance = FMath::Lerp(0.0f, NodeBorder->Bounds.BoxExtent.Y * 2 * (bIsMoveLeft * 2 - 1), Value);
-	FVector TargetLocation = CurrentLocation;
-	TargetLocation.Y += MoveDistance;
-	SetActorLocation(TargetLocation);
-
-	if (NodeMoveSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(GetWorld(), NodeMoveSound, GetActorLocation());
-	}
+	SetActorLocation(FMath::Lerp(CurrentLocation, TargetLocation, Value));
 }
 
 void AA_ArrayNode::TimelineFinished()
 {
 	bIsMoving = false;
-	CurrentLocation = GetActorLocation();
+	NodeBorderAudioComp->Stop();
 }

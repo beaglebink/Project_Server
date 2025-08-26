@@ -16,6 +16,7 @@ AA_DiscreteSystemNode::AA_DiscreteSystemNode()
 	SM_ZoneBorder->SetupAttachment(RootComponent);
 	SM_Node->SetupAttachment(RootComponent);
 	SKM_Node->SetupAttachment(RootComponent);
+	NodeBorderAudio->SetupAttachment(RootComponent);
 
 	CurrentNodeNumber = NodeNumber;
 }
@@ -58,13 +59,14 @@ void AA_DiscreteSystemNode::NodeSound()
 		NodeBorderAudio->Stop();
 		if (NodeNumber - CurrentNodeNumber)
 		{
-			NodeBorderAudio = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), NodeSoundUncorrectWork, GetActorLocation(), GetActorRotation(), 1.0f);
+			NodeBorderAudio->SetSound(NodeSoundUncorrectWork);
 		}
 		else
 		{
-			NodeBorderAudio = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), NodeSoundCorrectWork, GetActorLocation(), GetActorRotation(), 1.0f);
+			NodeBorderAudio->SetSound(NodeSoundCorrectWork);
 		}
 	}
+	NodeBorderAudio->Play();
 }
 
 void AA_DiscreteSystemNode::SetNodeActivation(bool IsActive)
