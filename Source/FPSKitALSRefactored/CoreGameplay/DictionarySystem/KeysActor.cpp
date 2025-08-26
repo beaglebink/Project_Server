@@ -105,7 +105,7 @@ void AKeysActor::ParseText(const FText Text)
 						if (!Type.IsEmpty())
 						{
 							FString MapType = *KeyTypes.Find(Key);
-							if (MapType == Type)
+							if (UKismetStringLibrary::EqualEqual_StrStr(MapType, Type)/*MapType == Type*/)
 							{
 								MapValue = *KeyValues.Find(Key);
 							}

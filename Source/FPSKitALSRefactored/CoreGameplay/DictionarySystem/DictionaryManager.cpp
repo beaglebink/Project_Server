@@ -3,6 +3,7 @@
 #include "PropertyActor.h"
 #include <NiagaraFunctionLibrary.h>
 #include "NiagaraComponent.h"
+#include <Kismet/KismetStringLibrary.h>
 
 
 
@@ -219,7 +220,7 @@ AActor* ADictionaryManager::VerifyProperty(const FString& PropertyType, const FS
 {
 	for (auto ValueActor : RegisteredPropertyActors)
 	{
-		if (ValueActor->Property.VariableTypeName == PropertyType && ValueActor->Property.ValueName == PropertyValue)
+		if (UKismetStringLibrary::EqualEqual_StrStr(ValueActor->Property.VariableTypeName, PropertyType)/*ValueActor->Property.VariableTypeName == PropertyType*/ && UKismetStringLibrary::EqualEqual_StrStr(ValueActor->Property.ValueName, PropertyValue)/*ValueActor->Property.ValueName == PropertyValue*/)
 		{
 			VariantProperty = ValueActor->Property;
 
