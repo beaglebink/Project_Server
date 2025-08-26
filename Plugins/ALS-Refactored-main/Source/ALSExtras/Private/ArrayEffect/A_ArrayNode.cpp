@@ -95,12 +95,11 @@ void AA_ArrayNode::ComponentGrabbing()
 
 void AA_ArrayNode::DeleteNode()
 {
-	bIsOccupied = false;
 	GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Block);
 	GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Overlap);
 	GrabbedComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 	GrabbedComponent->SetSimulatePhysics(true);
-	GrabbedComponent->AddImpulse((UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation() - GetActorLocation()).GetSafeNormal() * 1000.0f, NAME_None, true);
+	GrabbedComponent->AddImpulse((UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation() - GetActorLocation()).GetSafeNormal() * 1300.0f, NAME_None, true);
 
 	OnDeleteDel.Broadcast(NodeIndex);
 
@@ -140,7 +139,11 @@ void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
 
 void AA_ArrayNode::GetTextCommand(FText Command)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "DELETE");
+	if (NodeIndex == -1)
+	{
+		return;
+	}
+
 	if (Command.ToString() == "del")
 	{
 		DeleteNode();
@@ -155,17 +158,22 @@ void AA_ArrayNode::GetTextCommand(FText Command)
 
 void AA_ArrayNode::MoveNode(bool Direction)
 {
+	bIsMoving = true;
 	bIsMoveLeft = Direction;
 	MoveTimeline->PlayFromStart();
 }
 
 void AA_ArrayNode::TimelineProgress(float Value)
 {
-	bIsMoving = true;
 	float MoveDistance = FMath::Lerp(0.0f, NodeBorder->Bounds.BoxExtent.Y * 2 * (bIsMoveLeft * 2 - 1), Value);
 	FVector TargetLocation = CurrentLocation;
 	TargetLocation.Y += MoveDistance;
 	SetActorLocation(TargetLocation);
+
+	if (NodeMoveSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(GetWorld(), NodeMoveSound, GetActorLocation());
+	}
 }
 
 void AA_ArrayNode::TimelineFinished()

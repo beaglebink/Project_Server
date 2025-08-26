@@ -34,8 +34,6 @@ private:
 
 	TArray<AA_ArrayNode*> NodeArray;
 
-	int32 ArrayIndex = 0;
-
 	UFUNCTION()
 	void AddNewNode();
 	

@@ -34,6 +34,9 @@ private:
 	UPROPERTY()
 	UPrimitiveComponent* GrabbedComponent;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	USoundBase* NodeMoveSound;
+
 	int32 NodeIndex = -1;
 
 	uint8 bIsOccupied : 1{false};

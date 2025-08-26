@@ -33,7 +33,8 @@ void AA_ArrayEffect::Tick(float DeltaTime)
 
 void AA_ArrayEffect::AddNewNode()
 {
-	AppendNode->SetIndex(ArrayIndex++);
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, "ADD");
+	AppendNode->SetIndex(NodeArray.Num());
 	FVector SpawnLocation = AppendNode->GetActorLocation();
 	AA_ArrayNode* NewNode = AppendNode;
 	NodeArray.Add(NewNode);
@@ -50,7 +51,14 @@ void AA_ArrayEffect::AddNewNode()
 
 void AA_ArrayEffect::DeleteNode(int32 Index)
 {
-	//NodeArray.RemoveAt(Index);
-	//AppendNode->bIsMoving = true;
-	//bIsDeletingNode = true;
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "DELETE");
+	for (size_t i = Index + 1; i < NodeArray.Num(); ++i)
+	{
+		NodeArray[i]->MoveNode(true);
+		NodeArray[i]->SetIndex(i - 1);
+	}
+
+	AppendNode->MoveNode(true);
+
+	NodeArray.RemoveAt(Index);
 }
