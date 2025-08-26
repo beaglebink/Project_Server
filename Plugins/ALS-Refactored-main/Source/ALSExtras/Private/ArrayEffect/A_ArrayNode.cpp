@@ -10,6 +10,7 @@ AA_ArrayNode::AA_ArrayNode()
 
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	NodeBorder = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NodeBorderComponent"));
+	MoveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveTimeline"));
 
 	RootComponent = SceneComponent;
 	NodeBorder->SetupAttachment(RootComponent);
@@ -19,7 +20,20 @@ void AA_ArrayNode::BeginPlay()
 {
 	Super::BeginPlay();
 
+	CurrentLocation = GetActorLocation();
+
 	NodeBorder->OnComponentBeginOverlap.AddDynamic(this, &AA_ArrayNode::OnBeginOverlap);
+
+	if (FloatCurve)
+	{
+		ProgressFunction.BindUFunction(this, FName("TimelineProgress"));
+		MoveTimeline->AddInterpFloat(FloatCurve, ProgressFunction);
+
+		FinishedFunction.BindUFunction(this, FName("TimelineFinished"));
+		MoveTimeline->SetTimelineFinishedFunc(FinishedFunction);
+
+		MoveTimeline->SetLooping(false);
+	}
 }
 
 void AA_ArrayNode::OnConstruction(const FTransform& Transform)
@@ -137,4 +151,25 @@ void AA_ArrayNode::GetTextCommand(FText Command)
 		//SwapNode(Index);
 	}
 
+}
+
+void AA_ArrayNode::MoveNode(bool Direction)
+{
+	bIsMoveLeft = Direction;
+	MoveTimeline->PlayFromStart();
+}
+
+void AA_ArrayNode::TimelineProgress(float Value)
+{
+	bIsMoving = true;
+	float MoveDistance = FMath::Lerp(0.0f, NodeBorder->Bounds.BoxExtent.Y * 2 * (bIsMoveLeft * 2 - 1), Value);
+	FVector TargetLocation = CurrentLocation;
+	TargetLocation.Y += MoveDistance;
+	SetActorLocation(TargetLocation);
+}
+
+void AA_ArrayNode::TimelineFinished()
+{
+	bIsMoving = false;
+	CurrentLocation = GetActorLocation();
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Components/TimelineComponent.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "A_ArrayNode.generated.h"
@@ -39,6 +40,12 @@ private:
 
 	uint8 bShouldGrab : 1{false};
 
+	uint8 bIsMoveLeft : 1{false};
+
+	uint8 bIsMoving : 1{false};
+
+	FVector CurrentLocation;
+
 	UFUNCTION()
 	void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
@@ -47,7 +54,7 @@ private:
 	void DeleteNode();
 
 public:
-	uint8 bIsMoving : 1{false};
+	float NodeBorderYSize;
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_BorderMaterial;
@@ -64,9 +71,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ArrayInteraction")
 	void GetTextCommand(FText Command);
 
+	void MoveNode(bool Direction);
+
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Delegate")
 	FOnGrab OnGrabDel;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Delegate")
 	FOnDelete OnDeleteDel;
+
+protected:
+	UPROPERTY()
+	UTimelineComponent* MoveTimeline;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Timeline")
+	UCurveFloat* FloatCurve;
+
+	FOnTimelineFloat ProgressFunction;
+
+	FOnTimelineEvent FinishedFunction;
+
+	UFUNCTION()
+	virtual void TimelineProgress(float Value);
+
+	UFUNCTION()
+	virtual void TimelineFinished();
 };

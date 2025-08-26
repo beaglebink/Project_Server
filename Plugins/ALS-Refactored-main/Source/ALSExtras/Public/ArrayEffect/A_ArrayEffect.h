@@ -36,19 +36,9 @@ private:
 
 	int32 ArrayIndex = 0;
 
-	uint8 bIsAddingNode : 1{false};
-	
-	uint8 bIsDeletingNode : 1{false};
-
-	FVector TargetLocation;
-
 	UFUNCTION()
 	void AddNewNode();
 	
-	void AddNewNodeVisual();
-
 	UFUNCTION()
 	void DeleteNode(int32 Index);
-
-	void DeleteNodeVisual();
 };
