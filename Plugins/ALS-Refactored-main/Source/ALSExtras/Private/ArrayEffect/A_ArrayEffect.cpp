@@ -1,5 +1,6 @@
 #include "ArrayEffect/A_ArrayEffect.h"
 #include "ArrayEffect/A_ArrayNode.h"
+#include "Components/AudioComponent.h"
 
 AA_ArrayEffect::AA_ArrayEffect()
 {
@@ -7,9 +8,13 @@ AA_ArrayEffect::AA_ArrayEffect()
 
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	AppendNodeComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("AppendNode"));
+	SwapTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveTimeline"));
+	SwapAudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("SwapAudioComponent"));
 
 	RootComponent = SceneComponent;
 	AppendNodeComponent->SetupAttachment(RootComponent);
+	SwapAudioComp->SetupAttachment(RootComponent);
+	SwapAudioComp->bAutoActivate = false;
 }
 
 void AA_ArrayEffect::BeginPlay()
@@ -23,6 +28,17 @@ void AA_ArrayEffect::BeginPlay()
 		AppendNode->OwnerActor = this;
 		AppendNode->OnGrabDel.AddDynamic(this, &AA_ArrayEffect::AddNewNode);
 		AppendNode->OnDeleteDel.AddDynamic(this, &AA_ArrayEffect::DeleteNode);
+	}
+
+	if (FloatCurve)
+	{
+		ProgressFunction.BindUFunction(this, FName("TimelineProgress"));
+		SwapTimeline->AddInterpFloat(FloatCurve, ProgressFunction);
+
+		FinishedFunction.BindUFunction(this, FName("TimelineFinished"));
+		SwapTimeline->SetTimelineFinishedFunc(FinishedFunction);
+
+		SwapTimeline->SetLooping(false);
 	}
 }
 
@@ -72,5 +88,50 @@ void AA_ArrayEffect::SwapNode(int32 Node1, int32 Node2)
 		return;
 	}
 
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, FString::Printf(TEXT("%d  %d"), Node1, Node2));
+	SwapNode1 = Node1;
+	SwapNode2 = Node2;
+
+	NodeArray[SwapNode1]->DetachComponent(NodeArray[SwapNode1]->GrabbedComponent);
+	NodeArray[SwapNode2]->DetachComponent(NodeArray[SwapNode2]->GrabbedComponent);
+
+	SwapAudioComp->SetWorldLocation(NodeArray[SwapNode1]->GetActorLocation());
+	bIsSwapping = true;
+	SwapAudioComp->Play();
+	SwapTimeline->PlayFromStart();
+}
+
+void AA_ArrayEffect::TimelineProgress(float Value)
+{
+	FVector FirstBase = FMath::Lerp(NodeArray[SwapNode1]->GetActorLocation(), NodeArray[SwapNode2]->GetActorLocation(), Value);
+	FVector SecondBase = FMath::Lerp(NodeArray[SwapNode2]->GetActorLocation(), NodeArray[SwapNode1]->GetActorLocation(), Value);
+
+	float Height = HeightFloatCurve->GetFloatValue(Value) * 200.0f;
+
+	FirstBase.Z += Height;
+	SecondBase.Z += Height * 1.5f;
+
+	FirstBase.X += Height * 0.5f;
+	SecondBase.X -= Height * 0.5f;
+
+	if (NodeArray[SwapNode1]->GrabbedComponent)
+	{
+		NodeArray[SwapNode1]->GrabbedComponent->SetWorldLocation(FirstBase);
+	}
+	if (NodeArray[SwapNode2]->GrabbedComponent)
+	{
+		NodeArray[SwapNode2]->GrabbedComponent->SetWorldLocation(SecondBase);
+	}
+}
+
+void AA_ArrayEffect::TimelineFinished()
+{
+	UPrimitiveComponent* TempComponent = NodeArray[SwapNode1]->GrabbedComponent;
+	NodeArray[SwapNode1]->GrabbedComponent = NodeArray[SwapNode2]->GrabbedComponent;
+	NodeArray[SwapNode2]->GrabbedComponent = TempComponent;
+
+	NodeArray[SwapNode1]->AttachComponent(NodeArray[SwapNode1]->GrabbedComponent);
+	NodeArray[SwapNode2]->AttachComponent(NodeArray[SwapNode2]->GrabbedComponent);
+
+	bIsSwapping = false;
+	SwapAudioComp->Stop();
 }

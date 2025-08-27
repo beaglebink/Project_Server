@@ -118,7 +118,7 @@ bool AA_ArrayNode::ParseArrayIndexToSwap(FText Command, int32& OutIndex)
 	int32 OpenBracket = 0;
 	int32 CloseBracket = 0;
 
-	if (!Input.FindChar('[', OpenBracket) || !Input.FindChar(']', CloseBracket) || OpenBracket >= CloseBracket || Input.Left(OpenBracket) != "arr") return false;
+	if (!Input.FindChar('[', OpenBracket) || !Input.FindChar(']', CloseBracket) || OpenBracket >= CloseBracket || CloseBracket != Input.Len() - 1 || Input.Left(OpenBracket) != "arr") return false;
 
 	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
 
@@ -162,7 +162,7 @@ void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
 
 void AA_ArrayNode::GetTextCommand(FText Command)
 {
-	if (NodeIndex == -1)
+	if (NodeIndex == -1 || OwnerActor->bIsSwapping)
 	{
 		return;
 	}
@@ -179,6 +179,16 @@ void AA_ArrayNode::GetTextCommand(FText Command)
 	{
 		OwnerActor->SwapNode(NodeIndex, OutIndex);
 	}
+}
+
+void AA_ArrayNode::AttachComponent(UPrimitiveComponent* OtherComp)
+{
+	OtherComp->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepWorldTransform);
+}
+
+void AA_ArrayNode::DetachComponent(UPrimitiveComponent* OtherComp)
+{
+	OtherComp->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 }
 
 void AA_ArrayNode::MoveNode(FVector NewTargetLocation)
