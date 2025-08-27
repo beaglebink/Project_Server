@@ -6,9 +6,6 @@ void UW_FocusableButton::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 
-	SetIsFocusable(true); 
-	//bIsFocusable = true; //'UUserWidget::bIsFocusable': Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime. Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.
-
 	Button->OnClicked.AddDynamic(this, &UW_FocusableButton::HandleClicked);
 	Button->OnPressed.AddDynamic(this, &UW_FocusableButton::HandlePressed);
 	Button->OnReleased.AddDynamic(this, &UW_FocusableButton::HandleReleased);
@@ -19,6 +16,8 @@ void UW_FocusableButton::NativeOnInitialized()
 void UW_FocusableButton::NativePreConstruct()
 {
 	Super::NativePreConstruct();
+
+	SetIsFocusable(true); 
 
 	RefreshButtonStyle();
 }
@@ -65,7 +64,6 @@ void UW_FocusableButton::RefreshButtonStyle()
 {
 	Button->SetStyle(Style);  
 	Button->SetBackgroundColor(BackgroundColor);
-	//Button->BackgroundColor = BackgroundColor;  //'UButton::BackgroundColor': Direct access to BackgroundColor is deprecated. Please use the getter and setter. Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.
 	
 	TextBlock->SetText(Text);
 	TextBlock->SetFont(Font);

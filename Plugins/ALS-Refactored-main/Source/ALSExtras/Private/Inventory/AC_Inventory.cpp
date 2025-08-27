@@ -120,9 +120,6 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 			PC->SetIgnoreLookInput(true);
 			PC->SetIgnoreMoveInput(true);
 			PC->SetShowMouseCursor(true);
-
-			Inventory->SetIsFocusable(true);
-			//Inventory->bIsFocusable = true; //'UUserWidget::bIsFocusable': Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime. Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.
 			Inventory->SetFocus();
 		}
 	}
@@ -143,8 +140,7 @@ void UAC_Inventory::CloseInventory()
 
 	if (Inventory)
 	{
-		Inventory->RemoveFromParent();
-		//Inventory->RemoveFromViewport(); //UUserWidget::RemoveFromViewport': RemoveFromViewport is deprecated. Use RemoveFromParent instead. Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.
+		Inventory->RemoveFromViewport();
 
 		APlayerController* PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());
 		if (PC)
