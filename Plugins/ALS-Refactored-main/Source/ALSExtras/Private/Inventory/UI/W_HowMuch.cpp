@@ -12,7 +12,8 @@ void UW_HowMuch::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 
-	bIsFocusable = true;
+	SetIsFocusable(true);
+	//bIsFocusable = true; //'UUserWidget::bIsFocusable': Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime. Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{

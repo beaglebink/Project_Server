@@ -59,7 +59,11 @@ void AA_ArrayEffect::DeleteNode(int32 Index)
 		NodeArray[i]->SetIndex(i - 1);
 	}
 
-	AppendNode->MoveNode(*--LocationArray.end());
+	if (LocationArray.Num() > 0)
+	{
+		AppendNode->MoveNode(LocationArray.Last());
+	}
+	//AppendNode->MoveNode(*--LocationArray.end());
 
 	NodeArray.RemoveAt(Index);
 	LocationArray.Pop();
