@@ -29,15 +29,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* NodeBorder;
 
+	UPROPERTY()
+	UPrimitiveComponent* GrabbedComponent;
+
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* SceneComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* NodeBorderAudioComp;
-
-	UPROPERTY()
-	UPrimitiveComponent* GrabbedComponent;
 	
 	FVector CurrentLocation;
 
@@ -78,6 +78,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ArrayInteraction")
 	void GetTextCommand(FText Command);
+
+	void AttachComponent(UPrimitiveComponent* OtherComp);
+
+	void DetachComponent(UPrimitiveComponent* OtherComp);
 
 	void MoveNode(FVector TargetLocation);
 
