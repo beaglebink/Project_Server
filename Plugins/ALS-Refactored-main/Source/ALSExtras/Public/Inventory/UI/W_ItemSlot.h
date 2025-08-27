@@ -20,6 +20,8 @@ class ALSEXTRAS_API UW_ItemSlot : public UUserWidget
 protected:
 	virtual void NativeOnInitialized() override;
 
+	virtual void NativePreConstruct() override;
+
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "UI", meta = (ExposeOnSpawn = "true"))
 	FS_Item Item;

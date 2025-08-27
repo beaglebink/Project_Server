@@ -27,6 +27,8 @@ class ALSEXTRAS_API UW_InventoryHUD : public UUserWidget
 protected:
 	virtual void NativeOnInitialized() override;
 
+	virtual void NativePreConstruct() override;
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
 	UDataTable* ItemDataTable;

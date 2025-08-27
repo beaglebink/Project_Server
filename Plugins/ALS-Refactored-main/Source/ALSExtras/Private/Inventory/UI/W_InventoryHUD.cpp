@@ -51,6 +51,13 @@ void UW_InventoryHUD::NativeOnInitialized()
 	}
 }
 
+void UW_InventoryHUD::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+
+	SetIsFocusable(true);
+}
+
 void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_ItemSlot* SlotToInteract, FName KeyPressed)
 {
 	bIsMoneyEnough = true;

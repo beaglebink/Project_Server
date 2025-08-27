@@ -12,9 +12,6 @@ void UW_HowMuch::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 
-	SetIsFocusable(true);
-	//bIsFocusable = true; //'UUserWidget::bIsFocusable': Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime. Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.
-
 	if (APlayerController* PC = GetOwningPlayer())
 	{
 		if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PC->InputComponent))
@@ -30,6 +27,8 @@ void UW_HowMuch::NativeOnInitialized()
 void UW_HowMuch::NativePreConstruct()
 {
 	Super::NativePreConstruct();
+
+	SetIsFocusable(true);
 
 	Button_Yes->SetKeyboardFocus();
 }
