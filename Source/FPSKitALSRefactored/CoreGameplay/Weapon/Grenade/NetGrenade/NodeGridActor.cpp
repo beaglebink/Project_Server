@@ -41,7 +41,7 @@ void ANodeGridActor::BeginPlay()
     for (const TPair<int32, int32>& Link : UniqueLinks)
     {
         //UNiagaraComponent* Niagara = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSystemAsset, RootComponent, FName(TEXT("")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, true);
-        UNiagaraComponent* Niagara = NewObject<UNiagaraComponent>(this, TEXT("NodeNiagara"));
+        Niagara = NewObject<UNiagaraComponent>(this, TEXT("NodeNiagara"));
         if (Niagara)
         {
             if (NiagaraSystemAsset)
@@ -140,10 +140,23 @@ void ANodeGridActor::InitializeGrid()
                 UniqueLinks.Add(Key);
                 RibbonStartIndices.Add(A);
                 RibbonEndIndices.Add(B);
+
+                if (!bEnableDebugDraw)
+                {
+				    StartPositions.Add(NodePositions[A]);
+                    FinishPositions.Add(NodePositions[B]);
+                }
             }
         }
     }
 
+    if (!bEnableDebugDraw)
+    {
+        UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("StartPositions"), StartPositions);
+        UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("FinishPositions"), FinishPositions);
+    }
+
+    /*
     if (NiagaraComp)
     {
         UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(
@@ -152,7 +165,7 @@ void ANodeGridActor::InitializeGrid()
         UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(
             NiagaraComp, FName("RibbonEnd"), RibbonEndIndices);
     }
-
+    */
 }
 
 void ANodeGridActor::ApplyForcesParallel()
@@ -518,7 +531,7 @@ void ANodeGridActor::DrawDebugState()
     //const float SPart = float(StopCount) / float(Nodes.Num());
     const float DrawLifeTime = -1;//SPart >= StopTresholdPart ? 60.f : -1.f;
 
-    if (!bEnableDebugDraw) return;
+    //if (!bEnableDebugDraw) return;
 
     const FColor FreeColor = FColor::Green;
     const FColor FixedColor = FColor::Red;
@@ -529,7 +542,11 @@ void ANodeGridActor::DrawDebugState()
         const FColor NodeColor = Node.bFixed ? FixedColor : FreeColor;
         const FVector& Pos = NodePositions[Node.PositionIndex];
 
-        DrawDebugSphere(GetWorld(), Pos, DebugSphereRadius, 12, NodeColor, false, DrawLifeTime, 0, 0.5f);
+        if (bEnableDebugDraw)
+        {
+            DrawDebugSphere(GetWorld(), Pos, DebugSphereRadius, 12, NodeColor, false, DrawLifeTime, 0, 0.5f);
+        }
+      
 
         for (const FNodeLink& Link : Node.Links)
         {
@@ -540,8 +557,23 @@ void ANodeGridActor::DrawDebugState()
             float Ratio = FMath::Clamp(CurrentLength / Link.CriticalLength, 0.f, RCorrect);
             FLinearColor LineColor = FLinearColor::LerpUsingHSV(FLinearColor(FreeColor), FLinearColor(FixedColor), Ratio);
 
-            DrawDebugLine(GetWorld(), Pos, NodePositions[Neighbor.PositionIndex], LineColor.ToFColor(true), false, DrawLifeTime, 0, DebugLineThickness);
+            if (bEnableDebugDraw)
+            {
+                DrawDebugLine(GetWorld(), Pos, NodePositions[Neighbor.PositionIndex], LineColor.ToFColor(true), false, DrawLifeTime, 0, DebugLineThickness);
+            }
+            else
+            {
+				StartPositions[Node.PositionIndex] = Pos;
+				FinishPositions[Neighbor.PositionIndex] = NodePositions[Neighbor.PositionIndex];
+            }
         }
+
+        if (!bEnableDebugDraw)
+        {
+            UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("StartPositions"), StartPositions);
+            UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("FinishPositions"), FinishPositions);
+        }
+
     }
 }
 

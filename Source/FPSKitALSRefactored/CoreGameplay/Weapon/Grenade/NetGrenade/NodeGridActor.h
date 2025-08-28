@@ -167,6 +167,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     bool bEnableDebugDraw = true;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
+    UNiagaraSystem* NiagaraSystemAsset;
+
     UPROPERTY(EditAnywhere)
     float DebugSphereRadius = 0.5f;
 
@@ -185,9 +188,6 @@ public:
 protected:
     UPROPERTY()
     UNiagaraComponent* NiagaraComp;
-
-    UPROPERTY(EditAnywhere)
-    UNiagaraSystem* NiagaraSystemAsset;
 
     UPROPERTY()
 	TArray< UNiagaraComponent*> NiagaraComponents;
@@ -212,4 +212,13 @@ private:
 
     UPROPERTY()
     TArray <AAlsCharacterExample*> ParalysedCharacters;
+
+    UPROPERTY()
+    UNiagaraComponent* Niagara;
+
+    UPROPERTY()
+    TArray<FVector> StartPositions;
+
+    UPROPERTY()
+    TArray<FVector> FinishPositions;
 };
