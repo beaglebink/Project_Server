@@ -53,7 +53,7 @@ struct FVariantProperty
     FLinearColor ColorValue;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    ADictionaryObjectBase* ObjectValue;
+    TSubclassOf<AActor> ObjectValue;
 
     FString ToString() const;
 };

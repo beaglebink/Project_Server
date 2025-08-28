@@ -52,3 +52,8 @@ void UInteractiveItemComponent::DoInteractiveUse(ACharacter* IIUser)
 		OnInteractionPressKeyEvent.Broadcast(Picker);
 	}
 }
+
+void UInteractiveItemComponent::SetIsActive(bool Active)
+{
+	SetActive(Active);
+}

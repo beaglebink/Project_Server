@@ -34,6 +34,9 @@ public:
 
 	void DoInteractiveUse(ACharacter* IIUser);
 
+	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
+	void SetIsActive(bool Active);
+
 public:
 	UPROPERTY(BlueprintAssignable)
 	FOnInteractiveNow OnInteractiveReceiveFocusEvent;

@@ -151,6 +151,11 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 
 	for (UInteractiveItemComponent* InteractiveItem : AllInteractiveItems)
 	{
+		if (!InteractiveItem->IsActive())
+		{
+			continue;
+		}
+
 		float Distance = FVector::DistSquared(Location, InteractiveItem->GetOwner()->GetActorLocation());
 		if (InteractiveItem && DebugDraw)
 		{
