@@ -6,7 +6,7 @@
 #include <Kismet/KismetMathLibrary.h>
 #include <NiagaraDataInterfaceArrayFunctionLibrary.h>
 #include "AlsCharacterExample_I.h"
-#include "NiagaraComponent.h"
+//#include "NiagaraComponent.h"
 
 
 ANodeGridActor::ANodeGridActor()
@@ -36,11 +36,15 @@ void ANodeGridActor::BeginPlay()
 
     GetWorldTimerManager().SetTimer(StunTimerHandle, this, &ANodeGridActor::DestroyThis, DesrtoyTime, false);
 
+    Niagara = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSystemAsset, RootComponent, FName(TEXT("")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, true);
+
+
     InitializeGrid();
 
+
+    /*
     for (const TPair<int32, int32>& Link : UniqueLinks)
     {
-        //UNiagaraComponent* Niagara = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSystemAsset, RootComponent, FName(TEXT("")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, true);
         Niagara = NewObject<UNiagaraComponent>(this, TEXT("NodeNiagara"));
         if (Niagara)
         {
@@ -53,6 +57,7 @@ void ANodeGridActor::BeginPlay()
 			}
         }
     }
+    */
 }
 
 void ANodeGridActor::DestroyThis()
@@ -150,7 +155,7 @@ void ANodeGridActor::InitializeGrid()
         }
     }
 
-    if (!bEnableDebugDraw)
+    if (!bEnableDebugDraw && Niagara)
     {
         UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("StartPositions"), StartPositions);
         UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("FinishPositions"), FinishPositions);
@@ -524,9 +529,9 @@ void ANodeGridActor::ApplyRigidConstraints(float DeltaTime)
     }
 }
 
-void ANodeGridActor::DrawDebugState()
+void ANodeGridActor::DrawState()
 {
-    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::DrawDebugState);
+    TRACE_CPUPROFILER_EVENT_SCOPE(ANodeGridActor::DrawState);
 
     //const float SPart = float(StopCount) / float(Nodes.Num());
     const float DrawLifeTime = -1;//SPart >= StopTresholdPart ? 60.f : -1.f;
@@ -568,7 +573,7 @@ void ANodeGridActor::DrawDebugState()
             }
         }
 
-        if (!bEnableDebugDraw)
+        if (!bEnableDebugDraw && Niagara)
         {
             UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("StartPositions"), StartPositions);
             UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Niagara, FName("FinishPositions"), FinishPositions);
@@ -623,7 +628,7 @@ void ANodeGridActor::Tick(float DeltaTime)
     ProcessInfluenceCascade();
     ApplyMotionAndFixation(DeltaTime);
     ApplyRigidConstraints(DeltaTime);
-    DrawDebugState();
+    DrawState();
 
     // Подготовка временных массивов для параллельной обработки
     TArray<FVector> UpdatedPositions;

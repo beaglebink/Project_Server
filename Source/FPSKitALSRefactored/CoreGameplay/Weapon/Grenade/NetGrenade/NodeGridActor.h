@@ -107,7 +107,7 @@ private:
     FName FindClosestBoneToPoint(USkeletalMeshComponent* SkeletalMesh, const FVector& Point) const;
     void ParalyzeCharacter(ACharacter* Char);
     void ApplyRigidConstraints(float DeltaTime);
-    void DrawDebugState();
+    void DrawState();
     void IterateUniqueLinks();
     void PropagateInfluence(int32 SourceIndex, const FVector& SourceVelocity, float InfluenceFactor);
     void EnforceRigidLinkConstraint(FNode& A, FNode& B, const FNodeLink& Link, float DeltaTime);
