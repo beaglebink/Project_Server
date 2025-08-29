@@ -170,7 +170,7 @@ void AA_ArrayEffect::DeleteNode(int32 Index)
 
 void AA_ArrayEffect::InsertNode(int32 Index)
 {
-	if (Index < 0 || Index >= NodeArray.Num())
+	if (Index < 0 || Index >= NodeArray.Num() || NodeArray.Num() == 10)
 	{
 		return;
 	}
