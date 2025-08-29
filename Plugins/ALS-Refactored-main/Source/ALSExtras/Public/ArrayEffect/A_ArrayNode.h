@@ -6,7 +6,6 @@
 #include "A_ArrayNode.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGrab);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDelete, int32, Index);
 
 class AA_ArrayEffect;
 
@@ -49,32 +48,31 @@ private:
 
 	uint8 bShouldGrab : 1{false};
 
+public:
 	uint8 bIsMoving : 1{false};
 
+private:
 	UFUNCTION()
 	void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	void ComponentGrabbing();
 
+public:
 	void DeleteNode();
 
-	bool ParseArrayIndexToSwap(FText Command, int32& OutIndex);
-
-public:
 	UPROPERTY()
 	AA_ArrayEffect* OwnerActor;
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_BorderMaterial;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Getter")
 	int32 GetIndex() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Setter")
 	void SetIndex(int32 NewIndex);
 
-	UFUNCTION(BlueprintCallable, Category = "Material")
 	void SetBorderMaterialAndIndex(int32 NewIndex = -1);
+	
+	void SetBorderMaterialIfOccupied(UPrimitiveComponent* Occupant);
 
 	UFUNCTION(BlueprintCallable, Category = "ArrayInteraction")
 	void GetTextCommand(FText Command);
@@ -87,9 +85,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Delegate")
 	FOnGrab OnGrabDel;
-
-	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Delegate")
-	FOnDelete OnDeleteDel;
 
 protected:
 	UPROPERTY()

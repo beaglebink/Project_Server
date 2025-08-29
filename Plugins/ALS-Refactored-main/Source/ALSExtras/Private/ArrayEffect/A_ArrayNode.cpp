@@ -57,7 +57,14 @@ void AA_ArrayNode::Tick(float DeltaTime)
 
 void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!OtherActor || bIsOccupied || bIsMoving) return;
+	if (!OtherActor || bIsOccupied || bIsMoving || !OwnerActor || OwnerActor->bIsOverlapping || OwnerActor->bIsSwapping || (NodeIndex == -1 && OwnerActor->NodeArray.Num() == 10)) return;
+
+	OwnerActor->bIsOverlapping = true;
+
+	ON_SCOPE_EXIT
+	{
+		OwnerActor->bIsOverlapping = false;
+	};
 
 	if (AAlsCharacterExample* Player = Cast<AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
 	{
@@ -78,8 +85,12 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 			GrabbedComponent = OtherComp;
 			bIsOccupied = true;
 			bShouldGrab = true;
+			SetBorderMaterialIfOccupied(GrabbedComponent);
 
-			OnGrabDel.Broadcast();
+			if (NodeIndex == -1)
+			{
+				OnGrabDel.Broadcast();
+			}
 		}
 	}
 }
@@ -100,33 +111,16 @@ void AA_ArrayNode::ComponentGrabbing()
 
 void AA_ArrayNode::DeleteNode()
 {
-	GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Block);
-	GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Overlap);
-	GrabbedComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-	GrabbedComponent->SetSimulatePhysics(true);
-	GrabbedComponent->AddImpulse((UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation() - GetActorLocation()).GetSafeNormal() * 1300.0f, NAME_None, true);
-
-	OnDeleteDel.Broadcast(NodeIndex);
+	if (GrabbedComponent)
+	{
+		GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Block);
+		GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Overlap);
+		GrabbedComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		GrabbedComponent->SetSimulatePhysics(true);
+		GrabbedComponent->AddImpulse((UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation() - GetActorLocation()).GetSafeNormal() * 1300.0f, NAME_None, true);
+	}
 
 	Destroy();
-}
-
-bool AA_ArrayNode::ParseArrayIndexToSwap(FText Command, int32& OutIndex)
-{
-	FString Input = Command.ToString();
-
-	int32 OpenBracket = 0;
-	int32 CloseBracket = 0;
-
-	if (!Input.FindChar('[', OpenBracket) || !Input.FindChar(']', CloseBracket) || OpenBracket >= CloseBracket || CloseBracket != Input.Len() - 1 || Input.Left(OpenBracket) != "arr") return false;
-
-	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
-
-	if (!IndexStr.IsNumeric()) return false;
-
-	OutIndex = FCString::Atoi(*IndexStr);
-
-	return true;
 }
 
 int32 AA_ArrayNode::GetIndex() const
@@ -160,25 +154,19 @@ void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
 	}
 }
 
+void AA_ArrayNode::SetBorderMaterialIfOccupied(UPrimitiveComponent* Occupant)
+{
+	DMI_BorderMaterial->SetScalarParameterValue(FName("Emissive"), 1.0f);
+
+	if (Occupant)
+	{
+		DMI_BorderMaterial->SetScalarParameterValue(FName("Emissive"), 10.0f);
+	}
+}
+
 void AA_ArrayNode::GetTextCommand(FText Command)
 {
-	if (NodeIndex == -1 || OwnerActor->bIsSwapping)
-	{
-		return;
-	}
-
-	//delete
-	if (Command.ToString() == "del")
-	{
-		DeleteNode();
-	}
-
-	//swap
-	int32 OutIndex = -1;
-	if (ParseArrayIndexToSwap(Command, OutIndex))
-	{
-		OwnerActor->SwapNode(NodeIndex, OutIndex);
-	}
+	OwnerActor->GetTextCommand(Command);
 }
 
 void AA_ArrayNode::AttachComponent(UPrimitiveComponent* OtherComp)

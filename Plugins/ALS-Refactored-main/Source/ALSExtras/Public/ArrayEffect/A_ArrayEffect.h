@@ -26,7 +26,7 @@ private:
 	USceneComponent* SceneComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UChildActorComponent* AppendNodeComponent;
+	UChildActorComponent* EndNodeComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AA_ArrayNode> NodeClass;
@@ -34,24 +34,45 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* SwapAudioComp;
 
-	AA_ArrayNode* AppendNode;
-
-	TArray<AA_ArrayNode*> NodeArray;
+	AA_ArrayNode* EndNode;
 
 	TArray<FVector> LocationArray;
 
-	UFUNCTION()
-	void AddNewNode();
-
-	UFUNCTION()
-	void DeleteNode(int32 Index);
-
 public:
+	TArray<AA_ArrayNode*> NodeArray;
+
+	uint8 bIsOverlapping : 1{false};
+
 	uint8 bIsSwapping : 1{false};
 
-	void SwapNode(int32 Node1, int32 Node2);
+	void GetTextCommand(FText Command);
 
 private:
+	UFUNCTION()
+	void AppendNode();
+
+	void SwapNodes(int32 Node1, int32 Node2);
+
+	void DeleteNode(int32 Index);
+
+	void InsertNode(int32 Index);
+
+	void ArrayPop();
+
+	void ArrayClear();
+
+	bool ParseArrayIndexToAppend(FText Command);
+
+	bool ParseArrayIndexToSwap(FText Command, int32& OutIndex1, int32& OutIndex2);
+
+	bool ParseArrayIndexToDel(FText Command, int32& OutIndex);
+
+	bool ParseArrayIndexToInsert(FText Command, int32& OutIndex);
+
+	bool ParseArrayIndexToPop(FText Command);
+
+	bool ParseArrayIndexToClear(FText Command);
+
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
 
