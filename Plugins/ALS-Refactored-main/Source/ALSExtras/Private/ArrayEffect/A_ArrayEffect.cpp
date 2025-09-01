@@ -45,6 +45,7 @@ void AA_ArrayEffect::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	ArrayExtend();
 }
 
 void AA_ArrayEffect::GetTextCommand(FText Command)
@@ -92,6 +93,11 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	else if (ParseArrayIndexToClear(Command))
 	{
 		ArrayClear();
+	}
+
+	//extend
+	else if (ParseArrayIndexToExtend(Command, ExtendArray))
+	{
 	}
 }
 
@@ -206,6 +212,31 @@ void AA_ArrayEffect::ArrayClear()
 	{
 		DeleteNode(i);
 	}
+}
+
+void AA_ArrayEffect::ArrayExtend()
+{
+	if (EndNode->bIsMoving)
+	{
+		return;
+	}
+
+	if (ExtendArrayIndex < ExtendArray.Num())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, FString::Printf(TEXT("%2d"), ExtendArray.Num()));
+
+		++ExtendArrayIndex;
+		AppendNode();
+	}
+	else
+	{
+		ExtendArray.Empty();
+		ExtendArrayIndex = 0;
+	}
+}
+
+void AA_ArrayEffect::ArrayConcatenate()
+{
 }
 
 bool AA_ArrayEffect::ParseArrayIndexToAppend(FText Command)
@@ -331,6 +362,54 @@ bool AA_ArrayEffect::ParseArrayIndexToClear(FText Command)
 		return true;
 	}
 
+	return false;
+}
+
+bool AA_ArrayEffect::ParseArrayIndexToExtend(FText Command, TArray<int32>& OutArray)
+{
+	OutArray.Empty();
+	FString Input = Command.ToString();
+
+	if (!Input.StartsWith(TEXT("extend(")) || !Input.EndsWith(TEXT(")")))
+	{
+		return false;
+	}
+
+	FString Inner = Input.Mid(7, Input.Len() - 8);
+	Inner.RemoveSpacesInline();
+
+	TArray<FString> Parts;
+	Inner.ParseIntoArray(Parts, TEXT(","), true);
+
+	if (Parts.Num() == 0 && Inner.Len() > 0)
+	{
+		Parts.Add(Inner);
+	}
+
+	for (FString& Part : Parts)
+	{
+		if (!Part.StartsWith(TEXT("[")) || !Part.EndsWith(TEXT("]")))
+		{
+			OutArray.Empty();
+			return false;
+		}
+
+		FString NumberStr = Part.Mid(1, Part.Len() - 2);
+
+		if (!NumberStr.IsNumeric())
+		{
+			OutArray.Empty();
+			return false;
+		}
+
+		OutArray.Add(FCString::Atoi(*NumberStr));
+	}
+
+	return true;
+}
+
+bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command)
+{
 	return false;
 }
 

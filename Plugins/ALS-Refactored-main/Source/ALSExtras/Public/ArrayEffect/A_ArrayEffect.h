@@ -61,6 +61,10 @@ private:
 
 	void ArrayClear();
 
+	void ArrayExtend();
+
+	void ArrayConcatenate();
+
 	bool ParseArrayIndexToAppend(FText Command);
 
 	bool ParseArrayIndexToSwap(FText Command, int32& OutIndex1, int32& OutIndex2);
@@ -73,12 +77,20 @@ private:
 
 	bool ParseArrayIndexToClear(FText Command);
 
+	bool ParseArrayIndexToExtend(FText Command, TArray<int32>& OutArray);
+
+	bool ParseArrayIndexToConcatenate(FText Command);
+
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
 
 	int32 SwapNode1;
 
 	int32 SwapNode2;
+
+	TArray<int32> ExtendArray;
+
+	int32 ExtendArrayIndex = 0;
 
 protected:
 	UPROPERTY()
