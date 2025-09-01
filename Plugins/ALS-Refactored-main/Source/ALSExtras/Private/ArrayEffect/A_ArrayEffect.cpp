@@ -1,6 +1,9 @@
 #include "ArrayEffect/A_ArrayEffect.h"
 #include "ArrayEffect/A_ArrayNode.h"
 #include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "AlsCharacterExample.h"
+#include "AlsCameraComponent.h"
 
 AA_ArrayEffect::AA_ArrayEffect()
 {
@@ -21,12 +24,20 @@ void AA_ArrayEffect::BeginPlay()
 {
 	Super::BeginPlay();
 
+	DefaultLocation = GetActorLocation();
 
 	EndNode = Cast<AA_ArrayNode>(EndNodeComponent->GetChildActor());
 	if (EndNode)
 	{
 		EndNode->OwnerActor = this;
 		EndNode->OnGrabDel.AddDynamic(this, &AA_ArrayEffect::AppendNode);
+
+		FVector MinBound;
+		FVector MaxBound;
+		EndNode->NodeBorder->GetLocalBounds(MinBound, MaxBound);
+		MinBound *= EndNode->NodeBorder->GetComponentScale();
+		MaxBound *= EndNode->NodeBorder->GetComponentScale();
+		NodeWidth = MaxBound.Y - MinBound.Y;
 	}
 
 	if (FloatCurve)
@@ -46,6 +57,8 @@ void AA_ArrayEffect::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	ArrayExtend();
+
+	AttachToCharacterCamera();
 }
 
 void AA_ArrayEffect::GetTextCommand(FText Command)
@@ -58,6 +71,10 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	int32 OutIndex1 = -1;
 
 	int32 OutIndex2 = -1;
+
+	int32 OutSize1 = -1;
+
+	int32 OutSize2 = -1;
 
 	//append
 	if (ParseArrayIndexToAppend(Command))
@@ -99,6 +116,17 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	else if (ParseArrayIndexToExtend(Command, ExtendArray))
 	{
 	}
+
+	//concatenate
+	else if (ParseArrayIndexToConcatenate(Command, OutSize1, OutSize2))
+	{
+		if (NodeArray.Num() != OutSize2)
+		{
+			return;
+		}
+
+		bIsOnConcatenation = true;
+	}
 }
 
 void AA_ArrayEffect::AppendNode()
@@ -114,13 +142,12 @@ void AA_ArrayEffect::AppendNode()
 	AA_ArrayNode* NewNode = EndNode;
 	NodeArray.Add(NewNode);
 
-	EndNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, SpawnLocation, FRotator::ZeroRotator);
+	EndNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, SpawnLocation, GetActorRotation());
 	if (EndNode)
 	{
 		EndNode->OwnerActor = this;
 		EndNode->OnGrabDel.AddDynamic(this, &AA_ArrayEffect::AppendNode);
-
-		EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * EndNode->NodeBorder->Bounds.BoxExtent.Y * 2);
+		EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * NodeWidth);
 	}
 }
 
@@ -223,8 +250,6 @@ void AA_ArrayEffect::ArrayExtend()
 
 	if (ExtendArrayIndex < ExtendArray.Num())
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, FString::Printf(TEXT("%2d"), ExtendArray.Num()));
-
 		++ExtendArrayIndex;
 		AppendNode();
 	}
@@ -408,9 +433,70 @@ bool AA_ArrayEffect::ParseArrayIndexToExtend(FText Command, TArray<int32>& OutAr
 	return true;
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command)
+bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command, int32& OutSize1, int32& OutSize2)
 {
-	return false;
+	FString Input = Command.ToString();
+
+	OutSize1 = 0;
+	OutSize2 = 0;
+
+	Input.RemoveSpacesInline();
+
+	if (!Input.StartsWith(TEXT("arr=")))
+		return false;
+
+	int32 PlusIndex;
+	if (!Input.FindChar('+', PlusIndex))
+		return false;
+
+	FString Left = Input.Mid(4, PlusIndex - 4);
+	FString Right = Input.Mid(PlusIndex + 1);
+
+	auto CountArrayElements = [](const FString& Part) -> int32
+		{
+			if (!Part.StartsWith(TEXT("[")) || !Part.EndsWith(TEXT("]")))
+				return -1;
+
+			FString Inner = Part.Mid(1, Part.Len() - 2); // внутри скобок
+			if (Inner.IsEmpty())
+				return 0;
+
+			TArray<FString> Elements;
+			Inner.ParseIntoArray(Elements, TEXT(","), true);
+			return Elements.Num();
+		};
+
+	OutSize1 = CountArrayElements(Left);
+	OutSize2 = CountArrayElements(Right);
+
+	return (OutSize1 >= 0 && OutSize2 >= 0);
+}
+
+void AA_ArrayEffect::AttachToCharacterCamera()
+{
+	if (!bIsOnConcatenation)
+	{
+		return;
+	}
+
+	if (AAlsCharacterExample* PC = Cast< AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
+	{
+		FMinimalViewInfo MinimalViewInfo;
+		PC->CalcCamera(0.f, MinimalViewInfo);
+		const FVector Location = MinimalViewInfo.Location;
+		const FRotator Rotation = MinimalViewInfo.Rotation;
+		const FVector Direction = Rotation.Vector();
+
+		SetActorLocation(FMath::VInterpTo(GetActorLocation(), Location + Direction * 800.0f, GetWorld()->GetDeltaSeconds(), 2.0f));
+		SetActorRotation(FMath::RInterpTo(GetActorRotation(), (-Direction).Rotation(), GetWorld()->GetDeltaSeconds(), 2.0f));
+		for (int32 Index = 1; Index < NodeArray.Num(); ++Index)
+		{
+			NodeArray[Index]->SetActorLocation(FMath::VInterpTo(NodeArray[Index]->GetActorLocation(), NodeArray[Index - 1]->GetActorLocation() - NodeArray[Index - 1]->GetActorRightVector() * NodeWidth, GetWorld()->GetDeltaSeconds(), 2.0f));
+			NodeArray[Index]->SetActorRotation(FMath::RInterpTo(NodeArray[Index]->GetActorRotation(), (-Direction).Rotation(), GetWorld()->GetDeltaSeconds(), 2.0f));
+		}
+		EndNode->SetActorLocation(FMath::VInterpTo(EndNode->GetActorLocation(), NodeArray.Last()->GetActorLocation() - NodeArray.Last()->GetActorRightVector() * NodeWidth, GetWorld()->GetDeltaSeconds(), 2.0f));
+		EndNode->SetActorRotation(FMath::RInterpTo(EndNode->GetActorRotation(), (-Direction).Rotation(), GetWorld()->GetDeltaSeconds(), 2.0f));
+	}
 }
 
 void AA_ArrayEffect::TimelineProgress(float Value)

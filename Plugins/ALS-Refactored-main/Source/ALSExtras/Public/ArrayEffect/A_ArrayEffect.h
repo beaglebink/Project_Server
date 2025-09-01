@@ -34,7 +34,11 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* SwapAudioComp;
 
+	FVector DefaultLocation;
+
 	AA_ArrayNode* EndNode;
+	
+	float NodeWidth;
 
 	TArray<FVector> LocationArray;
 
@@ -44,6 +48,8 @@ public:
 	uint8 bIsOverlapping : 1{false};
 
 	uint8 bIsSwapping : 1{false};
+
+	uint8 bIsOnConcatenation : 1{false};
 
 	void GetTextCommand(FText Command);
 
@@ -79,7 +85,9 @@ private:
 
 	bool ParseArrayIndexToExtend(FText Command, TArray<int32>& OutArray);
 
-	bool ParseArrayIndexToConcatenate(FText Command);
+	bool ParseArrayIndexToConcatenate(FText Command, int32& OutSize1, int32& OutSize2);
+
+	void AttachToCharacterCamera();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
