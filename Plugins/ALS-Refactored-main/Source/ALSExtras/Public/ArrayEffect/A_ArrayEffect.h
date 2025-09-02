@@ -6,6 +6,7 @@
 #include "A_ArrayEffect.generated.h"
 
 class AA_ArrayNode;
+class UBoxComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_ArrayEffect : public AActor
@@ -26,6 +27,9 @@ private:
 	USceneComponent* SceneComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UBoxComponent* CollisionComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UChildActorComponent* EndNodeComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
@@ -36,9 +40,15 @@ private:
 
 	FVector DefaultLocation;
 
+	FRotator DefaultRotation;
+
 	AA_ArrayNode* EndNode;
-	
+
+	float NodeLength;
+
 	float NodeWidth;
+	
+	float NodeHigh;
 
 	TArray<FVector> LocationArray;
 
@@ -51,12 +61,14 @@ public:
 
 	uint8 bIsOnConcatenation : 1{false};
 
+	int32 SizeOfConcatenatingArray = -1;
+
 	void GetTextCommand(FText Command);
 
-private:
-	UFUNCTION()
+public:
 	void AppendNode();
 
+private:
 	void SwapNodes(int32 Node1, int32 Node2);
 
 	void DeleteNode(int32 Index);
@@ -69,8 +81,10 @@ private:
 
 	void ArrayExtend();
 
-	void ArrayConcatenate();
+public:
+	void ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate);
 
+private:
 	bool ParseArrayIndexToAppend(FText Command);
 
 	bool ParseArrayIndexToSwap(FText Command, int32& OutIndex1, int32& OutIndex2);
@@ -89,6 +103,8 @@ private:
 
 	void AttachToCharacterCamera();
 
+	void DetachFromCharacterCamera();
+
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
 
@@ -99,6 +115,8 @@ private:
 	TArray<int32> ExtendArray;
 
 	int32 ExtendArrayIndex = 0;
+
+	uint8 bIsDetaching : 1{false};
 
 protected:
 	UPROPERTY()

@@ -11,12 +11,10 @@ AA_ArrayNode::AA_ArrayNode()
 	PrimaryActorTick.bCanEverTick = true;
 
 	NodeBorder = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NodeBorderComponent"));
-	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	MoveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveTimeline"));
 	NodeBorderAudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("NodeAudioComponent"));
 
-	RootComponent = SceneComponent;
-	NodeBorder->SetupAttachment(RootComponent);
+	RootComponent = NodeBorder;
 	NodeBorderAudioComp->SetupAttachment(RootComponent);
 	NodeBorderAudioComp->bAutoActivate = false;
 }
@@ -57,7 +55,9 @@ void AA_ArrayNode::Tick(float DeltaTime)
 
 void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!OtherActor || bIsOccupied || bIsMoving || !OwnerActor || OwnerActor->bIsOverlapping || OwnerActor->bIsSwapping || (NodeIndex == -1 && OwnerActor->NodeArray.Num() == 10)) return;
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, *OtherActor->GetName());
+
+	if (!OtherActor || bIsOccupied || bIsMoving || !OwnerActor || OwnerActor == OtherActor || OwnerActor->bIsOverlapping || OwnerActor->bIsSwapping || (NodeIndex == -1 && OwnerActor->NodeArray.Num() == 10)) return;
 
 	OwnerActor->bIsOverlapping = true;
 
@@ -66,6 +66,13 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 		OwnerActor->bIsOverlapping = false;
 	};
 
+	//handle concatenation
+	if (OwnerActor->bIsOnConcatenation)
+	{
+		return;
+	}
+
+	//grab mesh component
 	if (AAlsCharacterExample* Player = Cast<AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
 	{
 		if (UPhysicsHandleComponent* PhysicsHandleComp = Player->GetComponentByClass<UPhysicsHandleComponent>())
@@ -81,7 +88,7 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 			OtherComp->SetSimulatePhysics(false);
 			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Ignore);
 			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Ignore);
-			OtherComp->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepWorldTransform);
+			OtherComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 			GrabbedComponent = OtherComp;
 			bIsOccupied = true;
 			bShouldGrab = true;
@@ -89,7 +96,7 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 
 			if (NodeIndex == -1)
 			{
-				OnGrabDel.Broadcast();
+				OwnerActor->AppendNode();
 			}
 		}
 	}
@@ -171,7 +178,7 @@ void AA_ArrayNode::GetTextCommand(FText Command)
 
 void AA_ArrayNode::AttachComponent(UPrimitiveComponent* OtherComp)
 {
-	OtherComp->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepWorldTransform);
+	OtherComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 }
 
 void AA_ArrayNode::DetachComponent(UPrimitiveComponent* OtherComp)
