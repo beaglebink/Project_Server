@@ -20,4 +20,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "ObjectSystem")
 	void ExecuteCommand(const FString& Command, const TArray<FString>& Arguments);
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ObjectSystem")
+	FName ObjectActorName;
 };
