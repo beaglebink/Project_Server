@@ -5,8 +5,6 @@
 #include "GameFramework/Actor.h"
 #include "A_ArrayNode.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGrab);
-
 class AA_ArrayEffect;
 
 UCLASS()
@@ -33,9 +31,6 @@ public:
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USceneComponent* SceneComponent;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* NodeBorderAudioComp;
 	
 	FVector CurrentLocation;
@@ -49,6 +44,8 @@ private:
 	uint8 bShouldGrab : 1{false};
 
 public:
+	FVector DefaultLocation;
+
 	uint8 bIsMoving : 1{false};
 
 private:
@@ -82,9 +79,6 @@ public:
 	void DetachComponent(UPrimitiveComponent* OtherComp);
 
 	void MoveNode(FVector TargetLocation);
-
-	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Delegate")
-	FOnGrab OnGrabDel;
 
 protected:
 	UPROPERTY()

@@ -4,17 +4,20 @@
 #include "Kismet/GameplayStatics.h"
 #include "AlsCharacterExample.h"
 #include "AlsCameraComponent.h"
+#include "Components/BoxComponent.h"
 
 AA_ArrayEffect::AA_ArrayEffect()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
+	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+	CollisionComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollisionComponent"));
 	EndNodeComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("EndNodeComponent"));
-	SwapTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveTimeline"));
+	SwapTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("SwapTimeline"));
 	SwapAudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("SwapAudioComponent"));
 
 	RootComponent = SceneComponent;
+	CollisionComponent->SetupAttachment(RootComponent);
 	EndNodeComponent->SetupAttachment(RootComponent);
 	SwapAudioComp->SetupAttachment(RootComponent);
 	SwapAudioComp->bAutoActivate = false;
@@ -25,20 +28,24 @@ void AA_ArrayEffect::BeginPlay()
 	Super::BeginPlay();
 
 	DefaultLocation = GetActorLocation();
+	DefaultRotation = GetActorRotation();
 
 	EndNode = Cast<AA_ArrayNode>(EndNodeComponent->GetChildActor());
 	if (EndNode)
 	{
 		EndNode->OwnerActor = this;
-		EndNode->OnGrabDel.AddDynamic(this, &AA_ArrayEffect::AppendNode);
 
 		FVector MinBound;
 		FVector MaxBound;
 		EndNode->NodeBorder->GetLocalBounds(MinBound, MaxBound);
 		MinBound *= EndNode->NodeBorder->GetComponentScale();
 		MaxBound *= EndNode->NodeBorder->GetComponentScale();
+		NodeLength = MaxBound.X - MinBound.X;
 		NodeWidth = MaxBound.Y - MinBound.Y;
+		NodeHigh = MaxBound.Z - MinBound.Z;
 	}
+
+	CollisionComponent->SetBoxExtent(FVector(NodeLength * 0.5f, NodeWidth * 0.5f, NodeHigh * 0.5f));
 
 	if (FloatCurve)
 	{
@@ -59,11 +66,13 @@ void AA_ArrayEffect::Tick(float DeltaTime)
 	ArrayExtend();
 
 	AttachToCharacterCamera();
+
+	DetachFromCharacterCamera();
 }
 
 void AA_ArrayEffect::GetTextCommand(FText Command)
 {
-	if (bIsSwapping || EndNode->bIsMoving)
+	if (bIsSwapping || EndNode->bIsMoving || bIsDetaching)
 	{
 		return;
 	}
@@ -72,9 +81,7 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 
 	int32 OutIndex2 = -1;
 
-	int32 OutSize1 = -1;
-
-	int32 OutSize2 = -1;
+	int32 SizeOfConcatenatedArray = -1;
 
 	//append
 	if (ParseArrayIndexToAppend(Command))
@@ -118,14 +125,19 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	}
 
 	//concatenate
-	else if (ParseArrayIndexToConcatenate(Command, OutSize1, OutSize2))
+	else if (ParseArrayIndexToConcatenate(Command, SizeOfConcatenatingArray, SizeOfConcatenatedArray))
 	{
-		if (NodeArray.Num() != OutSize2)
+		if (NodeArray.Num() != SizeOfConcatenatedArray)
 		{
 			return;
 		}
 
 		bIsOnConcatenation = true;
+	}
+	else if (Command.ToString() == "reset()" && bIsOnConcatenation)
+	{
+		bIsOnConcatenation = false;
+		bIsDetaching = true;;
 	}
 }
 
@@ -141,13 +153,14 @@ void AA_ArrayEffect::AppendNode()
 	FVector SpawnLocation = EndNode->GetActorLocation();
 	AA_ArrayNode* NewNode = EndNode;
 	NodeArray.Add(NewNode);
-
-	EndNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, SpawnLocation, GetActorRotation());
-	if (EndNode)
+	if (NodeClass)
 	{
-		EndNode->OwnerActor = this;
-		EndNode->OnGrabDel.AddDynamic(this, &AA_ArrayEffect::AppendNode);
-		EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * NodeWidth);
+		EndNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, SpawnLocation, GetActorRotation());
+		if (EndNode)
+		{
+			EndNode->OwnerActor = this;
+			EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * NodeWidth);
+		}
 	}
 }
 
@@ -224,7 +237,6 @@ void AA_ArrayEffect::InsertNode(int32 Index)
 		NewNode->OwnerActor = this;
 		NewNode->SetIndex(Index);
 		NodeArray.Insert(NewNode, Index);
-		NewNode->OnGrabDel.AddDynamic(this, &AA_ArrayEffect::AppendNode);
 	}
 }
 
@@ -260,8 +272,19 @@ void AA_ArrayEffect::ArrayExtend()
 	}
 }
 
-void AA_ArrayEffect::ArrayConcatenate()
+void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 {
+	if (NodeArray.Num() != ArrayToConcatenate->SizeOfConcatenatingArray)
+	{
+		ArrayToConcatenate->bIsOnConcatenation = false;
+		ArrayToConcatenate->bIsDetaching = true;
+		return;
+	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "CONCATENATE");
+	ArrayToConcatenate->bIsOnConcatenation = false;
+
+
 }
 
 bool AA_ArrayEffect::ParseArrayIndexToAppend(FText Command)
@@ -457,7 +480,7 @@ bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command, int32& OutSize1
 			if (!Part.StartsWith(TEXT("[")) || !Part.EndsWith(TEXT("]")))
 				return -1;
 
-			FString Inner = Part.Mid(1, Part.Len() - 2); // внутри скобок
+			FString Inner = Part.Mid(1, Part.Len() - 2);
 			if (Inner.IsEmpty())
 				return 0;
 
@@ -469,7 +492,7 @@ bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command, int32& OutSize1
 	OutSize1 = CountArrayElements(Left);
 	OutSize2 = CountArrayElements(Right);
 
-	return (OutSize1 >= 0 && OutSize2 >= 0);
+	return (OutSize1 > 0 && OutSize2 > 0);
 }
 
 void AA_ArrayEffect::AttachToCharacterCamera()
@@ -497,6 +520,29 @@ void AA_ArrayEffect::AttachToCharacterCamera()
 		EndNode->SetActorLocation(FMath::VInterpTo(EndNode->GetActorLocation(), NodeArray.Last()->GetActorLocation() - NodeArray.Last()->GetActorRightVector() * NodeWidth, GetWorld()->GetDeltaSeconds(), 2.0f));
 		EndNode->SetActorRotation(FMath::RInterpTo(EndNode->GetActorRotation(), (-Direction).Rotation(), GetWorld()->GetDeltaSeconds(), 2.0f));
 	}
+}
+
+void AA_ArrayEffect::DetachFromCharacterCamera()
+{
+	if (!bIsDetaching)
+	{
+		return;
+	}
+
+	if (GetActorLocation().Equals(DefaultLocation, 0.01f) && GetActorRotation().Equals(DefaultRotation, 0.01f))
+	{
+		bIsDetaching = false;
+	}
+
+	SetActorLocation(FMath::VInterpTo(GetActorLocation(), DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
+	SetActorRotation(FMath::RInterpTo(GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
+	for (int32 Index = 1; Index < NodeArray.Num(); ++Index)
+	{
+		NodeArray[Index]->SetActorLocation(FMath::VInterpTo(NodeArray[Index]->GetActorLocation(), NodeArray[Index]->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
+		NodeArray[Index]->SetActorRotation(FMath::RInterpTo(NodeArray[Index]->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
+	}
+	EndNode->SetActorLocation(FMath::VInterpTo(EndNode->GetActorLocation(), EndNode->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
+	EndNode->SetActorRotation(FMath::RInterpTo(EndNode->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
 }
 
 void AA_ArrayEffect::TimelineProgress(float Value)

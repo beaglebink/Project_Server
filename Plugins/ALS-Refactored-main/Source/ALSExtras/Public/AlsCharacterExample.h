@@ -184,7 +184,6 @@ public:
 
 	void EndStun();
 
-//protected:
 	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& ViewInfo) override;
 
 	// Input
