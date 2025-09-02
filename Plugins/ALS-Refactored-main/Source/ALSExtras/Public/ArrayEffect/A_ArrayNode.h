@@ -44,6 +44,8 @@ private:
 	uint8 bShouldGrab : 1{false};
 
 public:
+	FVector DefaultLocation;
+
 	uint8 bIsMoving : 1{false};
 
 private:

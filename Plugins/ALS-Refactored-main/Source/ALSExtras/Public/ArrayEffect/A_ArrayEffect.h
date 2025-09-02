@@ -61,6 +61,8 @@ public:
 
 	uint8 bIsOnConcatenation : 1{false};
 
+	uint8 bIsDetaching : 1{false};
+
 	int32 SizeOfConcatenatingArray = -1;
 
 	void GetTextCommand(FText Command);
@@ -115,8 +117,6 @@ private:
 	TArray<int32> ExtendArray;
 
 	int32 ExtendArrayIndex = 0;
-
-	uint8 bIsDetaching : 1{false};
 
 protected:
 	UPROPERTY()

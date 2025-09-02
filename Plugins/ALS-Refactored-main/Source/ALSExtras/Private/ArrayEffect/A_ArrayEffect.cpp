@@ -72,7 +72,7 @@ void AA_ArrayEffect::Tick(float DeltaTime)
 
 void AA_ArrayEffect::GetTextCommand(FText Command)
 {
-	if (bIsSwapping || EndNode->bIsMoving)
+	if (bIsSwapping || EndNode->bIsMoving || bIsDetaching)
 	{
 		return;
 	}
@@ -133,6 +133,11 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		}
 
 		bIsOnConcatenation = true;
+	}
+	else if (Command.ToString() == "reset()" && bIsOnConcatenation)
+	{
+		bIsOnConcatenation = false;
+		bIsDetaching = true;;
 	}
 }
 
@@ -276,6 +281,7 @@ void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 		return;
 	}
 
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "CONCATENATE");
 	ArrayToConcatenate->bIsOnConcatenation = false;
 
 
@@ -523,20 +529,19 @@ void AA_ArrayEffect::DetachFromCharacterCamera()
 		return;
 	}
 
-	if (GetActorLocation().Equals(DefaultLocation) && GetActorRotation().Equals(DefaultRotation))
+	if (GetActorLocation().Equals(DefaultLocation, 0.01f) && GetActorRotation().Equals(DefaultRotation, 0.01f))
 	{
 		bIsDetaching = false;
 	}
 
 	SetActorLocation(FMath::VInterpTo(GetActorLocation(), DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
-
 	SetActorRotation(FMath::RInterpTo(GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
 	for (int32 Index = 1; Index < NodeArray.Num(); ++Index)
 	{
-		NodeArray[Index]->SetActorLocation(FMath::VInterpTo(NodeArray[Index]->GetActorLocation(), NodeArray[Index - 1]->GetActorLocation() - NodeArray[Index - 1]->GetActorRightVector() * NodeWidth, GetWorld()->GetDeltaSeconds(), 2.0f));
+		NodeArray[Index]->SetActorLocation(FMath::VInterpTo(NodeArray[Index]->GetActorLocation(), NodeArray[Index]->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
 		NodeArray[Index]->SetActorRotation(FMath::RInterpTo(NodeArray[Index]->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
 	}
-	EndNode->SetActorLocation(FMath::VInterpTo(EndNode->GetActorLocation(), NodeArray.Last()->GetActorLocation() - NodeArray.Last()->GetActorRightVector() * NodeWidth, GetWorld()->GetDeltaSeconds(), 2.0f));
+	EndNode->SetActorLocation(FMath::VInterpTo(EndNode->GetActorLocation(), EndNode->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
 	EndNode->SetActorRotation(FMath::RInterpTo(EndNode->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
 }
 

@@ -17,6 +17,8 @@ AA_ArrayNode::AA_ArrayNode()
 	RootComponent = NodeBorder;
 	NodeBorderAudioComp->SetupAttachment(RootComponent);
 	NodeBorderAudioComp->bAutoActivate = false;
+
+	DefaultLocation = GetActorLocation();
 }
 
 void AA_ArrayNode::BeginPlay()
@@ -55,9 +57,8 @@ void AA_ArrayNode::Tick(float DeltaTime)
 
 void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, *OtherActor->GetName());
-
-	if (!OtherActor || bIsOccupied || bIsMoving || !OwnerActor || OwnerActor == OtherActor || OwnerActor->bIsOverlapping || OwnerActor->bIsSwapping || (NodeIndex == -1 && OwnerActor->NodeArray.Num() == 10)) return;
+	if (!OtherActor || bIsOccupied || bIsMoving || !OwnerActor || OwnerActor == OtherActor || OwnerActor->bIsOverlapping ||
+		OwnerActor->bIsSwapping || OwnerActor->bIsOnConcatenation || OwnerActor->bIsDetaching || (NodeIndex == -1 && OwnerActor->NodeArray.Num() == 10)) return;
 
 	OwnerActor->bIsOverlapping = true;
 
@@ -67,8 +68,12 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 	};
 
 	//handle concatenation
-	if (OwnerActor->bIsOnConcatenation)
+	if (AA_ArrayEffect* AE = Cast<AA_ArrayEffect>(OtherActor))
 	{
+		if (AE->bIsOnConcatenation)
+		{
+			OwnerActor->ArrayConcatenate(AE);
+		}
 		return;
 	}
 
@@ -206,4 +211,6 @@ void AA_ArrayNode::TimelineFinished()
 {
 	bIsMoving = false;
 	NodeBorderAudioComp->Stop();
+
+	DefaultLocation = GetActorLocation();
 }
