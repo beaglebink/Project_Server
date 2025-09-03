@@ -17,13 +17,13 @@ AA_ArrayNode::AA_ArrayNode()
 	RootComponent = NodeBorder;
 	NodeBorderAudioComp->SetupAttachment(RootComponent);
 	NodeBorderAudioComp->bAutoActivate = false;
-
-	DefaultLocation = GetActorLocation();
 }
 
 void AA_ArrayNode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	DefaultLocation = GetActorLocation();
 
 	CurrentLocation = GetActorLocation();
 

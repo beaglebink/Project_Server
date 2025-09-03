@@ -30,7 +30,9 @@ void AA_ArrayEffect::BeginPlay()
 	DefaultLocation = GetActorLocation();
 	DefaultRotation = GetActorRotation();
 
-	EndNode = Cast<AA_ArrayNode>(EndNodeComponent->GetChildActor());
+	//EndNode =  Cast<AA_ArrayNode>(EndNodeComponent->GetChildActor());
+	EndNodeComponent->DestroyComponent();
+	EndNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, GetActorLocation(), GetActorRotation());
 	if (EndNode)
 	{
 		EndNode->OwnerActor = this;
@@ -68,6 +70,8 @@ void AA_ArrayEffect::Tick(float DeltaTime)
 	AttachToCharacterCamera();
 
 	DetachFromCharacterCamera();
+
+	AttachToArray();
 }
 
 void AA_ArrayEffect::GetTextCommand(FText Command)
@@ -281,10 +285,23 @@ void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 		return;
 	}
 
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "CONCATENATE");
 	ArrayToConcatenate->bIsOnConcatenation = false;
 
+	int32 Index = NodeArray.Num();
+	for (AA_ArrayNode* Node : ArrayToConcatenate->NodeArray)
+	{
+		Node->OwnerActor = this;
+		Node->DefaultLocation = GetActorLocation() - GetActorRightVector() * NodeWidth * Index;
+		Node->SetIndex(Index++);
+		LocationArray.Add(Node->DefaultLocation);
+	}
 
+	ArrayToConcatenate->EndNode->Destroy();
+	NodeArray.Append(ArrayToConcatenate->NodeArray);
+	EndNode->DefaultLocation = NodeArray.Last()->DefaultLocation - GetActorRightVector() * NodeWidth;
+	ArrayToConcatenate->Destroy();
+
+	bIsAttaching = true;
 }
 
 bool AA_ArrayEffect::ParseArrayIndexToAppend(FText Command)
@@ -492,7 +509,7 @@ bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command, int32& OutSize1
 	OutSize1 = CountArrayElements(Left);
 	OutSize2 = CountArrayElements(Right);
 
-	return (OutSize1 > 0 && OutSize2 > 0);
+	return (OutSize1 > 0 && OutSize2 > 0 && (OutSize1 + OutSize2 <= 10));
 }
 
 void AA_ArrayEffect::AttachToCharacterCamera()
@@ -512,6 +529,10 @@ void AA_ArrayEffect::AttachToCharacterCamera()
 
 		SetActorLocation(FMath::VInterpTo(GetActorLocation(), Location + Direction * 800.0f, GetWorld()->GetDeltaSeconds(), 2.0f));
 		SetActorRotation(FMath::RInterpTo(GetActorRotation(), (-Direction).Rotation(), GetWorld()->GetDeltaSeconds(), 2.0f));
+
+		NodeArray[0]->SetActorLocation(FMath::VInterpTo(NodeArray[0]->GetActorLocation(), GetActorLocation(), GetWorld()->GetDeltaSeconds(), 2.0f));
+		NodeArray[0]->SetActorRotation(FMath::RInterpTo(NodeArray[0]->GetActorRotation(), (-Direction).Rotation(), GetWorld()->GetDeltaSeconds(), 2.0f));
+
 		for (int32 Index = 1; Index < NodeArray.Num(); ++Index)
 		{
 			NodeArray[Index]->SetActorLocation(FMath::VInterpTo(NodeArray[Index]->GetActorLocation(), NodeArray[Index - 1]->GetActorLocation() - NodeArray[Index - 1]->GetActorRightVector() * NodeWidth, GetWorld()->GetDeltaSeconds(), 2.0f));
@@ -536,10 +557,31 @@ void AA_ArrayEffect::DetachFromCharacterCamera()
 
 	SetActorLocation(FMath::VInterpTo(GetActorLocation(), DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
 	SetActorRotation(FMath::RInterpTo(GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
-	for (int32 Index = 1; Index < NodeArray.Num(); ++Index)
+	for (AA_ArrayNode* Node : NodeArray)
 	{
-		NodeArray[Index]->SetActorLocation(FMath::VInterpTo(NodeArray[Index]->GetActorLocation(), NodeArray[Index]->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
-		NodeArray[Index]->SetActorRotation(FMath::RInterpTo(NodeArray[Index]->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
+		Node->SetActorLocation(FMath::VInterpTo(Node->GetActorLocation(), Node->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
+		Node->SetActorRotation(FMath::RInterpTo(Node->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
+	}
+	EndNode->SetActorLocation(FMath::VInterpTo(EndNode->GetActorLocation(), EndNode->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
+	EndNode->SetActorRotation(FMath::RInterpTo(EndNode->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
+}
+
+void AA_ArrayEffect::AttachToArray()
+{
+	if (!bIsAttaching)
+	{
+		return;
+	}
+
+	if (EndNode->GetActorLocation().Equals(EndNode->DefaultLocation, 0.01f) && EndNode->GetActorRotation().Equals(DefaultRotation, 0.01f))
+	{
+		bIsAttaching = false;
+	}
+
+	for (AA_ArrayNode* Node : NodeArray)
+	{
+		Node->SetActorLocation(FMath::VInterpTo(Node->GetActorLocation(), Node->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
+		Node->SetActorRotation(FMath::RInterpTo(Node->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
 	}
 	EndNode->SetActorLocation(FMath::VInterpTo(EndNode->GetActorLocation(), EndNode->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
 	EndNode->SetActorRotation(FMath::RInterpTo(EndNode->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));

@@ -63,6 +63,8 @@ public:
 
 	uint8 bIsDetaching : 1{false};
 
+	uint8 bIsAttaching : 1{false};
+
 	int32 SizeOfConcatenatingArray = -1;
 
 	void GetTextCommand(FText Command);
@@ -106,6 +108,8 @@ private:
 	void AttachToCharacterCamera();
 
 	void DetachFromCharacterCamera();
+
+	void AttachToArray();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
