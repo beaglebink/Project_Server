@@ -304,6 +304,10 @@ void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 	bIsAttaching = true;
 }
 
+void AA_ArrayEffect::ArraySplit()
+{
+}
+
 bool AA_ArrayEffect::ParseArrayIndexToAppend(FText Command)
 {
 	FString Input = Command.ToString();
@@ -512,6 +516,11 @@ bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command, int32& OutSize1
 	return (OutSize1 > 0 && OutSize2 > 0 && (OutSize1 + OutSize2 <= 10));
 }
 
+bool AA_ArrayEffect::ParseArrayIndexToSplit(FText Command, int32& OutIndex)
+{
+	return false;
+}
+
 void AA_ArrayEffect::AttachToCharacterCamera()
 {
 	if (!bIsOnConcatenation)
@@ -585,6 +594,20 @@ void AA_ArrayEffect::AttachToArray()
 	}
 	EndNode->SetActorLocation(FMath::VInterpTo(EndNode->GetActorLocation(), EndNode->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
 	EndNode->SetActorRotation(FMath::RInterpTo(EndNode->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
+}
+
+void AA_ArrayEffect::MoveArrayOnSplit(AA_ArrayEffect* ArrayToMove, bool Direction)
+{
+	int32 MoveDirection = Direction * 2 - 1;
+	
+	ArrayToMove->SetActorLocation(ArrayToMove->GetActorLocation() - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
+
+	for (AA_ArrayNode* Node : ArrayToMove->NodeArray)
+	{
+		Node->MoveNode(Node->DefaultLocation - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
+	}
+	
+	ArrayToMove->EndNode->MoveNode(ArrayToMove->EndNode->DefaultLocation - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
 }
 
 void AA_ArrayEffect::TimelineProgress(float Value)
