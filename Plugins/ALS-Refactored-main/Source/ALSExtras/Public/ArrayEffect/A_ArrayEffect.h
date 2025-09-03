@@ -63,6 +63,8 @@ public:
 
 	uint8 bIsDetaching : 1{false};
 
+	uint8 bIsAttaching : 1{false};
+
 	int32 SizeOfConcatenatingArray = -1;
 
 	void GetTextCommand(FText Command);
@@ -87,6 +89,9 @@ public:
 	void ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate);
 
 private:
+	void ArraySplit(int32 SplitIndex, bool MoveDirection);
+
+private:
 	bool ParseArrayIndexToAppend(FText Command);
 
 	bool ParseArrayIndexToSwap(FText Command, int32& OutIndex1, int32& OutIndex2);
@@ -103,9 +108,15 @@ private:
 
 	bool ParseArrayIndexToConcatenate(FText Command, int32& OutSize1, int32& OutSize2);
 
+	bool ParseArrayIndexToSplit(FText Command, int32& OutIndex, bool& Direction);
+
 	void AttachToCharacterCamera();
 
 	void DetachFromCharacterCamera();
+
+	void AttachToArray();
+
+	void MoveArrayOnSplit(AA_ArrayEffect* ArrayToMove, bool Direction);
 
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
