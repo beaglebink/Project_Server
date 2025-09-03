@@ -89,7 +89,7 @@ public:
 	void ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate);
 
 private:
-	void ArraySplit();
+	void ArraySplit(int32 SplitIndex, bool MoveDirection);
 
 private:
 	bool ParseArrayIndexToAppend(FText Command);
@@ -108,7 +108,7 @@ private:
 
 	bool ParseArrayIndexToConcatenate(FText Command, int32& OutSize1, int32& OutSize2);
 
-	bool ParseArrayIndexToSplit(FText Command, int32& OutIndex);
+	bool ParseArrayIndexToSplit(FText Command, int32& OutIndex, bool& Direction);
 
 	void AttachToCharacterCamera();
 

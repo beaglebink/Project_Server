@@ -87,6 +87,8 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 
 	int32 SizeOfConcatenatedArray = -1;
 
+	bool bSplitDirecton = false;
+
 	//append
 	if (ParseArrayIndexToAppend(Command))
 	{
@@ -138,10 +140,16 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 
 		bIsOnConcatenation = true;
 	}
+	//reset concatenation
 	else if (Command.ToString() == "reset()" && bIsOnConcatenation)
 	{
 		bIsOnConcatenation = false;
 		bIsDetaching = true;;
+	}
+	//split
+	else if (ParseArrayIndexToSplit(Command, OutIndex1, bSplitDirecton))
+	{
+		ArraySplit(OutIndex1, bSplitDirecton);
 	}
 }
 
@@ -304,8 +312,9 @@ void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 	bIsAttaching = true;
 }
 
-void AA_ArrayEffect::ArraySplit()
+void AA_ArrayEffect::ArraySplit(int32 SplitIndex, bool MoveDirection)
 {
+
 }
 
 bool AA_ArrayEffect::ParseArrayIndexToAppend(FText Command)
@@ -516,8 +525,44 @@ bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command, int32& OutSize1
 	return (OutSize1 > 0 && OutSize2 > 0 && (OutSize1 + OutSize2 <= 10));
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToSplit(FText Command, int32& OutIndex)
+bool AA_ArrayEffect::ParseArrayIndexToSplit(FText Command, int32& OutIndex, bool& Direction)
 {
+	const FString Input = Command.ToString();
+
+	if (!Input.StartsWith(TEXT("arr[")) || !Input.EndsWith(TEXT("]")))
+	{
+		return false;
+	}
+
+	FString Inner = Input.Mid(4, Input.Len() - 5).TrimStartAndEnd();
+
+	int32 ColonPos;
+	if (!Inner.FindChar(TEXT(':'), ColonPos))
+	{
+		return false;
+	}
+
+	FString Left = Inner.Left(ColonPos).TrimStartAndEnd();
+	FString Right = Inner.Mid(ColonPos + 1).TrimStartAndEnd();
+
+	auto IsNumericPositive = [](const FString& Str) -> bool
+		{
+			return !Str.IsEmpty() && Str.IsNumeric();
+		};
+
+	if (Left.IsEmpty() && IsNumericPositive(Right))
+	{
+		OutIndex = FCString::Atoi(*Right);
+		Direction = false;
+		return true;
+	}
+	else if (Right.IsEmpty() && IsNumericPositive(Left))
+	{
+		OutIndex = FCString::Atoi(*Left);
+		Direction = true;
+		return true;
+	}
+
 	return false;
 }
 
@@ -599,14 +644,14 @@ void AA_ArrayEffect::AttachToArray()
 void AA_ArrayEffect::MoveArrayOnSplit(AA_ArrayEffect* ArrayToMove, bool Direction)
 {
 	int32 MoveDirection = Direction * 2 - 1;
-	
+
 	ArrayToMove->SetActorLocation(ArrayToMove->GetActorLocation() - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
 
 	for (AA_ArrayNode* Node : ArrayToMove->NodeArray)
 	{
 		Node->MoveNode(Node->DefaultLocation - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
 	}
-	
+
 	ArrayToMove->EndNode->MoveNode(ArrayToMove->EndNode->DefaultLocation - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
 }
 
