@@ -15,7 +15,13 @@ void AObjectSystemBase::ParseText(const FText Text)
 TArray<FString> Commands = ParseCommands(Text);  
 	for (auto Command : Commands)  
 	{  
-		FString TrimmedCommand = Command.TrimStartAndEnd();  
+		FString TrimmedCommand = Command.TrimStartAndEnd(); 
+
+		if (TrimmedCommand.Left(2) == TEXT("//"))
+		{
+			continue;
+		}
+
 		FString Left, Right;  
 		if (TrimmedCommand.Split(TEXT("="), &Left, &Right))  
 		{  
@@ -39,6 +45,11 @@ TArray<FString> Commands = ParseCommands(Text);
 					FString ArgumentsString = TrimmedCommand.Mid(OpenParenIndex + 1, CloseParenIndex - OpenParenIndex - 1);  
 					Arguments = UKismetStringLibrary::ParseIntoArray(ArgumentsString, TEXT(","), true);  
 					ParsedCommand = TrimmedCommand.Left(OpenParenIndex).TrimStartAndEnd();
+
+					for (auto& Arg : Arguments)
+					{
+						Arg = Arg.TrimStartAndEnd();
+					}
 				}  
 				ExecuteCommand(ParsedCommand, Arguments);
 			}  
