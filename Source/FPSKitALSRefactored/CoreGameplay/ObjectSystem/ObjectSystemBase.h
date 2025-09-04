@@ -23,5 +23,5 @@ public:
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ObjectSystem")
-	FName ObjectActorName;
+	FString ObjectActorName;
 };
