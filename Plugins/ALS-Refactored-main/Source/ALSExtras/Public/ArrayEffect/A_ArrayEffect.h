@@ -53,8 +53,6 @@ private:
 	
 	float NodeHigh;
 
-	TArray<FVector> LocationArray;
-
 public:
 	TArray<AA_ArrayNode*> NodeArray;
 
