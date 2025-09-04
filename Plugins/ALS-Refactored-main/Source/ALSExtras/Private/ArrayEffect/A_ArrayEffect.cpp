@@ -213,17 +213,13 @@ void AA_ArrayEffect::DeleteNode(int32 Index)
 
 	for (size_t i = Index + 1; i < NodeArray.Num(); ++i)
 	{
-		NodeArray[i]->MoveNode(LocationArray[i - 1]);
+		NodeArray[i]->MoveNode(NodeArray[i]->DefaultLocation + GetActorRightVector() * NodeWidth);
 		NodeArray[i]->SetIndex(i - 1);
 	}
 
-	if (LocationArray.Num() > 0)
-	{
-		EndNode->MoveNode(LocationArray.Last());
-	}
+	EndNode->MoveNode(EndNode->DefaultLocation + GetActorRightVector() * NodeWidth);
 
 	NodeArray.RemoveAt(Index);
-	LocationArray.Pop();
 }
 
 void AA_ArrayEffect::InsertNode(int32 Index)
