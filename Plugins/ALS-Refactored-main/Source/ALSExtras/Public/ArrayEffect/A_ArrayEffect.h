@@ -36,6 +36,9 @@ private:
 	TSubclassOf<AA_ArrayNode> NodeClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<AA_ArrayEffect> ArrayClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* SwapAudioComp;
 
 	FVector DefaultLocation;

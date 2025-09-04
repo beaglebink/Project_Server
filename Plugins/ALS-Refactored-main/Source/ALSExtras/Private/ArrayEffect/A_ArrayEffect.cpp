@@ -314,6 +314,39 @@ void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 
 void AA_ArrayEffect::ArraySplit(int32 SplitIndex, bool MoveDirection)
 {
+	if (!ArrayClass)
+	{
+		return;
+	}
+
+	if (AA_ArrayEffect* NewArray = GetWorld()->SpawnActor<AA_ArrayEffect>(ArrayClass, NodeArray[SplitIndex]->DefaultLocation, GetActorRotation()))
+	{
+		AA_ArrayNode* TempNode = NewArray->EndNode;
+		NewArray->EndNode = EndNode;
+		NewArray->EndNode->OwnerActor = NewArray;
+
+		EndNode = TempNode;
+		EndNode->OwnerActor = this;
+
+		NewArray->NodeArray.Append(NodeArray.GetData() + SplitIndex, NodeArray.Num() - SplitIndex);
+		int32 NewIndex = 0;
+		for (AA_ArrayNode* Node : NewArray->NodeArray)
+		{
+			Node->OwnerActor = NewArray;
+			Node->SetIndex(NewIndex++);
+		}
+
+		NodeArray.SetNum(SplitIndex);
+
+		if (MoveDirection)
+		{
+			NewArray->MoveArrayOnSplit(NewArray, MoveDirection);
+		}
+		else
+		{
+			MoveArrayOnSplit(this, MoveDirection);
+		}
+	}
 
 }
 
