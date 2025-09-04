@@ -161,7 +161,6 @@ void AA_ArrayEffect::AppendNode()
 	}
 
 	EndNode->SetIndex(NodeArray.Num());
-	LocationArray.Add(EndNode->GetActorLocation());
 	FVector SpawnLocation = EndNode->GetActorLocation();
 	AA_ArrayNode* NewNode = EndNode;
 	NodeArray.Add(NewNode);
@@ -213,17 +212,12 @@ void AA_ArrayEffect::DeleteNode(int32 Index)
 
 	for (size_t i = Index + 1; i < NodeArray.Num(); ++i)
 	{
-		NodeArray[i]->MoveNode(LocationArray[i - 1]);
+		NodeArray[i]->MoveNode(NodeArray[i]->DefaultLocation + GetActorRightVector() * NodeWidth);
 		NodeArray[i]->SetIndex(i - 1);
 	}
 
-	if (LocationArray.Num() > 0)
-	{
-		EndNode->MoveNode(LocationArray.Last());
-	}
-
 	NodeArray.RemoveAt(Index);
-	LocationArray.Pop();
+	EndNode->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * NodeArray.Num());
 }
 
 void AA_ArrayEffect::InsertNode(int32 Index)
@@ -233,17 +227,16 @@ void AA_ArrayEffect::InsertNode(int32 Index)
 		return;
 	}
 
-	LocationArray.Add(EndNode->GetActorLocation());
-	EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * EndNode->NodeBorder->Bounds.BoxExtent.Y * 2);
+	EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * NodeWidth);
 	FVector SpawnLocation = NodeArray[Index]->GetActorLocation();
 
 	for (size_t i = Index; i < NodeArray.Num(); ++i)
 	{
-		NodeArray[i]->MoveNode(NodeArray[i]->GetActorLocation() - GetActorRightVector() * EndNode->NodeBorder->Bounds.BoxExtent.Y * 2);
+		NodeArray[i]->MoveNode(NodeArray[i]->GetActorLocation() - GetActorRightVector() * NodeWidth);
 		NodeArray[i]->SetIndex(i + 1);
 	}
 
-	AA_ArrayNode* NewNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, SpawnLocation, FRotator::ZeroRotator);
+	AA_ArrayNode* NewNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, SpawnLocation, GetActorRotation());
 	if (NewNode)
 	{
 		NewNode->OwnerActor = this;
@@ -301,7 +294,6 @@ void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 		Node->OwnerActor = this;
 		Node->DefaultLocation = GetActorLocation() - GetActorRightVector() * NodeWidth * Index;
 		Node->SetIndex(Index++);
-		LocationArray.Add(Node->DefaultLocation);
 	}
 
 	ArrayToConcatenate->EndNode->Destroy();
@@ -314,6 +306,39 @@ void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 
 void AA_ArrayEffect::ArraySplit(int32 SplitIndex, bool MoveDirection)
 {
+	if (!ArrayClass)
+	{
+		return;
+	}
+
+	if (AA_ArrayEffect* NewArray = GetWorld()->SpawnActor<AA_ArrayEffect>(ArrayClass, NodeArray[SplitIndex]->DefaultLocation, GetActorRotation()))
+	{
+		AA_ArrayNode* TempNode = NewArray->EndNode;
+		NewArray->EndNode = EndNode;
+		NewArray->EndNode->OwnerActor = NewArray;
+
+		EndNode = TempNode;
+		EndNode->OwnerActor = this;
+
+		NewArray->NodeArray.Append(NodeArray.GetData() + SplitIndex, NodeArray.Num() - SplitIndex);
+		int32 NewIndex = 0;
+		for (AA_ArrayNode* Node : NewArray->NodeArray)
+		{
+			Node->OwnerActor = NewArray;
+			Node->SetIndex(NewIndex++);
+		}
+
+		NodeArray.SetNum(SplitIndex);
+
+		if (MoveDirection)
+		{
+			NewArray->MoveArrayOnSplit(NewArray, MoveDirection);
+		}
+		else
+		{
+			MoveArrayOnSplit(this, MoveDirection);
+		}
+	}
 
 }
 
@@ -646,6 +671,7 @@ void AA_ArrayEffect::MoveArrayOnSplit(AA_ArrayEffect* ArrayToMove, bool Directio
 	int32 MoveDirection = Direction * 2 - 1;
 
 	ArrayToMove->SetActorLocation(ArrayToMove->GetActorLocation() - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
+	ArrayToMove->DefaultLocation = GetActorLocation();
 
 	for (AA_ArrayNode* Node : ArrayToMove->NodeArray)
 	{
