@@ -767,8 +767,17 @@ void AA_ArrayEffect::RefreshNameLocationAndRotation()
 		return;
 	}
 
-	FVector NameLocation = (GetActorLocation() + EndNode->GetActorLocation()) * 0.5;
-	NameLocation.Z = GetActorLocation().Z - 140.0f;
+	FVector Start = GetActorLocation();
+	FVector End = EndNode->GetActorLocation();
+	FVector LineDir = (End - Start).GetSafeNormal();
+	float Dot = FVector::DotProduct(Player->GetActorLocation() - Start, LineDir);
+	float ClampedDist = FMath::Clamp(Dot, 0.f, FVector::Dist(Start, End));
+	FVector ClampedPos = Start + LineDir * ClampedDist;
+	FVector PosToPlayerDir = Player->GetActorLocation() - ClampedPos;
+	PosToPlayerDir.Normalize();
+	ClampedPos += PosToPlayerDir * 100.0f;
+	ClampedPos.Z = GetActorLocation().Z - 140.0f + FMath::Sin(GetWorld()->GetTimeSeconds()) * 10.0f;
+	FVector NameLocation = FMath::VInterpTo(TextComp->GetComponentLocation(), ClampedPos, GetWorld()->GetDeltaSeconds(), 2.0f);
 	TextComp->SetWorldLocation(NameLocation);
 
 	FRotator NameRotation = (Player->GetActorLocation() - TextComp->GetComponentLocation()).Rotation();
