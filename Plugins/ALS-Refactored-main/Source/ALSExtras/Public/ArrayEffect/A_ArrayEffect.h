@@ -7,6 +7,7 @@
 
 class AA_ArrayNode;
 class UBoxComponent;
+class UTextRenderComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_ArrayEffect : public AActor
@@ -41,6 +42,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* SwapAudioComp;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UTextRenderComponent* TextComp;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	FText ArrayName;
+
 	FVector DefaultLocation;
 
 	FRotator DefaultRotation;
@@ -50,7 +57,7 @@ private:
 	float NodeLength;
 
 	float NodeWidth;
-	
+
 	float NodeHigh;
 
 public:
@@ -92,6 +99,8 @@ public:
 private:
 	void ArraySplit(int32 SplitIndex, bool MoveDirection);
 
+	void ArrayRename(FText NewName);
+
 private:
 	bool ParseArrayIndexToAppend(FText Command);
 
@@ -111,6 +120,9 @@ private:
 
 	bool ParseArrayIndexToSplit(FText Command, int32& OutIndex, bool& Direction);
 
+	bool ParseNewNameToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
+
+private:
 	void AttachToCharacterCamera();
 
 	void DetachFromCharacterCamera();
@@ -118,6 +130,8 @@ private:
 	void AttachToArray();
 
 	void MoveArrayOnSplit(AA_ArrayEffect* ArrayToMove, bool Direction);
+
+	void RefreshNameLocationAndRotation();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
