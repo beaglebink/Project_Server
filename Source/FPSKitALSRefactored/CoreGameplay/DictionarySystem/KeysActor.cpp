@@ -6,35 +6,21 @@ void AKeysActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ќтложенна€ регистраци€ через таймер Ч гарантирует, что ManagerInstance уже создан
 	GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+	{
+		ADictionaryManager* Manager = ADictionaryObjectBase::ManagerInstance.Get();
+
+		if (IsValid(Manager))
 		{
-			ADictionaryManager* Manager = ADictionaryObjectBase::ManagerInstance.Get();
-
-			if (IsValid(Manager))
-			{
-				KeyValues.Empty();
-				ManagerInstance->RegisterKeysActor(this);
-				ManagerInstance->InitializeKeyActor(this);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("AKeysActor: ManagerInstance is still null or invalid after tick!"));
-			}
-		});
-
-/*
-	if (IsValid(ManagerInstance))
-	{
-		KeyValues.Empty();
-		ManagerInstance->RegisterKeysActor(this);
-		ManagerInstance->InitializeKeyActor(this);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("KeysActor: ManagerInstance is null!"));
-	}
-*/
+			KeyValues.Empty();
+			ManagerInstance->RegisterKeysActor(this);
+			ManagerInstance->InitializeKeyActor(this);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("AKeysActor: ManagerInstance is still null or invalid after tick!"));
+		}
+	});
 }
 
 void AKeysActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -125,7 +111,7 @@ void AKeysActor::ParseText(const FText Text)
 						if (!Type.IsEmpty())
 						{
 							FString MapType = *KeyTypes.Find(Key);
-							if (UKismetStringLibrary::EqualEqual_StrStr(MapType, Type)/*MapType == Type*/)
+							if (UKismetStringLibrary::EqualEqual_StrStr(MapType, Type))
 							{
 								MapValue = *KeyValues.Find(Key);
 							}

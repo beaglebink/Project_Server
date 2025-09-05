@@ -5,7 +5,6 @@ void APropertyActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-    // ќтложенна€ регистраци€ через таймер Ч гарантирует, что ManagerInstance уже создан
     GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
         {
             ADictionaryManager* Manager = ADictionaryObjectBase::ManagerInstance.Get();

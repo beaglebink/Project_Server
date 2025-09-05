@@ -2,7 +2,6 @@
 #include "DictionaryManager.h"
 #include "TimerManager.h"
 
-//static TWeakObjectPtr<ADictionaryManager> ManagerInstance;
 TWeakObjectPtr<ADictionaryManager> ADictionaryObjectBase::ManagerInstance = nullptr;
 
 
