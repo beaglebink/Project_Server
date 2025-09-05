@@ -5,7 +5,26 @@
 void AKeysActor::BeginPlay()
 {
 	Super::BeginPlay();
-	if (ManagerInstance)
+
+	// ќтложенна€ регистраци€ через таймер Ч гарантирует, что ManagerInstance уже создан
+	GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+		{
+			ADictionaryManager* Manager = ADictionaryObjectBase::ManagerInstance.Get();
+
+			if (IsValid(Manager))
+			{
+				KeyValues.Empty();
+				ManagerInstance->RegisterKeysActor(this);
+				ManagerInstance->InitializeKeyActor(this);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("AKeysActor: ManagerInstance is still null or invalid after tick!"));
+			}
+		});
+
+/*
+	if (IsValid(ManagerInstance))
 	{
 		KeyValues.Empty();
 		ManagerInstance->RegisterKeysActor(this);
@@ -15,12 +34,13 @@ void AKeysActor::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("KeysActor: ManagerInstance is null!"));
 	}
+*/
 }
 
 void AKeysActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	if (ManagerInstance)
+	if (IsValid(ManagerInstance.Get()))
 	{
 		ManagerInstance->UnregisterKeysActor(this);
 	}

@@ -21,7 +21,7 @@ void ADictionaryManager::BeginPlay()
 
 void ADictionaryManager::Initialize()
 {
-	UGameInstance* GI = GetGameInstance();
+	UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
 	if (!GI)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("TeleportingSubsystem: GameInstance not found"));
@@ -36,13 +36,13 @@ void ADictionaryManager::Initialize()
 
 	DictionaryActorsTable = ISceneDataProvider::Execute_DictionaryDataTable(GI);
 
-	if (!DictionaryActorsTable || !DictionaryActorsTable->RowStruct)
+	if (!IsValid(DictionaryActorsTable) || !DictionaryActorsTable->RowStruct)
 	{
 		UE_LOG(LogTemp, Error, TEXT("DictionaryActorsTable is invalid or missing RowStruct"));
 		return;
 	}
 
-	if (DictionaryActorsTable)
+	if (IsValid(DictionaryActorsTable))
 	{
 		UE_LOG(LogTemp, Log, TEXT("DictionaryActorsTable loaded: %s"), *DictionaryActorsTable->GetName());
 	}
@@ -103,7 +103,7 @@ void ADictionaryManager::RegisterPropertyActor(ADictionaryObjectBase* PropertyAc
 		FString PropertyTypeName = ActorPropertyValue.VariableTypeName;
 		FString PropertyValueName = ActorPropertyValue.ValueName;
 
-		for (auto KeysActor : RegisteredKeysActors)
+		for (ADictionaryObjectBase* KeysActor : RegisteredKeysActors)
 		{
 			AKeysActor* KeysActorCast = Cast<AKeysActor>(KeysActor);
 
@@ -171,6 +171,17 @@ void ADictionaryManager::InitializeKeyActor(AKeysActor* KeyActor)
 	if (!KeyActor)
 	{
 		return;
+	}
+
+	if(!IsValid(DictionaryActorsTable))
+	{
+		Initialize();
+
+		if (!IsValid(DictionaryActorsTable))
+		{
+			UE_LOG(LogTemp, Error, TEXT("DictionaryActorsTable is still invalid after initialization"));
+			return;
+		}
 	}
 
 	TArray<FName> RowNames = DictionaryActorsTable->GetRowNames();

@@ -5,20 +5,26 @@ void APropertyActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (ManagerInstance)
-	{
-		ManagerInstance->RegisterPropertyActor(this);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("PropertyActor: ManagerInstance is null!"));
-	}
+    // ќтложенна€ регистраци€ через таймер Ч гарантирует, что ManagerInstance уже создан
+    GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+        {
+            ADictionaryManager* Manager = ADictionaryObjectBase::ManagerInstance.Get();
+
+            if (IsValid(Manager))
+            {
+                Manager->RegisterPropertyActor(this);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("PropertyActor: ManagerInstance is still null or invalid after tick!"));
+            }
+        });
 }
 
 void APropertyActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	if (ManagerInstance)
+	if (IsValid(ManagerInstance.Get()))
 	{
 		ManagerInstance->UnregisterPropertyActor(this);
 	}

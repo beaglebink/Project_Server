@@ -19,6 +19,8 @@ protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+    ADictionaryManager* GetManager(UWorld* World);
+
 public:
 	FName KeyActorName = NAME_None;
 
@@ -26,7 +28,8 @@ public:
     FVariantProperty Property;
 
 protected:
-    static ADictionaryManager* ManagerInstance;
+
+    static TWeakObjectPtr<ADictionaryManager> ManagerInstance;
 };
 
 
