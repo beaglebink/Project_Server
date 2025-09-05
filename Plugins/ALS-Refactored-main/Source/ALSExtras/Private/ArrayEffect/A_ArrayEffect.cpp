@@ -769,19 +769,22 @@ void AA_ArrayEffect::RefreshNameLocationAndRotation()
 
 	FVector Start = GetActorLocation();
 	FVector End = EndNode->GetActorLocation();
-	FVector LineDir = (End - Start).GetSafeNormal();
-	float Dot = FVector::DotProduct(Player->GetActorLocation() - Start, LineDir);
-	float ClampedDist = FMath::Clamp(Dot, 0.f, FVector::Dist(Start, End));
-	FVector ClampedPos = Start + LineDir * ClampedDist;
-	FVector PosToPlayerDir = Player->GetActorLocation() - ClampedPos;
-	PosToPlayerDir.Normalize();
-	ClampedPos += PosToPlayerDir * 100.0f;
-	ClampedPos.Z = GetActorLocation().Z - 140.0f + FMath::Sin(GetWorld()->GetTimeSeconds()) * 10.0f;
-	FVector NameLocation = FMath::VInterpTo(TextComp->GetComponentLocation(), ClampedPos, GetWorld()->GetDeltaSeconds(), 2.0f);
+	//FVector LineDir = (End - Start).GetSafeNormal();
+	//float Dot = FVector::DotProduct(Player->GetActorLocation() - Start, LineDir);
+	//float ClampedDist = FMath::Clamp(Dot, 0.f, FVector::Dist(Start, End));
+	//FVector ClampedPos = Start + LineDir * ClampedDist;
+	//FVector PosToPlayerDir = Player->GetActorLocation() - ClampedPos;
+	//PosToPlayerDir.Normalize();
+	//ClampedPos += PosToPlayerDir * 100.0f;
+	//ClampedPos.Z = GetActorLocation().Z - 140.0f + FMath::Sin(GetWorld()->GetTimeSeconds()) * 10.0f;
+	//FVector NameLocation = FMath::VInterpTo(TextComp->GetComponentLocation(), ClampedPos, GetWorld()->GetDeltaSeconds(), 2.0f);
+	//TextComp->SetWorldLocation(NameLocation);
+	FVector NameLocation = (Start + End) * 0.5f;
+	NameLocation.Z -= 140;
 	TextComp->SetWorldLocation(NameLocation);
 
-	FRotator NameRotation = (Player->GetActorLocation() - TextComp->GetComponentLocation()).Rotation();
-	TextComp->SetWorldRotation(NameRotation);
+	//FRotator NameRotation = (Player->GetActorLocation() - TextComp->GetComponentLocation()).Rotation();
+	//TextComp->SetWorldRotation(NameRotation);
 }
 
 void AA_ArrayEffect::TimelineProgress(float Value)
