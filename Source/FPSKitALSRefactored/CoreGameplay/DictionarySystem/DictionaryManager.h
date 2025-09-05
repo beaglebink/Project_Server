@@ -40,7 +40,6 @@ struct FEffectsStruct
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* PropertyActor;
 
-	// Оператор сравнения
 	bool operator==(const FEffectsStruct& Other) const
 	{
 		return KeyActor == Other.KeyActor && KeyName == Other.KeyName && PropertyActor == Other.PropertyActor;
@@ -95,6 +94,5 @@ private:
 
 	UNiagaraSystem* ConnectionEffect;
 
-	//TArray<UNiagaraComponent*> ActiveEffects;
 	TMap<FEffectsStruct, UNiagaraComponent*> ActiveEffects;
 };
