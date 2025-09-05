@@ -16,8 +16,18 @@ TArray<FString> Commands = ParseCommands(Text);
 	for (auto Command : Commands)  
 	{  
 		FString TrimmedCommand = Command.TrimStartAndEnd(); 
-
-		if (TrimmedCommand.Left(2) == TEXT("//"))
+		/*
+		if (TrimmedCommand.Left(2) == TEXT("#"))
+		{
+			continue;
+		}
+		*/
+		int32 CommentIndex = TrimmedCommand.Find(TEXT("#"));
+		if (CommentIndex != INDEX_NONE)
+		{
+			TrimmedCommand = TrimmedCommand.Left(CommentIndex).TrimStartAndEnd();
+		}
+		if (TrimmedCommand.IsEmpty())
 		{
 			continue;
 		}
