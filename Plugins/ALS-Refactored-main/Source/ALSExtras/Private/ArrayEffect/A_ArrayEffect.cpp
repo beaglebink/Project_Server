@@ -34,7 +34,6 @@ void AA_ArrayEffect::BeginPlay()
 	DefaultLocation = GetActorLocation();
 	DefaultRotation = GetActorRotation();
 
-	//EndNode =  Cast<AA_ArrayNode>(EndNodeComponent->GetChildActor());
 	EndNodeComponent->DestroyComponent();
 	EndNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, GetActorLocation(), GetActorRotation());
 	if (EndNode)
@@ -101,51 +100,53 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 
 	FText NewName;
 
+	FText CopyName;
+
 	int32 ArrayNum;
 
 	//append
-	if (ParseArrayIndexToAppend(Command))
+	if (ParseCommandToAppend(Command))
 	{
 		AppendNode();
 	}
 
 	//swap
-	else if (ParseArrayIndexToSwap(Command, OutIndex1, OutIndex2))
+	else if (ParseCommandToSwap(Command, OutIndex1, OutIndex2))
 	{
 		SwapNodes(OutIndex1, OutIndex2);
 	}
 
 	//delete
-	else if (ParseArrayIndexToDel(Command, OutIndex1))
+	else if (ParseCommandToDel(Command, OutIndex1))
 	{
 		DeleteNode(OutIndex1);
 	}
 
 	//insert
-	else if (ParseArrayIndexToInsert(Command, OutIndex1))
+	else if (ParseCommandToInsert(Command, OutIndex1))
 	{
 		InsertNode(OutIndex1);
 	}
 
 	//pop
-	else if (ParseArrayIndexToPop(Command))
+	else if (ParseCommandToPop(Command))
 	{
 		ArrayPop();
 	}
 
 	//clear
-	else if (ParseArrayIndexToClear(Command))
+	else if (ParseCommandToClear(Command))
 	{
 		ArrayClear();
 	}
 
 	//extend
-	else if (ParseArrayIndexToExtend(Command, ExtendArray))
+	else if (ParseCommandToExtend(Command, ExtendArray))
 	{
 	}
 
 	//concatenate
-	else if (ParseArrayIndexToConcatenate(Command, SizeOfConcatenatingArray, SizeOfConcatenatedArray))
+	else if (ParseCommandToConcatenate(Command, SizeOfConcatenatingArray, SizeOfConcatenatedArray))
 	{
 		if (NodeArray.Num() != SizeOfConcatenatedArray)
 		{
@@ -161,14 +162,19 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		bIsDetaching = true;;
 	}
 	//split
-	else if (ParseArrayIndexToSplit(Command, OutIndex1, bSplitDirecton))
+	else if (ParseCommandToSplitUndestructive(Command, OutIndex1, bSplitDirecton))
 	{
 		ArraySplit(OutIndex1, bSplitDirecton);
 	}
 	//rename
-	else if (ParseNewNameToRename(Command, PrevName, NewName, ArrayNum) && PrevName.ToString() == ArrayName.ToString() && ArrayNum == NodeArray.Num())
+	else if (ParseCommandToRename(Command, PrevName, NewName, ArrayNum) && PrevName.ToString() == ArrayName.ToString() && ArrayNum == NodeArray.Num())
 	{
 		ArrayRename(NewName);
+	}
+	//copy
+	else if (ParseCommandToCopy(Command, PrevName, CopyName) && PrevName.ToString() == ArrayName.ToString())
+	{
+		ArrayCopy(CopyName);
 	}
 }
 
@@ -362,11 +368,69 @@ void AA_ArrayEffect::ArraySplit(int32 SplitIndex, bool MoveDirection)
 
 void AA_ArrayEffect::ArrayRename(FText NewName)
 {
-	ArrayName = NewName;
-	TextComp->SetText(ArrayName);
+	SetArrayName(NewName);
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToAppend(FText Command)
+void AA_ArrayEffect::ArrayCopy(FText Name)
+{
+	if (AA_ArrayEffect* NewArray = GetWorld()->SpawnActor<AA_ArrayEffect>(ArrayClass, GetActorLocation() - GetActorRightVector() * NodeWidth * (NodeArray.Num() + 2), GetActorRotation()))
+	{
+		NewArray->SetArrayName(Name);
+
+		for (size_t i = 0; i < NodeArray.Num(); ++i)
+		{
+			if (AA_ArrayNode* NewNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, NewArray->GetActorLocation() - GetActorRightVector() * NewArray->NodeWidth * i, GetActorRotation()))
+			{
+				NewNode->OwnerActor = NewArray;
+				NewArray->NodeArray.Add(NewNode);
+				NewNode->SetIndex(i);
+			}
+		}
+		NewArray->EndNode->MoveNode(NewArray->GetActorLocation() - GetActorRightVector() * NewArray->NodeWidth * NewArray->NodeArray.Num());
+	}
+}
+
+bool AA_ArrayEffect::IsValidPythonIdentifier(const FString& Str)
+{
+	if (Str.IsEmpty())
+	{
+		return false;
+	}
+
+	if (FChar::IsDigit(Str[0]))
+	{
+		return false;
+	}
+
+	for (TCHAR Ch : Str)
+	{
+		if (!(FChar::IsAlpha(Ch) || FChar::IsDigit(Ch) || Ch == TEXT('_')))
+		{
+			return false;
+		}
+	}
+
+	static const TSet<FString> PythonKeywords =
+	{
+		TEXT("False"), TEXT("None"), TEXT("True"), TEXT("and"), TEXT("as"),
+		TEXT("assert"), TEXT("break"), TEXT("class"), TEXT("continue"),
+		TEXT("def"), TEXT("del"), TEXT("elif"), TEXT("else"), TEXT("except"),
+		TEXT("finally"), TEXT("for"), TEXT("from"), TEXT("global"), TEXT("if"),
+		TEXT("import"), TEXT("in"), TEXT("is"), TEXT("lambda"), TEXT("nonlocal"),
+		TEXT("not"), TEXT("or"), TEXT("pass"), TEXT("raise"), TEXT("return"),
+		TEXT("try"), TEXT("while"), TEXT("with"), TEXT("yield"),
+		TEXT("list"), TEXT("dict"), TEXT("set"), TEXT("int"), TEXT("str")
+	};
+
+	if (PythonKeywords.Contains(Str))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToAppend(FText Command)
 {
 	FString Input = Command.ToString();
 
@@ -378,7 +442,7 @@ bool AA_ArrayEffect::ParseArrayIndexToAppend(FText Command)
 	return false;
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToSwap(FText Command, int32& OutIndex1, int32& OutIndex2)
+bool AA_ArrayEffect::ParseCommandToSwap(FText Command, int32& OutIndex1, int32& OutIndex2)
 {
 	FString CleanExpr = Command.ToString().Replace(TEXT(" "), TEXT(""));
 
@@ -432,7 +496,7 @@ bool AA_ArrayEffect::ParseArrayIndexToSwap(FText Command, int32& OutIndex1, int3
 	return false;
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToDel(FText Command, int32& OutIndex)
+bool AA_ArrayEffect::ParseCommandToDel(FText Command, int32& OutIndex)
 {
 	FString Input = Command.ToString();
 
@@ -450,7 +514,7 @@ bool AA_ArrayEffect::ParseArrayIndexToDel(FText Command, int32& OutIndex)
 	return true;
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToInsert(FText Command, int32& OutIndex)
+bool AA_ArrayEffect::ParseCommandToInsert(FText Command, int32& OutIndex)
 {
 	FString Input = Command.ToString();
 
@@ -468,7 +532,7 @@ bool AA_ArrayEffect::ParseArrayIndexToInsert(FText Command, int32& OutIndex)
 	return true;
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToPop(FText Command)
+bool AA_ArrayEffect::ParseCommandToPop(FText Command)
 {
 	FString Input = Command.ToString();
 
@@ -480,7 +544,7 @@ bool AA_ArrayEffect::ParseArrayIndexToPop(FText Command)
 	return false;
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToClear(FText Command)
+bool AA_ArrayEffect::ParseCommandToClear(FText Command)
 {
 	FString Input = Command.ToString();
 
@@ -492,7 +556,7 @@ bool AA_ArrayEffect::ParseArrayIndexToClear(FText Command)
 	return false;
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToExtend(FText Command, TArray<int32>& OutArray)
+bool AA_ArrayEffect::ParseCommandToExtend(FText Command, TArray<int32>& OutArray)
 {
 	OutArray.Empty();
 	FString Input = Command.ToString();
@@ -535,7 +599,7 @@ bool AA_ArrayEffect::ParseArrayIndexToExtend(FText Command, TArray<int32>& OutAr
 	return true;
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command, int32& OutSize1, int32& OutSize2)
+bool AA_ArrayEffect::ParseCommandToConcatenate(FText Command, int32& OutSize1, int32& OutSize2)
 {
 	FString Input = Command.ToString();
 
@@ -574,7 +638,7 @@ bool AA_ArrayEffect::ParseArrayIndexToConcatenate(FText Command, int32& OutSize1
 	return (OutSize1 > 0 && OutSize2 > 0 && (OutSize1 + OutSize2 <= 10));
 }
 
-bool AA_ArrayEffect::ParseArrayIndexToSplit(FText Command, int32& OutIndex, bool& Direction)
+bool AA_ArrayEffect::ParseCommandToSplitUndestructive(FText Command, int32& OutIndex, bool& Direction)
 {
 	const FString Input = Command.ToString();
 
@@ -615,7 +679,7 @@ bool AA_ArrayEffect::ParseArrayIndexToSplit(FText Command, int32& OutIndex, bool
 	return false;
 }
 
-bool AA_ArrayEffect::ParseNewNameToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum)
+bool AA_ArrayEffect::ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum)
 {
 	const FString Input = Command.ToString();
 
@@ -652,6 +716,10 @@ bool AA_ArrayEffect::ParseNewNameToRename(FText Command, FText& PrevName, FText&
 	{
 		return false;
 	}
+	if (!IsValidPythonIdentifier(Left))
+	{
+		return false;
+	}
 	NewName = FText::FromString(Left);
 
 	if (!Lines[2].StartsWith(TEXT("del ")))
@@ -664,6 +732,57 @@ bool AA_ArrayEffect::ParseNewNameToRename(FText Command, FText& PrevName, FText&
 		return false;
 	}
 	PrevName = FText::FromString(DelName);
+
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToCopy(FText Command, FText& Name, FText& CopyName)
+{
+	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
+	FString Left, Right;
+
+	if (!Input.Split(TEXT("="), &Left, &Right))
+	{
+		return false;
+	}
+
+	if (Left.IsEmpty() || Right.IsEmpty())
+	{
+		return false;
+	}
+
+	FString BaseName;
+
+	if (Right.EndsWith(TEXT("[:]")))
+	{
+		BaseName = Right.LeftChop(3);
+	}
+	else if (Right.EndsWith(TEXT(".copy()")))
+	{
+		BaseName = Right.LeftChop(7);
+	}
+	else if (Right.StartsWith(TEXT("list(")) && Right.EndsWith(TEXT(")")))
+	{
+		BaseName = Right.Mid(5, Right.Len() - 6);
+	}
+	else
+	{
+		return false;
+	}
+
+	if (!IsValidPythonIdentifier(BaseName) || !IsValidPythonIdentifier(Left))
+	{
+		return false;
+	}
+
+	if (BaseName == Left)
+	{
+		return false;
+	}
+
+	Name = FText::FromString(BaseName);
+	CopyName = FText::FromString(Left);
 
 	return true;
 }
@@ -785,6 +904,12 @@ void AA_ArrayEffect::RefreshNameLocationAndRotation()
 
 	//FRotator NameRotation = (Player->GetActorLocation() - TextComp->GetComponentLocation()).Rotation();
 	//TextComp->SetWorldRotation(NameRotation);
+}
+
+void AA_ArrayEffect::SetArrayName(FText Name)
+{
+	ArrayName = Name;
+	TextComp->SetText(Name);
 }
 
 void AA_ArrayEffect::TimelineProgress(float Value)

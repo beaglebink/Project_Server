@@ -101,26 +101,32 @@ private:
 
 	void ArrayRename(FText NewName);
 
+	void ArrayCopy(FText Name);
+
 private:
-	bool ParseArrayIndexToAppend(FText Command);
+	bool IsValidPythonIdentifier(const FString& Str);
 
-	bool ParseArrayIndexToSwap(FText Command, int32& OutIndex1, int32& OutIndex2);
+	bool ParseCommandToAppend(FText Command);
 
-	bool ParseArrayIndexToDel(FText Command, int32& OutIndex);
+	bool ParseCommandToSwap(FText Command, int32& OutIndex1, int32& OutIndex2);
 
-	bool ParseArrayIndexToInsert(FText Command, int32& OutIndex);
+	bool ParseCommandToDel(FText Command, int32& OutIndex);
 
-	bool ParseArrayIndexToPop(FText Command);
+	bool ParseCommandToInsert(FText Command, int32& OutIndex);
 
-	bool ParseArrayIndexToClear(FText Command);
+	bool ParseCommandToPop(FText Command);
 
-	bool ParseArrayIndexToExtend(FText Command, TArray<int32>& OutArray);
+	bool ParseCommandToClear(FText Command);
 
-	bool ParseArrayIndexToConcatenate(FText Command, int32& OutSize1, int32& OutSize2);
+	bool ParseCommandToExtend(FText Command, TArray<int32>& OutArray);
 
-	bool ParseArrayIndexToSplit(FText Command, int32& OutIndex, bool& Direction);
+	bool ParseCommandToConcatenate(FText Command, int32& OutSize1, int32& OutSize2);
 
-	bool ParseNewNameToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
+	bool ParseCommandToSplitUndestructive(FText Command, int32& OutIndex, bool& Direction);
+
+	bool ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
+
+	bool ParseCommandToCopy(FText Command, FText& Name, FText& CopyName);
 
 private:
 	void AttachToCharacterCamera();
@@ -132,6 +138,8 @@ private:
 	void MoveArrayOnSplit(AA_ArrayEffect* ArrayToMove, bool Direction);
 
 	void RefreshNameLocationAndRotation();
+
+	void SetArrayName(FText Name);
 
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
