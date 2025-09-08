@@ -105,43 +105,43 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	int32 ArrayNum;
 
 	//append
-	if (ParseCommandToAppend(Command))
+	if (ParseCommandToAppend(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
 	{
 		AppendNode();
 	}
 
 	//swap
-	else if (ParseCommandToSwap(Command, OutIndex1, OutIndex2))
+	else if (ParseCommandToSwap(Command, PrevName, OutIndex1, OutIndex2) && PrevName.ToString() == ArrayName.ToString())
 	{
 		SwapNodes(OutIndex1, OutIndex2);
 	}
 
 	//delete
-	else if (ParseCommandToDel(Command, OutIndex1))
+	else if (ParseCommandToDel(Command, PrevName, OutIndex1) && PrevName.ToString() == ArrayName.ToString())
 	{
 		DeleteNode(OutIndex1);
 	}
 
 	//insert
-	else if (ParseCommandToInsert(Command, OutIndex1))
+	else if (ParseCommandToInsert(Command, PrevName, OutIndex1) && PrevName.ToString() == ArrayName.ToString())
 	{
 		InsertNode(OutIndex1);
 	}
 
 	//pop
-	else if (ParseCommandToPop(Command))
+	else if (ParseCommandToPop(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
 	{
 		ArrayPop();
 	}
 
 	//clear
-	else if (ParseCommandToClear(Command))
+	else if (ParseCommandToClear(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
 	{
 		ArrayClear();
 	}
 
 	//extend
-	else if (ParseCommandToExtend(Command, ExtendArray))
+	else if (ParseCommandToExtend(Command, PrevName, ExtendArray) && PrevName.ToString() == ArrayName.ToString())
 	{
 	}
 
@@ -156,15 +156,15 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		bIsOnConcatenation = true;
 	}
 	//reset concatenation
-	else if (Command.ToString() == "reset()" && bIsOnConcatenation)
+	else if (bIsOnConcatenation && ParseCommandToReset(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
 	{
 		bIsOnConcatenation = false;
 		bIsDetaching = true;;
 	}
 	//split
-	else if (ParseCommandToSplitUndestructive(Command, OutIndex1, bSplitDirecton))
+	else if (ParseCommandToSplitUndestructive(Command, PrevName, NewName, OutIndex1, bSplitDirecton) && PrevName.ToString() == ArrayName.ToString())
 	{
-		ArraySplit(OutIndex1, bSplitDirecton);
+		ArraySplit(OutIndex1, bSplitDirecton, NewName);
 	}
 	//rename
 	else if (ParseCommandToRename(Command, PrevName, NewName, ArrayNum) && PrevName.ToString() == ArrayName.ToString() && ArrayNum == NodeArray.Num())
@@ -329,7 +329,7 @@ void AA_ArrayEffect::ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate)
 	bIsAttaching = true;
 }
 
-void AA_ArrayEffect::ArraySplit(int32 SplitIndex, bool MoveDirection)
+void AA_ArrayEffect::ArraySplit(int32 SplitIndex, bool MoveDirection, FText& NewName)
 {
 	if (!ArrayClass)
 	{
@@ -338,6 +338,7 @@ void AA_ArrayEffect::ArraySplit(int32 SplitIndex, bool MoveDirection)
 
 	if (AA_ArrayEffect* NewArray = GetWorld()->SpawnActor<AA_ArrayEffect>(ArrayClass, NodeArray[SplitIndex]->DefaultLocation, GetActorRotation()))
 	{
+		NewArray->SetArrayName(NewName);
 		AA_ArrayNode* TempNode = NewArray->EndNode;
 		NewArray->EndNode = EndNode;
 		NewArray->EndNode->OwnerActor = NewArray;
@@ -447,35 +448,51 @@ bool AA_ArrayEffect::IsValidPythonIdentifier(const FString& Str)
 	return true;
 }
 
-bool AA_ArrayEffect::ParseCommandToAppend(FText Command)
+bool AA_ArrayEffect::ParseCommandToAppend(FText Command, FText& PrevName)
+{
+	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
+
+	if (!Input.EndsWith(TEXT(".append()")))
+	{
+		return false;
+	}
+
+	FString ParsedArrayName = Input.LeftChop(9);
+
+	if (!IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+
+	PrevName = FText::FromString(ParsedArrayName);
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToSwap(FText Command, FText& PrevName, int32& OutIndex1, int32& OutIndex2)
 {
 	FString Input = Command.ToString();
 
-	if (Input == "append()")
-	{
-		return true;
-	}
 
-	return false;
-}
-
-bool AA_ArrayEffect::ParseCommandToSwap(FText Command, int32& OutIndex1, int32& OutIndex2)
-{
-	FString CleanExpr = Command.ToString().Replace(TEXT(" "), TEXT(""));
-
-	FString LeftPart, RightPart;
-	if (!CleanExpr.Split(TEXT("="), &LeftPart, &RightPart))
+	FString Left, Right;
+	if (!Input.Split(TEXT("="), &Left, &Right))
 	{
 		return false;
 	}
 
 	TArray<int32> LeftIndices;
 	TArray<int32> RightIndices;
+	FString ParsedArrayName;
 
-	auto ParseIndices = [](const FString& Part, TArray<int32>& OutIndices) -> bool
+	auto ParseIndices = [this, &ParsedArrayName, &PrevName](const FString& Part, TArray<int32>& OutIndices) -> bool
 		{
 			TArray<FString> Elements;
 			Part.ParseIntoArray(Elements, TEXT(","), true);
+
+			if (OutIndices.Num() != 2)
+			{
+				return false;
+			}
 
 			for (const FString& Elem : Elements)
 			{
@@ -492,17 +509,31 @@ bool AA_ArrayEffect::ParseCommandToSwap(FText Command, int32& OutIndex1, int32& 
 				if (!IndexStr.IsNumeric())
 					return false;
 
-				if (Name != TEXT("arr"))
-					return false;
+				if (ParsedArrayName.IsEmpty())
+				{
+					if (IsValidPythonIdentifier(Name))
+					{
+						ParsedArrayName = Name;
+						PrevName = FText::FromString(ParsedArrayName);
+					}
+					else
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if (Name != ParsedArrayName)
+						return false;
+				}
 
 				int32 Index = FCString::Atoi(*IndexStr);
 				OutIndices.Add(Index);
 			}
-			return OutIndices.Num() == 2;
+			return true;
 		};
 
-
-	if (ParseIndices(LeftPart, LeftIndices) && ParseIndices(RightPart, RightIndices) && LeftIndices[0] == RightIndices[1] && LeftIndices[1] == RightIndices[0])
+	if (ParseIndices(Left, LeftIndices) && ParseIndices(Right, RightIndices) && LeftIndices[0] == RightIndices[1] && LeftIndices[1] == RightIndices[0])
 	{
 		OutIndex1 = LeftIndices[0];
 		OutIndex2 = LeftIndices[1];
@@ -513,78 +544,153 @@ bool AA_ArrayEffect::ParseCommandToSwap(FText Command, int32& OutIndex1, int32& 
 	return false;
 }
 
-bool AA_ArrayEffect::ParseCommandToDel(FText Command, int32& OutIndex)
+bool AA_ArrayEffect::ParseCommandToDel(FText Command, FText& PrevName, int32& OutIndex)
 {
 	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
 
-	int32 OpenBracket = 0;
-	int32 CloseBracket = 0;
+	const FString DelSuffix = TEXT(".del[");
 
-	if (!Input.FindChar('[', OpenBracket) || !Input.FindChar(']', CloseBracket) || OpenBracket >= CloseBracket || CloseBracket != Input.Len() - 1 || Input.Left(OpenBracket) != "del") return false;
-
-	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
-
-	if (!IndexStr.IsNumeric()) return false;
-
-	OutIndex = FCString::Atoi(*IndexStr);
-
-	return true;
-}
-
-bool AA_ArrayEffect::ParseCommandToInsert(FText Command, int32& OutIndex)
-{
-	FString Input = Command.ToString();
-
-	int32 OpenBracket = 0;
-	int32 CloseBracket = 0;
-
-	if (!Input.FindChar('[', OpenBracket) || !Input.FindChar(']', CloseBracket) || OpenBracket >= CloseBracket || CloseBracket != Input.Len() - 1 || Input.Left(OpenBracket) != "insert") return false;
-
-	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
-
-	if (!IndexStr.IsNumeric()) return false;
-
-	OutIndex = FCString::Atoi(*IndexStr);
-
-	return true;
-}
-
-bool AA_ArrayEffect::ParseCommandToPop(FText Command)
-{
-	FString Input = Command.ToString();
-
-	if (Input == "pop()")
-	{
-		return true;
-	}
-
-	return false;
-}
-
-bool AA_ArrayEffect::ParseCommandToClear(FText Command)
-{
-	FString Input = Command.ToString();
-
-	if (Input == "clear()")
-	{
-		return true;
-	}
-
-	return false;
-}
-
-bool AA_ArrayEffect::ParseCommandToExtend(FText Command, TArray<int32>& OutArray)
-{
-	OutArray.Empty();
-	FString Input = Command.ToString();
-
-	if (!Input.StartsWith(TEXT("extend(")) || !Input.EndsWith(TEXT(")")))
+	int32 DelPos = Input.Find(DelSuffix);
+	if (DelPos == INDEX_NONE)
 	{
 		return false;
 	}
 
-	FString Inner = Input.Mid(7, Input.Len() - 8);
-	Inner.RemoveSpacesInline();
+	FString ParsedArrayName = Input.Left(DelPos);
+	if (!IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+
+	PrevName = FText::FromString(ParsedArrayName);
+
+	int32 OpenBracket = DelPos + DelSuffix.Len() - 1;
+	int32 CloseBracket = 0;
+
+	if (!Input.FindLastChar(']', CloseBracket) || CloseBracket <= OpenBracket || CloseBracket != Input.Len() - 1)
+	{
+		return false;
+	}
+
+	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
+
+	if (!IndexStr.IsNumeric())
+	{
+		return false;
+	}
+
+	OutIndex = FCString::Atoi(*IndexStr);
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToInsert(FText Command, FText& PrevName, int32& OutIndex)
+{
+	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
+
+	const FString InsertSuffix = TEXT(".insert[");
+
+	int32 InsertPos = Input.Find(InsertSuffix);
+	if (InsertPos == INDEX_NONE)
+	{
+		return false;
+	}
+
+	FString ParsedArrayName = Input.Left(InsertPos);
+	if (!IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+
+	PrevName = FText::FromString(ParsedArrayName);
+
+	int32 OpenBracket = InsertPos + InsertSuffix.Len() - 1;
+	int32 CloseBracket = 0;
+
+	if (!Input.FindLastChar(']', CloseBracket) || CloseBracket <= OpenBracket || CloseBracket != Input.Len() - 1)
+	{
+		return false;
+	}
+
+	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
+
+	if (!IndexStr.IsNumeric())
+	{
+		return false;
+	}
+
+	OutIndex = FCString::Atoi(*IndexStr);
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToPop(FText Command, FText& PrevName)
+{
+	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
+
+	const FString Suffix = TEXT(".pop()");
+	if (!Input.EndsWith(Suffix))
+	{
+		return false;
+	}
+
+	FString ParsedArrayName = Input.LeftChop(Suffix.Len());
+
+	if (!IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+
+	PrevName = FText::FromString(ParsedArrayName);
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToClear(FText Command, FText& PrevName)
+{
+	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
+
+	const FString Suffix = TEXT(".clear()");
+	if (!Input.EndsWith(Suffix))
+	{
+		return false;
+	}
+
+	FString ParsedArrayName = Input.LeftChop(Suffix.Len());
+
+	if (!IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+
+	PrevName = FText::FromString(ParsedArrayName);
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToExtend(FText Command, FText& PrevName, TArray<int32>& OutArray)
+{
+	OutArray.Empty();
+	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
+
+	const FString Prefix = TEXT(".extend(");
+	const FString Suffix = TEXT(")");
+
+	int32 ExtendPos = Input.Find(Prefix);
+	if (ExtendPos == INDEX_NONE || !Input.EndsWith(Suffix))
+	{
+		return false;
+	}
+
+	FString ParsedArrayName = Input.Left(ExtendPos);
+	if (!IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+	PrevName = FText::FromString(ParsedArrayName);
+
+	FString Inner = Input.Mid(ExtendPos + Prefix.Len(), Input.Len() - (ExtendPos + Prefix.Len()) - Suffix.Len());
 
 	TArray<FString> Parts;
 	Inner.ParseIntoArray(Parts, TEXT(","), true);
@@ -655,16 +761,54 @@ bool AA_ArrayEffect::ParseCommandToConcatenate(FText Command, int32& OutSize1, i
 	return (OutSize1 > 0 && OutSize2 > 0 && (OutSize1 + OutSize2 <= 10));
 }
 
-bool AA_ArrayEffect::ParseCommandToSplitUndestructive(FText Command, int32& OutIndex, bool& Direction)
+bool AA_ArrayEffect::ParseCommandToReset(FText Command, FText& PrevName)
 {
-	const FString Input = Command.ToString();
+	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
 
-	if (!Input.StartsWith(TEXT("arr[")) || !Input.EndsWith(TEXT("]")))
+	const FString Suffix = TEXT(".reset()");
+	if (!Input.EndsWith(Suffix))
 	{
 		return false;
 	}
 
-	FString Inner = Input.Mid(4, Input.Len() - 5).TrimStartAndEnd();
+	FString ParsedArrayName = Input.LeftChop(Suffix.Len());
+
+	if (!IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+
+	PrevName = FText::FromString(ParsedArrayName);
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToSplitUndestructive(FText Command, FText& PrevName, FText& NewName, int32& OutIndex, bool& Direction)
+{
+	FString Input = Command.ToString();
+	Input.RemoveSpacesInline();
+
+	int32 BracketOpen, BracketClose;
+	if (!Input.FindChar('[', BracketOpen) || !Input.FindLastChar(']', BracketClose))
+	{
+		return false;
+	}
+
+	if (BracketOpen <= 0 || BracketClose != Input.Len() - 1)
+	{
+		return false;
+	}
+
+	FString ParsedArrayName = Input.Left(BracketOpen);
+	if (!IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+
+	PrevName = FText::FromString(ParsedArrayName);
+	NewName = FText::FromString(ParsedArrayName + TEXT("_1"));
+
+	FString Inner = Input.Mid(BracketOpen + 1, BracketClose - BracketOpen - 1);
 
 	int32 ColonPos;
 	if (!Inner.FindChar(TEXT(':'), ColonPos))
@@ -672,21 +816,21 @@ bool AA_ArrayEffect::ParseCommandToSplitUndestructive(FText Command, int32& OutI
 		return false;
 	}
 
-	FString Left = Inner.Left(ColonPos).TrimStartAndEnd();
-	FString Right = Inner.Mid(ColonPos + 1).TrimStartAndEnd();
+	FString Left = Inner.Left(ColonPos);
+	FString Right = Inner.Mid(ColonPos + 1);
 
 	auto IsNumericPositive = [](const FString& Str) -> bool
 		{
 			return !Str.IsEmpty() && Str.IsNumeric();
 		};
 
-	if (Left.IsEmpty() && IsNumericPositive(Right))
+	if (Left.IsEmpty() && IsNumericPositive(Right)) // arrname[:N]
 	{
 		OutIndex = FCString::Atoi(*Right);
 		Direction = false;
 		return true;
 	}
-	else if (Right.IsEmpty() && IsNumericPositive(Left))
+	else if (Right.IsEmpty() && IsNumericPositive(Left)) // arrname[N:]
 	{
 		OutIndex = FCString::Atoi(*Left);
 		Direction = true;
@@ -695,6 +839,7 @@ bool AA_ArrayEffect::ParseCommandToSplitUndestructive(FText Command, int32& OutI
 
 	return false;
 }
+
 
 bool AA_ArrayEffect::ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum)
 {
@@ -714,7 +859,7 @@ bool AA_ArrayEffect::ParseCommandToRename(FText Command, FText& PrevName, FText&
 	{
 		return false;
 	}
-	const FString ParsedName = Left;
+	const FString ParsedArrayName = Left;
 	FString Inner = Right.Mid(1, Right.Len() - 2);
 	TArray<FString> Elements;
 	Inner.ParseIntoArray(Elements, TEXT(","), true);
@@ -729,7 +874,7 @@ bool AA_ArrayEffect::ParseCommandToRename(FText Command, FText& PrevName, FText&
 	}
 
 	Lines[1].RemoveSpacesInline();
-	if (!Lines[1].Split(TEXT("="), &Left, &Right) || Left.IsEmpty() || Right.IsEmpty() || Right != ParsedName)
+	if (!Lines[1].Split(TEXT("="), &Left, &Right) || Left.IsEmpty() || Right.IsEmpty() || Right != ParsedArrayName)
 	{
 		return false;
 	}
@@ -744,7 +889,7 @@ bool AA_ArrayEffect::ParseCommandToRename(FText Command, FText& PrevName, FText&
 		return false;
 	}
 	FString DelName = Lines[2].Mid(4).TrimStartAndEnd();
-	if (DelName.IsEmpty() || DelName != ParsedName)
+	if (DelName.IsEmpty() || DelName != ParsedArrayName)
 	{
 		return false;
 	}
@@ -753,7 +898,7 @@ bool AA_ArrayEffect::ParseCommandToRename(FText Command, FText& PrevName, FText&
 	return true;
 }
 
-bool AA_ArrayEffect::ParseCommandToCopy(FText Command, FText& Name, FText& CopyName)
+bool AA_ArrayEffect::ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName)
 {
 	FString Input = Command.ToString();
 	Input.RemoveSpacesInline();
@@ -798,7 +943,7 @@ bool AA_ArrayEffect::ParseCommandToCopy(FText Command, FText& Name, FText& CopyN
 		return false;
 	}
 
-	Name = FText::FromString(BaseName);
+	PrevName = FText::FromString(BaseName);
 	CopyName = FText::FromString(Left);
 
 	return true;

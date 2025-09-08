@@ -97,7 +97,7 @@ public:
 	void ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate);
 
 private:
-	void ArraySplit(int32 SplitIndex, bool MoveDirection);
+	void ArraySplit(int32 SplitIndex, bool MoveDirection, FText& NewName);
 
 	void ArrayRename(FText NewName);
 
@@ -106,27 +106,29 @@ private:
 private:
 	bool IsValidPythonIdentifier(const FString& Str);
 
-	bool ParseCommandToAppend(FText Command);
+	bool ParseCommandToAppend(FText Command, FText& PrevName);
 
-	bool ParseCommandToSwap(FText Command, int32& OutIndex1, int32& OutIndex2);
+	bool ParseCommandToSwap(FText Command, FText& PrevName, int32& OutIndex1, int32& OutIndex2);
 
-	bool ParseCommandToDel(FText Command, int32& OutIndex);
+	bool ParseCommandToDel(FText Command, FText& PrevName, int32& OutIndex);
 
-	bool ParseCommandToInsert(FText Command, int32& OutIndex);
+	bool ParseCommandToInsert(FText Command, FText& PrevName, int32& OutIndex);
 
-	bool ParseCommandToPop(FText Command);
+	bool ParseCommandToPop(FText Command, FText& PrevName);
 
-	bool ParseCommandToClear(FText Command);
+	bool ParseCommandToClear(FText Command, FText& PrevName);
 
-	bool ParseCommandToExtend(FText Command, TArray<int32>& OutArray);
+	bool ParseCommandToExtend(FText Command, FText& PrevName, TArray<int32>& OutArray);
 
 	bool ParseCommandToConcatenate(FText Command, int32& OutSize1, int32& OutSize2);
 
-	bool ParseCommandToSplitUndestructive(FText Command, int32& OutIndex, bool& Direction);
+	bool ParseCommandToReset(FText Command, FText& PrevName);
+
+	bool ParseCommandToSplitUndestructive(FText Command, FText& PrevName, FText& NewName, int32& OutIndex, bool& Direction);
 
 	bool ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
 
-	bool ParseCommandToCopy(FText Command, FText& Name, FText& CopyName);
+	bool ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName);
 
 private:
 	void AttachToCharacterCamera();
