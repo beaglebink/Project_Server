@@ -27,6 +27,9 @@ public:
 	UStaticMeshComponent* NodeBorder;
 
 	UPROPERTY()
+	AActor* GrabbedActor;
+
+	UPROPERTY()
 	UPrimitiveComponent* GrabbedComponent;
 
 private:
@@ -74,9 +77,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ArrayInteraction")
 	void GetTextCommand(FText Command);
 
-	void AttachComponent(UPrimitiveComponent* OtherComp);
+	void AttachToNode(AActor* OtherActor);
 
-	void DetachComponent(UPrimitiveComponent* OtherComp);
+	void DetachFromNode(AActor* OtherActor);
 
 	void MoveNode(FVector TargetLocation);
 

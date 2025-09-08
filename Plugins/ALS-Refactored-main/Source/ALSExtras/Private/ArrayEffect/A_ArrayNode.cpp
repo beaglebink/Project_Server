@@ -93,7 +93,8 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 			OtherComp->SetSimulatePhysics(false);
 			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Ignore);
 			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Ignore);
-			OtherComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+			OtherActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+			GrabbedActor = OtherActor;
 			GrabbedComponent = OtherComp;
 			bIsOccupied = true;
 			bShouldGrab = true;
@@ -127,7 +128,7 @@ void AA_ArrayNode::DeleteNode()
 	{
 		GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Block);
 		GrabbedComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Overlap);
-		GrabbedComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		GrabbedActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		GrabbedComponent->SetSimulatePhysics(true);
 		GrabbedComponent->AddImpulse((UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)->GetActorLocation() - GetActorLocation()).GetSafeNormal() * 1300.0f, NAME_None, true);
 	}
@@ -181,14 +182,14 @@ void AA_ArrayNode::GetTextCommand(FText Command)
 	OwnerActor->GetTextCommand(Command);
 }
 
-void AA_ArrayNode::AttachComponent(UPrimitiveComponent* OtherComp)
+void AA_ArrayNode::AttachToNode(AActor* OtherActor)
 {
-	OtherComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+	OtherActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 }
 
-void AA_ArrayNode::DetachComponent(UPrimitiveComponent* OtherComp)
+void AA_ArrayNode::DetachFromNode(AActor* OtherActor)
 {
-	OtherComp->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	OtherActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 }
 
 void AA_ArrayNode::MoveNode(FVector NewTargetLocation)

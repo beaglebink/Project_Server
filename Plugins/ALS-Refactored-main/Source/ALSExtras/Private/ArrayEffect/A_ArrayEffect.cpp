@@ -212,12 +212,12 @@ void AA_ArrayEffect::SwapNodes(int32 Node1, int32 Node2)
 
 	if (NodeArray[SwapNode1]->GrabbedComponent)
 	{
-		NodeArray[SwapNode1]->DetachComponent(NodeArray[SwapNode1]->GrabbedComponent);
+		NodeArray[SwapNode1]->DetachFromNode(NodeArray[SwapNode1]->GrabbedActor);
 	}
 
 	if (NodeArray[SwapNode2]->GrabbedComponent)
 	{
-		NodeArray[SwapNode2]->DetachComponent(NodeArray[SwapNode2]->GrabbedComponent);
+		NodeArray[SwapNode2]->DetachFromNode(NodeArray[SwapNode2]->GrabbedActor);
 	}
 
 	SwapAudioComp->SetWorldLocation(NodeArray[SwapNode1]->GetActorLocation());
@@ -357,11 +357,11 @@ void AA_ArrayEffect::ArraySplit(int32 SplitIndex, bool MoveDirection)
 
 		if (MoveDirection)
 		{
-			NewArray->MoveArrayOnSplit(NewArray, MoveDirection);
+			NewArray->MoveArray(NewArray->GetActorLocation() - NewArray->GetActorRightVector() * NewArray->NodeWidth * 2);
 		}
 		else
 		{
-			MoveArrayOnSplit(this, MoveDirection);
+			MoveArray(GetActorLocation() + GetActorRightVector() * NodeWidth * 2);
 		}
 	}
 }
@@ -373,20 +373,37 @@ void AA_ArrayEffect::ArrayRename(FText NewName)
 
 void AA_ArrayEffect::ArrayCopy(FText Name)
 {
-	if (AA_ArrayEffect* NewArray = GetWorld()->SpawnActor<AA_ArrayEffect>(ArrayClass, GetActorLocation() - GetActorRightVector() * NodeWidth * (NodeArray.Num() + 2), GetActorRotation()))
+	if (!ArrayClass)
+	{
+		return;
+	}
+
+	if (AA_ArrayEffect* NewArray = GetWorld()->SpawnActor<AA_ArrayEffect>(ArrayClass, EndNode->DefaultLocation, GetActorRotation()))
 	{
 		NewArray->SetArrayName(Name);
 
 		for (size_t i = 0; i < NodeArray.Num(); ++i)
 		{
-			if (AA_ArrayNode* NewNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, NewArray->GetActorLocation() - GetActorRightVector() * NewArray->NodeWidth * i, GetActorRotation()))
+			if (AA_ArrayNode* NewNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, NodeArray[i]->GetActorLocation(), GetActorRotation()))
 			{
 				NewNode->OwnerActor = NewArray;
 				NewArray->NodeArray.Add(NewNode);
 				NewNode->SetIndex(i);
+				if (NodeArray[i]->GrabbedActor)
+				{
+					if (AActor* CopyGrabbedActor = GetWorld()->SpawnActor<AActor>(NodeArray[i]->GrabbedActor->GetClass(), NewNode->GetActorLocation(), NewNode->GetActorRotation()))
+					{
+						NewNode->AttachToNode(CopyGrabbedActor);
+						NewNode->GrabbedActor = CopyGrabbedActor;
+						if (UStaticMeshComponent* MeshComp = Cast<UStaticMeshComponent>(CopyGrabbedActor->GetComponentByClass(UStaticMeshComponent::StaticClass())))
+						{
+							NewNode->GrabbedComponent = MeshComp;
+						}
+					}
+				}
 			}
 		}
-		NewArray->EndNode->MoveNode(NewArray->GetActorLocation() - GetActorRightVector() * NewArray->NodeWidth * NewArray->NodeArray.Num());
+		NewArray->MoveArray(EndNode->DefaultLocation - GetActorRightVector() * NodeWidth * 2);
 	}
 }
 
@@ -862,19 +879,17 @@ void AA_ArrayEffect::AttachToArray()
 	EndNode->SetActorRotation(FMath::RInterpTo(EndNode->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
 }
 
-void AA_ArrayEffect::MoveArrayOnSplit(AA_ArrayEffect* ArrayToMove, bool Direction)
+void AA_ArrayEffect::MoveArray(FVector NewLocation)
 {
-	int32 MoveDirection = Direction * 2 - 1;
+	SetActorLocation(NewLocation);
+	DefaultLocation = GetActorLocation();
 
-	ArrayToMove->SetActorLocation(ArrayToMove->GetActorLocation() - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
-	ArrayToMove->DefaultLocation = GetActorLocation();
-
-	for (AA_ArrayNode* Node : ArrayToMove->NodeArray)
+	for (AA_ArrayNode* Node : NodeArray)
 	{
-		Node->MoveNode(Node->DefaultLocation - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
+		Node->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * Node->GetIndex());
 	}
 
-	ArrayToMove->EndNode->MoveNode(ArrayToMove->EndNode->DefaultLocation - ArrayToMove->GetActorRightVector() * 2 * ArrayToMove->NodeWidth * MoveDirection);
+	EndNode->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * NodeArray.Num());
 }
 
 void AA_ArrayEffect::RefreshNameLocationAndRotation()
@@ -941,13 +956,17 @@ void AA_ArrayEffect::TimelineFinished()
 	NodeArray[SwapNode1]->GrabbedComponent = NodeArray[SwapNode2]->GrabbedComponent;
 	NodeArray[SwapNode2]->GrabbedComponent = TempComponent;
 
+	AActor* TempActor = NodeArray[SwapNode1]->GrabbedActor;
+	NodeArray[SwapNode1]->GrabbedActor = NodeArray[SwapNode2]->GrabbedActor;
+	NodeArray[SwapNode2]->GrabbedActor = TempActor;
+
 	if (NodeArray[SwapNode1]->GrabbedComponent)
 	{
-		NodeArray[SwapNode1]->AttachComponent(NodeArray[SwapNode1]->GrabbedComponent);
+		NodeArray[SwapNode1]->AttachToNode(NodeArray[SwapNode1]->GrabbedActor);
 	}
 	if (NodeArray[SwapNode2]->GrabbedComponent)
 	{
-		NodeArray[SwapNode2]->AttachComponent(NodeArray[SwapNode2]->GrabbedComponent);
+		NodeArray[SwapNode2]->AttachToNode(NodeArray[SwapNode2]->GrabbedActor);
 	}
 
 	NodeArray[SwapNode1]->SetBorderMaterialIfOccupied(NodeArray[SwapNode1]->GrabbedComponent);

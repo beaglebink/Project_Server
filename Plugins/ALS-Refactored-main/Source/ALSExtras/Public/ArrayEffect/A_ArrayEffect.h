@@ -135,7 +135,7 @@ private:
 
 	void AttachToArray();
 
-	void MoveArrayOnSplit(AA_ArrayEffect* ArrayToMove, bool Direction);
+	void MoveArray(FVector NewLocation);
 
 	void RefreshNameLocationAndRotation();
 
