@@ -89,7 +89,7 @@ private:
 
 	void ArrayPop();
 
-	void ArrayClear(bool bShouldDeleteArray = false);
+	void ArrayClear();
 
 	void ArrayExtend();
 
@@ -110,7 +110,7 @@ private:
 
 	bool ParseCommandToSwap(FText Command, FText& PrevName, int32& OutIndex1, int32& OutIndex2);
 
-	bool ParseCommandToDel(FText Command, FText& PrevName, int32& OutIndex);
+	bool ParseCommandToDelete(FText Command, FText& PrevName, int32& OutIndex, int32& OutLeftIndex, int32& OutRightIndex);
 
 	bool ParseCommandToInsert(FText Command, FText& PrevName, int32& OutIndex);
 
@@ -130,8 +130,6 @@ private:
 
 	bool ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName);
 
-	bool ParseCommandToDeleteArray(FText Command, FText& PrevName);
-
 private:
 	void AttachToCharacterCamera();
 
@@ -140,6 +138,8 @@ private:
 	void AttachToArray();
 
 	void MoveArray(FVector NewLocation);
+
+	void MoveNodesConsideringOrder();
 
 	void RefreshNameLocationAndRotation();
 
