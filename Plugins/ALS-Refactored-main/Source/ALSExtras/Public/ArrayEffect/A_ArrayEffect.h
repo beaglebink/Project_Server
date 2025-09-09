@@ -101,7 +101,7 @@ private:
 
 	void ArrayRename(FText NewName);
 
-	void ArrayCopy(FText Name);
+	void ArrayCopy(FText Name, int32 SplitIndex = -1, bool MoveDirection = true);
 
 private:
 	bool IsValidPythonIdentifier(const FString& Str);
@@ -124,7 +124,7 @@ private:
 
 	bool ParseCommandToReset(FText Command, FText& PrevName);
 
-	bool ParseCommandToSplitUndestructive(FText Command, FText& PrevName, FText& NewName, int32& OutIndex, bool& Direction);
+	bool ParseCommandToSplit(FText Command, FText& PrevName, FText& NewName, int32& OutIndex, bool& Direction);
 
 	bool ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
 

@@ -162,9 +162,9 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		bIsDetaching = true;;
 	}
 	//split
-	else if (ParseCommandToSplitUndestructive(Command, PrevName, NewName, OutIndex1, bSplitDirecton) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToSplit(Command, PrevName, NewName, OutIndex1, bSplitDirecton) && PrevName.ToString() == ArrayName.ToString())
 	{
-		ArraySplit(OutIndex1, bSplitDirecton, NewName);
+		ArrayCopy(NewName, OutIndex1, bSplitDirecton);
 	}
 	//rename
 	else if (ParseCommandToRename(Command, PrevName, NewName, ArrayNum) && PrevName.ToString() == ArrayName.ToString() && ArrayNum == NodeArray.Num())
@@ -372,24 +372,40 @@ void AA_ArrayEffect::ArrayRename(FText NewName)
 	SetArrayName(NewName);
 }
 
-void AA_ArrayEffect::ArrayCopy(FText Name)
+void AA_ArrayEffect::ArrayCopy(FText Name, int32 SplitIndex, bool MoveDirection)
 {
 	if (!ArrayClass)
 	{
 		return;
 	}
 
+	int32 LeftIndex = 0;
+	int32 RightIndex = NodeArray.Num();
+
+	if (SplitIndex != -1)
+	{
+		if (MoveDirection)
+		{
+			LeftIndex = SplitIndex;
+		}
+		else
+		{
+			RightIndex = SplitIndex;
+		}
+	}
+
 	if (AA_ArrayEffect* NewArray = GetWorld()->SpawnActor<AA_ArrayEffect>(ArrayClass, EndNode->DefaultLocation, GetActorRotation()))
 	{
 		NewArray->SetArrayName(Name);
 
-		for (size_t i = 0; i < NodeArray.Num(); ++i)
+		int32 Index = 0;
+		for (size_t i = LeftIndex; i < RightIndex; ++i)
 		{
 			if (AA_ArrayNode* NewNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, NodeArray[i]->GetActorLocation(), GetActorRotation()))
 			{
 				NewNode->OwnerActor = NewArray;
 				NewArray->NodeArray.Add(NewNode);
-				NewNode->SetIndex(i);
+				NewNode->SetIndex(Index++);
 				if (NodeArray[i]->GrabbedActor)
 				{
 					if (AActor* CopyGrabbedActor = GetWorld()->SpawnActor<AActor>(NodeArray[i]->GrabbedActor->GetClass(), NewNode->GetActorLocation(), NewNode->GetActorRotation()))
@@ -783,7 +799,7 @@ bool AA_ArrayEffect::ParseCommandToReset(FText Command, FText& PrevName)
 	return true;
 }
 
-bool AA_ArrayEffect::ParseCommandToSplitUndestructive(FText Command, FText& PrevName, FText& NewName, int32& OutIndex, bool& Direction)
+bool AA_ArrayEffect::ParseCommandToSplit(FText Command, FText& PrevName, FText& NewName, int32& OutIndex, bool& Direction)
 {
 	FString Input = Command.ToString();
 	Input.RemoveSpacesInline();
