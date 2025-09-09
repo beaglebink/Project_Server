@@ -176,6 +176,11 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	{
 		ArrayCopy(CopyName);
 	}
+	//delete array
+	else if (ParseCommandToDeleteArray(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
+	{
+		ArrayClear(true);
+	}
 }
 
 void AA_ArrayEffect::AppendNode()
@@ -275,11 +280,17 @@ void AA_ArrayEffect::ArrayPop()
 	DeleteNode(NodeArray.Num() - 1);
 }
 
-void AA_ArrayEffect::ArrayClear()
+void AA_ArrayEffect::ArrayClear(bool bShouldDeleteArray)
 {
 	for (int32 i = NodeArray.Num() - 1; i >= 0; --i)
 	{
 		DeleteNode(i);
+	}
+
+	if (bShouldDeleteArray)
+	{
+		EndNode->Destroy();
+		Destroy();
 	}
 }
 
@@ -961,6 +972,25 @@ bool AA_ArrayEffect::ParseCommandToCopy(FText Command, FText& PrevName, FText& C
 
 	PrevName = FText::FromString(BaseName);
 	CopyName = FText::FromString(Left);
+
+	return true;
+}
+
+bool AA_ArrayEffect::ParseCommandToDeleteArray(FText Command, FText& PrevName)
+{
+	FString Input = Command.ToString();
+
+	if (!Input.StartsWith(TEXT("del ")))
+	{
+		return false;
+	}
+
+	FString DelName = Input.Mid(4).TrimStartAndEnd();
+	if (DelName.IsEmpty() || !IsValidPythonIdentifier(DelName))
+	{
+		return false;
+	}
+	PrevName = FText::FromString(DelName);
 
 	return true;
 }

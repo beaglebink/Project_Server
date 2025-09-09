@@ -89,7 +89,7 @@ private:
 
 	void ArrayPop();
 
-	void ArrayClear();
+	void ArrayClear(bool bShouldDeleteArray = false);
 
 	void ArrayExtend();
 
@@ -129,6 +129,8 @@ private:
 	bool ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
 
 	bool ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName);
+
+	bool ParseCommandToDeleteArray(FText Command, FText& PrevName);
 
 private:
 	void AttachToCharacterCamera();
