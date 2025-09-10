@@ -140,9 +140,10 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		InsertNode(OutIndex);
 	}
 	//pop
-	else if (ParseCommandToPop(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToPop(Command, PrevName, OutIndex) && PrevName.ToString() == ArrayName.ToString())
 	{
-		ArrayPop();
+		ArrayPop(OutIndex);
+		MoveNodesConsideringOrder();
 	}
 	//clear
 	else if (ParseCommandToClear(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
@@ -272,9 +273,9 @@ void AA_ArrayEffect::InsertNode(int32 Index)
 	}
 }
 
-void AA_ArrayEffect::ArrayPop()
+void AA_ArrayEffect::ArrayPop(int32 Index)
 {
-	DeleteNode(NodeArray.Num() - 1);
+	DeleteNode(Index);
 }
 
 void AA_ArrayEffect::ArrayClear()
@@ -644,27 +645,51 @@ bool AA_ArrayEffect::ParseCommandToInsert(FText Command, FText& PrevName, int32&
 	return true;
 }
 
-bool AA_ArrayEffect::ParseCommandToPop(FText Command, FText& PrevName)
+bool AA_ArrayEffect::ParseCommandToPop(FText Command, FText& PrevName, int32& Index)
 {
 	FString Input = Command.ToString();
 	Input.RemoveSpacesInline();
 
-	const FString Suffix = TEXT(".pop()");
-	if (!Input.EndsWith(Suffix))
+	const FString PopPrefix = TEXT(".pop(");
+	const FString PopSuffix = TEXT(")");
+
+	int32 PrefixPos = Input.Find(PopPrefix);
+	if (PrefixPos == INDEX_NONE || !Input.EndsWith(PopSuffix))
 	{
 		return false;
 	}
 
-	FString ParsedArrayName = Input.LeftChop(Suffix.Len());
-
+	FString ParsedArrayName = Input.Left(PrefixPos);
 	if (!IsValidPythonIdentifier(ParsedArrayName))
 	{
 		return false;
 	}
-
 	PrevName = FText::FromString(ParsedArrayName);
+
+	FString Inside = Input.Mid(PrefixPos + PopPrefix.Len(), Input.Len() - (PrefixPos + PopPrefix.Len() + 1));
+
+	if (Inside.IsEmpty())
+	{
+		Index = NodeArray.Num() - 1;
+		return true;
+	}
+	else
+	{
+		if (!Inside.IsNumeric())
+		{
+			return false;
+		}
+
+		Index = FCString::Atoi(*Inside);
+		if (Index < 0 || Index >= NodeArray.Num())
+		{
+			return false;
+		}
+	}
+
 	return true;
 }
+
 
 bool AA_ArrayEffect::ParseCommandToClear(FText Command, FText& PrevName)
 {
