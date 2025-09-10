@@ -100,12 +100,14 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 
 	FText NewName;
 
+	FName VariableName = NAME_None;
+
 	int32 ArrayNum;
 
 	//append
-	if (ParseCommandToAppend(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
+	if (ParseCommandToAppend(Command, PrevName, VariableName) && PrevName.ToString() == ArrayName.ToString())
 	{
-		AppendNode();
+		AppendNode(VariableName);
 	}
 	//swap
 	else if (ParseCommandToSwap(Command, PrevName, OutLeftIndex, OutRightIndex) && PrevName.ToString() == ArrayName.ToString())
@@ -140,8 +142,12 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		InsertNode(OutIndex);
 	}
 	//pop
-	else if (ParseCommandToPop(Command, PrevName, OutIndex) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToPop(Command, PrevName, VariableName, OutIndex) && PrevName.ToString() == ArrayName.ToString())
 	{
+		if (VariableName.ToString() != "")
+		{
+			NodeArray[OutIndex]->GrabbedActor->Tags.AddUnique(VariableName);
+		}
 		ArrayPop(OutIndex);
 		MoveNodesConsideringOrder();
 	}
@@ -183,7 +189,7 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	}
 }
 
-void AA_ArrayEffect::AppendNode()
+void AA_ArrayEffect::AppendNode(FName VariableName)
 {
 	if (NodeArray.Num() == 10)
 	{
@@ -191,6 +197,16 @@ void AA_ArrayEffect::AppendNode()
 	}
 
 	EndNode->SetIndex(NodeArray.Num());
+
+	if (!VariableName.IsNone())
+	{
+		if (AActor* GrabbedActor = GetActorWithTag(VariableName))
+		{
+			GrabbedActor->Tags.Empty();
+			EndNode->TryGrabActor(GrabbedActor);
+		}
+	}
+
 	FVector SpawnLocation = EndNode->GetActorLocation();
 	AA_ArrayNode* NewNode = EndNode;
 	NodeArray.Add(NewNode);
@@ -415,24 +431,41 @@ bool AA_ArrayEffect::IsValidPythonIdentifier(const FString& Str)
 	return true;
 }
 
-bool AA_ArrayEffect::ParseCommandToAppend(FText Command, FText& PrevName)
+bool AA_ArrayEffect::ParseCommandToAppend(FText Command, FText& PrevName, FName& VariableName)
 {
 	FString Input = Command.ToString();
 	Input.RemoveSpacesInline();
 
-	if (!Input.EndsWith(TEXT(".append()")))
+	FString ParsedArrayName, MethodPart;
+	if (!Input.Split(TEXT("."), &ParsedArrayName, &MethodPart))
 	{
 		return false;
+
 	}
-
-	FString ParsedArrayName = Input.LeftChop(9);
-
 	if (!IsValidPythonIdentifier(ParsedArrayName))
 	{
 		return false;
 	}
-
 	PrevName = FText::FromString(ParsedArrayName);
+
+	const FString Prefix = TEXT("append(");
+	const FString Suffix = TEXT(")");
+
+	if (!MethodPart.StartsWith(Prefix) || !MethodPart.EndsWith(Suffix))
+	{
+		return false;
+	}
+
+	FString Inside = MethodPart.Mid(Prefix.Len(), MethodPart.Len() - Prefix.Len() - 1);
+	if (!Inside.IsEmpty())
+	{
+		if (!IsValidPythonIdentifier(Inside))
+		{
+			return false;
+		}
+		VariableName = FName(*Inside);
+	}
+
 	return true;
 }
 
@@ -645,33 +678,48 @@ bool AA_ArrayEffect::ParseCommandToInsert(FText Command, FText& PrevName, int32&
 	return true;
 }
 
-bool AA_ArrayEffect::ParseCommandToPop(FText Command, FText& PrevName, int32& Index)
+bool AA_ArrayEffect::ParseCommandToPop(FText Command, FText& PrevName, FName& VariableName, int32& Index)
 {
 	FString Input = Command.ToString();
 	Input.RemoveSpacesInline();
 
+	FString Left, Right;
+	if (!Input.Split(TEXT("="), &Left, &Right))
+	{
+		Left.Empty();
+		Right = Input;
+	}
+
+	if (!Left.IsEmpty())
+	{
+		if (!IsValidPythonIdentifier(Left))
+		{
+			return false;
+		}
+		VariableName = FName(Left);
+	}
+
 	const FString PopPrefix = TEXT(".pop(");
 	const FString PopSuffix = TEXT(")");
 
-	int32 PrefixPos = Input.Find(PopPrefix);
-	if (PrefixPos == INDEX_NONE || !Input.EndsWith(PopSuffix))
+	int32 PrefixPos = Right.Find(PopPrefix);
+	if (PrefixPos == INDEX_NONE || !Right.EndsWith(PopSuffix))
 	{
 		return false;
 	}
 
-	FString ParsedArrayName = Input.Left(PrefixPos);
+	FString ParsedArrayName = Right.Left(PrefixPos);
 	if (!IsValidPythonIdentifier(ParsedArrayName))
 	{
 		return false;
 	}
 	PrevName = FText::FromString(ParsedArrayName);
 
-	FString Inside = Input.Mid(PrefixPos + PopPrefix.Len(), Input.Len() - (PrefixPos + PopPrefix.Len() + 1));
+	FString Inside = Right.Mid(PrefixPos + PopPrefix.Len(), Right.Len() - (PrefixPos + PopPrefix.Len() + 1));
 
 	if (Inside.IsEmpty())
 	{
 		Index = NodeArray.Num() - 1;
-		return true;
 	}
 	else
 	{
@@ -689,7 +737,6 @@ bool AA_ArrayEffect::ParseCommandToPop(FText Command, FText& PrevName, int32& In
 
 	return true;
 }
-
 
 bool AA_ArrayEffect::ParseCommandToClear(FText Command, FText& PrevName)
 {
@@ -1106,6 +1153,19 @@ void AA_ArrayEffect::SetArrayName(FText Name)
 {
 	ArrayName = Name;
 	TextComp->SetText(Name);
+}
+
+AActor* AA_ArrayEffect::GetActorWithTag(const FName& Tag)
+{
+	if (!GetWorld())
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsWithTag(GetWorld(), Tag, FoundActors);
+
+	return FoundActors.Num() > 0 ? FoundActors[0] : nullptr;
 }
 
 void AA_ArrayEffect::TimelineProgress(float Value)

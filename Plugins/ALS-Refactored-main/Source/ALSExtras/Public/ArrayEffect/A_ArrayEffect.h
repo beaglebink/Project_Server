@@ -78,7 +78,7 @@ public:
 	void GetTextCommand(FText Command);
 
 public:
-	void AppendNode();
+	void AppendNode(FName VariableName = NAME_None);
 
 private:
 	void SwapNodes(int32 Node1, int32 Node2);
@@ -104,7 +104,7 @@ private:
 private:
 	bool IsValidPythonIdentifier(const FString& Str);
 
-	bool ParseCommandToAppend(FText Command, FText& PrevName);
+	bool ParseCommandToAppend(FText Command, FText& PrevName, FName& VariableName);
 
 	bool ParseCommandToSwap(FText Command, FText& PrevName, int32& OutIndex1, int32& OutIndex2);
 
@@ -112,7 +112,7 @@ private:
 
 	bool ParseCommandToInsert(FText Command, FText& PrevName, int32& OutIndex);
 
-	bool ParseCommandToPop(FText Command, FText& PrevName, int32& Index);
+	bool ParseCommandToPop(FText Command, FText& PrevName, FName& VariableName, int32& Index);
 
 	bool ParseCommandToClear(FText Command, FText& PrevName);
 
@@ -138,6 +138,8 @@ private:
 	void RefreshNameLocationAndRotation();
 
 	void SetArrayName(FText Name);
+
+	AActor* GetActorWithTag(const FName& Tag);
 
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
