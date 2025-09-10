@@ -88,9 +88,11 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		return;
 	}
 
-	int32 OutIndex1 = -1;
+	int32 OutIndex = -1;
 
-	int32 OutIndex2 = -1;
+	int32 OutLeftIndex = -1;
+
+	int32 OutRightIndex = -1;
 
 	int32 SizeOfConcatenatedArray = -1;
 
@@ -111,21 +113,38 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	}
 
 	//swap
-	else if (ParseCommandToSwap(Command, PrevName, OutIndex1, OutIndex2) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToSwap(Command, PrevName, OutLeftIndex, OutRightIndex) && PrevName.ToString() == ArrayName.ToString())
 	{
-		SwapNodes(OutIndex1, OutIndex2);
+		SwapNodes(OutLeftIndex, OutRightIndex);
 	}
 
 	//delete
-	else if (ParseCommandToDel(Command, PrevName, OutIndex1) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToDelete(Command, PrevName, OutIndex, OutLeftIndex, OutRightIndex) && PrevName.ToString() == ArrayName.ToString())
 	{
-		DeleteNode(OutIndex1);
+		if (OutIndex != -1)
+		{
+			DeleteNode(OutIndex);
+		}
+		else if (OutLeftIndex != -1 && OutRightIndex != -1)
+		{
+			for (size_t i = OutLeftIndex; i < OutRightIndex; ++i)
+			{
+				DeleteNode(OutLeftIndex);
+			}
+		}
+		else
+		{
+			ArrayClear();
+			EndNode->Destroy();
+			Destroy();
+		}
+		MoveNodesConsideringOrder();
 	}
 
 	//insert
-	else if (ParseCommandToInsert(Command, PrevName, OutIndex1) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToInsert(Command, PrevName, OutIndex) && PrevName.ToString() == ArrayName.ToString())
 	{
-		InsertNode(OutIndex1);
+		InsertNode(OutIndex);
 	}
 
 	//pop
@@ -138,6 +157,7 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	else if (ParseCommandToClear(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
 	{
 		ArrayClear();
+		MoveNodesConsideringOrder();
 	}
 
 	//extend
@@ -162,9 +182,9 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		bIsDetaching = true;;
 	}
 	//split
-	else if (ParseCommandToSplit(Command, PrevName, NewName, OutIndex1, bSplitDirecton) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToSplit(Command, PrevName, NewName, OutIndex, bSplitDirecton) && PrevName.ToString() == ArrayName.ToString())
 	{
-		ArrayCopy(NewName, OutIndex1, bSplitDirecton);
+		ArrayCopy(NewName, OutIndex, bSplitDirecton);
 	}
 	//rename
 	else if (ParseCommandToRename(Command, PrevName, NewName, ArrayNum) && PrevName.ToString() == ArrayName.ToString() && ArrayNum == NodeArray.Num())
@@ -175,11 +195,6 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	else if (ParseCommandToCopy(Command, PrevName, CopyName) && PrevName.ToString() == ArrayName.ToString())
 	{
 		ArrayCopy(CopyName);
-	}
-	//delete array
-	else if (ParseCommandToDeleteArray(Command, PrevName) && PrevName.ToString() == ArrayName.ToString())
-	{
-		ArrayClear(true);
 	}
 }
 
@@ -233,7 +248,7 @@ void AA_ArrayEffect::SwapNodes(int32 Node1, int32 Node2)
 
 void AA_ArrayEffect::DeleteNode(int32 Index)
 {
-	if (NodeArray.IsEmpty() || Index < 0 || Index >= NodeArray.Num())
+	if (NodeArray.IsEmpty())
 	{
 		return;
 	}
@@ -242,12 +257,10 @@ void AA_ArrayEffect::DeleteNode(int32 Index)
 
 	for (size_t i = Index + 1; i < NodeArray.Num(); ++i)
 	{
-		NodeArray[i]->MoveNode(NodeArray[i]->DefaultLocation + GetActorRightVector() * NodeWidth);
 		NodeArray[i]->SetIndex(i - 1);
 	}
 
 	NodeArray.RemoveAt(Index);
-	EndNode->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * NodeArray.Num());
 }
 
 void AA_ArrayEffect::InsertNode(int32 Index)
@@ -280,17 +293,11 @@ void AA_ArrayEffect::ArrayPop()
 	DeleteNode(NodeArray.Num() - 1);
 }
 
-void AA_ArrayEffect::ArrayClear(bool bShouldDeleteArray)
+void AA_ArrayEffect::ArrayClear()
 {
 	for (int32 i = NodeArray.Num() - 1; i >= 0; --i)
 	{
 		DeleteNode(i);
-	}
-
-	if (bShouldDeleteArray)
-	{
-		EndNode->Destroy();
-		Destroy();
 	}
 }
 
@@ -571,44 +578,98 @@ bool AA_ArrayEffect::ParseCommandToSwap(FText Command, FText& PrevName, int32& O
 	return false;
 }
 
-bool AA_ArrayEffect::ParseCommandToDel(FText Command, FText& PrevName, int32& OutIndex)
+bool AA_ArrayEffect::ParseCommandToDelete(FText Command, FText& PrevName, int32& OutIndex, int32& OutLeftIndex, int32& OutRightIndex)
 {
+	OutIndex = INDEX_NONE;
+	OutLeftIndex = INDEX_NONE;
+	OutRightIndex = INDEX_NONE;
+
 	FString Input = Command.ToString();
+
+	const FString DelPrefix = TEXT("del ");
+	if (!Input.StartsWith(DelPrefix))
+	{
+		return false;
+	}
 	Input.RemoveSpacesInline();
 
-	const FString DelSuffix = TEXT(".del[");
-
-	int32 DelPos = Input.Find(DelSuffix);
-	if (DelPos == INDEX_NONE)
+	FString Remainder = Input.RightChop(DelPrefix.Len() - 1);
+	if (Remainder.IsEmpty())
 	{
 		return false;
 	}
 
-	FString ParsedArrayName = Input.Left(DelPos);
+	//del arrname
+	int32 FirstBracketPos = INDEX_NONE;
+	if (!Remainder.FindChar(TEXT('['), FirstBracketPos))
+	{
+		if (!IsValidPythonIdentifier(Remainder))
+		{
+			return false;
+		}
+		PrevName = FText::FromString(Remainder);
+		return true;
+	}
+
+	//del arrname[...]
+	int32 CloseBracketPos = INDEX_NONE;
+	if (!Remainder.FindLastChar(TEXT(']'), CloseBracketPos) || CloseBracketPos <= FirstBracketPos || CloseBracketPos != Remainder.Len() - 1)
+	{
+		return false;
+	}
+
+	FString ParsedArrayName = Remainder.Left(FirstBracketPos);
 	if (!IsValidPythonIdentifier(ParsedArrayName))
 	{
 		return false;
 	}
-
 	PrevName = FText::FromString(ParsedArrayName);
 
-	int32 OpenBracket = DelPos + DelSuffix.Len() - 1;
-	int32 CloseBracket = 0;
+	FString Inside = Remainder.Mid(FirstBracketPos + 1, CloseBracketPos - FirstBracketPos - 1);
 
-	if (!Input.FindLastChar(']', CloseBracket) || CloseBracket <= OpenBracket || CloseBracket != Input.Len() - 1)
+	//del arrname[index]
+	if (Inside.IsNumeric())
+	{
+		OutIndex = FCString::Atoi(*Inside);
+		return OutIndex < NodeArray.Num();
+	}
+
+	//slices ':'
+	int32 ColonPos = INDEX_NONE;
+	if (!Inside.FindChar(TEXT(':'), ColonPos))
 	{
 		return false;
 	}
 
-	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
+	FString Left = Inside.Left(ColonPos);
+	FString Right = Inside.Mid(ColonPos + 1);
 
-	if (!IndexStr.IsNumeric())
+	if (Left.IsEmpty() && Right.IsEmpty()) // [:]
 	{
-		return false;
+		OutLeftIndex = 0;
+		OutRightIndex = NodeArray.Num();
+		return true;
+	}
+	if (Left.IsEmpty() && Right.IsNumeric()) // [:index]
+	{
+		OutLeftIndex = 0;
+		OutRightIndex = FCString::Atoi(*Right);
+		return OutRightIndex < NodeArray.Num();
+	}
+	else if (Right.IsEmpty() && Left.IsNumeric()) // [index:]
+	{
+		OutLeftIndex = FCString::Atoi(*Left);
+		OutRightIndex = NodeArray.Num();
+		return OutLeftIndex < NodeArray.Num();
+	}
+	else if (Left.IsNumeric() && Right.IsNumeric()) // [index:index]
+	{
+		OutLeftIndex = FCString::Atoi(*Left);
+		OutRightIndex = FCString::Atoi(*Right);
+		return OutLeftIndex < OutRightIndex && OutRightIndex < NodeArray.Num();
 	}
 
-	OutIndex = FCString::Atoi(*IndexStr);
-	return true;
+	return false;
 }
 
 bool AA_ArrayEffect::ParseCommandToInsert(FText Command, FText& PrevName, int32& OutIndex)
@@ -976,25 +1037,6 @@ bool AA_ArrayEffect::ParseCommandToCopy(FText Command, FText& PrevName, FText& C
 	return true;
 }
 
-bool AA_ArrayEffect::ParseCommandToDeleteArray(FText Command, FText& PrevName)
-{
-	FString Input = Command.ToString();
-
-	if (!Input.StartsWith(TEXT("del ")))
-	{
-		return false;
-	}
-
-	FString DelName = Input.Mid(4).TrimStartAndEnd();
-	if (DelName.IsEmpty() || !IsValidPythonIdentifier(DelName))
-	{
-		return false;
-	}
-	PrevName = FText::FromString(DelName);
-
-	return true;
-}
-
 void AA_ArrayEffect::AttachToCharacterCamera()
 {
 	if (!bIsOnConcatenation)
@@ -1075,12 +1117,19 @@ void AA_ArrayEffect::MoveArray(FVector NewLocation)
 	SetActorLocation(NewLocation);
 	DefaultLocation = GetActorLocation();
 
-	for (AA_ArrayNode* Node : NodeArray)
-	{
-		Node->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * Node->GetIndex());
-	}
+	MoveNodesConsideringOrder();
+}
 
-	EndNode->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * NodeArray.Num());
+void AA_ArrayEffect::MoveNodesConsideringOrder()
+{
+	for (size_t i = 0; i < NodeArray.Num(); ++i)
+	{
+		NodeArray[i]->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * i);
+	}
+	if (IsValid(EndNode))
+	{
+		EndNode->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * NodeArray.Num());
+	}
 }
 
 void AA_ArrayEffect::RefreshNameLocationAndRotation()
