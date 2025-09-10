@@ -78,7 +78,7 @@ public:
 	void GetTextCommand(FText Command);
 
 public:
-	void AppendNode();
+	void AppendNode(FName VariableName = NAME_None);
 
 private:
 	void SwapNodes(int32 Node1, int32 Node2);
@@ -87,7 +87,7 @@ private:
 
 	void InsertNode(int32 Index);
 
-	void ArrayPop();
+	void ArrayPop(int32 Index);
 
 	void ArrayClear();
 
@@ -97,16 +97,14 @@ public:
 	void ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate);
 
 private:
-	void ArraySplit(int32 SplitIndex, bool MoveDirection, FText& NewName);
-
 	void ArrayRename(FText NewName);
 
-	void ArrayCopy(FText Name, int32 SplitIndex = -1, bool MoveDirection = true);
+	void ArrayCopy(FText Name, int32 OutLeftIndex, int32 OutRightIndex);
 
 private:
 	bool IsValidPythonIdentifier(const FString& Str);
 
-	bool ParseCommandToAppend(FText Command, FText& PrevName);
+	bool ParseCommandToAppend(FText Command, FText& PrevName, FName& VariableName);
 
 	bool ParseCommandToSwap(FText Command, FText& PrevName, int32& OutIndex1, int32& OutIndex2);
 
@@ -114,7 +112,7 @@ private:
 
 	bool ParseCommandToInsert(FText Command, FText& PrevName, int32& OutIndex);
 
-	bool ParseCommandToPop(FText Command, FText& PrevName);
+	bool ParseCommandToPop(FText Command, FText& PrevName, FName& VariableName, int32& Index);
 
 	bool ParseCommandToClear(FText Command, FText& PrevName);
 
@@ -124,11 +122,9 @@ private:
 
 	bool ParseCommandToReset(FText Command, FText& PrevName);
 
-	bool ParseCommandToSplit(FText Command, FText& PrevName, FText& NewName, int32& OutIndex, bool& Direction);
-
 	bool ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
 
-	bool ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName);
+	bool ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName, int32& OutLeftIndex, int32& OutRightIndex);
 
 private:
 	void AttachToCharacterCamera();
@@ -137,13 +133,13 @@ private:
 
 	void AttachToArray();
 
-	void MoveArray(FVector NewLocation);
-
 	void MoveNodesConsideringOrder();
 
 	void RefreshNameLocationAndRotation();
 
 	void SetArrayName(FText Name);
+
+	AActor* GetActorWithTag(const FName& Tag);
 
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;

@@ -90,20 +90,37 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 				}
 			}
 
-			OtherComp->SetSimulatePhysics(false);
-			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Ignore);
-			OtherComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Ignore);
-			OtherActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-			GrabbedActor = OtherActor;
-			GrabbedComponent = OtherComp;
-			bIsOccupied = true;
-			bShouldGrab = true;
-			SetBorderMaterialIfOccupied(GrabbedComponent);
+			TryGrabActor(OtherActor);
+		}
+	}
+}
 
-			if (NodeIndex == -1)
-			{
-				OwnerActor->AppendNode();
-			}
+void AA_ArrayNode::TryGrabActor(AActor* OtherActor)
+{
+	if (!OtherActor)
+	{
+		return;
+	}
+
+	if (UStaticMeshComponent* MeshComp = OtherActor->FindComponentByClass<UStaticMeshComponent>())
+	{
+		if (!MeshComp) return;
+
+		MeshComp->SetSimulatePhysics(false);
+		MeshComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECR_Ignore);
+		MeshComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECR_Ignore);
+		OtherActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+
+		GrabbedActor = OtherActor;
+		GrabbedComponent = MeshComp;
+		bIsOccupied = true;
+		bShouldGrab = true;
+
+		SetBorderMaterialIfOccupied(GrabbedComponent);
+
+		if (NodeIndex == -1)
+		{
+			OwnerActor->AppendNode();
 		}
 	}
 }
