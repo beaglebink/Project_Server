@@ -101,7 +101,7 @@ private:
 
 	void ArrayRename(FText NewName);
 
-	void ArrayCopy(FText Name, int32 SplitIndex = -1, bool MoveDirection = true);
+	void ArrayCopy(FText Name, int32 OutLeftIndex, int32 OutRightIndex);
 
 private:
 	bool IsValidPythonIdentifier(const FString& Str);
@@ -124,11 +124,11 @@ private:
 
 	bool ParseCommandToReset(FText Command, FText& PrevName);
 
-	bool ParseCommandToSplit(FText Command, FText& PrevName, FText& NewName, int32& OutIndex, bool& Direction);
+	bool ParseCommandToSplit(FText Command, FText& PrevName, FText& NewName, int32& OutLeftIndex, int32& OutRightIndex);
 
 	bool ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
 
-	bool ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName);
+	bool ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName, int32& OutLeftIndex, int32& OutRightIndex);
 
 private:
 	void AttachToCharacterCamera();
@@ -136,8 +136,6 @@ private:
 	void DetachFromCharacterCamera();
 
 	void AttachToArray();
-
-	void MoveArray(FVector NewLocation);
 
 	void MoveNodesConsideringOrder();
 
