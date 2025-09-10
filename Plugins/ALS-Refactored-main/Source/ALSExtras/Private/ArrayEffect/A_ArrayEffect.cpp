@@ -96,13 +96,9 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 
 	int32 SizeOfConcatenatedArray = -1;
 
-	bool bSplitDirecton = false;
-
 	FText PrevName;
 
 	FText NewName;
-
-	FText CopyName;
 
 	int32 ArrayNum;
 
@@ -180,9 +176,9 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		ArrayRename(NewName);
 	}
 	//copy
-	else if (ParseCommandToCopy(Command, PrevName, CopyName, OutLeftIndex, OutRightIndex) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToCopy(Command, PrevName, NewName, OutLeftIndex, OutRightIndex) && PrevName.ToString() == ArrayName.ToString())
 	{
-		ArrayCopy(CopyName, OutLeftIndex, OutRightIndex);
+		ArrayCopy(NewName, OutLeftIndex, OutRightIndex);
 	}
 }
 
@@ -342,7 +338,7 @@ void AA_ArrayEffect::ArrayRename(FText NewName)
 
 void AA_ArrayEffect::ArrayCopy(FText Name, int32 OutLeftIndex, int32 OutRightIndex)
 {
-	if (!ArrayClass)
+	if (!ArrayClass || OutLeftIndex == -1 || OutRightIndex == -1)
 	{
 		return;
 	}

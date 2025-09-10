@@ -97,8 +97,6 @@ public:
 	void ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate);
 
 private:
-	void ArraySplit(int32 SplitIndex, bool MoveDirection, FText& NewName);
-
 	void ArrayRename(FText NewName);
 
 	void ArrayCopy(FText Name, int32 OutLeftIndex, int32 OutRightIndex);
@@ -123,8 +121,6 @@ private:
 	bool ParseCommandToConcatenate(FText Command, int32& OutSize1, int32& OutSize2);
 
 	bool ParseCommandToReset(FText Command, FText& PrevName);
-
-	bool ParseCommandToSplit(FText Command, FText& PrevName, FText& NewName, int32& OutLeftIndex, int32& OutRightIndex);
 
 	bool ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
 
