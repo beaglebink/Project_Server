@@ -18,26 +18,24 @@ void AA_InteractableActor::Tick(float DeltaTime)
 
 bool AA_InteractableActor::ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName)
 {
+	FString Input = Command.ToString();
+
+	FString Left, Right;
+
+	if (!Input.Split(TEXT("="), &Left, &Right))
 	{
-		FString Input = Command.ToString();
-
-		FString Left, Right;
-
-		if (!Input.Split(TEXT("="), &Left, &Right))
-		{
-			return false;
-		}
-		Left.RemoveSpacesInline();
-		Right = Right.TrimStartAndEnd();
-
-		if (!AA_ArrayEffect::IsValidPythonIdentifier(Left))
-		{
-			return false;
-		}
-
-		OutVarName = FName(Left);
-		OutActorName = FName(Right);
-
-		return true;
+		return false;
 	}
+	Left.RemoveSpacesInline();
+	Right = Right.TrimStartAndEnd();
+
+	if (!AA_ArrayEffect::IsValidPythonIdentifier(Left))
+	{
+		return false;
+	}
+
+	OutVarName = FName(Left);
+	OutActorName = FName(Right);
+
+	return true;
 }
