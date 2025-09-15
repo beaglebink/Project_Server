@@ -101,9 +101,11 @@ private:
 
 	void ArrayCopy(FText Name, int32 OutLeftIndex, int32 OutRightIndex);
 
-private:
-	bool IsValidPythonIdentifier(const FString& Str);
+public:
+	UFUNCTION(BlueprintCallable)
+	static bool IsValidPythonIdentifier(const FString& Str);
 
+private:
 	bool ParseCommandToAppend(FText Command, FText& PrevName, FName& VariableName);
 
 	bool ParseCommandToSwap(FText Command, FText& PrevName, int32& OutIndex1, int32& OutIndex2);

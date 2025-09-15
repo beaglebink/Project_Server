@@ -202,7 +202,7 @@ void AA_ArrayEffect::AppendNode(FName VariableName)
 	{
 		if (AActor* GrabbedActor = GetActorWithTag(VariableName))
 		{
-			GrabbedActor->Tags.Empty();
+			GrabbedActor->Tags.Remove(VariableName);
 			EndNode->TryGrabActor(GrabbedActor);
 		}
 	}
