@@ -85,7 +85,7 @@ private:
 
 	void DeleteNode(int32 Index);
 
-	void InsertNode(int32 Index);
+	void InsertNode(FName VariableName, int32 Index);
 
 	void ArrayPop(int32 Index);
 
@@ -112,7 +112,7 @@ private:
 
 	bool ParseCommandToDelete(FText Command, FText& PrevName, int32& OutIndex, int32& OutLeftIndex, int32& OutRightIndex);
 
-	bool ParseCommandToInsert(FText Command, FText& PrevName, int32& OutIndex);
+	bool ParseCommandToInsert(FText Command, FText& PrevName, FName& VariableName, int32& OutIndex);
 
 	bool ParseCommandToPop(FText Command, FText& PrevName, FName& VariableName, int32& Index);
 

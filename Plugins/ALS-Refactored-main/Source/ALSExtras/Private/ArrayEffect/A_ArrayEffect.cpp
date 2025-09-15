@@ -137,9 +137,9 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 		MoveNodesConsideringOrder();
 	}
 	//insert
-	else if (ParseCommandToInsert(Command, PrevName, OutIndex) && PrevName.ToString() == ArrayName.ToString())
+	else if (ParseCommandToInsert(Command, PrevName, VariableName, OutIndex) && PrevName.ToString() == ArrayName.ToString())
 	{
-		InsertNode(OutIndex);
+		InsertNode(VariableName, OutIndex);
 	}
 	//pop
 	else if (ParseCommandToPop(Command, PrevName, VariableName, OutIndex) && PrevName.ToString() == ArrayName.ToString())
@@ -264,15 +264,20 @@ void AA_ArrayEffect::DeleteNode(int32 Index)
 	NodeArray.RemoveAt(Index);
 }
 
-void AA_ArrayEffect::InsertNode(int32 Index)
+void AA_ArrayEffect::InsertNode(FName VariableName, int32 Index)
 {
-	if (Index < 0 || Index >= NodeArray.Num() || NodeArray.Num() == 10)
+	if (NodeArray.Num() == 10)
 	{
 		return;
 	}
 
 	EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * NodeWidth);
-	FVector SpawnLocation = NodeArray[Index]->GetActorLocation();
+
+	FVector SpawnLocation = GetActorLocation();
+	if (NodeArray.Num() > 0)
+	{
+		SpawnLocation = NodeArray[Index]->GetActorLocation();
+	}
 
 	for (size_t i = Index; i < NodeArray.Num(); ++i)
 	{
@@ -286,6 +291,15 @@ void AA_ArrayEffect::InsertNode(int32 Index)
 		NewNode->OwnerActor = this;
 		NewNode->SetIndex(Index);
 		NodeArray.Insert(NewNode, Index);
+
+		if (!VariableName.IsNone())
+		{
+			if (AActor* GrabbedActor = GetActorWithTag(VariableName))
+			{
+				GrabbedActor->Tags.Remove(VariableName);
+				NewNode->TryGrabActor(GrabbedActor);
+			}
+		}
 	}
 }
 
@@ -638,43 +652,59 @@ bool AA_ArrayEffect::ParseCommandToDelete(FText Command, FText& PrevName, int32&
 	return false;
 }
 
-bool AA_ArrayEffect::ParseCommandToInsert(FText Command, FText& PrevName, int32& OutIndex)
+bool AA_ArrayEffect::ParseCommandToInsert(FText Command, FText& PrevName, FName& VariableName, int32& OutIndex)
 {
 	FString Input = Command.ToString();
 	Input.RemoveSpacesInline();
 
-	const FString InsertSuffix = TEXT(".insert[");
-
-	int32 InsertPos = Input.Find(InsertSuffix);
-	if (InsertPos == INDEX_NONE)
+	const FString InsertPrefix = TEXT(".insert(");
+	if (!Input.Contains(InsertPrefix) || !Input.EndsWith(TEXT(")")))
 	{
 		return false;
 	}
 
-	FString ParsedArrayName = Input.Left(InsertPos);
+	int32 PrefixPos = Input.Find(InsertPrefix);
+	FString ParsedArrayName = Input.Left(PrefixPos);
+
 	if (!IsValidPythonIdentifier(ParsedArrayName))
 	{
 		return false;
 	}
-
 	PrevName = FText::FromString(ParsedArrayName);
 
-	int32 OpenBracket = InsertPos + InsertSuffix.Len() - 1;
-	int32 CloseBracket = 0;
+	FString Inside = Input.Mid(PrefixPos + InsertPrefix.Len(), Input.Len() - (PrefixPos + InsertPrefix.Len() + 1));
 
-	if (!Input.FindLastChar(']', CloseBracket) || CloseBracket <= OpenBracket || CloseBracket != Input.Len() - 1)
+	TArray<FString> Parts;
+	Inside.ParseIntoArray(Parts, TEXT(","), true);
+	if (Parts.Num() != 2)
 	{
 		return false;
 	}
 
-	FString IndexStr = Input.Mid(OpenBracket + 1, CloseBracket - OpenBracket - 1);
-
-	if (!IndexStr.IsNumeric())
+	if (!Parts[0].IsNumeric())
 	{
 		return false;
 	}
+	OutIndex = FCString::Atoi(*Parts[0]);
+	if (OutIndex >= NodeArray.Num())
+	{
+		OutIndex = FMath::Max(0, NodeArray.Num() - 1);
+	}
 
-	OutIndex = FCString::Atoi(*IndexStr);
+	FString VarStr = Parts[1];
+	if (VarStr == TEXT("None") || VarStr == TEXT("''") || VarStr == TEXT("[]"))
+	{
+		VariableName = FName();
+	}
+	else
+	{
+		if (!IsValidPythonIdentifier(VarStr))
+		{
+			return false;
+		}
+		VariableName = FName(*VarStr);
+	}
+
 	return true;
 }
 
