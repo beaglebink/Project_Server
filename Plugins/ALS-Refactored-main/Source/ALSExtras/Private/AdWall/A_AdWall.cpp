@@ -152,7 +152,9 @@ void AA_AdWall::OnAdWallBeginOverlap(UPrimitiveComponent* OverlappedComponent, A
 
 	if (AAlsCharacterExample* Ch = Cast<AAlsCharacterExample>(OtherActor))
 	{
-		Ch->StumbleEffect(GetActorLocation(), 200.0f);
+		FVector Direction = (SweepResult.Location - Ch->GetActorLocation()).GetSafeNormal() * 3000.0f;
+		Direction.Z = FMath::Clamp(Direction.Z, 0.0f, 1000.0f);
+		Ch->LaunchCharacter(Direction, false, false);
 	}
 }
 
