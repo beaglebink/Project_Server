@@ -23,6 +23,9 @@ class ALSEXTRAS_API AA_AdWall : public AActor
 public:
 	AA_AdWall();
 
+private:
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -42,21 +45,40 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
 	EnumAdType AdType;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", EditCondition = "AdType == EnumAdType::Drifter", EditConditionHides, ToolTip = "Minimum speed AdWall can move", ClampMin = "0", ClampMax = "300"))
+	float MinSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", EditCondition = "AdType == EnumAdType::Drifter", EditConditionHides, ToolTip = "Maximum speed AdWall can move", ClampMin = "0", ClampMax = "300"))
+	float MaxSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", EditCondition = "AdType == EnumAdType::Drifter", EditConditionHides, ToolTip = "Minimum time before AdWall changes velocity", ClampMin = "0", ClampMax = "10"))
+	float MinTime;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", EditCondition = "AdType == EnumAdType::Drifter", EditConditionHides, ToolTip = "Maximum time before AdWall changes velocity", ClampMin = "0", ClampMax = "10"))
+	float MaxTime;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", EditCondition = "AdType == EnumAdType::Malicious", EditConditionHides, ClampMin = "0", ClampMax = "20"))
 	float AdDamage = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (AllowPrivateAccess = "true"))
+	UTexture2D* AdTexture;
 
 	FVector TargetVelocity;
 
 	uint8 bIsHitAdWall : 1{false};
 
+	UPROPERTY()
+	UMaterialInstanceDynamic* DynamicMaterial;
+
 	bool AdWallsMoreThan_25();
 
 	void SpawnAd();
-	
+
 	void DriftAd();
 
 	void ScheduleNextTimer();
 
-	FVector SetTargetVelocity(float MinVelocity, float MaxVelocity);
+	FVector SetTargetVelocity();
 
 	UFUNCTION()
 	void OnAdWallBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -66,4 +88,8 @@ private:
 
 	UFUNCTION()
 	void OnCrossHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Material")
+	void UpdateScreenMaterial();
 };
