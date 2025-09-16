@@ -46,6 +46,8 @@ private:
 
 	FVector TargetVelocity;
 
+	uint8 bIsHitAdWall : 1{false};
+
 	bool AdWallsMoreThan_25();
 
 	void SpawnAd();
@@ -53,4 +55,15 @@ private:
 	void DriftAd();
 
 	void ScheduleNextTimer();
+
+	FVector SetTargetVelocity(float MinVelocity, float MaxVelocity);
+
+	UFUNCTION()
+	void OnAdWallBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnAdWallHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	UFUNCTION()
+	void OnCrossHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 };
