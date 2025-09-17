@@ -60,6 +60,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", EditCondition = "AdType == EnumAdType::Malicious", EditConditionHides, ClampMin = "0", ClampMax = "20"))
 	float AdDamage = 0.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
+	uint8 bShouldDoKnockback : 1 {false};
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (AllowPrivateAccess = "true"))
 	UTexture2D* AdTexture;
 
@@ -79,9 +82,6 @@ private:
 	void ScheduleNextTimer();
 
 	FVector SetTargetVelocity();
-
-	UFUNCTION()
-	void OnAdWallBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	UFUNCTION()
 	void OnAdWallHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
