@@ -140,7 +140,7 @@ void UAC_Inventory::CloseInventory()
 
 	if (Inventory)
 	{
-		Inventory->RemoveFromViewport();
+		Inventory->RemoveFromParent();
 
 		APlayerController* PC = Cast<APlayerController>(GetOwner()->GetInstigatorController());
 		if (PC)

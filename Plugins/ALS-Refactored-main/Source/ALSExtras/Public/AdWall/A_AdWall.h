@@ -24,7 +24,7 @@ public:
 	AA_AdWall();
 
 private:
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
 
 protected:
 	virtual void BeginPlay() override;
