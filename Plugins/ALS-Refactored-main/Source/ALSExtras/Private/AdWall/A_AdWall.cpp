@@ -123,6 +123,12 @@ void AA_AdWall::DriftAd()
 	AdWallComp->SetPhysicsAngularVelocityInDegrees(DeltaRot.Euler());
 }
 
+void AA_AdWall::DestroyAd()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "DESTROY");
+	Destroy();
+}
+
 void AA_AdWall::ScheduleNextTimer()
 {
 	TargetVelocity = SetTargetVelocity();
@@ -203,4 +209,9 @@ void AA_AdWall::UpdateScreenMaterial()
 	{
 		DynamicMaterial->SetTextureParameterValue(FName("Screen"), AdTexture);
 	}
+}
+
+void AA_AdWall::HandleWeaponShot_Implementation()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "SHOT_HANDLE");
 }

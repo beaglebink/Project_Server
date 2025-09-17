@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Interfaces/I_WeaponInteraction.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "A_AdWall.generated.h"
@@ -16,7 +17,7 @@ enum class EnumAdType :uint8
 };
 
 UCLASS()
-class ALSEXTRAS_API AA_AdWall : public AActor
+class ALSEXTRAS_API AA_AdWall : public AActor, public II_WeaponInteraction
 {
 	GENERATED_BODY()
 
@@ -79,6 +80,8 @@ private:
 
 	void DriftAd();
 
+	void DestroyAd();
+
 	void ScheduleNextTimer();
 
 	FVector SetTargetVelocity();
@@ -92,4 +95,6 @@ private:
 public:
 	UFUNCTION(BlueprintCallable, Category = "Material")
 	void UpdateScreenMaterial();
+
+	void HandleWeaponShot_Implementation();
 };
