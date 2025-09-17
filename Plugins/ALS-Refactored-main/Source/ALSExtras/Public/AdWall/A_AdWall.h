@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Components/TimelineComponent.h"
 #include "Interfaces/I_WeaponInteraction.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -42,6 +43,15 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UProjectileMovementComponent* MovementComp;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UAudioComponent* AudioComp;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
+	USoundBase* SpawnSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
+	USoundBase* DestroySound;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
 	EnumAdType AdType;
@@ -63,6 +73,9 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
 	uint8 bShouldDoKnockback : 1 {false};
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<AA_AdWall> AdWallClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (AllowPrivateAccess = "true"))
 	UTexture2D* AdTexture;
@@ -76,7 +89,9 @@ private:
 
 	bool AdWallsMoreThan_25();
 
-	void SpawnAd(bool bIsBumped);
+	void CallSpawnAd(bool bIsBumped);
+
+	void SpawnAd();
 
 	void DriftAd();
 
@@ -94,4 +109,37 @@ public:
 	void UpdateScreenMaterial();
 
 	void HandleWeaponShot_Implementation(const FHitResult& Hit);
+
+protected:
+	UPROPERTY()
+	UTimelineComponent* SpawnTimeline;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Timeline")
+	UCurveFloat* SpawnFloatCurve;
+
+	FOnTimelineFloat SpawnProgressFunction;
+
+	FOnTimelineEvent SpawnFinishedFunction;
+
+	UFUNCTION()
+	void SpawnTimelineProgress(float Value);
+
+	UFUNCTION()
+	void SpawnTimelineFinished();
+	
+	UPROPERTY()
+	UTimelineComponent* DestroyTimeline;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Timeline")
+	UCurveFloat* DestroyFloatCurve;
+
+	FOnTimelineFloat DestroyProgressFunction;
+
+	FOnTimelineEvent DestroyFinishedFunction;
+
+	UFUNCTION()
+	void DestroyTimelineProgress(float Value);
+
+	UFUNCTION()
+	void DestroyTimelineFinished();
 };

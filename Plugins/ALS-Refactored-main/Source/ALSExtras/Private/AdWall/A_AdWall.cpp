@@ -2,6 +2,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "AlsCharacterExample.h"
+#include "Components/AudioComponent.h"
 
 AA_AdWall::AA_AdWall()
 {
@@ -10,12 +11,17 @@ AA_AdWall::AA_AdWall()
 	AdWallComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AdWallComponent"));
 	CrossComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CrossComponent"));
 	MovementComp = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("MovementComponent"));
+	SpawnTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("SpawnTimeline"));
+	DestroyTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DestroyTimeline"));
+	AudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 
 	RootComponent = AdWallComp;
 	CrossComp->SetupAttachment(RootComponent);
 	CrossComp->SetRelativeLocation(FVector(2.02f, -140.0f, 90.0f));
 	MovementComp->UpdatedComponent = RootComponent;
 	MovementComp->InitialSpeed = 0.0f;
+	AudioComp->SetupAttachment(RootComponent);
+	AudioComp->bAutoActivate = false;
 }
 
 #if WITH_EDITOR
@@ -51,6 +57,27 @@ void AA_AdWall::BeginPlay()
 	AdWallComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	AdWallComp->SetCollisionObjectType(ECC_PhysicsBody);
 	AdWallComp->SetCollisionResponseToAllChannels(ECR_Block);
+
+	if (SpawnFloatCurve)
+	{
+		SpawnProgressFunction.BindUFunction(this, FName("SpawnTimelineProgress"));
+		SpawnTimeline->AddInterpFloat(SpawnFloatCurve, SpawnProgressFunction);
+
+		SpawnFinishedFunction.BindUFunction(this, FName("SpawnTimelineFinished"));
+		SpawnTimeline->SetTimelineFinishedFunc(SpawnFinishedFunction);
+
+		SpawnTimeline->SetLooping(false);
+	}
+	if (DestroyFloatCurve)
+	{
+		DestroyProgressFunction.BindUFunction(this, FName("DestroyTimelineProgress"));
+		DestroyTimeline->AddInterpFloat(DestroyFloatCurve, DestroyProgressFunction);
+
+		DestroyFinishedFunction.BindUFunction(this, FName("DestroyTimelineFinished"));
+		DestroyTimeline->SetTimelineFinishedFunc(DestroyFinishedFunction);
+
+		DestroyTimeline->SetLooping(false);
+	}
 
 	switch (AdType)
 	{
@@ -102,7 +129,7 @@ bool AA_AdWall::AdWallsMoreThan_25()
 	return Ads.Num() >= 25;
 }
 
-void AA_AdWall::SpawnAd(bool bIsBumped)
+void AA_AdWall::CallSpawnAd(bool bIsBumped)
 {
 	if (AdWallsMoreThan_25())
 	{
@@ -116,28 +143,35 @@ void AA_AdWall::SpawnAd(bool bIsBumped)
 		{
 		case EnumAdType::Standard:
 		{
-			break;
 		}
 		case EnumAdType::Drifter:
 		{
+			if (SpawnChance <= 20.0f)
+			{
+				SpawnAd();
+			}
 			break;
 		}
 		case EnumAdType::Inflator:
 		{
+			if (SpawnChance <= 30.0f)
+			{
+				SpawnAd();
+			}
 			break;
 		}
 		case EnumAdType::Malicious:
 		{
+			if (SpawnChance <= 25.0f)
+			{
+				SpawnAd();
+			}
 			break;
 		}
 		default:
 		{
 			break;
 		}
-		}
-		if (SpawnChance <= 20.0f)
-		{
-			GetWorld()->SpawnActor<AA_AdWall>(this->StaticClass());
 		}
 	}
 	else
@@ -146,18 +180,29 @@ void AA_AdWall::SpawnAd(bool bIsBumped)
 		{
 		case EnumAdType::Standard:
 		{
-			break;
 		}
 		case EnumAdType::Drifter:
 		{
+			if (SpawnChance <= 20.0f)
+			{
+				SpawnAd();
+			}
 			break;
 		}
 		case EnumAdType::Inflator:
 		{
+			if (SpawnChance <= 30.0f)
+			{
+				SpawnAd();
+			}
 			break;
 		}
 		case EnumAdType::Malicious:
 		{
+			if (SpawnChance <= 25.0f)
+			{
+				SpawnAd();
+			}
 			break;
 		}
 		default:
@@ -165,12 +210,39 @@ void AA_AdWall::SpawnAd(bool bIsBumped)
 			break;
 		}
 		}
-		if (SpawnChance <= 30.0f)
-		{
-			GetWorld()->SpawnActor<AA_AdWall>(this->StaticClass());
+	}
+}
 
-			GetWorld()->SpawnActor<AA_AdWall>(this->StaticClass());
-		}
+void AA_AdWall::SpawnAd()
+{
+	if (!AdWallClass)
+	{
+		return;
+	}
+
+	FTransform SpawnTransform;
+	SpawnTransform.SetLocation(GetActorLocation() + GetActorForwardVector() * 20.0f - GetActorRightVector() * 20.0f + GetActorUpVector() * 20.0f);
+	SpawnTransform.SetRotation(GetActorRotation().Quaternion());
+	SpawnTransform.SetScale3D(FVector(0.01f));
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	if (AA_AdWall* Wall = GetWorld()->SpawnActor<AA_AdWall>(AdWallClass, SpawnTransform, SpawnParams))
+	{
+		Wall->SpawnSound = SpawnSound;
+		Wall->DestroySound = DestroySound;
+		Wall->AdType = AdType;
+		Wall->MinSpeed = MinSpeed;
+		Wall->MaxSpeed = MaxSpeed;
+		Wall->MinTime = MinTime;
+		Wall->MaxTime = MaxTime;
+		Wall->bShouldDoKnockback = bShouldDoKnockback;
+		Wall->AdTexture = AdTexture;
+		Wall->UpdateScreenMaterial();
+		Wall->SpawnTimeline->PlayFromStart();
+		Wall->AudioComp->SetSound(SpawnSound);
+		Wall->AudioComp->Play();
 	}
 }
 
@@ -193,7 +265,10 @@ void AA_AdWall::DriftAd()
 void AA_AdWall::DestroyAd()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "DESTROY");
-	Destroy();
+
+	AudioComp->SetSound(DestroySound);
+	AudioComp->Play();
+	DestroyTimeline->PlayFromStart();
 }
 
 void AA_AdWall::ScheduleNextTimer()
@@ -230,7 +305,7 @@ void AA_AdWall::OnAdWallHit(UPrimitiveComponent* HitComponent, AActor* OtherActo
 			Direction.Z = FMath::Clamp(Direction.Z, 0.0f, 1000.0f);
 			Ch->LaunchCharacter(Direction, false, false);
 
-			SpawnAd(true);
+			CallSpawnAd(true);
 		}
 	}
 
@@ -284,10 +359,32 @@ void AA_AdWall::HandleWeaponShot_Implementation(const FHitResult& Hit)
 {
 	if (Hit.Component == AdWallComp)
 	{
-		SpawnAd(false);
+		CallSpawnAd(false);
 	}
 	else if (Hit.Component == CrossComp)
 	{
 		DestroyAd();
 	}
+}
+
+void AA_AdWall::SpawnTimelineProgress(float Value)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, "Spawn");
+	float ScaleValue = FMath::Lerp(0.01f, 1.0f, Value);
+	SetActorScale3D(FVector(ScaleValue));
+}
+
+void AA_AdWall::SpawnTimelineFinished()
+{
+	AudioComp->Stop();
+}
+
+void AA_AdWall::DestroyTimelineProgress(float Value)
+{
+}
+
+void AA_AdWall::DestroyTimelineFinished()
+{
+	AudioComp->Stop();
+	Destroy();
 }
