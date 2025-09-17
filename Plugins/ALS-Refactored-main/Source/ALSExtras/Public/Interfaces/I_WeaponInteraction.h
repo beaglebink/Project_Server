@@ -16,8 +16,8 @@ class ALSEXTRAS_API II_WeaponInteraction
 
 public:
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponInterface")
-    void HandleWeaponShot();
+    void HandleWeaponShot(const FHitResult& Hit);
 
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponInterface")
-    void HandleTextFromWeapon();
+    void HandleTextFromWeapon(const FText& TextCommand);
 };

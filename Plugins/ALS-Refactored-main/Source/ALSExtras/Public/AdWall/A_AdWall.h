@@ -76,7 +76,7 @@ private:
 
 	bool AdWallsMoreThan_25();
 
-	void SpawnAd();
+	void SpawnAd(bool bIsBumped);
 
 	void DriftAd();
 
@@ -89,12 +89,9 @@ private:
 	UFUNCTION()
 	void OnAdWallHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-	UFUNCTION()
-	void OnCrossHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-
 public:
 	UFUNCTION(BlueprintCallable, Category = "Material")
 	void UpdateScreenMaterial();
 
-	void HandleWeaponShot_Implementation();
+	void HandleWeaponShot_Implementation(const FHitResult& Hit);
 };

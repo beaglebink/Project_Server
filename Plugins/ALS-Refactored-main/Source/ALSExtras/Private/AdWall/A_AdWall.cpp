@@ -47,7 +47,6 @@ void AA_AdWall::BeginPlay()
 	Super::BeginPlay();
 
 	AdWallComp->OnComponentHit.AddDynamic(this, &AA_AdWall::OnAdWallHit);
-	CrossComp->OnComponentHit.AddDynamic(this, &AA_AdWall::OnCrossHit);
 
 	AdWallComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	AdWallComp->SetCollisionObjectType(ECC_PhysicsBody);
@@ -103,8 +102,76 @@ bool AA_AdWall::AdWallsMoreThan_25()
 	return Ads.Num() >= 25;
 }
 
-void AA_AdWall::SpawnAd()
+void AA_AdWall::SpawnAd(bool bIsBumped)
 {
+	if (AdWallsMoreThan_25())
+	{
+		return;
+	}
+
+	float SpawnChance = FMath::FRandRange(0.0f, 100.0f);
+	if (bIsBumped)
+	{
+		switch (AdType)
+		{
+		case EnumAdType::Standard:
+		{
+			break;
+		}
+		case EnumAdType::Drifter:
+		{
+			break;
+		}
+		case EnumAdType::Inflator:
+		{
+			break;
+		}
+		case EnumAdType::Malicious:
+		{
+			break;
+		}
+		default:
+		{
+			break;
+		}
+		}
+		if (SpawnChance <= 20.0f)
+		{
+			GetWorld()->SpawnActor<AA_AdWall>(this->StaticClass());
+		}
+	}
+	else
+	{
+		switch (AdType)
+		{
+		case EnumAdType::Standard:
+		{
+			break;
+		}
+		case EnumAdType::Drifter:
+		{
+			break;
+		}
+		case EnumAdType::Inflator:
+		{
+			break;
+		}
+		case EnumAdType::Malicious:
+		{
+			break;
+		}
+		default:
+		{
+			break;
+		}
+		}
+		if (SpawnChance <= 30.0f)
+		{
+			GetWorld()->SpawnActor<AA_AdWall>(this->StaticClass());
+
+			GetWorld()->SpawnActor<AA_AdWall>(this->StaticClass());
+		}
+	}
 }
 
 void AA_AdWall::DriftAd()
@@ -162,6 +229,8 @@ void AA_AdWall::OnAdWallHit(UPrimitiveComponent* HitComponent, AActor* OtherActo
 			FVector Direction = (Ch->GetActorLocation() - Hit.ImpactPoint).GetSafeNormal() * 3000.0f;
 			Direction.Z = FMath::Clamp(Direction.Z, 0.0f, 1000.0f);
 			Ch->LaunchCharacter(Direction, false, false);
+
+			SpawnAd(true);
 		}
 	}
 
@@ -184,11 +253,11 @@ void AA_AdWall::OnAdWallHit(UPrimitiveComponent* HitComponent, AActor* OtherActo
 				TargetVelocity = SetTargetVelocity();
 			}, 0.29f, false);
 	}
-}
 
-void AA_AdWall::OnCrossHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
-{
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, OtherActor->GetName());
+	if (AdType == EnumAdType::Malicious && Ch)
+	{
+		UGameplayStatics::ApplyDamage(Ch, FMath::FRandRange(FMath::Max(0.0f, AdDamage - 5.0f), AdDamage + 5.0f), Ch->GetController(), this, UDamageType::StaticClass());
+	}
 }
 
 void AA_AdWall::UpdateScreenMaterial()
@@ -211,7 +280,14 @@ void AA_AdWall::UpdateScreenMaterial()
 	}
 }
 
-void AA_AdWall::HandleWeaponShot_Implementation()
+void AA_AdWall::HandleWeaponShot_Implementation(const FHitResult& Hit)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "SHOT_HANDLE");
+	if (Hit.Component == AdWallComp)
+	{
+		SpawnAd(false);
+	}
+	else if (Hit.Component == CrossComp)
+	{
+		DestroyAd();
+	}
 }
