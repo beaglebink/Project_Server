@@ -138,84 +138,28 @@ void AA_AdWall::CallSpawnAd(bool bIsBumped)
 		return;
 	}
 
-	float SpawnChance = FMath::FRandRange(0.0f, 100.0f);
-	if (bIsBumped)
+	int32 SpawnIndex = 0;
+
+	for (size_t i = 0; i < HowMuchWindowsToSpawn; ++i)
 	{
-		switch (AdType)
+		float SpawnChance = FMath::FRandRange(0.0f, 100.0f);
+		bool bShouldSpawn = (bIsBumped && SpawnChance <= BumpSpawnChance) || (!bIsBumped && SpawnChance <= ShotSpawnChance);
+
+		if (bShouldSpawn)
 		{
-		case EnumAdType::Standard:
-		{
-		}
-		case EnumAdType::Drifter:
-		{
-			if (SpawnChance <= 20.0f)
-			{
-				SpawnAd();
-			}
-			break;
-		}
-		case EnumAdType::Inflator:
-		{
-			if (SpawnChance <= 30.0f)
-			{
-				SpawnAd();
-			}
-			break;
-		}
-		case EnumAdType::Malicious:
-		{
-			if (SpawnChance <= 25.0f)
-			{
-				SpawnAd();
-			}
-			break;
-		}
-		default:
-		{
-			break;
-		}
-		}
-	}
-	else
-	{
-		switch (AdType)
-		{
-		case EnumAdType::Standard:
-		{
-		}
-		case EnumAdType::Drifter:
-		{
-			if (SpawnChance <= 20.0f)
-			{
-				SpawnAd();
-			}
-			break;
-		}
-		case EnumAdType::Inflator:
-		{
-			if (SpawnChance <= 30.0f)
-			{
-				SpawnAd();
-			}
-			break;
-		}
-		case EnumAdType::Malicious:
-		{
-			if (SpawnChance <= 25.0f)
-			{
-				SpawnAd();
-			}
-			break;
-		}
-		default:
-		{
-			break;
-		}
+			float Delay = 1.5f * SpawnIndex;
+			++SpawnIndex;
+
+			FTimerHandle TimerHandle;
+			GetWorldTimerManager().SetTimer(TimerHandle, [this, SpawnIndex]()
+				{
+					SpawnAd(SpawnIndex);
+				}, FMath::Max(Delay, 0.01f), false);
 		}
 	}
 }
 
-void AA_AdWall::SpawnAd()
+void AA_AdWall::SpawnAd(int32 OrderNumber)
 {
 	if (!AdWallClass)
 	{
@@ -223,7 +167,7 @@ void AA_AdWall::SpawnAd()
 	}
 
 	FTransform SpawnTransform;
-	SpawnTransform.SetLocation(GetActorLocation() + GetActorForwardVector() * 20.0f - GetActorRightVector() * 20.0f + GetActorUpVector() * 20.0f);
+	SpawnTransform.SetLocation(GetActorLocation() + GetActorForwardVector() * 20.0f * OrderNumber - GetActorRightVector() * 20.0f * OrderNumber);
 	SpawnTransform.SetRotation(GetActorRotation().Quaternion());
 	SpawnTransform.SetScale3D(FVector(1.0f));
 
@@ -232,6 +176,9 @@ void AA_AdWall::SpawnAd()
 		Wall->SpawnSound = SpawnSound;
 		Wall->DestroySound = DestroySound;
 		Wall->AdType = AdType;
+		Wall->HowMuchWindowsToSpawn = HowMuchWindowsToSpawn;
+		Wall->ShotSpawnChance = ShotSpawnChance;
+		Wall->BumpSpawnChance = BumpSpawnChance;
 		Wall->MinSpeed = MinSpeed;
 		Wall->MaxSpeed = MaxSpeed;
 		Wall->MinTime = MinTime;

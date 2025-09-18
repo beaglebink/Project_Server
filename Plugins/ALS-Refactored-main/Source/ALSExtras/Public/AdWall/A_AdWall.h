@@ -56,6 +56,15 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
 	EnumAdType AdType;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "0", ClampMax = "3"))
+	int32 HowMuchWindowsToSpawn;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "0", ClampMax = "100"))
+	float ShotSpawnChance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "0", ClampMax = "100"))
+	float BumpSpawnChance;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", EditCondition = "AdType == EnumAdType::Drifter", EditConditionHides, ToolTip = "Minimum speed AdWall can move", ClampMin = "0", ClampMax = "300"))
 	float MinSpeed;
 
@@ -91,7 +100,7 @@ private:
 
 	void CallSpawnAd(bool bIsBumped);
 
-	void SpawnAd();
+	void SpawnAd(int32 OrderNumber);
 
 	void DriftAd();
 
