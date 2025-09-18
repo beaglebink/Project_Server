@@ -20,4 +20,7 @@ class FPSKITALSREFACTORED_API UCoreBlueprintFunctionLibrary : public UBlueprintF
 public:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	static void SimulateKeyPress(APlayerController* PlayerController, UInputAction* InputAction);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "General")
+	static bool IsPIE();
 };
