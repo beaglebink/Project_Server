@@ -26,3 +26,12 @@ void UCoreBlueprintFunctionLibrary::SimulateKeyPress(APlayerController* PlayerCo
         }
     }
 }
+
+bool UCoreBlueprintFunctionLibrary::IsPIE()
+{
+#if WITH_EDITOR
+	return true;
+#else
+	return false;
+#endif
+}
