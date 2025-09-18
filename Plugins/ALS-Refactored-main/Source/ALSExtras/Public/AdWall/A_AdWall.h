@@ -43,7 +43,7 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UProjectileMovementComponent* MovementComp;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* AudioComp;
 
@@ -65,6 +65,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "0", ClampMax = "100"))
 	float BumpSpawnChance;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
+	FVector SpawnRelativeLocation;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true", EditCondition = "AdType == EnumAdType::Drifter", EditConditionHides, ToolTip = "Minimum speed AdWall can move", ClampMin = "0", ClampMax = "300"))
 	float MinSpeed;
 
@@ -82,7 +85,7 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
 	uint8 bShouldDoKnockback : 1 {false};
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AA_AdWall> AdWallClass;
 
@@ -94,7 +97,13 @@ private:
 	uint8 bIsHitAdWall : 1{false};
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* DynamicMaterial;
+	UMaterialInstanceDynamic* ScreenDynamicMaterial;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* AdWallDynamicMaterial;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* CrossDynamicMaterial;
 
 	bool AdWallsMoreThan_25();
 
@@ -117,6 +126,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Material")
 	void UpdateScreenMaterial();
 
+	UFUNCTION(BlueprintCallable, Category = "Material")
+	void UpdateAdWallMaterial();
+
+	UFUNCTION(BlueprintCallable, Category = "Material")
+	void UpdateCrossMaterial();
+
 	void HandleWeaponShot_Implementation(const FHitResult& Hit);
 
 protected:
@@ -135,7 +150,7 @@ protected:
 
 	UFUNCTION()
 	void SpawnTimelineFinished();
-	
+
 	UPROPERTY()
 	UTimelineComponent* DestroyTimeline;
 
