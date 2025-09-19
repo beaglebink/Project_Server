@@ -169,7 +169,7 @@ void AA_AdWall::SpawnAd(int32 OrderNumber)
 	FTransform SpawnTransform;
 	SpawnTransform.SetLocation(GetActorLocation() + GetActorForwardVector() * SpawnRelativeLocation.X * OrderNumber + GetActorRightVector() * SpawnRelativeLocation.Y * OrderNumber + GetActorUpVector() * SpawnRelativeLocation.Z * OrderNumber);
 	SpawnTransform.SetRotation(GetActorRotation().Quaternion());
-	SpawnTransform.SetScale3D(FVector(1.0f));
+	SpawnTransform.SetScale3D(DefaultScale3D);
 
 	if (AA_AdWall* Wall = GetWorld()->SpawnActorDeferred<AA_AdWall>(AdWallClass, SpawnTransform, this, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
 	{
@@ -350,8 +350,8 @@ void AA_AdWall::HandleWeaponShot_Implementation(const FHitResult& Hit)
 
 void AA_AdWall::SpawnTimelineProgress(float Value)
 {
-	float ScaleValue = FMath::Lerp(0.01f, 1.0f, Value);
-	AdWallComp->SetWorldScale3D(FVector(ScaleValue));
+	FVector ScaleVector = FMath::Lerp(FVector(0.01f), DefaultScale3D, Value);
+	AdWallComp->SetWorldScale3D(ScaleVector);
 }
 
 void AA_AdWall::SpawnTimelineFinished()

@@ -94,6 +94,9 @@ private:
 
 	FVector TargetVelocity;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Scale", meta = (AllowPrivateAccess = "true"))
+	FVector DefaultScale3D;
+
 	uint8 bIsHitAdWall : 1{false};
 
 	UPROPERTY()
