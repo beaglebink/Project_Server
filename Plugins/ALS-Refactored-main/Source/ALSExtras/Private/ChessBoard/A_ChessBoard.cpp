@@ -114,10 +114,10 @@ void AA_ChessBoard::BuildField()
 			CellComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 			CellComp->SetRelativeLocation(FVector(Row * CellSize.X, Col * CellSize.Y, 0.0f));
 			CellComp->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
-			if ((Row + Col) & 1)
-			{
-				CellComp->SetRelativeRotation(FRotator(0.0f, 0.0f, 180.0f));
-			}
+			//if ((Row + Col) & 1)
+			//{
+			//	CellComp->SetRelativeRotation(FRotator(0.0f, 0.0f, 180.0f));
+			//}
 			CellComp->SetSimulatePhysics(true);
 			CellComp->SetMassOverrideInKg(NAME_None, 10.0f);
 			CellComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -145,13 +145,17 @@ void AA_ChessBoard::BuildField()
 			Trigger->RegisterComponent();
 			Trigger->AttachToComponent(CellComp, FAttachmentTransformRules::KeepRelativeTransform);
 			Trigger->SetBoxExtent(FVector(MeshExtent.X * 0.45f, MeshExtent.Y * 0.45f, 5.0f));
-			Trigger->SetRelativeLocation(FVector(0.0f, 0.0f, -MeshExtent.Z * 0.5f));
+			Trigger->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
 			Trigger->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 			Trigger->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 			Trigger->SetCollisionResponseToAllChannels(ECR_Ignore);
 			Trigger->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 			Trigger->OnComponentBeginOverlap.AddDynamic(this, &AA_ChessBoard::OnCellBeginOverlap);
 			Trigger->OnComponentEndOverlap.AddDynamic(this, &AA_ChessBoard::OnCellEndOverlap);
+			if ((Row + Col) & 1)
+			{
+				Trigger->SetRelativeLocation(FVector(0.0f, 0.0f, CellSize.Z * 0.5f));
+			}
 
 			// Audio
 			FString AudioName = FString::Printf(TEXT("Audio_%d_%d"), Row, Col);
@@ -161,11 +165,17 @@ void AA_ChessBoard::BuildField()
 			AudioComp->bAutoActivate = false;
 			AudioComp->SetSound(RotateSound);
 
+			//Material
+			UMaterialInstanceDynamic* CellDynamicMaterial = UMaterialInstanceDynamic::Create(CellComp->GetMaterial(0), this);
+			CellDynamicMaterial->SetScalarParameterValue(FName("WhiteToBlack"), Trigger->GetRelativeLocation().Equals(FVector(0.0f, 0.0f, CellMesh->GetBounds().BoxExtent.Z), 0.1f));
+			CellComp->SetMaterial(0, CellDynamicMaterial);
+
 			// Cell
 			NewCell.MeshComponent = CellComp;
 			NewCell.ConstraintComponent = Constraint;
 			NewCell.TriggerComponent = Trigger;
 			NewCell.AudioComponent = AudioComp;
+			NewCell.CellDynamicMaterial = CellDynamicMaterial;
 			ChessField.Add(NewCell);
 		}
 	}
@@ -238,16 +248,21 @@ void AA_ChessBoard::RotateCells()
 
 	for (size_t Index = 0; Index < ChessField.Num(); ++Index)
 	{
-		if (abs(ChessField[Index].MeshComponent->GetComponentRotation().Pitch) > 90.0f || abs(ChessField[Index].MeshComponent->GetComponentRotation().Roll) > 90.0f)
-		{
-			TargetRotation = CountTargetRotationInDependsOnPrevRotation(ChessField[Index].MeshComponent->GetComponentRotation());
+		//if (abs(ChessField[Index].MeshComponent->GetComponentRotation().Pitch) > 90.0f || abs(ChessField[Index].MeshComponent->GetComponentRotation().Roll) > 90.0f)
+		//{
+		//	TargetRotation = CountTargetRotationInDependsOnPrevRotation(ChessField[Index].MeshComponent->GetComponentRotation());
 
+		//	CellsToRotate.Add(Index);
+		//	ChessField[Index].AudioComponent->Play();
+		//	InitialRotations.Add(Index, ChessField[Index].MeshComponent->GetComponentRotation());
+		//}
+		if (ChessField[Index].TriggerComponent->GetRelativeLocation().Equals(FVector(0.0f, 0.0f, CellMesh->GetBounds().BoxExtent.Z), 0.1f))
+		{
 			CellsToRotate.Add(Index);
 			ChessField[Index].AudioComponent->Play();
-			InitialRotations.Add(Index, ChessField[Index].MeshComponent->GetComponentRotation());
 		}
 	}
-	RotateTimeline->PlayFromStart();
+	RotateTimeline->ReverseFromEnd();
 
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
@@ -268,10 +283,10 @@ void AA_ChessBoard::RotateCells()
 
 			for (int32 Index : CellsToRotate)
 			{
-				TargetRotation = CountTargetRotationInDependsOnPrevRotation(ChessField[Index].MeshComponent->GetComponentRotation());
+				//TargetRotation = CountTargetRotationInDependsOnPrevRotation(ChessField[Index].MeshComponent->GetComponentRotation());
 
 				ChessField[Index].AudioComponent->Play();
-				InitialRotations.Add(Index, ChessField[Index].MeshComponent->GetComponentRotation());
+				//InitialRotations.Add(Index, ChessField[Index].MeshComponent->GetComponentRotation());
 			}
 
 			RotateTimeline->PlayFromStart();
@@ -331,9 +346,11 @@ void AA_ChessBoard::RotateTimelineProgress(float Value)
 	{
 		if (ChessField.IsValidIndex(CellIndex))
 		{
-			ChessField[CellIndex].MeshComponent->SetSimulatePhysics(false);
-			FQuat NewOrientation = FQuat::Slerp(InitialRotations[CellIndex].Quaternion(), TargetRotation, Value);
-			ChessField[CellIndex].MeshComponent->SetWorldRotation(NewOrientation.Rotator());
+			UpdateCellMaterial(CellIndex, Value);
+			ChessField[CellIndex].TriggerComponent->SetRelativeLocation(FVector(0.0f, 0.0f, CellMesh->GetBounds().BoxExtent.Z * Value));
+			//ChessField[CellIndex].MeshComponent->SetSimulatePhysics(false);
+			//FQuat NewOrientation = FQuat::Slerp(InitialRotations[CellIndex].Quaternion(), TargetRotation, Value);
+			//ChessField[CellIndex].MeshComponent->SetWorldRotation(NewOrientation.Rotator());
 		}
 	}
 }
@@ -344,13 +361,21 @@ void AA_ChessBoard::RotateTimelineFinished()
 	{
 		if (ChessField.IsValidIndex(CellIndex))
 		{
-			ChessField[CellIndex].MeshComponent->SetSimulatePhysics(true);
-			ChessField[CellIndex].ConstraintComponent->SetConstrainedComponents(ChessField[CellIndex].MeshComponent, NAME_None, Cast<UPrimitiveComponent>(RootComponent), NAME_None);
+			//ChessField[CellIndex].MeshComponent->SetSimulatePhysics(true);
+			//ChessField[CellIndex].ConstraintComponent->SetConstrainedComponents(ChessField[CellIndex].MeshComponent, NAME_None, Cast<UPrimitiveComponent>(RootComponent), NAME_None);
 			ChessField[CellIndex].AudioComponent->Stop();
 		}
 	}
 
 	CellsToRotate.Empty();
-	InitialRotations.Empty();
+	//InitialRotations.Empty();
+}
+
+void AA_ChessBoard::UpdateCellMaterial(int32 Index, float Value)
+{
+	if (ChessField[Index].CellDynamicMaterial)
+	{
+		ChessField[Index].CellDynamicMaterial->SetScalarParameterValue(FName("WhiteToBlack"), Value);
+	}
 }
 

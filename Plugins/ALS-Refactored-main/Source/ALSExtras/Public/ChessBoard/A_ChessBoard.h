@@ -26,6 +26,9 @@ public:
 
 	UPROPERTY()
 	UAudioComponent* AudioComponent;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* CellDynamicMaterial;
 };
 
 UCLASS()
@@ -113,4 +116,6 @@ protected:
 
 	UFUNCTION()
 	void RotateTimelineFinished();
+
+	void UpdateCellMaterial(int32 Index, float Value);
 };
