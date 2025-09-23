@@ -104,7 +104,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UTimelineComponent* RotateTimeline;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Timeline")
+	UPROPERTY(EditAnywhere, Category = "Timeline")
 	UCurveFloat* RotateFloatCurve;
 
 	FOnTimelineFloat RotateProgressFunction;
