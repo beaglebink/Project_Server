@@ -4,6 +4,7 @@
 #include "Enums/EnumLoopStates.h"
 #include <PhysicsEngine/PhysicsConstraintActor.h>
 #include "AlsCharacterExample_I.h"
+#include "Interfaces/I_PortalInteraction.h"
 #include "Utility/AlsGameplayTags.h"
 #include "AlsCharacterExample.generated.h"
 
@@ -32,7 +33,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMovementInputEvent, EMovementDir
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNetParalyse, AActor*, NetReason);
 
 UCLASS(AutoExpandCategories = ("Settings|Als Character Example", "State|Als Character Example"))
-class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter, public IAlsCharacter_I
+class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter, public IAlsCharacter_I, public II_PortalInteraction
 {
 	GENERATED_BODY()
 
@@ -367,4 +368,7 @@ private:
 	void SetEffect_53(bool Apply = false);
 	void SetEffect_54(bool Apply = false);
 	void SetEffect_55(bool Apply = false);
+
+	//Portal interaction
+	virtual void PortalInteract_Implementation(const FHitResult& Hit) override;
 };

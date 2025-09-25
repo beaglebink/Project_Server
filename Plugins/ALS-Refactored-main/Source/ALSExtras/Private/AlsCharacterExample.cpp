@@ -1767,3 +1767,8 @@ void AAlsCharacterExample::SetEffect_55(bool Apply)
 		TakenDamageMultiplier = 1.0f;
 	}
 }
+
+void AAlsCharacterExample::PortalInteract_Implementation(const FHitResult& Hit)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Portal Interact"));
+}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Interfaces/I_WeaponInteraction.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "A_Portal.generated.h"
@@ -9,7 +10,7 @@ class UTextureRenderTarget2D;
 class UBoxComponent;
 
 UCLASS()
-class ALSEXTRAS_API AA_Portal : public AActor
+class ALSEXTRAS_API AA_Portal : public AActor, public II_WeaponInteraction
 {
 	GENERATED_BODY()
 
@@ -69,9 +70,21 @@ private:
 
 	void CameraFollowsCharacterView();
 
-	void CheckPlayerDirectionToPortal(UPrimitiveComponent* TriggeredComponent);
+	uint8 bP1IsInProcess : 1{false};
 
+	uint8 bP2IsInProcess : 1{false};
+
+	UFUNCTION()
 	void P1OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+	UFUNCTION()
+	void P1OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UFUNCTION()
 	void P2OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	
+	UFUNCTION()
+	void P2OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	virtual void HandleWeaponShot_Implementation(const FHitResult& Hit) override;
 };

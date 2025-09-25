@@ -7,6 +7,7 @@
 #include "AlsCharacterExample.h"
 #include "AlsCameraComponent.h"
 #include <Kismet/KismetMathLibrary.h>
+#include "Interfaces/I_PortalInteraction.h"
 
 AA_Portal::AA_Portal()
 {
@@ -42,7 +43,21 @@ AA_Portal::AA_Portal()
 	P2CaptureComponent->SetRelativeLocation(FVector(20.0f, 0.0f, 0.0f));
 
 	P1TriggerComponent->SetBoxExtent(FVector(2.0f, 90.0f, 120.0f));
+	P1TriggerComponent->SetGenerateOverlapEvents(true);
+	P1TriggerComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	P1TriggerComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	P1TriggerComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+	P1TriggerComponent->SetCollisionResponseToChannel(ECC_Visibility, ECollisionResponse::ECR_Block);
+	P1TriggerComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block);
+	P1TriggerComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);
 	P2TriggerComponent->SetBoxExtent(FVector(2.0f, 90.0f, 120.0f));
+	P2TriggerComponent->SetGenerateOverlapEvents(true);
+	P2TriggerComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	P2TriggerComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	P2TriggerComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+	P2TriggerComponent->SetCollisionResponseToChannel(ECC_Visibility, ECollisionResponse::ECR_Block);
+	P2TriggerComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block);
+	P2TriggerComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);
 }
 
 void AA_Portal::OnConstruction(const FTransform& Transform)
@@ -92,7 +107,10 @@ void AA_Portal::BeginPlay()
 	}
 
 	P1TriggerComponent->OnComponentBeginOverlap.AddDynamic(this, &AA_Portal::P1OnBeginOverlap);
+	P1TriggerComponent->OnComponentEndOverlap.AddDynamic(this, &AA_Portal::P1OnEndOverlap);
+
 	P2TriggerComponent->OnComponentBeginOverlap.AddDynamic(this, &AA_Portal::P2OnBeginOverlap);
+	P2TriggerComponent->OnComponentEndOverlap.AddDynamic(this, &AA_Portal::P2OnEndOverlap);
 }
 
 void AA_Portal::Tick(float DeltaTime)
@@ -135,16 +153,64 @@ void AA_Portal::CameraFollowsCharacterView()
 	}
 }
 
-void AA_Portal::CheckPlayerDirectionToPortal(UPrimitiveComponent* TriggeredComponent)
-{
-}
-
 void AA_Portal::P1OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	CheckPlayerDirectionToPortal(OverlappedComponent);
+	DrawDebugLine(GetWorld(), SweepResult.ImpactPoint, SweepResult.ImpactPoint + SweepResult.ImpactNormal * 100.0f, FColor::Red, false, 2.0f, 0, 2.0f);
+	if (P1SceneComponent->GetForwardVector().Dot(SweepResult.ImpactNormal) > 0.0f || bP1IsInProcess)
+	{
+		return;
+	}
+
+	if (!OtherActor || !OtherActor->GetClass()->ImplementsInterface(UI_PortalInteraction::StaticClass()))
+	{
+		return;
+	}
+	bP2IsInProcess = true;
+
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			bP2IsInProcess = false;
+		}, 0.5f, false);
+
+	II_PortalInteraction::Execute_PortalInteract(OtherActor, SweepResult);
 }
 
 void AA_Portal::P2OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	CheckPlayerDirectionToPortal(OverlappedComponent);
+	DrawDebugLine(GetWorld(), SweepResult.ImpactPoint, SweepResult.ImpactPoint + SweepResult.ImpactNormal * 100.0f, FColor::Red, false, 2.0f, 0, 2.0f);
+	if (P2SceneComponent->GetForwardVector().Dot(SweepResult.ImpactNormal) > 0.0f || bP2IsInProcess)
+	{
+		return;
+	}
+
+	if (!OtherActor || !OtherActor->GetClass()->ImplementsInterface(UI_PortalInteraction::StaticClass()))
+	{
+		return;
+	}
+
+	bP1IsInProcess = true;
+
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			bP1IsInProcess = false;
+		}, 0.5f, false);
+
+	II_PortalInteraction::Execute_PortalInteract(OtherActor, SweepResult);
+}
+
+void AA_Portal::P1OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	bP1IsInProcess = false;
+}
+
+void AA_Portal::P2OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	bP2IsInProcess = false;
+}
+
+void AA_Portal::HandleWeaponShot_Implementation(const FHitResult& Hit)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Portal was shot")));
 }
