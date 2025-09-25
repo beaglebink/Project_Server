@@ -7,14 +7,14 @@
 UINTERFACE(MinimalAPI, BlueprintType)
 class UI_PortalInteraction : public UInterface
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 };
 
 class ALSEXTRAS_API II_PortalInteraction
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PortalInterface")
-    void PortalInteract(const FHitResult& Hit);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PortalInterface")
+	void PortalInteract(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform);
 };

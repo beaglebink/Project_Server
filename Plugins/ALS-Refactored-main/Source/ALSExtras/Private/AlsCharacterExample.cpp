@@ -1768,7 +1768,14 @@ void AAlsCharacterExample::SetEffect_55(bool Apply)
 	}
 }
 
-void AAlsCharacterExample::PortalInteract_Implementation(const FHitResult& Hit)
+void AAlsCharacterExample::PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Portal Interact"));
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, "Portal Interact");
+	FVector DeltaLocationExitToEnter = ExitTransform.GetLocation() - EnterTransform.GetLocation();
+	FRotator DeltaRotationExitToEnter = UKismetMathLibrary::NormalizedDeltaRotator(ExitTransform.GetRotation().Rotator(), EnterTransform.GetRotation().Rotator());
+	DeltaRotationExitToEnter.Yaw += 180.0f;
+	SetActorLocation(GetActorLocation() + DeltaLocationExitToEnter, false, nullptr, ETeleportType::TeleportPhysics);
+	SetActorRotation(GetActorRotation() + DeltaRotationExitToEnter);
+	GetController()->SetControlRotation(GetController()->GetControlRotation() + DeltaRotationExitToEnter);
+	GetMovementComponent()->Velocity = DeltaRotationExitToEnter.RotateVector(GetMovementComponent()->Velocity);
 }

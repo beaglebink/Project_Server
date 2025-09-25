@@ -370,5 +370,5 @@ private:
 	void SetEffect_55(bool Apply = false);
 
 	//Portal interaction
-	virtual void PortalInteract_Implementation(const FHitResult& Hit) override;
+	virtual void PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform) override;
 };

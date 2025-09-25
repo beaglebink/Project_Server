@@ -37,7 +37,6 @@ AA_Portal::AA_Portal()
 	P2AudioComponent->SetupAttachment(P2SceneComponent);
 
 	P2SceneComponent->SetRelativeLocation(FVector(200.0f, 0.0f, 0.0f));
-	P2SceneComponent->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
 
 	P1CaptureComponent->SetRelativeLocation(FVector(20.0f, 0.0f, 0.0f));
 	P2CaptureComponent->SetRelativeLocation(FVector(20.0f, 0.0f, 0.0f));
@@ -107,10 +106,8 @@ void AA_Portal::BeginPlay()
 	}
 
 	P1TriggerComponent->OnComponentBeginOverlap.AddDynamic(this, &AA_Portal::P1OnBeginOverlap);
-	P1TriggerComponent->OnComponentEndOverlap.AddDynamic(this, &AA_Portal::P1OnEndOverlap);
 
 	P2TriggerComponent->OnComponentBeginOverlap.AddDynamic(this, &AA_Portal::P2OnBeginOverlap);
-	P2TriggerComponent->OnComponentEndOverlap.AddDynamic(this, &AA_Portal::P2OnEndOverlap);
 }
 
 void AA_Portal::Tick(float DeltaTime)
@@ -155,8 +152,7 @@ void AA_Portal::CameraFollowsCharacterView()
 
 void AA_Portal::P1OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	DrawDebugLine(GetWorld(), SweepResult.ImpactPoint, SweepResult.ImpactPoint + SweepResult.ImpactNormal * 100.0f, FColor::Red, false, 2.0f, 0, 2.0f);
-	if (P1SceneComponent->GetForwardVector().Dot(SweepResult.ImpactNormal) > 0.0f || bP1IsInProcess)
+	if (P1SceneComponent->GetForwardVector().Dot(SweepResult.ImpactNormal) > 0.0f)
 	{
 		return;
 	}
@@ -165,21 +161,24 @@ void AA_Portal::P1OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 	{
 		return;
 	}
-	bP2IsInProcess = true;
 
-	FTimerHandle TimerHandle;
-	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+	P1TriggerComponent->SetGenerateOverlapEvents(false);
+	P2TriggerComponent->SetGenerateOverlapEvents(false);
+
+	FTimerHandle TimerHandleOverlap;
+	GetWorldTimerManager().SetTimer(TimerHandleOverlap, [this]()
 		{
-			bP2IsInProcess = false;
-		}, 0.5f, false);
+			P1TriggerComponent->SetGenerateOverlapEvents(true);
+			P2TriggerComponent->SetGenerateOverlapEvents(true);
 
-	II_PortalInteraction::Execute_PortalInteract(OtherActor, SweepResult);
+		}, CoolDownTime, false);
+
+	II_PortalInteraction::Execute_PortalInteract(OtherActor, SweepResult, P1SceneComponent->GetComponentTransform(), P2SceneComponent->GetComponentTransform());
 }
 
 void AA_Portal::P2OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	DrawDebugLine(GetWorld(), SweepResult.ImpactPoint, SweepResult.ImpactPoint + SweepResult.ImpactNormal * 100.0f, FColor::Red, false, 2.0f, 0, 2.0f);
-	if (P2SceneComponent->GetForwardVector().Dot(SweepResult.ImpactNormal) > 0.0f || bP2IsInProcess)
+	if (P2SceneComponent->GetForwardVector().Dot(SweepResult.ImpactNormal) > 0.0f)
 	{
 		return;
 	}
@@ -189,25 +188,18 @@ void AA_Portal::P2OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 		return;
 	}
 
-	bP1IsInProcess = true;
+	P2TriggerComponent->SetGenerateOverlapEvents(false);
+	P1TriggerComponent->SetGenerateOverlapEvents(false);
 
-	FTimerHandle TimerHandle;
-	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+	FTimerHandle TimerHandleOverlap;
+	GetWorldTimerManager().SetTimer(TimerHandleOverlap, [this]()
 		{
-			bP1IsInProcess = false;
-		}, 0.5f, false);
+			P2TriggerComponent->SetGenerateOverlapEvents(true);
+			P1TriggerComponent->SetGenerateOverlapEvents(true);
 
-	II_PortalInteraction::Execute_PortalInteract(OtherActor, SweepResult);
-}
+		}, CoolDownTime, false);
 
-void AA_Portal::P1OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	bP1IsInProcess = false;
-}
-
-void AA_Portal::P2OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	bP2IsInProcess = false;
+	II_PortalInteraction::Execute_PortalInteract(OtherActor, SweepResult, P2SceneComponent->GetComponentTransform(), P1SceneComponent->GetComponentTransform());
 }
 
 void AA_Portal::HandleWeaponShot_Implementation(const FHitResult& Hit)
