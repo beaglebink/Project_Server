@@ -157,7 +157,7 @@ void AA_Portal::P1OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 		return;
 	}
 
-	if (!OtherActor || !OtherActor->GetClass()->ImplementsInterface(UI_PortalInteraction::StaticClass()))
+	if (!OtherActor || !OtherActor->GetClass()->ImplementsInterface(UI_PortalInteraction::StaticClass()) || OtherActor->ActorHasTag(FName(TEXT("BeingGrabbed"))))
 	{
 		return;
 	}
@@ -183,7 +183,7 @@ void AA_Portal::P2OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 		return;
 	}
 
-	if (!OtherActor || !OtherActor->GetClass()->ImplementsInterface(UI_PortalInteraction::StaticClass()))
+	if (!OtherActor || !OtherActor->GetClass()->ImplementsInterface(UI_PortalInteraction::StaticClass()) || OtherActor->ActorHasTag(FName(TEXT("BeingGrabbed"))))
 	{
 		return;
 	}
@@ -202,7 +202,75 @@ void AA_Portal::P2OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 	II_PortalInteraction::Execute_PortalInteract(OtherActor, SweepResult, P2SceneComponent->GetComponentTransform(), P1SceneComponent->GetComponentTransform());
 }
 
-void AA_Portal::HandleWeaponShot_Implementation(const FHitResult& Hit)
+void AA_Portal::HandleWeaponShot_Implementation(FHitResult& Hit)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Portal was shot")));
+	if (Hit.Component != P1TriggerComponent && Hit.Component != P2TriggerComponent)
+	{
+		return;
+	}
+
+	FVector PortalDeltaLocation = P2SceneComponent->GetComponentLocation() - P1SceneComponent->GetComponentLocation();
+	FRotator PortalDeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(P2SceneComponent->GetComponentRotation(), P1SceneComponent->GetComponentRotation());
+	PortalDeltaRotation.Yaw += 180.0f;
+
+	FVector ShotDirection = (Hit.ImpactPoint - Hit.TraceStart).GetSafeNormal();
+	FRotator ShotRotation = ShotDirection.Rotation();
+	FVector Start = Hit.ImpactPoint;
+	FVector End = Start + ShotDirection * (FVector::Distance(Hit.TraceStart, Hit.TraceEnd) - FVector::Distance(Hit.TraceStart, Hit.ImpactPoint));
+	FCollisionQueryParams Params;
+	TArray<AActor*> ActorsToIgnore;
+
+	if (Hit.Component == P1TriggerComponent)
+	{
+		Params.AddIgnoredComponent(P1TriggerComponent);
+
+		if (P1SceneComponent->GetForwardVector().Dot(ShotDirection) < 0.0f)
+		{
+			Params.ClearIgnoredComponents();
+			Params.AddIgnoredComponent(P2TriggerComponent);
+			Start += PortalDeltaLocation;
+			ShotRotation += PortalDeltaRotation;
+			End = Start + ShotRotation.Vector() * FVector::Distance(Hit.ImpactPoint, Hit.TraceEnd);
+		}
+
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+		{
+			DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, 2.f, 0, 2.f);
+			DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 10.f, FColor::Yellow, false, 2.f);
+			DrawDebugLine(GetWorld(), Hit.ImpactPoint, End, FColor::Green, false, 2.f, 0, 2.f);
+		}
+		else
+		{
+			DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2.f, 0, 2.f);
+		}
+
+		return;
+	}
+
+	if (Hit.Component == P2TriggerComponent)
+	{
+		Params.AddIgnoredComponent(P2TriggerComponent);
+
+		if (P2SceneComponent->GetForwardVector().Dot(ShotDirection) < 0.0f)
+		{
+			Params.ClearIgnoredComponents();
+			Params.AddIgnoredComponent(P1TriggerComponent);
+			Start -= PortalDeltaLocation;
+			ShotRotation -= PortalDeltaRotation;
+			End = Start + ShotRotation.Vector() * FVector::Distance(Hit.ImpactPoint, Hit.TraceEnd);
+		}
+
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+		{
+			DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, 2.f, 0, 2.f);
+			DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 10.f, FColor::Yellow, false, 2.f);
+			DrawDebugLine(GetWorld(), Hit.ImpactPoint, End, FColor::Green, false, 2.f, 0, 2.f);
+		}
+		else
+		{
+			DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2.f, 0, 2.f);
+		}
+
+		return;
+	}
 }
