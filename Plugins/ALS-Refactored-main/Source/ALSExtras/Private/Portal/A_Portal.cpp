@@ -235,13 +235,13 @@ void AA_Portal::HandleWeaponShot_Implementation(FHitResult& Hit)
 
 		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
 		{
-			DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, 2.f, 0, 2.f);
-			DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 10.f, FColor::Yellow, false, 2.f);
-			DrawDebugLine(GetWorld(), Hit.ImpactPoint, End, FColor::Green, false, 2.f, 0, 2.f);
+			//DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, 2.f, 0, 2.f);
+			//DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 10.f, FColor::Yellow, false, 2.f);
+			//DrawDebugLine(GetWorld(), Hit.ImpactPoint, End, FColor::Green, false, 2.f, 0, 2.f);
 		}
 		else
 		{
-			DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2.f, 0, 2.f);
+			//DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2.f, 0, 2.f);
 		}
 
 		return;
@@ -262,13 +262,13 @@ void AA_Portal::HandleWeaponShot_Implementation(FHitResult& Hit)
 
 		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
 		{
-			DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, 2.f, 0, 2.f);
-			DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 10.f, FColor::Yellow, false, 2.f);
-			DrawDebugLine(GetWorld(), Hit.ImpactPoint, End, FColor::Green, false, 2.f, 0, 2.f);
+			//DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, 2.f, 0, 2.f);
+			//DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 10.f, FColor::Yellow, false, 2.f);
+			//DrawDebugLine(GetWorld(), Hit.ImpactPoint, End, FColor::Green, false, 2.f, 0, 2.f);
 		}
 		else
 		{
-			DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2.f, 0, 2.f);
+			//DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2.f, 0, 2.f);
 		}
 
 		return;
