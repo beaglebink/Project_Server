@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Components/TimelineComponent.h"
 #include "Interfaces/I_WeaponInteraction.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -8,6 +9,7 @@
 class USceneCaptureComponent2D;
 class UTextureRenderTarget2D;
 class UBoxComponent;
+class UInteractiveItemComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_Portal : public AActor, public II_WeaponInteraction
@@ -30,54 +32,59 @@ private:
 	float CoolDownTime = 0.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USceneComponent* P1SceneComponent;
+	UStaticMeshComponent* PortalMeshComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USceneComponent* P2SceneComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* P1MeshComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* P2MeshComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USceneCaptureComponent2D* P1CaptureComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USceneCaptureComponent2D* P2CaptureComponent;
+	USceneCaptureComponent2D* PortalCaptureComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UTextureRenderTarget2D* P1RenderTarget;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UTextureRenderTarget2D* P2RenderTarget;
+	UTextureRenderTarget2D* PortalRenderTarget;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UBoxComponent* P1TriggerComponent;
+	UBoxComponent* PortalTriggerComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UBoxComponent* P2TriggerComponent;
+	UAudioComponent* PortalAudioComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UAudioComponent* P1AudioComponent;
+	UStaticMeshComponent* PortalButtonMeshComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UAudioComponent* P2AudioComponent;
+	UInteractiveItemComponent* PortalInteractiveComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<AA_Portal> ExitPortal;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* P1DynamicMaterial;
+	UMaterialInstanceDynamic* PortalDynamicMaterial;
 
-	UPROPERTY()
-	UMaterialInstanceDynamic* P2DynamicMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Activation", meta = (AllowPrivateAccess = "true"))
+	uint8 bIsActive : 1{false};
 
 	void CameraFollowsCharacterView();
 
 	UFUNCTION()
-	void P1OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	UFUNCTION()
-	void P2OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void PortalOnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	virtual void HandleWeaponShot_Implementation(FHitResult& Hit) override;
+
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UTimelineComponent* ActivationTimeline;
+
+	UPROPERTY(EditAnywhere, Category = "Timeline")
+	UCurveFloat* ActivationFloatCurve;
+
+	FOnTimelineFloat ActivationProgressFunction;
+
+	FOnTimelineEvent ActivationFinishedFunction;
+
+	UFUNCTION()
+	void ActivationTimelineProgress(float Value);
+
+	UFUNCTION()
+	void ActivationTimelineFinished();
+
+	UFUNCTION()
+	void StartActivateDeactivatePortal(UInteractivePickerComponent* Picker);
 };
