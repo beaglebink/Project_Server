@@ -1,5 +1,6 @@
 #include "ArrayEffect/A_InteractableActor.h"
 #include "ArrayEffect/A_ArrayEffect.h"
+#include "Kismet/KismetMathLibrary.h"
 
 AA_InteractableActor::AA_InteractableActor()
 {
@@ -38,4 +39,22 @@ bool AA_InteractableActor::ParseAssignCommand(FText Command, FName& OutVarName, 
 	OutActorName = FName(Right);
 
 	return true;
+}
+
+void AA_InteractableActor::PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform)
+{
+	FVector DeltaLocationExitToEnter = ExitTransform.GetLocation() - EnterTransform.GetLocation();
+	FRotator DeltaRotationExitToEnter = UKismetMathLibrary::NormalizedDeltaRotator(ExitTransform.GetRotation().Rotator(), EnterTransform.GetRotation().Rotator());
+	DeltaRotationExitToEnter.Yaw += 180.0f;
+	SetActorLocation(GetActorLocation() + DeltaLocationExitToEnter, false, nullptr, ETeleportType::TeleportPhysics);
+	SetActorRotation(GetActorRotation() + DeltaRotationExitToEnter);
+
+	if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(GetRootComponent()))
+	{
+		if (Prim->IsSimulatingPhysics())
+		{
+			FVector Velocity = Prim->GetPhysicsLinearVelocity();
+			Prim->SetPhysicsLinearVelocity(DeltaRotationExitToEnter.RotateVector(Velocity));
+		}
+	}
 }

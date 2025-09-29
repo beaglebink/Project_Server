@@ -167,9 +167,9 @@ void AA_AdWall::SpawnAd(int32 OrderNumber)
 	}
 
 	FTransform SpawnTransform;
-	SpawnTransform.SetLocation(GetActorLocation() + GetActorForwardVector() * 20.0f * OrderNumber - GetActorRightVector() * 20.0f * OrderNumber);
+	SpawnTransform.SetLocation(GetActorLocation() + GetActorForwardVector() * SpawnRelativeLocation.X * OrderNumber + GetActorRightVector() * SpawnRelativeLocation.Y * OrderNumber + GetActorUpVector() * SpawnRelativeLocation.Z * OrderNumber);
 	SpawnTransform.SetRotation(GetActorRotation().Quaternion());
-	SpawnTransform.SetScale3D(FVector(1.0f));
+	SpawnTransform.SetScale3D(DefaultScale3D);
 
 	if (AA_AdWall* Wall = GetWorld()->SpawnActorDeferred<AA_AdWall>(AdWallClass, SpawnTransform, this, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
 	{
@@ -179,6 +179,7 @@ void AA_AdWall::SpawnAd(int32 OrderNumber)
 		Wall->HowMuchWindowsToSpawn = HowMuchWindowsToSpawn;
 		Wall->ShotSpawnChance = ShotSpawnChance;
 		Wall->BumpSpawnChance = BumpSpawnChance;
+		Wall->SpawnRelativeLocation = SpawnRelativeLocation;
 		Wall->MinSpeed = MinSpeed;
 		Wall->MaxSpeed = MaxSpeed;
 		Wall->MinTime = MinTime;
@@ -213,7 +214,6 @@ void AA_AdWall::DriftAd()
 
 void AA_AdWall::DestroyAd()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, "DESTROY");
 
 	AudioComp->SetSound(DestroySound);
 	AudioComp->Play();
@@ -292,15 +292,47 @@ void AA_AdWall::UpdateScreenMaterial()
 	}
 
 
-	if (!DynamicMaterial && AdWallComp->GetMaterial(0))
+	if (!ScreenDynamicMaterial && AdWallComp->GetMaterial(0))
 	{
-		DynamicMaterial = UMaterialInstanceDynamic::Create(AdWallComp->GetMaterial(0), this);
-		AdWallComp->SetMaterial(0, DynamicMaterial);
+		ScreenDynamicMaterial = UMaterialInstanceDynamic::Create(AdWallComp->GetMaterial(0), this);
+		AdWallComp->SetMaterial(0, ScreenDynamicMaterial);
 	}
 
-	if (DynamicMaterial)
+	if (ScreenDynamicMaterial)
 	{
-		DynamicMaterial->SetTextureParameterValue(FName("Screen"), AdTexture);
+		ScreenDynamicMaterial->SetTextureParameterValue(FName("Screen"), AdTexture);
+		if (AdType == EnumAdType::Malicious)
+		{
+			ScreenDynamicMaterial->SetScalarParameterValue(FName("bIsMalicious"), 1.0f);
+		}
+	}
+}
+
+void AA_AdWall::UpdateAdWallMaterial()
+{
+	if (!AdWallDynamicMaterial && AdWallComp->GetMaterial(1))
+	{
+		AdWallDynamicMaterial = UMaterialInstanceDynamic::Create(AdWallComp->GetMaterial(1), this);
+		AdWallComp->SetMaterial(1, AdWallDynamicMaterial);
+	}
+
+	if (AdWallDynamicMaterial)
+	{
+
+	}
+}
+
+void AA_AdWall::UpdateCrossMaterial()
+{
+	if (!CrossDynamicMaterial && CrossComp->GetMaterial(0))
+	{
+		CrossDynamicMaterial = UMaterialInstanceDynamic::Create(CrossComp->GetMaterial(0), this);
+		CrossComp->SetMaterial(0, CrossDynamicMaterial);
+	}
+
+	if (CrossDynamicMaterial)
+	{
+
 	}
 }
 
@@ -318,8 +350,8 @@ void AA_AdWall::HandleWeaponShot_Implementation(const FHitResult& Hit)
 
 void AA_AdWall::SpawnTimelineProgress(float Value)
 {
-	float ScaleValue = FMath::Lerp(0.01f, 1.0f, Value);
-	AdWallComp->SetWorldScale3D(FVector(ScaleValue));
+	FVector ScaleVector = FMath::Lerp(FVector(0.01f), DefaultScale3D, Value);
+	AdWallComp->SetWorldScale3D(ScaleVector);
 }
 
 void AA_AdWall::SpawnTimelineFinished()
@@ -330,6 +362,11 @@ void AA_AdWall::SpawnTimelineFinished()
 
 void AA_AdWall::DestroyTimelineProgress(float Value)
 {
+	float ScaleValue = FMath::Lerp(0.0f, 1.0f, Value);
+	ScreenDynamicMaterial->SetScalarParameterValue(FName("TurnOffScreen"), FMath::Clamp(ScaleValue / 0.5f, 0.0f, 1.0f));
+	ScreenDynamicMaterial->SetScalarParameterValue(FName("Dissolve"), FMath::Clamp(4 * ScaleValue - 3, -1.0f, 1.0f));
+	AdWallDynamicMaterial->SetScalarParameterValue(FName("Dissolve"), FMath::Clamp(4 * ScaleValue - 3, -1.0f, 1.0f));
+	CrossDynamicMaterial->SetScalarParameterValue(FName("Dissolve"), FMath::Clamp(4 * ScaleValue - 3, -1.0f, 1.0f));
 }
 
 void AA_AdWall::DestroyTimelineFinished()

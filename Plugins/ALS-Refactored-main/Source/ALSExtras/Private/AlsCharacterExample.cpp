@@ -1767,3 +1767,14 @@ void AAlsCharacterExample::SetEffect_55(bool Apply)
 		TakenDamageMultiplier = 1.0f;
 	}
 }
+
+void AAlsCharacterExample::PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform)
+{
+	FVector DeltaLocationExitToEnter = ExitTransform.GetLocation() - EnterTransform.GetLocation();
+	FRotator DeltaRotationExitToEnter = UKismetMathLibrary::NormalizedDeltaRotator(ExitTransform.GetRotation().Rotator(), EnterTransform.GetRotation().Rotator());
+	DeltaRotationExitToEnter.Yaw += 180.0f;
+	SetActorLocation(GetActorLocation() + DeltaLocationExitToEnter, false, nullptr, ETeleportType::TeleportPhysics);
+	SetActorRotation(GetActorRotation() + DeltaRotationExitToEnter);
+	GetController()->SetControlRotation(GetController()->GetControlRotation() + DeltaRotationExitToEnter);
+	GetMovementComponent()->Velocity = DeltaRotationExitToEnter.RotateVector(GetMovementComponent()->Velocity);
+}
