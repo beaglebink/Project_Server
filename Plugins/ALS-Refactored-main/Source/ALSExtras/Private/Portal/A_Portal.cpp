@@ -41,6 +41,9 @@ AA_Portal::AA_Portal()
 	PortalTriggerComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);
 
 	PortalAudioComponent->bAutoActivate = false;
+
+	PortalButtonMeshComponent->SetRelativeLocation(FVector(18.0f, -110.0f, 0.0f));
+	PortalButtonMeshComponent->SetRelativeRotation(FRotator(-90.0f, 0.0f, 0.0f));
 }
 
 void AA_Portal::OnConstruction(const FTransform& Transform)
@@ -64,6 +67,13 @@ void AA_Portal::OnConstruction(const FTransform& Transform)
 		{
 			PortalDynamicMaterial->SetTextureParameterValue(TEXT("RenderTarget"), ExitPortal->PortalRenderTarget);
 		}
+	}
+
+	PortalButtonDynamicMaterial = PortalButtonMeshComponent->CreateDynamicMaterialInstance(0);
+	if (PortalButtonDynamicMaterial)
+	{
+		PortalButtonMeshComponent->SetMaterial(0, PortalButtonDynamicMaterial);
+		PortalButtonDynamicMaterial->SetScalarParameterValue(TEXT("Activation"), bIsActive);
 	}
 }
 
@@ -207,12 +217,30 @@ void AA_Portal::HandleWeaponShot_Implementation(FHitResult& Hit)
 
 void AA_Portal::ActivationTimelineProgress(float Value)
 {
+	PortalButtonMeshComponent->SetRelativeLocation(FVector(18.0f - 4.0f * Value, -110.0f, 0.0f));
 
+	static float LastValue = 0.0f;
+	bool bIsIncreasing = Value > LastValue;
+	LastValue = Value;
+
+	if (PortalDynamicMaterial && PortalButtonDynamicMaterial)
+	{
+		if (!bIsActive && bIsIncreasing)
+		{
+			PortalDynamicMaterial->SetScalarParameterValue(TEXT("Activation"), Value);
+			PortalButtonDynamicMaterial->SetScalarParameterValue(TEXT("Activation"), Value);
+		}
+		else if (bIsActive && bIsIncreasing)
+		{
+			PortalDynamicMaterial->SetScalarParameterValue(TEXT("Activation"), 1 - Value);
+			PortalButtonDynamicMaterial->SetScalarParameterValue(TEXT("Activation"), 1 - Value);
+		}
+	}
 }
 
 void AA_Portal::ActivationTimelineFinished()
 {
-
+	bIsActive = !bIsActive;
 }
 
 void AA_Portal::StartActivateDeactivatePortal(UInteractivePickerComponent* Picker)
@@ -221,23 +249,17 @@ void AA_Portal::StartActivateDeactivatePortal(UInteractivePickerComponent* Picke
 	{
 		return;
 	}
-	bIsActive = !bIsActive;
+
 	if (bIsActive)
-	{
-		PortalAudioComponent->Play();
-		PortalInteractiveComponent->InteractiveTooltipText = FText::FromString("Press \"F\" to Deactivate Portal");
-	}
-	else
 	{
 		PortalAudioComponent->Stop();
 		PortalInteractiveComponent->InteractiveTooltipText = FText::FromString("Press \"F\" to Activate Portal");
 	}
-	if (PortalDynamicMaterial)
+	else
 	{
-		PortalDynamicMaterial->SetScalarParameterValue(TEXT("Activation"), bIsActive);
+		PortalAudioComponent->Play();
+		PortalInteractiveComponent->InteractiveTooltipText = FText::FromString("Press \"F\" to Deactivate Portal");
 	}
-	if (ExitPortal && ExitPortal->PortalDynamicMaterial)
-	{
-		ExitPortal->PortalDynamicMaterial->SetScalarParameterValue(TEXT("Activation"), ExitPortal->bIsActive);
-	}
+
+	ActivationTimeline->PlayFromStart();
 }

@@ -58,6 +58,9 @@ private:
 	UPROPERTY()
 	UMaterialInstanceDynamic* PortalDynamicMaterial;
 
+	UPROPERTY()
+	UMaterialInstanceDynamic* PortalButtonDynamicMaterial;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Activation", meta = (AllowPrivateAccess = "true"))
 	uint8 bIsActive : 1{false};
 
