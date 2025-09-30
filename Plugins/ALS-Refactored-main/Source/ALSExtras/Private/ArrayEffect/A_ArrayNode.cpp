@@ -72,7 +72,7 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 	{
 		if (AE->bIsOnConcatenation)
 		{
-			OwnerActor->ArrayConcatenate(AE);
+			OwnerActor->ContainerConcatenate(AE);
 		}
 		return;
 	}

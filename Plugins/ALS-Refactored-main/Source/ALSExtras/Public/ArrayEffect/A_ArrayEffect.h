@@ -1,16 +1,12 @@
 #pragma once
 
+#include "ArrayEffect/A_PythonContainer.h"
 #include "Components/TimelineComponent.h"
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
 #include "A_ArrayEffect.generated.h"
 
-class AA_ArrayNode;
-class UBoxComponent;
-class UTextRenderComponent;
-
 UCLASS()
-class ALSEXTRAS_API AA_ArrayEffect : public AActor
+class ALSEXTRAS_API AA_ArrayEffect : public AA_PythonContainer
 {
 	GENERATED_BODY()
 
@@ -25,134 +21,25 @@ public:
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USceneComponent* SceneComponent;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UBoxComponent* CollisionComponent;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UChildActorComponent* EndNodeComponent;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<AA_ArrayNode> NodeClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<AA_ArrayEffect> ArrayClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* SwapAudioComp;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UTextRenderComponent* TextComp;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	FText ArrayName;
-
-	FVector DefaultLocation;
-
-	FRotator DefaultRotation;
-
-	AA_ArrayNode* EndNode;
-
-	float NodeLength;
-
-	float NodeWidth;
-
-	float NodeHigh;
-
-public:
-	TArray<AA_ArrayNode*> NodeArray;
-
-	uint8 bIsOverlapping : 1{false};
-
-	uint8 bIsSwapping : 1{false};
-
-	uint8 bIsOnConcatenation : 1{false};
-
-	uint8 bIsDetaching : 1{false};
-
-	uint8 bIsAttaching : 1{false};
-
-	int32 SizeOfConcatenatingArray = -1;
-
-	void GetTextCommand(FText Command);
-
-public:
-	void AppendNode(FName VariableName = NAME_None);
 
 private:
 	void SwapNodes(int32 Node1, int32 Node2);
 
-	void DeleteNode(int32 Index);
-
 	void InsertNode(FName VariableName, int32 Index);
 
-	void ArrayPop(int32 Index);
-
-	void ArrayClear();
-
-	void ArrayExtend();
-
-public:
-	void ArrayConcatenate(AA_ArrayEffect* ArrayToConcatenate);
-
 private:
-	void ArrayRename(FText NewName);
-
-	void ArrayCopy(FText Name, int32 OutLeftIndex, int32 OutRightIndex);
-
-public:
-	UFUNCTION(BlueprintCallable)
-	static bool IsValidPythonIdentifier(const FString& Str);
-
-private:
-	bool ParseCommandToAppend(FText Command, FText& PrevName, FName& VariableName);
-
 	bool ParseCommandToSwap(FText Command, FText& PrevName, int32& OutIndex1, int32& OutIndex2);
-
-	bool ParseCommandToDelete(FText Command, FText& PrevName, int32& OutIndex, int32& OutLeftIndex, int32& OutRightIndex);
 
 	bool ParseCommandToInsert(FText Command, FText& PrevName, FName& VariableName, int32& OutIndex);
 
-	bool ParseCommandToPop(FText Command, FText& PrevName, FName& VariableName, int32& Index);
-
-	bool ParseCommandToClear(FText Command, FText& PrevName);
-
-	bool ParseCommandToExtend(FText Command, FText& PrevName, TArray<int32>& OutArray);
-
-	bool ParseCommandToConcatenate(FText Command, int32& OutSize1, int32& OutSize2);
-
-	bool ParseCommandToReset(FText Command, FText& PrevName);
-
-	bool ParseCommandToRename(FText Command, FText& PrevName, FText& NewName, int32& ArrayNum);
-
-	bool ParseCommandToCopy(FText Command, FText& PrevName, FText& CopyName, int32& OutLeftIndex, int32& OutRightIndex);
-
 private:
-	void AttachToCharacterCamera();
-
-	void DetachFromCharacterCamera();
-
-	void AttachToArray();
-
-	void MoveNodesConsideringOrder();
-
-	void RefreshNameLocationAndRotation();
-
-	void SetArrayName(FText Name);
-
-	AActor* GetActorWithTag(const FName& Tag);
-
 	UPROPERTY(EditDefaultsOnly, Category = "Curve", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* HeightFloatCurve;
 
 	int32 SwapNode1;
 
 	int32 SwapNode2;
-
-	TArray<int32> ExtendArray;
-
-	int32 ExtendArrayIndex = 0;
 
 protected:
 	UPROPERTY()
@@ -166,8 +53,8 @@ protected:
 	FOnTimelineEvent FinishedFunction;
 
 	UFUNCTION()
-	virtual void TimelineProgress(float Value);
+	void SwapTimelineProgress(float Value);
 
 	UFUNCTION()
-	virtual void TimelineFinished();
+	void SwapTimelineFinished();
 };

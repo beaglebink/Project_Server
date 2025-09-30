@@ -5,7 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "A_ArrayNode.generated.h"
 
-class AA_ArrayEffect;
+class AA_PythonContainer;
 
 UCLASS()
 class ALSEXTRAS_API AA_ArrayNode : public AActor
@@ -65,7 +65,7 @@ public:
 	void DeleteNode();
 
 	UPROPERTY()
-	AA_ArrayEffect* OwnerActor;
+	AA_PythonContainer* OwnerActor;
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_BorderMaterial;

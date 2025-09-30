@@ -30,7 +30,7 @@ bool AA_InteractableActor::ParseAssignCommand(FText Command, FName& OutVarName, 
 	Left.RemoveSpacesInline();
 	Right = Right.TrimStartAndEnd();
 
-	if (!AA_ArrayEffect::IsValidPythonIdentifier(Left))
+	if (!AA_PythonContainer::IsValidPythonIdentifier(Left))
 	{
 		return false;
 	}
