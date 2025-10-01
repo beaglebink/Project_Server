@@ -263,6 +263,7 @@ void AA_PythonContainer::ContainerCopy(FText Name, int32 OutLeftIndex, int32 Out
 	if (AA_PythonContainer* NewContainer = GetWorld()->SpawnActor<AA_PythonContainer>(ContainerClass, EndNode->DefaultLocation - GetActorRightVector() * NodeWidth * 2, GetActorRotation()))
 	{
 		NewContainer->DefaultLocation = NewContainer->GetActorLocation();
+		NewContainer->ContainerClass = ContainerClass;
 		NewContainer->SetContainerName(Name);
 
 		int32 Index = 0;

@@ -23,6 +23,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* SwapAudioComp;
 
+public:
+	virtual void GetTextCommand(FText Command)override;
+
 private:
 	void SwapNodes(int32 Node1, int32 Node2);
 
@@ -30,6 +33,8 @@ private:
 
 private:
 	bool ParseCommandToSwap(FText Command, FText& PrevName, int32& OutIndex1, int32& OutIndex2);
+
+	bool ParseCommandToDelete(FText Command, FText& PrevName, int32& OutIndex, int32& OutLeftIndex, int32& OutRightIndex);
 
 	bool ParseCommandToInsert(FText Command, FText& PrevName, FName& VariableName, int32& OutIndex);
 

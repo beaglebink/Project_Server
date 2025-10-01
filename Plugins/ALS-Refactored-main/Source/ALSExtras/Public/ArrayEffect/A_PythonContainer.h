@@ -31,10 +31,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UChildActorComponent* EndNodeComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	TSubclassOf<AA_ArrayNode> NodeClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	TSubclassOf<AA_PythonContainer> ContainerClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
@@ -71,7 +71,7 @@ public:
 
 	virtual void GetTextCommand(FText Command);
 
-	void AppendNode(FName VariableName = NAME_None);
+	virtual void AppendNode(FName VariableName = NAME_None);
 
 	void DeleteNode(int32 Index);
 
