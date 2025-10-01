@@ -17,6 +17,8 @@ public:
 	AA_PythonContainer();
 
 protected:
+	virtual void OnConstruction(const FTransform& Transform) override;
+
 	virtual void BeginPlay() override;
 
 public:
@@ -31,10 +33,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UChildActorComponent* EndNodeComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	TSubclassOf<AA_ArrayNode> NodeClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	TSubclassOf<AA_PythonContainer> ContainerClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
@@ -71,11 +73,11 @@ public:
 
 	virtual void GetTextCommand(FText Command);
 
-	virtual void AppendNode(FName VariableName = NAME_None);
+	void AppendNode(FName VariableName = NAME_None);
 
 	void DeleteNode(int32 Index);
 
-	virtual void ContainerPop(int32 Index);
+	void ContainerPop(int32 Index);
 
 	void ContainerClear();
 
@@ -85,7 +87,7 @@ public:
 
 	void ContainerRename(FText NewName);
 
-	virtual void ContainerCopy(FText Name, int32 OutLeftIndex, int32 OutRightIndex);
+	void ContainerCopy(FText Name, int32 OutLeftIndex, int32 OutRightIndex);
 
 	UFUNCTION(BlueprintCallable)
 	static bool IsValidPythonIdentifier(const FString& Str);
@@ -93,6 +95,8 @@ public:
 	bool ParseCommandToAppend(FText Command, FText& PrevName, FName& VariableName);
 
 	bool ParseCommandToPop(FText Command, FText& PrevName, FName& VariableName, int32& Index);
+
+	bool ParseCommandToDelete(FText Command, FText& PrevName, int32& OutIndex, int32& OutLeftIndex, int32& OutRightIndex);
 
 	bool ParseCommandToClear(FText Command, FText& PrevName);
 

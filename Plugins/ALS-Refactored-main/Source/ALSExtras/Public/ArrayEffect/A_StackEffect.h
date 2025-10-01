@@ -19,17 +19,12 @@ public:
 	AA_StackEffect();
 
 protected:
+	virtual void OnConstruction(const FTransform& Transform) override;
+
 	virtual void BeginPlay() override;
 
 public:	
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void GetTextCommand(FText Command)override;
-
-	virtual void AppendNode(FName VariableName = NAME_None)override;
-
-private:
-	bool ParseCommandToAppend(FText Command, FText& PrevName, FName& VariableName);
-
-	bool ParseCommandToPop(FText Command, FText& PrevName, FName& VariableName, int32& Index);
 };

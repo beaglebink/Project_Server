@@ -59,28 +59,6 @@ void AA_ArrayEffect::GetTextCommand(FText Command)
 	{
 		SwapNodes(OutLeftIndex, OutRightIndex);
 	}
-	//delete
-	else if (ParseCommandToDelete(Command, PrevName, OutIndex, OutLeftIndex, OutRightIndex) && PrevName.ToString() == ContainerName.ToString())
-	{
-		if (OutIndex != -1)
-		{
-			DeleteNode(OutIndex);
-		}
-		else if (OutLeftIndex != -1 && OutRightIndex != -1)
-		{
-			for (size_t i = OutLeftIndex; i < OutRightIndex; ++i)
-			{
-				DeleteNode(OutLeftIndex);
-			}
-		}
-		else
-		{
-			ContainerClear();
-			EndNode->Destroy();
-			Destroy();
-		}
-		MoveNodesConsideringOrder();
-	}
 	//insert
 	else if (ParseCommandToInsert(Command, PrevName, VariableName, OutIndex) && PrevName.ToString() == ContainerName.ToString())
 	{
@@ -218,100 +196,6 @@ bool AA_ArrayEffect::ParseCommandToSwap(FText Command, FText& PrevName, int32& O
 		OutIndex2 = LeftIndices[1];
 
 		return true;
-	}
-
-	return false;
-}
-
-bool AA_ArrayEffect::ParseCommandToDelete(FText Command, FText& PrevName, int32& OutIndex, int32& OutLeftIndex, int32& OutRightIndex)
-{
-	OutIndex = INDEX_NONE;
-	OutLeftIndex = INDEX_NONE;
-	OutRightIndex = INDEX_NONE;
-
-	FString Input = Command.ToString();
-
-	const FString DelPrefix = TEXT("del ");
-	if (!Input.StartsWith(DelPrefix))
-	{
-		return false;
-	}
-	Input.RemoveSpacesInline();
-
-	FString Remainder = Input.RightChop(DelPrefix.Len() - 1);
-	if (Remainder.IsEmpty())
-	{
-		return false;
-	}
-
-	//del arrname
-	int32 FirstBracketPos = INDEX_NONE;
-	if (!Remainder.FindChar(TEXT('['), FirstBracketPos))
-	{
-		if (!AA_PythonContainer::IsValidPythonIdentifier(Remainder))
-		{
-			return false;
-		}
-		PrevName = FText::FromString(Remainder);
-		return true;
-	}
-
-	//del arrname[...]
-	int32 CloseBracketPos = INDEX_NONE;
-	if (!Remainder.FindLastChar(TEXT(']'), CloseBracketPos) || CloseBracketPos <= FirstBracketPos || CloseBracketPos != Remainder.Len() - 1)
-	{
-		return false;
-	}
-
-	FString ParsedArrayName = Remainder.Left(FirstBracketPos);
-	if (!AA_PythonContainer::IsValidPythonIdentifier(ParsedArrayName))
-	{
-		return false;
-	}
-	PrevName = FText::FromString(ParsedArrayName);
-
-	FString Inside = Remainder.Mid(FirstBracketPos + 1, CloseBracketPos - FirstBracketPos - 1);
-
-	//del arrname[index]
-	if (Inside.IsNumeric())
-	{
-		OutIndex = FCString::Atoi(*Inside);
-		return OutIndex < NodeArray.Num();
-	}
-
-	//slices ':'
-	int32 ColonPos = INDEX_NONE;
-	if (!Inside.FindChar(TEXT(':'), ColonPos))
-	{
-		return false;
-	}
-
-	FString Left = Inside.Left(ColonPos);
-	FString Right = Inside.Mid(ColonPos + 1);
-
-	if (Left.IsEmpty() && Right.IsEmpty()) // [:]
-	{
-		OutLeftIndex = 0;
-		OutRightIndex = NodeArray.Num();
-		return true;
-	}
-	else if (Left.IsEmpty() && Right.IsNumeric()) // [:index]
-	{
-		OutLeftIndex = 0;
-		OutRightIndex = FCString::Atoi(*Right);
-		return OutRightIndex < NodeArray.Num();
-	}
-	else if (Right.IsEmpty() && Left.IsNumeric()) // [index:]
-	{
-		OutLeftIndex = FCString::Atoi(*Left);
-		OutRightIndex = NodeArray.Num();
-		return OutLeftIndex < NodeArray.Num();
-	}
-	else if (Left.IsNumeric() && Right.IsNumeric()) // [index:index]
-	{
-		OutLeftIndex = FCString::Atoi(*Left);
-		OutRightIndex = FCString::Atoi(*Right);
-		return OutLeftIndex < OutRightIndex && OutRightIndex < NodeArray.Num();
 	}
 
 	return false;

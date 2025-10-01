@@ -1,4 +1,7 @@
 #include "ArrayEffect/A_PythonContainer.h"
+#include "ArrayEffect/A_ArrayEffect.h"
+#include "ArrayEffect/A_StackEffect.h"
+#include "ArrayEffect/A_QueueEffect.h"
 #include "ArrayEffect/A_ArrayNode.h"
 #include "Kismet/GameplayStatics.h"
 #include "AlsCharacterExample.h"
@@ -19,6 +22,16 @@ AA_PythonContainer::AA_PythonContainer()
 	CollisionComponent->SetupAttachment(RootComponent);
 	EndNodeComponent->SetupAttachment(RootComponent);
 	TextComponent->SetupAttachment(RootComponent);
+
+	TextComponent->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+	TextComponent->SetTextRenderColor(FColor(61.0f, 39.0f, 127.0f, 255.0f));
+	TextComponent->WorldSize = 64.0f;
+}
+
+void AA_PythonContainer::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	TextComponent->SetText(ContainerName);
 }
 
 void AA_PythonContainer::BeginPlay()
@@ -45,8 +58,6 @@ void AA_PythonContainer::BeginPlay()
 	}
 
 	CollisionComponent->SetBoxExtent(FVector(NodeLength * 0.5f, NodeWidth * 0.5f, NodeHigh * 0.5f));
-
-	TextComponent->SetText(ContainerName);
 }
 
 void AA_PythonContainer::Tick(float DeltaTime)
@@ -100,6 +111,28 @@ void AA_PythonContainer::GetTextCommand(FText Command)
 			NodeArray[OutIndex]->GrabbedActor->Tags.AddUnique(VariableName);
 		}
 		ContainerPop(OutIndex);
+		MoveNodesConsideringOrder();
+	}
+	//delete
+	else if (ParseCommandToDelete(Command, PrevName, OutIndex, OutLeftIndex, OutRightIndex) && PrevName.ToString() == ContainerName.ToString())
+	{
+		if (OutIndex != -1)
+		{
+			DeleteNode(OutIndex);
+		}
+		else if (OutLeftIndex != -1 && OutRightIndex != -1)
+		{
+			for (size_t i = OutLeftIndex; i < OutRightIndex; ++i)
+			{
+				DeleteNode(OutLeftIndex);
+			}
+		}
+		else
+		{
+			ContainerClear();
+			EndNode->Destroy();
+			Destroy();
+		}
 		MoveNodesConsideringOrder();
 	}
 	//clear
@@ -167,7 +200,14 @@ void AA_PythonContainer::AppendNode(FName VariableName)
 		if (EndNode)
 		{
 			EndNode->OwnerActor = this;
-			EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * NodeWidth);
+			if (IsA(AA_ArrayEffect::StaticClass()))
+			{
+				EndNode->MoveNode(EndNode->GetActorLocation() - GetActorRightVector() * NodeWidth);
+			}
+			else
+			{
+				EndNode->MoveNode(EndNode->GetActorLocation() + GetActorUpVector() * NodeHigh);
+			}
 		}
 	}
 }
@@ -204,6 +244,11 @@ void AA_PythonContainer::ContainerClear()
 
 void AA_PythonContainer::ContainerExtend()
 {
+	if (!EndNode)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 4, FColor::Red, "NULLPTR");
+		return;
+	}
 	if (EndNode->bIsMoving)
 	{
 		return;
@@ -223,7 +268,7 @@ void AA_PythonContainer::ContainerExtend()
 
 void AA_PythonContainer::ContainerConcatenate(AA_PythonContainer* ContainerToConcatenate)
 {
-	if (NodeArray.Num() != ContainerToConcatenate->SizeOfConcatenatingContainer)
+	if (!ContainerToConcatenate->IsA(this->GetClass()) || NodeArray.Num() != ContainerToConcatenate->SizeOfConcatenatingContainer)
 	{
 		ContainerToConcatenate->bIsOnConcatenation = false;
 		ContainerToConcatenate->bIsDetaching = true;
@@ -260,7 +305,13 @@ void AA_PythonContainer::ContainerCopy(FText Name, int32 OutLeftIndex, int32 Out
 		return;
 	}
 
-	if (AA_PythonContainer* NewContainer = GetWorld()->SpawnActor<AA_PythonContainer>(ContainerClass, EndNode->DefaultLocation - GetActorRightVector() * NodeWidth * 2, GetActorRotation()))
+	FVector StartLocation = GetActorLocation();
+	if (IsA(AA_ArrayEffect::StaticClass()))
+	{
+		StartLocation = EndNode->DefaultLocation;
+	}
+
+	if (AA_PythonContainer* NewContainer = GetWorld()->SpawnActor<AA_PythonContainer>(ContainerClass, StartLocation - GetActorRightVector() * NodeWidth * 2, GetActorRotation()))
 	{
 		NewContainer->DefaultLocation = NewContainer->GetActorLocation();
 		NewContainer->ContainerClass = ContainerClass;
@@ -412,8 +463,12 @@ bool AA_PythonContainer::ParseCommandToPop(FText Command, FText& PrevName, FName
 	if (Inside.IsEmpty())
 	{
 		Index = NodeArray.Num() - 1;
+		if (IsA(AA_QueueEffect::StaticClass()))
+		{
+			Index = 0;
+		}
 	}
-	else
+	else if (IsA(AA_ArrayEffect::StaticClass()))
 	{
 		if (!Inside.IsNumeric())
 		{
@@ -426,8 +481,120 @@ bool AA_PythonContainer::ParseCommandToPop(FText Command, FText& PrevName, FName
 			return false;
 		}
 	}
+	else
+	{
+		return false;
+	}
 
 	return true;
+}
+
+bool AA_PythonContainer::ParseCommandToDelete(FText Command, FText& PrevName, int32& OutIndex, int32& OutLeftIndex, int32& OutRightIndex)
+{
+	OutIndex = INDEX_NONE;
+	OutLeftIndex = INDEX_NONE;
+	OutRightIndex = INDEX_NONE;
+
+	FString Input = Command.ToString();
+
+	const FString DelPrefix = TEXT("del ");
+	if (!Input.StartsWith(DelPrefix))
+	{
+		return false;
+	}
+	Input.RemoveSpacesInline();
+
+	FString Remainder = Input.RightChop(DelPrefix.Len() - 1);
+	if (Remainder.IsEmpty())
+	{
+		return false;
+	}
+
+	//del arrname
+	int32 FirstBracketPos = INDEX_NONE;
+	if (!Remainder.FindChar(TEXT('['), FirstBracketPos))
+	{
+		if (!AA_PythonContainer::IsValidPythonIdentifier(Remainder))
+		{
+			return false;
+		}
+		PrevName = FText::FromString(Remainder);
+		return true;
+	}
+
+	//del arrname[...]
+	int32 CloseBracketPos = INDEX_NONE;
+	if (!Remainder.FindLastChar(TEXT(']'), CloseBracketPos) || CloseBracketPos <= FirstBracketPos || CloseBracketPos != Remainder.Len() - 1)
+	{
+		return false;
+	}
+
+	FString ParsedArrayName = Remainder.Left(FirstBracketPos);
+	if (!AA_PythonContainer::IsValidPythonIdentifier(ParsedArrayName))
+	{
+		return false;
+	}
+	PrevName = FText::FromString(ParsedArrayName);
+
+	FString Inside = Remainder.Mid(FirstBracketPos + 1, CloseBracketPos - FirstBracketPos - 1);
+
+	//del arrname[index]
+	if (IsA(AA_ArrayEffect::StaticClass()))
+	{
+		if (Inside.IsNumeric())
+		{
+			OutIndex = FCString::Atoi(*Inside);
+			return OutIndex < NodeArray.Num();
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	//slices ':'
+	int32 ColonPos = INDEX_NONE;
+	if (!Inside.FindChar(TEXT(':'), ColonPos))
+	{
+		return false;
+	}
+
+	FString Left = Inside.Left(ColonPos);
+	FString Right = Inside.Mid(ColonPos + 1);
+
+	if (Left.IsEmpty() && Right.IsEmpty()) // [:]
+	{
+		OutLeftIndex = 0;
+		OutRightIndex = NodeArray.Num();
+		return true;
+	}
+	if (IsA(AA_ArrayEffect::StaticClass()))
+	{
+		if (Left.IsEmpty() && Right.IsNumeric()) // [:index]
+		{
+			OutLeftIndex = 0;
+			OutRightIndex = FCString::Atoi(*Right);
+			return OutRightIndex < NodeArray.Num();
+		}
+		else if (Right.IsEmpty() && Left.IsNumeric()) // [index:]
+		{
+			OutLeftIndex = FCString::Atoi(*Left);
+			OutRightIndex = NodeArray.Num();
+			return OutLeftIndex < NodeArray.Num();
+		}
+		else if (Left.IsNumeric() && Right.IsNumeric()) // [index:index]
+		{
+			OutLeftIndex = FCString::Atoi(*Left);
+			OutRightIndex = FCString::Atoi(*Right);
+			return OutLeftIndex < OutRightIndex && OutRightIndex < NodeArray.Num();
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	return false;
 }
 
 bool AA_PythonContainer::ParseCommandToClear(FText Command, FText& PrevName)
@@ -676,32 +843,39 @@ bool AA_PythonContainer::ParseCommandToCopy(FText Command, FText& PrevName, FTex
 			OutLeftIndex = 0;
 			OutRightIndex = NodeArray.Num();
 		}
-		else if (LeftSlice.IsEmpty() && RightSlice.IsNumeric()) // [:index]
+		else if (IsA(AA_ArrayEffect::StaticClass()))
 		{
-			OutLeftIndex = 0;
-			OutRightIndex = FCString::Atoi(*RightSlice);
-			if (OutRightIndex >= NodeArray.Num())
+			if (LeftSlice.IsEmpty() && RightSlice.IsNumeric()) // [:index]
 			{
-				return false;
+				OutLeftIndex = 0;
+				OutRightIndex = FCString::Atoi(*RightSlice);
+				if (OutRightIndex >= NodeArray.Num())
+				{
+					return false;
+				}
+			}
+			else if (RightSlice.IsEmpty() && LeftSlice.IsNumeric()) // [index:]
+			{
+				OutLeftIndex = FCString::Atoi(*LeftSlice);
+				OutRightIndex = NodeArray.Num();
+				if (OutLeftIndex >= NodeArray.Num())
+				{
+					return false;
+				}
+			}
+			else if (LeftSlice.IsNumeric() && RightSlice.IsNumeric()) // [index:index]
+			{
+				OutLeftIndex = FCString::Atoi(*LeftSlice);
+				OutRightIndex = FCString::Atoi(*RightSlice);
+				if (OutLeftIndex >= OutRightIndex || OutRightIndex >= NodeArray.Num())
+				{
+					return false;
+				}
 			}
 		}
-		else if (RightSlice.IsEmpty() && LeftSlice.IsNumeric()) // [index:]
+		else
 		{
-			OutLeftIndex = FCString::Atoi(*LeftSlice);
-			OutRightIndex = NodeArray.Num();
-			if (OutLeftIndex >= NodeArray.Num())
-			{
-				return false;
-			}
-		}
-		else if (LeftSlice.IsNumeric() && RightSlice.IsNumeric()) // [index:index]
-		{
-			OutLeftIndex = FCString::Atoi(*LeftSlice);
-			OutRightIndex = FCString::Atoi(*RightSlice);
-			if (OutLeftIndex >= OutRightIndex || OutRightIndex >= NodeArray.Num())
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 	else
@@ -804,11 +978,25 @@ void AA_PythonContainer::MoveNodesConsideringOrder()
 {
 	for (size_t i = 0; i < NodeArray.Num(); ++i)
 	{
-		NodeArray[i]->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * i);
+		if (IsA(AA_ArrayEffect::StaticClass()))
+		{
+			NodeArray[i]->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * i);
+		}
+		else
+		{
+			NodeArray[i]->MoveNode(GetActorLocation() + GetActorUpVector() * NodeHigh * i);
+		}
 	}
 	if (IsValid(EndNode))
 	{
-		EndNode->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * NodeArray.Num());
+		if (IsA(AA_ArrayEffect::StaticClass()))
+		{
+			EndNode->MoveNode(GetActorLocation() - GetActorRightVector() * NodeWidth * NodeArray.Num());
+		}
+		else
+		{
+			EndNode->MoveNode(GetActorLocation() + GetActorUpVector() * NodeHigh * NodeArray.Num());
+		}
 	}
 }
 
