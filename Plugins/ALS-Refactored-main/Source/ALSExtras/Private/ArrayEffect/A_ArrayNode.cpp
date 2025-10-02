@@ -1,10 +1,10 @@
+#include "ArrayEffect/A_PythonContainer.h"
 #include "ArrayEffect/A_ArrayNode.h"
 #include "AlsCharacterExample.h"
 #include "Kismet/GameplayStatics.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
 #include "Components/AudioComponent.h"
-#include "ArrayEffect/A_ArrayEffect.h"
 
 AA_ArrayNode::AA_ArrayNode()
 {
@@ -68,11 +68,11 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 	};
 
 	//handle concatenation
-	if (AA_ArrayEffect* AE = Cast<AA_ArrayEffect>(OtherActor))
+	if (AA_PythonContainer* PythonCont = Cast<AA_PythonContainer>(OtherActor))
 	{
-		if (AE->bIsOnConcatenation)
+		if (PythonCont->bIsOnConcatenation)
 		{
-			OwnerActor->ContainerConcatenate(AE);
+			OwnerActor->ContainerConcatenate(PythonCont);
 		}
 		return;
 	}

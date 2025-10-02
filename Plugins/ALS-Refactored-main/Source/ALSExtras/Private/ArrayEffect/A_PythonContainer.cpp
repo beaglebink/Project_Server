@@ -621,6 +621,11 @@ bool AA_PythonContainer::ParseCommandToClear(FText Command, FText& PrevName)
 
 bool AA_PythonContainer::ParseCommandToExtend(FText Command, FText& PrevName, TArray<int32>& OutArray)
 {
+	if (!IsA(AA_ArrayEffect::StaticClass()))
+	{
+		return false;
+	}
+
 	OutArray.Empty();
 	FString Input = Command.ToString();
 	Input.RemoveSpacesInline();
@@ -675,6 +680,11 @@ bool AA_PythonContainer::ParseCommandToExtend(FText Command, FText& PrevName, TA
 
 bool AA_PythonContainer::ParseCommandToConcatenate(FText Command, int32& OutSize1, int32& OutSize2)
 {
+	if (!IsA(AA_ArrayEffect::StaticClass()))
+	{
+		return false;
+	}
+
 	FString Input = Command.ToString();
 
 	OutSize1 = 0;
