@@ -1,5 +1,5 @@
-#include "ArrayEffect/A_ArrayEffect.h"
-#include "ArrayEffect/A_ContainerNode.h"
+#include "PythonContainers/A_ArrayEffect.h"
+#include "PythonContainers/A_ContainerNode.h"
 #include "Components/AudioComponent.h"
 
 AA_ArrayEffect::AA_ArrayEffect()

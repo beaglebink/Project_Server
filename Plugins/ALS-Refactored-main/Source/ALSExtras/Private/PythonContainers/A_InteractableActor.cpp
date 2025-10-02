@@ -1,5 +1,5 @@
-#include "ArrayEffect/A_InteractableActor.h"
-#include "ArrayEffect/A_ArrayEffect.h"
+#include "PythonContainers/A_InteractableActor.h"
+#include "PythonContainers/A_ArrayEffect.h"
 #include "Kismet/KismetMathLibrary.h"
 
 AA_InteractableActor::AA_InteractableActor()
