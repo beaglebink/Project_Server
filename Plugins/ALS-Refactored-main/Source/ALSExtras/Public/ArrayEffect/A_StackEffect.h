@@ -6,7 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "A_StackEffect.generated.h"
 
-class AA_ArrayNode;
+class AA_ContainerNode;
 class UBoxComponent;
 class UTextRenderComponent;
 

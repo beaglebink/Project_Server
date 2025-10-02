@@ -1,12 +1,4 @@
 #include "ArrayEffect/A_StackEffect.h"
-#include "ArrayEffect/A_ArrayEffect.h"
-#include "ArrayEffect/A_ArrayNode.h"
-#include "Components/AudioComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "AlsCharacterExample.h"
-#include "AlsCameraComponent.h"
-#include "Components/BoxComponent.h"
-#include "Components/TextRenderComponent.h"
 
 AA_StackEffect::AA_StackEffect()
 {

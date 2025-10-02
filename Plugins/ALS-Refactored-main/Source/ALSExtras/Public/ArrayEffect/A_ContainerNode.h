@@ -3,17 +3,17 @@
 #include "Components/TimelineComponent.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "A_ArrayNode.generated.h"
+#include "A_ContainerNode.generated.h"
 
 class AA_PythonContainer;
 
 UCLASS()
-class ALSEXTRAS_API AA_ArrayNode : public AActor
+class ALSEXTRAS_API AA_ContainerNode : public AActor
 {
 	GENERATED_BODY()
 
 public:
-	AA_ArrayNode();
+	AA_ContainerNode();
 
 protected:
 	virtual void BeginPlay() override;
@@ -88,7 +88,7 @@ public:
 	void MoveNode(FVector TargetLocation);
 
 protected:
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UTimelineComponent* MoveTimeline;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Timeline")

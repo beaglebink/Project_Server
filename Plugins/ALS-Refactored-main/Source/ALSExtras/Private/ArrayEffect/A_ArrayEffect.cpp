@@ -1,11 +1,6 @@
 #include "ArrayEffect/A_ArrayEffect.h"
-#include "ArrayEffect/A_ArrayNode.h"
+#include "ArrayEffect/A_ContainerNode.h"
 #include "Components/AudioComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "AlsCharacterExample.h"
-#include "AlsCameraComponent.h"
-#include "Components/BoxComponent.h"
-#include "Components/TextRenderComponent.h"
 
 AA_ArrayEffect::AA_ArrayEffect()
 {
@@ -113,7 +108,7 @@ void AA_ArrayEffect::InsertNode(FName VariableName, int32 Index)
 		NodeArray[i]->SetIndex(i + 1);
 	}
 
-	AA_ArrayNode* NewNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, SpawnLocation, GetActorRotation());
+	AA_ContainerNode* NewNode = GetWorld()->SpawnActor<AA_ContainerNode>(NodeClass, SpawnLocation, GetActorRotation());
 	if (NewNode)
 	{
 		NewNode->OwnerActor = this;

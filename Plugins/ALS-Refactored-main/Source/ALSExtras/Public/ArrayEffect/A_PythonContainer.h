@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "A_PythonContainer.generated.h"
 
-class AA_ArrayNode;
+class AA_ContainerNode;
 class UBoxComponent;
 class UTextRenderComponent;
 
@@ -34,7 +34,7 @@ public:
 	UChildActorComponent* EndNodeComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	TSubclassOf<AA_ArrayNode> NodeClass;
+	TSubclassOf<AA_ContainerNode> NodeClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	TSubclassOf<AA_PythonContainer> ContainerClass;
@@ -49,7 +49,7 @@ public:
 
 	FRotator DefaultRotation;
 
-	AA_ArrayNode* EndNode;
+	AA_ContainerNode* EndNode;
 
 	float NodeLength;
 
@@ -57,7 +57,7 @@ public:
 
 	float NodeHigh;
 
-	TArray<AA_ArrayNode*> NodeArray;
+	TArray<AA_ContainerNode*> NodeArray;
 
 	uint8 bIsOverlapping : 1{false};
 

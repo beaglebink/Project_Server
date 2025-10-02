@@ -2,7 +2,7 @@
 #include "ArrayEffect/A_ArrayEffect.h"
 #include "ArrayEffect/A_StackEffect.h"
 #include "ArrayEffect/A_QueueEffect.h"
-#include "ArrayEffect/A_ArrayNode.h"
+#include "ArrayEffect/A_ContainerNode.h"
 #include "Kismet/GameplayStatics.h"
 #include "AlsCharacterExample.h"
 #include "AlsCameraComponent.h"
@@ -42,7 +42,7 @@ void AA_PythonContainer::BeginPlay()
 	DefaultRotation = GetActorRotation();
 
 	EndNodeComponent->DestroyComponent();
-	EndNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, GetActorLocation(), GetActorRotation());
+	EndNode = GetWorld()->SpawnActor<AA_ContainerNode>(NodeClass, GetActorLocation(), GetActorRotation());
 	if (EndNode)
 	{
 		EndNode->OwnerActor = this;
@@ -192,11 +192,11 @@ void AA_PythonContainer::AppendNode(FName VariableName)
 	}
 
 	FVector SpawnLocation = EndNode->GetActorLocation();
-	AA_ArrayNode* NewNode = EndNode;
+	AA_ContainerNode* NewNode = EndNode;
 	NodeArray.Add(NewNode);
 	if (NodeClass)
 	{
-		EndNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, SpawnLocation, GetActorRotation());
+		EndNode = GetWorld()->SpawnActor<AA_ContainerNode>(NodeClass, SpawnLocation, GetActorRotation());
 		if (EndNode)
 		{
 			EndNode->OwnerActor = this;
@@ -278,7 +278,7 @@ void AA_PythonContainer::ContainerConcatenate(AA_PythonContainer* ContainerToCon
 	ContainerToConcatenate->bIsOnConcatenation = false;
 
 	int32 Index = NodeArray.Num();
-	for (AA_ArrayNode* Node : ContainerToConcatenate->NodeArray)
+	for (AA_ContainerNode* Node : ContainerToConcatenate->NodeArray)
 	{
 		Node->OwnerActor = this;
 		Node->DefaultLocation = GetActorLocation() - GetActorRightVector() * NodeWidth * Index;
@@ -320,7 +320,7 @@ void AA_PythonContainer::ContainerCopy(FText Name, int32 OutLeftIndex, int32 Out
 		int32 Index = 0;
 		for (size_t i = OutLeftIndex; i < OutRightIndex; ++i)
 		{
-			if (AA_ArrayNode* NewNode = GetWorld()->SpawnActor<AA_ArrayNode>(NodeClass, NodeArray[i]->GetActorLocation(), GetActorRotation()))
+			if (AA_ContainerNode* NewNode = GetWorld()->SpawnActor<AA_ContainerNode>(NodeClass, NodeArray[i]->GetActorLocation(), GetActorRotation()))
 			{
 				NewNode->OwnerActor = NewContainer;
 				NewContainer->NodeArray.Add(NewNode);
@@ -954,7 +954,7 @@ void AA_PythonContainer::DetachFromCharacterCamera()
 
 	SetActorLocation(FMath::VInterpTo(GetActorLocation(), DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
 	SetActorRotation(FMath::RInterpTo(GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
-	for (AA_ArrayNode* Node : NodeArray)
+	for (AA_ContainerNode* Node : NodeArray)
 	{
 		Node->SetActorLocation(FMath::VInterpTo(Node->GetActorLocation(), Node->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
 		Node->SetActorRotation(FMath::RInterpTo(Node->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));
@@ -975,7 +975,7 @@ void AA_PythonContainer::AttachToContainer()
 		bIsAttaching = false;
 	}
 
-	for (AA_ArrayNode* Node : NodeArray)
+	for (AA_ContainerNode* Node : NodeArray)
 	{
 		Node->SetActorLocation(FMath::VInterpTo(Node->GetActorLocation(), Node->DefaultLocation, GetWorld()->GetDeltaSeconds(), 2.0f));
 		Node->SetActorRotation(FMath::RInterpTo(Node->GetActorRotation(), DefaultRotation, GetWorld()->GetDeltaSeconds(), 2.0f));

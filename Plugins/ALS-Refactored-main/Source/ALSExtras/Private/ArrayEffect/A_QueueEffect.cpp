@@ -1,12 +1,4 @@
 #include "ArrayEffect/A_QueueEffect.h"
-#include "ArrayEffect/A_ArrayEffect.h"
-#include "ArrayEffect/A_ArrayNode.h"
-#include "Components/AudioComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "AlsCharacterExample.h"
-#include "AlsCameraComponent.h"
-#include "Components/BoxComponent.h"
-#include "Components/TextRenderComponent.h"
 
 AA_QueueEffect::AA_QueueEffect()
 {
@@ -31,5 +23,4 @@ void AA_QueueEffect::Tick(float DeltaTime)
 void AA_QueueEffect::GetTextCommand(FText Command)
 {
 	Super::GetTextCommand(Command);
-
 }

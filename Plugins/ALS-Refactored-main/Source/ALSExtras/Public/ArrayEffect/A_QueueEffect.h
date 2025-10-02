@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "A_QueueEffect.generated.h"
 
-class AA_ArrayNode;
+class AA_ContainerNode;
 class UBoxComponent;
 class UTextRenderComponent;
 

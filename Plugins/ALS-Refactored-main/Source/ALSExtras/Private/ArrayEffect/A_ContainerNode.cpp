@@ -1,12 +1,12 @@
+#include "ArrayEffect/A_ContainerNode.h"
 #include "ArrayEffect/A_PythonContainer.h"
-#include "ArrayEffect/A_ArrayNode.h"
 #include "AlsCharacterExample.h"
 #include "Kismet/GameplayStatics.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "FPSKitALSRefactored\CoreGameplay\InteractionSystem\InteractivePickerComponent.h"
 #include "Components/AudioComponent.h"
 
-AA_ArrayNode::AA_ArrayNode()
+AA_ContainerNode::AA_ContainerNode()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -16,10 +16,19 @@ AA_ArrayNode::AA_ArrayNode()
 
 	RootComponent = NodeBorder;
 	NodeBorderAudioComp->SetupAttachment(RootComponent);
+
+	NodeBorder->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	NodeBorder->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	NodeBorder->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	NodeBorder->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Overlap);
+	NodeBorder->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Overlap);
+	NodeBorder->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel5, ECollisionResponse::ECR_Block);
+	NodeBorder->SetGenerateOverlapEvents(true);
+
 	NodeBorderAudioComp->bAutoActivate = false;
 }
 
-void AA_ArrayNode::BeginPlay()
+void AA_ContainerNode::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -27,7 +36,7 @@ void AA_ArrayNode::BeginPlay()
 
 	CurrentLocation = GetActorLocation();
 
-	NodeBorder->OnComponentBeginOverlap.AddDynamic(this, &AA_ArrayNode::OnBeginOverlap);
+	NodeBorder->OnComponentBeginOverlap.AddDynamic(this, &AA_ContainerNode::OnBeginOverlap);
 
 	if (FloatCurve)
 	{
@@ -41,21 +50,21 @@ void AA_ArrayNode::BeginPlay()
 	}
 }
 
-void AA_ArrayNode::OnConstruction(const FTransform& Transform)
+void AA_ContainerNode::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
 	SetBorderMaterialAndIndex();
 }
 
-void AA_ArrayNode::Tick(float DeltaTime)
+void AA_ContainerNode::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 	ComponentGrabbing();
 }
 
-void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void AA_ContainerNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (!OtherActor || bIsOccupied || bIsMoving || !OwnerActor || OwnerActor == OtherActor || OwnerActor->bIsOverlapping ||
 		OwnerActor->bIsSwapping || OwnerActor->bIsOnConcatenation || OwnerActor->bIsDetaching || (NodeIndex == -1 && OwnerActor->NodeArray.Num() == 10)) return;
@@ -95,7 +104,7 @@ void AA_ArrayNode::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 	}
 }
 
-void AA_ArrayNode::TryGrabActor(AActor* OtherActor)
+void AA_ContainerNode::TryGrabActor(AActor* OtherActor)
 {
 	if (!OtherActor)
 	{
@@ -125,7 +134,7 @@ void AA_ArrayNode::TryGrabActor(AActor* OtherActor)
 	}
 }
 
-void AA_ArrayNode::ComponentGrabbing()
+void AA_ContainerNode::ComponentGrabbing()
 {
 	if (bShouldGrab)
 	{
@@ -139,7 +148,7 @@ void AA_ArrayNode::ComponentGrabbing()
 	}
 }
 
-void AA_ArrayNode::DeleteNode()
+void AA_ContainerNode::DeleteNode()
 {
 	if (GrabbedComponent)
 	{
@@ -153,12 +162,12 @@ void AA_ArrayNode::DeleteNode()
 	Destroy();
 }
 
-int32 AA_ArrayNode::GetIndex() const
+int32 AA_ContainerNode::GetIndex() const
 {
 	return NodeIndex;
 }
 
-void AA_ArrayNode::SetIndex(int32 NewIndex)
+void AA_ContainerNode::SetIndex(int32 NewIndex)
 {
 	if (NodeIndex != NewIndex)
 	{
@@ -167,7 +176,7 @@ void AA_ArrayNode::SetIndex(int32 NewIndex)
 	}
 }
 
-void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
+void AA_ContainerNode::SetBorderMaterialAndIndex(int32 NewIndex)
 {
 	if (!DMI_BorderMaterial)
 	{
@@ -184,7 +193,7 @@ void AA_ArrayNode::SetBorderMaterialAndIndex(int32 NewIndex)
 	}
 }
 
-void AA_ArrayNode::SetBorderMaterialIfOccupied(UPrimitiveComponent* Occupant)
+void AA_ContainerNode::SetBorderMaterialIfOccupied(UPrimitiveComponent* Occupant)
 {
 	DMI_BorderMaterial->SetScalarParameterValue(FName("Emissive"), 1.0f);
 
@@ -194,22 +203,22 @@ void AA_ArrayNode::SetBorderMaterialIfOccupied(UPrimitiveComponent* Occupant)
 	}
 }
 
-void AA_ArrayNode::GetTextCommand(FText Command)
+void AA_ContainerNode::GetTextCommand(FText Command)
 {
 	OwnerActor->GetTextCommand(Command);
 }
 
-void AA_ArrayNode::AttachToNode(AActor* OtherActor)
+void AA_ContainerNode::AttachToNode(AActor* OtherActor)
 {
 	OtherActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 }
 
-void AA_ArrayNode::DetachFromNode(AActor* OtherActor)
+void AA_ContainerNode::DetachFromNode(AActor* OtherActor)
 {
 	OtherActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 }
 
-void AA_ArrayNode::MoveNode(FVector NewTargetLocation)
+void AA_ContainerNode::MoveNode(FVector NewTargetLocation)
 {
 	bIsMoving = true;
 	CurrentLocation = GetActorLocation();
@@ -220,12 +229,12 @@ void AA_ArrayNode::MoveNode(FVector NewTargetLocation)
 	MoveTimeline->PlayFromStart();
 }
 
-void AA_ArrayNode::TimelineProgress(float Value)
+void AA_ContainerNode::TimelineProgress(float Value)
 {
 	SetActorLocation(FMath::Lerp(CurrentLocation, TargetLocation, Value));
 }
 
-void AA_ArrayNode::TimelineFinished()
+void AA_ContainerNode::TimelineFinished()
 {
 	bIsMoving = false;
 	NodeBorderAudioComp->Stop();
