@@ -18,10 +18,10 @@ void AA_Rift::OnConstruction(const FTransform& Transform)
 
 	for (size_t i = 0; i < FromLeftBoxes.Num(); ++i)
 	{
-		if (FromLeftBoxes[i].BoxComponent && FromRightBoxes[i].BoxComponent)
+		if (IsValid(FromLeftBoxes[i]) && IsValid(FromRightBoxes[i]))
 		{
-			FromLeftBoxes[i].BoxComponent->DestroyComponent();
-			FromRightBoxes[i].BoxComponent->DestroyComponent();
+			FromLeftBoxes[i]->DestroyComponent();
+			FromRightBoxes[i]->DestroyComponent();
 		}
 	}
 
@@ -48,11 +48,10 @@ void AA_Rift::OnConstruction(const FTransform& Transform)
 		BoxCompLeft->RegisterComponent();
 		BoxCompLeft->SetBoxExtent(BoxSize * 0.5f);
 		BoxCompLeft->SetRelativeLocation(FVector(0.0f, SpaceBetweenBoxes * (static_cast<int32>(bIsLeft) * 2 - 1), BoxSize.Z * i));
-		BoxCompLeft->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		BoxCompLeft->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		BoxCompLeft->SetCollisionObjectType(ECC_WorldDynamic);
-		BoxCompLeft->OnComponentHit.AddDynamic(this, &AA_Rift::OnBoxHit);
-
-
+		BoxCompLeft->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		BoxCompLeft->bHiddenInGame = false;
 
 		FString RightName = FString::Printf(TEXT("RightBox_%d"), i);
 		UBoxComponent* BoxCompRight = NewObject<UBoxComponent>(this, *RightName);
@@ -60,25 +59,16 @@ void AA_Rift::OnConstruction(const FTransform& Transform)
 		BoxCompRight->RegisterComponent();
 		BoxCompRight->SetBoxExtent(BoxSize * 0.5f);
 		BoxCompRight->SetRelativeLocation(FVector(0.0f, SpaceBetweenBoxes * (static_cast<int32>(!bIsLeft) * 2 - 1), BoxSize.Z * i));
-		BoxCompRight->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		BoxCompRight->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		BoxCompRight->SetCollisionObjectType(ECC_WorldDynamic);
-		BoxCompRight->OnComponentHit.AddDynamic(this, &AA_Rift::OnBoxHit);
+		BoxCompRight->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		BoxCompRight->bHiddenInGame = false;
 
+		FromLeftBoxes.Add(BoxCompLeft);
+		FromRightBoxes.Add(BoxCompRight);
 
-		FRiftBoxData DataLeft;
-		DataLeft.BoxComponent = BoxCompLeft;
-		DataLeft.Index = i;
-		DataLeft.Side = ERiftSide::Left;
-
-		FRiftBoxData DataRight;
-		DataRight.BoxComponent = BoxCompRight;
-		DataRight.Index = i;
-		DataRight.Side = ERiftSide::Right;
-
-		FromLeftBoxes.Add(DataLeft);
-		FromRightBoxes.Add(DataRight);
+		bIsLeft = !bIsLeft;
 	}
-	bIsLeft = !bIsLeft;
 }
 
 void AA_Rift::BeginPlay()
@@ -91,13 +81,12 @@ void AA_Rift::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void AA_Rift::OnBoxHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+void AA_Rift::HandleWeaponShot_Implementation(FHitResult& Hit)
 {
-	if (!OtherActor || OtherActor == this)
-		return;
-
-	UE_LOG(LogTemp, Warning, TEXT("Hit detected! Box: %s | Other: %s"),
-		*HitComp->GetName(), *OtherActor->GetName());
-
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%s"), *Hit.GetComponent()->GetName()));
 }
 
+void AA_Rift::HandleTextFromWeapon_Implementation(const FText& TextCommand)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Rift Text Command: %s"), *TextCommand.ToString()));
+}

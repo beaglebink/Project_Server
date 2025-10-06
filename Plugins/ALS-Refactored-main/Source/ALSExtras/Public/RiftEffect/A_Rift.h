@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Interfaces\I_WeaponInteraction.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "A_Rift.generated.h"
@@ -7,30 +8,8 @@
 class UNiagaraComponent;
 class UBoxComponent;
 
-UENUM(BlueprintType)
-enum class ERiftSide : uint8
-{
-	Left,
-	Right
-};
-
-USTRUCT(BlueprintType)
-struct FRiftBoxData
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	UBoxComponent* BoxComponent;
-
-	UPROPERTY()
-	int32 Index;
-
-	UPROPERTY()
-	ERiftSide Side;
-};
-
 UCLASS()
-class ALSEXTRAS_API AA_Rift : public AActor
+class ALSEXTRAS_API AA_Rift : public AActor, public II_WeaponInteraction
 {
 	GENERATED_BODY()
 
@@ -51,14 +30,15 @@ private:
 
 protected:
 	UPROPERTY()
-	TArray<FRiftBoxData> FromLeftBoxes;
+	TArray<UBoxComponent*> FromLeftBoxes;
 
 	UPROPERTY()
-	TArray<FRiftBoxData> FromRightBoxes;
+	TArray<UBoxComponent*> FromRightBoxes;
 
 	UPROPERTY(EditAnywhere, Category = "Setup")
 	FVector BoxSize = FVector(2.0f, 20.f, 20.f);
+	
+	virtual void HandleWeaponShot_Implementation(FHitResult& Hit)override;
 
-	UFUNCTION()
-	void OnBoxHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	virtual void HandleTextFromWeapon_Implementation(const FText& TextCommand)override;
 };
