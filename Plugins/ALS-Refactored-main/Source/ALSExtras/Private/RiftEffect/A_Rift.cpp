@@ -114,20 +114,20 @@ void AA_Rift::HandleWeaponShot_Implementation(FHitResult& Hit)
 			{
 				Direction = 1;
 				PrevIndex = 0;
-				SpawnSewHole(PrevLocation);
+				SpawnSewHole(Hit.GetComponent(), PrevLocation);
 			}
 			else if (CurrentIndex == FromLeftBoxes.Num() - 1)
 			{
 				Direction = -1;
 				PrevIndex = FromLeftBoxes.Num() - 1;
-				SpawnSewHole(PrevLocation);
+				SpawnSewHole(Hit.GetComponent(), PrevLocation);
 			}
 		}
 		else if (CurrentIndex == PrevIndex + Direction && CurrentSide == PrevSide)
 		{
 
 			PrevIndex = CurrentIndex;
-			SpawnSewHole(Hit.Location);
+			SpawnSewHole(Hit.GetComponent(), Hit.Location);
 			SpawnSeam(PrevLocation, Hit.Location);
 			PrevLocation = Hit.Location;
 		}
@@ -168,15 +168,15 @@ bool AA_Rift::ParceComponentName(const FName& Name, FString& OutSide, int32& Out
 	return false;
 }
 
-void AA_Rift::SpawnSewHole(FVector HoleLocation)
+void AA_Rift::SpawnSewHole(UPrimitiveComponent* Component, FVector HoleLocation)
 {
 	static int32 i = 0;
 	FString HoleName = FString::Printf(TEXT("Hole_%d"), i++);
 
 	UStaticMeshComponent* HoleMeshComp = NewObject<UStaticMeshComponent>(this, *HoleName);
-	HoleMeshComp->SetupAttachment(RootComponent);
+	HoleMeshComp->SetupAttachment(Component);
 	HoleMeshComp->RegisterComponent();
-	HoleMeshComp->SetRelativeLocation(HoleLocation - GetActorLocation());
+	HoleMeshComp->SetWorldLocation(HoleLocation);
 	if (HoleStaticMesh)
 	{
 		HoleMeshComp->SetStaticMesh(HoleStaticMesh);
@@ -214,10 +214,11 @@ void AA_Rift::SewTimelineProgress(float Value)
 		FromLeftBoxes[i]->SetRelativeLocation(FVector(0.0f, FMath::Lerp(DefaultLocation.Y, TargetLocation.Y, Value), DefaultLocation.Z));
 		FromRightBoxes[i]->SetRelativeLocation(FVector(0.0f, FMath::Lerp(-DefaultLocation.Y, -TargetLocation.Y, Value), DefaultLocation.Z));
 	}
+	RiftNiagaraComp->SetNiagaraVariableFloat("User.Ribbon Width", FMath::Lerp(20.0f, 0.0f, Value));
 }
 
 void AA_Rift::SewTimelineFinished()
 {
 	SewAudioComp->Stop();
-	Destroy();
+	//Destroy();
 }

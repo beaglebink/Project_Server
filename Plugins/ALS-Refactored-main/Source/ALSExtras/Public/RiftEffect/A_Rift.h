@@ -64,7 +64,7 @@ private:
 
 	bool ParceComponentName(const FName& Name, FString& OutSide, int32& OutIndex);
 
-	void SpawnSewHole(FVector HoleLocation);
+	void SpawnSewHole(UPrimitiveComponent* Component, FVector HoleLocation);
 
 	void SpawnSeam(FVector StartLocation, FVector EndLocation);
 
