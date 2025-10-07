@@ -48,13 +48,23 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Setup")
 	FVector BoxSize = FVector(2.0f, 20.f, 20.f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|Rift", meta = (AllowPrivateAccess = true, ClampMin = "10.0", ClampMax = "100.0"))
+	float RiftWidth = 30.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|Rift", meta = (AllowPrivateAccess = true, ClampMin = "100.0", ClampMax = "500.0"))
+	float RiftHeight = 300.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|Fiber", meta = (AllowPrivateAccess = true, ClampMin = "0.1", ClampMax = "10.0"))
+	float FiberSewSpeed = 0.5f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|Fiber", meta = (AllowPrivateAccess = true, ClampMin = "0.1", ClampMax = "1.0"))
 	float FiberArcTangent = 0.4f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|Fiber", meta = (AllowPrivateAccess = true, ClampMin = "1.0", ClampMax = "5.0"))
+	float FiberDisappearing = 2.0f;
+
 	UPROPERTY()
 	float SpaceBetweenBoxes;
-
-	float FiberSewSpeed = 0.5f;
 
 	uint8 bShouldRotate : 1{false};
 

@@ -39,12 +39,12 @@ void AA_Rift::OnConstruction(const FTransform& Transform)
 		return;
 	}
 
-	FBoxSphereBounds NiagaraBounds = RiftNiagaraComp->Bounds;
-	FVector Extent = NiagaraBounds.BoxExtent * 2.0f;
+	RiftNiagaraComp->SetNiagaraVariableFloat(TEXT("RiftWidth"), RiftWidth);
+	RiftNiagaraComp->SetNiagaraVariableFloat(TEXT("RiftHeight"), RiftHeight);
 
-	int32 LoopNum = Extent.Z / BoxSize.Z;
+	int32 LoopNum = RiftHeight / BoxSize.Z;
 	LoopNum += (LoopNum % 2 == 0);
-	SpaceBetweenBoxes = Extent.Y / 2.0f + BoxSize.Y / 2;
+	SpaceBetweenBoxes = RiftWidth / 2.0f + BoxSize.Y / 2;
 	uint8 bIsLeft = true;
 
 	for (int32 i = 0; i < LoopNum; ++i)
@@ -257,7 +257,7 @@ void AA_Rift::SewTimelineProgress(float Value)
 		FromLeftBoxes[i]->SetRelativeLocation(FVector(0.0f, FMath::Lerp(DefaultLocation.Y, TargetLocation.Y, Value), DefaultLocation.Z));
 		FromRightBoxes[i]->SetRelativeLocation(FVector(0.0f, FMath::Lerp(-DefaultLocation.Y, -TargetLocation.Y, Value), DefaultLocation.Z));
 	}
-	RiftNiagaraComp->SetNiagaraVariableFloat("User.Ribbon Width", FMath::Lerp(20.0f, 0.0f, Value));
+	RiftNiagaraComp->SetNiagaraVariableFloat("User.RiftWidth", FMath::Lerp(RiftWidth, 0.0f, Value));
 
 	for (size_t i = 0; i < FiberNiagaraArray.Num(); ++i)
 	{
@@ -278,5 +278,5 @@ void AA_Rift::SewTimelineFinished()
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 		{
 			Destroy();
-		}, 5.0f, false);
+		}, FiberDisappearing, false);
 }
