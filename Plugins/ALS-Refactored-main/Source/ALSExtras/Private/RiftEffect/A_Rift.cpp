@@ -42,7 +42,8 @@ void AA_Rift::OnConstruction(const FTransform& Transform)
 	FBoxSphereBounds NiagaraBounds = RiftNiagaraComp->Bounds;
 	FVector Extent = NiagaraBounds.BoxExtent * 2.0f;
 
-	int32 LoopNum = Extent.Z / BoxSize.Z - 1;
+	int32 LoopNum = Extent.Z / BoxSize.Z;
+	LoopNum += (LoopNum % 2 == 0);
 	SpaceBetweenBoxes = Extent.Y / 2.0f + BoxSize.Y / 2;
 	uint8 bIsLeft = true;
 
@@ -57,7 +58,7 @@ void AA_Rift::OnConstruction(const FTransform& Transform)
 		BoxCompLeft->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		BoxCompLeft->SetCollisionObjectType(ECC_WorldDynamic);
 		BoxCompLeft->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-		BoxCompLeft->bHiddenInGame = false;
+		//BoxCompLeft->bHiddenInGame = false;
 
 		FString RightName = FString::Printf(TEXT("RightBox_%d"), i);
 		UBoxComponent* BoxCompRight = NewObject<UBoxComponent>(this, *RightName);
@@ -68,7 +69,7 @@ void AA_Rift::OnConstruction(const FTransform& Transform)
 		BoxCompRight->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		BoxCompRight->SetCollisionObjectType(ECC_WorldDynamic);
 		BoxCompRight->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-		BoxCompRight->bHiddenInGame = false;
+		//BoxCompRight->bHiddenInGame = false;
 
 		FromLeftBoxes.Add(BoxCompLeft);
 		FromRightBoxes.Add(BoxCompRight);
@@ -100,55 +101,72 @@ void AA_Rift::Tick(float DeltaTime)
 
 void AA_Rift::HandleWeaponShot_Implementation(FHitResult& Hit)
 {
+	if (!bCanSew)
+	{
+		return;
+	}
+
 	FString CurrentSide = "";
 	int32 CurrentIndex = -1;
 
-	if (ParceComponentName(Hit.GetComponent()->GetFName(), CurrentSide, CurrentIndex))
+	if (ParseComponentName(Hit.GetComponent()->GetFName(), CurrentSide, CurrentIndex))
 	{
 		if (PrevIndex == -1)
 		{
 			PrevSide = CurrentSide;
 			PrevLocation = Hit.Location;
 
+			bShouldRotate = FVector::DotProduct(GetActorForwardVector(), Hit.ImpactNormal) < 0;
+
 			if (CurrentIndex == 0)
 			{
 				Direction = 1;
 				PrevIndex = 0;
-				SpawnSewHole(Hit.GetComponent(), PrevLocation);
+				PrevComponent = SpawnSewHole(Hit.GetComponent(), PrevLocation);
+				SpawnSeamFiber(PrevComponent, PrevSide == "Left" ? PrevLocation + GetCornerOffset(-1, -1, SpaceBetweenBoxes / 2) : PrevLocation + GetCornerOffset(1, -1, SpaceBetweenBoxes / 2));
 			}
 			else if (CurrentIndex == FromLeftBoxes.Num() - 1)
 			{
 				Direction = -1;
 				PrevIndex = FromLeftBoxes.Num() - 1;
-				SpawnSewHole(Hit.GetComponent(), PrevLocation);
+				PrevComponent = SpawnSewHole(Hit.GetComponent(), PrevLocation);
+				SpawnSeamFiber(PrevComponent, PrevSide == "Left" ? PrevLocation + GetCornerOffset(-1, 1, SpaceBetweenBoxes / 2) : PrevLocation + GetCornerOffset(1, 1, SpaceBetweenBoxes / 2));
 			}
 		}
 		else if (CurrentIndex == PrevIndex + Direction && CurrentSide == PrevSide)
 		{
 
 			PrevIndex = CurrentIndex;
-			SpawnSewHole(Hit.GetComponent(), Hit.Location);
-			SpawnSeam(PrevLocation, Hit.Location);
+			SpawnSeamFiber(PrevComponent, Hit.Location);
+			PrevComponent = SpawnSewHole(Hit.GetComponent(), Hit.Location);
 			PrevLocation = Hit.Location;
 		}
 
+		FTimerHandle TimerHandle;
 		if (Direction == 1 && CurrentIndex == FromLeftBoxes.Num() - 1)
 		{
-			TightenTheSeam(Hit.Location);
+			GetWorldTimerManager().SetTimer(TimerHandle, [this, CurrentIndex, Hit]()
+				{
+					SpawnSeamFiber(PrevComponent, PrevSide == "Left" ? PrevLocation + GetCornerOffset(-1, 1, SpaceBetweenBoxes / 2) : PrevLocation + GetCornerOffset(1, 1, SpaceBetweenBoxes / 2));
+					TightenTheSeam();
+				}, 1.0f / FiberSewSpeed, false);
 		}
 		else if (Direction == -1 && CurrentIndex == 0)
 		{
-			TightenTheSeam(Hit.Location);
+			GetWorldTimerManager().SetTimer(TimerHandle, [this, CurrentIndex, Hit]()
+				{
+					SpawnSeamFiber(PrevComponent, PrevSide == "Left" ? PrevLocation + GetCornerOffset(-1, -1, SpaceBetweenBoxes / 2) : PrevLocation + GetCornerOffset(-1, -1, SpaceBetweenBoxes / 2));
+					TightenTheSeam();
+				}, 1.0f / FiberSewSpeed, false);
 		}
 	}
 }
 
 void AA_Rift::HandleTextFromWeapon_Implementation(const FText& TextCommand)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Rift Text Command: %s"), *TextCommand.ToString()));
 }
 
-bool AA_Rift::ParceComponentName(const FName& Name, FString& OutSide, int32& OutIndex)
+bool AA_Rift::ParseComponentName(const FName& Name, FString& OutSide, int32& OutIndex)
 {
 	FString NameStr = Name.ToString();
 	if (NameStr.StartsWith("LeftBox_"))
@@ -168,8 +186,16 @@ bool AA_Rift::ParceComponentName(const FName& Name, FString& OutSide, int32& Out
 	return false;
 }
 
-void AA_Rift::SpawnSewHole(UPrimitiveComponent* Component, FVector HoleLocation)
+UStaticMeshComponent* AA_Rift::SpawnSewHole(UPrimitiveComponent* Component, FVector HoleLocation)
 {
+	bCanSew = false;
+
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			bCanSew = true;
+		}, 1.0f / FiberSewSpeed, false);
+
 	static int32 i = 0;
 	FString HoleName = FString::Printf(TEXT("Hole_%d"), i++);
 
@@ -181,25 +207,42 @@ void AA_Rift::SpawnSewHole(UPrimitiveComponent* Component, FVector HoleLocation)
 	{
 		HoleMeshComp->SetStaticMesh(HoleStaticMesh);
 	}
+
+	HoleMeshesArray.Add(HoleMeshComp);
+
+	return HoleMeshComp;
 }
 
-void AA_Rift::SpawnSeam(FVector StartLocation, FVector EndLocation)
+void AA_Rift::SpawnSeamFiber(UStaticMeshComponent* HoleComp, FVector EndLocation)
 {
+	if (!FiberNiagara)
+	{
+		return;
+	}
+
+	UNiagaraComponent* NiagaraComp = NewObject<UNiagaraComponent>(this);
+	NiagaraComp->SetAsset(FiberNiagara);
+	NiagaraComp->SetupAttachment(HoleComp);
+	NiagaraComp->SetRelativeRotation(FRotator(0.0f, 180.0f * static_cast<int32>(bShouldRotate), 0.0f));
+	NiagaraComp->SetNiagaraVariableFloat(TEXT("User.FiberSewSpeed"), FiberSewSpeed);
+	NiagaraComp->SetNiagaraVariableFloat(TEXT("User.FiberArcTangent"), FiberArcTangent);
+	NiagaraComp->SetNiagaraVariableVec3(TEXT("User.BeamEndPosition"), EndLocation);
+	NiagaraComp->RegisterComponent();
+
+	FiberNiagaraArray.Add(NiagaraComp);
+
+	bShouldRotate = !bShouldRotate;
 }
 
-void AA_Rift::TightenTheSeam(FVector Location)
+void AA_Rift::TightenTheSeam()
 {
 	SewAudioComp->Play();
-	if (Direction == 1)
-	{
-
-	}
-	else
-	{
-
-	}
-
 	SewTimeline->PlayFromStart();
+}
+
+FVector AA_Rift::GetCornerOffset(int32 XSign, int32 YSign, float Offset)
+{
+	return (-XSign * GetActorRightVector() + YSign * GetActorUpVector()).GetSafeNormal() * Offset;
 }
 
 void AA_Rift::SewTimelineProgress(float Value)
@@ -215,10 +258,25 @@ void AA_Rift::SewTimelineProgress(float Value)
 		FromRightBoxes[i]->SetRelativeLocation(FVector(0.0f, FMath::Lerp(-DefaultLocation.Y, -TargetLocation.Y, Value), DefaultLocation.Z));
 	}
 	RiftNiagaraComp->SetNiagaraVariableFloat("User.Ribbon Width", FMath::Lerp(20.0f, 0.0f, Value));
+
+	for (size_t i = 0; i < FiberNiagaraArray.Num(); ++i)
+	{
+		FiberNiagaraArray[i]->SetNiagaraVariableFloat("User.ArcTangent", FMath::Lerp(0.4f, 0.1f, Value));
+		if (i == 0 || i == FiberNiagaraArray.Num() - 1)
+		{
+			continue;
+		}
+		FiberNiagaraArray[i]->SetNiagaraVariableVec3("User.BeamEndPosition", HoleMeshesArray[i]->GetComponentLocation());
+	}
 }
 
 void AA_Rift::SewTimelineFinished()
 {
 	SewAudioComp->Stop();
-	//Destroy();
+
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			Destroy();
+		}, 5.0f, false);
 }
