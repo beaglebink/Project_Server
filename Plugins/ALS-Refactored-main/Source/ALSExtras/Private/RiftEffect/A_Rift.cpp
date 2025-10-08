@@ -147,6 +147,7 @@ void AA_Rift::HandleWeaponShot_Implementation(FHitResult& Hit)
 		{
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, CurrentIndex, Hit]()
 				{
+					FiberSewSpeed = 0.5f;
 					SpawnSeamFiber(PrevComponent, PrevSide == "Left" ? PrevLocation + GetCornerOffset(-1, 1, SpaceBetweenBoxes / 2) : PrevLocation + GetCornerOffset(1, 1, SpaceBetweenBoxes / 2));
 					TightenTheSeam();
 				}, 1.0f / FiberSewSpeed, false);
@@ -155,6 +156,7 @@ void AA_Rift::HandleWeaponShot_Implementation(FHitResult& Hit)
 		{
 			GetWorldTimerManager().SetTimer(TimerHandle, [this, CurrentIndex, Hit]()
 				{
+					FiberSewSpeed = 0.5f;
 					SpawnSeamFiber(PrevComponent, PrevSide == "Left" ? PrevLocation + GetCornerOffset(-1, -1, SpaceBetweenBoxes / 2) : PrevLocation + GetCornerOffset(-1, -1, SpaceBetweenBoxes / 2));
 					TightenTheSeam();
 				}, 1.0f / FiberSewSpeed, false);
