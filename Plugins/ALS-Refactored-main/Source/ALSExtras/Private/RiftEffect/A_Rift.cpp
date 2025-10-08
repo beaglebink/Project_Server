@@ -39,8 +39,8 @@ void AA_Rift::OnConstruction(const FTransform& Transform)
 		return;
 	}
 
-	RiftNiagaraComp->SetNiagaraVariableFloat(TEXT("RiftWidth"), RiftWidth);
-	RiftNiagaraComp->SetNiagaraVariableFloat(TEXT("RiftHeight"), RiftHeight);
+	RiftNiagaraComp->SetVariableFloat(FName(TEXT("RiftWidth")), RiftWidth);
+	RiftNiagaraComp->SetVariableFloat(FName(TEXT("RiftHeight")), RiftHeight);
 
 	int32 LoopNum = RiftHeight / BoxSize.Z;
 	LoopNum += (LoopNum % 2 == 0);
@@ -226,9 +226,9 @@ void AA_Rift::SpawnSeamFiber(UStaticMeshComponent* HoleComp, FVector EndLocation
 	NiagaraComp->SetAsset(FiberNiagara);
 	NiagaraComp->SetupAttachment(HoleComp);
 	NiagaraComp->SetRelativeRotation(FRotator(0.0f, 180.0f * static_cast<int32>(bShouldRotate), 0.0f));
-	NiagaraComp->SetNiagaraVariableFloat(TEXT("User.FiberSewSpeed"), FiberSewSpeed);
-	NiagaraComp->SetNiagaraVariableFloat(TEXT("User.FiberArcTangent"), FiberArcTangent);
-	NiagaraComp->SetNiagaraVariableVec3(TEXT("User.BeamEndPosition"), EndLocation);
+	NiagaraComp->SetVariableFloat(FName(TEXT("User.FiberSewSpeed")), FiberSewSpeed);
+	NiagaraComp->SetVariableFloat(FName(TEXT("User.FiberArcTangent")), FiberArcTangent);
+	NiagaraComp->SetVariableVec3(FName(TEXT("User.BeamEndPosition")), EndLocation);
 	NiagaraComp->RegisterComponent();
 
 	FiberNiagaraArray.Add(NiagaraComp);
@@ -259,16 +259,16 @@ void AA_Rift::SewTimelineProgress(float Value)
 		FromLeftBoxes[i]->SetRelativeLocation(FVector(0.0f, FMath::Lerp(DefaultLocation.Y, TargetLocation.Y, Value), DefaultLocation.Z));
 		FromRightBoxes[i]->SetRelativeLocation(FVector(0.0f, FMath::Lerp(-DefaultLocation.Y, -TargetLocation.Y, Value), DefaultLocation.Z));
 	}
-	RiftNiagaraComp->SetNiagaraVariableFloat("User.RiftWidth", FMath::Lerp(RiftWidth, 0.0f, Value));
+	RiftNiagaraComp->SetVariableFloat(FName(TEXT("User.RiftWidth")), FMath::Lerp(RiftWidth, 0.0f, Value));
 
 	for (size_t i = 0; i < FiberNiagaraArray.Num(); ++i)
 	{
-		FiberNiagaraArray[i]->SetNiagaraVariableFloat("User.ArcTangent", FMath::Lerp(0.4f, 0.1f, Value));
+		FiberNiagaraArray[i]->SetVariableFloat(FName(TEXT("User.ArcTangent")), FMath::Lerp(0.4f, 0.1f, Value));
 		if (i == 0 || i == FiberNiagaraArray.Num() - 1)
 		{
 			continue;
 		}
-		FiberNiagaraArray[i]->SetNiagaraVariableVec3("User.BeamEndPosition", HoleMeshesArray[i]->GetComponentLocation());
+		FiberNiagaraArray[i]->SetVariableVec3(FName(TEXT("User.BeamEndPosition")), HoleMeshesArray[i]->GetComponentLocation());
 	}
 }
 
