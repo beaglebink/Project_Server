@@ -3,15 +3,15 @@
 #include "EnvironmentalHazard/A_EnvironmentalHazard.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "A_HazardActor.generated.h"
+#include "A_HazardCube.generated.h"
 
 UCLASS()
-class ALSEXTRAS_API AA_HazardActor : public AA_EnvironmentalHazard
+class ALSEXTRAS_API AA_HazardCube : public AA_EnvironmentalHazard
 {
 	GENERATED_BODY()
 
 public:
-	AA_HazardActor();
+	AA_HazardCube();
 
 protected:
 	virtual void OnConstruction(const FTransform& Transform)override;
@@ -21,5 +21,8 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
+private:
 	virtual void HandleWeaponShot_Implementation(FHitResult& Hit)override;
+
+	virtual void OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& HitResult)override;
 };

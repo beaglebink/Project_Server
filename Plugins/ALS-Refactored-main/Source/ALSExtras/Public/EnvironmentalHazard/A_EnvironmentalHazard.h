@@ -54,7 +54,16 @@ protected:
 
 	FVector RandomFrequency;
 
+	uint8 bCanBeHit : 1 {true};
+
+	uint8 bIsOnDeath : 1 {false};
+
 	void OnDeath();
+
+	UFUNCTION()
+	virtual void OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& HitResult);
+
+	void FloatingWave();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UTimelineComponent* DeathTimeline;
@@ -65,9 +74,6 @@ protected:
 	FOnTimelineFloat DeathProgressFunction;
 
 	FOnTimelineEvent DeathFinishedFunction;
-
-	UFUNCTION()
-	void OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& HitResult);
 
 	UFUNCTION()
 	void DeathTimelineProgress(float Value);
