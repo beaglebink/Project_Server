@@ -734,14 +734,14 @@ void AAlsCharacterExample::InitStatWidget()
 {
 	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
-		if (AttributesWidgetClass)
-		{
-			if (AttributesWidget = CreateWidget<UAttributesWidget>(PC, AttributesWidgetClass))
-			{
-				AttributesWidget->InitWithCharacterOwner(this);
-				AttributesWidget->AddToViewport(10);
-			}
-		}
+		//if (AttributesWidgetClass)
+		//{
+		//	if (AttributesWidget = CreateWidget<UAttributesWidget>(PC, AttributesWidgetClass))
+		//	{
+				//AttributesWidget->InitWithCharacterOwner(this);
+		//		AttributesWidget->AddToViewport(10);
+		//	}
+		//}
 	}
 }
 

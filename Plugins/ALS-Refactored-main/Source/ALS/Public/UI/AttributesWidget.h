@@ -36,5 +36,6 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Attributes")
 	void SetPerceptionPercent(float Perception, float MaxPerception);
 
+	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void InitWithCharacterOwner(AAlsCharacter* PlayerCharacter);
 };
