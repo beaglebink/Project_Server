@@ -249,17 +249,9 @@ public:
 	virtual void UnPossessed() override;
 
 	// UI
-
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
-	TSubclassOf<UAttributesWidget> AttributesWidgetClass;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widgets")
+	UPROPERTY(BlueprintReadWrite, Category = "Widgets")
 	TObjectPtr<UAttributesWidget> AttributesWidget;
-
-protected:
-	UFUNCTION(BlueprintCallable)
-	void InitStatWidget();
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void OnSetSprintMode(bool bSprintMode);

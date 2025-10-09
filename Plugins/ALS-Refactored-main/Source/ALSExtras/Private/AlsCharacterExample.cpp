@@ -8,7 +8,6 @@
 #include <PhysicsEngine/PhysicsConstraintComponent.h>
 #include "Kismet/KismetMathLibrary.h"
 #include "AlsCharacterMovementComponent.h"
-#include "UI/AttributesWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Inventory/AC_Inventory.h"
 #include "Inventory/AC_Container.h"
@@ -686,8 +685,6 @@ void AAlsCharacterExample::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	InitStatWidget();
-
 	Inventory = FindComponentByClass<UAC_Inventory>();
 	if (Inventory)
 	{
@@ -698,12 +695,6 @@ void AAlsCharacterExample::PossessedBy(AController* NewController)
 void AAlsCharacterExample::UnPossessed()
 {
 	Super::UnPossessed();
-
-	if (AttributesWidget)
-	{
-		AttributesWidget->RemoveFromParent();
-		AttributesWidget = nullptr;
-	}
 }
 
 void AAlsCharacterExample::ContinueJump()
@@ -727,22 +718,6 @@ void AAlsCharacterExample::Input_OnRemoveGrapple(const FInputActionValue& Action
 	float X = ActionValue.Get<FVector2D>().X;
 	float Y = ActionValue.Get<FVector2D>().Y;
 	PressTwoKeysRemoveGrappleEffect(X || Y ? true : false);
-}
-
-// UI
-void AAlsCharacterExample::InitStatWidget()
-{
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
-	{
-		//if (AttributesWidgetClass)
-		//{
-		//	if (AttributesWidget = CreateWidget<UAttributesWidget>(PC, AttributesWidgetClass))
-		//	{
-				//AttributesWidget->InitWithCharacterOwner(this);
-		//		AttributesWidget->AddToViewport(10);
-		//	}
-		//}
-	}
 }
 
 void AAlsCharacterExample::SetLoopEffect(bool bIsSet)
