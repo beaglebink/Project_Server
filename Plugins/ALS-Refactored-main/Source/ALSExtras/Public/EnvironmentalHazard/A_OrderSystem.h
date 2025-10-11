@@ -30,8 +30,8 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	TSubclassOf<AA_OrderCube> OrderCubeClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|Property", meta = (AllowPrivateAccess = true, ClampMin = "0", ClampMax = "10"))
-	int32 CubesQuantity = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|Property", meta = (AllowPrivateAccess = true, ClampMin = "1", ClampMax = "10"))
+	int32 CubesQuantity = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|Property", meta = (AllowPrivateAccess = true, ClampMin = "0", ClampMax = "10"))
 	int32 Damage = 0;
