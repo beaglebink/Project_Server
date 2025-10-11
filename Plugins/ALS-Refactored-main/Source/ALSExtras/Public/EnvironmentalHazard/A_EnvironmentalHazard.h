@@ -35,12 +35,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USoundBase* DeathSound;
 
+public:
 	UPROPERTY()
 	UMaterialInstanceDynamic* MeshDynamicMaterial;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "1", ClampMax = "9"))
-	int32 DamageCaused = 5;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "0", ClampMax = "9"))
+	int32 DamageCaused = 0;
 
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "0", ClampMax = "15"))
 	float BaseAmplitude;
 
@@ -58,8 +60,10 @@ protected:
 
 	uint8 bIsOnDeath : 1 {false};
 
+public:
 	void OnDeath();
 
+protected:
 	UFUNCTION()
 	virtual void OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& HitResult);
 
