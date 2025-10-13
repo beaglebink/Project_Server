@@ -1,8 +1,7 @@
 #pragma once
 
-#include "EnvironmentalHazard/A_EnvironmentalHazard.h"
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "EnvironmentalHazard/A_EnvironmentalHazard.h"
 #include "A_HazardCube.generated.h"
 
 UCLASS()
