@@ -1,12 +1,13 @@
 #pragma once
 
-#include "Components/TimelineComponent.h"
 #include "CoreMinimal.h"
 #include "AlsCharacterExample.h"
+#include "Interfaces/I_WeaponInteraction.h"
+#include "Components/TimelineComponent.h"
 #include "C_Word.generated.h"
 
 UCLASS()
-class ALSEXTRAS_API AC_Word : public AAlsCharacterExample
+class ALSEXTRAS_API AC_Word : public AAlsCharacterExample, public II_WeaponInteraction
 {
 	GENERATED_BODY()
 
@@ -31,10 +32,25 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|Property", meta = (AllowPrivateAccess = true))
 	int32 BookGroupCode = -1;
 
+	UPROPERTY()
+	FVector InitialLocation;
+
+	UPROPERTY()
+	FVector FloatAmplitude;
+
+	UPROPERTY()
+	FVector FloatFrequency;
+
+	UPROPERTY()
+	FVector FloatPhase;
+
+	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	uint8 bIsDragged : 1{false};
+
 	uint8 bIsAbsorbing : 1 {false};
 
 	FVector DefaultWordLocation;
-	
+
 	FVector TargetBookLocation;
 
 	UFUNCTION()
@@ -58,4 +74,6 @@ protected:
 
 	UFUNCTION()
 	void AbsorbTimelineFinished();
+
+	void HandleWeaponDrag_Implementation(bool bIsDragging);
 };

@@ -20,4 +20,7 @@ public:
 
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponInterface")
     void HandleTextFromWeapon(const FText& TextCommand);
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponInterface")
+    void HandleWeaponDrag(bool bIsDragging);
 };

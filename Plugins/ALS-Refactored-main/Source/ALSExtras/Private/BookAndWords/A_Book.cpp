@@ -31,5 +31,5 @@ void AA_Book::Tick(float DeltaTime)
 
 void AA_Book::AddWord(FText NewWord)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, FString::Printf(TEXT("%s"), *NewWord.ToString()));
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, *NewWord.ToString());
 }
