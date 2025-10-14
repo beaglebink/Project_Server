@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "A_Book.generated.h"
 
+class AC_Word;
+
 UCLASS()
 class ALSEXTRAS_API AA_Book : public AActor
 {
@@ -13,7 +15,7 @@ public:
 	AA_Book();
 
 protected:
-	virtual void OnCostruction(const FTransform& Transform)override;
+	virtual void OnConstruction(const FTransform& Transform)override;
 
 	virtual void BeginPlay() override;
 
@@ -24,8 +26,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UStaticMeshComponent* StaticMeshComponent;
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|Property", meta = (AllowPrivateAccess = true))
 	int32 BookGroupCode = -1;
 
-	void OnMeshBeginOverlap(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void AddWord(FText NewWord);
 };
