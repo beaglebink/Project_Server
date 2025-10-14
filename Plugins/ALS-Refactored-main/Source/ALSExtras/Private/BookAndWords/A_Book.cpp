@@ -1,5 +1,4 @@
 #include "BookAndWords/A_Book.h"
-#include "BookAndWords/C_Word.h"
 
 AA_Book::AA_Book()
 {
@@ -12,10 +11,10 @@ AA_Book::AA_Book()
 	StaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	StaticMeshComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 	StaticMeshComponent->SetCollisionProfileName("OverlapAllDynamic");
-	StaticMeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+	StaticMeshComponent->SetCollisionResponseToAllChannels(ECR_Overlap);
 }
 
-void AA_Book::OnCostruction(const FTransform& Transform)
+void AA_Book::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 }
@@ -23,8 +22,6 @@ void AA_Book::OnCostruction(const FTransform& Transform)
 void AA_Book::BeginPlay()
 {
 	Super::BeginPlay();
-
-	StaticMeshComponent->OnComponentBeginOverlap.AddDynamic(this, &AA_Book::OnMeshBeginOverlap);
 }
 
 void AA_Book::Tick(float DeltaTime)
@@ -32,19 +29,7 @@ void AA_Book::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void AA_Book::OnMeshBeginOverlap(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void AA_Book::AddWord(FText NewWord)
 {
-	if (!OtherActor)
-	{
-		return;
-	}
-
-	if (AC_Word* Word = Cast<AC_Word>(OtherActor))
-	{
-		if (Word->BookGroupCode == BookGroupCode)
-		{
-			Word->Absorbing();
-		}
-	}
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, FString::Printf(TEXT("%s"), *NewWord.ToString()));
 }
-
