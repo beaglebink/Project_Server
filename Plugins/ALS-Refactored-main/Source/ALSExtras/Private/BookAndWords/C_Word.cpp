@@ -3,7 +3,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/AudioComponent.h"
-
+#include "Components/CapsuleComponent.h"
 AC_Word::AC_Word()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -29,49 +29,65 @@ void AC_Word::OnConstruction(const FTransform& Transform)
 	FloatFrequency = FVector(FMath::RandRange(0.3f, 0.7f), FMath::RandRange(0.3f, 0.7f), FMath::RandRange(0.5f, 1.0f));
 	FloatPhase = FVector(FMath::RandRange(0.f, 2 * PI), FMath::RandRange(0.f, 2 * PI), FMath::RandRange(0.f, 2 * PI));
 
-	TArray<UActorComponent*> BoxComponents;
-	GetComponents(UBoxComponent::StaticClass(), BoxComponents);
-	for (UActorComponent* Comp : BoxComponents) Comp->DestroyComponent();
-
 	TArray<UActorComponent*> TextComponents;
 	GetComponents(UTextRenderComponent::StaticClass(), TextComponents);
-	for (UActorComponent* Comp : TextComponents) Comp->DestroyComponent();
+	for (UActorComponent* Comp : TextComponents)
+	{
+		Comp->DestroyComponent();
+	}
 
 	FString SWord = Word.ToString();
+	const int32 LetterCount = SWord.Len();
+	if (LetterCount == 0)
+	{
+		return;
+	}
 
-	for (int32 i = 0; i < SWord.Len(); ++i)
+	UCapsuleComponent* Capsule = GetCapsuleComponent();
+	if (Capsule)
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Capsule->SetCollisionObjectType(ECC_WorldDynamic);
+		Capsule->SetCollisionResponseToAllChannels(ECR_Overlap);
+		Capsule->OnComponentBeginOverlap.AddDynamic(this, &AC_Word::OnLetterBeginOverlap);
+
+		Capsule->SetRelativeRotation(FRotator(0.0f, 0.0f, -90.0f));
+	}
+
+	const float FontSize = 100.0f;
+	const float LetterSpacing = FontSize * 0.6f;
+	const float TotalWidth = LetterSpacing * LetterCount;
+
+	if (Capsule)
+	{
+		Capsule->SetCapsuleHalfHeight(TotalWidth * 0.5f);
+		Capsule->SetCapsuleRadius(FontSize * 0.4f);
+	}
+
+	const float StartOffset = -TotalWidth * 0.5f + LetterSpacing * 0.5f;
+
+	for (int32 i = 0; i < LetterCount; ++i)
 	{
 		const FString Letter = SWord.Mid(i, 1);
 
-		FString BoxName = FString::Printf(TEXT("LetterBox_%d"), i);
-		UBoxComponent* Box = NewObject<UBoxComponent>(this, *BoxName);
-		Box->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-		Box->RegisterComponent();
-		Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		Box->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
-		Box->SetCollisionProfileName("OverlapAllDynamic");
-		Box->SetCollisionResponseToAllChannels(ECR_Overlap);
-
-		Box->OnComponentBeginOverlap.AddDynamic(this, &AC_Word::OnLetterBeginOverlap);
-
 		FString TextName = FString::Printf(TEXT("LetterText_%d"), i);
 		UTextRenderComponent* TextComp = NewObject<UTextRenderComponent>(this, *TextName);
-		TextComp->AttachToComponent(Box, FAttachmentTransformRules::KeepRelativeTransform);
+		TextComp->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		TextComp->RegisterComponent();
 
 		TextComp->SetText(FText::FromString(Letter));
 		TextComp->SetHorizontalAlignment(EHTA_Center);
 		TextComp->SetVerticalAlignment(EVRTA_TextCenter);
-		TextComp->SetRelativeLocation(FVector::ZeroVector);
-		TextComp->SetWorldSize(100.0f);
 		TextComp->SetTextRenderColor(FColor::Magenta);
+		TextComp->SetWorldSize(FontSize);
 
-		FVector TextSize = TextComp->GetTextLocalSize();
-		TextSize.X = 4.0f;
-		Box->SetBoxExtent(TextSize / 2.0f);
-		Box->SetRelativeLocation(FVector(0.0f, -TextSize.Y * i, 0.0f));
+		TextComp->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
+
+		const float ZOffset = StartOffset + i * LetterSpacing;
+		TextComp->SetRelativeLocation(FVector(0.0f, 0.0f, ZOffset));
 	}
 }
+
 
 void AC_Word::BeginPlay()
 {

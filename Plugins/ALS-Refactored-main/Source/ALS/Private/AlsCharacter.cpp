@@ -271,7 +271,6 @@ void AAlsCharacter::OnRep_ReplicatedBasedMovement()
 void AAlsCharacter::Tick(const float DeltaTime)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("AAlsCharacter::Tick()"), STAT_AAlsCharacter_Tick, STATGROUP_Als)
-
 	if (!IsValid(Settings) || !AnimationInstance.IsValid())
 	{
 		Super::Tick(DeltaTime);
@@ -2172,7 +2171,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40;
-
+	
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
 		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
