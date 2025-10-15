@@ -9,7 +9,7 @@ AC_Word::AC_Word()
 	PrimaryActorTick.bCanEverTick = true;
 
 	AbsorbTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("AbsorbTimeline"));
-	AudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("AudionComponent"));
+	AudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 
 	AudioComp->SetupAttachment(RootComponent);
 	AudioComp->SetAutoActivate(false);
