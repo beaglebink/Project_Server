@@ -14,6 +14,8 @@ struct FMazeRow
 	TArray<int32> Row;
 };
 
+class URuntimeVirtualTexture;
+
 UCLASS()
 class ALSEXTRAS_API AA_Maze : public AActor, public II_WeaponInteraction
 {
@@ -49,4 +51,8 @@ private:
 	void ReadMazeTextureToArray();
 
 	void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
+
+	void PaintCell(int32 CellX, int32 CellY);
+
+	void OnFinishMaze();
 };
