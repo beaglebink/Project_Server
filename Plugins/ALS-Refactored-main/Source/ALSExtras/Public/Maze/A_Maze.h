@@ -14,8 +14,6 @@ struct FMazeRow
 	TArray<int32> Row;
 };
 
-class URuntimeVirtualTexture;
-
 UCLASS()
 class ALSEXTRAS_API AA_Maze : public AActor, public II_WeaponInteraction
 {
@@ -38,8 +36,11 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UTexture2D* MazeTexture;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
+	UTexture* BrushTexture;
+
+	UPROPERTY()
 	UTextureRenderTarget2D* MazeRenderTarget;
 
 	UPROPERTY()
@@ -53,6 +54,8 @@ private:
 	void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
 
 	void PaintCell(int32 CellX, int32 CellY);
+
+	void DrawCellOnRenderTarget(int32 CellX, int32 CellY);
 
 	void OnFinishMaze();
 };

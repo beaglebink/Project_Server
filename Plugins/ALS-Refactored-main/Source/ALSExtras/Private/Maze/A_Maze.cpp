@@ -1,6 +1,7 @@
 #include "Maze/A_Maze.h"
 #include "Engine/Texture2D.h"
 #include "Kismet/KismetRenderingLibrary.h"
+#include "Engine/Canvas.h"
 
 AA_Maze::AA_Maze()
 {
@@ -16,6 +17,11 @@ void AA_Maze::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
+	MazeRenderTarget = NewObject<UTextureRenderTarget2D>(this);
+	MazeRenderTarget->InitAutoFormat(256, 256);
+	MazeRenderTarget->ClearColor = FLinearColor::Black;
+	MazeRenderTarget->UpdateResourceImmediate();
+
 	if (!MeshDynamicMaterial)
 	{
 		MeshDynamicMaterial = StaticMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
@@ -23,6 +29,7 @@ void AA_Maze::OnConstruction(const FTransform& Transform)
 	if (MeshDynamicMaterial && MazeTexture)
 	{
 		MeshDynamicMaterial->SetTextureParameterValue("Texture", MazeTexture);
+		//MeshDynamicMaterial->SetTextureParameterValue("RenderTexture", MazeRenderTarget);
 	}
 
 	ReadMazeTextureToArray();
@@ -36,13 +43,6 @@ void AA_Maze::BeginPlay()
 void AA_Maze::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	for (size_t i = 0; i < MazeArray.Num(); i++)
-	{
-		for (size_t j = 0; j < MazeArray[0].Row.Num(); j++)
-		{
-			DrawDebugSphere(GetWorld(), FVector(GetActorLocation().X + 50.0f, GetActorLocation().Y - j * 5.0f-500.0f, GetActorLocation().Z - i * 5.0f), 2.0f, 4, MazeArray[i].Row[j] == -1 ? FColor::Black : MazeArray[i].Row[j] == 0 ? FColor::White : MazeArray[i].Row[j] == 1 ? FColor::Green : FColor::Blue, false, 0.1f, 0u, 1.0f);
-		}
-	}
 }
 
 void AA_Maze::ReadMazeTextureToArray()
@@ -148,7 +148,37 @@ void AA_Maze::PaintCell(int32 CellX, int32 CellY)
 	}
 
 	Cell = 1;
+	DrawCellOnRenderTarget(CellX, CellY);
 }
+
+void AA_Maze::DrawCellOnRenderTarget(int32 CellX, int32 CellY)
+{
+	if (!MazeRenderTarget || !MeshDynamicMaterial)
+	{
+		return;
+	}
+
+	int32 RTWidth = MazeRenderTarget->SizeX;
+	int32 RTHeight = MazeRenderTarget->SizeY;
+
+	float U = CellX / (float)32;
+	float V = CellY / (float)32;
+
+	// Calculate cell position and size in render target space (doubled size for better visibility, that's why should do offset on half size)
+	FVector2D CellSize(RTWidth / (float)32 * 2.0f, RTHeight / (float)32 * 2.0f);
+	FVector2D CellPos(U * RTWidth - CellSize.X / 4, V * RTHeight - CellSize.Y / 4);
+
+	FDrawToRenderTargetContext Context;
+	UCanvas* Canvas;
+	FVector2D Size;
+	UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(GetWorld(), MazeRenderTarget, Canvas, Size, Context);
+	Canvas->K2_DrawTexture(BrushTexture, CellPos, CellSize, FVector2D(0, 0));
+
+	UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(GetWorld(), Context);
+
+	MeshDynamicMaterial->SetTextureParameterValue(FName("RenderTarget"), MazeRenderTarget);
+}
+
 
 void AA_Maze::OnFinishMaze()
 {
