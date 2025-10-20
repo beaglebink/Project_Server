@@ -43,6 +43,15 @@ void AA_PaintableTexture::BeginPlay()
 void AA_PaintableTexture::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// Debug draw pixel array
+	//for (size_t i = 0; i < PixelArray.Num(); i++)
+	//{
+	//	for (size_t j = 0; j < PixelArray[0].Row.Num(); j++)
+	//	{
+	//		DrawDebugSphere(GetWorld(), FVector(GetActorLocation().X, GetActorLocation().Y + 200 - j * 5, GetActorLocation().Z - i * 5), 5, 4, PixelArray[i].Row[j] == -1 ? FColor::Black : PixelArray[i].Row[j] == 0 ? FColor::White : PixelArray[i].Row[j] == 1 ? FColor::Green : FColor::Blue, false, 0.1);
+	//	}
+	//}
 }
 
 void AA_PaintableTexture::ReadTextureToArray()
