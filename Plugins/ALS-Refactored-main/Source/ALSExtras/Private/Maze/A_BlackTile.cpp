@@ -43,14 +43,6 @@ void AA_BlackTile::PaintCell(int32 CellX, int32 CellY)
 		return;
 	}
 
-	int32& Cell = PixelArray[CellY].Row[CellX];
-
-	const TArray<FIntPoint> Neighbors =
-	{
-		{CellX + 1, CellY}, {CellX - 1, CellY},
-		{CellX, CellY + 1}, {CellX, CellY - 1}
-	};
-
 	if (bIsFirstPixel)
 	{
 		const bool bIsOnBorder = (CellX == 0 || CellX == Width - 1 || CellY == 0 || CellY == Height - 1);
@@ -60,36 +52,44 @@ void AA_BlackTile::PaintCell(int32 CellX, int32 CellY)
 		}
 		bIsFirstPixel = false;
 	}
-	else
+	else if (!HasColoredOutline())
 	{
-		if (!HasColoredOutline())
-		{
-			const bool bIsOnBorder = (CellX == 0 || CellX == Width - 1 || CellY == 0 || CellY == Height - 1);
-			if (!bIsOnBorder)
-			{
-				return;
-			}
+		const int32 Spread = 4;
+		bool bFound = false;
+		FIntPoint CellToPaint = { CellX, CellY };
 
-			bool bHasGreenNeighbor = false;
-			for (const FIntPoint& N : Neighbors)
+		for (int32 y = FMath::Max(0, CellY - Spread); y <= FMath::Min(Height - 1, CellY + Spread) && !bFound; ++y)
+		{
+			for (int32 x = FMath::Max(0, CellX - Spread); x <= FMath::Min(Width - 1, CellX + Spread) && !bFound; ++x)
 			{
-				if (N.X >= 0 && N.X < Width && N.Y >= 0 && N.Y < Height)
+				if (PixelArray[y].Row[x] == 1)
 				{
-					if (PixelArray[N.Y].Row[N.X] == 1)
+					const TArray<FIntPoint> Neighbors =
 					{
-						bHasGreenNeighbor = true;
-						break;
+						{x + 1, y}, {x - 1, y},
+						{x, y + 1}, {x, y - 1}
+					};
+					for (const FIntPoint& N : Neighbors)
+					{
+						const bool bIsOnBorder = (N.X == 0 || N.X == Width - 1 || N.Y == 0 || N.Y == Height - 1);
+						if (PixelArray.IsValidIndex(N.Y) && PixelArray[N.Y].Row.IsValidIndex(N.X) && bIsOnBorder && PixelArray[N.Y].Row[N.X] == -1)
+						{
+							bFound = true;
+							CellToPaint.X = N.X;
+							CellToPaint.Y = N.Y;
+							break;
+						}
 					}
 				}
 			}
-
-			if (!bHasGreenNeighbor)
-			{
-				return;
-			}
 		}
+		if (!bFound)
+		{
+			return;
+		}
+		CellX = CellToPaint.X;
+		CellY = CellToPaint.Y;
 	}
-
 	const int32 ThresholdCount = FMath::CeilToInt(Width * Height * PaintedPercentThreshold / 100.0f);
 
 	if (PaintedPixelCount >= ThresholdCount)
@@ -98,10 +98,10 @@ void AA_BlackTile::PaintCell(int32 CellX, int32 CellY)
 		return;
 	}
 
-	if (Cell != 1)
+	if (PixelArray[CellY].Row[CellX] != 1)
 	{
 		++PaintedPixelCount;
-		Cell = 1;
+		PixelArray[CellY].Row[CellX] = 1;
 	}
 
 	DrawCellOnRenderTarget(CellX, CellY);
