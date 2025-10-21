@@ -2,6 +2,7 @@
 #include "Engine/Texture2D.h"
 #include "Kismet/KismetRenderingLibrary.h"
 #include "Engine/Canvas.h"
+#include "Components/AudioComponent.h"
 
 AA_PaintableTexture::AA_PaintableTexture()
 {
@@ -9,8 +10,13 @@ AA_PaintableTexture::AA_PaintableTexture()
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
+	DissolveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TimelineComponent"));
 
 	StaticMeshComponent->SetupAttachment(RootComponent);
+	AudioComponent->SetupAttachment(StaticMeshComponent);
+
+	AudioComponent->bAutoActivate = false;
 }
 
 void AA_PaintableTexture::OnConstruction(const FTransform& Transform)
@@ -38,6 +44,17 @@ void AA_PaintableTexture::OnConstruction(const FTransform& Transform)
 void AA_PaintableTexture::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (DissolveFloatCurve)
+	{
+		DissolveProgressFunction.BindUFunction(this, FName("DissolveTimelineProgress"));
+		DissolveTimeline->AddInterpFloat(DissolveFloatCurve, DissolveProgressFunction);
+
+		DissolveFinishedFunction.BindUFunction(this, FName("DissolveTimelineFinished"));
+		DissolveTimeline->SetTimelineFinishedFunc(DissolveFinishedFunction);
+
+		DissolveTimeline->SetLooping(false);
+	}
 }
 
 void AA_PaintableTexture::Tick(float DeltaTime)
@@ -126,5 +143,20 @@ void AA_PaintableTexture::DrawCellOnRenderTarget(int32 CellX, int32 CellY)
 void AA_PaintableTexture::OnFinish()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Finished!"));
+	bIsOnDissolving = true;
+
+	AudioComponent->Play();
+	DissolveTimeline->Play();
+}
+
+void AA_PaintableTexture::DissolveTimelineProgress(float Value)
+{
+	MeshDynamicMaterial->SetScalarParameterValue(FName("Opacity"), Value);
+
+}
+
+void AA_PaintableTexture::DissolveTimelineFinished()
+{
+	AudioComponent->Stop();
 }
 

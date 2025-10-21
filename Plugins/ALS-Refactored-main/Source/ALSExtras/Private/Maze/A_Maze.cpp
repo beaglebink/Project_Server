@@ -22,6 +22,11 @@ void AA_Maze::Tick(float DeltaTime)
 
 void AA_Maze::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
+	if (bIsOnDissolving)
+	{
+		return;
+	}
+
 	FVector ImpactLocation = Hit.ImpactPoint - GetActorLocation();
 
 	float NormalizedX = -ImpactLocation.Y / StaticMeshComponent->Bounds.BoxExtent.Y / 2.0f;
@@ -83,9 +88,4 @@ void AA_Maze::PaintCell(int32 CellX, int32 CellY)
 
 	Cell = 1;
 	DrawCellOnRenderTarget(CellX, CellY);
-}
-
-void AA_Maze::OnFinish()
-{
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Maze Finished!"));
 }

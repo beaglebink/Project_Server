@@ -25,6 +25,4 @@ private:
 	void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
 
 	void PaintCell(int32 CellX, int32 CellY);
-
-	virtual void OnFinish()override;
 };

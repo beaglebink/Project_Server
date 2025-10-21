@@ -21,7 +21,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Parameter", meta = (AllowPrivateAccess = true, ClampMin = 0, ClampMax = 100))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Parameters", meta = (AllowPrivateAccess = true, ClampMin = 0, ClampMax = 100))
 	int32 PaintedPercentThreshold = 60;
 
 	int32 PaintedPixelCount = 0;
@@ -35,6 +35,4 @@ private:
 	void PaintCell(int32 CellX, int32 CellY);
 
 	bool HasColoredOutline();
-
-	virtual void OnFinish()override;
 };
