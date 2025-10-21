@@ -3,6 +3,8 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include "Engine/Canvas.h"
 #include "Components/AudioComponent.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 
 AA_PaintableTexture::AA_PaintableTexture()
 {
@@ -144,6 +146,12 @@ void AA_PaintableTexture::OnFinish()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Finished!"));
 	bIsOnDissolving = true;
+
+	// Dissolve VFX
+	if (UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSystem, StaticMeshComponent, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true, false))
+	{
+		NiagaraComp->ActivateSystem(true);
+	}
 
 	AudioComponent->Play();
 	DissolveTimeline->Play();
