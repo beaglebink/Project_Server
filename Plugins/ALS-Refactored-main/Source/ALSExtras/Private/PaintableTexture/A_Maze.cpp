@@ -1,4 +1,4 @@
-#include "Maze/A_Maze.h"
+#include "PaintableTexture/A_Maze.h"
 
 AA_Maze::AA_Maze()
 {

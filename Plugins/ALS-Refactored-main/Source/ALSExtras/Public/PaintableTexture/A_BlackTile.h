@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Maze/A_PaintableTexture.h"
+#include "PaintableTexture/A_PaintableTexture.h"
 #include "A_BlackTile.generated.h"
 
 UCLASS()

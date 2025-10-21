@@ -1,4 +1,4 @@
-#include "Maze/A_PaintableTexture.h"
+#include "PaintableTexture/A_PaintableTexture.h"
 #include "Engine/Texture2D.h"
 #include "Kismet/KismetRenderingLibrary.h"
 #include "Engine/Canvas.h"
