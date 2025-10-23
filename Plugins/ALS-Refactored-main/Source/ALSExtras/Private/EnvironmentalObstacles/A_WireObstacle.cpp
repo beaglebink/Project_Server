@@ -14,38 +14,7 @@ AA_WireObstacle::AA_WireObstacle()
 	BoxComponent->SetupAttachment(RootComponent);
 	BoxComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	BoxComponent->SetCollisionObjectType(ECC_WorldDynamic);
-	BoxComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-
-	float WireRadius = 150.0f;
-	const int32 TotalPerSide = 50;
-
-	for (int32 i = 0; i < TotalPerSide; ++i)
-	{
-		FString Name = FString::Printf(TEXT("LeftBillboard_%d"), i);
-		UBillboardComponent* Billboard = CreateDefaultSubobject<UBillboardComponent>(*Name);
-		Billboard->SetupAttachment(RootComponent);
-		LeftBillboards.Add(Billboard);
-	}
-
-	for (int32 i = 0; i < TotalPerSide; ++i)
-	{
-		FString Name = FString::Printf(TEXT("RightBillboard_%d"), i);
-		UBillboardComponent* Billboard = CreateDefaultSubobject<UBillboardComponent>(*Name);
-		Billboard->SetupAttachment(RootComponent);
-		RightBillboards.Add(Billboard);
-	}
-
-	for (int32 i = 0; i < TotalPerSide; ++i)
-	{
-		float T = (float)i / (TotalPerSide - 1);
-
-		float Angle = FMath::Lerp(-PI / 2.05f, PI / 2.05f, T);
-		float Y = FMath::Cos(Angle) * WireRadius;
-		float Z = FMath::Sin(Angle) * WireRadius;
-
-		LeftBillboards[i]->SetWorldLocation(GetActorLocation() + FVector(0, Y, Z));
-		RightBillboards[i]->SetWorldLocation(GetActorLocation() + FVector(0, -Y, Z));
-	}
+	BoxComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
 }
 
 void AA_WireObstacle::OnConstruction(const FTransform& Transform)
@@ -53,33 +22,41 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 
 	//Build anchors
-	for (int32 i = 0; i < 50; ++i)
+	LeftAnchors.Empty();
+	RightAnchors.Empty();
+
+	for (int32 i = 0; i < AnchorsPerSide; ++i)
 	{
-		LeftBillboards[i]->SetSprite(BillboardTexture);
-		RightBillboards[i]->SetSprite(BillboardTexture);
+		float T = (float)i / (AnchorsPerSide - 1);
+
+		float Angle = FMath::Lerp(-PI / 2.05f, PI / 2.05f, T);
+		float Y = FMath::Cos(Angle) * WireObstacleRadius;
+		float Z = FMath::Sin(Angle) * WireObstacleRadius;
+
+		LeftAnchors.Add(GetActorLocation() + FVector(0, Y, Z));
+		RightAnchors.Add(GetActorLocation() + FVector(0, -Y, Z));
 	}
 
 	//Find constraints points
 	const float TraceSpread = 20.0f;
-	const float TraceLength = 250.0f;
 
 	LeftHitPoints.Empty();
 	RightHitPoints.Empty();
 
-	for (size_t i = 0; i < LeftBillboards.Num(); ++i)
+	for (size_t i = 0; i < LeftAnchors.Num(); ++i)
 	{
 		FVector Offset = FVector(FMath::RandRange(-TraceSpread, TraceSpread), 0.0f, 0.0f);
 		FHitResult Hit;
 		TArray<AActor*> ActorsToIgnore;
 		ActorsToIgnore.Add(this);
 
-		bool bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), GetActorLocation() + (LeftBillboards[i]->GetComponentLocation() + Offset - GetActorLocation()).GetSafeNormal() * TraceLength, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true);
+		bool bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), LeftAnchors[i], ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true);
 
 		if (bHit)
 		{
 			LeftHitPoints.Add(Hit.ImpactPoint);
 		}
-		bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), GetActorLocation() + (RightBillboards[i]->GetComponentLocation() + Offset - GetActorLocation()).GetSafeNormal() * TraceLength, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true);
+		bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), RightAnchors[i], ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true);
 
 		if (bHit)
 		{
@@ -87,14 +64,48 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 		}
 	}
 
-	//Build wires
-	for (size_t Times = 0; Times < 2; ++Times)
+	if (!LeftHitPoints.IsEmpty() && !RightHitPoints.IsEmpty())
 	{
-		ShuffleArray(LeftHitPoints);
-		ShuffleArray(RightHitPoints);
+		//Find boxcollision size
+		float BoxWidth = 0.0f;
+		float BoxHeight = 0.0f;
+		FVector BoxLocation = GetActorLocation();
 		for (size_t i = 0; i < FMath::Min(LeftHitPoints.Num(), RightHitPoints.Num()); ++i)
 		{
-			DrawDebugLine(GetWorld(), LeftHitPoints[i], RightHitPoints[i], FColor::Black, false, 10.0f, 0u, 1.0f);
+			if (BoxWidth < FVector::Distance(LeftHitPoints[i], RightHitPoints[i]))
+			{
+				BoxWidth = FVector::Distance(LeftHitPoints[i], RightHitPoints[i]);
+				BoxLocation.Y = (LeftHitPoints[i].Y + RightHitPoints[i].Y) / 2.0f;
+			}
+		}
+		for (size_t i = 0, j = LeftHitPoints.Num() - 1; i < j; ++i, --j)
+		{
+			if (BoxHeight < FVector::Distance(LeftHitPoints[i], LeftHitPoints[j]))
+			{
+				BoxHeight = FVector::Distance(LeftHitPoints[i], LeftHitPoints[j]);
+				BoxLocation.Z = (LeftHitPoints[i].Z + LeftHitPoints[j].Z) / 2.0f;
+			}
+		}
+		for (size_t i = 0, j = RightHitPoints.Num() - 1; i < j; ++i, --j)
+		{
+			if (BoxHeight < FVector::Distance(RightHitPoints[i], RightHitPoints[j]))
+			{
+				BoxHeight = FVector::Distance(RightHitPoints[i], RightHitPoints[j]);
+				BoxLocation.Z = (RightHitPoints[i].Z + RightHitPoints[j].Z) / 2.0f;
+			}
+		}
+		BoxComponent->SetBoxExtent(FVector(4.0f, BoxWidth / 2.0f, BoxHeight / 2.0f));
+		BoxComponent->SetWorldLocation(BoxLocation);
+
+		//Build wires
+		for (size_t Times = 0; Times < 2; ++Times)
+		{
+			ShuffleArray(LeftHitPoints);
+			ShuffleArray(RightHitPoints);
+			for (size_t i = 0; i < FMath::Min(LeftHitPoints.Num(), RightHitPoints.Num()); ++i)
+			{
+				DrawDebugLine(GetWorld(), LeftHitPoints[i], RightHitPoints[i], FColor::Black, false, 10.0f, 0u, 1.0f);
+			}
 		}
 	}
 }

@@ -25,15 +25,18 @@ public:
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UBoxComponent* BoxComponent;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameters", meta = (AllowPrivateAccess = true, ClampMin = "0"))
+	float WireObstacleRadius = 250.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
-	UTexture2D* BillboardTexture;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameters", meta = (AllowPrivateAccess = true, ClampMin = "0"))
+	int32 AnchorsPerSide = 50;
 
 	UPROPERTY(VisibleAnywhere, Category = "Wires|Debug")
-	TArray<UBillboardComponent*> LeftBillboards;
+	TArray<FVector> LeftAnchors;
 
 	UPROPERTY(VisibleAnywhere, Category = "Wires|Debug")
-	TArray<UBillboardComponent*> RightBillboards;
+	TArray<FVector> RightAnchors;
 
 	UPROPERTY(VisibleAnywhere, Category = "Wires|Debug")
 	TArray<FVector> LeftHitPoints;
