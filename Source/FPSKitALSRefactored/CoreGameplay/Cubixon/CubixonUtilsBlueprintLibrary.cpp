@@ -1,0 +1,31 @@
+#include "CubixonUtilsBlueprintLibrary.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Fonts/FontMeasure.h"
+
+FString UCubixonUtilsBlueprintLibrary::TruncateTextWithEllipsis(const FString& InputText, const FSlateFontInfo& FontInfo, float MaxWidth, float FontScale)
+{
+    if (InputText.IsEmpty())
+    {
+        return FString();
+    }
+
+    TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+    const FString Ellipsis = TEXT("...");
+    const FVector2D EllipsisSize = FontMeasure->Measure(Ellipsis, FontInfo);
+
+    FString Result;
+    for (int32 i = 0; i < InputText.Len(); ++i)
+    {
+        FString TestString = InputText.Left(i + 1) + Ellipsis;
+        FVector2D TestSize = FontMeasure->Measure(TestString, FontInfo, FontScale);
+
+        if (TestSize.X > MaxWidth)
+        {
+            Result = InputText.Left(i) + Ellipsis;
+            return Result;
+        }
+    }
+
+    return InputText;
+}
