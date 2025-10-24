@@ -8,6 +8,9 @@
 
 class UBoxComponent;
 class USplineComponent;
+class USplineMeshComponent;
+class UNiagaraSystem;
+class UNiagaraComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_WireObstacle : public AActor, public II_WeaponInteraction
@@ -34,6 +37,16 @@ private:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UStaticMesh* NodeMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
+	UStaticMesh* WireMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
+	UNiagaraSystem* WireFX;
+
+	UPROPERTY()
+	UMaterialInterface* WireMaterial;
+
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameters", meta = (AllowPrivateAccess = true, ClampMin = "0"))
 	float WireObstacleRadius = 250.0f;
@@ -61,6 +74,15 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Wires|Nodes")
 	TArray<UPrimitiveComponent*> Nodes;
+
+	UPROPERTY(VisibleAnywhere, Category = "Wires")
+	TArray<USplineMeshComponent*> WireStartMiddle;
+
+	UPROPERTY(VisibleAnywhere, Category = "Wires")
+	TArray<USplineMeshComponent*> WireMiddleEnd;
+
+	UPROPERTY(VisibleAnywhere, Category = "Wires")
+	TArray<UNiagaraComponent*> WireFXArray;
 
 	template<typename T>
 	void ShuffleArray(TArray<T>& Array);

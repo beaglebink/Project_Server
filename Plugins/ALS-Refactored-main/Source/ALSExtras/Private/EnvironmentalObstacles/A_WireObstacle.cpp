@@ -3,8 +3,12 @@
 #include "Components/AudioComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/SplineComponent.h"
+#include "Components/SplineMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraDataInterfaceSpline.h"
 
 AA_WireObstacle::AA_WireObstacle()
 {
@@ -59,7 +63,7 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 		TArray<AActor*> ActorsToIgnore;
 		ActorsToIgnore.Add(this);
 
-		bool bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), LeftAnchors[i] + Offset, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true);
+		bool bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), LeftAnchors[i] + Offset, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, Hit, true);
 
 		if (bHit)
 		{
@@ -67,7 +71,7 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 			LowestPointZ = FMath::Min(LowestPointZ, Hit.ImpactPoint.Z);
 		}
 
-		bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), RightAnchors[i] + Offset, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true);
+		bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), RightAnchors[i] + Offset, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, Hit, true);
 
 		if (bHit)
 		{
@@ -119,9 +123,35 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 		}
 		WireSplines.Empty();
 
+		for (UStaticMeshComponent* Wire : WireStartMiddle)
+		{
+			if (Wire)
+			{
+				Wire->DestroyComponent();
+			}
+		}
+		WireStartMiddle.Empty();
+		for (UStaticMeshComponent* Wire : WireMiddleEnd)
+		{
+			if (Wire)
+			{
+				Wire->DestroyComponent();
+			}
+		}
+		WireMiddleEnd.Empty();
+
 		ShuffleArray(LeftHitPoints);
 		ShuffleArray(RightHitPoints);
 		bool bShouldChangeSide = false;
+
+		for (UNiagaraComponent* NiagaraComp : WireFXArray)
+		{
+			if (NiagaraComp)
+			{
+				NiagaraComp->DestroyComponent();
+			}
+		}
+		WireFXArray.Empty();
 
 		for (size_t i = 0; i < FMath::Min(LeftHitPoints.Num(), RightHitPoints.Num()); ++i)
 		{
@@ -137,7 +167,6 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 			FVector MidPoint = (Start + End) * 0.5f;
 
 			USplineComponent* WireSpline = NewObject<USplineComponent>(this);
-			WireSpline->RegisterComponent();
 			WireSpline->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 			WireSpline->SetWorldLocation(Start);
 			WireSpline->SetLocationAtSplinePoint(1, MidPoint, ESplineCoordinateSpace::World);
@@ -152,6 +181,7 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 			WireSpline->SetSplinePointType(0, ESplinePointType::Curve);
 			WireSpline->SetSplinePointType(1, ESplinePointType::Curve);
 			WireSpline->SetSplinePointType(2, ESplinePointType::Curve);
+			WireSpline->RegisterComponent();
 
 			WireSplines.Add(WireSpline);
 		}
@@ -173,13 +203,14 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 			{
 				FString NodeName = "NodeMeshComp_" + LexToString(i + 1);
 				UStaticMeshComponent* StaticMeshComp = NewObject<UStaticMeshComponent>(this, FName(NodeName));
-				StaticMeshComp->RegisterComponent();
 				StaticMeshComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 				StaticMeshComp->SetStaticMesh(NodeMesh);
 				StaticMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 				StaticMeshComp->SetCollisionObjectType(ECC_WorldDynamic);
 				StaticMeshComp->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
 				StaticMeshComp->SetWorldLocation(WireSplines[i]->GetLocationAtSplinePoint(1, ESplineCoordinateSpace::World));
+				StaticMeshComp->RegisterComponent();
+
 				Nodes.Add(StaticMeshComp);
 			}
 		}
@@ -190,6 +221,50 @@ void AA_WireObstacle::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//Build wire meshes
+	//for (USplineComponent* WireSpline : WireSplines)
+	//{
+	//	for (int32 PointIndex = 0; PointIndex < WireSpline->GetNumberOfSplinePoints() - 1; ++PointIndex)
+	//	{
+	//		USplineMeshComponent* SplineMesh = NewObject<USplineMeshComponent>(this);
+	//		SplineMesh->RegisterComponent();
+	//		SplineMesh->SetMobility(EComponentMobility::Movable);
+	//		SplineMesh->AttachToComponent(WireSpline, FAttachmentTransformRules::KeepWorldTransform);
+	//		SplineMesh->SetStaticMesh(WireMesh);
+
+	//		FVector StartPos, StartTangent, EndPos, EndTangent;
+	//		WireSpline->GetLocationAndTangentAtSplinePoint(PointIndex, StartPos, StartTangent, ESplineCoordinateSpace::World);
+	//		WireSpline->GetLocationAndTangentAtSplinePoint(PointIndex + 1, EndPos, EndTangent, ESplineCoordinateSpace::World);
+
+	//		SplineMesh->SetStartAndEnd(StartPos, StartTangent, EndPos, EndTangent);
+	//		if (PointIndex == 0)
+	//		{
+	//			WireStartMiddle.Add(SplineMesh);
+	//		}
+	//		else
+	//		{
+	//			WireMiddleEnd.Add(SplineMesh);
+	//		}
+	//	}
+	//}
+
+	//Build wires niagaraFX
+	if (WireFX)
+	{
+		for (USplineComponent* WireSpline : WireSplines)
+		{
+			UNiagaraComponent* NiagaraComp = NewObject<UNiagaraComponent>(this);
+			NiagaraComp->AttachToComponent(WireSpline, FAttachmentTransformRules::KeepRelativeTransform);
+			NiagaraComp->SetAsset(WireFX);
+			NiagaraComp->SetVariableObject(FName(TEXT("User.SplineObject")), WireSpline);
+			NiagaraComp->RegisterComponent();
+			NiagaraComp->Activate();
+
+			WireFXArray.Add(NiagaraComp);
+		}
+	}
+
+	//Remove timeline
 	if (RemoveWireFloatCurve)
 	{
 		RemoveWireProgressFunction.BindUFunction(this, FName("RemoveWireTimelineProgress"));
@@ -241,15 +316,24 @@ void AA_WireObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit
 
 void AA_WireObstacle::RemoveWireTimelineProgress(float Value)
 {
-	for (USplineComponent* SplineComp : WireSplines)
-	{
-		FVector TargetLocation = SplineComp->GetLocationAtTime(Value, ESplineCoordinateSpace::World);
-		SplineComp->SetLocationAtSplinePoint(SplineComp->GetNumberOfSplinePoints() - 1, TargetLocation, ESplineCoordinateSpace::World);
-		if (Value < 0.5)
-		{
-			SplineComp->SetLocationAtSplinePoint(1, TargetLocation, ESplineCoordinateSpace::World);
-		}
-	}
+	//for (size_t i = 0; i < WireSplines.Num(); ++i)
+	//{
+	//	FVector TargetLocation = WireSplines[i]->GetLocationAtTime(Value, ESplineCoordinateSpace::World);
+	//	FVector TargetTangent = WireSplines[i]->GetTangentAtTime(Value, ESplineCoordinateSpace::World);
+	//	if (Value >= 0.5f)
+	//	{
+	//		float RangedValue = FMath::GetMappedRangeValueClamped(FVector2D(0.5f, 1.0f), FVector2D(1.0f, 0.0f), Value);
+	//		WireMiddleEnd[i]->SetEndPosition(TargetLocation);
+	//		WireMiddleEnd[i]->SetEndTangent(FMath::Lerp(TargetTangent, FVector::ZeroVector, RangedValue));
+	//	}
+	//	else
+	//	{
+	//		WireMiddleEnd[i]->DestroyComponent();
+	//		float RangedValue = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 0.5f), FVector2D(1.0f, 0.0f), Value);
+	//		WireStartMiddle[i]->SetEndPosition(TargetLocation);
+	//		WireStartMiddle[i]->SetEndTangent(FMath::Lerp(TargetTangent, FVector::ZeroVector, RangedValue));
+	//	}
+	//}
 }
 
 void AA_WireObstacle::RemoveWireTimelineFinished()
