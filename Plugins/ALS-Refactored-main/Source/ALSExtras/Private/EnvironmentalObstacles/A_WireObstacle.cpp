@@ -3,6 +3,7 @@
 #include "Components/AudioComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/SplineComponent.h"
+#include "Components/SplineMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -59,7 +60,7 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 		TArray<AActor*> ActorsToIgnore;
 		ActorsToIgnore.Add(this);
 
-		bool bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), LeftAnchors[i] + Offset, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true);
+		bool bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), LeftAnchors[i] + Offset, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, Hit, true);
 
 		if (bHit)
 		{
@@ -67,7 +68,7 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 			LowestPointZ = FMath::Min(LowestPointZ, Hit.ImpactPoint.Z);
 		}
 
-		bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), RightAnchors[i] + Offset, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true);
+		bHit = UKismetSystemLibrary::LineTraceSingle(GetWorld(), GetActorLocation(), RightAnchors[i] + Offset, ETraceTypeQuery::TraceTypeQuery1, false, ActorsToIgnore, EDrawDebugTrace::None, Hit, true);
 
 		if (bHit)
 		{
@@ -118,6 +119,23 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 			}
 		}
 		WireSplines.Empty();
+
+		for (UStaticMeshComponent* Wire : WireStartMiddle)
+		{
+			if (Wire)
+			{
+				Wire->DestroyComponent();
+			}
+		}
+		WireStartMiddle.Empty();
+		for (UStaticMeshComponent* Wire : WireMiddleEnd)
+		{
+			if (Wire)
+			{
+				Wire->DestroyComponent();
+			}
+		}
+		WireMiddleEnd.Empty();
 
 		ShuffleArray(LeftHitPoints);
 		ShuffleArray(RightHitPoints);
@@ -190,6 +208,33 @@ void AA_WireObstacle::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//Build wire meshes
+	for (USplineComponent* WireSpline : WireSplines)
+	{
+		for (int32 PointIndex = 0; PointIndex < WireSpline->GetNumberOfSplinePoints() - 1; ++PointIndex)
+		{
+			USplineMeshComponent* SplineMesh = NewObject<USplineMeshComponent>(this);
+			SplineMesh->RegisterComponent();
+			SplineMesh->SetMobility(EComponentMobility::Movable);
+			SplineMesh->AttachToComponent(WireSpline, FAttachmentTransformRules::KeepWorldTransform);
+			SplineMesh->SetStaticMesh(WireMesh);
+
+			FVector StartPos, StartTangent, EndPos, EndTangent;
+			WireSpline->GetLocationAndTangentAtSplinePoint(PointIndex, StartPos, StartTangent, ESplineCoordinateSpace::World);
+			WireSpline->GetLocationAndTangentAtSplinePoint(PointIndex + 1, EndPos, EndTangent, ESplineCoordinateSpace::World);
+
+			SplineMesh->SetStartAndEnd(StartPos, StartTangent, EndPos, EndTangent);
+			if (PointIndex == 0)
+			{
+				WireStartMiddle.Add(SplineMesh);
+			}
+			else
+			{
+				WireMiddleEnd.Add(SplineMesh);
+			}
+		}
+	}
+
 	if (RemoveWireFloatCurve)
 	{
 		RemoveWireProgressFunction.BindUFunction(this, FName("RemoveWireTimelineProgress"));
@@ -241,13 +286,22 @@ void AA_WireObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit
 
 void AA_WireObstacle::RemoveWireTimelineProgress(float Value)
 {
-	for (USplineComponent* SplineComp : WireSplines)
+	for (size_t i = 0; i < WireSplines.Num(); ++i)
 	{
-		FVector TargetLocation = SplineComp->GetLocationAtTime(Value, ESplineCoordinateSpace::World);
-		SplineComp->SetLocationAtSplinePoint(SplineComp->GetNumberOfSplinePoints() - 1, TargetLocation, ESplineCoordinateSpace::World);
-		if (Value < 0.5)
+		FVector TargetLocation = WireSplines[i]->GetLocationAtTime(Value, ESplineCoordinateSpace::World);
+		FVector TargetTangent = WireSplines[i]->GetTangentAtTime(Value, ESplineCoordinateSpace::World);
+		if (Value >= 0.5f)
 		{
-			SplineComp->SetLocationAtSplinePoint(1, TargetLocation, ESplineCoordinateSpace::World);
+			float RangedValue = FMath::GetMappedRangeValueClamped(FVector2D(0.5f, 1.0f), FVector2D(1.0f, 0.0f), Value);
+			WireMiddleEnd[i]->SetEndPosition(TargetLocation);
+			WireMiddleEnd[i]->SetEndTangent(FMath::Lerp(TargetTangent, FVector::ZeroVector, RangedValue));
+		}
+		else
+		{
+			WireMiddleEnd[i]->DestroyComponent();
+			float RangedValue = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 0.5f), FVector2D(1.0f, 0.0f), Value);
+			WireStartMiddle[i]->SetEndPosition(TargetLocation);
+			WireStartMiddle[i]->SetEndTangent(FMath::Lerp(TargetTangent, FVector::ZeroVector, RangedValue));
 		}
 	}
 }
