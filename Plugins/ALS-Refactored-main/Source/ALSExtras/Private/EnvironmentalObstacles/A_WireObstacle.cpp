@@ -79,6 +79,15 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 			LowestPointZ = FMath::Min(LowestPointZ, Hit.ImpactPoint.Z);
 		}
 	}
+	//Clear splines
+	for (USplineComponent* Spline : WireSplines)
+	{
+		if (Spline)
+		{
+			Spline->DestroyComponent();
+		}
+	}
+	WireSplines.Empty();
 
 	//Find boxcollision size
 	if (!LeftHitPoints.IsEmpty() && !RightHitPoints.IsEmpty())
@@ -114,44 +123,9 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 		BoxComponent->SetWorldLocation(BoxLocation);
 
 		//Build wires
-		for (USplineComponent* Spline : WireSplines)
-		{
-			if (Spline)
-			{
-				Spline->DestroyComponent();
-			}
-		}
-		WireSplines.Empty();
-
-		for (UStaticMeshComponent* Wire : WireStartMiddle)
-		{
-			if (Wire)
-			{
-				Wire->DestroyComponent();
-			}
-		}
-		WireStartMiddle.Empty();
-		for (UStaticMeshComponent* Wire : WireMiddleEnd)
-		{
-			if (Wire)
-			{
-				Wire->DestroyComponent();
-			}
-		}
-		WireMiddleEnd.Empty();
-
 		ShuffleArray(LeftHitPoints);
 		ShuffleArray(RightHitPoints);
 		bool bShouldChangeSide = false;
-
-		for (UNiagaraComponent* NiagaraComp : WireFXArray)
-		{
-			if (NiagaraComp)
-			{
-				NiagaraComp->DestroyComponent();
-			}
-		}
-		WireFXArray.Empty();
 
 		for (size_t i = 0; i < FMath::Min(LeftHitPoints.Num(), RightHitPoints.Num()); ++i)
 		{
@@ -316,6 +290,7 @@ void AA_WireObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit
 
 void AA_WireObstacle::RemoveWireTimelineProgress(float Value)
 {
+	//Static meshes
 	//for (size_t i = 0; i < WireSplines.Num(); ++i)
 	//{
 	//	FVector TargetLocation = WireSplines[i]->GetLocationAtTime(Value, ESplineCoordinateSpace::World);
@@ -334,6 +309,12 @@ void AA_WireObstacle::RemoveWireTimelineProgress(float Value)
 	//		WireStartMiddle[i]->SetEndTangent(FMath::Lerp(TargetTangent, FVector::ZeroVector, RangedValue));
 	//	}
 	//}
+
+	//Niagara
+	for (UNiagaraComponent* NiagaraComp : WireFXArray)
+	{
+		NiagaraComp->SetVariableFloat(FName(TEXT("CurrentNormalizedIndex")), Value);
+	}
 }
 
 void AA_WireObstacle::RemoveWireTimelineFinished()
