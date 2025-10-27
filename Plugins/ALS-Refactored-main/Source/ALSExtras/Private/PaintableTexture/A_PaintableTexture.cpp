@@ -25,10 +25,13 @@ void AA_PaintableTexture::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	RenderTarget = NewObject<UTextureRenderTarget2D>(this);
-	RenderTarget->InitAutoFormat(256, 256);
-	RenderTarget->ClearColor = FLinearColor::Black;
-	RenderTarget->UpdateResourceImmediate();
+	if (!RenderTarget)
+	{
+		RenderTarget = NewObject<UTextureRenderTarget2D>(this);
+		RenderTarget->InitAutoFormat(256, 256);
+		RenderTarget->ClearColor = FLinearColor::Black;
+		RenderTarget->UpdateResourceImmediate();
+	}
 
 	if (!MeshDynamicMaterial)
 	{
@@ -79,7 +82,13 @@ void AA_PaintableTexture::ReadTextureToArray()
 	int32 Width = PaintableTexture->GetSizeX();
 	int32 Height = PaintableTexture->GetSizeY();
 
-	FTexture2DMipMap& Mip = PaintableTexture->GetPlatformData()->Mips.Last();
+	FTexturePlatformData* PlatformData = PaintableTexture->GetPlatformData();
+	if (!PlatformData || PlatformData->Mips.Num() == 0)
+	{
+		return;
+	}
+
+	FTexture2DMipMap& Mip = PlatformData->Mips.Last();
 	void* Data = Mip.BulkData.Lock(LOCK_READ_ONLY);
 
 	Pixels.SetNumUninitialized(Width * Height);

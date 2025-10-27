@@ -71,19 +71,19 @@ struct ALSEXTRAS_API FS_ItemData :public FTableRowBase
 	FText Description;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (EditCondition = "Type == EnumInventory::Weapon", EditConditionHides))
-	float Damage;
+	float Damage = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (EditCondition = "Type == EnumInventory::Clothes", EditConditionHides))
-	float Armor;
+	float Armor = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (EditCondition = "Type == EnumInventory::Weapon || Type == EnumInventory::Clothes", EditConditionHides))
-	float Durability;
+	float Durability = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
-	float Weight;
+	float Weight = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
-	float Value;
+	float Value = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	uint8 bCanStack : 1 {false};
