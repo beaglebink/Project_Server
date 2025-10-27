@@ -20,6 +20,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
     static float MeasureMultilineTextHeight(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth);
+
+    UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
+    static float EstimateMultilineTextHeight(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth);
+
+    UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
+    static int32 CountWrappedLines(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth);
 };
 
 
