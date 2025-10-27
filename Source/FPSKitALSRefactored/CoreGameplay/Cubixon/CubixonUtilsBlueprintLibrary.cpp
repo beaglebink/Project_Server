@@ -29,3 +29,16 @@ FString UCubixonUtilsBlueprintLibrary::TruncateTextWithEllipsis(const FString& I
 
     return InputText;
 }
+
+FVector2D UCubixonUtilsBlueprintLibrary::GetTextWidth(const FString& InputText, const FSlateFontInfo& FontInfo, float FontScale)
+{  
+   if (InputText.IsEmpty())  
+   {  
+       return FVector2D::Zero();  
+   }  
+
+   TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();  
+   FVector2D TextSize = FontMeasure->Measure(InputText, FontInfo, FontScale);  
+
+   return TextSize;  
+}

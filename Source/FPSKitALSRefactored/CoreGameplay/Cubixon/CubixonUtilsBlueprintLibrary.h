@@ -14,4 +14,7 @@ class FPSKITALSREFACTORED_API UCubixonUtilsBlueprintLibrary : public UBlueprintF
 public:
     UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
     static FString TruncateTextWithEllipsis(const FString& InputText, const FSlateFontInfo& FontInfo, float MaxWidth, float FontScale = 1.0);
+
+    UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
+	static FVector2D GetTextWidth(const FString& InputText, const FSlateFontInfo& FontInfo, float FontScale = 1.0);
 };
