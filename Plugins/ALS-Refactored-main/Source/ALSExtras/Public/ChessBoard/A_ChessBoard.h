@@ -16,19 +16,19 @@ struct FCell
 
 public:
 	UPROPERTY()
-	UStaticMeshComponent* MeshComponent;
+	TObjectPtr<UStaticMeshComponent> MeshComponent;
 
 	UPROPERTY()
-	UPhysicsConstraintComponent* ConstraintComponent;
+	TObjectPtr<UPhysicsConstraintComponent> ConstraintComponent;
 
 	UPROPERTY()
-	UBoxComponent* TriggerComponent;
+	TObjectPtr<UBoxComponent> TriggerComponent;
 
 	UPROPERTY()
-	UAudioComponent* AudioComponent;
+	TObjectPtr<UAudioComponent> AudioComponent;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* CellDynamicMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> CellDynamicMaterial;
 };
 
 UCLASS()
