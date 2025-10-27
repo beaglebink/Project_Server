@@ -42,3 +42,21 @@ FVector2D UCubixonUtilsBlueprintLibrary::GetTextWidth(const FString& InputText, 
 
    return TextSize;  
 }
+
+float UCubixonUtilsBlueprintLibrary::MeasureMultilineTextHeight(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth)
+{
+    if (Text.IsEmpty())
+    {
+        return 0.f;
+    }
+
+    TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+    FText FormattedText = FText::FromString(Text);
+
+    // Measure with wrapping
+    FVector2D MeasuredSize = FontMeasure->Measure(FormattedText, FontInfo, WrapWidth);
+
+    return MeasuredSize.Y;
+}
+
+

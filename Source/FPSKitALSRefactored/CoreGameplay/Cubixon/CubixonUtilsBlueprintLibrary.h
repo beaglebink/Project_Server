@@ -17,4 +17,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
 	static FVector2D GetTextWidth(const FString& InputText, const FSlateFontInfo& FontInfo, float FontScale = 1.0);
+
+    UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
+    static float MeasureMultilineTextHeight(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth);
 };
+
+
