@@ -79,15 +79,6 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 			LowestPointZ = FMath::Min(LowestPointZ, Hit.ImpactPoint.Z);
 		}
 	}
-	//Clear splines
-	for (USplineComponent* Spline : WireSplines)
-	{
-		if (Spline)
-		{
-			Spline->DestroyComponent();
-		}
-	}
-	WireSplines.Empty();
 
 	//Find boxcollision size
 	if (!LeftHitPoints.IsEmpty() && !RightHitPoints.IsEmpty())
@@ -121,6 +112,16 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 		}
 		BoxComponent->SetBoxExtent(FVector(2.0f, BoxWidth / 2.0f, BoxHeight / 2.0f));
 		BoxComponent->SetWorldLocation(BoxLocation);
+
+		//Clear splines
+		for (USplineComponent* Spline : WireSplines)
+		{
+			if (Spline)
+			{
+				Spline->DestroyComponent();
+			}
+		}
+		WireSplines.Empty();
 
 		//Build wires
 		ShuffleArray(LeftHitPoints);
