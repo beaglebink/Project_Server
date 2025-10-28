@@ -8,7 +8,6 @@
 
 class UBoxComponent;
 class USplineComponent;
-class USplineMeshComponent;
 class UNiagaraSystem;
 class UNiagaraComponent;
 
@@ -37,9 +36,6 @@ private:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UStaticMesh* NodeMesh;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
-	//UStaticMesh* WireMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UNiagaraSystem* WireFX;
@@ -74,12 +70,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Wires|Nodes")
 	TArray<UPrimitiveComponent*> Nodes;
-
-	//UPROPERTY(VisibleAnywhere, Category = "Wires")
-	//TArray<USplineMeshComponent*> WireStartMiddle;
-
-	//UPROPERTY(VisibleAnywhere, Category = "Wires")
-	//TArray<USplineMeshComponent*> WireMiddleEnd;
 
 	UPROPERTY(VisibleAnywhere, Category = "Wires")
 	TArray<UNiagaraComponent*> WireFXArray;
