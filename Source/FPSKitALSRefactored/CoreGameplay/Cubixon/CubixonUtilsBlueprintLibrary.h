@@ -26,6 +26,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
     static int32 CountWrappedLines(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Cubixon|Text")
+    static FText RemoveLineBreaks(const FText& Input);
 };
 
 

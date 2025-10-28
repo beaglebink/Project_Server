@@ -112,6 +112,15 @@ int32 UCubixonUtilsBlueprintLibrary::CountWrappedLines(const FString& Text, cons
    return LineCount;  
 }
 
+FText UCubixonUtilsBlueprintLibrary::RemoveLineBreaks(const FText& Input)
+{
+    FString S = Input.ToString();
+    S.ReplaceInline(TEXT("\r\n"), TEXT(" "));
+    S.ReplaceInline(TEXT("\n"), TEXT(" "));
+    S.ReplaceInline(TEXT("\r"), TEXT(" "));
+    return FText::FromString(S);
+}
+
 
 
 
