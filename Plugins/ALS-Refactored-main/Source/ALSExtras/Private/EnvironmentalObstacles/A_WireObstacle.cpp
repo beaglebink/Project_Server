@@ -123,7 +123,7 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 		}
 		WireSplines.Empty();
 
-		//Build wires
+		//Build wires splines
 		ShuffleArray(LeftHitPoints);
 		ShuffleArray(RightHitPoints);
 		bool bShouldChangeSide = false;
@@ -196,34 +196,7 @@ void AA_WireObstacle::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//Build wire meshes
-	//for (USplineComponent* WireSpline : WireSplines)
-	//{
-	//	for (int32 PointIndex = 0; PointIndex < WireSpline->GetNumberOfSplinePoints() - 1; ++PointIndex)
-	//	{
-	//		USplineMeshComponent* SplineMesh = NewObject<USplineMeshComponent>(this);
-	//		SplineMesh->RegisterComponent();
-	//		SplineMesh->SetMobility(EComponentMobility::Movable);
-	//		SplineMesh->AttachToComponent(WireSpline, FAttachmentTransformRules::KeepWorldTransform);
-	//		SplineMesh->SetStaticMesh(WireMesh);
-
-	//		FVector StartPos, StartTangent, EndPos, EndTangent;
-	//		WireSpline->GetLocationAndTangentAtSplinePoint(PointIndex, StartPos, StartTangent, ESplineCoordinateSpace::World);
-	//		WireSpline->GetLocationAndTangentAtSplinePoint(PointIndex + 1, EndPos, EndTangent, ESplineCoordinateSpace::World);
-
-	//		SplineMesh->SetStartAndEnd(StartPos, StartTangent, EndPos, EndTangent);
-	//		if (PointIndex == 0)
-	//		{
-	//			WireStartMiddle.Add(SplineMesh);
-	//		}
-	//		else
-	//		{
-	//			WireMiddleEnd.Add(SplineMesh);
-	//		}
-	//	}
-	//}
-
-	//Build wires niagaraFX
+	//Build wires
 	if (WireFX)
 	{
 		for (USplineComponent* WireSpline : WireSplines)
@@ -239,7 +212,7 @@ void AA_WireObstacle::BeginPlay()
 		}
 	}
 
-	//Remove timeline
+	//Timeline
 	if (RemoveWireFloatCurve)
 	{
 		RemoveWireProgressFunction.BindUFunction(this, FName("RemoveWireTimelineProgress"));
@@ -291,27 +264,6 @@ void AA_WireObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit
 
 void AA_WireObstacle::RemoveWireTimelineProgress(float Value)
 {
-	//Static meshes
-	//for (size_t i = 0; i < WireSplines.Num(); ++i)
-	//{
-	//	FVector TargetLocation = WireSplines[i]->GetLocationAtTime(Value, ESplineCoordinateSpace::World);
-	//	FVector TargetTangent = WireSplines[i]->GetTangentAtTime(Value, ESplineCoordinateSpace::World);
-	//	if (Value >= 0.5f)
-	//	{
-	//		float RangedValue = FMath::GetMappedRangeValueClamped(FVector2D(0.5f, 1.0f), FVector2D(1.0f, 0.0f), Value);
-	//		WireMiddleEnd[i]->SetEndPosition(TargetLocation);
-	//		WireMiddleEnd[i]->SetEndTangent(FMath::Lerp(TargetTangent, FVector::ZeroVector, RangedValue));
-	//	}
-	//	else
-	//	{
-	//		WireMiddleEnd[i]->DestroyComponent();
-	//		float RangedValue = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 0.5f), FVector2D(1.0f, 0.0f), Value);
-	//		WireStartMiddle[i]->SetEndPosition(TargetLocation);
-	//		WireStartMiddle[i]->SetEndTangent(FMath::Lerp(TargetTangent, FVector::ZeroVector, RangedValue));
-	//	}
-	//}
-
-	//Niagara
 	for (UNiagaraComponent* NiagaraComp : WireFXArray)
 	{
 		NiagaraComp->SetVariableFloat(FName(TEXT("CurrentNormalizedIndex")), Value);
