@@ -8,7 +8,6 @@
 
 class UBoxComponent;
 class USplineComponent;
-class USplineMeshComponent;
 class UNiagaraSystem;
 class UNiagaraComponent;
 

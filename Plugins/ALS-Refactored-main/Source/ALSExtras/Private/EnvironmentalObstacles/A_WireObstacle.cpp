@@ -1,14 +1,9 @@
 #include "EnvironmentalObstacles/A_WireObstacle.h"
 #include "Components/BoxComponent.h"
 #include "Components/AudioComponent.h"
-#include "Components/BillboardComponent.h"
 #include "Components/SplineComponent.h"
-#include "Components/SplineMeshComponent.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "NiagaraComponent.h"
-#include "NiagaraFunctionLibrary.h"
-#include "NiagaraDataInterfaceSpline.h"
 
 AA_WireObstacle::AA_WireObstacle()
 {
