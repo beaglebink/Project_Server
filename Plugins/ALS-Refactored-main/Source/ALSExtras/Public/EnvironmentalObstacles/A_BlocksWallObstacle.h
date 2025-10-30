@@ -13,7 +13,8 @@ enum class EBlockState :uint8
 	Critical,
 	Destroyed,
 	Moving,
-	Falling
+	Falling,
+	Shot
 };
 
 USTRUCT(BlueprintType)
@@ -62,6 +63,8 @@ public:
 	AA_BlocksWallObstacle();
 
 protected:
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	virtual void BeginPlay() override;
@@ -70,6 +73,15 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (AllowPrivateAccess = true))
+	uint8 bUseTimeInterval : 1{false};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (AllowPrivateAccess = true))
+	uint8 bUseNumberOfBlocksDestroyed : 1{false};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (AllowPrivateAccess = true))
+	uint8 bUsePlayerAccuracy : 1{false};
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (AllowPrivateAccess = true))
 	UStaticMesh* BlockMeshAsset;
 
@@ -99,6 +111,8 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Settings", meta = (AllowPrivateAccess = true))
 	TArray<FBlockRow> WallBlocks;
+	FWallBlock* CurrentBlock = nullptr;
+	uint8 bBlockCoolDown : 1 {false};
 
 	void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
 
@@ -106,13 +120,33 @@ private:
 
 	void SetBlockMaterial(FIntPoint GridPosition, bool bIsCritical);
 
-	void StartBlockDestroy();
+	void OnShotMaterial(FIntPoint GridPosition, bool bIsShot);
 
-	void MoveBlock();
+	void StartBlockDestroy(FIntPoint GridPosition);
 
-	void StartBlockFall();
+	void MoveBlock(FIntPoint GridPosition);
+
+	void StartBlockFall(FIntPoint GridPosition);
 
 protected:
+	//Destroy Timeline
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UTimelineComponent* DestroyTimeline;
+
+	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
+	UCurveFloat* DestroyFloatCurve;
+
+	FOnTimelineFloat DestroyProgressFunction;
+
+	FOnTimelineEvent DestroyFinishedFunction;
+
+	UFUNCTION()
+	void DestroyTimelineProgress(float Value);
+
+	UFUNCTION()
+	void DestroyTimelineFinished();
+
+	//Move Timeline
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UTimelineComponent* MoveBlockTimeline;
 

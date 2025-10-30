@@ -197,7 +197,7 @@ void AA_WireObstacle::BeginPlay()
 		for (USplineComponent* WireSpline : WireSplines)
 		{
 			UNiagaraComponent* NiagaraComp = NewObject<UNiagaraComponent>(this);
-			NiagaraComp->AttachToComponent(WireSpline, FAttachmentTransformRules::KeepRelativeTransform);
+			NiagaraComp->SetupAttachment(WireSpline);
 			NiagaraComp->SetAsset(WireFX);
 			NiagaraComp->SetVariableObject(FName(TEXT("User.SplineObject")), WireSpline);
 			NiagaraComp->RegisterComponent();
