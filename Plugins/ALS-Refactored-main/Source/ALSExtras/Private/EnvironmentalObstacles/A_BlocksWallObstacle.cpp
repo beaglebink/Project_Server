@@ -282,16 +282,16 @@ void AA_BlocksWallObstacle::StartBlockDestroy(FIntPoint GridPosition)
 	{
 		UNiagaraComponent* NiagaraComp = NewObject<UNiagaraComponent>(this);
 		NiagaraComp->SetAsset(BlockDestroyFX);
-		NiagaraComp->AttachToComponent(WallBlocks[GridPosition.Y].Row[GridPosition.X].BlockMeshComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		NiagaraComp->AttachToComponent(WallBlocks[GridPosition.Y].Row[GridPosition.X].BlockMeshComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
+		NiagaraComp->RegisterComponent();
 		UMaterialInstanceDynamic* DynMat = nullptr;
 		if (BlockMaterialAsset)
 		{
 			DynMat = UMaterialInstanceDynamic::Create(BlockMaterialAsset, NiagaraComp);
 			DynMat->SetScalarParameterValue(FName(TEXT("IsNiagaraMaterial")), 1);
 			DynMat->SetScalarParameterValue(FName(TEXT("IsCritical")), 1);
-			NiagaraComp->SetVariableObject(FName(TEXT("User.ParticlesMaterial")), DynMat);
+			NiagaraComp->SetVariableMaterial(FName(TEXT("User.ParticlesMaterial")), DynMat);
 		}
-		NiagaraComp->RegisterComponent();
 		NiagaraComp->Activate();
 	}
 	DestroyTimeline->PlayFromStart();
