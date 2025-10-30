@@ -29,6 +29,7 @@ void UInstantMessengerSubsystem::SetActiveContact(const FText& ContactName, bool
 			UE_LOG(LogTemp, Log, TEXT("Contact %s is now %s"),
 				*ContactName.ToString(),
 				IsActive ? TEXT("online") : TEXT("offline"));
+			OnChangeActiveContact.Broadcast(Contact);
 			return;
 		}
 	}

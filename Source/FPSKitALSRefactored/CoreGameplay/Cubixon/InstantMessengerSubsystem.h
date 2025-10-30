@@ -57,6 +57,7 @@ public:
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageAdded, const FMessageStructure&, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageChangeActive, const FContactsStructure&, Contact);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UInstantMessengerSubsystem : public UGameInstanceSubsystem
@@ -90,6 +91,9 @@ public:
 public:
     UPROPERTY(BlueprintAssignable, Category = "Messenger|Events")
     FOnMessageAdded OnChangeMessages;
+
+    UPROPERTY(BlueprintAssignable, Category = "Messenger|Events")
+	FOnMessageChangeActive OnChangeActiveContact;
 
 private:
     UPROPERTY()
