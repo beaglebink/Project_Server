@@ -75,8 +75,8 @@ public:
     UFUNCTION(BlueprintCallable)
 	void SetActiveContact(const FText& ContactName, bool IsActive);
 
-    UFUNCTION(BlueprintCallable)
-    const TArray<FContactsStructure>& GetContacts() const;
+    UFUNCTION(BlueprintCallable, BlueprintPure)
+    const TArray<FContactsStructure>& GetContacts() ;
 
     // Сообщения
     UFUNCTION(BlueprintCallable)

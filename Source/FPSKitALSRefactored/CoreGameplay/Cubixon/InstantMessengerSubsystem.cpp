@@ -36,9 +36,18 @@ void UInstantMessengerSubsystem::SetActiveContact(const FText& ContactName, bool
 	UE_LOG(LogTemp, Warning, TEXT("Contact %s not found"), *ContactName.ToString());
 }
 
-const TArray<FContactsStructure>& UInstantMessengerSubsystem::GetContacts() const
+const TArray<FContactsStructure>& UInstantMessengerSubsystem::GetContacts() 
 {
-    return Contacts;
+    //return Contacts;
+    TArray<FContactsStructure> SortedContacts = Contacts; // создаём копию
+
+    SortedContacts.Sort([](const FContactsStructure& A, const FContactsStructure& B)
+        {
+            return A.ContactName.ToString() < B.ContactName.ToString();
+        });
+
+	Contacts = SortedContacts; // обновляем оригинальный массив
+    return Contacts; 
 }
 
 void UInstantMessengerSubsystem::AddMessage(const FMessageStructure& NewMessage)
