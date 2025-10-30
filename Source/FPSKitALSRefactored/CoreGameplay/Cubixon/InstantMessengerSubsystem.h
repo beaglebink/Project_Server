@@ -92,9 +92,9 @@ public:
     FOnMessageAdded OnChangeMessages;
 
 private:
-    UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+    UPROPERTY()
     TArray<FContactsStructure> Contacts;
 
-    UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+    UPROPERTY()
     TArray<FMessageStructure> Messages;
 };
