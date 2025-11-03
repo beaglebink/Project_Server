@@ -5,6 +5,7 @@
 #include "A_BlocksWallObstacle.generated.h"
 
 class AA_BlockObstacle;
+class UTextRenderComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_BlocksWallObstacle : public AActor
@@ -46,6 +47,14 @@ private:
 	UPROPERTY()
 	TArray<AA_BlockObstacle*> WallBlocks;
 
+	UPROPERTY()
+	FVector BlockExtent;
+
+	TArray<UTextRenderComponent*> DebugGridTexts;
+
 public:
 	void UpperBlocksFall(int32 Index);
+
+	//debug function
+	void DrawGrid();
 };

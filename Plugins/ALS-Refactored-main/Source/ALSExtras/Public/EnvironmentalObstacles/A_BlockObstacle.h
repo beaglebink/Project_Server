@@ -12,9 +12,7 @@ enum class EBlockState :uint8
 	Neutral,
 	Critical,
 	Destroyed,
-	Moving,
-	Falling,
-	Shot
+	Moving
 };
 
 UENUM(BlueprintType)
@@ -73,6 +71,9 @@ public:
 	TObjectPtr<UMaterialInstanceDynamic> BlockMaterialInstance;
 
 	UPROPERTY()
+	FVector BlockExtent;
+
+	UPROPERTY()
 	FVector InitialLocation;
 
 	UPROPERTY()
@@ -80,6 +81,18 @@ public:
 
 	UPROPERTY()
 	int32 BlockIndex;
+
+	UPROPERTY()
+	EBlockState PrevState;
+
+	UPROPERTY()
+	uint8 bIsFalling : 1{ false };
+	
+	UPROPERTY()
+	float FallSpeed = 0.0f;
+
+	UPROPERTY()
+	AA_BlockObstacle* LowerBlock;
 
 	void SetBlockState(EBlockState NewState);
 
@@ -91,7 +104,7 @@ public:
 
 	void MoveBlock(EDirection Direction);
 
-	void StartBlockFall();
+	void StartBlockFall(AA_BlockObstacle* Block);
 
 private:
 
@@ -132,20 +145,20 @@ protected:
 	UFUNCTION()
 	void MoveBlockTimelineFinished();
 
-	//Fall Timeline
+	//FrontBack Timeline
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	UTimelineComponent* FallBlockTimeline;
+	UTimelineComponent* FrontBackBlockTimeline;
 
 	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
-	UCurveFloat* FallBlockFloatCurve;
+	UCurveFloat* FrontBackBlockFloatCurve;
 
-	FOnTimelineFloat FallBlockProgressFunction;
+	FOnTimelineFloat FrontBackBlockProgressFunction;
 
-	FOnTimelineEvent FallBlockFinishedFunction;
-
-	UFUNCTION()
-	void FallBlockTimelineProgress(float Value);
+	FOnTimelineEvent FrontBackBlockFinishedFunction;
 
 	UFUNCTION()
-	void FallBlockTimelineFinished();
+	void FrontBackBlockTimelineProgress(float Value);
+
+	UFUNCTION()
+	void FrontBackBlockTimelineFinished();
 };

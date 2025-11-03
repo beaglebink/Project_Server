@@ -1,5 +1,6 @@
 #include "EnvironmentalObstacles/A_BlocksWallObstacle.h"
 #include "EnvironmentalObstacles/A_BlockObstacle.h"
+#include "Components/TextRenderComponent.h"
 
 AA_BlocksWallObstacle::AA_BlocksWallObstacle()
 {
@@ -56,12 +57,11 @@ void AA_BlocksWallObstacle::OnConstruction(const FTransform& Transform)
 	WallBlocks.Empty();
 
 	//BlockExtent
-	FVector BlockExtent(50.0f);
 	if (BlockObstacleClass)
 	{
 		if (AA_BlockObstacle* TempBlock = GetWorld()->SpawnActorDeferred<AA_BlockObstacle>(BlockObstacleClass, FTransform()))
 		{
-			BlockExtent = TempBlock->BlockMeshComponent->GetStaticMesh()->GetExtendedBounds().BoxExtent * 2.0f;
+			BlockExtent = TempBlock->BlockMeshComponent->GetStaticMesh()->GetExtendedBounds().BoxExtent * 2.0f;;
 			TempBlock->Destroy();
 		}
 	}
@@ -79,6 +79,7 @@ void AA_BlocksWallObstacle::OnConstruction(const FTransform& Transform)
 			if (AA_BlockObstacle* NewBlock = GetWorld()->SpawnActor<AA_BlockObstacle>(BlockObstacleClass, BlockTransform, SpawnParams))
 			{
 				NewBlock->InitialLocation = BlockLocation;
+				NewBlock->TargetLocation = BlockLocation;
 				NewBlock->BlockIndex = Y * WallDimensions.X + X;
 				WallBlocks.Add(NewBlock);
 			}
@@ -115,6 +116,8 @@ void AA_BlocksWallObstacle::OnConstruction(const FTransform& Transform)
 void AA_BlocksWallObstacle::BeginPlay()
 {
 	Super::BeginPlay();
+
+
 }
 
 void AA_BlocksWallObstacle::Tick(float DeltaTime)
@@ -124,16 +127,53 @@ void AA_BlocksWallObstacle::Tick(float DeltaTime)
 
 void AA_BlocksWallObstacle::UpperBlocksFall(int32 Index)
 {
-	FVector PrevBlockLocation = WallBlocks[Index]->InitialLocation;
-	WallBlocks[Index]->Destroy();
-	WallBlocks[Index] = nullptr;
+	int32 PrevIndex = Index;
+	WallBlocks[PrevIndex] = nullptr;
+	AA_BlockObstacle* PrevBlock = nullptr;
+
 	for (int32 i = Index - WallDimensions.X; i >= 0; i -= WallDimensions.X)
 	{
 		if (WallBlocks[i] && WallBlocks.IsValidIndex(i))
 		{
-			WallBlocks[i]->TargetLocation = PrevBlockLocation;
-			WallBlocks[i]->SetBlockState(EBlockState::Falling);
-			PrevBlockLocation = WallBlocks[i]->InitialLocation;
+			WallBlocks[PrevIndex] = WallBlocks[i];
+			WallBlocks[PrevIndex]->BlockIndex = PrevIndex;
+			WallBlocks[PrevIndex]->StartBlockFall(PrevBlock);
+			PrevBlock = WallBlocks[PrevIndex];
+			WallBlocks[i] = nullptr;
+			PrevIndex = i;
 		}
 	}
+	DrawGrid();
+}
+
+void AA_BlocksWallObstacle::DrawGrid()
+{
+#if WITH_EDITOR
+	for (UTextRenderComponent* Text : DebugGridTexts)
+	{
+		Text->DestroyComponent();
+	}
+	DebugGridTexts.Empty();
+
+	for (int32 i = 0; i < WallBlocks.Num(); ++i)
+	{
+		FVector TextLocation = GetActorLocation() + GetActorUpVector() * 200.0f - GetActorUpVector() * BlockExtent.Z * i / WallDimensions.X - GetActorRightVector() * BlockExtent.Y * (i % WallDimensions.X);
+		DrawDebugSphere(GetWorld(), TextLocation, 10.0f, 8, WallBlocks[i] && WallBlocks[i]->LowerBlock? FColor::Green : FColor::Red, false, 20.0f);
+
+		UTextRenderComponent* TextComp = NewObject<UTextRenderComponent>(this);
+		if (TextComp)
+		{
+			TextComp->RegisterComponent();
+			TextComp->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+			TextComp->SetWorldLocation(TextLocation);
+			TextComp->SetHorizontalAlignment(EHTA_Center);
+			TextComp->SetVerticalAlignment(EVRTA_TextCenter);
+			TextComp->SetWorldSize(10.f);
+			TextComp->SetTextRenderColor(FColor::Blue);
+			//TextComp->SetText(FText::FromString(FString::FromInt(static_cast<int32>(IsValid(WallBlocks[i]) ? WallBlocks[i]->BlockState : EBlockState::Destroyed))));
+			TextComp->SetText(FText::FromString(FString::FromInt(IsValid(WallBlocks[i]) ? WallBlocks[i]->BlockIndex : -1)));
+			DebugGridTexts.Add(TextComp);
+		}
+	}
+#endif
 }

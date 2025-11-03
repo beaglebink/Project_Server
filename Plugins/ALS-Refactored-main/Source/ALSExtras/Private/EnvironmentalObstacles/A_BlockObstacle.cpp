@@ -13,7 +13,7 @@ AA_BlockObstacle::AA_BlockObstacle()
 	BlockDestroyFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("BlockDestroyFXComponent"));
 	DestroyTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DestroyTimelineComponent"));
 	MoveBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveTimelineComponent"));
-	FallBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("FallTimelineComponent"));
+	FrontBackBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("FrontBackTimelineComponent"));
 
 	BlockMeshComponent->SetupAttachment(RootComponent);
 	AudioComponent->SetupAttachment(RootComponent);
@@ -26,6 +26,8 @@ AA_BlockObstacle::AA_BlockObstacle()
 void AA_BlockObstacle::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+
+	BlockExtent = BlockMeshComponent->GetStaticMesh()->GetExtendedBounds().BoxExtent * 2.0f;
 
 	if (BlockMaterialAsset && !IsValid(BlockMaterialInstance))
 	{
@@ -63,26 +65,65 @@ void AA_BlockObstacle::BeginPlay()
 		MoveBlockTimeline->SetLooping(false);
 	}
 
-	//Fall timeline 
-	if (FallBlockFloatCurve)
+	//FrontBack timeline 
+	if (FrontBackBlockFloatCurve)
 	{
-		FallBlockProgressFunction.BindUFunction(this, FName("FallBlockTimelineProgress"));
-		FallBlockTimeline->AddInterpFloat(FallBlockFloatCurve, FallBlockProgressFunction);
+		FrontBackBlockProgressFunction.BindUFunction(this, FName("FrontBackBlockTimelineProgress"));
+		FrontBackBlockTimeline->AddInterpFloat(FrontBackBlockFloatCurve, FrontBackBlockProgressFunction);
 
-		FallBlockFinishedFunction.BindUFunction(this, FName("FallBlockTimelineFinished"));
-		FallBlockTimeline->SetTimelineFinishedFunc(FallBlockFinishedFunction);
+		FrontBackBlockFinishedFunction.BindUFunction(this, FName("FrontBackBlockTimelineFinished"));
+		FrontBackBlockTimeline->SetTimelineFinishedFunc(FrontBackBlockFinishedFunction);
 
-		FallBlockTimeline->SetLooping(false);
+		FrontBackBlockTimeline->SetLooping(false);
 	}
 }
 
 void AA_BlockObstacle::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (bIsFalling)
+	{
+		float PrevSpeed = FallSpeed;
+		FallSpeed += 98.0f * DeltaTime;
+
+
+		FVector Next = GetActorLocation() - FVector(0.0f, 0.0f, FallSpeed * DeltaTime);
+
+		if (LowerBlock)
+		{
+			float Distance = FVector::Distance(Next, LowerBlock->GetActorLocation());
+			if (Distance <= BlockExtent.Z)
+			{
+				FallSpeed = LowerBlock->FallSpeed;
+				Next.Z = LowerBlock->GetActorLocation().Z + BlockExtent.Z;
+				if (!LowerBlock->bIsFalling)
+				{
+					bIsFalling = false;
+				}
+			}
+		}
+		else if (Next.Z <= TargetLocation.Z)
+		{
+			Next.Z = TargetLocation.Z;
+			FallSpeed = 0.0f;
+			bIsFalling = false;
+			InitialLocation = TargetLocation;
+		}
+
+		SetActorLocation(Next);
+		if (PrevSpeed - FallSpeed > 0.0f)
+		{
+			AudioComponent->SetSound(BlockFallSound);
+			AudioComponent->Play();
+		}
+	}
 }
 
 void AA_BlockObstacle::SetBlockState(EBlockState NewState)
 {
+	PrevState = BlockState;
+
 	switch (NewState)
 	{
 	case EBlockState::Neutral:
@@ -107,24 +148,6 @@ void AA_BlockObstacle::SetBlockState(EBlockState NewState)
 	{
 		BlockState = EBlockState::Moving;
 		MoveBlock(EDirection::Down);
-		break;
-	}
-	case EBlockState::Falling:
-	{
-		BlockState = EBlockState::Falling;
-		StartBlockFall();
-		break;
-	}
-	case EBlockState::Shot:
-	{
-		BlockState = EBlockState::Shot;
-		OnShotMaterial(true);
-		FTimerHandle ResetShotHandle;
-		GetWorldTimerManager().SetTimer(ResetShotHandle, [this]()
-			{
-				OnShotMaterial(false);
-				BlockState = EBlockState::Neutral;
-			}, 0.2f, false);
 		break;
 	}
 	default:
@@ -161,10 +184,12 @@ void AA_BlockObstacle::MoveBlock(EDirection Direction)
 
 }
 
-void AA_BlockObstacle::StartBlockFall()
+void AA_BlockObstacle::StartBlockFall(AA_BlockObstacle* Block)
 {
-	AudioComponent->SetSound(BlockFallSound);
-	FallBlockTimeline->PlayFromStart();
+	LowerBlock = Block;
+
+	TargetLocation -= BlockExtent.Z * GetActorUpVector();
+	bIsFalling = true;
 }
 
 void AA_BlockObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
@@ -173,9 +198,14 @@ void AA_BlockObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hi
 	{
 		SetBlockState(EBlockState::Destroyed);
 	}
-	else if (BlockState == EBlockState::Neutral)
+	else
 	{
-		SetBlockState(EBlockState::Shot);
+		OnShotMaterial(true);
+		FTimerHandle ResetShotHandle;
+		GetWorldTimerManager().SetTimer(ResetShotHandle, [this]()
+			{
+				OnShotMaterial(false);
+			}, 0.2f, false);
 	}
 }
 
@@ -185,12 +215,13 @@ void AA_BlockObstacle::DestroyTimelineProgress(float Value)
 }
 void AA_BlockObstacle::DestroyTimelineFinished()
 {
-	AudioComponent->Stop();
-
 	if (AA_BlocksWallObstacle* GridOfBlocks = Cast<AA_BlocksWallObstacle>(GetOwner()))
 	{
 		GridOfBlocks->UpperBlocksFall(BlockIndex);
 	}
+
+	AudioComponent->Stop();
+	Destroy();
 }
 
 void AA_BlockObstacle::MoveBlockTimelineProgress(float Value)
@@ -200,16 +231,18 @@ void AA_BlockObstacle::MoveBlockTimelineProgress(float Value)
 void AA_BlockObstacle::MoveBlockTimelineFinished()
 {
 	AudioComponent->Stop();
+	SetBlockState(PrevState);
 }
 
-void AA_BlockObstacle::FallBlockTimelineProgress(float Value)
+void AA_BlockObstacle::FrontBackBlockTimelineProgress(float Value)
 {
 	SetActorLocation(FMath::Lerp(InitialLocation, TargetLocation, Value));
 }
 
-void AA_BlockObstacle::FallBlockTimelineFinished()
+void AA_BlockObstacle::FrontBackBlockTimelineFinished()
 {
 	InitialLocation = TargetLocation;
 	AudioComponent->Play();
+	SetBlockState(PrevState);
 }
 
