@@ -12,7 +12,7 @@ AA_BlockObstacle::AA_BlockObstacle()
 	AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 	BlockDestroyFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("BlockDestroyFXComponent"));
 	DestroyTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DestroyTimelineComponent"));
-	MoveBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveTimelineComponent"));
+	MoveOnDirectionBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveOnDirectionTimelineComponent"));
 	FrontBackBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("FrontBackTimelineComponent"));
 
 	BlockMeshComponent->SetupAttachment(RootComponent);
@@ -41,6 +41,8 @@ void AA_BlockObstacle::BeginPlay()
 {
 	Super::BeginPlay();
 
+	GridOfBlocks = Cast<AA_BlocksWallObstacle>(GetOwner());
+
 	//Destroy timeline
 	if (DestroyFloatCurve)
 	{
@@ -53,16 +55,16 @@ void AA_BlockObstacle::BeginPlay()
 		DestroyTimeline->SetLooping(false);
 	}
 
-	//Move timeline 
-	if (MoveBlockFloatCurve)
+	//MoveOnDirection timeline 
+	if (MoveOnDirectionBlockFloatCurve)
 	{
-		MoveBlockProgressFunction.BindUFunction(this, FName("MoveBlockTimelineProgress"));
-		MoveBlockTimeline->AddInterpFloat(MoveBlockFloatCurve, MoveBlockProgressFunction);
+		MoveOnDirectionBlockProgressFunction.BindUFunction(this, FName("MoveOnDirectionBlockTimelineProgress"));
+		MoveOnDirectionBlockTimeline->AddInterpFloat(MoveOnDirectionBlockFloatCurve, MoveOnDirectionBlockProgressFunction);
 
-		MoveBlockFinishedFunction.BindUFunction(this, FName("MoveBlockTimelineFinished"));
-		MoveBlockTimeline->SetTimelineFinishedFunc(MoveBlockFinishedFunction);
+		MoveOnDirectionBlockFinishedFunction.BindUFunction(this, FName("MoveOnDirectionBlockTimelineFinished"));
+		MoveOnDirectionBlockTimeline->SetTimelineFinishedFunc(MoveOnDirectionBlockFinishedFunction);
 
-		MoveBlockTimeline->SetLooping(false);
+		MoveOnDirectionBlockTimeline->SetLooping(false);
 	}
 
 	//FrontBack timeline 
@@ -100,6 +102,7 @@ void AA_BlockObstacle::Tick(float DeltaTime)
 				if (!LowerBlock->bIsFalling)
 				{
 					bIsFalling = false;
+					InitialLocation = TargetLocation;
 				}
 			}
 		}
@@ -122,8 +125,6 @@ void AA_BlockObstacle::Tick(float DeltaTime)
 
 void AA_BlockObstacle::SetBlockState(EBlockState NewState)
 {
-	PrevState = BlockState;
-
 	switch (NewState)
 	{
 	case EBlockState::Neutral:
@@ -144,12 +145,6 @@ void AA_BlockObstacle::SetBlockState(EBlockState NewState)
 		StartBlockDestroy();
 		break;
 	}
-	case EBlockState::Moving:
-	{
-		BlockState = EBlockState::Moving;
-		MoveBlock(EDirection::Down);
-		break;
-	}
 	default:
 		break;
 	}
@@ -158,6 +153,16 @@ void AA_BlockObstacle::SetBlockState(EBlockState NewState)
 void AA_BlockObstacle::SetBlockMaterial(bool bIsCritical)
 {
 	BlockMaterialInstance->SetScalarParameterValue(FName("IsCritical"), static_cast<int32>(bIsCritical));
+}
+
+void AA_BlockObstacle::HandleShotForMaterial()
+{
+	OnShotMaterial(true);
+	FTimerHandle ResetShotHandle;
+	GetWorldTimerManager().SetTimer(ResetShotHandle, [this]()
+		{
+			OnShotMaterial(false);
+		}, 0.2f, false);
 }
 
 void AA_BlockObstacle::OnShotMaterial(bool bIsShot)
@@ -179,33 +184,75 @@ void AA_BlockObstacle::StartBlockDestroy()
 	DestroyTimeline->PlayFromStart();
 }
 
-void AA_BlockObstacle::MoveBlock(EDirection Direction)
+void AA_BlockObstacle::MoveOnDirectionBlock(EDirection Direction)
 {
+	FVector Offset;
+	switch (Direction)
+	{
+	case EDirection::Up:
+	{
+		Offset = GetActorUpVector() * BlockExtent.Z;
+		break;
+	}
+	case EDirection::Right:
+	{
+		Offset = -GetActorRightVector() * BlockExtent.Y;
+		break;
+	}
+	case EDirection::Down:
+	{
+		Offset = -GetActorUpVector() * BlockExtent.Z;
+		break;
+	}
+	case EDirection::Left:
+	{
+		Offset = GetActorRightVector() * BlockExtent.Y;
+		break;
+	}
+	default:
+		break;
+	}
+	TargetLocation = InitialLocation + Offset;
+	if (BlockState == EBlockState::Critical)
+	{
+		AudioComponent->SetSound(BlockMoveOnDirectionSound);
+		AudioComponent->Play();
+		//Pull block
+		FrontBackBlockTimeline->PlayFromStart();
 
+		//Push block back
+		FTimerHandle PushHandle;
+		GetWorldTimerManager().SetTimer(PushHandle, [this]()
+			{
+				FrontBackBlockTimeline->PlayFromStart();
+			}, FrontBackBlockTimeline->GetTimelineLength() + MoveOnDirectionBlockTimeline->GetTimelineLength(), false);
+	}
+	else
+	{
+		FTimerHandle MoveHandle;
+		GetWorldTimerManager().SetTimer(MoveHandle, [this]()
+			{
+				MoveOnDirectionBlockTimeline->PlayFromStart();
+			}, FrontBackBlockTimeline->GetTimelineLength(), false);
+	}
 }
 
 void AA_BlockObstacle::StartBlockFall(AA_BlockObstacle* Block)
 {
 	LowerBlock = Block;
-
 	TargetLocation -= BlockExtent.Z * GetActorUpVector();
 	bIsFalling = true;
 }
 
 void AA_BlockObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
-	if (BlockState == EBlockState::Critical)
+	if (BlockState == EBlockState::Critical && !GridOfBlocks->bIsProcessingSwaps)
 	{
 		SetBlockState(EBlockState::Destroyed);
 	}
 	else
 	{
-		OnShotMaterial(true);
-		FTimerHandle ResetShotHandle;
-		GetWorldTimerManager().SetTimer(ResetShotHandle, [this]()
-			{
-				OnShotMaterial(false);
-			}, 0.2f, false);
+		HandleShotForMaterial();
 	}
 }
 
@@ -215,7 +262,7 @@ void AA_BlockObstacle::DestroyTimelineProgress(float Value)
 }
 void AA_BlockObstacle::DestroyTimelineFinished()
 {
-	if (AA_BlocksWallObstacle* GridOfBlocks = Cast<AA_BlocksWallObstacle>(GetOwner()))
+	if (GridOfBlocks)
 	{
 		GridOfBlocks->UpperBlocksFall(BlockIndex);
 	}
@@ -224,25 +271,40 @@ void AA_BlockObstacle::DestroyTimelineFinished()
 	Destroy();
 }
 
-void AA_BlockObstacle::MoveBlockTimelineProgress(float Value)
-{
-}
-
-void AA_BlockObstacle::MoveBlockTimelineFinished()
-{
-	AudioComponent->Stop();
-	SetBlockState(PrevState);
-}
-
-void AA_BlockObstacle::FrontBackBlockTimelineProgress(float Value)
+void AA_BlockObstacle::MoveOnDirectionBlockTimelineProgress(float Value)
 {
 	SetActorLocation(FMath::Lerp(InitialLocation, TargetLocation, Value));
 }
 
-void AA_BlockObstacle::FrontBackBlockTimelineFinished()
+void AA_BlockObstacle::MoveOnDirectionBlockTimelineFinished()
 {
 	InitialLocation = TargetLocation;
-	AudioComponent->Play();
-	SetBlockState(PrevState);
+	if (BlockState == EBlockState::Neutral)
+	{
+		GridOfBlocks->CheckAndHandleCompletedSwaps();
+	}
+}
+
+void AA_BlockObstacle::FrontBackBlockTimelineProgress(float Value)
+{
+	SetActorLocation(FMath::Lerp(InitialLocation, InitialLocation + GetActorForwardVector() * BlockExtent.X * (bIsPulling * 2 - 1), Value));
+}
+
+void AA_BlockObstacle::FrontBackBlockTimelineFinished()
+{
+	InitialLocation = GetActorLocation();
+
+	if (bIsPulling)
+	{
+		bIsPulling = false;
+		TargetLocation = TargetLocation + GetActorForwardVector() * BlockExtent.X;
+		MoveOnDirectionBlockTimeline->PlayFromStart();
+	}
+	else
+	{
+		bIsPulling = true;
+		GridOfBlocks->CheckAndHandleCompletedSwaps();
+		AudioComponent->Stop();
+	}
 }
 

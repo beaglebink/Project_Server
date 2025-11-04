@@ -11,21 +11,21 @@ enum class EBlockState :uint8
 {
 	Neutral,
 	Critical,
-	Destroyed,
-	Moving
+	Destroyed
 };
 
 UENUM(BlueprintType)
 enum class EDirection :uint8
 {
-	Left,
+	Up,
 	Right,
 	Down,
-	Up
+	Left
 };
 
 class UNiagaraComponent;
 class UAudioComponent;
+class AA_BlocksWallObstacle;
 
 UCLASS()
 class ALSEXTRAS_API AA_BlockObstacle : public AActor, public II_WeaponInteraction
@@ -56,7 +56,7 @@ public:
 	USoundBase* BlockDestroySound;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
-	USoundBase* BlockMoveSound;
+	USoundBase* BlockMoveOnDirectionSound;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
 	USoundBase* BlockFallSound;
@@ -83,7 +83,10 @@ public:
 	int32 BlockIndex;
 
 	UPROPERTY()
-	EBlockState PrevState;
+	AA_BlocksWallObstacle* GridOfBlocks;
+
+	UPROPERTY()
+	uint8 bIsPulling : 1{ true };
 
 	UPROPERTY()
 	uint8 bIsFalling : 1{ false };
@@ -98,11 +101,13 @@ public:
 
 	void SetBlockMaterial(bool bIsCritical);
 
+	void HandleShotForMaterial();
+
 	void OnShotMaterial(bool bIsShot);
 
 	void StartBlockDestroy();
 
-	void MoveBlock(EDirection Direction);
+	void MoveOnDirectionBlock(EDirection Direction);
 
 	void StartBlockFall(AA_BlockObstacle* Block);
 
@@ -128,22 +133,22 @@ protected:
 	UFUNCTION()
 	void DestroyTimelineFinished();
 
-	//Move Timeline
+	//MoveOnDirection Timeline
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	UTimelineComponent* MoveBlockTimeline;
+	UTimelineComponent* MoveOnDirectionBlockTimeline;
 
 	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
-	UCurveFloat* MoveBlockFloatCurve;
+	UCurveFloat* MoveOnDirectionBlockFloatCurve;
 
-	FOnTimelineFloat MoveBlockProgressFunction;
+	FOnTimelineFloat MoveOnDirectionBlockProgressFunction;
 
-	FOnTimelineEvent MoveBlockFinishedFunction;
-
-	UFUNCTION()
-	void MoveBlockTimelineProgress(float Value);
+	FOnTimelineEvent MoveOnDirectionBlockFinishedFunction;
 
 	UFUNCTION()
-	void MoveBlockTimelineFinished();
+	void MoveOnDirectionBlockTimelineProgress(float Value);
+
+	UFUNCTION()
+	void MoveOnDirectionBlockTimelineFinished();
 
 	//FrontBack Timeline
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
