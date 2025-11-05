@@ -10,8 +10,7 @@ UENUM(BlueprintType)
 enum class EBlockState :uint8
 {
 	Neutral,
-	Critical,
-	Destroyed
+	Critical
 };
 
 UENUM(BlueprintType)
@@ -43,7 +42,7 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Settings")
 	EBlockState BlockState = EBlockState::Neutral;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
@@ -112,7 +111,7 @@ public:
 	void StartBlockFall(AA_BlockObstacle* Block);
 
 private:
-	uint8 bIsOnDestroying : 1{false};
+	uint8 bIsOnDestroy : 1{false};
 
 	void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
 

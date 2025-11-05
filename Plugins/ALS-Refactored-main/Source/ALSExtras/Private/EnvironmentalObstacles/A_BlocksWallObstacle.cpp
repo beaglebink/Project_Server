@@ -334,6 +334,7 @@ void AA_BlocksWallObstacle::NotifyBlockDestroyed()
 {
 	if (--TotalBlocksDestroyedTillDestroyWall <= 0)
 	{
+		bIsOnDestroy = true;
 		DestroyWall();
 		return;
 	}

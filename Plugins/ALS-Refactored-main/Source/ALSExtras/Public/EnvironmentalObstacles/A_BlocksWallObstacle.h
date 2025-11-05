@@ -79,6 +79,8 @@ private:
 public:
 	uint8 bIsProcessingSwaps : 1{ false};
 
+	uint8 bIsOnDestroy : 1{ false};
+
 	void NotifyBlockDestroyed();
 
 	void NotifyPlayerShot(bool bIsAccurate);

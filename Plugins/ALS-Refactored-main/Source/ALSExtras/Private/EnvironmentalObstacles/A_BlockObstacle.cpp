@@ -240,9 +240,9 @@ void AA_BlockObstacle::StartBlockFall(AA_BlockObstacle* Block)
 
 void AA_BlockObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
-	if (BlockState == EBlockState::Critical && !GridOfBlocks->bIsProcessingSwaps && !bIsOnDestroying)
+	if (BlockState == EBlockState::Critical && !bIsOnDestroy && !GridOfBlocks->bIsProcessingSwaps && !GridOfBlocks->bIsOnDestroy)
 	{
-		bIsOnDestroying = true;
+		bIsOnDestroy = true;
 		GridOfBlocks->NotifyBlockDestroyed();
 		GridOfBlocks->NotifyPlayerShot(true);
 		StartBlockDestroy();
