@@ -90,7 +90,7 @@ public:
 
 	UPROPERTY()
 	uint8 bIsFalling : 1{ false };
-	
+
 	UPROPERTY()
 	float FallSpeed = 0.0f;
 
@@ -112,6 +112,7 @@ public:
 	void StartBlockFall(AA_BlockObstacle* Block);
 
 private:
+	uint8 bIsOnDestroying : 1{false};
 
 	void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
 

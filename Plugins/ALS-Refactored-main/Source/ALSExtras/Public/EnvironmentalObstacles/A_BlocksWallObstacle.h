@@ -55,6 +55,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (AllowPrivateAccess = true, EditCondition = "bUsePlayerAccuracy"))
 	int32 PlayerAccuracyThreshold = 2;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (AllowPrivateAccess = true))
+	int32 TotalBlocksDestroyedTillDestroyWall = 1;
+
 	UPROPERTY()
 	TArray<AA_BlockObstacle*> WallBlocks;
 
@@ -76,11 +79,22 @@ private:
 public:
 	uint8 bIsProcessingSwaps : 1{ false};
 
-	int32 BlocksOnSwapCount = 0;
+	void NotifyBlockDestroyed();
+
+	void NotifyPlayerShot(bool bIsAccurate);
 
 	void CheckAndHandleCompletedSwaps();
 
 	void UpperBlocksFall(int32 Index);
+
+private:
+	int32 BlocksOnSwapCount = 0;
+
+	int32 BlocksDestroyedSinceLastSwap = 0;
+
+	int32 PlayerShotsSinceLastSwap = 0;
+
+	void DestroyWall();
 
 	//debug function
 	void DrawGrid();

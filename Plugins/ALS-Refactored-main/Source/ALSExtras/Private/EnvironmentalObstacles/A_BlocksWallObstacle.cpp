@@ -48,6 +48,10 @@ void AA_BlocksWallObstacle::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	{
 		PlayerAccuracyThreshold = FMath::Clamp(PlayerAccuracyThreshold, 1, FMath::RoundToInt(WallDimensions.X * WallDimensions.Y * CriticalBlocksTreshold / 100.f) - 1);
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AA_BlocksWallObstacle, TotalBlocksDestroyedTillDestroyWall))
+	{
+		TotalBlocksDestroyedTillDestroyWall = FMath::Clamp(TotalBlocksDestroyedTillDestroyWall, 1, FMath::RoundToInt(WallDimensions.X * WallDimensions.Y * CriticalBlocksTreshold / 100.f));
+	}
 }
 #endif
 
@@ -130,11 +134,22 @@ void AA_BlocksWallObstacle::BeginPlay()
 		FTimerHandle SwapHandle;
 		GetWorldTimerManager().SetTimer(SwapHandle, this, &AA_BlocksWallObstacle::PrepareBlockSwaps, TimeIntervalBetweenSwaps, true, TimeIntervalBetweenSwaps);
 	}
+
+	//DrawGrid();
 }
 
 void AA_BlocksWallObstacle::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+#if WITH_EDITOR
+	//for (size_t i = 0; i < WallBlocks.Num(); ++i)
+	//{
+	//	DebugGridTexts[i]->SetText(FText::FromString(FString::FromInt(IsValid(WallBlocks[i]) ? WallBlocks[i]->InitialLocation.X : -1)));
+	//	//DebugGridTexts[i]->SetText(FText::FromString(FString::FromInt(static_cast<int32>(IsValid(WallBlocks[i]) ? WallBlocks[i]->BlockState : EBlockState::Destroyed))));
+	//	//DebugGridTexts[i]->SetText(FText::FromString(FString::FromInt(IsValid(WallBlocks[i]) ? WallBlocks[i]->BlockIndex : -1)));
+	//}
+#endif
 }
 
 void AA_BlocksWallObstacle::PrepareBlockSwaps()
@@ -315,6 +330,47 @@ EDirection AA_BlocksWallObstacle::GetOppositeDirection(EDirection Direction) con
 	}
 }
 
+void AA_BlocksWallObstacle::NotifyBlockDestroyed()
+{
+	if (--TotalBlocksDestroyedTillDestroyWall <= 0)
+	{
+		DestroyWall();
+		return;
+	}
+
+	if (!bUseNumberOfBlocksDestroyed)
+	{
+		return;
+	}
+
+	if (++BlocksDestroyedSinceLastSwap >= NumberOfBlocksDestroyedThreshold)
+	{
+		BlocksDestroyedSinceLastSwap = 0;
+		PrepareBlockSwaps();
+	}
+}
+
+void AA_BlocksWallObstacle::NotifyPlayerShot(bool bIsAccurate)
+{
+	if (!bUsePlayerAccuracy)
+	{
+		return;
+	}
+
+	if (bIsAccurate)
+	{
+		if (++PlayerShotsSinceLastSwap >= PlayerAccuracyThreshold)
+		{
+			PlayerShotsSinceLastSwap = 0;
+			PrepareBlockSwaps();
+		}
+	}
+	else
+	{
+		PlayerShotsSinceLastSwap = 0;
+	}
+}
+
 void AA_BlocksWallObstacle::CheckAndHandleCompletedSwaps()
 {
 	if (--BlocksOnSwapCount == 0)
@@ -341,7 +397,24 @@ void AA_BlocksWallObstacle::UpperBlocksFall(int32 Index)
 			PrevIndex = i;
 		}
 	}
-	DrawGrid();
+}
+
+void AA_BlocksWallObstacle::DestroyWall()
+{
+	for (AA_BlockObstacle* Block : WallBlocks)
+	{
+		if (IsValid(Block))
+		{
+			Block->StartBlockDestroy();
+		}
+	}
+
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			WallBlocks.Empty();
+			Destroy();
+		}, 2.5f, false);
 }
 
 void AA_BlocksWallObstacle::DrawGrid()
@@ -356,7 +429,6 @@ void AA_BlocksWallObstacle::DrawGrid()
 	for (int32 i = 0; i < WallBlocks.Num(); ++i)
 	{
 		FVector TextLocation = GetActorLocation() + GetActorUpVector() * 200.0f - GetActorUpVector() * BlockExtent.Z * i / WallDimensions.X - GetActorRightVector() * BlockExtent.Y * (i % WallDimensions.X);
-		DrawDebugSphere(GetWorld(), TextLocation, 10.0f, 8, WallBlocks[i] && WallBlocks[i]->LowerBlock ? FColor::Green : FColor::Red, false, 20.0f);
 
 		UTextRenderComponent* TextComp = NewObject<UTextRenderComponent>(this);
 		if (TextComp)
@@ -368,9 +440,6 @@ void AA_BlocksWallObstacle::DrawGrid()
 			TextComp->SetVerticalAlignment(EVRTA_TextCenter);
 			TextComp->SetWorldSize(10.f);
 			TextComp->SetTextRenderColor(FColor::Blue);
-			//TextComp->SetText(FText::FromString(FString::FromInt(static_cast<int32>(IsValid(WallBlocks[i]) ? WallBlocks[i]->BlockState : EBlockState::Destroyed))));
-			//TextComp->SetText(FText::FromString(FString::FromInt(IsValid(WallBlocks[i]) ? WallBlocks[i]->BlockIndex : -1)));
-			TextComp->SetText(FText::FromString(FString::FromInt(IsValid(WallBlocks[i]) ? WallBlocks[i]->InitialLocation.Z : -1)));
 			DebugGridTexts.Add(TextComp);
 		}
 	}

@@ -139,12 +139,6 @@ void AA_BlockObstacle::SetBlockState(EBlockState NewState)
 		SetBlockMaterial(true);
 		break;
 	}
-	case EBlockState::Destroyed:
-	{
-		BlockState = EBlockState::Destroyed;
-		StartBlockDestroy();
-		break;
-	}
 	default:
 		break;
 	}
@@ -175,7 +169,7 @@ void AA_BlockObstacle::StartBlockDestroy()
 	UMaterialInstanceDynamic* DynMat = nullptr;
 	DynMat = UMaterialInstanceDynamic::Create(BlockMaterialAsset, BlockDestroyFX);
 	DynMat->SetScalarParameterValue(FName(TEXT("IsNiagaraMaterial")), 1);
-	DynMat->SetScalarParameterValue(FName(TEXT("IsCritical")), 1);
+	DynMat->SetScalarParameterValue(FName(TEXT("IsCritical")), static_cast<float>(BlockState));
 	BlockDestroyFX->SetVariableMaterial(FName(TEXT("User.ParticlesMaterial")), DynMat);
 	BlockDestroyFX->Activate(true);
 
@@ -246,13 +240,17 @@ void AA_BlockObstacle::StartBlockFall(AA_BlockObstacle* Block)
 
 void AA_BlockObstacle::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
-	if (BlockState == EBlockState::Critical && !GridOfBlocks->bIsProcessingSwaps)
+	if (BlockState == EBlockState::Critical && !GridOfBlocks->bIsProcessingSwaps && !bIsOnDestroying)
 	{
-		SetBlockState(EBlockState::Destroyed);
+		bIsOnDestroying = true;
+		GridOfBlocks->NotifyBlockDestroyed();
+		GridOfBlocks->NotifyPlayerShot(true);
+		StartBlockDestroy();
 	}
 	else
 	{
 		HandleShotForMaterial();
+		GridOfBlocks->NotifyPlayerShot(false);
 	}
 }
 
@@ -262,10 +260,7 @@ void AA_BlockObstacle::DestroyTimelineProgress(float Value)
 }
 void AA_BlockObstacle::DestroyTimelineFinished()
 {
-	if (GridOfBlocks)
-	{
-		GridOfBlocks->UpperBlocksFall(BlockIndex);
-	}
+	GridOfBlocks->UpperBlocksFall(BlockIndex);
 
 	AudioComponent->Stop();
 	Destroy();
@@ -303,6 +298,7 @@ void AA_BlockObstacle::FrontBackBlockTimelineFinished()
 	else
 	{
 		bIsPulling = true;
+		TargetLocation = InitialLocation;
 		GridOfBlocks->CheckAndHandleCompletedSwaps();
 		AudioComponent->Stop();
 	}
