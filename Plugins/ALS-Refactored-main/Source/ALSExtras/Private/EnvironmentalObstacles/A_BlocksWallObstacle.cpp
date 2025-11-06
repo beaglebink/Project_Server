@@ -249,17 +249,19 @@ void AA_BlocksWallObstacle::ProcessBlockSwaps()
 			UsedNeutralIndices.Add(i);
 			UsedNeutralIndices.Add(BestCandidate);
 
-			WallBlocks[i]->MoveOnDirectionBlock(BestCandidateDirection);
+			//WallBlocks[i]->MoveOnDirectionBlock(BestCandidateDirection);
+			WallBlocks[i]->ChangeBlockStateOnSwap();
 			++BlocksOnSwapCount;
-			WallBlocks[BestCandidate]->MoveOnDirectionBlock(GetOppositeDirection(BestCandidateDirection));
+			//WallBlocks[BestCandidate]->MoveOnDirectionBlock(GetOppositeDirection(BestCandidateDirection));
+			WallBlocks[BestCandidate]->ChangeBlockStateOnSwap();
 			++BlocksOnSwapCount;
 
-			AA_BlockObstacle* TempBlock = WallBlocks[i];
-			WallBlocks[i] = WallBlocks[BestCandidate];
-			WallBlocks[BestCandidate] = TempBlock;
+			//AA_BlockObstacle* TempBlock = WallBlocks[i];
+			//WallBlocks[i] = WallBlocks[BestCandidate];
+			//WallBlocks[BestCandidate] = TempBlock;
 
-			WallBlocks[i]->BlockIndex = i;
-			WallBlocks[BestCandidate]->BlockIndex = BestCandidate;
+			//WallBlocks[i]->BlockIndex = i;
+			//WallBlocks[BestCandidate]->BlockIndex = BestCandidate;
 		}
 	}
 }

@@ -12,8 +12,9 @@ AA_BlockObstacle::AA_BlockObstacle()
 	AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 	BlockDestroyFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("BlockDestroyFXComponent"));
 	DestroyTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DestroyTimelineComponent"));
-	MoveOnDirectionBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveOnDirectionTimelineComponent"));
-	FrontBackBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("FrontBackTimelineComponent"));
+	MoveOnDirectionBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MoveOnDirectionBlockTimelineComponent"));
+	FrontBackBlockTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("FrontBackBlockTimelineComponent"));
+	ChangeBlockStateTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("ChangeBlockStateTimelineComponent"));
 
 	BlockMeshComponent->SetupAttachment(RootComponent);
 	AudioComponent->SetupAttachment(RootComponent);
@@ -77,6 +78,18 @@ void AA_BlockObstacle::BeginPlay()
 		FrontBackBlockTimeline->SetTimelineFinishedFunc(FrontBackBlockFinishedFunction);
 
 		FrontBackBlockTimeline->SetLooping(false);
+	}
+
+	//ChangeBlockState timeline 
+	if (ChangeBlockStateFloatCurve)
+	{
+		ChangeBlockStateProgressFunction.BindUFunction(this, FName("ChangeBlockStateTimelineProgress"));
+		ChangeBlockStateTimeline->AddInterpFloat(ChangeBlockStateFloatCurve, ChangeBlockStateProgressFunction);
+
+		ChangeBlockStateFinishedFunction.BindUFunction(this, FName("ChangeBlockStateTimelineFinished"));
+		ChangeBlockStateTimeline->SetTimelineFinishedFunc(ChangeBlockStateFinishedFunction);
+
+		ChangeBlockStateTimeline->SetLooping(false);
 	}
 }
 
@@ -231,6 +244,13 @@ void AA_BlockObstacle::MoveOnDirectionBlock(EDirection Direction)
 	}
 }
 
+void AA_BlockObstacle::ChangeBlockStateOnSwap()
+{
+	AudioComponent->SetSound(ChangeBlockStateSound);
+	AudioComponent->Play();
+	ChangeBlockStateTimeline->PlayFromStart();
+}
+
 void AA_BlockObstacle::StartBlockFall(AA_BlockObstacle* Block)
 {
 	LowerBlock = Block;
@@ -302,5 +322,24 @@ void AA_BlockObstacle::FrontBackBlockTimelineFinished()
 		GridOfBlocks->CheckAndHandleCompletedSwaps();
 		AudioComponent->Stop();
 	}
+}
+
+void AA_BlockObstacle::ChangeBlockStateTimelineProgress(float Value)
+{
+	BlockMaterialInstance->SetScalarParameterValue(FName("IsCritical"), FMath::Abs(static_cast<int32>(BlockState) - Value));
+}
+
+void AA_BlockObstacle::ChangeBlockStateTimelineFinished()
+{
+	if (BlockState == EBlockState::Neutral)
+	{
+		BlockState = EBlockState::Critical;
+	}
+	else
+	{
+		BlockState = EBlockState::Neutral;
+	}
+	GridOfBlocks->CheckAndHandleCompletedSwaps();
+	AudioComponent->Stop();
 }
 

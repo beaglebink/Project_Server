@@ -61,6 +61,9 @@ public:
 	USoundBase* BlockFallSound;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
+	USoundBase* ChangeBlockStateSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
 	UNiagaraComponent* BlockDestroyFX;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
@@ -107,6 +110,8 @@ public:
 	void StartBlockDestroy();
 
 	void MoveOnDirectionBlock(EDirection Direction);
+
+	void ChangeBlockStateOnSwap();
 
 	void StartBlockFall(AA_BlockObstacle* Block);
 
@@ -166,4 +171,21 @@ protected:
 
 	UFUNCTION()
 	void FrontBackBlockTimelineFinished();
+
+	//ChangeBlockState Timeline
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UTimelineComponent* ChangeBlockStateTimeline;
+
+	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
+	UCurveFloat* ChangeBlockStateFloatCurve;
+
+	FOnTimelineFloat ChangeBlockStateProgressFunction;
+
+	FOnTimelineEvent ChangeBlockStateFinishedFunction;
+
+	UFUNCTION()
+	void ChangeBlockStateTimelineProgress(float Value);
+
+	UFUNCTION()
+	void ChangeBlockStateTimelineFinished();
 };
