@@ -159,20 +159,20 @@ void AA_BlocksWallObstacle::PrepareBlockSwaps()
 	const int32 BlinkCount = 5;
 	const float BlinkInterval = 0.8f;
 
-	for (int32 i = 1; i <= BlinkCount; ++i)
-	{
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				for (AA_BlockObstacle* Block : WallBlocks)
-				{
-					if (IsValid(Block))
-					{
-						Block->HandleShotForMaterial();
-					}
-				}
-			}, i * (BlinkInterval + 0.2f), false);
-	}
+	//for (int32 i = 1; i <= BlinkCount; ++i)
+	//{
+	//	FTimerHandle TimerHandle;
+	//	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+	//		{
+	//			for (AA_BlockObstacle* Block : WallBlocks)
+	//			{
+	//				if (IsValid(Block))
+	//				{
+	//					Block->HandleShotForMaterial();
+	//				}
+	//			}
+	//		}, i * (BlinkInterval + 0.2f), false);
+	//}
 
 	FTimerHandle ProcessHandle;
 	GetWorldTimerManager().SetTimer(ProcessHandle, this, &AA_BlocksWallObstacle::ProcessBlockSwaps, BlinkCount * (BlinkInterval + 0.2f), false);

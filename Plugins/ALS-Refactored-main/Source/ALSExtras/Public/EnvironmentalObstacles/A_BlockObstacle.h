@@ -23,7 +23,6 @@ enum class EDirection :uint8
 };
 
 class UNiagaraComponent;
-class UAudioComponent;
 class AA_BlocksWallObstacle;
 
 UCLASS()
