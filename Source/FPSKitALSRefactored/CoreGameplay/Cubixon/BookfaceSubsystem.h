@@ -20,6 +20,9 @@ public:
   TSoftObjectPtr<UTexture2D> AvatarImage;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere)
+  TSoftObjectPtr<UTexture2D> CoverImage;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere)
   FText Bio;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere)

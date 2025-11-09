@@ -13,10 +13,10 @@ void UBookfaceSubsystem::Deinitialize()
 
 void UBookfaceSubsystem::AddUserProfile(const FBookfaceProfileStructure& NewProfile)
 {
-	if (!NewProfile.UserId.IsEmpty())
-	{
-		UserProfiles.AddUnique(NewProfile);
-	}
+	if (NewProfile.UserId.IsEmpty())
+		return;
+	
+	UserProfiles.AddUnique(NewProfile);
 }
 
 const TArray<FBookfaceProfileStructure>& UBookfaceSubsystem::GetUserProfiles() const

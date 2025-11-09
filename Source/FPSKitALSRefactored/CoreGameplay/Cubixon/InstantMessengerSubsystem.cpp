@@ -15,6 +15,9 @@ void UInstantMessengerSubsystem::Deinitialize()
 
 void UInstantMessengerSubsystem::AddContact(const FContactsStructure& NewContact)
 {
+    if (NewContact.ContactName.IsEmpty())
+        return;
+
     Contacts.AddUnique(NewContact);
     UE_LOG(LogTemp, Log, TEXT("Contact added: %s"), *NewContact.ContactName.ToString());
 }
