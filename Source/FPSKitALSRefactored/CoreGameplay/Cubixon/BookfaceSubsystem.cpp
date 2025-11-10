@@ -36,4 +36,24 @@ FBookfaceProfileStructure UBookfaceSubsystem::GetUserProfileById(const FString& 
 	return FBookfaceProfileStructure();
 }
 
+bool UBookfaceSubsystem::SetOnlineStatus(const FString& UserId, const bool bOnline)
+{
+	auto Profile = GetUserProfileById(UserId);
+	if (Profile.UserId.IsEmpty())
+		return false;
+
+	Profile.IsOnline = bOnline;
+	return true;
+}
+
+bool UBookfaceSubsystem::GetOnlineStatus(const FString& UserId, bool IsOnline) const
+{
+	auto Profile = GetUserProfileById(UserId);
+	if (Profile.UserId.IsEmpty())
+		return false;
+
+	IsOnline = Profile.IsOnline;
+	return false;
+}
+
 
