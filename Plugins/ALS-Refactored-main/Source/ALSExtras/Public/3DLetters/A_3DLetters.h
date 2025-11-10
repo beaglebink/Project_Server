@@ -31,6 +31,15 @@ struct FLetter
 
 	UPROPERTY()
 	FName LetterChar;
+
+	UPROPERTY()
+	float FloatAmplitude;
+
+	UPROPERTY()
+	float FloatSpeed;
+
+	UPROPERTY()
+	float FloatPhase;
 };
 
 UCLASS()

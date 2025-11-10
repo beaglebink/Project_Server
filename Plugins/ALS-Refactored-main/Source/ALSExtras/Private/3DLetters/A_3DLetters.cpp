@@ -100,6 +100,9 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		NewLetter.LetterDestroyFX = FX;
 		NewLetter.InitialLocation = LetterComp->GetComponentLocation();
 		NewLetter.TargetLocation = NewLetter.InitialLocation;
+		NewLetter.FloatAmplitude = FMath::RandRange(5.0f, 15.0f);
+		NewLetter.FloatSpeed = FMath::RandRange(1.0f, 3.0f);
+		NewLetter.FloatPhase = i * 0.3f;
 		NewLetter.LetterChar = FName(*FString::Chr(Symbol));
 
 		LettersArray.Add(NewLetter);
@@ -150,6 +153,19 @@ void AA_3DLetters::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	const FVector RightDir = -GetActorRightVector();
+
+	if (!bIsSwappingLetters && !bIsTransformingLettersToMesh)
+	{
+		for (FLetter& Letter : LettersArray)
+		{
+			float OffsetY = FMath::Sin(GetWorld()->TimeSeconds * Letter.FloatSpeed + Letter.FloatPhase) * Letter.FloatAmplitude;
+			float OffsetZ = FMath::Cos(GetWorld()->TimeSeconds * Letter.FloatSpeed + Letter.FloatPhase * 0.5f) * (Letter.FloatAmplitude * 0.5f);
+
+			FVector NewLocation = Letter.InitialLocation + RightDir * OffsetY + FVector(0, 0, OffsetZ);
+			Letter.LetterMeshComponent->SetWorldLocation(NewLocation);
+		}
+	}
 }
 
 void AA_3DLetters::HandleTextFromWeapon_Implementation(const FText& TextCommand)
@@ -161,6 +177,11 @@ void AA_3DLetters::HandleTextFromWeapon_Implementation(const FText& TextCommand)
 		return;
 	}
 	bIsSwappingLetters = true;
+
+	for (FLetter& Letter : LettersArray)
+	{
+		Letter.InitialLocation = Letter.LetterMeshComponent->GetComponentLocation();
+	}
 
 	FVector Extent = LetterMeshes[0]->GetBounds().BoxExtent;
 	float Width = Extent.Y * 2.0f;
