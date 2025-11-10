@@ -80,24 +80,35 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		LetterComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 		LetterComp->RegisterComponent();
 
-		UMaterialInstanceDynamic* DynMat = nullptr;
-		DynMat = LetterComp->CreateAndSetMaterialInstanceDynamic(0);
-
+		UMaterialInstanceDynamic* FXDynMat = nullptr;
 		UNiagaraComponent* FX = nullptr;
 		if (LetterDestroyFXSystem)
 		{
+			FXDynMat = LetterComp->CreateDynamicMaterialInstance(0, LetterComp->GetMaterial(0));
+			FXDynMat->SetScalarParameterValue(TEXT("IsNiagaraMaterial"), 1.0f);
+
 			const FName FXName = *FString::Printf(TEXT("FX_%d_%c"), i, Symbol);
 			FX = UNiagaraFunctionLibrary::SpawnSystemAttached(LetterDestroyFXSystem, LetterComp, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false);
 			FX->SetAutoActivate(false);
+
+			FX->SetVariableMaterial(FName(TEXT("User.ParticlesMaterial")), FXDynMat);
+			if (LettersToMeshComponent && LettersToMeshComponent->GetStaticMesh())
+			{
+				FX->SetVariableObject(TEXT("User.TargetStaticMeshObject"), LettersToMeshComponent->GetStaticMesh());
+			}
 		}
+
+		UMaterialInstanceDynamic* DynMat = nullptr;
+		DynMat = LetterComp->CreateAndSetMaterialInstanceDynamic(0);
 
 		const FVector LetterOffset = -GetActorRightVector() * i * (LetterWidth + Spacing);
 		LetterComp->SetWorldLocation(GetActorLocation() + LetterOffset);
 
 		FLetter NewLetter;
 		NewLetter.LetterMeshComponent = LetterComp;
-		NewLetter.LetterMaterialInstanceDynamic = DynMat;
+		NewLetter.LetterFXMaterialInstanceDynamic = FXDynMat;
 		NewLetter.LetterDestroyFX = FX;
+		NewLetter.LetterMaterialInstanceDynamic = DynMat;
 		NewLetter.InitialLocation = LetterComp->GetComponentLocation();
 		NewLetter.TargetLocation = NewLetter.InitialLocation;
 		NewLetter.FloatAmplitude = FMath::RandRange(5.0f, 15.0f);
@@ -153,6 +164,7 @@ void AA_3DLetters::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	//Floating effect
 	const FVector RightDir = -GetActorRightVector();
 
 	if (!bIsSwappingLetters && !bIsTransformingLettersToMesh)
@@ -242,6 +254,14 @@ void AA_3DLetters::StartTransformLettersToMesh()
 	bIsTransformingLettersToMesh = true;
 	AudioComponent->SetSound(TransformSound);
 	AudioComponent->Play();
+
+	for (FLetter& Letter : LettersArray)
+	{
+
+		Letter.LetterDestroyFX->SetVariableVec3(TEXT("User.TargetOffset"), LettersToMeshComponent->GetComponentLocation() - Letter.LetterMeshComponent->GetComponentLocation());
+		Letter.LetterDestroyFX->ActivateSystem(true);
+	}
+
 	TransformLettersToMeshTimeline->PlayFromStart();
 }
 

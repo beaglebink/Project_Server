@@ -138,6 +138,23 @@ void AA_BlocksWallObstacle::BeginPlay()
 	//DrawGrid();
 }
 
+#if WITH_EDITOR
+void AA_BlocksWallObstacle::Destroyed()
+{
+	Super::Destroyed();
+
+	for (AA_BlockObstacle* Block : WallBlocks)
+	{
+		if (IsValid(Block))
+		{
+			Block->Destroy();
+		}
+	}
+
+	WallBlocks.Empty();
+}
+#endif
+
 void AA_BlocksWallObstacle::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
