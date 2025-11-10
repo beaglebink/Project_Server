@@ -41,6 +41,7 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		return;
 	}
 
+	LettersText = LettersText.ToLower();
 	TArray<TCHAR> Chars = LettersText.GetCharArray();
 	if (Chars.Num() > 0)
 	{
@@ -64,8 +65,7 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		int32 Index = -1;
 
 		if (FChar::IsDigit(Symbol))       Index = Symbol - '0';
-		else if (FChar::IsUpper(Symbol))  Index = Symbol - 'A' + 10;
-		else if (FChar::IsLower(Symbol))  Index = Symbol - 'a' + 10;
+		else if (FChar::IsAlpha(Symbol))  Index = Symbol - 'a' + 10;
 
 		if (!LetterMeshes.IsValidIndex(Index))
 		{
@@ -92,7 +92,7 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		}
 
 		const FVector LetterOffset = -GetActorRightVector() * i * (LetterWidth + Spacing);
-		LetterComp->SetRelativeLocation(LetterOffset);
+		LetterComp->SetWorldLocation(GetActorLocation() + LetterOffset);
 
 		FLetter NewLetter;
 		NewLetter.LetterMeshComponent = LetterComp;
@@ -105,10 +105,14 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		LettersArray.Add(NewLetter);
 	}
 
-	if (LettersToMeshComponent && LettersArray.Num() > 0)
+	if (LettersToMeshComponent && LettersToMeshComponent->GetStaticMesh())
 	{
 		LettersToMeshComponent->SetRelativeLocation(-GetActorRightVector() * ((LetterWidth + Spacing) * (LettersArray.Num() - 1) / 2.f));
-		//LettersToMeshComponent->SetVisibility(false);
+		if (!IsValid(MeshMaterialInstanceDynamic))
+		{
+			MeshMaterialInstanceDynamic = LettersToMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
+		}
+		MeshMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), 0.0f);
 	}
 }
 
@@ -150,7 +154,7 @@ void AA_3DLetters::Tick(float DeltaTime)
 
 void AA_3DLetters::HandleTextFromWeapon_Implementation(const FText& TextCommand)
 {
-	CommandLettersText = TextCommand.ToString();
+	CommandLettersText = TextCommand.ToString().ToLower();
 
 	if (bIsSwappingLetters || bIsTransformingLettersToMesh || CurrentLettersText == CommandLettersText || !AreWordsEqualIgnoreOrder(LettersText, CommandLettersText))
 	{
@@ -250,7 +254,11 @@ void AA_3DLetters::SwapLettersTimelineFinished()
 
 void AA_3DLetters::TransformLettersToMeshTimelineProgress(float Value)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("TransformLettersToMesh Timeline Progress: %f"), Value));
+	for (FLetter& Letter : LettersArray)
+	{
+		Letter.LetterMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), 1 - Value);
+	}
+	MeshMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), Value);
 }
 
 void AA_3DLetters::TransformLettersToMeshTimelineFinished()

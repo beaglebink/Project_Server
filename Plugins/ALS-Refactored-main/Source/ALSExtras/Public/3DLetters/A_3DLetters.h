@@ -82,6 +82,8 @@ private:
 	UPROPERTY()
 	TArray<FLetter> LettersArray;
 
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> MeshMaterialInstanceDynamic;
 
 	uint8 bIsSwappingLetters : 1{ false };
 
