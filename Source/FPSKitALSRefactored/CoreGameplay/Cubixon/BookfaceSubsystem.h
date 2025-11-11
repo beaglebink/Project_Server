@@ -39,6 +39,8 @@ public:
 	bool IsOnline;
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
+
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
 {
@@ -61,7 +63,10 @@ public:
 	bool SetOnlineStatus(const FString& UserId, const bool bOnline);
 
 	UFUNCTION(BlueprintCallable)
-	bool GetOnlineStatus(const FString& UserId, bool IsOnline) const;
+	bool GetOnlineStatus(const FString& UserId, bool& IsOnline) const;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
+	FOnlineStatusChange OnlineStatusChange;
 
 private:
 	TArray<FBookfaceProfileStructure> UserProfiles;

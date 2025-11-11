@@ -42,18 +42,24 @@ bool UBookfaceSubsystem::SetOnlineStatus(const FString& UserId, const bool bOnli
 	if (Profile.UserId.IsEmpty())
 		return false;
 
+	UserProfiles.Remove(Profile);
+
 	Profile.IsOnline = bOnline;
+
+	UserProfiles.Add(Profile);
+
+	OnlineStatusChange.Broadcast(UserId, bOnline);
 	return true;
 }
 
-bool UBookfaceSubsystem::GetOnlineStatus(const FString& UserId, bool IsOnline) const
+bool UBookfaceSubsystem::GetOnlineStatus(const FString& UserId, bool& IsOnline) const
 {
 	auto Profile = GetUserProfileById(UserId);
 	if (Profile.UserId.IsEmpty())
 		return false;
 
 	IsOnline = Profile.IsOnline;
-	return false;
+	return true;
 }
 
 
