@@ -24,11 +24,8 @@ struct FLetter
 	TObjectPtr<UMaterialInstanceDynamic> LetterMaterialInstanceDynamic;
 
 	UPROPERTY()
-	TObjectPtr<UMaterialInstanceDynamic> LetterFXMaterialInstanceDynamic;
-
-	UPROPERTY()
 	FVector InitialLocation;
-	
+
 	UPROPERTY()
 	FVector TargetLocation;
 
@@ -49,8 +46,8 @@ UCLASS()
 class ALSEXTRAS_API AA_3DLetters : public AActor, public II_WeaponInteraction
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	AA_3DLetters();
 
 protected:
@@ -58,7 +55,7 @@ protected:
 
 	virtual void BeginPlay() override;
 
-public:	
+public:
 	virtual void Tick(float DeltaTime) override;
 
 private:
@@ -96,6 +93,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> MeshMaterialInstanceDynamic;
+
+	UPROPERTY()
+	UTextureRenderTarget2D* TargetMeshRenderTarget = nullptr;
 
 	uint8 bIsSwappingLetters : 1{ false };
 
