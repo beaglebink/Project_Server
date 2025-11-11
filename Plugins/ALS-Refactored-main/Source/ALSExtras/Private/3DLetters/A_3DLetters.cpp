@@ -2,6 +2,8 @@
 #include "Components/AudioComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Kismet/KismetRenderingLibrary.h"
+#include "Engine/TextureRenderTarget2D.h"    
 
 AA_3DLetters::AA_3DLetters()
 {
@@ -23,6 +25,24 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
+	if (LettersText.IsEmpty() || LetterMeshes.Num() == 0 || !IsValid(LettersToMeshComponent->GetStaticMesh()))
+	{
+		return;
+	}
+
+	if (!IsValid(MeshMaterialInstanceDynamic))
+	{
+		MeshMaterialInstanceDynamic = LettersToMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
+	}
+
+	TargetMeshRenderTarget = NewObject<UTextureRenderTarget2D>(this);
+	if (!TargetMeshRenderTarget)return;
+
+	TargetMeshRenderTarget->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
+	TargetMeshRenderTarget->InitAutoFormat(1024, 1024);
+	TargetMeshRenderTarget->ClearColor = FLinearColor::Black;
+	TargetMeshRenderTarget->UpdateResourceImmediate(true);
+
 	for (FLetter& Letter : LettersArray)
 	{
 		if (Letter.LetterMeshComponent)
@@ -35,11 +55,6 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		}
 	}
 	LettersArray.Empty();
-
-	if (LettersText.IsEmpty() || LetterMeshes.Num() == 0)
-	{
-		return;
-	}
 
 	LettersText = LettersText.ToLower();
 	TArray<TCHAR> Chars = LettersText.GetCharArray();
@@ -57,7 +72,6 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 	CurrentLettersText = Chars;
 
 	const float LetterWidth = LetterMeshes[0]->GetBounds().BoxExtent.Y * 2.0f;
-	const FVector RightDir = -GetActorRightVector();
 
 	for (int32 i = 0; i < Chars.Num(); ++i)
 	{
@@ -80,35 +94,30 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		LetterComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 		LetterComp->RegisterComponent();
 
-		UMaterialInstanceDynamic* FXDynMat = nullptr;
-		UNiagaraComponent* FX = nullptr;
-		if (LetterDestroyFXSystem)
-		{
-			FXDynMat = LetterComp->CreateDynamicMaterialInstance(0, LetterComp->GetMaterial(0));
-			FXDynMat->SetScalarParameterValue(TEXT("IsNiagaraMaterial"), 1.0f);
+		//UMaterialInstanceDynamic* FXDynMat = nullptr;
+		//UNiagaraComponent* FX = nullptr;
+		//if (LetterDestroyFXSystem)
+		//{
+		//	FX = UNiagaraFunctionLibrary::SpawnSystemAttached(LetterDestroyFXSystem, LetterComp, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false);
+		//	FX->SetVariableObject(TEXT("User.TargetStaticMeshObject"), LettersToMeshComponent->GetStaticMesh());
+		//	UMaterialInterface* BaseMat = LetterComp->GetMaterial(0);
+		//	FXDynMat = UMaterialInstanceDynamic::Create(BaseMat, this);
+		//	FXDynMat->SetTextureParameterValue(TEXT("TargetMeshRenderTarget"), TargetMeshRenderTarget);
+		//	FXDynMat->SetScalarParameterValue(TEXT("IsNiagaraMaterial"), 1.0f);
 
-			const FName FXName = *FString::Printf(TEXT("FX_%d_%c"), i, Symbol);
-			FX = UNiagaraFunctionLibrary::SpawnSystemAttached(LetterDestroyFXSystem, LetterComp, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false);
-			FX->SetAutoActivate(false);
+		//	FX->SetVariableMaterial(TEXT("User.ParticlesMaterial"), FXDynMat);
+		//	FX->SetAutoActivate(false);
+		//}
 
-			FX->SetVariableMaterial(FName(TEXT("User.ParticlesMaterial")), FXDynMat);
-			if (LettersToMeshComponent && LettersToMeshComponent->GetStaticMesh())
-			{
-				FX->SetVariableObject(TEXT("User.TargetStaticMeshObject"), LettersToMeshComponent->GetStaticMesh());
-			}
-		}
-
-		UMaterialInstanceDynamic* DynMat = nullptr;
-		DynMat = LetterComp->CreateAndSetMaterialInstanceDynamic(0);
+		//UMaterialInstanceDynamic* DynMat = LetterComp->CreateAndSetMaterialInstanceDynamic(0);
 
 		const FVector LetterOffset = -GetActorRightVector() * i * (LetterWidth + Spacing);
 		LetterComp->SetWorldLocation(GetActorLocation() + LetterOffset);
 
 		FLetter NewLetter;
 		NewLetter.LetterMeshComponent = LetterComp;
-		NewLetter.LetterFXMaterialInstanceDynamic = FXDynMat;
-		NewLetter.LetterDestroyFX = FX;
-		NewLetter.LetterMaterialInstanceDynamic = DynMat;
+		//NewLetter.LetterDestroyFX = FX;
+		//NewLetter.LetterMaterialInstanceDynamic = DynMat;
 		NewLetter.InitialLocation = LetterComp->GetComponentLocation();
 		NewLetter.TargetLocation = NewLetter.InitialLocation;
 		NewLetter.FloatAmplitude = FMath::RandRange(5.0f, 15.0f);
@@ -119,15 +128,7 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		LettersArray.Add(NewLetter);
 	}
 
-	if (LettersToMeshComponent && LettersToMeshComponent->GetStaticMesh())
-	{
-		LettersToMeshComponent->SetRelativeLocation(-GetActorRightVector() * ((LetterWidth + Spacing) * (LettersArray.Num() - 1) / 2.f));
-		if (!IsValid(MeshMaterialInstanceDynamic))
-		{
-			MeshMaterialInstanceDynamic = LettersToMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
-		}
-		MeshMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), 0.0f);
-	}
+	LettersToMeshComponent->SetWorldLocation(GetActorLocation() - GetActorRightVector() * ((LetterWidth + Spacing) * (LettersArray.Num() - 1) / 2.0f));
 }
 
 
@@ -158,6 +159,29 @@ void AA_3DLetters::BeginPlay()
 
 		TransformLettersToMeshTimeline->SetLooping(false);
 	}
+
+	UKismetRenderingLibrary::DrawMaterialToRenderTarget(GetWorld(), TargetMeshRenderTarget, MeshMaterialInstanceDynamic);
+	for (FLetter& Letter : LettersArray)
+	{
+		UMaterialInstanceDynamic* FXDynMat = nullptr;
+		UNiagaraComponent* FX = nullptr;
+		if (LetterDestroyFXSystem)
+		{
+			FX = UNiagaraFunctionLibrary::SpawnSystemAttached(LetterDestroyFXSystem, Letter.LetterMeshComponent, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, false);
+			FX->SetVariableObject(TEXT("User.TargetStaticMeshObject"), LettersToMeshComponent->GetStaticMesh());
+			UMaterialInterface* BaseMat = Letter.LetterMeshComponent->GetMaterial(0);
+			FXDynMat = UMaterialInstanceDynamic::Create(BaseMat, this);
+			FXDynMat->SetTextureParameterValue(TEXT("TargetMeshRenderTarget"), TargetMeshRenderTarget);
+			FXDynMat->SetScalarParameterValue(TEXT("IsNiagaraMaterial"), 1.0f);
+			FX->SetVariableMaterial(TEXT("User.ParticlesMaterial"), FXDynMat);
+			Letter.LetterDestroyFX = FX;
+
+			UMaterialInstanceDynamic* DynMat = Letter.LetterMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
+			Letter.LetterMaterialInstanceDynamic = DynMat;
+		}
+	}
+
+	MeshMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), 0.0f);
 }
 
 void AA_3DLetters::Tick(float DeltaTime)
@@ -257,7 +281,6 @@ void AA_3DLetters::StartTransformLettersToMesh()
 
 	for (FLetter& Letter : LettersArray)
 	{
-
 		Letter.LetterDestroyFX->SetVariableVec3(TEXT("User.TargetOffset"), LettersToMeshComponent->GetComponentLocation() - Letter.LetterMeshComponent->GetComponentLocation());
 		Letter.LetterDestroyFX->ActivateSystem(true);
 	}
@@ -267,7 +290,6 @@ void AA_3DLetters::StartTransformLettersToMesh()
 
 void AA_3DLetters::SwapLettersTimelineProgress(float Value)
 {
-
 	for (FLetter& Letter : LettersArray)
 	{
 		Letter.LetterMeshComponent->SetWorldLocation(FMath::Lerp(Letter.InitialLocation, Letter.TargetLocation, Value));
@@ -297,9 +319,9 @@ void AA_3DLetters::TransformLettersToMeshTimelineProgress(float Value)
 {
 	for (FLetter& Letter : LettersArray)
 	{
-		Letter.LetterMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), 1 - Value);
+		Letter.LetterMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), 0);
 	}
-	MeshMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), Value);
+	//MeshMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), Value);
 }
 
 void AA_3DLetters::TransformLettersToMeshTimelineFinished()
