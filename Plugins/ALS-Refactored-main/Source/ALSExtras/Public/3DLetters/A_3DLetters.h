@@ -24,6 +24,9 @@ struct FLetter
 	TObjectPtr<UMaterialInstanceDynamic> LetterMaterialInstanceDynamic;
 
 	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> LetterFXMaterialInstanceDynamic;
+
+	UPROPERTY()
 	FVector InitialLocation;
 	
 	UPROPERTY()
