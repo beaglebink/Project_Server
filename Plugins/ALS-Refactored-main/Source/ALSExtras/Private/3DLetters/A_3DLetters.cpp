@@ -94,30 +94,11 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 		LetterComp->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 		LetterComp->RegisterComponent();
 
-		//UMaterialInstanceDynamic* FXDynMat = nullptr;
-		//UNiagaraComponent* FX = nullptr;
-		//if (LetterDestroyFXSystem)
-		//{
-		//	FX = UNiagaraFunctionLibrary::SpawnSystemAttached(LetterDestroyFXSystem, LetterComp, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false);
-		//	FX->SetVariableObject(TEXT("User.TargetStaticMeshObject"), LettersToMeshComponent->GetStaticMesh());
-		//	UMaterialInterface* BaseMat = LetterComp->GetMaterial(0);
-		//	FXDynMat = UMaterialInstanceDynamic::Create(BaseMat, this);
-		//	FXDynMat->SetTextureParameterValue(TEXT("TargetMeshRenderTarget"), TargetMeshRenderTarget);
-		//	FXDynMat->SetScalarParameterValue(TEXT("IsNiagaraMaterial"), 1.0f);
-
-		//	FX->SetVariableMaterial(TEXT("User.ParticlesMaterial"), FXDynMat);
-		//	FX->SetAutoActivate(false);
-		//}
-
-		//UMaterialInstanceDynamic* DynMat = LetterComp->CreateAndSetMaterialInstanceDynamic(0);
-
 		const FVector LetterOffset = -GetActorRightVector() * i * (LetterWidth + Spacing);
 		LetterComp->SetWorldLocation(GetActorLocation() + LetterOffset);
 
 		FLetter NewLetter;
 		NewLetter.LetterMeshComponent = LetterComp;
-		//NewLetter.LetterDestroyFX = FX;
-		//NewLetter.LetterMaterialInstanceDynamic = DynMat;
 		NewLetter.InitialLocation = LetterComp->GetComponentLocation();
 		NewLetter.TargetLocation = NewLetter.InitialLocation;
 		NewLetter.FloatAmplitude = FMath::RandRange(5.0f, 15.0f);
@@ -319,9 +300,9 @@ void AA_3DLetters::TransformLettersToMeshTimelineProgress(float Value)
 {
 	for (FLetter& Letter : LettersArray)
 	{
-		Letter.LetterMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), 0);
+		Letter.LetterMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), 1 - FMath::Clamp(Value, 0.0f, 1.0f));
 	}
-	//MeshMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), Value);
+	MeshMaterialInstanceDynamic->SetScalarParameterValue(TEXT("Opacity"), FMath::Clamp(Value - 2, 0.0f, 1.0f));
 }
 
 void AA_3DLetters::TransformLettersToMeshTimelineFinished()
