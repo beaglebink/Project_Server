@@ -40,6 +40,7 @@ public:
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, UserId, const FString&, UserFriend);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
@@ -65,8 +66,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool GetOnlineStatus(const FString& UserId, bool& IsOnline) const;
 
+	UFUNCTION(BlueprintCallable)
+	bool RemoveFriend(const FString& UserId, const FString& FriendId);
+
+public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
 	FOnlineStatusChange OnlineStatusChange;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
+	FOnRemoveFriend OnRemoveFriend;
 
 private:
 	TArray<FBookfaceProfileStructure> UserProfiles;

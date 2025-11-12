@@ -62,4 +62,38 @@ bool UBookfaceSubsystem::GetOnlineStatus(const FString& UserId, bool& IsOnline) 
 	return true;
 }
 
+bool UBookfaceSubsystem::RemoveFriend(const FString& UserId, const FString& FriendId)
+{
+	if (UserId == FriendId)
+		return false;
+
+	auto MyProfile = GetUserProfileById(UserId);
+	if (MyProfile.UserId.IsEmpty())
+		return false;
+
+	auto FriendProfile = GetUserProfileById(FriendId);
+	if (FriendProfile.UserId.IsEmpty())
+		return false;
+/*
+	if (!MyProfile.FriendsList.Contains(FriendId))
+		return false;
+
+	if (!FriendProfile.FriendsList.Contains(UserId))
+		return false;
+*/
+	UserProfiles.Remove(MyProfile);
+	UserProfiles.Remove(FriendProfile);
+
+	MyProfile.FriendsList.Remove(FriendId);
+	UserProfiles.Add(MyProfile);
+
+	FriendProfile.FriendsList.Remove(UserId);
+	UserProfiles.Add(FriendProfile);
+
+	OnRemoveFriend.Broadcast(UserId, FriendId);
+
+	return true;
+}
+
+
 
