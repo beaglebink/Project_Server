@@ -1,5 +1,5 @@
 #include "BookfaceSubsystem.h"
-#include "Engine/Engine.h"
+#include "Internationalization/Regex.h"
 
 void UBookfaceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -13,87 +13,153 @@ void UBookfaceSubsystem::Deinitialize()
 
 void UBookfaceSubsystem::AddUserProfile(const FBookfaceProfileStructure& NewProfile)
 {
-	if (NewProfile.UserId.IsEmpty())
-		return;
-	
-	UserProfiles.AddUnique(NewProfile);
+    // Replace existing or add new
+    for (int32 i = 0; i < UserProfiles.Num(); ++i)
+    {
+        if (UserProfiles[i].UserId == NewProfile.UserId)
+        {
+            UserProfiles[i] = NewProfile;
+            return;
+        }
+    }
+    UserProfiles.Add(NewProfile);
 }
 
 const TArray<FBookfaceProfileStructure>& UBookfaceSubsystem::GetUserProfiles() const
 {
-	return UserProfiles;
+    return UserProfiles;
 }
 
 FBookfaceProfileStructure UBookfaceSubsystem::GetUserProfileById(const FString& UserId) const
 {
-	for (const FBookfaceProfileStructure& Profile : UserProfiles)
-	{
-		if (Profile.UserId.Equals(UserId))
-		{
-			return Profile;
-		}
-	}
-	return FBookfaceProfileStructure();
+    for (const auto& P : UserProfiles)
+    {
+        if (P.UserId == UserId) return P;
+    }
+    return FBookfaceProfileStructure();
 }
 
 bool UBookfaceSubsystem::SetOnlineStatus(const FString& UserId, const bool bOnline)
 {
-	auto Profile = GetUserProfileById(UserId);
-	if (Profile.UserId.IsEmpty())
-		return false;
-
-	UserProfiles.Remove(Profile);
-
-	Profile.IsOnline = bOnline;
-
-	UserProfiles.Add(Profile);
-
-	OnlineStatusChange.Broadcast(UserId, bOnline);
-	return true;
+    for (auto& P : UserProfiles)
+    {
+        if (P.UserId == UserId)
+        {
+            P.IsOnline = bOnline;
+            OnlineStatusChange.Broadcast(UserId, bOnline);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool UBookfaceSubsystem::GetOnlineStatus(const FString& UserId, bool& IsOnline) const
 {
-	auto Profile = GetUserProfileById(UserId);
-	if (Profile.UserId.IsEmpty())
-		return false;
-
-	IsOnline = Profile.IsOnline;
-	return true;
+    for (const auto& P : UserProfiles)
+    {
+        if (P.UserId == UserId)
+        {
+            IsOnline = P.IsOnline;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool UBookfaceSubsystem::RemoveFriend(const FString& UserId, const FString& FriendId)
 {
-	if (UserId == FriendId)
-		return false;
+    bool bAnyRemoved = false;
 
-	auto MyProfile = GetUserProfileById(UserId);
-	if (MyProfile.UserId.IsEmpty())
-		return false;
+    // Удаляем FriendId из списка UserId
+    for (auto& P : UserProfiles)
+    {
+        if (P.UserId == UserId)
+        {
+            if (P.FriendsList.Remove(FriendId) > 0)
+            {
+                OnRemoveFriend.Broadcast(UserId, FriendId);
+                bAnyRemoved = true;
+            }
+            break;
+        }
+    }
 
-	auto FriendProfile = GetUserProfileById(FriendId);
-	if (FriendProfile.UserId.IsEmpty())
-		return false;
-/*
-	if (!MyProfile.FriendsList.Contains(FriendId))
-		return false;
+    // Удаляем UserId из списка FriendId (взаимное удаление)
+    for (auto& P : UserProfiles)
+    {
+        if (P.UserId == FriendId)
+        {
+            if (P.FriendsList.Remove(UserId) > 0)
+            {
+                OnRemoveFriend.Broadcast(FriendId, UserId);
+                bAnyRemoved = true;
+            }
+            break;
+        }
+    }
 
-	if (!FriendProfile.FriendsList.Contains(UserId))
-		return false;
-*/
-	UserProfiles.Remove(MyProfile);
-	UserProfiles.Remove(FriendProfile);
-
-	MyProfile.FriendsList.Remove(FriendId);
-	UserProfiles.Add(MyProfile);
-
-	FriendProfile.FriendsList.Remove(UserId);
-	UserProfiles.Add(FriendProfile);
-
-	OnRemoveFriend.Broadcast(UserId, FriendId);
-
-	return true;
+    return bAnyRemoved;
 }
+
+TArray<FBookfaceProfileStructure> UBookfaceSubsystem::SearchProfiles(const FString& InUserID, const FString& Query) const
+{
+    TArray<FBookfaceProfileStructure> Result;
+    if (Query.IsEmpty()) return Result;
+
+    // Normalize search term to lower for case-insensitive search
+    const FString LowerQuery = Query.ToLower();
+    TSet<FString> AddedIds;
+    AddedIds.Reserve(UserProfiles.Num());
+
+    // Search by UserId
+    for (const auto& P : UserProfiles)
+    {
+        // Не включаем текущего пользователя в результаты поиска
+        if (P.UserId == InUserID)
+        {
+            continue;
+        }
+
+        // Проверяем по UserId
+        if (!AddedIds.Contains(P.UserId))
+        {
+            if (P.UserId.ToLower().Contains(LowerQuery))
+            {
+                Result.Add(P);
+                AddedIds.Add(P.UserId);
+                continue; // Уже добавлен — переход к следующему профилю
+            }
+        }
+
+        // Проверяем по DisplayName
+        if (!AddedIds.Contains(P.UserId))
+        {
+            const FString NameStr = P.DisplayName.ToString();
+            if (NameStr.ToLower().Contains(LowerQuery))
+            {
+                Result.Add(P);
+                AddedIds.Add(P.UserId);
+                continue;
+            }
+        }
+
+        // Проверяем по Bio
+        if (!AddedIds.Contains(P.UserId))
+        {
+            const FString BioStr = P.Bio.ToString();
+            if (BioStr.ToLower().Contains(LowerQuery))
+            {
+                Result.Add(P);
+                AddedIds.Add(P.UserId);
+                continue;
+            }
+        }
+    }
+
+    return Result;
+}
+
+
 
 
 

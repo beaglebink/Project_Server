@@ -33,7 +33,7 @@ public:
 
 	FORCEINLINE bool operator==(const FBookfaceProfileStructure& Other) const
 	{
-	return UserId.Equals(Other.UserId);
+		return UserId.Equals(Other.UserId);
 	}
 
 	bool IsOnline;
@@ -68,6 +68,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool RemoveFriend(const FString& UserId, const FString& FriendId);
+
+	// Search profiles by query matched against UserId, DisplayName and Bio. Results combined without duplicates (by UserId).
+	UFUNCTION(BlueprintCallable, Category = "Bookface")
+	TArray<FBookfaceProfileStructure> SearchProfiles(const FString& InUserID, const FString& Query) const;
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
