@@ -13,7 +13,6 @@ void UBookfaceSubsystem::Deinitialize()
 
 void UBookfaceSubsystem::AddUserProfile(const FBookfaceProfileStructure& NewProfile)
 {
-    // Replace existing or add new
     for (int32 i = 0; i < UserProfiles.Num(); ++i)
     {
         if (UserProfiles[i].UserId == NewProfile.UserId)
@@ -70,7 +69,6 @@ bool UBookfaceSubsystem::RemoveFriend(const FString& UserId, const FString& Frie
 {
     bool bAnyRemoved = false;
 
-    // Удаляем FriendId из списка UserId
     for (auto& P : UserProfiles)
     {
         if (P.UserId == UserId)
@@ -84,7 +82,6 @@ bool UBookfaceSubsystem::RemoveFriend(const FString& UserId, const FString& Frie
         }
     }
 
-    // Удаляем UserId из списка FriendId (взаимное удаление)
     for (auto& P : UserProfiles)
     {
         if (P.UserId == FriendId)
@@ -106,32 +103,27 @@ TArray<FBookfaceProfileStructure> UBookfaceSubsystem::SearchProfiles(const FStri
     TArray<FBookfaceProfileStructure> Result;
     if (Query.IsEmpty()) return Result;
 
-    // Normalize search term to lower for case-insensitive search
     const FString LowerQuery = Query.ToLower();
     TSet<FString> AddedIds;
     AddedIds.Reserve(UserProfiles.Num());
 
-    // Search by UserId
     for (const auto& P : UserProfiles)
     {
-        // Не включаем текущего пользователя в результаты поиска
         if (P.UserId == InUserID)
         {
             continue;
         }
 
-        // Проверяем по UserId
         if (!AddedIds.Contains(P.UserId))
         {
             if (P.UserId.ToLower().Contains(LowerQuery))
             {
                 Result.Add(P);
                 AddedIds.Add(P.UserId);
-                continue; // Уже добавлен — переход к следующему профилю
+                continue;
             }
         }
 
-        // Проверяем по DisplayName
         if (!AddedIds.Contains(P.UserId))
         {
             const FString NameStr = P.DisplayName.ToString();
@@ -143,7 +135,6 @@ TArray<FBookfaceProfileStructure> UBookfaceSubsystem::SearchProfiles(const FStri
             }
         }
 
-        // Проверяем по Bio
         if (!AddedIds.Contains(P.UserId))
         {
             const FString BioStr = P.Bio.ToString();
@@ -158,8 +149,3 @@ TArray<FBookfaceProfileStructure> UBookfaceSubsystem::SearchProfiles(const FStri
 
     return Result;
 }
-
-
-
-
-
