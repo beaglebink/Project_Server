@@ -309,4 +309,10 @@ void AA_3DLetters::TransformLettersToMeshTimelineFinished()
 {
 	bIsTransformingLettersToMesh = false;
 	AudioComponent->Stop();
+
+	for (FLetter& Letter : LettersArray)
+	{
+		Letter.LetterMeshComponent->DestroyComponent();
+		Letter.LetterDestroyFX->DestroyComponent();
+	}
 }
