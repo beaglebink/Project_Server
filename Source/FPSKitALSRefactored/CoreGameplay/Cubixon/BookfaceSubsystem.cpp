@@ -149,3 +149,46 @@ TArray<FBookfaceProfileStructure> UBookfaceSubsystem::SearchProfiles(const FStri
 
     return Result;
 }
+
+void UBookfaceSubsystem::AddFriendRequest(const FString& FromUserId, const FString& ToUserId)
+{
+	auto FromUserProfile = GetUserProfileById(FromUserId);
+	auto ToUserProfile = GetUserProfileById(ToUserId);
+   
+    if(FromUserProfile.FriendsList.Contains(ToUserId))
+    {
+        return;
+	}
+
+    FBookfaceFriendRequestStructure NewRequest;
+    NewRequest.FromUserId = FromUserId;
+    NewRequest.ToUserId = ToUserId;
+	FriendRequests.Add(NewRequest);
+	OnAddFriendRequest.Broadcast(FromUserId, ToUserId);
+}
+
+TArray<FBookfaceFriendRequestStructure> UBookfaceSubsystem::GetMyFriendRequests(const FString& MyUserId) const
+{
+    TArray<FBookfaceFriendRequestStructure> MyRequests;
+    for (const auto& Request : FriendRequests)
+    {
+        if (Request.FromUserId == MyUserId)
+        {
+            MyRequests.AddUnique(Request);
+        }
+    }
+	return MyRequests;
+}
+
+void UBookfaceSubsystem::RemoveFriendRequest(const FString& FromUserId, const FString& ToUserId)
+{
+    for (int32 i = FriendRequests.Num() - 1; i >= 0; --i)
+    {
+        if (FriendRequests[i].FromUserId == FromUserId && FriendRequests[i].ToUserId == ToUserId)
+        {
+            FriendRequests.RemoveAt(i);
+			OnRemoveFriendRequest.Broadcast(FromUserId, ToUserId);
+            return;
+        }
+	}
+}

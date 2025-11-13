@@ -5,6 +5,23 @@
 #include "BookfaceSubsystem.generated.h"
 
 USTRUCT(BlueprintType)
+struct FBookfaceFriendRequestStructure
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FString FromUserId;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FString ToUserId;
+
+	FORCEINLINE bool operator==(const FBookfaceFriendRequestStructure& Other) const
+	{
+		return FromUserId.Equals(Other.FromUserId) && ToUserId.Equals(Other.ToUserId);
+	}
+};
+
+USTRUCT(BlueprintType)
 struct FBookfaceProfileStructure
 {
 	GENERATED_BODY()
@@ -41,6 +58,8 @@ public:
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, UserId, const FString&, UserFriend);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
@@ -69,8 +88,17 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool RemoveFriend(const FString& UserId, const FString& FriendId);
 
-	UFUNCTION(BlueprintCallable, Category = "Bookface")
+	UFUNCTION(BlueprintCallable)
 	TArray<FBookfaceProfileStructure> SearchProfiles(const FString& InUserID, const FString& Query) const;
+
+	UFUNCTION(BlueprintCallable)
+	void AddFriendRequest(const FString& FromUserId, const FString& ToUserId);
+
+	UFUNCTION(BlueprintCallable)
+	TArray<FBookfaceFriendRequestStructure> GetMyFriendRequests(const FString& MyUserId) const;
+
+	UFUNCTION(BlueprintCallable)
+	void RemoveFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
@@ -79,6 +107,16 @@ public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
 	FOnRemoveFriend OnRemoveFriend;
 
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
+	FOnAddFriendRequest OnAddFriendRequest;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
+	FOnRemoveFriendRequest OnRemoveFriendRequest;
+
 private:
+	UPROPERTY()
 	TArray<FBookfaceProfileStructure> UserProfiles;
+
+	UPROPERTY()
+	TArray<FBookfaceFriendRequestStructure> FriendRequests;
 };
