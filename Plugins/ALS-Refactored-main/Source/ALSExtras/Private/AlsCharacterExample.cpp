@@ -62,6 +62,7 @@ void AAlsCharacterExample::BeginPlay()
 
 	InitializeFoodEffectMap();
 	InitializeFoodEffectTimerDelegates();
+	InitializeClothesEffectMap();
 }
 
 void AAlsCharacterExample::NotifyControllerChanged()
@@ -827,6 +828,17 @@ void AAlsCharacterExample::SetSceneRenderComponents(AActor* Actor)
 	{
 		SetSceneRenderComponents(Attached);
 	}
+}
+
+void AAlsCharacterExample::PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform)
+{
+	FVector DeltaLocationExitToEnter = ExitTransform.GetLocation() - EnterTransform.GetLocation();
+	FRotator DeltaRotationExitToEnter = UKismetMathLibrary::NormalizedDeltaRotator(ExitTransform.GetRotation().Rotator(), EnterTransform.GetRotation().Rotator());
+	DeltaRotationExitToEnter.Yaw += 180.0f;
+	SetActorLocation(GetActorLocation() + DeltaLocationExitToEnter, false, nullptr, ETeleportType::TeleportPhysics);
+	SetActorRotation(GetActorRotation() + DeltaRotationExitToEnter);
+	GetController()->SetControlRotation(GetController()->GetControlRotation() + DeltaRotationExitToEnter);
+	GetMovementComponent()->Velocity = DeltaRotationExitToEnter.RotateVector(GetMovementComponent()->Velocity);
 }
 
 void AAlsCharacterExample::InitializeFoodEffectTimerDelegates()
@@ -1743,13 +1755,66 @@ void AAlsCharacterExample::SetEffect_55(bool Apply)
 	}
 }
 
-void AAlsCharacterExample::PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform)
+void AAlsCharacterExample::ClothesEffectByTag(const FGameplayTag& Tag, bool Apply)
 {
-	FVector DeltaLocationExitToEnter = ExitTransform.GetLocation() - EnterTransform.GetLocation();
-	FRotator DeltaRotationExitToEnter = UKismetMathLibrary::NormalizedDeltaRotator(ExitTransform.GetRotation().Rotator(), EnterTransform.GetRotation().Rotator());
-	DeltaRotationExitToEnter.Yaw += 180.0f;
-	SetActorLocation(GetActorLocation() + DeltaLocationExitToEnter, false, nullptr, ETeleportType::TeleportPhysics);
-	SetActorRotation(GetActorRotation() + DeltaRotationExitToEnter);
-	GetController()->SetControlRotation(GetController()->GetControlRotation() + DeltaRotationExitToEnter);
-	GetMovementComponent()->Velocity = DeltaRotationExitToEnter.RotateVector(GetMovementComponent()->Velocity);
+	if (const TFunction<void(bool)>* Func = ClothesEffectMap.Find(Tag))
+	{
+		(*Func)(Apply);
+	}
+}
+
+void AAlsCharacterExample::InitializeClothesEffectMap()
+{
+	ClothesEffectMap.Add(ClothesEffectTags::AlphabetCoat, [this](bool Apply) { SetEffect_1(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ByteVest, [this](bool Apply) { SetEffect_2(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::JanitorOveralls, [this](bool Apply) { SetEffect_3(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::WasherOveralls, [this](bool Apply) { SetEffect_4(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::CalculatorGoggles, [this](bool Apply) { SetEffect_5(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::GladiatorOutfit, [this](bool Apply) { SetEffect_6(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::PorcupineCoat, [this](bool Apply) { SetEffect_7(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ForcefieldCoat, [this](bool Apply) { SetEffect_8(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::BugZapperCoat, [this](bool Apply) { SetEffect_9(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::SimmonSweatpants, [this](bool Apply) { SetEffect_10(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::RebootVest, [this](bool Apply) { SetEffect_11(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::NullAndVoidHat, [this](bool Apply) { SetEffect_12(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::MagneticVest, [this](bool Apply) { SetEffect_13(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::AmmoBeltVest, [this](bool Apply) { SetEffect_14(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::MasterMinMooMooSlippers, [this](bool Apply) { SetEffect_15(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::BounceHouseSuit, [this](bool Apply) { SetEffect_16(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::SheriffOutfit, [this](bool Apply) { SetEffect_17(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ManillaOxfordAndSlacks, [this](bool Apply) { SetEffect_18(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::HoareSweaterVest, [this](bool Apply) { SetEffect_19(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::NuttySpectacles, [this](bool Apply) { SetEffect_20(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::BugHunterUniform, [this](bool Apply) { SetEffect_21(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_22, [this](bool Apply) { SetEffect_22(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Boxer, [this](bool Apply) { SetEffect_23(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::AdminPolo, [this](bool Apply) { SetEffect_24(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_25, [this](bool Apply) { SetEffect_25(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::CarlOvercoat, [this](bool Apply) { SetEffect_26(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_27, [this](bool Apply) { SetEffect_27(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) { SetEffect_28(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_29, [this](bool Apply) { SetEffect_29(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::LaoEddieNightRobe, [this](bool Apply) { SetEffect_30(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_31, [this](bool Apply) { SetEffect_31(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_32, [this](bool Apply) { SetEffect_32(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_33, [this](bool Apply) { SetEffect_33(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_34, [this](bool Apply) { SetEffect_34(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::DesperadoPoncho, [this](bool Apply) { SetEffect_35(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_36, [this](bool Apply) { SetEffect_36(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::WW2Uniform, [this](bool Apply) { SetEffect_37(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::GreenhouseOutfit, [this](bool Apply) { SetEffect_38(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::HeartShapedSweater, [this](bool Apply) { SetEffect_39(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::CableRepairOutfit, [this](bool Apply) { SetEffect_40(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_41, [this](bool Apply) { SetEffect_41(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::TroubleshooterJacket, [this](bool Apply) { SetEffect_42(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::HotSwapPatch, [this](bool Apply) { SetEffect_43(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ChefApron, [this](bool Apply) { SetEffect_44(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::MiddleAgedCyborgSamuraiTortoiseShell, [this](bool Apply) { SetEffect_45(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::RastaRobe, [this](bool Apply) { SetEffect_46(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::UndertakerCloak, [this](bool Apply) { SetEffect_47(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::TranquilBlouse, [this](bool Apply) { SetEffect_48(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_49, [this](bool Apply) { SetEffect_49(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::KnuthOvercoat, [this](bool Apply) { SetEffect_50(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::VcarSweatShirt, [this](bool Apply) { SetEffect_51(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_52, [this](bool Apply) { SetEffect_52(Apply); });
 }
