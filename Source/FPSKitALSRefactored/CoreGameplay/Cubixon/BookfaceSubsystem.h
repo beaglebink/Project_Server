@@ -60,6 +60,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, UserId, const FString&, UserFriend);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAcceptFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
@@ -98,7 +99,13 @@ public:
 	TArray<FBookfaceFriendRequestStructure> GetMyFriendRequests(const FString& MyUserId) const;
 
 	UFUNCTION(BlueprintCallable)
+	TArray<FBookfaceFriendRequestStructure> GetSentFriendRequests(const FString& MyUserId) const;
+
+	UFUNCTION(BlueprintCallable)
 	void RemoveFriendRequest(const FString& FromUserId, const FString& ToUserId);
+
+	UFUNCTION(BlueprintCallable)
+	void AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
@@ -112,6 +119,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
 	FOnRemoveFriendRequest OnRemoveFriendRequest;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
+	FOnAcceptFriendRequest OnAcceptFriendRequest;
 
 private:
 	UPROPERTY()

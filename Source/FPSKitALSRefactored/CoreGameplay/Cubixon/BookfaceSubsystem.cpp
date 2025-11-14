@@ -180,6 +180,19 @@ TArray<FBookfaceFriendRequestStructure> UBookfaceSubsystem::GetMyFriendRequests(
 	return MyRequests;
 }
 
+TArray<FBookfaceFriendRequestStructure> UBookfaceSubsystem::GetSentFriendRequests(const FString& MyUserId) const
+{
+    TArray<FBookfaceFriendRequestStructure> SentRequests;
+    for (const auto& Request : FriendRequests)
+    {
+        if (Request.ToUserId == MyUserId)
+        {
+            SentRequests.AddUnique(Request);
+        }
+    }
+	return SentRequests;
+}
+
 void UBookfaceSubsystem::RemoveFriendRequest(const FString& FromUserId, const FString& ToUserId)
 {
     for (int32 i = FriendRequests.Num() - 1; i >= 0; --i)
@@ -188,7 +201,46 @@ void UBookfaceSubsystem::RemoveFriendRequest(const FString& FromUserId, const FS
         {
             FriendRequests.RemoveAt(i);
 			OnRemoveFriendRequest.Broadcast(FromUserId, ToUserId);
+            OnRemoveFriendRequest.Broadcast(ToUserId, FromUserId);
             return;
         }
 	}
 }
+
+void UBookfaceSubsystem::AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId)
+{
+    for (int32 i = FriendRequests.Num() - 1; i >= 0; --i)
+    {
+        if (FriendRequests[i].FromUserId == FromUserId && FriendRequests[i].ToUserId == ToUserId)
+        {
+            FriendRequests.RemoveAt(i);
+            break;
+        }
+    }
+    for (auto& P : UserProfiles)
+    {
+        if (P.UserId == FromUserId)
+        {
+            if (!P.FriendsList.Contains(ToUserId))
+            {
+                P.FriendsList.AddUnique(ToUserId);
+            }
+            break;
+        }
+    }
+    for (auto& P : UserProfiles)
+    {
+        if (P.UserId == ToUserId)
+        {
+            if (!P.FriendsList.Contains(FromUserId))
+            {
+                P.FriendsList.AddUnique(FromUserId);
+            }
+            break;
+        }
+	}
+
+    OnAcceptFriendRequest.Broadcast(FromUserId, ToUserId);
+    OnAcceptFriendRequest.Broadcast(ToUserId, FromUserId);
+}
+
