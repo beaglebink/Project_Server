@@ -304,8 +304,10 @@ void UAC_Container::CountContainerWeight()
 	{
 		for (const auto& Item : Items)
 		{
-			float Weight = ItemDataTable->FindRow<FS_ItemData>(Item.Name, TEXT("Find row in datatable"))->Weight;
-			TotalWeight += Weight * Item.Quantity;
+			if (FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Item.Name, TEXT("Find row in datatable")))
+			{
+				TotalWeight += ItemData->Weight * Item.Quantity;
+			}
 		}
 	}
 }

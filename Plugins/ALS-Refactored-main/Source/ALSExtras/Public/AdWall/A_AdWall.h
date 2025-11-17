@@ -135,7 +135,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Material")
 	void UpdateCrossMaterial();
 
-	void HandleWeaponShot_Implementation(const FHitResult& Hit);
+	void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
 
 protected:
 	UPROPERTY()

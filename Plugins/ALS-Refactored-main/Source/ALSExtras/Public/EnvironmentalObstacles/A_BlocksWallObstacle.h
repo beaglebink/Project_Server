@@ -23,11 +23,12 @@ protected:
 
 	virtual void BeginPlay() override;
 
+#if WITH_EDITOR
 	virtual void Destroyed() override;
+#endif
 
 public:
 	virtual void Tick(float DeltaTime) override;
-
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (AllowPrivateAccess = true))
