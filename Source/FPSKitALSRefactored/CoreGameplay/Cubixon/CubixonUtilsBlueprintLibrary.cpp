@@ -1,6 +1,7 @@
 #include "CubixonUtilsBlueprintLibrary.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Fonts/FontMeasure.h"
+#include "Widgets/Text/SMultiLineEditableText.h"
 #include <Blueprint/WidgetLayoutLibrary.h>
 
 FString UCubixonUtilsBlueprintLibrary::TruncateTextWithEllipsis(const FString& InputText, const FSlateFontInfo& FontInfo, float MaxWidth, float FontScale)
@@ -121,7 +122,66 @@ FText UCubixonUtilsBlueprintLibrary::RemoveLineBreaks(const FText& Input)
     return FText::FromString(S);
 }
 
+void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEditableText* EditableText, const FVector2D& ScreenClickPosition)
+{
+    if (!EditableText) return;
 
+    TSharedPtr<SWidget> WidgetPtr = EditableText->TakeWidget();
+    TSharedPtr<SMultiLineEditableText> SlateWidget = StaticCastSharedPtr<SMultiLineEditableText>(WidgetPtr);
+
+    if (!SlateWidget.IsValid()) return;
+
+    const FGeometry& Geometry = SlateWidget->GetCachedGeometry();
+    FVector2D LocalClickPosition = Geometry.AbsoluteToLocal(ScreenClickPosition);
+
+    TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+    const FSlateFontInfo FontInfo = SlateWidget->GetFont();
+    const FString FullText = SlateWidget->GetText().ToString();
+
+    TArray<FString> Lines;
+    FullText.ParseIntoArrayLines(Lines);
+
+    float Y = 0.0f;
+    int32 LineIndex = 0;
+    int32 CharIndex = 0;
+
+    for (int32 i = 0; i < Lines.Num(); ++i)
+    {
+        const FString& Line = Lines[i];
+        FVector2D LineSize = FontMeasure->Measure(Line, FontInfo);
+
+        if (LocalClickPosition.Y < Y + LineSize.Y)
+        {
+            LineIndex = i;
+
+            float AccumulatedX = 0.0f;
+            for (int32 j = 0; j < Line.Len(); ++j)
+            {
+                FString CharStr = Line.Mid(j, 1);
+                float CharWidth = FontMeasure->Measure(CharStr, FontInfo).X;
+
+                if (LocalClickPosition.X < AccumulatedX + CharWidth / 2.0f)
+                {
+                    CharIndex = j;
+                    break;
+                }
+
+                AccumulatedX += CharWidth;
+            }
+
+            if (CharIndex == 0 && LocalClickPosition.X >= AccumulatedX)
+            {
+                CharIndex = Line.Len();
+            }
+
+            break;
+        }
+
+        Y += FontMeasure->Measure(Line, FontInfo).Y;
+    }
+
+    SlateWidget->GoTo(FTextLocation(LineIndex, CharIndex));
+}
 
 
 

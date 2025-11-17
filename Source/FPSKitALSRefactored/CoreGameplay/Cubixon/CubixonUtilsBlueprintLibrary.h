@@ -2,7 +2,10 @@
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Fonts/SlateFontInfo.h"
+#include <Components/MultiLineEditableText.h>
 #include "CubixonUtilsBlueprintLibrary.generated.h"
+
+
 
 class IFontMeasure;
 
@@ -29,6 +32,9 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Cubixon|Text")
     static FText RemoveLineBreaks(const FText& Input);
+
+    UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
+    static void SetCursorAtClickForEditableText(UMultiLineEditableText* EditableText, const FVector2D& ScreenClickPosition);
 };
 
 

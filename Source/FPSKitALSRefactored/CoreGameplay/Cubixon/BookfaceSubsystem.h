@@ -4,6 +4,14 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "BookfaceSubsystem.generated.h"
 
+UENUM(BlueprintType)
+enum class EPrivacyVisibility : uint8
+{
+	VisibleToMe       UMETA(DisplayName = "Visible to me"),
+	VisibleToFriends  UMETA(DisplayName = "Visible to friends"),
+	VisibleToEveryone UMETA(DisplayName = "Visible to everyone")
+};
+
 USTRUCT(BlueprintType)
 struct FBookfaceFriendRequestStructure
 {
@@ -19,6 +27,21 @@ public:
 	{
 		return FromUserId.Equals(Other.FromUserId) && ToUserId.Equals(Other.ToUserId);
 	}
+};
+
+USTRUCT(BlueprintType)
+struct FAboutInfoStructure
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FText InfoCaption;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FText InfoDescription;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	EPrivacyVisibility PrivacyVisibility;
 };
 
 USTRUCT(BlueprintType)
@@ -41,6 +64,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FText Bio;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	TArray<FAboutInfoStructure> AboutInfo;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	TArray<FString> FriendsList;
