@@ -66,38 +66,69 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 	{
 	case EnumInventoryType::Inventory:
 	{
-		if (KeyPressed == "Right" && AdditiveInventory == nullptr)
+		AAlsCharacterExample* AlsCharacterExample = Cast<AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		if (AlsCharacterExample && ItemDataTable)
 		{
-			if (SlotToInteract->Item.Quantity > 1)
+			if (FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(SlotToInteract->Item.Name, TEXT("Find row in datatable")))
 			{
-				CheckHowMuch(MainInventory, nullptr, SlotToInteract, false, true);
-			}
-			else
-			{
-				RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, true);
-			}
-		}
-
-		if (KeyPressed == "Left" && AdditiveInventory == nullptr)
-		{
-			if (AAlsCharacterExample* AlsCharacterExample = Cast< AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
-			{
-				if (ItemDataTable)
+				if (KeyPressed == "Right" && AdditiveInventory == nullptr)
 				{
-					EnumInventory SlotType = ItemDataTable->FindRow<FS_ItemData>(SlotToInteract->Item.Name, TEXT("Find row in datatable"))->Type;
+					if (SlotToInteract->Item.Quantity > 1)
+					{
+						CheckHowMuch(MainInventory, nullptr, SlotToInteract, false, true);
+					}
+					else
+					{
+						if (ClothesSelectedSlot && ClothesSelectedSlot == SlotToInteract)
+						{
+							AlsCharacterExample->ClothesEffectByTag(ItemData->SpecialTag, false);
+							ClothesSelectedSlot = nullptr;
+						}
+
+						RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, true);
+					}
+				}
+
+				if (KeyPressed == "Left" && AdditiveInventory == nullptr)
+				{
+					EnumInventory SlotType = ItemData->Type;
 					switch (SlotType)
 					{
 					case EnumInventory::Weapon:
 					{
+
 						break;
 					}
 					case EnumInventory::Clothes:
 					{
+						FGameplayTag ClothesTag = ItemData->SpecialTag;
+						if (!ClothesTag.IsValid() || ClothesTag == ClothesEffectTags::Default)
+						{
+							break;
+						}
+
+						if (ClothesSelectedSlot)
+						{
+							ClothesSelectedSlot->SetColorOnSelected(false);
+
+							if (ClothesSelectedSlot == SlotToInteract)
+							{
+								AlsCharacterExample->ClothesEffectByTag(ClothesTag, false);
+								ClothesSelectedSlot = nullptr;
+								break;
+							}
+							FS_ItemData* PrevItemData = ItemDataTable->FindRow<FS_ItemData>(ClothesSelectedSlot->Item.Name, TEXT("Find row in datatable"));
+							AlsCharacterExample->ClothesEffectByTag(PrevItemData->SpecialTag, false);
+						}
+
+						ClothesSelectedSlot = SlotToInteract;
+						ClothesSelectedSlot->SetColorOnSelected(true);
+						AlsCharacterExample->ClothesEffectByTag(ClothesTag, true);
 						break;
 					}
 					case EnumInventory::Consumables:
 					{
-						FGameplayTag FoodTag = ItemDataTable->FindRow<FS_ItemData>(SlotToInteract->Item.Name, TEXT("Find row in datatable"))->SpecialTag;
+						FGameplayTag FoodTag = ItemData->SpecialTag;
 						if (!FoodTag.IsValid() || FoodTag == FoodEffectTags::Default)
 						{
 							break;
@@ -117,7 +148,6 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 					default:
 						break;
 					}
-
 				}
 			}
 		}

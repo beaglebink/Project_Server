@@ -86,6 +86,18 @@ void UW_ItemSlot::SetTintOnSelected(bool IsSet)
 	}
 }
 
+void UW_ItemSlot::SetColorOnSelected(bool IsSet)
+{
+	if (IsSet)
+	{
+		Image_Background->SetColorAndOpacity(FLinearColor(0.0f, 0.1f, 0.0f));
+	}
+	else
+	{
+		Image_Background->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f));
+	}
+}
+
 void UW_ItemSlot::FullDescriptionCreate()
 {
 	if (InventoryHUDRef->AdditiveInventory)

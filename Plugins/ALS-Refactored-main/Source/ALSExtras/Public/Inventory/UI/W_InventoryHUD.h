@@ -135,5 +135,9 @@ private:
 
 	uint8 bIsMoneyEnough : 1{true};
 
+	UW_ItemSlot* WeaponSelectedSlot = nullptr;
+
+	UW_ItemSlot* ClothesSelectedSlot = nullptr;
+
 	void SetKeyboardFocusOnNextSlot(UW_ItemSlot* FocusedSlot);
 };

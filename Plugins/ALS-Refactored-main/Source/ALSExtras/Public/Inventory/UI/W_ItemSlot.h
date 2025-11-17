@@ -68,6 +68,8 @@ public:
 public:
 	void SetTintOnSelected(bool IsSet);
 
+	void SetColorOnSelected(bool IsSet);
+
 protected:
 	UFUNCTION(BlueprintCallable)
 	void FullDescriptionCreate();
