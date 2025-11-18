@@ -128,60 +128,131 @@ void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEd
 
     TSharedPtr<SWidget> WidgetPtr = EditableText->TakeWidget();
     TSharedPtr<SMultiLineEditableText> SlateWidget = StaticCastSharedPtr<SMultiLineEditableText>(WidgetPtr);
-
     if (!SlateWidget.IsValid()) return;
 
     const FGeometry& Geometry = SlateWidget->GetCachedGeometry();
-    FVector2D LocalClickPosition = Geometry.AbsoluteToLocal(ScreenClickPosition);
+    const FVector2D LocalClickPosition = Geometry.AbsoluteToLocal(ScreenClickPosition);
 
-    TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
     const FSlateFontInfo FontInfo = SlateWidget->GetFont();
     const FString FullText = SlateWidget->GetText().ToString();
+    const float WrapWidth = EditableText->GetWrapTextAt() > 0.0f ? EditableText->GetWrapTextAt() : Geometry.GetLocalSize().X;
 
-    TArray<FString> Lines;
-    FullText.ParseIntoArrayLines(Lines);
+    TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-    float Y = 0.0f;
-    int32 LineIndex = 0;
-    int32 CharIndex = 0;
+    // Разбиваем текст на реальные строки
+    TArray<FString> RealLines;
+    FullText.ParseIntoArrayLines(RealLines);
 
-    for (int32 i = 0; i < Lines.Num(); ++i)
+    struct FVisualLine
     {
-        const FString& Line = Lines[i];
-        FVector2D LineSize = FontMeasure->Measure(Line, FontInfo);
+        FString Text;
+        int32 RealLineIndex;
+        int32 CharOffsetInRealLine;
+    };
+
+    TArray<FVisualLine> VisualLines;
+
+    int32 GlobalOffset = 0;
+
+    for (int32 RealLineIndex = 0; RealLineIndex < RealLines.Num(); ++RealLineIndex)
+    {
+        const FString& RealLine = RealLines[RealLineIndex];
+
+        // Разбиваем на токены: слова и пробелы
+        TArray<FString> Tokens;
+        FString Token;
+        for (int32 c = 0; c < RealLine.Len(); ++c)
+        {
+            TCHAR Ch = RealLine[c];
+            if (Ch == ' ')
+            {
+                if (!Token.IsEmpty())
+                {
+                    Tokens.Add(Token);
+                    Token.Empty();
+                }
+                Tokens.Add(TEXT(" "));
+            }
+            else
+            {
+                Token.AppendChar(Ch);
+            }
+        }
+        if (!Token.IsEmpty())
+        {
+            Tokens.Add(Token);
+        }
+
+        // Разбиваем на визуальные строки
+        FString CurrentLine;
+        float CurrentLineWidth = 0.0f;
+        int32 CharOffsetInRealLine = 0;
+
+        for (const FString& T : Tokens)
+        {
+            float TokenWidth = FontMeasure->Measure(T, FontInfo).X;
+
+            if (CurrentLineWidth + TokenWidth > WrapWidth && !CurrentLine.IsEmpty())
+            {
+                VisualLines.Add({ CurrentLine, RealLineIndex, CharOffsetInRealLine });
+                CharOffsetInRealLine += CurrentLine.Len();
+                CurrentLine = T;
+                CurrentLineWidth = TokenWidth;
+            }
+            else
+            {
+                CurrentLine += T;
+                CurrentLineWidth += TokenWidth;
+            }
+        }
+
+        if (!CurrentLine.IsEmpty())
+        {
+            VisualLines.Add({ CurrentLine, RealLineIndex, CharOffsetInRealLine });
+        }
+
+        GlobalOffset += RealLine.Len() + 1; // +1 за \n
+    }
+
+    // Поиск строки и позиции символа
+    float Y = 0.0f;
+    for (const FVisualLine& Line : VisualLines)
+    {
+        const FVector2D LineSize = FontMeasure->Measure(Line.Text, FontInfo);
 
         if (LocalClickPosition.Y < Y + LineSize.Y)
         {
-            LineIndex = i;
-
             float AccumulatedX = 0.0f;
-            for (int32 j = 0; j < Line.Len(); ++j)
+            int32 CharIndexInLine = 0;
+
+            for (int32 j = 0; j < Line.Text.Len(); ++j)
             {
-                FString CharStr = Line.Mid(j, 1);
-                float CharWidth = FontMeasure->Measure(CharStr, FontInfo).X;
+                const FString CharStr = Line.Text.Mid(j, 1);
+                const float CharWidth = FontMeasure->Measure(CharStr, FontInfo).X;
 
                 if (LocalClickPosition.X < AccumulatedX + CharWidth / 2.0f)
                 {
-                    CharIndex = j;
+                    CharIndexInLine = j;
                     break;
                 }
 
                 AccumulatedX += CharWidth;
             }
 
-            if (CharIndex == 0 && LocalClickPosition.X >= AccumulatedX)
+            if (CharIndexInLine == 0 && LocalClickPosition.X >= AccumulatedX)
             {
-                CharIndex = Line.Len();
+                CharIndexInLine = Line.Text.Len();
             }
 
-            break;
+            const int32 CharIndexInRealLine = Line.CharOffsetInRealLine + CharIndexInLine;
+            SlateWidget->GoTo(FTextLocation(Line.RealLineIndex, CharIndexInRealLine));
+            return;
         }
 
-        Y += FontMeasure->Measure(Line, FontInfo).Y;
+        Y += LineSize.Y;
     }
 
-    SlateWidget->GoTo(FTextLocation(LineIndex, CharIndex));
+    // Если не попали ни в одну строку — ставим курсор в конец
+    SlateWidget->GoTo(FTextLocation(RealLines.Num() - 1, RealLines.Last().Len()));
 }
-
-
 
