@@ -62,42 +62,78 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 {
 	bIsMoneyEnough = true;
 
-	switch (SlotInventoryType)
+	AAlsCharacterExample* AlsCharacterExample = Cast<AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	if (AlsCharacterExample && ItemDataTable)
 	{
-	case EnumInventoryType::Inventory:
-	{
-		if (KeyPressed == "Right" && AdditiveInventory == nullptr)
+		if (FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(SlotToInteract->Item.Name, TEXT("Find row in datatable")))
 		{
-			if (SlotToInteract->Item.Quantity > 1)
+			switch (SlotInventoryType)
 			{
-				CheckHowMuch(MainInventory, nullptr, SlotToInteract, false, true);
-			}
-			else
+			case EnumInventoryType::Inventory:
 			{
-				RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, true);
-			}
-		}
-
-		if (KeyPressed == "Left" && AdditiveInventory == nullptr)
-		{
-			if (AAlsCharacterExample* AlsCharacterExample = Cast< AAlsCharacterExample>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
-			{
-				if (ItemDataTable)
+				if (KeyPressed == "Right" && AdditiveInventory == nullptr)
 				{
-					EnumInventory SlotType = ItemDataTable->FindRow<FS_ItemData>(SlotToInteract->Item.Name, TEXT("Find row in datatable"))->Type;
+					if (SlotToInteract->Item.Quantity > 1)
+					{
+						CheckHowMuch(MainInventory, nullptr, SlotToInteract, false, true);
+					}
+					else
+					{
+						if (ClothesSelectedSlot && ClothesSelectedSlot == SlotToInteract)
+						{
+							AlsCharacterExample->ClothesEffectByTag(ItemData->SpecialTag, false);
+							ClothesSelectedSlot = nullptr;
+						}
+
+						RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, true);
+					}
+				}
+
+				if (KeyPressed == "Left" && AdditiveInventory == nullptr)
+				{
+					EnumInventory SlotType = ItemData->Type;
 					switch (SlotType)
 					{
 					case EnumInventory::Weapon:
 					{
+
 						break;
 					}
 					case EnumInventory::Clothes:
 					{
+						FGameplayTag ClothesTag = ItemData->SpecialTag;
+						if (!ClothesTag.IsValid() || ClothesTag == ClothesEffectTags::Default)
+						{
+							break;
+						}
+
+						if (ClothesSelectedSlot)
+						{
+							if (!MainInventory->Container->SetItemMarking(ClothesSelectedSlot, EItemMarking::Default))
+							{
+								break;
+							}
+
+							if (ClothesSelectedSlot == SlotToInteract)
+							{
+								AlsCharacterExample->ClothesEffectByTag(ClothesTag, false);
+								ClothesSelectedSlot = nullptr;
+								break;
+							}
+							FS_ItemData* PrevItemData = ItemDataTable->FindRow<FS_ItemData>(ClothesSelectedSlot->Item.Name, TEXT("Find row in datatable"));
+							AlsCharacterExample->ClothesEffectByTag(PrevItemData->SpecialTag, false);
+						}
+
+						if (MainInventory->Container->SetItemMarking(SlotToInteract, EItemMarking::ClothesSelected))
+						{
+							ClothesSelectedSlot = SlotToInteract;
+							AlsCharacterExample->ClothesEffectByTag(ClothesTag, true);
+						}
 						break;
 					}
 					case EnumInventory::Consumables:
 					{
-						FGameplayTag FoodTag = ItemDataTable->FindRow<FS_ItemData>(SlotToInteract->Item.Name, TEXT("Find row in datatable"))->SpecialTag;
+						FGameplayTag FoodTag = ItemData->SpecialTag;
 						if (!FoodTag.IsValid() || FoodTag == FoodEffectTags::Default)
 						{
 							break;
@@ -117,46 +153,100 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 					default:
 						break;
 					}
-
 				}
-			}
-		}
 
-		if (KeyPressed == "Left" && AdditiveInventory)
-		{
-			switch (AdditiveInventory->InventoryType)
-			{
-			case EnumInventoryType::Chest:
-			{
-				CurrentTradeCoeff = 1.0f;
+				if (KeyPressed == "Left" && AdditiveInventory)
+				{
+					switch (AdditiveInventory->InventoryType)
+					{
+					case EnumInventoryType::Chest:
+					{
+						if (ClothesSelectedSlot == SlotToInteract)
+						{
+							AlsCharacterExample->ClothesEffectByTag(ItemData->SpecialTag, false);
+							MainInventory->Container->SetItemMarking(ClothesSelectedSlot, EItemMarking::Default);
+							ClothesSelectedSlot = nullptr;
+						}
 
-				if (SlotToInteract->Item.Quantity > 1)
-				{
-					CheckHowMuch(MainInventory, AdditiveInventory, SlotToInteract, false, false);
-				}
-				else
-				{
-					AddToSlotContainer(AdditiveInventory, SlotToInteract, 1, false);
-					RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, false);
+						CurrentTradeCoeff = 1.0f;
+
+						if (SlotToInteract->Item.Quantity > 1)
+						{
+							CheckHowMuch(MainInventory, AdditiveInventory, SlotToInteract, false, false);
+						}
+						else
+						{
+							AddToSlotContainer(AdditiveInventory, SlotToInteract, 1, false);
+							RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, false, false);
+						}
+						break;
+					}
+					case EnumInventoryType::Corpse:
+					{
+						break;
+					}
+					case EnumInventoryType::Vendor:
+					{
+						if (ClothesSelectedSlot == SlotToInteract)
+						{
+							AlsCharacterExample->ClothesEffectByTag(ItemData->SpecialTag, false);
+							MainInventory->Container->SetItemMarking(ClothesSelectedSlot, EItemMarking::Default);
+							ClothesSelectedSlot = nullptr;
+						}
+
+						CurrentTradeCoeff = 1 / AdditiveInventory->Container->TradeCoefficient;
+
+						if (SlotToInteract->Item.Quantity > 1)
+						{
+							CheckHowMuch(MainInventory, AdditiveInventory, SlotToInteract, true, false);
+						}
+						else
+						{
+							AddToSlotContainer(AdditiveInventory, SlotToInteract, 1, true);
+							RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, true, false);
+						}
+						break;
+					}
+					default:
+						break;
+					}
 				}
 				break;
 			}
+			case EnumInventoryType::Chest:
 			case EnumInventoryType::Corpse:
 			{
+				if (KeyPressed == "Left")
+				{
+					CurrentTradeCoeff = 1.0f;
+
+					if (SlotToInteract->Item.Quantity > 1)
+					{
+						CheckHowMuch(AdditiveInventory, MainInventory, SlotToInteract, false, false);
+					}
+					else
+					{
+						AddToSlotContainer(MainInventory, SlotToInteract, 1, false);
+						RemoveFromSlotContainer(AdditiveInventory, SlotToInteract, 1, false, false);
+					}
+				}
 				break;
 			}
 			case EnumInventoryType::Vendor:
 			{
-				CurrentTradeCoeff = 1 / AdditiveInventory->Container->TradeCoefficient;
+				if (KeyPressed == "Left")
+				{
+					CurrentTradeCoeff = AdditiveInventory->Container->TradeCoefficient;
 
-				if (SlotToInteract->Item.Quantity > 1)
-				{
-					CheckHowMuch(MainInventory, AdditiveInventory, SlotToInteract, true, false);
-				}
-				else
-				{
-					AddToSlotContainer(AdditiveInventory, SlotToInteract, 1, true);
-					RemoveFromSlotContainer(MainInventory, SlotToInteract, 1, true, false);
+					if (SlotToInteract->Item.Quantity > 1)
+					{
+						CheckHowMuch(AdditiveInventory, MainInventory, SlotToInteract, true, false);
+					}
+					else
+					{
+						AddToSlotContainer(MainInventory, SlotToInteract, 1, true);
+						RemoveFromSlotContainer(AdditiveInventory, SlotToInteract, 1, true, false);
+					}
 				}
 				break;
 			}
@@ -164,47 +254,6 @@ void UW_InventoryHUD::Slot_OneClick(EnumInventoryType SlotInventoryType, UW_Item
 				break;
 			}
 		}
-		break;
-	}
-	case EnumInventoryType::Chest:
-	case EnumInventoryType::Corpse:
-	{
-		if (KeyPressed == "Left")
-		{
-			CurrentTradeCoeff = 1.0f;
-
-			if (SlotToInteract->Item.Quantity > 1)
-			{
-				CheckHowMuch(AdditiveInventory, MainInventory, SlotToInteract, false, false);
-			}
-			else
-			{
-				AddToSlotContainer(MainInventory, SlotToInteract, 1, false);
-				RemoveFromSlotContainer(AdditiveInventory, SlotToInteract, 1, false, false);
-			}
-		}
-		break;
-	}
-	case EnumInventoryType::Vendor:
-	{
-		if (KeyPressed == "Left")
-		{
-			CurrentTradeCoeff = AdditiveInventory->Container->TradeCoefficient;
-
-			if (SlotToInteract->Item.Quantity > 1)
-			{
-				CheckHowMuch(AdditiveInventory, MainInventory, SlotToInteract, true, false);
-			}
-			else
-			{
-				AddToSlotContainer(MainInventory, SlotToInteract, 1, true);
-				RemoveFromSlotContainer(AdditiveInventory, SlotToInteract, 1, true, false);
-			}
-		}
-		break;
-	}
-	default:
-		break;
 	}
 }
 
@@ -320,23 +369,20 @@ void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_I
 		SetKeyboardFocusOnNextSlot(SlotToRemove);
 	}
 
+	int32 SlotIndex = Inventory_From->ItemSlots.IndexOfByKey(SlotToRemove);
+
 	if (SlotToRemove->Item.Quantity != QuantityToRemove)
 	{
-		int32 SlotIndex = Inventory_From->ScrollBox_Items->GetChildIndex(SlotToRemove);
-		if (SlotIndex != INDEX_NONE)
-		{
-			UW_ItemSlot* SlotToChange = Cast<UW_ItemSlot>(Inventory_From->ScrollBox_Items->GetChildAt(SlotIndex));
-			SlotToChange->Item.Quantity -= QuantityToRemove;
-			SlotToChange->TextBlock_Quantity->SetText(FText::AsNumber(SlotToChange->Item.Quantity));
-			SlotToChange->InventoryType = Inventory_From->InventoryType;
-		}
+		SlotToRemove->Item.Quantity -= QuantityToRemove;
+		SlotToRemove->TextBlock_Quantity->SetText(FText::AsNumber(SlotToRemove->Item.Quantity));
+		SlotToRemove->InventoryType = Inventory_From->InventoryType;
 	}
 	else
 	{
 		Inventory_From->ScrollBox_Items->RemoveChild(SlotToRemove);
 		Inventory_From->ItemSlots.Remove(SlotToRemove);
 	}
-	Inventory_From->Container->RemoveFromContainer(SlotToRemove->Item.Name, QuantityToRemove, CurrentTradeCoeff, bShouldCount, bShouldSpawn);
+	Inventory_From->Container->RemoveFromContainer(SlotIndex, QuantityToRemove, CurrentTradeCoeff, bShouldCount, bShouldSpawn);
 }
 
 void UW_InventoryHUD::TakeAll()

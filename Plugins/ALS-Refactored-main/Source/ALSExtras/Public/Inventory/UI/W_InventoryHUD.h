@@ -135,5 +135,11 @@ private:
 
 	uint8 bIsMoneyEnough : 1{true};
 
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Slots", meta = (AllowPrivateAccess = true))
+	UW_ItemSlot* WeaponSelectedSlot = nullptr;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Slots", meta = (AllowPrivateAccess = true))
+	UW_ItemSlot* ClothesSelectedSlot = nullptr;
+
 	void SetKeyboardFocusOnNextSlot(UW_ItemSlot* FocusedSlot);
 };

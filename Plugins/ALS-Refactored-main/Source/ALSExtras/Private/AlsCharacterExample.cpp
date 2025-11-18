@@ -902,61 +902,61 @@ void AAlsCharacterExample::InitializeFoodEffectTimerDelegates()
 
 void AAlsCharacterExample::InitializeFoodEffectMap()
 {
-	FoodEffectMap.Add(FoodEffectTags::Effect_1, [this](bool Apply) { SetEffect_1(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_2, [this](bool Apply) { SetEffect_2(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_3, [this](bool Apply) { SetEffect_3(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_4, [this](bool Apply) { SetEffect_4(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_5, [this](bool Apply) { SetEffect_5(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_6, [this](bool Apply) { SetEffect_6(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_7, [this](bool Apply) { SetEffect_7(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_8, [this](bool Apply) { SetEffect_8(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_9, [this](bool Apply) { SetEffect_9(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_10, [this](bool Apply) { SetEffect_10(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_11, [this](bool Apply) { SetEffect_11(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_12, [this](bool Apply) { SetEffect_12(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_13, [this](bool Apply) { SetEffect_13(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_14, [this](bool Apply) { SetEffect_14(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_15, [this](bool Apply) { SetEffect_15(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_16, [this](bool Apply) { SetEffect_16(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_17, [this](bool Apply) { SetEffect_17(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_18, [this](bool Apply) { SetEffect_18(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_19, [this](bool Apply) { SetEffect_19(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_20, [this](bool Apply) { SetEffect_20(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_21, [this](bool Apply) { SetEffect_21(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_22, [this](bool Apply) { SetEffect_22(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_23, [this](bool Apply) { SetEffect_23(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_24, [this](bool Apply) { SetEffect_24(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_25, [this](bool Apply) { SetEffect_25(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_26, [this](bool Apply) { SetEffect_26(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_27, [this](bool Apply) { SetEffect_27(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_28, [this](bool Apply) { SetEffect_28(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_29, [this](bool Apply) { SetEffect_29(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_30, [this](bool Apply) { SetEffect_30(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_31, [this](bool Apply) { SetEffect_31(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_32, [this](bool Apply) { SetEffect_32(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_33, [this](bool Apply) { SetEffect_33(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_34, [this](bool Apply) { SetEffect_34(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_35, [this](bool Apply) { SetEffect_35(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_36, [this](bool Apply) { SetEffect_36(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_37, [this](bool Apply) { SetEffect_37(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_38, [this](bool Apply) { SetEffect_38(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_39, [this](bool Apply) { SetEffect_39(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_40, [this](bool Apply) { SetEffect_40(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_41, [this](bool Apply) { SetEffect_41(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_42, [this](bool Apply) { SetEffect_42(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_43, [this](bool Apply) { SetEffect_43(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_44, [this](bool Apply) { SetEffect_44(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_45, [this](bool Apply) { SetEffect_45(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_46, [this](bool Apply) { SetEffect_46(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_47, [this](bool Apply) { SetEffect_47(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_48, [this](bool Apply) { SetEffect_48(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_49, [this](bool Apply) { SetEffect_49(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_50, [this](bool Apply) { SetEffect_50(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_51, [this](bool Apply) { SetEffect_51(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_52, [this](bool Apply) { SetEffect_52(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_53, [this](bool Apply) { SetEffect_53(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_54, [this](bool Apply) { SetEffect_54(Apply); });
-	FoodEffectMap.Add(FoodEffectTags::Effect_55, [this](bool Apply) { SetEffect_55(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_1, [this](bool Apply) {SetEffect_1(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_2, [this](bool Apply) {SetEffect_2(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_3, [this](bool Apply) {SetEffect_3(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_4, [this](bool Apply) {SetEffect_4(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_5, [this](bool Apply) {SetEffect_5(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_6, [this](bool Apply) {SetEffect_6(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_7, [this](bool Apply) {SetEffect_7(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_8, [this](bool Apply) {SetEffect_8(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_9, [this](bool Apply) {SetEffect_9(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_10, [this](bool Apply) {SetEffect_10(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_11, [this](bool Apply) {SetEffect_11(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_12, [this](bool Apply) {SetEffect_12(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_13, [this](bool Apply) {SetEffect_13(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_14, [this](bool Apply) {SetEffect_14(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_15, [this](bool Apply) {SetEffect_15(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_16, [this](bool Apply) {SetEffect_16(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_17, [this](bool Apply) {SetEffect_17(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_18, [this](bool Apply) {SetEffect_18(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_19, [this](bool Apply) {SetEffect_19(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_20, [this](bool Apply) {SetEffect_20(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_21, [this](bool Apply) {SetEffect_21(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_22, [this](bool Apply) {SetEffect_22(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_23, [this](bool Apply) {SetEffect_23(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_24, [this](bool Apply) {SetEffect_24(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_25, [this](bool Apply) {SetEffect_25(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_26, [this](bool Apply) {SetEffect_26(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_27, [this](bool Apply) {SetEffect_27(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_28, [this](bool Apply) {SetEffect_28(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_29, [this](bool Apply) {SetEffect_29(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_30, [this](bool Apply) {SetEffect_30(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_31, [this](bool Apply) {SetEffect_31(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_32, [this](bool Apply) {SetEffect_32(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_33, [this](bool Apply) {SetEffect_33(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_34, [this](bool Apply) {SetEffect_34(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_35, [this](bool Apply) {SetEffect_35(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_36, [this](bool Apply) {SetEffect_36(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_37, [this](bool Apply) {SetEffect_37(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_38, [this](bool Apply) {SetEffect_38(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_39, [this](bool Apply) {SetEffect_39(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_40, [this](bool Apply) {SetEffect_40(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_41, [this](bool Apply) {SetEffect_41(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_42, [this](bool Apply) {SetEffect_42(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_43, [this](bool Apply) {SetEffect_43(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_44, [this](bool Apply) {SetEffect_44(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_45, [this](bool Apply) {SetEffect_45(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_46, [this](bool Apply) {SetEffect_46(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_47, [this](bool Apply) {SetEffect_47(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_48, [this](bool Apply) {SetEffect_48(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_49, [this](bool Apply) {SetEffect_49(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_50, [this](bool Apply) {SetEffect_50(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_51, [this](bool Apply) {SetEffect_51(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_52, [this](bool Apply) {SetEffect_52(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_53, [this](bool Apply) {SetEffect_53(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_54, [this](bool Apply) {SetEffect_54(Apply); });
+	FoodEffectMap.Add(FoodEffectTags::Effect_55, [this](bool Apply) {SetEffect_55(Apply); });
 }
 
 void AAlsCharacterExample::FoodEffectByTag(const FGameplayTag& Tag, bool Apply)
@@ -1755,6 +1755,7 @@ void AAlsCharacterExample::SetEffect_55(bool Apply)
 	}
 }
 
+// Clothes Effects******************************************************************************************************************************
 void AAlsCharacterExample::ClothesEffectByTag(const FGameplayTag& Tag, bool Apply)
 {
 	if (const TFunction<void(bool)>* Func = ClothesEffectMap.Find(Tag))
@@ -1765,56 +1766,679 @@ void AAlsCharacterExample::ClothesEffectByTag(const FGameplayTag& Tag, bool Appl
 
 void AAlsCharacterExample::InitializeClothesEffectMap()
 {
-	ClothesEffectMap.Add(ClothesEffectTags::AlphabetCoat, [this](bool Apply) { SetEffect_1(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::ByteVest, [this](bool Apply) { SetEffect_2(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::JanitorOveralls, [this](bool Apply) { SetEffect_3(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::WasherOveralls, [this](bool Apply) { SetEffect_4(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::CalculatorGoggles, [this](bool Apply) { SetEffect_5(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::GladiatorOutfit, [this](bool Apply) { SetEffect_6(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::PorcupineCoat, [this](bool Apply) { SetEffect_7(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::ForcefieldCoat, [this](bool Apply) { SetEffect_8(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::BugZapperCoat, [this](bool Apply) { SetEffect_9(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::SimmonSweatpants, [this](bool Apply) { SetEffect_10(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::RebootVest, [this](bool Apply) { SetEffect_11(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::NullAndVoidHat, [this](bool Apply) { SetEffect_12(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::MagneticVest, [this](bool Apply) { SetEffect_13(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::AmmoBeltVest, [this](bool Apply) { SetEffect_14(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::MasterMinMooMooSlippers, [this](bool Apply) { SetEffect_15(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::BounceHouseSuit, [this](bool Apply) { SetEffect_16(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::SheriffOutfit, [this](bool Apply) { SetEffect_17(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::ManillaOxfordAndSlacks, [this](bool Apply) { SetEffect_18(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::HoareSweaterVest, [this](bool Apply) { SetEffect_19(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::NuttySpectacles, [this](bool Apply) { SetEffect_20(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::BugHunterUniform, [this](bool Apply) { SetEffect_21(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_22, [this](bool Apply) { SetEffect_22(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Boxer, [this](bool Apply) { SetEffect_23(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::AdminPolo, [this](bool Apply) { SetEffect_24(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_25, [this](bool Apply) { SetEffect_25(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::CarlOvercoat, [this](bool Apply) { SetEffect_26(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_27, [this](bool Apply) { SetEffect_27(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) { SetEffect_28(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_29, [this](bool Apply) { SetEffect_29(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::LaoEddieNightRobe, [this](bool Apply) { SetEffect_30(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_31, [this](bool Apply) { SetEffect_31(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_32, [this](bool Apply) { SetEffect_32(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_33, [this](bool Apply) { SetEffect_33(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_34, [this](bool Apply) { SetEffect_34(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::DesperadoPoncho, [this](bool Apply) { SetEffect_35(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_36, [this](bool Apply) { SetEffect_36(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::WW2Uniform, [this](bool Apply) { SetEffect_37(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::GreenhouseOutfit, [this](bool Apply) { SetEffect_38(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::HeartShapedSweater, [this](bool Apply) { SetEffect_39(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::CableRepairOutfit, [this](bool Apply) { SetEffect_40(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_41, [this](bool Apply) { SetEffect_41(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::TroubleshooterJacket, [this](bool Apply) { SetEffect_42(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::HotSwapPatch, [this](bool Apply) { SetEffect_43(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::ChefApron, [this](bool Apply) { SetEffect_44(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::MiddleAgedCyborgSamuraiTortoiseShell, [this](bool Apply) { SetEffect_45(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::RastaRobe, [this](bool Apply) { SetEffect_46(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::UndertakerCloak, [this](bool Apply) { SetEffect_47(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::TranquilBlouse, [this](bool Apply) { SetEffect_48(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_49, [this](bool Apply) { SetEffect_49(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::KnuthOvercoat, [this](bool Apply) { SetEffect_50(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::VcarSweatShirt, [this](bool Apply) { SetEffect_51(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_52, [this](bool Apply) { SetEffect_52(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::AlphabetCoat, [this](bool Apply) {AlphabetCoat_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ByteVest, [this](bool Apply) {ByteVest_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::JanitorOveralls, [this](bool Apply) {JanitorOveralls_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::WasherOveralls, [this](bool Apply) {WasherOveralls_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::CalculatorGoggles, [this](bool Apply) {CalculatorGoggles_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::GladiatorOutfit, [this](bool Apply) {GladiatorOutfit_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::PorcupineCoat, [this](bool Apply) {PorcupineCoat_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ForcefieldCoat, [this](bool Apply) {ForcefieldCoat_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::BugZapperCoat, [this](bool Apply) {BugZapperCoat_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::SimmonSweatpants, [this](bool Apply) {SimmonSweatpants_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::RebootVest, [this](bool Apply) {RebootVest_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::NullAndVoidHat, [this](bool Apply) {NullAndVoidHat_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::MagneticVest, [this](bool Apply) {MagneticVest_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::AmmoBeltVest, [this](bool Apply) {AmmoBeltVest_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::MasterMinMooMooSlippers, [this](bool Apply) {MasterMinMooMooSlippers_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::BounceHouseSuit, [this](bool Apply) {BounceHouseSuit_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::SheriffOutfit, [this](bool Apply) {SheriffOutfit_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ManillaOxfordAndSlacks, [this](bool Apply) {ManillaOxfordAndSlacks_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::HoareSweaterVest, [this](bool Apply) {HoareSweaterVest_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::NuttySpectacles, [this](bool Apply) {NuttySpectacles_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::BugHunterUniform, [this](bool Apply) {BugHunterUniform_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_22, [this](bool Apply) {Effect_22(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Boxer, [this](bool Apply) {Boxer_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::AdminPolo, [this](bool Apply) {AdminPolo_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_25, [this](bool Apply) {Effect_25(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::CarlOvercoat, [this](bool Apply) {CarlOvercoat_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_27, [this](bool Apply) {Effect_27(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) {SimonSweater_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_29, [this](bool Apply) {Effect_29(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::LaoEddieNightRobe, [this](bool Apply) {LaoEddieNightRobe_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_31, [this](bool Apply) {Effect_31(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_32, [this](bool Apply) {Effect_32(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_33, [this](bool Apply) {Effect_33(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_34, [this](bool Apply) {Effect_34(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::DesperadoPoncho, [this](bool Apply) {DesperadoPoncho_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_36, [this](bool Apply) {Effect_36(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::WW2Uniform, [this](bool Apply) {WW2Uniform_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::GreenhouseOutfit, [this](bool Apply) {GreenhouseOutfit_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::HeartShapedSweater, [this](bool Apply) {HeartShapedSweater_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::CableRepairOutfit, [this](bool Apply) {CableRepairOutfit_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_41, [this](bool Apply) {Effect_41(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::TroubleshooterJacket, [this](bool Apply) {TroubleshooterJacket_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::HotSwapPatch, [this](bool Apply) {HotSwapPatch_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ChefApron, [this](bool Apply) {ChefApron_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::MiddleAgedCyborgSamuraiTortoiseShell, [this](bool Apply) {MiddleAgedCyborgSamuraiTortoiseShell_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::RastaRobe, [this](bool Apply) {RastaRobe_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::UndertakerCloak, [this](bool Apply) {UndertakerCloak_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::TranquilBlouse, [this](bool Apply) {TranquilBlouse_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_49, [this](bool Apply) {Effect_49(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::KnuthOvercoat, [this](bool Apply) {KnuthOvercoat_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::VcarSweatShirt, [this](bool Apply) {VcarSweatShirt_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Effect_52, [this](bool Apply) {Effect_52(Apply); });
+}
+
+void AAlsCharacterExample::AlphabetCoat_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AlphabetCoat"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AlphabetCoat"));
+	}
+}
+
+void AAlsCharacterExample::ByteVest_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ByteVest"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ByteVest"));
+	}
+}
+
+void AAlsCharacterExample::JanitorOveralls_Effect(bool Apply)
+{
+	if (Apply) 
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
+	}
+	else 
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove JanitorOveralls"));
+	}
+}
+
+void AAlsCharacterExample::WasherOveralls_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WasherOveralls"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove WasherOveralls"));
+	}
+}
+
+void AAlsCharacterExample::CalculatorGoggles_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CalculatorGoggles"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CalculatorGoggles"));
+	}
+}
+
+void AAlsCharacterExample::GladiatorOutfit_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GladiatorOutfit"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GladiatorOutfit"));
+	}
+}
+
+void AAlsCharacterExample::PorcupineCoat_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply PorcupineCoat"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove PorcupineCoat"));
+	}
+}
+
+void AAlsCharacterExample::ForcefieldCoat_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ForcefieldCoat"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ForcefieldCoat"));
+	}
+}
+
+void AAlsCharacterExample::BugZapperCoat_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BugZapperCoat"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BugZapperCoat"));
+	}
+}
+
+void AAlsCharacterExample::SimmonSweatpants_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimmonSweatpants"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimmonSweatpants"));
+	}
+}
+void AAlsCharacterExample::RebootVest_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply RebootVest"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RebootVest"));
+	}
+}
+
+void AAlsCharacterExample::NullAndVoidHat_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NullAndVoidHat"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NullAndVoidHat"));
+	}
+}
+
+void AAlsCharacterExample::MagneticVest_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MagneticVest"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MagneticVest"));
+	}
+}
+
+void AAlsCharacterExample::AmmoBeltVest_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AmmoBeltVest"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AmmoBeltVest"));
+	}
+}
+
+void AAlsCharacterExample::MasterMinMooMooSlippers_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MasterMinMooMooSlippers"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MasterMinMooMooSlippers"));
+	}
+}
+
+void AAlsCharacterExample::BounceHouseSuit_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BounceHouseSuit"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BounceHouseSuit"));
+	}
+}
+
+void AAlsCharacterExample::SheriffOutfit_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SheriffOutfit"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SheriffOutfit"));
+	}
+}
+
+void AAlsCharacterExample::ManillaOxfordAndSlacks_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ManillaOxfordAndSlacks"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ManillaOxfordAndSlacks"));
+	}
+}
+
+void AAlsCharacterExample::HoareSweaterVest_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HoareSweaterVest"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HoareSweaterVest"));
+	}
+}
+
+void AAlsCharacterExample::NuttySpectacles_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NuttySpectacles"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NuttySpectacles"));
+	}
+}
+
+void AAlsCharacterExample::BugHunterUniform_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BugHunterUniform"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BugHunterUniform"));
+	}
+}
+
+void AAlsCharacterExample::Effect_22(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_22"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_22"));
+	}
+}
+
+void AAlsCharacterExample::Boxer_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Boxer"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Boxer"));
+	}
+}
+
+void AAlsCharacterExample::AdminPolo_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AdminPolo"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AdminPolo"));
+	}
+}
+
+void AAlsCharacterExample::Effect_25(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_25"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_25"));
+	}
+}
+
+void AAlsCharacterExample::CarlOvercoat_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CarlOvercoat"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CarlOvercoat"));
+	}
+}
+
+void AAlsCharacterExample::Effect_27(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_27"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_27"));
+	}
+}
+
+void AAlsCharacterExample::SimonSweater_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimonSweater"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimonSweater"));
+	}
+}
+
+void AAlsCharacterExample::Effect_29(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_29"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_29"));
+	}
+}
+
+void AAlsCharacterExample::LaoEddieNightRobe_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply LaoEddieNightRobe"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove LaoEddieNightRobe"));
+	}
+}
+
+void AAlsCharacterExample::Effect_31(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_31"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_31"));
+	}
+}
+
+void AAlsCharacterExample::Effect_32(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_32"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_32"));
+	}
+}
+
+void AAlsCharacterExample::Effect_33(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_33"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_33"));
+	}
+}
+
+void AAlsCharacterExample::Effect_34(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_34"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_34"));
+	}
+}
+
+void AAlsCharacterExample::DesperadoPoncho_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply DesperadoPoncho"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove DesperadoPoncho"));
+	}
+}
+
+void AAlsCharacterExample::Effect_36(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_36"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_36"));
+	}
+}
+
+void AAlsCharacterExample::WW2Uniform_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WW2Uniform"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove WW2Uniform"));
+	}
+}
+
+void AAlsCharacterExample::GreenhouseOutfit_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GreenhouseOutfit"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GreenhouseOutfit"));
+	}
+}
+
+void AAlsCharacterExample::HeartShapedSweater_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HeartShapedSweater"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HeartShapedSweater"));
+	}
+}
+
+void AAlsCharacterExample::CableRepairOutfit_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CableRepairOutfit"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CableRepairOutfit"));
+	}
+}
+
+void AAlsCharacterExample::Effect_41(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_41"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_41"));
+	}
+}
+
+void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TroubleshooterJacket"));
+	}
+}
+
+void AAlsCharacterExample::HotSwapPatch_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HotSwapPatch"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HotSwapPatch"));
+	}
+}
+
+void AAlsCharacterExample::ChefApron_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ChefApron"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ChefApron"));
+	}
+}
+
+void AAlsCharacterExample::MiddleAgedCyborgSamuraiTortoiseShell_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MiddleAgedCyborgSamuraiTortoiseShell"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MiddleAgedCyborgSamuraiTortoiseShell"));
+	}
+}
+
+void AAlsCharacterExample::RastaRobe_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply RastaRobe"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RastaRobe"));
+	}
+}
+
+void AAlsCharacterExample::UndertakerCloak_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply UndertakerCloak"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove UndertakerCloak"));
+	}
+}
+
+void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TranquilBlouse"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TranquilBlouse"));
+	}
+}
+
+void AAlsCharacterExample::Effect_49(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_49"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_49"));
+	}
+}
+
+void AAlsCharacterExample::KnuthOvercoat_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply KnuthOvercoat"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove KnuthOvercoat"));
+	}
+}
+
+void AAlsCharacterExample::VcarSweatShirt_Effect(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply VcarSweatShirt"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove VcarSweatShirt"));
+	}
+}
+
+void AAlsCharacterExample::Effect_52(bool Apply)
+{
+	if (Apply)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_52"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_52"));
+	}
 }

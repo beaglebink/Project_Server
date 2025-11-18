@@ -336,7 +336,7 @@ void AA_AdWall::UpdateCrossMaterial()
 	}
 }
 
-void AA_AdWall::HandleWeaponShot_Implementation(const FHitResult& Hit)
+void AA_AdWall::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
 	if (Hit.Component == AdWallComp)
 	{

@@ -8,6 +8,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeightChanged, float, Weight);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, float, Money);
 
+class UW_ItemSlot;
+
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_Container : public UActorComponent
 {
@@ -41,10 +43,13 @@ public:
 	void AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount);
 
 	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
-	void RemoveFromContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn = false);
+	void RemoveFromContainer(int32 ItemIndex, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn = false);
 
 	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
 	bool SpawnRemovedItem(FName Name);
+
+	UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
+	bool SetItemMarking(UW_ItemSlot* SlotToBeMarked, EItemMarking NewMarking);
 
 	UFUNCTION(BlueprintCallable, Category = "Sorting")
 	void Items_Sort(EnumSortType SortType, bool bIsDecreasing);

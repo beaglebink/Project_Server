@@ -112,7 +112,6 @@ void AA_3DLetters::OnConstruction(const FTransform& Transform)
 	LettersToMeshComponent->SetWorldLocation(GetActorLocation() - GetActorRightVector() * ((LetterWidth + Spacing) * (LettersArray.Num() - 1) / 2.0f));
 }
 
-
 void AA_3DLetters::BeginPlay()
 {
 	Super::BeginPlay();
@@ -315,4 +314,5 @@ void AA_3DLetters::TransformLettersToMeshTimelineFinished()
 		Letter.LetterMeshComponent->DestroyComponent();
 		Letter.LetterDestroyFX->DestroyComponent();
 	}
+	LettersArray.Empty();
 }

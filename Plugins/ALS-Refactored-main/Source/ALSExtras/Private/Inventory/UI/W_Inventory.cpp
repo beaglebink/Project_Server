@@ -31,13 +31,13 @@ void UW_Inventory::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Container->GetOwner()))
-	{
-		Character->OnArmourChanged.AddDynamic(this, &UW_Inventory::RefreshArmour);
-	}
-
 	if (Container)
 	{
+		if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Container->GetOwner()))
+		{
+			Character->OnArmourChanged.AddDynamic(this, &UW_Inventory::RefreshArmour);
+		}
+
 		Container->OnWeightChanged.AddDynamic(this, &UW_Inventory::RefreshWeight);
 		Container->OnMoneyChanged.AddDynamic(this, &UW_Inventory::RefreshMoney);
 	}
