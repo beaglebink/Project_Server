@@ -61,58 +61,6 @@ float UCubixonUtilsBlueprintLibrary::MeasureMultilineTextHeight(const FString& T
     return MeasuredSize.Y;
 }
 
-float UCubixonUtilsBlueprintLibrary::EstimateMultilineTextHeight(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth)
-{
-    if (Text.IsEmpty())
-    {
-        return 0.f;
-    }
-
-    TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-    FText FormattedText = FText::FromString(Text);
-
-    // Получаем высоту в Slate Units
-    FVector2D MeasuredSize = FontMeasure->Measure(FormattedText, FontInfo, WrapWidth);
-
-    // Преобразуем в пиксели с учётом DPI
-    float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(GWorld->GetFirstPlayerController());
-    float HeightInPixels = MeasuredSize.Y / ViewportScale;
-
-    return HeightInPixels;
-
-}
-
-int32 UCubixonUtilsBlueprintLibrary::CountWrappedLines(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth)  
-{  
-   FString TrimmedText = Text.TrimStartAndEnd(); // Удаляем лидирующие и конечные пробелы  
-
-   TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();  
-
-   TArray<FString> Words;  
-   TrimmedText.ParseIntoArray(Words, TEXT(" "), true);  
-
-   FString CurrentLine;  
-   int32 LineCount = 1;  
-
-   for (const FString& Word : Words)  
-   {  
-       FString TestLine = CurrentLine.IsEmpty() ? Word : CurrentLine + TEXT(" ") + Word;  
-       FVector2D Size = FontMeasure->Measure(TestLine, FontInfo, WrapWidth);  
-
-       if (Size.X > WrapWidth)  
-       {  
-           LineCount++;  
-           CurrentLine = Word;  
-       }  
-       else  
-       {  
-           CurrentLine = TestLine;  
-       }  
-   }  
-
-   return LineCount;  
-}
-
 FText UCubixonUtilsBlueprintLibrary::RemoveLineBreaks(const FText& Input)
 {
     FString S = Input.ToString();
@@ -139,7 +87,6 @@ void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEd
 
     TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-    // Разбиваем текст на реальные строки
     TArray<FString> RealLines;
     FullText.ParseIntoArrayLines(RealLines);
 
@@ -158,7 +105,6 @@ void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEd
     {
         const FString& RealLine = RealLines[RealLineIndex];
 
-        // Разбиваем на токены: слова и пробелы
         TArray<FString> Tokens;
         FString Token;
         for (int32 c = 0; c < RealLine.Len(); ++c)
@@ -183,7 +129,6 @@ void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEd
             Tokens.Add(Token);
         }
 
-        // Разбиваем на визуальные строки
         FString CurrentLine;
         float CurrentLineWidth = 0.0f;
         int32 CharOffsetInRealLine = 0;
@@ -214,7 +159,6 @@ void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEd
         GlobalOffset += RealLine.Len() + 1; // +1 за \n
     }
 
-    // Поиск строки и позиции символа
     float Y = 0.0f;
     for (const FVisualLine& Line : VisualLines)
     {
@@ -252,7 +196,30 @@ void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEd
         Y += LineSize.Y;
     }
 
-    // Если не попали ни в одну строку — ставим курсор в конец
     SlateWidget->GoTo(FTextLocation(RealLines.Num() - 1, RealLines.Last().Len()));
+}
+
+FString UCubixonUtilsBlueprintLibrary::TrimTextToFitWidth(const FString& Text, const FSlateFontInfo& FontInfo, float MaxWidth)
+{
+    TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+    float AccumulatedWidth = 0.0f;
+    int32 MaxChars = Text.Len();
+
+    for (int32 i = 0; i < Text.Len(); ++i)
+    {
+        const FString CharStr = Text.Mid(i, 1);
+        const float CharWidth = FontMeasure->Measure(CharStr, FontInfo).X;
+
+        if (AccumulatedWidth + CharWidth > MaxWidth)
+        {
+            MaxChars = i;
+            break;
+        }
+
+        AccumulatedWidth += CharWidth;
+    }
+
+    return Text.Left(MaxChars);
 }
 

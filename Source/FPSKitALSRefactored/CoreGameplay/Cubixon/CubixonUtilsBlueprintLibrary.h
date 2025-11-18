@@ -3,9 +3,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Fonts/SlateFontInfo.h"
 #include <Components/MultiLineEditableText.h>
+#include <Components/EditableText.h>
 #include "CubixonUtilsBlueprintLibrary.generated.h"
-
-
 
 class IFontMeasure;
 
@@ -24,17 +23,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
     static float MeasureMultilineTextHeight(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth);
 
-    UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
-    static float EstimateMultilineTextHeight(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth);
-
-    UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
-    static int32 CountWrappedLines(const FString& Text, const FSlateFontInfo& FontInfo, float WrapWidth);
-
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Cubixon|Text")
     static FText RemoveLineBreaks(const FText& Input);
 
     UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
     static void SetCursorAtClickForEditableText(UMultiLineEditableText* EditableText, const FVector2D& ScreenClickPosition);
+    
+    UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
+    static FString TrimTextToFitWidth(const FString& Text, const FSlateFontInfo& FontInfo, float MaxWidth);
 };
 
 
