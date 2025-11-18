@@ -36,6 +36,15 @@ enum class EnumSortType :uint8
 	Value			UMETA(DisplayName = "Value")
 };
 
+UENUM(BlueprintType)
+enum class EItemMarking :uint8
+{
+	Default			UMETA(DisplayName = "Default"),
+	CantBeUsed		UMETA(DisplayName = "Can't Be Used"),
+	WeaponSelected	UMETA(DisplayName = "Weapon Selected"),
+	ClothesSelected	UMETA(DisplayName = "Clothes Selected")
+};
+
 USTRUCT(BlueprintType)
 struct ALSEXTRAS_API FS_Item
 {
@@ -46,6 +55,9 @@ struct ALSEXTRAS_API FS_Item
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
 	int32 Quantity = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
+	EItemMarking Marking = EItemMarking::Default;
 
 	bool operator ==(const FS_Item& Item)const
 	{

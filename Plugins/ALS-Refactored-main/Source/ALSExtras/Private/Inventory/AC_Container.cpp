@@ -1,5 +1,6 @@
 #include "Inventory/AC_Container.h"
 #include "Inventory/A_PickUp.h"
+#include "Inventory/UI/W_ItemSlot.h"
 #include "Kismet/GameplayStatics.h"
 
 UAC_Container::UAC_Container()
@@ -43,8 +44,15 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff,
 	}
 }
 
-void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn)
+void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn)
 {
+	if (!Items.IsValidIndex(ItemIndex))
+	{
+		return;
+	}
+
+	FName Name = Items[ItemIndex].Name;
+
 	if (bShouldSpawn)
 	{
 		ItemsToSpawn.FindOrAdd(Name) += Quantity;
@@ -82,22 +90,16 @@ void UAC_Container::RemoveFromContainer(FName Name, int32 Quantity, float TradeC
 				}, 0.01f, true, 0);
 		}
 	}
-	int32 IndexToRemove = Items.IndexOfByPredicate([&](const FS_Item& ArrayItem)
-		{
-			return ArrayItem.Name == Name;
-		});
 
-	if (IndexToRemove != INDEX_NONE)
+	if (Items[ItemIndex].Quantity > Quantity)
 	{
-		if (Items[IndexToRemove].Quantity > Quantity)
-		{
-			Items[IndexToRemove].Quantity -= Quantity;
-		}
-		else
-		{
-			Items.RemoveAt(IndexToRemove);
-		}
+		Items[ItemIndex].Quantity -= Quantity;
 	}
+	else
+	{
+		Items.RemoveAt(ItemIndex);
+	}
+
 	if (ItemDataTable)
 	{
 		FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
@@ -145,6 +147,24 @@ bool UAC_Container::SpawnRemovedItem(FName Name)
 		UGameplayStatics::PlaySoundAtLocation(GetWorld(), SpawnSound, PickUpActor->GetActorLocation());
 	}
 	return true;
+}
+
+bool UAC_Container::SetItemMarking(UW_ItemSlot* SlotToBeMarked, EItemMarking NewMarking)
+{
+	int32 ItemIndex = Items.IndexOfByKey(SlotToBeMarked->Item);
+	if (ItemIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (Items[ItemIndex].Marking != EItemMarking::CantBeUsed)
+	{
+		Items[ItemIndex].Marking = NewMarking;
+		SlotToBeMarked->SetMarkOnSelected(NewMarking);
+		return true;
+	}
+
+	return false;
 }
 
 void UAC_Container::Items_Sort(EnumSortType SortType, bool bIsDecreasing)

@@ -55,7 +55,7 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Slot Image field", meta = (BindWidget))
 	UImage* Image_Background;
-	
+
 	UPROPERTY(BlueprintReadOnly, Category = "Button", meta = (BindWidget))
 	UW_FocusableButton* Button_Description;
 
@@ -68,7 +68,8 @@ public:
 public:
 	void SetTintOnSelected(bool IsSet);
 
-	void SetColorOnSelected(bool IsSet);
+	UFUNCTION(BlueprintCallable, Category = "SlotMarking")
+	void SetMarkOnSelected(EItemMarking NewMarking);
 
 protected:
 	UFUNCTION(BlueprintCallable)

@@ -86,15 +86,36 @@ void UW_ItemSlot::SetTintOnSelected(bool IsSet)
 	}
 }
 
-void UW_ItemSlot::SetColorOnSelected(bool IsSet)
+void UW_ItemSlot::SetMarkOnSelected(EItemMarking NewMarking)
 {
-	if (IsSet)
+	switch (NewMarking)
 	{
-		Image_Background->SetColorAndOpacity(FLinearColor(0.0f, 0.1f, 0.0f));
-	}
-	else
+	case EItemMarking::Default:
 	{
 		Image_Background->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f));
+		Item.Marking = EItemMarking::Default;
+		break;
+	}
+	case EItemMarking::CantBeUsed:
+	{
+		Image_Background->SetColorAndOpacity(FLinearColor(0.1f, 0.0f, 0.0f));
+		Item.Marking = EItemMarking::CantBeUsed;
+		break;
+	}
+	case EItemMarking::WeaponSelected:
+	{
+		Image_Background->SetColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.1f));
+		Item.Marking = EItemMarking::WeaponSelected;
+		break;
+	}
+	case EItemMarking::ClothesSelected:
+	{
+		Image_Background->SetColorAndOpacity(FLinearColor(0.0f, 0.1f, 0.0f));
+		Item.Marking = EItemMarking::ClothesSelected;
+		break;
+	}
+	default:
+		break;
 	}
 }
 
