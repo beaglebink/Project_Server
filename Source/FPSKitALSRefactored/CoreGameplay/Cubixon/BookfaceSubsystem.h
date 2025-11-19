@@ -133,6 +133,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
+	UFUNCTION(BlueprintCallable)
+	void UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile);
+
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
 	FOnlineStatusChange OnlineStatusChange;

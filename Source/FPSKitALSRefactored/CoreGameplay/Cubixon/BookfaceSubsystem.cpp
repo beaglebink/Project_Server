@@ -244,3 +244,15 @@ void UBookfaceSubsystem::AcceptFriendRequest(const FString& FromUserId, const FS
     OnAcceptFriendRequest.Broadcast(ToUserId, FromUserId);
 }
 
+void UBookfaceSubsystem::UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile)
+{
+    for (auto& P : UserProfiles)
+    {
+        if (P.UserId == UpdatedProfile.UserId)
+        {
+            P = UpdatedProfile;
+            return;
+        }
+	}
+}
+
