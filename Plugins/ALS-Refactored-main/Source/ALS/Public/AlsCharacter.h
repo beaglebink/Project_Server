@@ -12,6 +12,22 @@
 #include "Utility/AlsGameplayTags.h"
 #include "AlsCharacter.generated.h"
 
+UENUM(BlueprintType)
+enum class EEnemyType :uint8
+{
+	AlienRed,
+	Baloon_1,
+	Baloon_2,
+	Baloon_3,
+	BotNet,
+	ComputerPossessedPink,
+	FileCabinetFolder,
+	FileGuy,
+	FileProp_1,
+	FileProp_2,
+
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartMantling, float, AnimationDuration, EAlsMantlingType, MantlingType);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStartRolling, float, AnimationDuration);
 
@@ -1277,7 +1293,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effects")
 	void SprintTimeDelayCount();
 
-	//Effects
+//Potion Effects *******************************************************************
 	//Effect_1
 public:
 	float RecoilMultiplier_1 = 1.0f;
@@ -1591,6 +1607,164 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	void GetDamageFromPlayer(AController* DamageInstigator);
+
+//Clothes effects *******************************************************************
+	// AlphabetCoat
+protected:
+
+	// ByteVest
+protected:
+
+	// JanitorOveralls
+protected:
+
+	// WasherOveralls
+protected:
+
+	// CalculatorGoggles
+protected:
+
+	// GladiatorOutfit
+protected:
+
+	// PorcupineCoat
+protected:
+
+	// ForcefieldCoat
+protected:
+
+	// BugZapperCoat
+protected:
+
+	// SimonSweatpants
+protected:
+
+	// RebootVest
+protected:
+
+	// NullAndVoidHat
+protected:
+
+	// MagneticVest
+protected:
+
+	// AmmoBeltVest
+protected:
+
+	// MasterMinMooMooSlippers
+protected:
+
+	// BounceHouseSuit
+protected:
+
+	// SheriffOutfit
+protected:
+
+	// ManillaOxfordAndSlacks
+protected:
+
+	// HoareSweaterVest
+protected:
+
+	// NuttySpectacles
+protected:
+
+	// BugHunterUniform
+protected:
+
+	// Effect_22
+protected:
+
+	// Boxer
+protected:
+
+	// AdminPolo
+protected:
+
+	// Effect_25
+protected:
+
+	// CarlOvercoat
+protected:
+
+	// Effect_27
+protected:
+
+	// SimonSweater
+protected:
+
+	// Effect_29
+protected:
+
+	// LaoEddieNightRobe
+protected:
+
+	// Effect_31
+protected:
+
+	// Effect_32
+protected:
+
+	// Effect_33
+protected:
+
+	// Effect_34
+protected:
+
+	// DesperadoPoncho
+protected:
+
+	// Effect_36
+protected:
+
+	// WW2Uniform
+protected:
+
+	// GreenhouseOutfit
+protected:
+
+	// HeartShapedSweater
+protected:
+
+	// CableRepairOutfit
+protected:
+
+	// Effect_41
+protected:
+
+	// TroubleshooterJacket
+protected:
+
+	// HotSwapPatch
+protected:
+
+	// ChefApron
+protected:
+
+	// MiddleAgedCyborgSamuraiTortoiseShell
+protected:
+
+	// RastaRobe
+protected:
+
+	// UndertakerCloak
+protected:
+
+	// TranquilBlouse
+protected:
+
+	// Effect_49
+protected:
+
+	// KnuthOvercoat
+protected:
+
+	// VcarSweatShirt
+protected:
+
+	// Effect_52
+protected:
+
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
