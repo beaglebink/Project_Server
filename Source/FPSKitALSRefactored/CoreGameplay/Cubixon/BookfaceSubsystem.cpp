@@ -311,16 +311,16 @@ void UBookfaceSubsystem::SaveBookfaceDataAsync()
         TEXT("BookfaceSlot"),
         0,
         FAsyncSaveGameToSlotDelegate::CreateLambda([](const FString& SlotName, const int32 UserIndex, bool bSuccess)
+        {
+            if (bSuccess)
             {
-                if (bSuccess)
-                {
-                    UE_LOG(LogTemp, Log, TEXT("Bookface data saved successfully to slot '%s'."), *SlotName);
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Warning, TEXT("Failed to save Bookface data to slot '%s'."), *SlotName);
-                }
-            })
+                UE_LOG(LogTemp, Log, TEXT("Bookface data saved successfully to slot '%s'."), *SlotName);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Failed to save Bookface data to slot '%s'."), *SlotName);
+            }
+        })
     );
 }
 
