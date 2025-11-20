@@ -21,6 +21,7 @@
 #include "Components/WindDirectionalSourceComponent.h"
 #include "UI/BlindnessWidget.h"
 #include "Animation/WidgetAnimation.h"
+#include "A_EnemyManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacter)
 
@@ -157,6 +158,12 @@ void AAlsCharacter::BeginPlay()
 		TEXT("These settings are not allowed and must be turned off!"));
 
 	Super::BeginPlay();
+
+	LevelEnemyManager = Cast<AA_EnemyManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AA_EnemyManager::StaticClass()));
+	if (LevelEnemyManager && EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy"))))
+	{
+		LevelEnemyManager->RegisterEnemy(EnemyTag);
+	}
 
 	if (GetLocalRole() >= ROLE_AutonomousProxy)
 	{
@@ -2171,7 +2178,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40;
-	
+
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
 		AlsCharacterMovement->MovementSpeedMultiplier = SpeedMultiplier;
@@ -3356,4 +3363,27 @@ void AAlsCharacter::GetDamageFromPlayer(AController* DamageInstigator)
 		}
 		RefreshDamage();
 	}
+}
+
+//Clothes effects *******************************************************************
+	// AlphabetCoat
+float AAlsCharacter::IncreaseDamageBy_20(AController* DamageInstigator, float Damage)
+{
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->bAlphabetCoatIsOn && EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost"))) &&
+				(LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Hex) > 0 ||
+					LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Unicode) > 0 ||
+					LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Ink) > 0 ||
+					LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
+			{
+				Damage *= 1.2f;
+			}
+		}
+	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("Damage after AlphabetCoat effect: %f"), Damage));
+	return Damage;
 }
