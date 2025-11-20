@@ -1,9 +1,12 @@
 #include "BookfaceSubsystem.h"
+#include "BookfaceSaveGame.h"
+#include "Kismet/GameplayStatics.h"
 #include "Internationalization/Regex.h"
 
 void UBookfaceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
+    //LoadBookfaceDataAsync();
 }
 
 void UBookfaceSubsystem::Deinitialize()
@@ -11,10 +14,42 @@ void UBookfaceSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
+void UBookfaceSubsystem::OnBookfaceAppOpened()
+{
+    if (bHasLoadedSave)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Bookface data already loaded Ч skipping."));
+        return;
+    }
+
+    if (UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
+    {
+        UGameplayStatics::AsyncLoadGameFromSlot(
+            TEXT("BookfaceSlot"),
+            0,
+            FAsyncLoadGameFromSlotDelegate::CreateLambda([this](const FString& SlotName, const int32 UserIndex, USaveGame* LoadedGame)
+                {
+                    UBookfaceSaveGame* Loaded = Cast<UBookfaceSaveGame>(LoadedGame);
+                    if (Loaded)
+                    {
+                        UserProfiles = Loaded->SavedProfiles;
+                        FriendRequests = Loaded->SavedFriendRequests;
+                        bHasLoadedSave = true;
+                        UE_LOG(LogTemp, Log, TEXT("Bookface data loaded from save: %d profiles."), UserProfiles.Num());
+                    }
+                })
+        );
+    }
+    else
+    {
+        bHasLoadedSave = true;
+        SaveBookfaceDataAsync(); // сохран€ем то, что было зарегистрировано через BeginPlay
+        UE_LOG(LogTemp, Log, TEXT("No save found Ч using registered profiles and saving as initial state."));
+    }
+}
+
 void UBookfaceSubsystem::AddUserProfile(const FBookfaceProfileStructure& NewProfile)
 {
-
-
     for (int32 i = 0; i < UserProfiles.Num(); ++i)
     {
         if (UserProfiles[i].UserId == NewProfile.UserId)
@@ -23,6 +58,7 @@ void UBookfaceSubsystem::AddUserProfile(const FBookfaceProfileStructure& NewProf
             return;
         }
     }
+
     UserProfiles.Add(NewProfile);
 }
 
@@ -97,6 +133,11 @@ bool UBookfaceSubsystem::RemoveFriend(const FString& UserId, const FString& Frie
         }
     }
 
+    if (bAnyRemoved)
+    {
+        SaveBookfaceDataAsync();
+    }
+
     return bAnyRemoved;
 }
 
@@ -111,10 +152,7 @@ TArray<FBookfaceProfileStructure> UBookfaceSubsystem::SearchProfiles(const FStri
 
     for (const auto& P : UserProfiles)
     {
-        if (P.UserId == InUserID)
-        {
-            continue;
-        }
+        if (P.UserId == InUserID) continue;
 
         if (!AddedIds.Contains(P.UserId))
         {
@@ -154,19 +192,20 @@ TArray<FBookfaceProfileStructure> UBookfaceSubsystem::SearchProfiles(const FStri
 
 void UBookfaceSubsystem::AddFriendRequest(const FString& FromUserId, const FString& ToUserId)
 {
-	auto FromUserProfile = GetUserProfileById(FromUserId);
-	auto ToUserProfile = GetUserProfileById(ToUserId);
-   
-    if(FromUserProfile.FriendsList.Contains(ToUserId))
+    auto FromUserProfile = GetUserProfileById(FromUserId);
+    auto ToUserProfile = GetUserProfileById(ToUserId);
+
+    if (FromUserProfile.FriendsList.Contains(ToUserId))
     {
         return;
-	}
+    }
 
     FBookfaceFriendRequestStructure NewRequest;
     NewRequest.FromUserId = FromUserId;
     NewRequest.ToUserId = ToUserId;
-	FriendRequests.Add(NewRequest);
-	OnAddFriendRequest.Broadcast(FromUserId, ToUserId);
+    FriendRequests.Add(NewRequest);
+    OnAddFriendRequest.Broadcast(FromUserId, ToUserId);
+    SaveBookfaceDataAsync();
 }
 
 TArray<FBookfaceFriendRequestStructure> UBookfaceSubsystem::GetMyFriendRequests(const FString& MyUserId) const
@@ -179,7 +218,7 @@ TArray<FBookfaceFriendRequestStructure> UBookfaceSubsystem::GetMyFriendRequests(
             MyRequests.AddUnique(Request);
         }
     }
-	return MyRequests;
+    return MyRequests;
 }
 
 TArray<FBookfaceFriendRequestStructure> UBookfaceSubsystem::GetSentFriendRequests(const FString& MyUserId) const
@@ -192,7 +231,7 @@ TArray<FBookfaceFriendRequestStructure> UBookfaceSubsystem::GetSentFriendRequest
             SentRequests.AddUnique(Request);
         }
     }
-	return SentRequests;
+    return SentRequests;
 }
 
 void UBookfaceSubsystem::RemoveFriendRequest(const FString& FromUserId, const FString& ToUserId)
@@ -202,11 +241,12 @@ void UBookfaceSubsystem::RemoveFriendRequest(const FString& FromUserId, const FS
         if (FriendRequests[i].FromUserId == FromUserId && FriendRequests[i].ToUserId == ToUserId)
         {
             FriendRequests.RemoveAt(i);
-			OnRemoveFriendRequest.Broadcast(FromUserId, ToUserId);
+            OnRemoveFriendRequest.Broadcast(FromUserId, ToUserId);
             OnRemoveFriendRequest.Broadcast(ToUserId, FromUserId);
+            SaveBookfaceDataAsync();
             return;
         }
-	}
+    }
 }
 
 void UBookfaceSubsystem::AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId)
@@ -219,31 +259,28 @@ void UBookfaceSubsystem::AcceptFriendRequest(const FString& FromUserId, const FS
             break;
         }
     }
+
     for (auto& P : UserProfiles)
     {
         if (P.UserId == FromUserId)
         {
-            if (!P.FriendsList.Contains(ToUserId))
-            {
-                P.FriendsList.AddUnique(ToUserId);
-            }
+            P.FriendsList.AddUnique(ToUserId);
             break;
         }
     }
+
     for (auto& P : UserProfiles)
     {
         if (P.UserId == ToUserId)
         {
-            if (!P.FriendsList.Contains(FromUserId))
-            {
-                P.FriendsList.AddUnique(FromUserId);
-            }
+            P.FriendsList.AddUnique(FromUserId);
             break;
         }
-	}
+    }
 
     OnAcceptFriendRequest.Broadcast(FromUserId, ToUserId);
     OnAcceptFriendRequest.Broadcast(ToUserId, FromUserId);
+    SaveBookfaceDataAsync();
 }
 
 void UBookfaceSubsystem::UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile)
@@ -253,8 +290,64 @@ void UBookfaceSubsystem::UpdateUserProfile(const FBookfaceProfileStructure& Upda
         if (P.UserId == UpdatedProfile.UserId)
         {
             P = UpdatedProfile;
+            SaveBookfaceDataAsync();
             return;
         }
-	}
+    }
+    UserProfiles.Add(UpdatedProfile);
+    SaveBookfaceDataAsync();
 }
 
+void UBookfaceSubsystem::SaveBookfaceDataAsync()
+{
+    UBookfaceSaveGame* SaveGame = Cast<UBookfaceSaveGame>(
+        UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
+
+    SaveGame->SavedProfiles = UserProfiles;
+    SaveGame->SavedFriendRequests = FriendRequests;
+
+    UGameplayStatics::AsyncSaveGameToSlot(
+        SaveGame,
+        TEXT("BookfaceSlot"),
+        0,
+        FAsyncSaveGameToSlotDelegate::CreateLambda([](const FString& SlotName, const int32 UserIndex, bool bSuccess)
+            {
+                if (bSuccess)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("Bookface data saved successfully to slot '%s'."), *SlotName);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("Failed to save Bookface data to slot '%s'."), *SlotName);
+                }
+            })
+    );
+}
+
+void UBookfaceSubsystem::LoadBookfaceDataAsync()
+{
+    if (UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
+    {
+        UGameplayStatics::AsyncLoadGameFromSlot(
+            TEXT("BookfaceSlot"),
+            0,
+            FAsyncLoadGameFromSlotDelegate::CreateLambda([this](const FString& SlotName, const int32 UserIndex, USaveGame* LoadedGame)
+                {
+                    UBookfaceSaveGame* Loaded = Cast<UBookfaceSaveGame>(LoadedGame);
+                    if (Loaded)
+                    {
+                        this->UserProfiles = Loaded->SavedProfiles;
+                        this->FriendRequests = Loaded->SavedFriendRequests;
+                        bHasLoadedSave = true;
+
+
+                        UE_LOG(LogTemp, Log, TEXT("Loaded %d profiles"), this->UserProfiles.Num());
+                    }
+                })
+        );
+    }
+    else
+    {
+        //SaveBookfaceDataAsync(); // создаЄм пустое сохранение
+    }
+}
