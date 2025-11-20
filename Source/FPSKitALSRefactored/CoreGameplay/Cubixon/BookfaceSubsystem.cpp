@@ -13,6 +13,8 @@ void UBookfaceSubsystem::Deinitialize()
 
 void UBookfaceSubsystem::AddUserProfile(const FBookfaceProfileStructure& NewProfile)
 {
+
+
     for (int32 i = 0; i < UserProfiles.Num(); ++i)
     {
         if (UserProfiles[i].UserId == NewProfile.UserId)

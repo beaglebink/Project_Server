@@ -74,6 +74,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	int32 ReputationScore;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	EPrivacyVisibility BIO_Privacy;
+
 	FORCEINLINE bool operator==(const FBookfaceProfileStructure& Other) const
 	{
 		return UserId.Equals(Other.UserId);
