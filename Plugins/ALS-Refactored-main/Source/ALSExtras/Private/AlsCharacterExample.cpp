@@ -1822,6 +1822,7 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 
 void AAlsCharacterExample::AlphabetCoat_Effect(bool Apply)
 {
+	bAlphabetCoatIsOn = Apply;
 	if (Apply)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AlphabetCoat"));

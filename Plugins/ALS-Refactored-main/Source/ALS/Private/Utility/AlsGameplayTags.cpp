@@ -62,6 +62,166 @@ namespace AlsGroundedEntryModeTags
 	UE_DEFINE_GAMEPLAY_TAG(FromRoll, FName{ TEXTVIEW("Als.GroundedEntryMode.FromRoll") })
 }
 
+namespace EnemyTags
+{
+	UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Default, "Enemy.Default");
+	UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Enemy, "Enemy");
+	namespace Alien
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Alien::Red, "Enemy.Alien.Red");
+	}
+	namespace Baloon
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Baloon::A, "Enemy.Baloon.A");
+	}
+	namespace Bot
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Bot::Net, "Enemy.Bot.Net");
+	}
+	namespace Computer
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Computer::PossessedPink, "Enemy.Computer.PossessedPink");
+	}
+	namespace File
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::File::CabinetFolder, "Enemy.File.CabinetFolder");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::File::Guy, "Enemy.File.Guy");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::File::Prop, "Enemy.File.Prop");
+	}
+	namespace Fish
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Fish::Blob, "Enemy.Fish.Blob");
+	}
+	namespace Folder
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Folder::Manila, "Enemy.Folder.Manila");
+	}
+	namespace Furry
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Furry::Claw, "Enemy.Furry.Claw");
+	}
+	namespace Germ
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Germ::Red, "Enemy.Germ.Red");
+	}
+	namespace Ghost
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::ArmourGreen, "Enemy.Ghost.ArmourGreen");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::BloodyMouth, "Enemy.Ghost.BloodyMouth");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::BlueLegged, "Enemy.Ghost.BlueLegged");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Boolean, "Enemy.Ghost.Boolean");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Camera, "Enemy.Ghost.Camera");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Cat, "Enemy.Ghost.Cat");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Chimney, "Enemy.Ghost.Chimney");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::CreepyCute, "Enemy.Ghost.CreepyCute");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Dark, "Enemy.Ghost.Dark");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Encrypt, "Enemy.Ghost.Encrypt");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::FileBlack, "Enemy.Ghost.FileBlack");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::FleshLegged, "Enemy.Ghost.FleshLegged");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Furry, "Enemy.Ghost.Furry");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::FurryBig, "Enemy.Ghost.FurryBig");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::FurryBlue, "Enemy.Ghost.FurryBlue");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GenericGrey, "Enemy.Ghost.GenericGrey");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GenericGreyDark, "Enemy.Ghost.GenericGreyDark");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GenericMetal, "Enemy.Ghost.GenericMetal");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Geometric, "Enemy.Ghost.Geometric");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GlobRed, "Enemy.Ghost.GlobRed");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GloopyBlue, "Enemy.Ghost.GloopyBlue");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GoardRed, "Enemy.Ghost.GoardRed");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Gooey, "Enemy.Ghost.Gooey");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GreenFish, "Enemy.Ghost.GreenFish");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GreenFlesh, "Enemy.Ghost.GreenFlesh");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GreenTeeth, "Enemy.Ghost.GreenTeeth");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::GunMetalRound, "Enemy.Ghost.GunMetalRound");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::HelmetGreen, "Enemy.Ghost.HelmetGreen");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Hex, "Enemy.Ghost.Hex");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Ink, "Enemy.Ghost.Ink");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Integer, "Enemy.Ghost.Integer");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Liquid, "Enemy.Ghost.Liquid");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Loop, "Enemy.Ghost.Loop");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::ManyEyedPink, "Enemy.Ghost.ManyEyedPink");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::MechbodyRound, "Enemy.Ghost.MechbodyRound");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::MechaClaw, "Enemy.Ghost.MechaClaw");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::MetalFleshRed, "Enemy.Ghost.MetalFleshRed");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::MohSideTeeth, "Enemy.Ghost.MohSideTeeth");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Monitor, "Enemy.Ghost.Monitor");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Newspaper, "Enemy.Ghost.Newspaper");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Nugget, "Enemy.Ghost.Nugget");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::PlantBig, "Enemy.Ghost.PlantBig");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::PlantCute, "Enemy.Ghost.PlantCute");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Pointer, "Enemy.Ghost.Pointer");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::PolygonGreen, "Enemy.Ghost.PolygonGreen");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Program, "Enemy.Ghost.Program");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::RhinoBw, "Enemy.Ghost.RhinoBw");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::RoboBlue, "Enemy.Ghost.RoboBlue");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::RoboGreen, "Enemy.Ghost.RoboGreen");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Rocket, "Enemy.Ghost.Rocket");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::RootRed, "Enemy.Ghost.RootRed");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::ScreenRed, "Enemy.Ghost.ScreenRed");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Slimy, "Enemy.Ghost.Slimy");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::SpookyCute, "Enemy.Ghost.SpookyCute");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::TentacleBeige, "Enemy.Ghost.TentacleBeige");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Termite, "Enemy.Ghost.Termite");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::ThreadBlue, "Enemy.Ghost.ThreadBlue");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::TongueSilver, "Enemy.Ghost.TongueSilver");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Tumor, "Enemy.Ghost.Tumor");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::TVHeadGrey, "Enemy.Ghost.TVHeadGrey");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::TVLeg, "Enemy.Ghost.TVLeg");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Unicode, "Enemy.Ghost.Unicode");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Ghost::Wire, "Enemy.Ghost.Wire");
+	}
+	namespace Golden
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Golden::Possessed, "Enemy.Golden.Possessed");
+	}
+	namespace Golem
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Golem::A, "Enemy.Golem.A");
+	}
+	namespace Gooey
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Gooey::A, "Enemy.Gooey.A");
+	}
+	namespace Gremlin
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Gremlin::Green, "Enemy.Gremlin.Green");
+	}
+	namespace Guy
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Guy::CuteYellow, "Enemy.Guy.CuteYellow");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Guy::LittleElectric, "Enemy.Guy.LittleElectric");
+	}
+	namespace Mine
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Mine::Code, "Enemy.Mine.Code");
+	}
+	namespace Mouth
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Mouth::Squiggly, "Enemy.Mouth.Squiggly");
+	}
+	namespace Monster
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Monster::Big, "Enemy.Monster.Big");
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Monster::Heart, "Enemy.Monster.Heart");
+	}
+	namespace Smoke
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Smoke::Dark, "Enemy.Smoke.Dark");
+	}
+	namespace Spiral
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Spiral::Green, "Enemy.Spiral.Green");
+	}
+	namespace Teeth
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Teeth::Side, "Enemy.Teeth.Side");
+	}
+	namespace Wire
+	{
+		UE_DEFINE_GAMEPLAY_TAG(EnemyTags::Wire::Green, "Enemy.Wire.Green");
+	}
+}
+
 namespace FoodEffectTags
 {
 	UE_DEFINE_GAMEPLAY_TAG(Default, FName{ TEXTVIEW("Food.Effect.Default") })

@@ -12,22 +12,6 @@
 #include "Utility/AlsGameplayTags.h"
 #include "AlsCharacter.generated.h"
 
-UENUM(BlueprintType)
-enum class EEnemyType :uint8
-{
-	AlienRed,
-	Baloon_1,
-	Baloon_2,
-	Baloon_3,
-	BotNet,
-	ComputerPossessedPink,
-	FileCabinetFolder,
-	FileGuy,
-	FileProp_1,
-	FileProp_2,
-
-};
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStartMantling, float, AnimationDuration, EAlsMantlingType, MantlingType);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStartRolling, float, AnimationDuration);
 
@@ -50,6 +34,7 @@ class UAlsAnimationInstance;
 class UAlsMantlingSettings;
 class UBlindnessWidget;
 class USphereComponent;
+class AA_EnemyManager;
 
 UCLASS(AutoExpandCategories = ("Settings|Als Character", "Settings|Als Character|Desired State", "State|Als Character"))
 class ALS_API AAlsCharacter : public ACharacter
@@ -57,10 +42,16 @@ class ALS_API AAlsCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
+	FGameplayTag EnemyTag;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Als Character")
 	TObjectPtr<UAlsCharacterMovementComponent> AlsCharacterMovement;
 
 protected:
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Enemy Manager")
+	AA_EnemyManager* LevelEnemyManager;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character")
 	TObjectPtr<UAlsCharacterSettings> Settings;
 
@@ -1293,8 +1284,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effects")
 	void SprintTimeDelayCount();
 
-//Potion Effects *******************************************************************
-	//Effect_1
+	//Potion Effects *******************************************************************
+		//Effect_1
 public:
 	float RecoilMultiplier_1 = 1.0f;
 
@@ -1608,9 +1599,13 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
 	void GetDamageFromPlayer(AController* DamageInstigator);
 
-//Clothes effects *******************************************************************
-	// AlphabetCoat
+	//Clothes effects *******************************************************************
+		// AlphabetCoat
 protected:
+	uint8 bAlphabetCoatIsOn : 1{false};
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float IncreaseDamageBy_20(AController* DamageInstigator, float Damage);
 
 	// ByteVest
 protected:
