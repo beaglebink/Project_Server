@@ -96,7 +96,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, Us
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAcceptFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnBookfaceMessageAdded, const FString&, TargetUserId, const FString&, FromUserId, UBookfaceMessageObject*, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnBookfaceMessageAdded, const FString&, FromUserId, const FString&, TargetUserId, UBookfaceMessageObject*, Message);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem

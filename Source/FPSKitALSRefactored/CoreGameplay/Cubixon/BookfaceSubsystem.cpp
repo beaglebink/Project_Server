@@ -377,7 +377,7 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& T
         TargetProfile->UserMessages.Add(NewMessage);
     }
 
-    OnMessageAdded.Broadcast(TargetUserId, FromUserId, NewMessage);
+    OnMessageAdded.Broadcast(FromUserId, TargetUserId, NewMessage);
 
     return NewMessage;
 }

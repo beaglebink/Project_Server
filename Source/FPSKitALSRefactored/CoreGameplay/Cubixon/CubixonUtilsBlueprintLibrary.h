@@ -4,6 +4,7 @@
 #include "Fonts/SlateFontInfo.h"
 #include <Components/MultiLineEditableText.h>
 #include <Components/EditableText.h>
+#include <Components/VerticalBox.h>
 #include "CubixonUtilsBlueprintLibrary.generated.h"
 
 class IFontMeasure;
@@ -31,6 +32,9 @@ public:
     
     UFUNCTION(BlueprintCallable, Category = "Cubixon|Text")
     static FString TrimTextToFitWidth(const FString& Text, const FSlateFontInfo& FontInfo, float MaxWidth);
+
+    UFUNCTION(BlueprintCallable, Category = "UI")
+    static void InsertWidgetAt(UVerticalBox* Box, UWidget* WidgetToAdd, int32 Index);
 };
 
 

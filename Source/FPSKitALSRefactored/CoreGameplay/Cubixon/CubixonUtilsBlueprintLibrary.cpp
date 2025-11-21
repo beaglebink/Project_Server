@@ -223,3 +223,47 @@ FString UCubixonUtilsBlueprintLibrary::TrimTextToFitWidth(const FString& Text, c
     return Text.Left(MaxChars);
 }
 
+void UCubixonUtilsBlueprintLibrary::InsertWidgetAt(UVerticalBox* Box, UWidget* WidgetToAdd, int32 Index)
+{
+    /*
+    if (!Box || !WidgetToAdd) return;
+
+    TArray<UWidget*> ExistingChildren;
+    const int32 Count = Box->GetChildrenCount();
+
+    // Сохраняем текущих детей
+    for (int32 i = 0; i < Count; ++i)
+    {
+        ExistingChildren.Add(Box->GetChildAt(i));
+    }
+
+    // Очищаем
+    Box->ClearChildren();
+
+    // Вставляем в нужную позицию
+    Index = FMath::Clamp(Index, 0, ExistingChildren.Num());
+    ExistingChildren.Insert(WidgetToAdd, Index);
+
+    // Добавляем всех обратно
+    for (UWidget* Child : ExistingChildren)
+    {
+        Box->AddChild(Child);
+    }
+    */
+
+
+    if (!Box || !WidgetToAdd) return;
+
+    UPanelSlot* NewSlot = Box->AddChild(WidgetToAdd);
+    if (!NewSlot) return;
+
+    TArray<UPanelSlot*>& Slots = const_cast<TArray<UPanelSlot*>&>(Box->GetSlots());
+
+    Slots.Remove(NewSlot);
+    Index = FMath::Clamp(Index, 0, Slots.Num());
+    Slots.Insert(NewSlot, Index);
+
+    Box->InvalidateLayoutAndVolatility();
+
+}
+
