@@ -2162,7 +2162,7 @@ void AAlsCharacter::StaminaRecovery()
 
 void AAlsCharacter::RefreshRecoil()
 {
-	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire;
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier;
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
@@ -3056,7 +3056,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 		}
 	}
 
-	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50;
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3367,6 +3367,37 @@ void AAlsCharacter::GetDamageFromPlayer(AController* DamageInstigator)
 
 //Clothes effects *******************************************************************
 	// AlphabetCoat
+float AAlsCharacter::RedirectDamageFromHealthToStamina_15(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Hex"))) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Unicode"))) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Ink"))))
+			{
+				if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+				{
+					if (bAlphabetCoatIsOn)
+					{
+						float AvoidChance = 25.0f;
+						if (FMath::FRandRange(0.0f, 100.0f) < AvoidChance)
+						{
+							//Enemy->ActiveEffect = false;
+						}
+						float StaminaDecreaseAmount = DamageAmount * 0.15f;
+						DamageAmount -= StaminaDecreaseAmount;
+						SetStamina(GetStamina() - StaminaDecreaseAmount);
+					}
+				}
+			}
+		}
+	}
+	return DamageAmount;
+}
+
 float AAlsCharacter::IncreaseDamageBy_20(AController* DamageInstigator, float Damage)
 {
 	if (DamageInstigator)
@@ -3386,4 +3417,27 @@ float AAlsCharacter::IncreaseDamageBy_20(AController* DamageInstigator, float Da
 
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("Damage after AlphabetCoat effect: %f"), Damage));
 	return Damage;
+}
+
+void AAlsCharacter::CheckAlphabetCoatAccuracyAndRecoil_25()
+{
+	AlphabetCoatAccuracyMultiplier = 1.0f;
+	AlphabetCoatRecoilMultiplier = 1.0f;
+
+	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+	{
+		if (bAlphabetCoatIsOn &&
+			(LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Hex) > 0 ||
+				LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Unicode) > 0 ||
+				LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Ink) > 0 ||
+				LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
+		{
+			AlphabetCoatAccuracyMultiplier = 0.75f;
+			AlphabetCoatRecoilMultiplier = 0.75f;
+		}
+	}
+	RefreshAimAccuracy();
+	RefreshRecoil();
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("Accuracy after AlphabetCoat effect: %f"), AimAccuracyMultiplier));
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("Recoil after AlphabetCoat effect: %f"), RecoilMultiplier));
 }
