@@ -1604,8 +1604,18 @@ protected:
 protected:
 	uint8 bAlphabetCoatIsOn : 1{false};
 
+	float AlphabetCoatAccuracyMultiplier = 1.0f;
+	
+	float AlphabetCoatRecoilMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float RedirectDamageFromHealthToStamina_15(AController* DamageInstigator, float DamageAmount);
+
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float IncreaseDamageBy_20(AController* DamageInstigator, float Damage);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void CheckAlphabetCoatAccuracyAndRecoil_25();
 
 	// ByteVest
 protected:
