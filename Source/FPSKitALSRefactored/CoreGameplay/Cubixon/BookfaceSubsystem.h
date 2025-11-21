@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Engine/Texture2D.h"
+#include "BookfaceMessageObject.h"
 #include "BookfaceSubsystem.generated.h"
 
 UENUM(BlueprintType)
@@ -78,6 +80,9 @@ public:
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     EPrivacyVisibility BIO_Privacy;
 
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<UBookfaceMessageObject*> UserMessages;
+
     FORCEINLINE bool operator==(const FBookfaceProfileStructure& Other) const
     {
         return UserId.Equals(Other.UserId);
@@ -91,6 +96,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, Us
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAcceptFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnBookfaceMessageAdded, const FString&, TargetUserId, const FString&, FromUserId, UBookfaceMessageObject*, Message);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
@@ -150,7 +156,10 @@ public:
     void LoadBookfaceDataAsync();
 
     UFUNCTION(BlueprintCallable)
-	bool HasLoadedSave() const { return bHasLoadedSave; }
+    bool HasLoadedSave() const { return bHasLoadedSave; }
+
+    UFUNCTION(BlueprintCallable)
+    UBookfaceMessageObject* AddMessageToProfile(const FString& TargetUserId, const FString& FromUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage = nullptr);
 
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
@@ -167,6 +176,10 @@ public:
 
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnAcceptFriendRequest OnAcceptFriendRequest;
+
+    UPROPERTY(BlueprintAssignable, BlueprintCallable)
+    FOnBookfaceMessageAdded OnMessageAdded;
+
 
 private:
     UPROPERTY()

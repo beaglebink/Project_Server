@@ -346,8 +346,38 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
                 })
         );
     }
+}
+
+UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& TargetUserId, const FString& FromUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage)
+{
+    FBookfaceProfileStructure* TargetProfile = UserProfiles.FindByPredicate([&](const FBookfaceProfileStructure& Profile)
+        {
+            return Profile.UserId == TargetUserId;
+        });
+
+    if (!TargetProfile)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Профиль %s не найден"), *TargetUserId);
+        return nullptr;
+    }
+
+    UBookfaceMessageObject* NewMessage = NewObject<UBookfaceMessageObject>(this);
+    NewMessage->FromUserId = FromUserId;
+    NewMessage->ToUserId = TargetUserId;
+    NewMessage->MessageContent = MessageText;
+    NewMessage->Timestamp = FDateTime::UtcNow();
+    NewMessage->ParentMessage = ParentMessage;
+
+    if (ParentMessage)
+    {
+        ParentMessage->ReplyMessages.Add(NewMessage);
+    }
     else
     {
-        //SaveBookfaceDataAsync(); // создаём пустое сохранение
+        TargetProfile->UserMessages.Add(NewMessage);
     }
+
+    OnMessageAdded.Broadcast(TargetUserId, FromUserId, NewMessage);
+
+    return NewMessage;
 }
