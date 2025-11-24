@@ -1605,7 +1605,7 @@ protected:
 	uint8 bAlphabetCoatIsOn : 1{false};
 
 	float AlphabetCoatAccuracyMultiplier = 1.0f;
-	
+
 	float AlphabetCoatRecoilMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
@@ -1629,7 +1629,18 @@ protected:
 	float ByteVest_ReduceDamage_20(AController* DamageInstigator, float DamageAmount);
 
 	// JanitorOveralls
+public:
+	uint8 bJanitorOverallsIsOn : 1{false};
+
 protected:
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float JanitorOverallsSuctionMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float JanitorOveralls_IncreaseDamageBy_12_5(float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float JanitorOveralls_DecreaseClogChanceBy_25(float ClogAmount);
 
 	// WasherOveralls
 protected:

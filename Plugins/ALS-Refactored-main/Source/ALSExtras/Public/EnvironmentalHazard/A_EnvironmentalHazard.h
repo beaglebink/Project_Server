@@ -40,7 +40,10 @@ public:
 	UMaterialInstanceDynamic* MeshDynamicMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "0", ClampMax = "9"))
-	int32 DamageCaused = 0;
+	float DamageCaused = 0;
+
+protected:
+	float DamageMultiplier = 1.0f;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = "true", ClampMin = "0", ClampMax = "15"))

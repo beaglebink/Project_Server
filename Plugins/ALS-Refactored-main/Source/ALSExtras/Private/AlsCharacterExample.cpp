@@ -1840,19 +1840,20 @@ void AAlsCharacterExample::ByteVest_Effect(bool Apply)
 	if (Apply)
 	{
 		ByteVestAccuracyMultiplier = 0.9f;
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ByteVest"));
 	}
 	else
 	{
 		ByteVestPrevDamageAmount = 0.0f;
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ByteVest"));
 	}
 }
 
 void AAlsCharacterExample::JanitorOveralls_Effect(bool Apply)
 {
+	bJanitorOverallsIsOn = Apply;
+	JanitorOverallsSuctionMultiplier = 1.0f;
 	if (Apply)
 	{
+		JanitorOverallsSuctionMultiplier = 1.2f;
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
 	}
 	else

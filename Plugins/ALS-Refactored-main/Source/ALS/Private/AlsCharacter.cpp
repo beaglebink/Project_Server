@@ -3474,4 +3474,34 @@ float AAlsCharacter::ByteVest_ReduceDamage_20(AController* DamageInstigator, flo
 	}
 	return DamageAmount;
 }
+
 // JanitorOveralls
+float AAlsCharacter::JanitorOveralls_IncreaseDamageBy_12_5(float DamageAmount)
+{
+	if (!bJanitorOverallsIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+	{
+		DamageAmount *= 1.125f;
+	}
+
+	return DamageAmount;
+}
+
+float AAlsCharacter::JanitorOveralls_DecreaseClogChanceBy_25(float ClogAmount)
+{
+	if (!bJanitorOverallsIsOn)
+	{
+		return ClogAmount;
+	}
+
+	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+	{
+		ClogAmount *= 0.75f;
+	}
+
+	return ClogAmount;
+}

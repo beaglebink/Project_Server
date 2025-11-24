@@ -67,7 +67,7 @@ void AA_BinaryCube::OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 
 	if (bBinary)
 	{
-		UGameplayStatics::ApplyDamage(OtherActor, DamageCaused, OtherActor->GetInstigatorController(), this, nullptr);
+		UGameplayStatics::ApplyDamage(OtherActor, DamageCaused * DamageMultiplier, OtherActor->GetInstigatorController(), this, nullptr);
 	}
 
 	if (AA_BinaryCube* HitCube = Cast< AA_BinaryCube>(OtherActor))
