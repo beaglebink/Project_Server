@@ -3056,7 +3056,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 		}
 	}
 
-	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier;
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3366,8 +3366,9 @@ void AAlsCharacter::GetDamageFromPlayer(AController* DamageInstigator)
 }
 
 //Clothes effects *******************************************************************
-	// AlphabetCoat
-float AAlsCharacter::RedirectDamageFromHealthToStamina_15(AController* DamageInstigator, float DamageAmount)
+
+// AlphabetCoat
+float AAlsCharacter::AlphabetCoat_RedirectDamageFromHealthToStamina_15(AController* DamageInstigator, float DamageAmount)
 {
 	if (DamageInstigator)
 	{
@@ -3382,11 +3383,11 @@ float AAlsCharacter::RedirectDamageFromHealthToStamina_15(AController* DamageIns
 				{
 					if (bAlphabetCoatIsOn)
 					{
-						float AvoidChance = 25.0f;
-						if (FMath::FRandRange(0.0f, 100.0f) < AvoidChance)
-						{
-							//Enemy->ActiveEffect = false;
-						}
+						//float AvoidChance = 25.0f;
+						//if (FMath::FRandRange(0.0f, 100.0f) < AvoidChance)
+						//{
+						//	Enemy->ActiveEffect = false;
+						//}
 						float StaminaDecreaseAmount = DamageAmount * 0.15f;
 						DamageAmount -= StaminaDecreaseAmount;
 						SetStamina(GetStamina() - StaminaDecreaseAmount);
@@ -3398,7 +3399,7 @@ float AAlsCharacter::RedirectDamageFromHealthToStamina_15(AController* DamageIns
 	return DamageAmount;
 }
 
-float AAlsCharacter::IncreaseDamageBy_20(AController* DamageInstigator, float Damage)
+float AAlsCharacter::AlphabetCoat_IncreaseDamageBy_20(AController* DamageInstigator, float DamageAmount)
 {
 	if (DamageInstigator)
 	{
@@ -3410,16 +3411,15 @@ float AAlsCharacter::IncreaseDamageBy_20(AController* DamageInstigator, float Da
 					LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Ink) > 0 ||
 					LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
 			{
-				Damage *= 1.2f;
+				DamageAmount *= 1.2f;
 			}
 		}
 	}
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("Damage after AlphabetCoat effect: %f"), Damage));
-	return Damage;
+	return DamageAmount;
 }
 
-void AAlsCharacter::CheckAlphabetCoatAccuracyAndRecoil_25()
+void AAlsCharacter::AlphabetCoat_CheckAccuracyAndRecoil_25()
 {
 	AlphabetCoatAccuracyMultiplier = 1.0f;
 	AlphabetCoatRecoilMultiplier = 1.0f;
@@ -3438,6 +3438,40 @@ void AAlsCharacter::CheckAlphabetCoatAccuracyAndRecoil_25()
 	}
 	RefreshAimAccuracy();
 	RefreshRecoil();
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("Accuracy after AlphabetCoat effect: %f"), AimAccuracyMultiplier));
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("Recoil after AlphabetCoat effect: %f"), RecoilMultiplier));
 }
+
+// ByteVest
+float AAlsCharacter::ByteVest_ReduceDamage_20(AController* DamageInstigator, float DamageAmount)
+{
+	if (!bByteVestIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (DamageInstigator)
+	{
+		if (ByteVestPrevDamageAmount == DamageAmount)
+		{
+			DamageAmount = 0.0f;
+			ByteVestPrevDamageAmount = 0.0f;
+		}
+		else
+		{
+			ByteVestPrevDamageAmount = DamageAmount;
+		}
+
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.RoboGreen"))) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Unicode"))))
+			{
+				if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+				{
+					DamageAmount *= 0.8f;
+				}
+			}
+		}
+	}
+	return DamageAmount;
+}
+// JanitorOveralls

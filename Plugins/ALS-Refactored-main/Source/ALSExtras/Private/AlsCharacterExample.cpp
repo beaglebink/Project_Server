@@ -1823,35 +1823,39 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 void AAlsCharacterExample::AlphabetCoat_Effect(bool Apply)
 {
 	bAlphabetCoatIsOn = Apply;
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AlphabetCoat"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AlphabetCoat"));
-	}
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AlphabetCoat"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AlphabetCoat"));
+	//}
 }
 
 void AAlsCharacterExample::ByteVest_Effect(bool Apply)
 {
+	bByteVestIsOn = Apply;
+	ByteVestAccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
+		ByteVestAccuracyMultiplier = 0.9f;
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ByteVest"));
 	}
 	else
 	{
+		ByteVestPrevDamageAmount = 0.0f;
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ByteVest"));
 	}
 }
 
 void AAlsCharacterExample::JanitorOveralls_Effect(bool Apply)
 {
-	if (Apply) 
+	if (Apply)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
 	}
-	else 
+	else
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove JanitorOveralls"));
 	}

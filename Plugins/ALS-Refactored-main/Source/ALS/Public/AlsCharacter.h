@@ -1609,16 +1609,24 @@ protected:
 	float AlphabetCoatRecoilMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
-	float RedirectDamageFromHealthToStamina_15(AController* DamageInstigator, float DamageAmount);
+	float AlphabetCoat_RedirectDamageFromHealthToStamina_15(AController* DamageInstigator, float DamageAmount);
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
-	float IncreaseDamageBy_20(AController* DamageInstigator, float Damage);
+	float AlphabetCoat_IncreaseDamageBy_20(AController* DamageInstigator, float DamageAmount);
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
-	void CheckAlphabetCoatAccuracyAndRecoil_25();
+	void AlphabetCoat_CheckAccuracyAndRecoil_25();
 
 	// ByteVest
 protected:
+	uint8 bByteVestIsOn : 1{false};
+
+	float ByteVestAccuracyMultiplier = 1.0f;
+
+	float ByteVestPrevDamageAmount = 0.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float ByteVest_ReduceDamage_20(AController* DamageInstigator, float DamageAmount);
 
 	// JanitorOveralls
 protected:
