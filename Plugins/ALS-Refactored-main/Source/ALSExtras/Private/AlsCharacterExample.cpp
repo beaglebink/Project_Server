@@ -1867,7 +1867,7 @@ void AAlsCharacterExample::WasherOveralls_Effect(bool Apply)
 	bWasherOverallsIsOn = Apply;
 
 	WasherOveralls_CheckIfShouldIncreaseStamina();
-	
+
 	//if (Apply)
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WasherOveralls"));
@@ -1880,13 +1880,27 @@ void AAlsCharacterExample::WasherOveralls_Effect(bool Apply)
 
 void AAlsCharacterExample::CalculatorGoggles_Effect(bool Apply)
 {
+	bCalculatorGogglesIsOn = Apply;
+	CalculatorGogglesAccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CalculatorGoggles"));
+		CalculatorGogglesAccuracyMultiplier = 0.9f;
+
+		bIsImmuneToIntegerAndUnicodeEffects = true;
+		if (!GetWorldTimerManager().IsTimerActive(ImmuneToIntegerAndUnicodeEffectsTimerHandle))
+		{
+			GetWorldTimerManager().SetTimer(ImmuneToIntegerAndUnicodeEffectsTimerHandle, [&]()
+				{
+					bIsImmuneToIntegerAndUnicodeEffects = false;
+				}, 40.0f, false);
+		}
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CalculatorGoggles"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CalculatorGoggles"));
+		bIsImmuneToIntegerAndUnicodeEffects = false;
+		GetWorldTimerManager().ClearTimer(ImmuneToIntegerAndUnicodeEffectsTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CalculatorGoggles"));
 	}
 }
 

@@ -358,6 +358,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CheckIfShouldDecreaseWalkRunSpeedAnDamage();
 
 	IncreaseHealth_30_20c();
+
+	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Green,FString::Printf(TEXT("ACCURACY: %f"), AimAccuracyMultiplier));
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -3061,7 +3063,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 		}
 	}
 
-	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier;
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3398,6 +3400,7 @@ float AAlsCharacter::AlphabetCoat_RedirectDamageFromHealthToStamina_15(AControll
 			}
 		}
 	}
+
 	return DamageAmount;
 }
 
@@ -3435,9 +3438,6 @@ void AAlsCharacter::AlphabetCoat_CheckAccuracyAndRecoil_25()
 		AlphabetCoatAccuracyMultiplier = 0.75f;
 		AlphabetCoatRecoilMultiplier = 0.75f;
 	}
-
-	RefreshAimAccuracy();
-	RefreshRecoil();
 }
 
 // ByteVest
@@ -3472,6 +3472,7 @@ float AAlsCharacter::ByteVest_ReduceDamage_20(AController* DamageInstigator, flo
 			}
 		}
 	}
+
 	return DamageAmount;
 }
 
@@ -3573,4 +3574,23 @@ void AAlsCharacter::WasherOveralls_CheckIfShouldIncreaseStamina()
 			SetMaxStamina(GetMaxStamina() / 1.2f);
 		}
 	}
+}
+
+// CalculatorGoggles
+float AAlsCharacter::CalculatorGoggles_DecreaseDamageBy_20(AController* DamageInstigator, float DamageAmount)
+{
+	if (!bCalculatorGogglesIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Integer"))))
+		{
+			DamageAmount *= 0.8f;
+		}
+	}
+
+	return DamageAmount;
 }

@@ -1664,7 +1664,18 @@ protected:
 	void WasherOveralls_CheckIfShouldIncreaseStamina();
 
 	// CalculatorGoggles
+public:
+	uint8 bCalculatorGogglesIsOn : 1{false};
+
 protected:
+	uint8 bIsImmuneToIntegerAndUnicodeEffects : 1{false};
+
+	FTimerHandle ImmuneToIntegerAndUnicodeEffectsTimerHandle;
+
+	float CalculatorGogglesAccuracyMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float CalculatorGoggles_DecreaseDamageBy_20(AController* DamageInstigator, float DamageAmount);
 
 	// GladiatorOutfit
 protected:
