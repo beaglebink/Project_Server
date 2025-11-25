@@ -26,7 +26,7 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UInteractiveItemComponent* InteractiveComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property", meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (AllowPrivateAccess = true))
 	uint8 bBinary : 1{false};
 
 	uint8 bGrabOrDrop : 1{true};

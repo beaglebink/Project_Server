@@ -1854,46 +1854,67 @@ void AAlsCharacterExample::JanitorOveralls_Effect(bool Apply)
 	if (Apply)
 	{
 		JanitorOverallsSuctionMultiplier = 1.2f;
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove JanitorOveralls"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove JanitorOveralls"));
+	//}
 }
 
 void AAlsCharacterExample::WasherOveralls_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WasherOveralls"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove WasherOveralls"));
-	}
+	bWasherOverallsIsOn = Apply;
+
+	WasherOveralls_CheckIfShouldIncreaseStamina();
+
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WasherOveralls"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove WasherOveralls"));
+	//}
 }
 
 void AAlsCharacterExample::CalculatorGoggles_Effect(bool Apply)
 {
+	bCalculatorGogglesIsOn = Apply;
+	CalculatorGogglesAccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CalculatorGoggles"));
+		CalculatorGogglesAccuracyMultiplier = 0.9f;
+
+		bIsImmuneToIntegerAndUnicodeEffects = true;
+		if (!GetWorldTimerManager().IsTimerActive(ImmuneToIntegerAndUnicodeEffectsTimerHandle))
+		{
+			GetWorldTimerManager().SetTimer(ImmuneToIntegerAndUnicodeEffectsTimerHandle, [&]()
+				{
+					bIsImmuneToIntegerAndUnicodeEffects = false;
+				}, 40.0f, false);
+		}
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CalculatorGoggles"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CalculatorGoggles"));
+		bIsImmuneToIntegerAndUnicodeEffects = false;
+		GetWorldTimerManager().ClearTimer(ImmuneToIntegerAndUnicodeEffectsTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CalculatorGoggles"));
 	}
 }
 
 void AAlsCharacterExample::GladiatorOutfit_Effect(bool Apply)
 {
+	bGladiatorOutfitIsOn = Apply;
 	if (Apply)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GladiatorOutfit"));
 	}
 	else
 	{
+		GetWorldTimerManager().ClearTimer(GladiatorOutfitSpeedTimerHandle);
+		GladiatorOutfitSpeedMultiplier = 1.0f;
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GladiatorOutfit"));
 	}
 }

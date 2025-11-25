@@ -1,6 +1,7 @@
 #include "EnvironmentalHazard/A_HazardCube.h"
 #include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "AlsCharacterExample.h"
 
 AA_HazardCube::AA_HazardCube()
 {
@@ -64,6 +65,15 @@ void AA_HazardCube::OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 	}
 
 	Super::OnMeshHit(HitComp, OtherActor, OtherComp, NormalImpulse, HitResult);
+
+	if (AAlsCharacterExample* Player = Cast<AAlsCharacterExample>(OtherActor))
+	{
+		DamageMultiplier = 1.0f;
+		if (Player->bCalculatorGogglesIsOn)
+		{
+			DamageMultiplier = 0.5f;
+		}
+	}
 
 	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused * DamageMultiplier, OtherActor->GetInstigatorController(), this, nullptr);
 }

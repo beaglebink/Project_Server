@@ -22,6 +22,7 @@
 #include "UI/BlindnessWidget.h"
 #include "Animation/WidgetAnimation.h"
 #include "A_EnemyManager.h"
+#include "GameFramework/DamageType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacter)
 
@@ -1993,6 +1994,11 @@ float AAlsCharacter::GetArmour()
 	return Armour;
 }
 
+FName AAlsCharacter::GetWeaponName_Implementation()
+{
+	return FName("None");
+}
+
 void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 {
 	MaxHealth = NewMaxHealth;
@@ -2177,7 +2183,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
-		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40;
+		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3056,7 +3062,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 		}
 	}
 
-	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier;
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3379,23 +3385,21 @@ float AAlsCharacter::AlphabetCoat_RedirectDamageFromHealthToStamina_15(AControll
 				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Unicode"))) ||
 				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Ink"))))
 			{
-				if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+				if (bAlphabetCoatIsOn)
 				{
-					if (bAlphabetCoatIsOn)
-					{
-						//float AvoidChance = 25.0f;
-						//if (FMath::FRandRange(0.0f, 100.0f) < AvoidChance)
-						//{
-						//	Enemy->ActiveEffect = false;
-						//}
-						float StaminaDecreaseAmount = DamageAmount * 0.15f;
-						DamageAmount -= StaminaDecreaseAmount;
-						SetStamina(GetStamina() - StaminaDecreaseAmount);
-					}
+					//float AvoidChance = 25.0f;
+					//if (FMath::FRandRange(0.0f, 100.0f) < AvoidChance)
+					//{
+					//	Enemy->ActiveEffect = false;
+					//}
+					float StaminaDecreaseAmount = DamageAmount * 0.15f;
+					DamageAmount -= StaminaDecreaseAmount;
+					SetStamina(GetStamina() - StaminaDecreaseAmount);
 				}
 			}
 		}
 	}
+
 	return DamageAmount;
 }
 
@@ -3424,20 +3428,15 @@ void AAlsCharacter::AlphabetCoat_CheckAccuracyAndRecoil_25()
 	AlphabetCoatAccuracyMultiplier = 1.0f;
 	AlphabetCoatRecoilMultiplier = 1.0f;
 
-	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+	if (bAlphabetCoatIsOn &&
+		(LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Hex) > 0 ||
+			LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Unicode) > 0 ||
+			LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Ink) > 0 ||
+			LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
 	{
-		if (bAlphabetCoatIsOn &&
-			(LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Hex) > 0 ||
-				LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Unicode) > 0 ||
-				LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Ink) > 0 ||
-				LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
-		{
-			AlphabetCoatAccuracyMultiplier = 0.75f;
-			AlphabetCoatRecoilMultiplier = 0.75f;
-		}
+		AlphabetCoatAccuracyMultiplier = 0.75f;
+		AlphabetCoatRecoilMultiplier = 0.75f;
 	}
-	RefreshAimAccuracy();
-	RefreshRecoil();
 }
 
 // ByteVest
@@ -3472,6 +3471,7 @@ float AAlsCharacter::ByteVest_ReduceDamage_20(AController* DamageInstigator, flo
 			}
 		}
 	}
+
 	return DamageAmount;
 }
 
@@ -3483,10 +3483,7 @@ float AAlsCharacter::JanitorOveralls_IncreaseDamageBy_12_5(float DamageAmount)
 		return DamageAmount;
 	}
 
-	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
-	{
-		DamageAmount *= 1.125f;
-	}
+	DamageAmount *= 1.125f;
 
 	return DamageAmount;
 }
@@ -3498,10 +3495,132 @@ float AAlsCharacter::JanitorOveralls_DecreaseClogChanceBy_25(float ClogAmount)
 		return ClogAmount;
 	}
 
-	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
-	{
-		ClogAmount *= 0.75f;
-	}
+	ClogAmount *= 0.75f;
 
 	return ClogAmount;
+}
+
+// WasherOveralls
+float AAlsCharacter::WasherOveralls_IncreaseDamageBy_25(float DamageAmount)
+{
+	if (!bWasherOverallsIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+	{
+		DamageAmount *= 1.25f;
+	}
+
+	return DamageAmount;
+}
+
+float AAlsCharacter::WasherOveralls_IncreaseDamageBy_10_5(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bWasherOverallsIsOn)
+		{
+			if (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Gooey"))) ||
+				EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Ink"))) ||
+				EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Slimy"))))
+			{
+				DamageAmount *= 1.105f;
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+float AAlsCharacter::WasherOveralls_DecreaseDamageBy_12_5(AController* DamageInstigator, float DamageAmount)
+{
+	if (!bWasherOverallsIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Gooey"))) ||
+			Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Ink"))) ||
+			Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Slimy"))))
+		{
+			DamageAmount *= 0.875f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::WasherOveralls_CheckIfShouldIncreaseStamina()
+{
+	if (bWasherOverallsIsOn && GetWeaponName() == "Overwriter gun")
+	{
+		if (!bWasherOverallsIsOn_ShouldIncreaseStamina)
+		{
+			bWasherOverallsIsOn_ShouldIncreaseStamina = true;
+			SetMaxStamina(GetMaxStamina() * 1.2f);
+		}
+	}
+	else
+	{
+		if (bWasherOverallsIsOn_ShouldIncreaseStamina)
+		{
+			bWasherOverallsIsOn_ShouldIncreaseStamina = false;
+			SetMaxStamina(GetMaxStamina() / 1.2f);
+		}
+	}
+}
+
+// CalculatorGoggles
+float AAlsCharacter::CalculatorGoggles_DecreaseDamageBy_20(AController* DamageInstigator, float DamageAmount)
+{
+	if (!bCalculatorGogglesIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Integer"))))
+		{
+			DamageAmount *= 0.8f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+// GladiatorOutfit
+float AAlsCharacter::GladiatorOutfit_DecreaseEnemyMeleeDamageBy_15(FText DamageType, float DamageAmount)
+{
+	if (!bGladiatorOutfitIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (DamageType.ToString() == "Melee")
+	{
+		DamageAmount *= 0.85f;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::GladiatorOutfit_SpeedIncreaseBy_20()
+{
+	if (!bGladiatorOutfitIsOn)
+	{
+		return;
+	}
+
+	GladiatorOutfitSpeedMultiplier = 1.2f;
+	GetWorldTimerManager().ClearTimer(GladiatorOutfitSpeedTimerHandle);
+	GetWorldTimerManager().SetTimer(GladiatorOutfitSpeedTimerHandle, [this]()
+		{
+			GladiatorOutfitSpeedMultiplier = 1.0f;
+		}, 10.0f, false);
 }

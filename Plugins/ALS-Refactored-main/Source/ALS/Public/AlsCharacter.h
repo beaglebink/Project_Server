@@ -793,6 +793,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetArmour();
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Weapon")
+	FName GetWeaponName();
+
 	//setters
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetMaxHealth(float NewMaxHealth);
@@ -1644,12 +1647,49 @@ protected:
 
 	// WasherOveralls
 protected:
+	uint8 bWasherOverallsIsOn : 1{false};
+
+	uint8 bWasherOverallsIsOn_ShouldIncreaseStamina : 1{false};
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float WasherOveralls_IncreaseDamageBy_25(float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float WasherOveralls_IncreaseDamageBy_10_5(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float WasherOveralls_DecreaseDamageBy_12_5(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void WasherOveralls_CheckIfShouldIncreaseStamina();
 
 	// CalculatorGoggles
+public:
+	uint8 bCalculatorGogglesIsOn : 1{false};
+
 protected:
+	uint8 bIsImmuneToIntegerAndUnicodeEffects : 1{false};
+
+	FTimerHandle ImmuneToIntegerAndUnicodeEffectsTimerHandle;
+
+	float CalculatorGogglesAccuracyMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float CalculatorGoggles_DecreaseDamageBy_20(AController* DamageInstigator, float DamageAmount);
 
 	// GladiatorOutfit
 protected:
+	uint8 bGladiatorOutfitIsOn : 1{false};
+
+	float GladiatorOutfitSpeedMultiplier = 1.0f;
+
+	FTimerHandle GladiatorOutfitSpeedTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float GladiatorOutfit_DecreaseEnemyMeleeDamageBy_15(FText DamageType, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void GladiatorOutfit_SpeedIncreaseBy_20();
 
 	// PorcupineCoat
 protected:
