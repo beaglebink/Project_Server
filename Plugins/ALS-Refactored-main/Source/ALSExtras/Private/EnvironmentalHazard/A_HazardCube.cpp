@@ -17,7 +17,7 @@ void AA_HazardCube::OnConstruction(const FTransform& Transform)
 	}
 	if (MeshDynamicMaterial)
 	{
-		MeshDynamicMaterial->SetScalarParameterValue("Index", DamageCaused);
+		MeshDynamicMaterial->SetScalarParameterValue("Index", static_cast<int32>(DamageCaused));
 	}
 }
 
@@ -39,17 +39,21 @@ void AA_HazardCube::HandleWeaponShot_Implementation(FHitResult& Hit)
 	}
 
 	AudioComp->Play();
-	--DamageCaused;
 
-	if (DamageCaused >= 0)
+	int32 DamageCausedLocal = static_cast<int32>(DamageCaused);
+	--DamageCausedLocal;
+
+	if (DamageCausedLocal >= 0)
 	{
-		MeshDynamicMaterial->SetScalarParameterValue("Index", DamageCaused);
+		MeshDynamicMaterial->SetScalarParameterValue("Index", DamageCausedLocal);
 	}
 
-	if (DamageCaused == 0)
+	if (DamageCausedLocal == 0)
 	{
 		OnDeath();
 	}
+
+	DamageCaused = DamageCausedLocal;
 }
 
 void AA_HazardCube::OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& HitResult)
@@ -61,5 +65,5 @@ void AA_HazardCube::OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 
 	Super::OnMeshHit(HitComp, OtherActor, OtherComp, NormalImpulse, HitResult);
 
-	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused, OtherActor->GetInstigatorController(), this, nullptr);
+	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused * DamageMultiplier, OtherActor->GetInstigatorController(), this, nullptr);
 }

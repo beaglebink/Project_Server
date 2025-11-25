@@ -1,5 +1,6 @@
 #include "EnvironmentalHazard/A_EnvironmentalHazard.h"
 #include "Components/AudioComponent.h"
+#include "AlsCharacterExample.h"
 
 AA_EnvironmentalHazard::AA_EnvironmentalHazard()
 {
@@ -80,6 +81,15 @@ void AA_EnvironmentalHazard::OnMeshHit(UPrimitiveComponent* HitComp, AActor* Oth
 		{
 			bCanBeHit = true;
 		}, 1.0f, false);
+
+	if (AAlsCharacterExample* Player = Cast<AAlsCharacterExample>(OtherActor))
+	{
+		DamageMultiplier = 1.0f;
+		if (Player->bJanitorOverallsIsOn)
+		{
+			DamageMultiplier = 0.5f;
+		}
+	}
 }
 
 void AA_EnvironmentalHazard::FloatingWave()

@@ -52,5 +52,5 @@ void AA_OrderCube::OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, U
 
 	Super::OnMeshHit(HitComp, OtherActor, OtherComp, NormalImpulse, HitResult);
 
-	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused, OtherActor->GetInstigatorController(), this, nullptr);
+	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused * DamageMultiplier, OtherActor->GetInstigatorController(), this, nullptr);
 }

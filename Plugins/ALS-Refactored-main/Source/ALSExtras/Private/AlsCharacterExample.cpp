@@ -1823,35 +1823,40 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 void AAlsCharacterExample::AlphabetCoat_Effect(bool Apply)
 {
 	bAlphabetCoatIsOn = Apply;
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AlphabetCoat"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AlphabetCoat"));
-	}
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AlphabetCoat"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AlphabetCoat"));
+	//}
 }
 
 void AAlsCharacterExample::ByteVest_Effect(bool Apply)
 {
+	bByteVestIsOn = Apply;
+	ByteVestAccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ByteVest"));
+		ByteVestAccuracyMultiplier = 0.9f;
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ByteVest"));
+		ByteVestPrevDamageAmount = 0.0f;
 	}
 }
 
 void AAlsCharacterExample::JanitorOveralls_Effect(bool Apply)
 {
-	if (Apply) 
+	bJanitorOverallsIsOn = Apply;
+	JanitorOverallsSuctionMultiplier = 1.0f;
+	if (Apply)
 	{
+		JanitorOverallsSuctionMultiplier = 1.2f;
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
 	}
-	else 
+	else
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove JanitorOveralls"));
 	}
