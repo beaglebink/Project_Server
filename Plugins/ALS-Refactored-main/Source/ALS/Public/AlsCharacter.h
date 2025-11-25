@@ -1679,6 +1679,17 @@ protected:
 
 	// GladiatorOutfit
 protected:
+	uint8 bGladiatorOutfitIsOn : 1{false};
+
+	float GladiatorOutfitSpeedMultiplier = 1.0f;
+
+	FTimerHandle GladiatorOutfitSpeedTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float GladiatorOutfit_DecreaseEnemyMeleeDamageBy_15(FText DamageType, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void GladiatorOutfit_SpeedIncreaseBy_20();
 
 	// PorcupineCoat
 protected:

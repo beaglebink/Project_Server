@@ -1906,12 +1906,15 @@ void AAlsCharacterExample::CalculatorGoggles_Effect(bool Apply)
 
 void AAlsCharacterExample::GladiatorOutfit_Effect(bool Apply)
 {
+	bGladiatorOutfitIsOn = Apply;
 	if (Apply)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GladiatorOutfit"));
 	}
 	else
 	{
+		GetWorldTimerManager().ClearTimer(GladiatorOutfitSpeedTimerHandle);
+		GladiatorOutfitSpeedMultiplier = 1.0f;
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GladiatorOutfit"));
 	}
 }

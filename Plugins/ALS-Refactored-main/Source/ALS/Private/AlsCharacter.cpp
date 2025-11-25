@@ -22,6 +22,7 @@
 #include "UI/BlindnessWidget.h"
 #include "Animation/WidgetAnimation.h"
 #include "A_EnemyManager.h"
+#include "GameFramework/DamageType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacter)
 
@@ -358,8 +359,6 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CheckIfShouldDecreaseWalkRunSpeedAnDamage();
 
 	IncreaseHealth_30_20c();
-
-	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Green,FString::Printf(TEXT("ACCURACY: %f"), AimAccuracyMultiplier));
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2184,7 +2183,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
-		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40;
+		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3593,4 +3592,35 @@ float AAlsCharacter::CalculatorGoggles_DecreaseDamageBy_20(AController* DamageIn
 	}
 
 	return DamageAmount;
+}
+
+// GladiatorOutfit
+float AAlsCharacter::GladiatorOutfit_DecreaseEnemyMeleeDamageBy_15(FText DamageType, float DamageAmount)
+{
+	if (!bGladiatorOutfitIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (DamageType.ToString() == "Melee")
+	{
+		DamageAmount *= 0.85f;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::GladiatorOutfit_SpeedIncreaseBy_20()
+{
+	if (!bGladiatorOutfitIsOn)
+	{
+		return;
+	}
+
+	GladiatorOutfitSpeedMultiplier = 1.2f;
+	GetWorldTimerManager().ClearTimer(GladiatorOutfitSpeedTimerHandle);
+	GetWorldTimerManager().SetTimer(GladiatorOutfitSpeedTimerHandle, [this]()
+		{
+			GladiatorOutfitSpeedMultiplier = 1.0f;
+		}, 10.0f, false);
 }
