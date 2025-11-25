@@ -793,6 +793,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attributes")
 	float GetArmour();
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Weapon")
+	FName GetWeaponName();
+
 	//setters
 	UFUNCTION(BlueprintCallable, Category = "Attributes")
 	void SetMaxHealth(float NewMaxHealth);
@@ -1644,6 +1647,21 @@ protected:
 
 	// WasherOveralls
 protected:
+	uint8 bWasherOverallsIsOn : 1{false};
+
+	uint8 bWasherOverallsIsOn_ShouldIncreaseStamina : 1{false};
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float WasherOveralls_IncreaseDamageBy_25(float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float WasherOveralls_IncreaseDamageBy_10_5(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float WasherOveralls_DecreaseDamageBy_12_5(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void WasherOveralls_CheckIfShouldIncreaseStamina();
 
 	// CalculatorGoggles
 protected:

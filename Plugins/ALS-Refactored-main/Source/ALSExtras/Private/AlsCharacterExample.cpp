@@ -1854,24 +1854,28 @@ void AAlsCharacterExample::JanitorOveralls_Effect(bool Apply)
 	if (Apply)
 	{
 		JanitorOverallsSuctionMultiplier = 1.2f;
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove JanitorOveralls"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove JanitorOveralls"));
+	//}
 }
 
 void AAlsCharacterExample::WasherOveralls_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WasherOveralls"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove WasherOveralls"));
-	}
+	bWasherOverallsIsOn = Apply;
+
+	WasherOveralls_CheckIfShouldIncreaseStamina();
+	
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WasherOveralls"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove WasherOveralls"));
+	//}
 }
 
 void AAlsCharacterExample::CalculatorGoggles_Effect(bool Apply)

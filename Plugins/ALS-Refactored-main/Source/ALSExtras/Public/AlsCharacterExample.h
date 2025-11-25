@@ -52,7 +52,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintAssignable)
 	FOnNetParalyse OnNetParalyse;
-
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> LookMouseAction;

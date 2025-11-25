@@ -1993,6 +1993,11 @@ float AAlsCharacter::GetArmour()
 	return Armour;
 }
 
+FName AAlsCharacter::GetWeaponName_Implementation()
+{
+	return FName("None");
+}
+
 void AAlsCharacter::SetMaxHealth(float NewMaxHealth)
 {
 	MaxHealth = NewMaxHealth;
@@ -3379,19 +3384,16 @@ float AAlsCharacter::AlphabetCoat_RedirectDamageFromHealthToStamina_15(AControll
 				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Unicode"))) ||
 				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Ink"))))
 			{
-				if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+				if (bAlphabetCoatIsOn)
 				{
-					if (bAlphabetCoatIsOn)
-					{
-						//float AvoidChance = 25.0f;
-						//if (FMath::FRandRange(0.0f, 100.0f) < AvoidChance)
-						//{
-						//	Enemy->ActiveEffect = false;
-						//}
-						float StaminaDecreaseAmount = DamageAmount * 0.15f;
-						DamageAmount -= StaminaDecreaseAmount;
-						SetStamina(GetStamina() - StaminaDecreaseAmount);
-					}
+					//float AvoidChance = 25.0f;
+					//if (FMath::FRandRange(0.0f, 100.0f) < AvoidChance)
+					//{
+					//	Enemy->ActiveEffect = false;
+					//}
+					float StaminaDecreaseAmount = DamageAmount * 0.15f;
+					DamageAmount -= StaminaDecreaseAmount;
+					SetStamina(GetStamina() - StaminaDecreaseAmount);
 				}
 			}
 		}
@@ -3424,18 +3426,16 @@ void AAlsCharacter::AlphabetCoat_CheckAccuracyAndRecoil_25()
 	AlphabetCoatAccuracyMultiplier = 1.0f;
 	AlphabetCoatRecoilMultiplier = 1.0f;
 
-	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+	if (bAlphabetCoatIsOn &&
+		(LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Hex) > 0 ||
+			LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Unicode) > 0 ||
+			LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Ink) > 0 ||
+			LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
 	{
-		if (bAlphabetCoatIsOn &&
-			(LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Hex) > 0 ||
-				LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Unicode) > 0 ||
-				LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Ink) > 0 ||
-				LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
-		{
-			AlphabetCoatAccuracyMultiplier = 0.75f;
-			AlphabetCoatRecoilMultiplier = 0.75f;
-		}
+		AlphabetCoatAccuracyMultiplier = 0.75f;
+		AlphabetCoatRecoilMultiplier = 0.75f;
 	}
+
 	RefreshAimAccuracy();
 	RefreshRecoil();
 }
@@ -3483,10 +3483,7 @@ float AAlsCharacter::JanitorOveralls_IncreaseDamageBy_12_5(float DamageAmount)
 		return DamageAmount;
 	}
 
-	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
-	{
-		DamageAmount *= 1.125f;
-	}
+	DamageAmount *= 1.125f;
 
 	return DamageAmount;
 }
@@ -3498,10 +3495,82 @@ float AAlsCharacter::JanitorOveralls_DecreaseClogChanceBy_25(float ClogAmount)
 		return ClogAmount;
 	}
 
-	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
-	{
-		ClogAmount *= 0.75f;
-	}
+	ClogAmount *= 0.75f;
 
 	return ClogAmount;
+}
+
+// WasherOveralls
+float AAlsCharacter::WasherOveralls_IncreaseDamageBy_25(float DamageAmount)
+{
+	if (!bWasherOverallsIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (this == UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
+	{
+		DamageAmount *= 1.25f;
+	}
+
+	return DamageAmount;
+}
+
+float AAlsCharacter::WasherOveralls_IncreaseDamageBy_10_5(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bWasherOverallsIsOn)
+		{
+			if (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Gooey"))) ||
+				EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Ink"))) ||
+				EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Slimy"))))
+			{
+				DamageAmount *= 1.105f;
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+float AAlsCharacter::WasherOveralls_DecreaseDamageBy_12_5(AController* DamageInstigator, float DamageAmount)
+{
+	if (!bWasherOverallsIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Gooey"))) ||
+			Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Ink"))) ||
+			Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.Slimy"))))
+		{
+			DamageAmount *= 0.875f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::WasherOveralls_CheckIfShouldIncreaseStamina()
+{
+	if (bWasherOverallsIsOn && GetWeaponName() == "Overwriter gun")
+	{
+		if (!bWasherOverallsIsOn_ShouldIncreaseStamina)
+		{
+			bWasherOverallsIsOn_ShouldIncreaseStamina = true;
+			SetMaxStamina(GetMaxStamina() * 1.2f);
+		}
+	}
+	else
+	{
+		if (bWasherOverallsIsOn_ShouldIncreaseStamina)
+		{
+			bWasherOverallsIsOn_ShouldIncreaseStamina = false;
+			SetMaxStamina(GetMaxStamina() / 1.2f);
+		}
+	}
 }
