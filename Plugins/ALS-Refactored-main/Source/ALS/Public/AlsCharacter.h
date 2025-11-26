@@ -1681,6 +1681,8 @@ protected:
 protected:
 	uint8 bGladiatorOutfitIsOn : 1{false};
 
+	uint8 bShouldDecreaseStaminaUses : 1{false};
+
 	float GladiatorOutfitSpeedMultiplier = 1.0f;
 
 	FTimerHandle GladiatorOutfitSpeedTimerHandle;
@@ -1690,6 +1692,11 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void GladiatorOutfit_SpeedIncreaseBy_20();
+
+	void GladiatorOutfit_UsesLessStaminaBy_20();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float GladiatorOutfit_IncreaseDamageBy_10Within_2m(AController* DamageInstigator, float DamageAmount);
 
 	// PorcupineCoat
 protected:

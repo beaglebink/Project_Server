@@ -3605,6 +3605,18 @@ float AAlsCharacter::GladiatorOutfit_DecreaseEnemyMeleeDamageBy_15(FText DamageT
 	if (DamageType.ToString() == "Melee")
 	{
 		DamageAmount *= 0.85f;
+
+		// Melee evading chance
+		float EvadingChance = 10.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) < EvadingChance)
+		{
+			DamageAmount = 0.0f;
+		}
+	}
+	else
+	{
+		// Projectile damage increase
+		DamageAmount *= 1.2f;
 	}
 
 	return DamageAmount;
@@ -3623,4 +3635,39 @@ void AAlsCharacter::GladiatorOutfit_SpeedIncreaseBy_20()
 		{
 			GladiatorOutfitSpeedMultiplier = 1.0f;
 		}, 10.0f, false);
+}
+
+void AAlsCharacter::GladiatorOutfit_UsesLessStaminaBy_20()
+{
+	if (!bShouldDecreaseStaminaUses)
+	{
+		bShouldDecreaseStaminaUses = true;
+		SprintStaminaDrainRate *= 0.8f;
+		JumpStaminaCost *= 0.8f;
+		RollStaminaCost *= 0.8f;
+	}
+	else if (!bGladiatorOutfitIsOn)
+	{
+		bShouldDecreaseStaminaUses = false;
+		SprintStaminaDrainRate /= 0.8f;
+		JumpStaminaCost /= 0.8f;
+		RollStaminaCost /= 0.8f;
+	}
+}
+
+float AAlsCharacter::GladiatorOutfit_IncreaseDamageBy_10Within_2m(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bGladiatorOutfitIsOn)
+		{
+			float DistanceToEnemy = FVector::Distance(GetActorLocation(), Player->GetActorLocation());
+			if (DistanceToEnemy <= 200.0f)
+			{
+				DamageAmount *= 1.1f;
+			}
+		}
+	}
+	return DamageAmount;
 }
