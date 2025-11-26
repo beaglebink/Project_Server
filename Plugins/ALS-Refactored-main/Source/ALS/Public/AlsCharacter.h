@@ -1681,7 +1681,7 @@ protected:
 protected:
 	uint8 bGladiatorOutfitIsOn : 1{false};
 
-	uint8 bShouldDecreaseStaminaUses : 1{false};
+	uint8 bGladiatorOutfitShouldDecreaseStaminaUses : 1{false};
 
 	float GladiatorOutfitSpeedMultiplier = 1.0f;
 
@@ -1704,7 +1704,7 @@ protected:
 
 	uint8 bPorcupineCoatNoRoll : 1{false};
 
-	uint8 bShouldIncreaseStaminaUses : 1{false};
+	uint8 bPorcupineCoatShouldIncreaseStaminaUses : 1{false};
 
 	float PorcupineCoatSpeedMultiplier = 1.0f;
 
@@ -1715,6 +1715,16 @@ protected:
 
 	// ForcefieldCoat
 protected:
+	uint8 bForcefieldCoatIsOn : 1{false};
+
+	uint8 bForcefieldCoatShouldIncreaseStaminaUses : 1{false};
+
+	float ForcefieldCoatSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float ForcefieldCoat_DamageInteract(FText DamageType, float DamageAmount);
+
+	void ForcefieldCoat_UsesMoreStaminaBy_200();
 
 	// BugZapperCoat
 protected:

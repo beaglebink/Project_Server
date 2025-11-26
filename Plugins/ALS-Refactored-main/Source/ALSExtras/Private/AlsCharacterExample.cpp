@@ -1941,14 +1941,18 @@ void AAlsCharacterExample::PorcupineCoat_Effect(bool Apply)
 
 void AAlsCharacterExample::ForcefieldCoat_Effect(bool Apply)
 {
+	bForcefieldCoatIsOn = Apply;
+	ForcefieldCoatSpeedMultiplier = 1.0f;
+	ForcefieldCoat_UsesMoreStaminaBy_200();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ForcefieldCoat"));
+		ForcefieldCoatSpeedMultiplier = 0.7f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ForcefieldCoat"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ForcefieldCoat"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ForcefieldCoat"));
+	//}
 }
 
 void AAlsCharacterExample::BugZapperCoat_Effect(bool Apply)

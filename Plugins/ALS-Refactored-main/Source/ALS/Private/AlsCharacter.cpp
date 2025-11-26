@@ -2183,7 +2183,8 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
-		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier;
+		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
+		* ForcefieldCoatSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3639,16 +3640,16 @@ void AAlsCharacter::GladiatorOutfit_SpeedIncreaseBy_20()
 
 void AAlsCharacter::GladiatorOutfit_UsesLessStaminaBy_20()
 {
-	if (!bShouldDecreaseStaminaUses)
+	if (!bGladiatorOutfitShouldDecreaseStaminaUses)
 	{
-		bShouldDecreaseStaminaUses = true;
+		bGladiatorOutfitShouldDecreaseStaminaUses = true;
 		SprintStaminaDrainRate *= 0.8f;
 		JumpStaminaCost *= 0.8f;
 		RollStaminaCost *= 0.8f;
 	}
 	else if (!bGladiatorOutfitIsOn)
 	{
-		bShouldDecreaseStaminaUses = false;
+		bGladiatorOutfitShouldDecreaseStaminaUses = false;
 		SprintStaminaDrainRate /= 0.8f;
 		JumpStaminaCost /= 0.8f;
 		RollStaminaCost /= 0.8f;
@@ -3701,16 +3702,60 @@ float AAlsCharacter::PorcupineCoat_DecreaseMeleeDamageBy_10_40(AController* Dama
 
 void AAlsCharacter::PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200()
 {
-	if (!bShouldIncreaseStaminaUses)
+	if (!bPorcupineCoatShouldIncreaseStaminaUses)
 	{
-		bShouldIncreaseStaminaUses = true;
+		bPorcupineCoatShouldIncreaseStaminaUses = true;
 		JumpStaminaCost *= 3.0f;
 		SprintStaminaDrainRate *= 2.0f;
 	}
 	else if (!bPorcupineCoatIsOn)
 	{
-		bShouldIncreaseStaminaUses = false;
+		bPorcupineCoatShouldIncreaseStaminaUses = false;
 		JumpStaminaCost /= 3.0f;
 		SprintStaminaDrainRate /= 2.0f;
+	}
+}
+
+// ForcefieldCoat
+float AAlsCharacter::ForcefieldCoat_DamageInteract(FText DamageType, float DamageAmount)
+{
+	if (!bForcefieldCoatIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (DamageType.ToString() != "Melee")
+	{
+		if (DamageAmount < 70.0f)
+		{
+			float ChanceToBlockDamage = FMath::FRandRange(10.0f, 40.0f);
+			if (FMath::FRandRange(0.0f, 100.0f) < ChanceToBlockDamage)
+			{
+				DamageAmount = 0.0f;
+			}
+		}
+
+		float ReduceDamagePercent = 1.0f - FMath::FRandRange(10.0f, 25.0f) / 100.0f;
+		DamageAmount *= ReduceDamagePercent;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::ForcefieldCoat_UsesMoreStaminaBy_200()
+{
+	if (!bForcefieldCoatShouldIncreaseStaminaUses)
+	{
+		bForcefieldCoatShouldIncreaseStaminaUses = true;
+		SprintStaminaDrainRate *= 2.0f;
+		JumpStaminaCost *= 2.0f;
+		RollStaminaCost *= 2.0f;
+	}
+	else if (!bForcefieldCoatIsOn)
+	{
+		bForcefieldCoatShouldIncreaseStaminaUses = false;
+		SprintStaminaDrainRate /= 2.0f;
+		JumpStaminaCost /= 2.0f;
+		RollStaminaCost /= 2.0f;
 	}
 }
