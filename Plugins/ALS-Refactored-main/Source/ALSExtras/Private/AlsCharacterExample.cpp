@@ -1957,13 +1957,22 @@ void AAlsCharacterExample::ForcefieldCoat_Effect(bool Apply)
 
 void AAlsCharacterExample::BugZapperCoat_Effect(bool Apply)
 {
+	bBugZapperCoatIsOn = Apply;
+	BugZapperCoatSpeedMultiplier = 1.0f;
+	BugZapperCoat_UsesMoreStaminaBy_200();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BugZapperCoat"));
+		BugZapperCoatSpeedMultiplier = 0.75f;
+		if (!GetWorldTimerManager().IsTimerActive(BugZapperCoatZapTimerHandle))
+		{
+			GetWorldTimerManager().SetTimer(BugZapperCoatZapTimerHandle, this, &AAlsCharacterExample::BugZapperCoat_ZapEnemies, 0.5f, true);
+		}
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BugZapperCoat"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BugZapperCoat"));
+		GetWorldTimerManager().ClearTimer(BugZapperCoatZapTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BugZapperCoat"));
 	}
 }
 

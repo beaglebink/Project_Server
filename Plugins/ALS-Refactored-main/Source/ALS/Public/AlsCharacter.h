@@ -1715,6 +1715,8 @@ protected:
 
 	// ForcefieldCoat
 protected:
+	virtual void ForcefieldCoat_Effect(bool Apply = false);
+
 	uint8 bForcefieldCoatIsOn : 1{false};
 
 	uint8 bForcefieldCoatShouldIncreaseStaminaUses : 1{false};
@@ -1728,6 +1730,22 @@ protected:
 
 	// BugZapperCoat
 protected:
+	virtual void BugZapperCoat_Effect(bool Apply = false);
+
+	uint8 bBugZapperCoatIsOn : 1{false};
+
+	uint8 bBugZapperCoatShouldIncreaseStaminaUses : 1{false};
+
+	float BugZapperCoatSpeedMultiplier = 1.0f;
+
+	FTimerHandle BugZapperCoatZapTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float BugZapperCoat_DealDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+	
+	void BugZapperCoat_ZapEnemies();
+
+	void BugZapperCoat_UsesMoreStaminaBy_200();
 
 	// SimonSweatpants
 protected:

@@ -381,8 +381,8 @@ private:
 	void CalculatorGoggles_Effect(bool Apply = false);
 	void GladiatorOutfit_Effect(bool Apply = false);
 	void PorcupineCoat_Effect(bool Apply = false);
-	void ForcefieldCoat_Effect(bool Apply = false);
-	void BugZapperCoat_Effect(bool Apply = false);
+	virtual void ForcefieldCoat_Effect(bool Apply = false) override;
+	virtual void BugZapperCoat_Effect(bool Apply = false) override;
 	void SimmonSweatpants_Effect(bool Apply = false);
 	void RebootVest_Effect(bool Apply = false);
 	void NullAndVoidHat_Effect(bool Apply = false);

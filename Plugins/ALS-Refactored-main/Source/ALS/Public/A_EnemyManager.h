@@ -23,11 +23,14 @@ private:
 	TMap<FGameplayTag, int32> EnemyTypeCounts;
 
 public:
+	UPROPERTY()
+	TSet<AActor*> ZappedEnemies; // BugZapperCoat effect
+
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
 	void RegisterEnemy(FGameplayTag EnemyType);
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
-	void UnregisterEnemy(FGameplayTag EnemyType);
+	void UnregisterEnemy(AActor* Enemy, FGameplayTag EnemyType);
 	
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
 	int32 GetEnemyCount(FGameplayTag EnemyType) const;

@@ -2184,7 +2184,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
-		* ForcefieldCoatSpeedMultiplier;
+		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3640,14 +3640,14 @@ void AAlsCharacter::GladiatorOutfit_SpeedIncreaseBy_20()
 
 void AAlsCharacter::GladiatorOutfit_UsesLessStaminaBy_20()
 {
-	if (!bGladiatorOutfitShouldDecreaseStaminaUses)
+	if (bGladiatorOutfitIsOn && !bGladiatorOutfitShouldDecreaseStaminaUses)
 	{
 		bGladiatorOutfitShouldDecreaseStaminaUses = true;
 		SprintStaminaDrainRate *= 0.8f;
 		JumpStaminaCost *= 0.8f;
 		RollStaminaCost *= 0.8f;
 	}
-	else if (!bGladiatorOutfitIsOn)
+	else if (!bGladiatorOutfitIsOn && bGladiatorOutfitShouldDecreaseStaminaUses)
 	{
 		bGladiatorOutfitShouldDecreaseStaminaUses = false;
 		SprintStaminaDrainRate /= 0.8f;
@@ -3702,13 +3702,13 @@ float AAlsCharacter::PorcupineCoat_DecreaseMeleeDamageBy_10_40(AController* Dama
 
 void AAlsCharacter::PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200()
 {
-	if (!bPorcupineCoatShouldIncreaseStaminaUses)
+	if (bPorcupineCoatIsOn && !bPorcupineCoatShouldIncreaseStaminaUses)
 	{
 		bPorcupineCoatShouldIncreaseStaminaUses = true;
 		JumpStaminaCost *= 3.0f;
 		SprintStaminaDrainRate *= 2.0f;
 	}
-	else if (!bPorcupineCoatIsOn)
+	else if (!bPorcupineCoatIsOn && bPorcupineCoatShouldIncreaseStaminaUses)
 	{
 		bPorcupineCoatShouldIncreaseStaminaUses = false;
 		JumpStaminaCost /= 3.0f;
@@ -3717,6 +3717,10 @@ void AAlsCharacter::PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200()
 }
 
 // ForcefieldCoat
+void AAlsCharacter::ForcefieldCoat_Effect(bool Apply)
+{
+}
+
 float AAlsCharacter::ForcefieldCoat_DamageInteract(FText DamageType, float DamageAmount)
 {
 	if (!bForcefieldCoatIsOn)
@@ -3724,17 +3728,14 @@ float AAlsCharacter::ForcefieldCoat_DamageInteract(FText DamageType, float Damag
 		return DamageAmount;
 	}
 
+	if (DamageAmount >= 70.0f)
+	{
+		ForcefieldCoat_Effect();
+		return DamageAmount;
+	}
+
 	if (DamageType.ToString() != "Melee")
 	{
-		if (DamageAmount < 70.0f)
-		{
-			float ChanceToBlockDamage = FMath::FRandRange(10.0f, 40.0f);
-			if (FMath::FRandRange(0.0f, 100.0f) < ChanceToBlockDamage)
-			{
-				DamageAmount = 0.0f;
-			}
-		}
-
 		float ReduceDamagePercent = 1.0f - FMath::FRandRange(10.0f, 25.0f) / 100.0f;
 		DamageAmount *= ReduceDamagePercent;
 	}
@@ -3744,16 +3745,108 @@ float AAlsCharacter::ForcefieldCoat_DamageInteract(FText DamageType, float Damag
 
 void AAlsCharacter::ForcefieldCoat_UsesMoreStaminaBy_200()
 {
-	if (!bForcefieldCoatShouldIncreaseStaminaUses)
+	if (bForcefieldCoatIsOn && !bForcefieldCoatShouldIncreaseStaminaUses)
 	{
 		bForcefieldCoatShouldIncreaseStaminaUses = true;
 		SprintStaminaDrainRate *= 2.0f;
 		JumpStaminaCost *= 2.0f;
 		RollStaminaCost *= 2.0f;
 	}
-	else if (!bForcefieldCoatIsOn)
+	else if (!bForcefieldCoatIsOn && bForcefieldCoatShouldIncreaseStaminaUses)
 	{
 		bForcefieldCoatShouldIncreaseStaminaUses = false;
+		SprintStaminaDrainRate /= 2.0f;
+		JumpStaminaCost /= 2.0f;
+		RollStaminaCost /= 2.0f;
+	}
+}
+
+// BugZapperCoat
+void AAlsCharacter::BugZapperCoat_Effect(bool Apply)
+{
+}
+
+float AAlsCharacter::BugZapperCoat_DealDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!bBugZapperCoatIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (DamageType.ToString() == "Melee")
+	{
+		float ChanceToRevertDamage = 25.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) < ChanceToRevertDamage)
+		{
+			if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+			{
+				const float MeleeRevertedDamage = Enemy->GetMaxHealth() * 0.1f;
+				UGameplayStatics::ApplyDamage(Enemy, MeleeRevertedDamage, GetController(), this, nullptr);
+			}
+		}
+	}
+
+	if (DamageAmount >= 60.0f || DamageType.ToString() == "Dust bunny" || DamageType.ToString() == "Electric 1" || DamageType.ToString() == "Furry claw" || DamageType.ToString() == "Blue robot" || DamageType.ToString() == "Botnet")
+	{
+		BugZapperCoat_Effect();
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::BugZapperCoat_ZapEnemies()
+{
+	if (!LevelEnemyManager)
+	{
+		return;
+	}
+
+	const float ZapRadius = 250.0f;
+
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	bool bHit = GetWorld()->OverlapMultiByObjectType(Overlaps, GetActorLocation(), FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn), FCollisionShape::MakeSphere(ZapRadius), Params);
+
+	if (!bHit)
+	{
+		return;
+	}
+
+	for (const FOverlapResult& Hit : Overlaps)
+	{
+		AAlsCharacter* Enemy = Cast<AAlsCharacter>(Hit.GetActor());
+
+		if (!Enemy || !Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")) || LevelEnemyManager->ZappedEnemies.Contains(Enemy))
+		{
+			continue;
+		}
+
+		const float ZapChance = 40.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) > ZapChance)
+		{
+			continue;
+		}
+
+		LevelEnemyManager->ZappedEnemies.Add(Enemy);
+		const float Damage = Enemy->GetMaxHealth() * 0.25f;
+		UGameplayStatics::ApplyDamage(Enemy, Damage, GetController(), this, nullptr);
+	}
+}
+
+void AAlsCharacter::BugZapperCoat_UsesMoreStaminaBy_200()
+{
+	if (bBugZapperCoatIsOn && !bBugZapperCoatShouldIncreaseStaminaUses)
+	{
+		bBugZapperCoatShouldIncreaseStaminaUses = true;
+		SprintStaminaDrainRate *= 2.0f;
+		JumpStaminaCost *= 2.0f;
+		RollStaminaCost *= 2.0f;
+	}
+	else if (!bBugZapperCoatIsOn && bBugZapperCoatShouldIncreaseStaminaUses)
+	{
+		bBugZapperCoatShouldIncreaseStaminaUses = false;
 		SprintStaminaDrainRate /= 2.0f;
 		JumpStaminaCost /= 2.0f;
 		RollStaminaCost /= 2.0f;
