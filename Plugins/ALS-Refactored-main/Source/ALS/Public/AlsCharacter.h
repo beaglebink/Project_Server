@@ -1700,6 +1700,18 @@ protected:
 
 	// PorcupineCoat
 protected:
+	uint8 bPorcupineCoatIsOn : 1{false};
+
+	uint8 bPorcupineCoatNoRoll : 1{false};
+
+	uint8 bShouldIncreaseStaminaUses : 1{false};
+
+	float PorcupineCoatSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float PorcupineCoat_DecreaseMeleeDamageBy_10_40(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	void PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200();
 
 	// ForcefieldCoat
 protected:

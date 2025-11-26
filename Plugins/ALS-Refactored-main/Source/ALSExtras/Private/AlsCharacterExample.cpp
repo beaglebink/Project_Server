@@ -536,7 +536,7 @@ void AAlsCharacterExample::Input_OnRagdoll()
 
 void AAlsCharacterExample::Input_OnRoll()
 {
-	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled || bIsWired || bIsBubbled || bIsOverload)
+	if (bIsStunned || bIsSliding || bIsSticky || bIsGrappled || bIsWired || bIsBubbled || bIsOverload || bPorcupineCoatNoRoll)
 	{
 		return;
 	}
@@ -1923,14 +1923,20 @@ void AAlsCharacterExample::GladiatorOutfit_Effect(bool Apply)
 
 void AAlsCharacterExample::PorcupineCoat_Effect(bool Apply)
 {
+	bPorcupineCoatIsOn = Apply;
+	PorcupineCoatSpeedMultiplier = 1.0f;
+	bPorcupineCoatNoRoll = false;
+	PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply PorcupineCoat"));
+		PorcupineCoatSpeedMultiplier = 0.7f;
+		bPorcupineCoatNoRoll = true;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply PorcupineCoat"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove PorcupineCoat"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove PorcupineCoat"));
+	//}
 }
 
 void AAlsCharacterExample::ForcefieldCoat_Effect(bool Apply)

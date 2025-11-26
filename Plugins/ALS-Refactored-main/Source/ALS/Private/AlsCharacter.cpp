@@ -2183,7 +2183,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
-		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier;
+		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3670,4 +3670,47 @@ float AAlsCharacter::GladiatorOutfit_IncreaseDamageBy_10Within_2m(AController* D
 		}
 	}
 	return DamageAmount;
+}
+
+// PorcupineCoat
+float AAlsCharacter::PorcupineCoat_DecreaseMeleeDamageBy_10_40(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!bPorcupineCoatIsOn || !DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (DamageType.ToString() == "Melee")
+	{
+		float DecreaseDamagePercent = 1.0f - FMath::FRandRange(10.0f, 40.0f) / 100.0f;
+		DamageAmount *= DecreaseDamagePercent;
+
+		// Reflect chance
+		float ReflectChance = 50.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) < ReflectChance)
+		{
+			if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+			{
+				UGameplayStatics::ApplyDamage(Enemy, DamageAmount * 0.2f, GetController(), this, UDamageType::StaticClass());
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200()
+{
+	if (!bShouldIncreaseStaminaUses)
+	{
+		bShouldIncreaseStaminaUses = true;
+		JumpStaminaCost *= 3.0f;
+		SprintStaminaDrainRate *= 2.0f;
+	}
+	else if (!bPorcupineCoatIsOn)
+	{
+		bShouldIncreaseStaminaUses = false;
+		JumpStaminaCost /= 3.0f;
+		SprintStaminaDrainRate /= 2.0f;
+	}
 }
