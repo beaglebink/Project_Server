@@ -96,7 +96,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, Us
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAcceptFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnBookfaceMessageAdded, const FString&, FromUserId, const FString&, TargetUserId, UBookfaceMessageObject*, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBookfaceMessageAdded, UBookfaceMessageObject*, Message);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
@@ -159,7 +159,7 @@ public:
     bool HasLoadedSave() const { return bHasLoadedSave; }
 
     UFUNCTION(BlueprintCallable)
-    UBookfaceMessageObject* AddMessageToProfile(const FString& TargetUserId, const FString& FromUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage = nullptr);
+    UBookfaceMessageObject* AddMessageToProfile(const FString& TargetUserId, const FString& FromUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage = nullptr, bool IsTopLevel = false);
 
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
@@ -180,6 +180,9 @@ public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnBookfaceMessageAdded OnMessageAdded;
 
+    UFUNCTION(BlueprintCallable, BlueprintPure)
+    TArray<UBookfaceMessageObject*> GetAllPosts() const;
+
 
 private:
     UPROPERTY()
@@ -187,6 +190,9 @@ private:
 
     UPROPERTY()
     TArray<FBookfaceFriendRequestStructure> FriendRequests;
+
+    UPROPERTY()
+	TArray< UBookfaceMessageObject*> AllPosts;
 
     bool bHasLoadedSave = false;
 };

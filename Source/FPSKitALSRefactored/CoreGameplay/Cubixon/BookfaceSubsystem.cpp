@@ -348,7 +348,7 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
     }
 }
 
-UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& TargetUserId, const FString& FromUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage)
+UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& TargetUserId, const FString& FromUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage, bool IsTopLevel)
 {
     FBookfaceProfileStructure* TargetProfile = UserProfiles.FindByPredicate([&](const FBookfaceProfileStructure& Profile)
         {
@@ -377,7 +377,24 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& T
         TargetProfile->UserMessages.Add(NewMessage);
     }
 
-    OnMessageAdded.Broadcast(FromUserId, TargetUserId, NewMessage);
+    OnMessageAdded.Broadcast(NewMessage);
+
+    if (IsTopLevel)
+    {
+        AllPosts.Add(NewMessage);
+    }
 
     return NewMessage;
+}
+
+TArray<UBookfaceMessageObject*> UBookfaceSubsystem::GetAllPosts() const
+{
+    TArray<UBookfaceMessageObject*> Reversed;
+    Reversed.Reserve(AllPosts.Num());
+
+    for (int32 Index = AllPosts.Num(); Index-- > 0; )
+    {
+        Reversed.Add(AllPosts[Index]);
+    }
+    return Reversed;
 }
