@@ -2184,7 +2184,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
-		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier;
+		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3852,3 +3852,59 @@ void AAlsCharacter::BugZapperCoat_UsesMoreStaminaBy_200()
 		RollStaminaCost /= 2.0f;
 	}
 }
+
+// SimonSweatpants
+float AAlsCharacter::SimonSweatpants_DealWithAttack(FText DamageType, float DamageAmount)
+{
+	if (!bSimonSweatpantsIsOn)
+	{
+		return DamageAmount;
+	}
+
+	// Restore stamina chance
+	if (GetHealth() > 50.0f)
+	{
+		float ChanseToRestoreStamina = 50.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) < ChanseToRestoreStamina)
+		{
+			SetStamina(GetStamina() + 7.5f);
+		}
+	}
+
+	// 10% more damage
+	DamageAmount *= 1.1f;
+
+	// Moving attack evasion
+	if (GetVelocity().Length() > 0.0f)
+	{
+		float EvadeChance = 15.0f;
+		if (DamageType.ToString() == "Melee")
+		{
+			EvadeChance = 30.0f;
+		}
+		if (FMath::FRandRange(0.0f, 100.0f) < EvadeChance)
+		{
+			DamageAmount = 0.0f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::SimonSweatpants_UsesLessStaminaBy_30()
+{
+	if (bSimonSweatpantsIsOn && !bSimonSweatpantsShouldDecreaseStaminaUses)
+	{
+		bBugZapperCoatShouldIncreaseStaminaUses = true;
+		SprintStaminaDrainRate *= 0.7f;
+		JumpStaminaCost *= 0.7f;
+	}
+	else if (!bSimonSweatpantsIsOn && bSimonSweatpantsShouldDecreaseStaminaUses)
+	{
+		bBugZapperCoatShouldIncreaseStaminaUses = false;
+		SprintStaminaDrainRate /= 0.7f;
+		JumpStaminaCost /= 0.7f;
+	}
+}
+
+// RebootVest

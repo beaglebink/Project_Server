@@ -1978,14 +1978,18 @@ void AAlsCharacterExample::BugZapperCoat_Effect(bool Apply)
 
 void AAlsCharacterExample::SimmonSweatpants_Effect(bool Apply)
 {
+	bSimonSweatpantsIsOn = Apply;
+	SimonSweatpantsSpeedMultiplier = 1.0f;
+	SimonSweatpants_UsesLessStaminaBy_30();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimmonSweatpants"));
+		SimonSweatpantsSpeedMultiplier = 1.175f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimmonSweatpants"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimmonSweatpants"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimmonSweatpants"));
+	//}
 }
 void AAlsCharacterExample::RebootVest_Effect(bool Apply)
 {

@@ -1749,6 +1749,16 @@ protected:
 
 	// SimonSweatpants
 protected:
+	uint8 bSimonSweatpantsIsOn : 1{false};
+
+	uint8 bSimonSweatpantsShouldDecreaseStaminaUses : 1{false};
+
+	float SimonSweatpantsSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float SimonSweatpants_DealWithAttack(FText DamageType, float DamageAmount);
+
+	void SimonSweatpants_UsesLessStaminaBy_30();
 
 	// RebootVest
 protected:
