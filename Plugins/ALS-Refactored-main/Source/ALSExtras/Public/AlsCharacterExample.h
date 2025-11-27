@@ -384,7 +384,7 @@ private:
 	virtual void ForcefieldCoat_Effect(bool Apply = false) override;
 	virtual void BugZapperCoat_Effect(bool Apply = false) override;
 	void SimmonSweatpants_Effect(bool Apply = false);
-	void RebootVest_Effect(bool Apply = false);
+	virtual void RebootVest_Effect(bool Apply = false) override;
 	void NullAndVoidHat_Effect(bool Apply = false);
 	void MagneticVest_Effect(bool Apply = false);
 	void AmmoBeltVest_Effect(bool Apply = false);

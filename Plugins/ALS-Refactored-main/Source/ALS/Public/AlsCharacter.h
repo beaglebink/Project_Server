@@ -1742,22 +1742,70 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float BugZapperCoat_DealDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
-	
+
 	void BugZapperCoat_ZapEnemies();
 
 	void BugZapperCoat_UsesMoreStaminaBy_200();
 
 	// SimonSweatpants
 protected:
+	uint8 bSimonSweatpantsIsOn : 1{false};
+
+	uint8 bSimonSweatpantsShouldDecreaseStaminaUses : 1{false};
+
+	float SimonSweatpantsSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float SimonSweatpants_DealWithAttack(FText DamageType, float DamageAmount);
+
+	void SimonSweatpants_UsesLessStaminaBy_30();
 
 	// RebootVest
 protected:
+	virtual void RebootVest_Effect(bool Apply = false);
+
+	uint8 bRebootVestIsOn : 1{false};
+
+	uint8 bRebootVestHasUsedDamageReduction : 1{false};
+
+	FTimerHandle RebootVestDamageReductionTimerHandle;
+
+	float RebootVestDamageMultiplier = 1.0f;
+
+	float RebootVestNewLifeSpeedMultiplier = 1.0f;
+
+	float RebootVestSpeedMultiplier = 1.0f;
+
+	float RebootVestStrafingSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float RebootVest_DealWithAttack(FText DamageType, float DamageAmount);
 
 	// NullAndVoidHat
 protected:
+	uint8 bNullAndVoidHatIsOn : 1{false};
+
+	uint8 bNullAndVoidHasUsedDamageReduction : 1{false};
+
+	float NullAndVoidHatDamageMultiplier = 0.25f;
+
+	FTimerHandle NullAndVoidHatDamageTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float NullAndVoidHat_DamageAndEffect(float DamageAmount);
 
 	// MagneticVest
 protected:
+	uint8 bMagneticVestIsOn : 1{false};
+
+	float MagneticVestSpeedMultiplier = 1.0f;
+
+	FTimerHandle MagneticVestEnemySlowerTimerHandle;
+
+	void MagneticVest_SlowEnemies();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float MagneticVest_DamageAndEffect(FText DamageType, float DamageAmount);
 
 	// AmmoBeltVest
 protected:

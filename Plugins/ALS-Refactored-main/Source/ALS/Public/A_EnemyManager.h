@@ -5,6 +5,8 @@
 #include "Utility/AlsGameplayTags.h"
 #include "A_EnemyManager.generated.h"
 
+class AAlsCharacterExample;
+
 UCLASS()
 class ALS_API AA_EnemyManager : public AActor
 {
@@ -24,13 +26,13 @@ private:
 
 public:
 	UPROPERTY()
-	TSet<AActor*> ZappedEnemies; // BugZapperCoat effect
+	TSet<AAlsCharacterExample*> ZappedEnemies; // BugZapperCoat effect
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
 	void RegisterEnemy(FGameplayTag EnemyType);
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
-	void UnregisterEnemy(AActor* Enemy, FGameplayTag EnemyType);
+	void UnregisterEnemy(AAlsCharacterExample* Enemy, FGameplayTag EnemyType);
 	
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
 	int32 GetEnemyCount(FGameplayTag EnemyType) const;

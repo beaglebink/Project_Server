@@ -1978,48 +1978,66 @@ void AAlsCharacterExample::BugZapperCoat_Effect(bool Apply)
 
 void AAlsCharacterExample::SimmonSweatpants_Effect(bool Apply)
 {
+	bSimonSweatpantsIsOn = Apply;
+	SimonSweatpantsSpeedMultiplier = 1.0f;
+	SimonSweatpants_UsesLessStaminaBy_30();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimmonSweatpants"));
+		SimonSweatpantsSpeedMultiplier = 1.175f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimmonSweatpants"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimmonSweatpants"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimmonSweatpants"));
+	//}
 }
 void AAlsCharacterExample::RebootVest_Effect(bool Apply)
 {
+	bRebootVestIsOn = Apply;
+	RebootVestSpeedMultiplier = 1.0f;
+	RebootVestStrafingSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply RebootVest"));
+		RebootVestSpeedMultiplier = 0.9f;
+		RebootVestStrafingSpeedMultiplier = 0.85f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply RebootVest"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RebootVest"));
+		GetWorldTimerManager().ClearTimer(RebootVestDamageReductionTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RebootVest"));
 	}
 }
 
 void AAlsCharacterExample::NullAndVoidHat_Effect(bool Apply)
 {
+	bNullAndVoidHatIsOn = Apply;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NullAndVoidHat"));
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NullAndVoidHat"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NullAndVoidHat"));
+		GetWorldTimerManager().ClearTimer(NullAndVoidHatDamageTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NullAndVoidHat"));
 	}
 }
 
 void AAlsCharacterExample::MagneticVest_Effect(bool Apply)
 {
+	bMagneticVestIsOn = Apply;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MagneticVest"));
+		if (!GetWorldTimerManager().IsTimerActive(MagneticVestEnemySlowerTimerHandle))
+		{
+			GetWorldTimerManager().SetTimer(MagneticVestEnemySlowerTimerHandle, this, &AAlsCharacterExample::MagneticVest_SlowEnemies, 0.5f, true);
+		}
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MagneticVest"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MagneticVest"));
+		GetWorldTimerManager().ClearTimer(MagneticVestEnemySlowerTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MagneticVest"));
 	}
 }
 
