@@ -40,3 +40,10 @@ void UInsertableVerticalBox::InsertWidgetAt(UWidget* NewWidget, int32 Index)
         AddChild(Widgets[i]);
     }
 }
+
+void UInsertableVerticalBox::ClearChildren()
+{
+    Widgets.Empty();
+
+    Super::ClearChildren();
+}

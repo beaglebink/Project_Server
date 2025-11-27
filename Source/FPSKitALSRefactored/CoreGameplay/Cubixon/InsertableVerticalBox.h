@@ -12,6 +12,8 @@ class FPSKITALSREFACTORED_API UInsertableVerticalBox : public UVerticalBox
 public:
     UFUNCTION(BlueprintCallable, Category = "UI")
     void InsertWidgetAt(UWidget* NewWidget, int32 Index);
+    virtual void ClearChildren() override;
+
 
 protected:
 

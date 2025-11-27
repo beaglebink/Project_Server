@@ -348,22 +348,22 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
     }
 }
 
-UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& TargetUserId, const FString& FromUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage, bool IsTopLevel)
+UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& FromUserId, const FString& ToUserId,  const FText& MessageText, UBookfaceMessageObject* ParentMessage, bool IsTopLevel)
 {
     FBookfaceProfileStructure* TargetProfile = UserProfiles.FindByPredicate([&](const FBookfaceProfileStructure& Profile)
         {
-            return Profile.UserId == TargetUserId;
+            return Profile.UserId == ToUserId;
         });
 
     if (!TargetProfile)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Профиль %s не найден"), *TargetUserId);
+        UE_LOG(LogTemp, Warning, TEXT("Профиль %s не найден"), *ToUserId);
         return nullptr;
     }
 
     UBookfaceMessageObject* NewMessage = NewObject<UBookfaceMessageObject>(this);
     NewMessage->FromUserId = FromUserId;
-    NewMessage->ToUserId = TargetUserId;
+    NewMessage->ToUserId = ToUserId;
     NewMessage->MessageContent = MessageText;
     NewMessage->Timestamp = FDateTime::UtcNow();
     NewMessage->ParentMessage = ParentMessage;
@@ -377,12 +377,12 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& T
         TargetProfile->UserMessages.Add(NewMessage);
     }
 
-    OnMessageAdded.Broadcast(NewMessage);
-
     if (IsTopLevel)
     {
         AllPosts.Add(NewMessage);
     }
+
+    OnMessageAdded.Broadcast(NewMessage);
 
     return NewMessage;
 }

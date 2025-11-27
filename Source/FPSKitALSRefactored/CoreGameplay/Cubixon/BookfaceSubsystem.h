@@ -159,7 +159,7 @@ public:
     bool HasLoadedSave() const { return bHasLoadedSave; }
 
     UFUNCTION(BlueprintCallable)
-    UBookfaceMessageObject* AddMessageToProfile(const FString& TargetUserId, const FString& FromUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage = nullptr, bool IsTopLevel = false);
+    UBookfaceMessageObject* AddMessageToProfile(const FString& FromUserId, const FString& ToUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage = nullptr, bool IsTopLevel = false);
 
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
