@@ -1762,6 +1762,25 @@ protected:
 
 	// RebootVest
 protected:
+	virtual void RebootVest_Effect(bool Apply = false);
+
+	uint8 bRebootVestIsOn : 1{false};
+
+	uint8 bRebootVestHasUsedDamageReduction : 1{false};
+
+	FTimerHandle RebootVestDamageReductionTimerHandle;
+
+	float RebootVestDamageMultiplier = 1.0f;
+
+	float RebootVestNewLifeSpeedMultiplier = 1.0f;
+
+	float RebootVestSpeedMultiplier = 1.0f;
+
+	float RebootVestStrafingSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float RebootVest_DealWithAttack(FText DamageType, float DamageAmount);
+
 
 	// NullAndVoidHat
 protected:

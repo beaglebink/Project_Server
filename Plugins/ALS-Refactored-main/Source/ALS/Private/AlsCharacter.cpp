@@ -2175,6 +2175,9 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 {
 	float MovementDirection = UKismetMathLibrary::Dot_VectorVector(GetVelocity().GetSafeNormal(), GetActorRotation().Vector().GetSafeNormal());
 
+	//ClothesEffect Reboot vest penalty for strafe movement
+	RebootVestStrafingSpeedMultiplier = 1.0f - FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.15f * static_cast<int32>(bRebootVestIsOn), 0.0f), FMath::Abs(MovementDirection));
+
 	// The less health left the slower movement
 	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
 
@@ -2184,7 +2187,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
-		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier;
+		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3908,3 +3911,60 @@ void AAlsCharacter::SimonSweatpants_UsesLessStaminaBy_30()
 }
 
 // RebootVest
+void  AAlsCharacter::RebootVest_Effect(bool Apply)
+{
+}
+
+float AAlsCharacter::RebootVest_DealWithAttack(FText DamageType, float DamageAmount)
+{
+	if (!bRebootVestIsOn)
+	{
+		return DamageAmount;
+	}
+
+	// Damage reduction
+	DamageAmount *= 0.95f;
+
+	// Damage reduction when health is under 40
+	if (!bRebootVestHasUsedDamageReduction && GetHealth() < 40.0f)
+	{
+		bRebootVestHasUsedDamageReduction = true;
+		RebootVestDamageMultiplier = 0.5f;
+		GetWorldTimerManager().SetTimer(RebootVestDamageReductionTimerHandle, [this]()
+			{
+				RebootVestDamageMultiplier = 1.0f;
+			}, 25.0f, false);
+	}
+
+	//Chance to get new life
+	if (GetHealth() <= DamageAmount * RebootVestDamageMultiplier)
+	{
+		float ChanceToGetLife = 50.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) < ChanceToGetLife)
+		{
+			SetHealth(GetMaxHealth());
+			DamageAmount = 0.0f;
+
+			RebootVestNewLifeSpeedMultiplier *= 0.75f;
+			SetStamina(GetStamina() - GetStamina() * 0.2f);
+			FTimerHandle RebootVestNewLifeTimerHandle;
+			GetWorldTimerManager().SetTimer(RebootVestNewLifeTimerHandle, [this]()
+				{
+					RebootVestSpeedMultiplier /= 0.75f;
+					SetStamina(GetStamina() + GetStamina() * 0.2f);
+				}, 60.0f, false);
+		}
+	}
+
+	// Remove effect on sharp/biting/TBA damage
+	if (DamageType.ToString() == "Sharp" || DamageType.ToString() == "Biting" || DamageType.ToString() == "TBA")
+	{
+		float ChanceToRemoveEffect = 15.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) < ChanceToRemoveEffect)
+		{
+			RebootVest_Effect();
+		}
+	}
+
+	return DamageAmount * RebootVestDamageMultiplier;
+}

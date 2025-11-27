@@ -1993,13 +1993,20 @@ void AAlsCharacterExample::SimmonSweatpants_Effect(bool Apply)
 }
 void AAlsCharacterExample::RebootVest_Effect(bool Apply)
 {
+	bRebootVestIsOn = Apply;
+	RebootVestSpeedMultiplier = 1.0f;
+	RebootVestStrafingSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply RebootVest"));
+		RebootVestSpeedMultiplier = 0.9f;
+		RebootVestStrafingSpeedMultiplier = 0.85f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply RebootVest"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RebootVest"));
+		bRebootVestHasUsedDamageReduction = false;
+		GetWorldTimerManager().ClearTimer(RebootVestDamageReductionTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RebootVest"));
 	}
 }
 
