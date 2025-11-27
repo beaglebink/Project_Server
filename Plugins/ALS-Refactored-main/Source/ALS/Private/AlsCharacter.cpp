@@ -4014,16 +4014,15 @@ void AAlsCharacter::MagneticVest_SlowEnemies()
 		}
 	}
 
-	for (auto It = SlowedEnemies.CreateIterator(); It;)
+	for (auto It = SlowedEnemies.CreateIterator(); It; ++It)
 	{
 		if (!CurrentEnemiesInRadius.Contains(*It))
 		{
-			(*It)->MagneticVestSpeedMultiplier = 1.0f;
-			It.RemoveCurrent();
-		}
-		else
-		{
-			++It;
+			if (IsValid(*It))
+			{
+				(*It)->MagneticVestSpeedMultiplier = 1.0f;
+				It.RemoveCurrent();
+			}
 		}
 	}
 }
