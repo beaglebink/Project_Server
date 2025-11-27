@@ -2168,7 +2168,7 @@ void AAlsCharacter::StaminaRecovery()
 
 void AAlsCharacter::RefreshRecoil()
 {
-	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier;
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier;
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
@@ -3066,7 +3066,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 		}
 	}
 
-	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier;
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3898,13 +3898,13 @@ void AAlsCharacter::SimonSweatpants_UsesLessStaminaBy_30()
 {
 	if (bSimonSweatpantsIsOn && !bSimonSweatpantsShouldDecreaseStaminaUses)
 	{
-		bBugZapperCoatShouldIncreaseStaminaUses = true;
+		bSimonSweatpantsShouldDecreaseStaminaUses = true;
 		SprintStaminaDrainRate *= 0.7f;
 		JumpStaminaCost *= 0.7f;
 	}
 	else if (!bSimonSweatpantsIsOn && bSimonSweatpantsShouldDecreaseStaminaUses)
 	{
-		bBugZapperCoatShouldIncreaseStaminaUses = false;
+		bSimonSweatpantsShouldDecreaseStaminaUses = false;
 		SprintStaminaDrainRate /= 0.7f;
 		JumpStaminaCost /= 0.7f;
 	}
@@ -3991,6 +3991,41 @@ float AAlsCharacter::NullAndVoidHat_DamageAndEffect(float DamageAmount)
 
 void AAlsCharacter::MagneticVest_SlowEnemies()
 {
+	const float MagneticRadius = 400.0f;
+
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	bool bHasOverlap = GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(MagneticRadius), Params);
+
+	TSet<AActor*> CurrentEnemiesInRadius;
+
+	if (bHasOverlap)
+	{
+		for (auto& Result : Overlaps)
+		{
+			if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+			{
+				CurrentEnemiesInRadius.Add(Enemy);
+				Enemy->MagneticVestSpeedMultiplier = 0.6f;
+				SlowedEnemies.Add(Enemy);
+			}
+		}
+	}
+
+	for (auto It = SlowedEnemies.CreateIterator(); It;)
+	{
+		if (!CurrentEnemiesInRadius.Contains(*It))
+		{
+			(*It)->MagneticVestSpeedMultiplier = 1.0f;
+			It.RemoveCurrent();
+		}
+		else
+		{
+			++It;
+		}
+	}
 }
 
 // MagneticVest
@@ -4011,4 +4046,18 @@ float AAlsCharacter::MagneticVest_DamageAndEffect(FText DamageType, float Damage
 	//}
 
 	return DamageAmount;
+}
+
+void AAlsCharacter::MagneticVest_UsesMoreStaminaBy_15()
+{
+	if (bMagneticVestIsOn && !bMagneticVestShouldIncreaseStaminaUses)
+	{
+		bMagneticVestShouldIncreaseStaminaUses = true;
+		SprintStaminaDrainRate *= 1.15f;
+	}
+	else if (!bMagneticVestIsOn && bMagneticVestShouldIncreaseStaminaUses)
+	{
+		bMagneticVestShouldIncreaseStaminaUses = false;
+		SprintStaminaDrainRate /= 1.15f;
+	}
 }

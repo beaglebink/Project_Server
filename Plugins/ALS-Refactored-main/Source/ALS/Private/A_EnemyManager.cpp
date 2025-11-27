@@ -21,7 +21,7 @@ void AA_EnemyManager::RegisterEnemy(FGameplayTag EnemyType)
 	++EnemyTypeCounts.FindOrAdd(EnemyType);
 }
 
-void AA_EnemyManager::UnregisterEnemy(AAlsCharacterExample* Enemy, FGameplayTag EnemyType)
+void AA_EnemyManager::UnregisterEnemy(AActor* Enemy, FGameplayTag EnemyType)
 {
 	if (int32* CountPtr = EnemyTypeCounts.Find(EnemyType))
 	{

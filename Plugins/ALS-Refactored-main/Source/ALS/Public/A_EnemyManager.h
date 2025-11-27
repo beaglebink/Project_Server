@@ -26,13 +26,13 @@ private:
 
 public:
 	UPROPERTY()
-	TSet<AAlsCharacterExample*> ZappedEnemies; // BugZapperCoat effect
+	TSet<AActor*> ZappedEnemies; // BugZapperCoat effect
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
 	void RegisterEnemy(FGameplayTag EnemyType);
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
-	void UnregisterEnemy(AAlsCharacterExample* Enemy, FGameplayTag EnemyType);
+	void UnregisterEnemy(AActor* Enemy, FGameplayTag EnemyType);
 	
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
 	int32 GetEnemyCount(FGameplayTag EnemyType) const;

@@ -2026,8 +2026,12 @@ void AAlsCharacterExample::NullAndVoidHat_Effect(bool Apply)
 void AAlsCharacterExample::MagneticVest_Effect(bool Apply)
 {
 	bMagneticVestIsOn = Apply;
+	MagneticVestAccuracyMultiplier = 1.0f;
+	MagneticVestRecoilMultiplier = 1.0f;
 	if (Apply)
 	{
+		MagneticVestAccuracyMultiplier = 1.175f;
+		MagneticVestRecoilMultiplier = 1.15f;
 		if (!GetWorldTimerManager().IsTimerActive(MagneticVestEnemySlowerTimerHandle))
 		{
 			GetWorldTimerManager().SetTimer(MagneticVestEnemySlowerTimerHandle, this, &AAlsCharacterExample::MagneticVest_SlowEnemies, 0.5f, true);

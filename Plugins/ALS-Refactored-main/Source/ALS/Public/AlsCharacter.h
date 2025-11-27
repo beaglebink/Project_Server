@@ -1798,14 +1798,24 @@ protected:
 protected:
 	uint8 bMagneticVestIsOn : 1{false};
 
+	uint8 bMagneticVestShouldIncreaseStaminaUses : 1{false};
+
 	float MagneticVestSpeedMultiplier = 1.0f;
 
+	float MagneticVestAccuracyMultiplier = 1.0f;
+
+	float MagneticVestRecoilMultiplier = 1.0f;
+
 	FTimerHandle MagneticVestEnemySlowerTimerHandle;
+
+	TSet<AAlsCharacter*> SlowedEnemies;
 
 	void MagneticVest_SlowEnemies();
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float MagneticVest_DamageAndEffect(FText DamageType, float DamageAmount);
+
+	void MagneticVest_UsesMoreStaminaBy_15();
 
 	// AmmoBeltVest
 protected:
