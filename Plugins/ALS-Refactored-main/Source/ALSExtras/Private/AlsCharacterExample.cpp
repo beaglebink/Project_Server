@@ -2004,7 +2004,6 @@ void AAlsCharacterExample::RebootVest_Effect(bool Apply)
 	}
 	else
 	{
-		bRebootVestHasUsedDamageReduction = false;
 		GetWorldTimerManager().ClearTimer(RebootVestDamageReductionTimerHandle);
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RebootVest"));
 	}
@@ -2012,25 +2011,33 @@ void AAlsCharacterExample::RebootVest_Effect(bool Apply)
 
 void AAlsCharacterExample::NullAndVoidHat_Effect(bool Apply)
 {
+	bNullAndVoidHatIsOn = Apply;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NullAndVoidHat"));
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NullAndVoidHat"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NullAndVoidHat"));
+		GetWorldTimerManager().ClearTimer(NullAndVoidHatDamageTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NullAndVoidHat"));
 	}
 }
 
 void AAlsCharacterExample::MagneticVest_Effect(bool Apply)
 {
+	bMagneticVestIsOn = Apply;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MagneticVest"));
+		if (!GetWorldTimerManager().IsTimerActive(MagneticVestEnemySlowerTimerHandle))
+		{
+			GetWorldTimerManager().SetTimer(MagneticVestEnemySlowerTimerHandle, this, &AAlsCharacterExample::MagneticVest_SlowEnemies, 0.5f, true);
+		}
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MagneticVest"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MagneticVest"));
+		GetWorldTimerManager().ClearTimer(MagneticVestEnemySlowerTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MagneticVest"));
 	}
 }
 

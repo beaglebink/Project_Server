@@ -2187,7 +2187,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
-		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier;
+		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3967,4 +3967,48 @@ float AAlsCharacter::RebootVest_DealWithAttack(FText DamageType, float DamageAmo
 	}
 
 	return DamageAmount * RebootVestDamageMultiplier;
+}
+
+// NullAndVoidHat
+float AAlsCharacter::NullAndVoidHat_DamageAndEffect(float DamageAmount)
+{
+	if (!bNullAndVoidHatIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (!bNullAndVoidHasUsedDamageReduction)
+	{
+		bNullAndVoidHasUsedDamageReduction = true;
+		GetWorldTimerManager().SetTimer(NullAndVoidHatDamageTimerHandle, [this]()
+			{
+				NullAndVoidHatDamageMultiplier = 1.0f;
+			}, 35.0f, false);
+	}
+
+	return DamageAmount * NullAndVoidHatDamageMultiplier;
+}
+
+void AAlsCharacter::MagneticVest_SlowEnemies()
+{
+}
+
+// MagneticVest
+float AAlsCharacter::MagneticVest_DamageAndEffect(FText DamageType, float DamageAmount)
+{
+	if (!bMagneticVestIsOn)
+	{
+		return DamageAmount;
+	}
+
+	//if (DamageType.ToString() == "Melee")
+	//{
+	//	float EvadeChance = 15.0f;
+	//	if (FMath::FRandRange(0.0f, 100.0f) < EvadeChance)
+	//	{
+	//		DamageAmount = 0.0f;
+	//	}
+	//}
+
+	return DamageAmount;
 }
