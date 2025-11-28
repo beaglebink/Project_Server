@@ -1837,6 +1837,12 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
 	float AmmoBeltVest_DamageLessOnCodeRifle_10(float DamageAmount);
 
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float AmmoBeltVest_MoreDamageOnScramblerGun_20(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void AmmoBeltVest_IncreaseStaminaOnReloading();
+
 	// MasterMinMooMooSlippers
 protected:
 

@@ -4075,3 +4075,27 @@ float AAlsCharacter::AmmoBeltVest_DamageLessOnCodeRifle_10_Implementation(float 
 {
 	return DamageAmount;
 }
+
+float AAlsCharacter::AmmoBeltVest_MoreDamageOnScramblerGun_20(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bAmmoBeltVestIsOn)
+		{
+			if (Player->GetWeaponName() == "Scrambler gun")
+			{
+				DamageAmount *= 1.2f;
+			}
+		}
+	}
+	return DamageAmount;
+}
+
+void AAlsCharacter::AmmoBeltVest_IncreaseStaminaOnReloading()
+{
+	if (bAmmoBeltVestIsOn)
+	{
+		SetStamina(GetStamina() + 7.5f);
+	}
+}
