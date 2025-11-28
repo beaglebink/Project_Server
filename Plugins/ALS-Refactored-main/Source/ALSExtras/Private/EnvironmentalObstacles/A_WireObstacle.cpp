@@ -46,7 +46,7 @@ void AA_WireObstacle::OnConstruction(const FTransform& Transform)
 
 	//Find constraints points
 	const float TraceSpread = 20.0f;
-	float LowestPointZ = INT_MAX;
+	float LowestPointZ = static_cast<float>(INT_MAX);
 
 	LeftHitPoints.Empty();
 	RightHitPoints.Empty();

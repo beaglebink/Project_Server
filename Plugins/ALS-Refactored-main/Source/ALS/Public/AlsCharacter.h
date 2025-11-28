@@ -1819,6 +1819,29 @@ protected:
 
 	// AmmoBeltVest
 protected:
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	uint8 bAmmoBeltVestIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bAmmoBeltVestHasUsedWeaponRefill : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bAmmoBeltVestHasUsedGrenadeRefill : 1{false};
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
+	void AmmoBeltVest_RefillWeaponAmmo();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
+	float AmmoBeltVest_RefillGrenade(float DamageAmount);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
+	float AmmoBeltVest_DamageLessOnCodeRifle_10(float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float AmmoBeltVest_MoreDamageOnScramblerGun_20(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void AmmoBeltVest_IncreaseStaminaOnReloading();
 
 	// MasterMinMooMooSlippers
 protected:
