@@ -2047,14 +2047,16 @@ void AAlsCharacterExample::MagneticVest_Effect(bool Apply)
 
 void AAlsCharacterExample::AmmoBeltVest_Effect(bool Apply)
 {
+	bAmmoBeltVestIsOn = Apply;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AmmoBeltVest"));
+		AmmoBeltVest_RefillWeaponAmmo();
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AmmoBeltVest"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AmmoBeltVest"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AmmoBeltVest"));
+	//}
 }
 
 void AAlsCharacterExample::MasterMinMooMooSlippers_Effect(bool Apply)

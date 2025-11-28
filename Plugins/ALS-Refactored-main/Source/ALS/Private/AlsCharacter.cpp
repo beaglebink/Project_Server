@@ -4060,3 +4060,18 @@ void AAlsCharacter::MagneticVest_UsesMoreStaminaBy_15()
 		SprintStaminaDrainRate /= 1.15f;
 	}
 }
+
+// AmmoBeltVest
+void AAlsCharacter::AmmoBeltVest_RefillWeaponAmmo_Implementation()
+{
+}
+
+float AAlsCharacter::AmmoBeltVest_RefillGrenade_Implementation(float DamageAmount)
+{
+	return DamageAmount;
+}
+
+float AAlsCharacter::AmmoBeltVest_DamageLessOnCodeRifle_10_Implementation(float DamageAmount)
+{
+	return DamageAmount;
+}
