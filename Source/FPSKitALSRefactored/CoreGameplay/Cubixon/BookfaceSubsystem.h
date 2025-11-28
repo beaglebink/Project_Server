@@ -161,6 +161,9 @@ public:
     UFUNCTION(BlueprintCallable)
     UBookfaceMessageObject* AddMessageToProfile(const FString& FromUserId, const FString& ToUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage = nullptr, bool IsTopLevel = false);
 
+    UFUNCTION(BlueprintCallable)
+	bool RemoveMessageFromProfile(UBookfaceMessageObject* MessageToRemove);
+
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnlineStatusChange OnlineStatusChange;

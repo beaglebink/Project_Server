@@ -387,6 +387,22 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(const FString& F
     return NewMessage;
 }
 
+bool UBookfaceSubsystem::RemoveMessageFromProfile(UBookfaceMessageObject* MessageToRemove)
+{
+    if (!MessageToRemove)
+    {
+        return false;
+	}
+
+    if(AllPosts.Contains(MessageToRemove))
+    {
+        AllPosts.Remove(MessageToRemove);
+        return true;
+	}
+
+    return false;
+}
+
 TArray<UBookfaceMessageObject*> UBookfaceSubsystem::GetAllPosts() const
 {
     TArray<UBookfaceMessageObject*> Reversed;
