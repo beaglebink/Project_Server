@@ -10,6 +10,9 @@ class FPSKITALSREFACTORED_API UBookfaceMessageObject : public UObject
     GENERATED_BODY()
 
 public:
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString MessageId;
+
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
     FString FromUserId;
 

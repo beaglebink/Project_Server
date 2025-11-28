@@ -4,93 +4,11 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/Texture2D.h"
 #include "BookfaceMessageObject.h"
+#include "BookfaceDataTypes.h"   // вынесенные структуры профилей и заявок
+#include "BookfaceSaveGame.h"    // для FBookfaceMessageData
 #include "BookfaceSubsystem.generated.h"
 
-UENUM(BlueprintType)
-enum class EPrivacyVisibility : uint8
-{
-    VisibleToMe       UMETA(DisplayName = "Visible to me"),
-    VisibleToFriends  UMETA(DisplayName = "Visible to friends"),
-    VisibleToEveryone UMETA(DisplayName = "Visible to everyone")
-};
-
-USTRUCT(BlueprintType)
-struct FBookfaceFriendRequestStructure
-{
-    GENERATED_BODY()
-
-public:
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString FromUserId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString ToUserId;
-
-    FORCEINLINE bool operator==(const FBookfaceFriendRequestStructure& Other) const
-    {
-        return FromUserId.Equals(Other.FromUserId) && ToUserId.Equals(Other.ToUserId);
-    }
-};
-
-USTRUCT(BlueprintType)
-struct FAboutInfoStructure
-{
-    GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FText InfoCaption;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FText InfoDescription;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    EPrivacyVisibility PrivacyVisibility;
-};
-
-USTRUCT(BlueprintType)
-struct FBookfaceProfileStructure
-{
-    GENERATED_BODY()
-
-public:
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString UserId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FText DisplayName;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    TSoftObjectPtr<UTexture2D> AvatarImage;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    TSoftObjectPtr<UTexture2D> CoverImage;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FText Bio;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    TArray<FAboutInfoStructure> AboutInfo;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    TArray<FString> FriendsList;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    int32 ReputationScore;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    EPrivacyVisibility BIO_Privacy;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    TArray<UBookfaceMessageObject*> UserMessages;
-
-    FORCEINLINE bool operator==(const FBookfaceProfileStructure& Other) const
-    {
-        return UserId.Equals(Other.UserId);
-    }
-
-    bool IsOnline;
-};
-
+// Делегаты для событий
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, UserId, const FString&, UserFriend);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
@@ -107,9 +25,20 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
+    // Управление жизненным циклом данных
     UFUNCTION(BlueprintCallable)
     void OnBookfaceAppOpened();
 
+    UFUNCTION(BlueprintCallable)
+    void SaveBookfaceDataAsync();
+
+    UFUNCTION(BlueprintCallable)
+    void LoadBookfaceDataAsync();
+
+    UFUNCTION(BlueprintCallable)
+    bool HasLoadedSave() const { return bHasLoadedSave; }
+
+    // Работа с профилями
     UFUNCTION(BlueprintCallable)
     void AddUserProfile(const FBookfaceProfileStructure& NewProfile);
 
@@ -118,6 +47,9 @@ public:
 
     UFUNCTION(BlueprintCallable)
     FBookfaceProfileStructure GetUserProfileById(const FString& UserId) const;
+
+    UFUNCTION(BlueprintCallable)
+    void UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile);
 
     UFUNCTION(BlueprintCallable)
     bool SetOnlineStatus(const FString& UserId, const bool bOnline);
@@ -131,6 +63,7 @@ public:
     UFUNCTION(BlueprintCallable)
     TArray<FBookfaceProfileStructure> SearchProfiles(const FString& InUserID, const FString& Query) const;
 
+    // Работа с заявками в друзья
     UFUNCTION(BlueprintCallable)
     void AddFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
@@ -146,25 +79,23 @@ public:
     UFUNCTION(BlueprintCallable)
     void AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
+    // Работа с сообщениями/постами
     UFUNCTION(BlueprintCallable)
-    void UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile);
+    UBookfaceMessageObject* AddMessageToProfile(
+        const FString& FromUserId,
+        const FString& ToUserId,
+        const FText& MessageText,
+        UBookfaceMessageObject* ParentMessage = nullptr,
+        bool IsTopLevel = false);
 
     UFUNCTION(BlueprintCallable)
-    void SaveBookfaceDataAsync();
+    bool RemoveMessageFromProfile(UBookfaceMessageObject* MessageToRemove);
 
-    UFUNCTION(BlueprintCallable)
-    void LoadBookfaceDataAsync();
-
-    UFUNCTION(BlueprintCallable)
-    bool HasLoadedSave() const { return bHasLoadedSave; }
-
-    UFUNCTION(BlueprintCallable)
-    UBookfaceMessageObject* AddMessageToProfile(const FString& FromUserId, const FString& ToUserId, const FText& MessageText, UBookfaceMessageObject* ParentMessage = nullptr, bool IsTopLevel = false);
-
-    UFUNCTION(BlueprintCallable)
-	bool RemoveMessageFromProfile(UBookfaceMessageObject* MessageToRemove);
+    UFUNCTION(BlueprintCallable, BlueprintPure)
+    TArray<UBookfaceMessageObject*> GetAllPosts() const;
 
 public:
+    // Делегаты
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnlineStatusChange OnlineStatusChange;
 
@@ -183,11 +114,8 @@ public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnBookfaceMessageAdded OnMessageAdded;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure)
-    TArray<UBookfaceMessageObject*> GetAllPosts() const;
-
-
 private:
+    // Рабочие данные
     UPROPERTY()
     TArray<FBookfaceProfileStructure> UserProfiles;
 
@@ -195,7 +123,7 @@ private:
     TArray<FBookfaceFriendRequestStructure> FriendRequests;
 
     UPROPERTY()
-	TArray< UBookfaceMessageObject*> AllPosts;
+    TArray<UBookfaceMessageObject*> AllPosts; // рабочие объекты сообщений
 
     bool bHasLoadedSave = false;
 };
