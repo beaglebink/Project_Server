@@ -4,8 +4,8 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/Texture2D.h"
 #include "BookfaceMessageObject.h"
-#include "BookfaceDataTypes.h"   // вынесенные структуры профилей и заявок
-#include "BookfaceSaveGame.h"    // для FBookfaceMessageData
+#include "BookfaceDataTypes.h"   
+#include "BookfaceSaveGame.h"    
 #include "BookfaceSubsystem.generated.h"
 
 // Делегаты для событий
@@ -25,7 +25,6 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
-    // Управление жизненным циклом данных
     UFUNCTION(BlueprintCallable)
     void OnBookfaceAppOpened();
 
@@ -52,6 +51,9 @@ public:
     void UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile);
 
     UFUNCTION(BlueprintCallable)
+    void SaveBookfaceMessagesAsync();
+
+    UFUNCTION(BlueprintCallable)
     bool SetOnlineStatus(const FString& UserId, const bool bOnline);
 
     UFUNCTION(BlueprintCallable)
@@ -63,7 +65,6 @@ public:
     UFUNCTION(BlueprintCallable)
     TArray<FBookfaceProfileStructure> SearchProfiles(const FString& InUserID, const FString& Query) const;
 
-    // Работа с заявками в друзья
     UFUNCTION(BlueprintCallable)
     void AddFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
@@ -79,7 +80,6 @@ public:
     UFUNCTION(BlueprintCallable)
     void AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
-    // Работа с сообщениями/постами
     UFUNCTION(BlueprintCallable)
     UBookfaceMessageObject* AddMessageToProfile(
         const FString& FromUserId,
@@ -95,7 +95,6 @@ public:
     TArray<UBookfaceMessageObject*> GetAllPosts() const;
 
 public:
-    // Делегаты
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnlineStatusChange OnlineStatusChange;
 
@@ -115,7 +114,6 @@ public:
     FOnBookfaceMessageAdded OnMessageAdded;
 
 private:
-    // Рабочие данные
     UPROPERTY()
     TArray<FBookfaceProfileStructure> UserProfiles;
 
@@ -123,7 +121,7 @@ private:
     TArray<FBookfaceFriendRequestStructure> FriendRequests;
 
     UPROPERTY()
-    TArray<UBookfaceMessageObject*> AllPosts; // рабочие объекты сообщений
+    TArray<UBookfaceMessageObject*> AllPosts;
 
     bool bHasLoadedSave = false;
 };

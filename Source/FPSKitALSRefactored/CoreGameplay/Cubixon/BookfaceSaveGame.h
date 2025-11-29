@@ -11,7 +11,7 @@ struct FBookfaceMessageData
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString MessageId;          // уникальный ID сообщения
+    FString MessageId;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString FromUserId;
@@ -29,7 +29,7 @@ struct FBookfaceMessageData
     TArray<FString> LikesUserIds;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString ParentMessageId;    // ID родительского сообщения
+    FString ParentMessageId;
 };
 
 UCLASS()
