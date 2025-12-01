@@ -4,6 +4,8 @@
 #include "Engine/Texture2D.h"
 #include "BookfaceDataTypes.generated.h"
 
+class UBookfaceMessageObject;
+
 UENUM(BlueprintType)
 enum class EPrivacyVisibility : uint8
 {
@@ -76,5 +78,9 @@ struct FBookfaceProfileStructure
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     EPrivacyVisibility BIO_Privacy;
 
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     bool IsOnline = false;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<UBookfaceMessageObject*> UserMessages;
 };

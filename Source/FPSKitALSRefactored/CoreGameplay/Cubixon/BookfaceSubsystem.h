@@ -4,11 +4,10 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/Texture2D.h"
 #include "BookfaceMessageObject.h"
-#include "BookfaceDataTypes.h"   
-#include "BookfaceSaveGame.h"    
+#include "BookfaceDataTypes.h"
+#include "BookfaceSaveGame.h"
 #include "BookfaceSubsystem.generated.h"
 
-// Делегаты для событий
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, UserId, const FString&, UserFriend);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
@@ -32,6 +31,9 @@ public:
     void SaveBookfaceDataAsync();
 
     UFUNCTION(BlueprintCallable)
+    void SaveBookfaceMessagesAsync();
+
+    UFUNCTION(BlueprintCallable)
     void LoadBookfaceDataAsync();
 
     UFUNCTION(BlueprintCallable)
@@ -49,9 +51,6 @@ public:
 
     UFUNCTION(BlueprintCallable)
     void UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile);
-
-    UFUNCTION(BlueprintCallable)
-    void SaveBookfaceMessagesAsync();
 
     UFUNCTION(BlueprintCallable)
     bool SetOnlineStatus(const FString& UserId, const bool bOnline);
@@ -80,6 +79,7 @@ public:
     UFUNCTION(BlueprintCallable)
     void AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
+    // Работа с сообщениями
     UFUNCTION(BlueprintCallable)
     UBookfaceMessageObject* AddMessageToProfile(
         const FString& FromUserId,
@@ -119,9 +119,6 @@ private:
 
     UPROPERTY()
     TArray<FBookfaceFriendRequestStructure> FriendRequests;
-
-    UPROPERTY()
-    TArray<UBookfaceMessageObject*> AllPosts;
 
     bool bHasLoadedSave = false;
 };
