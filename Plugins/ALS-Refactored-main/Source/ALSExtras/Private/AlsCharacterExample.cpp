@@ -2061,14 +2061,16 @@ void AAlsCharacterExample::AmmoBeltVest_Effect(bool Apply)
 
 void AAlsCharacterExample::MasterMinMooMooSlippers_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MasterMinMooMooSlippers"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MasterMinMooMooSlippers"));
-	}
+	bMasterMinMooMooSlippersIsOn = Apply;
+	MasterMinMooMooSlippers_UsesLessStaminaBy_25();
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MasterMinMooMooSlippers"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MasterMinMooMooSlippers"));
+	//}
 }
 
 void AAlsCharacterExample::BounceHouseSuit_Effect(bool Apply)

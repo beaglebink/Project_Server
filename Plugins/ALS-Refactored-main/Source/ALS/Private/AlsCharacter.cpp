@@ -2178,6 +2178,9 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	//ClothesEffect Reboot vest penalty for strafe movement
 	RebootVestStrafingSpeedMultiplier = 1.0f - FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.15f * static_cast<int32>(bRebootVestIsOn), 0.0f), FMath::Abs(MovementDirection));
 
+	//CLothesEffect Master min moo moo slippers bonus for strafe movement
+	MasterMinMooMooSlippers_SpeedFromHealthBy_60(MovementDirection);
+
 	// The less health left the slower movement
 	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
 
@@ -2187,7 +2190,8 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
-		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier;
+		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
+		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3643,16 +3647,16 @@ void AAlsCharacter::GladiatorOutfit_SpeedIncreaseBy_20()
 
 void AAlsCharacter::GladiatorOutfit_UsesLessStaminaBy_20()
 {
-	if (bGladiatorOutfitIsOn && !bGladiatorOutfitShouldDecreaseStaminaUses)
+	if (bGladiatorOutfitIsOn && !bGladiatorOutfitShouldDecreaseStaminaUsing)
 	{
-		bGladiatorOutfitShouldDecreaseStaminaUses = true;
+		bGladiatorOutfitShouldDecreaseStaminaUsing = true;
 		SprintStaminaDrainRate *= 0.8f;
 		JumpStaminaCost *= 0.8f;
 		RollStaminaCost *= 0.8f;
 	}
-	else if (!bGladiatorOutfitIsOn && bGladiatorOutfitShouldDecreaseStaminaUses)
+	else if (!bGladiatorOutfitIsOn && bGladiatorOutfitShouldDecreaseStaminaUsing)
 	{
-		bGladiatorOutfitShouldDecreaseStaminaUses = false;
+		bGladiatorOutfitShouldDecreaseStaminaUsing = false;
 		SprintStaminaDrainRate /= 0.8f;
 		JumpStaminaCost /= 0.8f;
 		RollStaminaCost /= 0.8f;
@@ -3705,15 +3709,15 @@ float AAlsCharacter::PorcupineCoat_DecreaseMeleeDamageBy_10_40(AController* Dama
 
 void AAlsCharacter::PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200()
 {
-	if (bPorcupineCoatIsOn && !bPorcupineCoatShouldIncreaseStaminaUses)
+	if (bPorcupineCoatIsOn && !bPorcupineCoatShouldIncreaseStaminaUsing)
 	{
-		bPorcupineCoatShouldIncreaseStaminaUses = true;
+		bPorcupineCoatShouldIncreaseStaminaUsing = true;
 		JumpStaminaCost *= 3.0f;
 		SprintStaminaDrainRate *= 2.0f;
 	}
-	else if (!bPorcupineCoatIsOn && bPorcupineCoatShouldIncreaseStaminaUses)
+	else if (!bPorcupineCoatIsOn && bPorcupineCoatShouldIncreaseStaminaUsing)
 	{
-		bPorcupineCoatShouldIncreaseStaminaUses = false;
+		bPorcupineCoatShouldIncreaseStaminaUsing = false;
 		JumpStaminaCost /= 3.0f;
 		SprintStaminaDrainRate /= 2.0f;
 	}
@@ -3748,16 +3752,16 @@ float AAlsCharacter::ForcefieldCoat_DamageInteract(FText DamageType, float Damag
 
 void AAlsCharacter::ForcefieldCoat_UsesMoreStaminaBy_200()
 {
-	if (bForcefieldCoatIsOn && !bForcefieldCoatShouldIncreaseStaminaUses)
+	if (bForcefieldCoatIsOn && !bForcefieldCoatShouldIncreaseStaminaUsing)
 	{
-		bForcefieldCoatShouldIncreaseStaminaUses = true;
+		bForcefieldCoatShouldIncreaseStaminaUsing = true;
 		SprintStaminaDrainRate *= 2.0f;
 		JumpStaminaCost *= 2.0f;
 		RollStaminaCost *= 2.0f;
 	}
-	else if (!bForcefieldCoatIsOn && bForcefieldCoatShouldIncreaseStaminaUses)
+	else if (!bForcefieldCoatIsOn && bForcefieldCoatShouldIncreaseStaminaUsing)
 	{
-		bForcefieldCoatShouldIncreaseStaminaUses = false;
+		bForcefieldCoatShouldIncreaseStaminaUsing = false;
 		SprintStaminaDrainRate /= 2.0f;
 		JumpStaminaCost /= 2.0f;
 		RollStaminaCost /= 2.0f;
@@ -3840,16 +3844,16 @@ void AAlsCharacter::BugZapperCoat_ZapEnemies()
 
 void AAlsCharacter::BugZapperCoat_UsesMoreStaminaBy_200()
 {
-	if (bBugZapperCoatIsOn && !bBugZapperCoatShouldIncreaseStaminaUses)
+	if (bBugZapperCoatIsOn && !bBugZapperCoatShouldIncreaseStaminaUsing)
 	{
-		bBugZapperCoatShouldIncreaseStaminaUses = true;
+		bBugZapperCoatShouldIncreaseStaminaUsing = true;
 		SprintStaminaDrainRate *= 2.0f;
 		JumpStaminaCost *= 2.0f;
 		RollStaminaCost *= 2.0f;
 	}
-	else if (!bBugZapperCoatIsOn && bBugZapperCoatShouldIncreaseStaminaUses)
+	else if (!bBugZapperCoatIsOn && bBugZapperCoatShouldIncreaseStaminaUsing)
 	{
-		bBugZapperCoatShouldIncreaseStaminaUses = false;
+		bBugZapperCoatShouldIncreaseStaminaUsing = false;
 		SprintStaminaDrainRate /= 2.0f;
 		JumpStaminaCost /= 2.0f;
 		RollStaminaCost /= 2.0f;
@@ -3896,15 +3900,15 @@ float AAlsCharacter::SimonSweatpants_DealWithAttack(FText DamageType, float Dama
 
 void AAlsCharacter::SimonSweatpants_UsesLessStaminaBy_30()
 {
-	if (bSimonSweatpantsIsOn && !bSimonSweatpantsShouldDecreaseStaminaUses)
+	if (bSimonSweatpantsIsOn && !bSimonSweatpantsShouldDecreaseStaminaUsing)
 	{
-		bSimonSweatpantsShouldDecreaseStaminaUses = true;
+		bSimonSweatpantsShouldDecreaseStaminaUsing = true;
 		SprintStaminaDrainRate *= 0.7f;
 		JumpStaminaCost *= 0.7f;
 	}
-	else if (!bSimonSweatpantsIsOn && bSimonSweatpantsShouldDecreaseStaminaUses)
+	else if (!bSimonSweatpantsIsOn && bSimonSweatpantsShouldDecreaseStaminaUsing)
 	{
-		bSimonSweatpantsShouldDecreaseStaminaUses = false;
+		bSimonSweatpantsShouldDecreaseStaminaUsing = false;
 		SprintStaminaDrainRate /= 0.7f;
 		JumpStaminaCost /= 0.7f;
 	}
@@ -4098,4 +4102,54 @@ void AAlsCharacter::AmmoBeltVest_IncreaseStaminaOnReloading()
 	{
 		SetStamina(GetStamina() + 7.5f);
 	}
+}
+
+// MasterMinMooMooSlippers
+void AAlsCharacter::MasterMinMooMooSlippers_SpeedFromHealthBy_60(float Direction)
+{
+	MasterMinMooMooSlippersSpeedMultiplier = 1.0f;
+	MasterMinMooMooSlippersStrafeSpeedMultiplier = 1.0f;
+
+	if (bMasterMinMooMooSlippersIsOn && GetHealth() / GetMaxHealth() > 0.6f)
+	{
+		MasterMinMooMooSlippersSpeedMultiplier = 1.2f;
+		MasterMinMooMooSlippersStrafeSpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(1.3f, 1.0f), Direction);
+	}
+}
+
+void AAlsCharacter::MasterMinMooMooSlippers_UsesLessStaminaBy_25()
+{
+	if (bMasterMinMooMooSlippersIsOn && !bMasterMinMooMooShouldDecreaseStaminaUsing)
+	{
+		bMasterMinMooMooShouldDecreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 0.75f;
+		JumpStaminaCost *= 0.75f;
+		RollStaminaCost *= 0.75f;
+	}
+	else if (!bMasterMinMooMooSlippersIsOn && bMasterMinMooMooShouldDecreaseStaminaUsing)
+	{
+		bMasterMinMooMooShouldDecreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 0.75f;
+		JumpStaminaCost /= 0.75f;
+		RollStaminaCost /= 0.75f;
+	}
+}
+
+float AAlsCharacter::MasterMinMooMooSlippers_InteractWithDamage(FText DamageType, float DamageAmount)
+{
+	if (!bMasterMinMooMooSlippersIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (DamageType.ToString() == "Melee")
+	{
+		DamageAmount *= 0.85f;
+	}
+	else
+	{
+		DamageAmount *= 1.1f;
+	}
+
+	return DamageAmount;
 }

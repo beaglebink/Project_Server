@@ -1681,7 +1681,7 @@ protected:
 protected:
 	uint8 bGladiatorOutfitIsOn : 1{false};
 
-	uint8 bGladiatorOutfitShouldDecreaseStaminaUses : 1{false};
+	uint8 bGladiatorOutfitShouldDecreaseStaminaUsing : 1{false};
 
 	float GladiatorOutfitSpeedMultiplier = 1.0f;
 
@@ -1704,7 +1704,7 @@ protected:
 
 	uint8 bPorcupineCoatNoRoll : 1{false};
 
-	uint8 bPorcupineCoatShouldIncreaseStaminaUses : 1{false};
+	uint8 bPorcupineCoatShouldIncreaseStaminaUsing : 1{false};
 
 	float PorcupineCoatSpeedMultiplier = 1.0f;
 
@@ -1719,7 +1719,7 @@ protected:
 
 	uint8 bForcefieldCoatIsOn : 1{false};
 
-	uint8 bForcefieldCoatShouldIncreaseStaminaUses : 1{false};
+	uint8 bForcefieldCoatShouldIncreaseStaminaUsing : 1{false};
 
 	float ForcefieldCoatSpeedMultiplier = 1.0f;
 
@@ -1734,7 +1734,7 @@ protected:
 
 	uint8 bBugZapperCoatIsOn : 1{false};
 
-	uint8 bBugZapperCoatShouldIncreaseStaminaUses : 1{false};
+	uint8 bBugZapperCoatShouldIncreaseStaminaUsing : 1{false};
 
 	float BugZapperCoatSpeedMultiplier = 1.0f;
 
@@ -1751,7 +1751,7 @@ protected:
 protected:
 	uint8 bSimonSweatpantsIsOn : 1{false};
 
-	uint8 bSimonSweatpantsShouldDecreaseStaminaUses : 1{false};
+	uint8 bSimonSweatpantsShouldDecreaseStaminaUsing : 1{false};
 
 	float SimonSweatpantsSpeedMultiplier = 1.0f;
 
@@ -1845,6 +1845,20 @@ protected:
 
 	// MasterMinMooMooSlippers
 protected:
+	uint8 bMasterMinMooMooSlippersIsOn : 1{false};
+
+	uint8 bMasterMinMooMooShouldDecreaseStaminaUsing : 1{false};
+	
+	float MasterMinMooMooSlippersSpeedMultiplier = 1.0f;
+	
+	float MasterMinMooMooSlippersStrafeSpeedMultiplier = 1.0f;
+
+	void MasterMinMooMooSlippers_SpeedFromHealthBy_60(float Direction);
+
+	void MasterMinMooMooSlippers_UsesLessStaminaBy_25();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float MasterMinMooMooSlippers_InteractWithDamage(FText DamageType, float DamageAmount);
 
 	// BounceHouseSuit
 protected:
