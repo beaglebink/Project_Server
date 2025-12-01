@@ -2090,14 +2090,20 @@ void AAlsCharacterExample::BounceHouseSuit_Effect(bool Apply)
 
 void AAlsCharacterExample::SheriffOutfit_Effect(bool Apply)
 {
+	bSheriffOutfitIsOn = Apply;
+	SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50();
+	SheriffOutfitSpeedMultiplier = 1.0f;
+	SheriffOutfit_FasterReload_25 = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SheriffOutfit"));
+		SheriffOutfitSpeedMultiplier = 1.075f;
+		SheriffOutfit_FasterReload_25 = 1.25f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SheriffOutfit"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SheriffOutfit"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SheriffOutfit"));
+	//}
 }
 
 void AAlsCharacterExample::ManillaOxfordAndSlacks_Effect(bool Apply)

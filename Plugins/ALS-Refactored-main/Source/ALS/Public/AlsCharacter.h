@@ -1848,9 +1848,9 @@ protected:
 	uint8 bMasterMinMooMooSlippersIsOn : 1{false};
 
 	uint8 bMasterMinMooMooShouldDecreaseStaminaUsing : 1{false};
-	
+
 	float MasterMinMooMooSlippersSpeedMultiplier = 1.0f;
-	
+
 	float MasterMinMooMooSlippersStrafeSpeedMultiplier = 1.0f;
 
 	void MasterMinMooMooSlippers_SpeedFromHealthBy_60(float Direction);
@@ -1876,7 +1876,26 @@ protected:
 	void BounceHouseSuit_IncreaseJumpHigh_40();
 
 	// SheriffOutfit
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float SheriffOutfit_FasterReload_25 = 1.0f;
+
 protected:
+	uint8 bSheriffOutfitIsOn : 1{false};
+
+	float SheriffOutfitRecoilMultiplier = 1.0f;
+
+	float SheriffOutfitAccuracyMultiplier = 1.0f;
+
+	float SheriffOutfitSpeedMultiplier = 1.0f;
+
+	float SheriffOutfitStrafeSpeedMultiplier = 1.0f;
+
+	void SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float SheriffOutfit_CodeRifleIncreaseDamageBy_12_5(AController* DamageInstigator, float DamageAmount);
+
 
 	// ManillaOxfordAndSlacks
 protected:

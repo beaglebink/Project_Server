@@ -2069,6 +2069,7 @@ void AAlsCharacter::SetStamina(float NewStamina)
 
 	RefreshHealthIfStaminaIsUnder_30();
 	CheckIfStaminaIsUnder_70();
+	SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50();
 
 	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
 }
@@ -2168,7 +2169,7 @@ void AAlsCharacter::StaminaRecovery()
 
 void AAlsCharacter::RefreshRecoil()
 {
-	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier;
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier;
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
@@ -2181,6 +2182,9 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	//CLothesEffect Master min moo moo slippers bonus for strafe movement
 	MasterMinMooMooSlippers_SpeedFromHealthBy_60(MovementDirection);
 
+	//ClothesEffect SheriffOutfit bonus for strafe movement
+	SheriffOutfitStrafeSpeedMultiplier = 1.0f + FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.15f * static_cast<int32>(bSheriffOutfitIsOn), 0.0f), FMath::Abs(MovementDirection));
+
 	// The less health left the slower movement
 	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
 
@@ -2191,7 +2195,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
-		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier;
+		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3070,7 +3074,8 @@ void AAlsCharacter::RefreshAimAccuracy()
 		}
 	}
 
-	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier;
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
+		* SheriffOutfitAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -4216,4 +4221,33 @@ void AAlsCharacter::BounceHouseSuit_IncreaseJumpHigh_40()
 		bBounceHouseSuitShouldIncreaseJumpHigh = false;
 		AlsCharacterMovement->JumpZVelocity /= 1.4f;
 	}
+}
+
+// SheriffOutfit
+void AAlsCharacter::SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50()
+{
+	SheriffOutfitRecoilMultiplier = 1.0f;
+	SheriffOutfitAccuracyMultiplier = 1.0f;
+	if (bSheriffOutfitIsOn && GetWeaponName() == "Code rifle")
+	{
+		if (GetStamina() / GetMaxStamina() < 0.5f)
+		{
+			SheriffOutfitAccuracyMultiplier = 0.8f;
+			SheriffOutfitRecoilMultiplier = 0.8f;
+		}
+	}
+}
+
+float AAlsCharacter::SheriffOutfit_CodeRifleIncreaseDamageBy_12_5(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bSheriffOutfitIsOn && Player->GetWeaponName() == "Code rifle")
+		{
+			DamageAmount *= 1.125f;
+		}
+	}
+
+	return DamageAmount;
 }
