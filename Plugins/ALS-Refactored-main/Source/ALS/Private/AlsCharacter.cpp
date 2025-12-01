@@ -2069,6 +2069,7 @@ void AAlsCharacter::SetStamina(float NewStamina)
 
 	RefreshHealthIfStaminaIsUnder_30();
 	CheckIfStaminaIsUnder_70();
+	SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50();
 
 	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
 }
@@ -2168,7 +2169,7 @@ void AAlsCharacter::StaminaRecovery()
 
 void AAlsCharacter::RefreshRecoil()
 {
-	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier;
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier;
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
@@ -2177,6 +2178,12 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 	//ClothesEffect Reboot vest penalty for strafe movement
 	RebootVestStrafingSpeedMultiplier = 1.0f - FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.15f * static_cast<int32>(bRebootVestIsOn), 0.0f), FMath::Abs(MovementDirection));
+
+	//CLothesEffect Master min moo moo slippers bonus for strafe movement
+	MasterMinMooMooSlippers_SpeedFromHealthBy_60(MovementDirection);
+
+	//ClothesEffect SheriffOutfit bonus for strafe movement
+	SheriffOutfitStrafeSpeedMultiplier = 1.0f + FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.15f * static_cast<int32>(bSheriffOutfitIsOn), 0.0f), FMath::Abs(MovementDirection));
 
 	// The less health left the slower movement
 	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
@@ -2187,7 +2194,8 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
-		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier;
+		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
+		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2199,7 +2207,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 {
-	if (bShouldIgnoreFallDamageAndStun)
+	if (bShouldIgnoreFallDamageAndStun || bBounceHouseSuitIsOn)
 	{
 		return;
 	}
@@ -3066,7 +3074,8 @@ void AAlsCharacter::RefreshAimAccuracy()
 		}
 	}
 
-	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier;
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
+		* SheriffOutfitAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3643,16 +3652,16 @@ void AAlsCharacter::GladiatorOutfit_SpeedIncreaseBy_20()
 
 void AAlsCharacter::GladiatorOutfit_UsesLessStaminaBy_20()
 {
-	if (bGladiatorOutfitIsOn && !bGladiatorOutfitShouldDecreaseStaminaUses)
+	if (bGladiatorOutfitIsOn && !bGladiatorOutfitShouldDecreaseStaminaUsing)
 	{
-		bGladiatorOutfitShouldDecreaseStaminaUses = true;
+		bGladiatorOutfitShouldDecreaseStaminaUsing = true;
 		SprintStaminaDrainRate *= 0.8f;
 		JumpStaminaCost *= 0.8f;
 		RollStaminaCost *= 0.8f;
 	}
-	else if (!bGladiatorOutfitIsOn && bGladiatorOutfitShouldDecreaseStaminaUses)
+	else if (!bGladiatorOutfitIsOn && bGladiatorOutfitShouldDecreaseStaminaUsing)
 	{
-		bGladiatorOutfitShouldDecreaseStaminaUses = false;
+		bGladiatorOutfitShouldDecreaseStaminaUsing = false;
 		SprintStaminaDrainRate /= 0.8f;
 		JumpStaminaCost /= 0.8f;
 		RollStaminaCost /= 0.8f;
@@ -3705,15 +3714,15 @@ float AAlsCharacter::PorcupineCoat_DecreaseMeleeDamageBy_10_40(AController* Dama
 
 void AAlsCharacter::PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200()
 {
-	if (bPorcupineCoatIsOn && !bPorcupineCoatShouldIncreaseStaminaUses)
+	if (bPorcupineCoatIsOn && !bPorcupineCoatShouldIncreaseStaminaUsing)
 	{
-		bPorcupineCoatShouldIncreaseStaminaUses = true;
+		bPorcupineCoatShouldIncreaseStaminaUsing = true;
 		JumpStaminaCost *= 3.0f;
 		SprintStaminaDrainRate *= 2.0f;
 	}
-	else if (!bPorcupineCoatIsOn && bPorcupineCoatShouldIncreaseStaminaUses)
+	else if (!bPorcupineCoatIsOn && bPorcupineCoatShouldIncreaseStaminaUsing)
 	{
-		bPorcupineCoatShouldIncreaseStaminaUses = false;
+		bPorcupineCoatShouldIncreaseStaminaUsing = false;
 		JumpStaminaCost /= 3.0f;
 		SprintStaminaDrainRate /= 2.0f;
 	}
@@ -3748,16 +3757,16 @@ float AAlsCharacter::ForcefieldCoat_DamageInteract(FText DamageType, float Damag
 
 void AAlsCharacter::ForcefieldCoat_UsesMoreStaminaBy_200()
 {
-	if (bForcefieldCoatIsOn && !bForcefieldCoatShouldIncreaseStaminaUses)
+	if (bForcefieldCoatIsOn && !bForcefieldCoatShouldIncreaseStaminaUsing)
 	{
-		bForcefieldCoatShouldIncreaseStaminaUses = true;
+		bForcefieldCoatShouldIncreaseStaminaUsing = true;
 		SprintStaminaDrainRate *= 2.0f;
 		JumpStaminaCost *= 2.0f;
 		RollStaminaCost *= 2.0f;
 	}
-	else if (!bForcefieldCoatIsOn && bForcefieldCoatShouldIncreaseStaminaUses)
+	else if (!bForcefieldCoatIsOn && bForcefieldCoatShouldIncreaseStaminaUsing)
 	{
-		bForcefieldCoatShouldIncreaseStaminaUses = false;
+		bForcefieldCoatShouldIncreaseStaminaUsing = false;
 		SprintStaminaDrainRate /= 2.0f;
 		JumpStaminaCost /= 2.0f;
 		RollStaminaCost /= 2.0f;
@@ -3840,16 +3849,16 @@ void AAlsCharacter::BugZapperCoat_ZapEnemies()
 
 void AAlsCharacter::BugZapperCoat_UsesMoreStaminaBy_200()
 {
-	if (bBugZapperCoatIsOn && !bBugZapperCoatShouldIncreaseStaminaUses)
+	if (bBugZapperCoatIsOn && !bBugZapperCoatShouldIncreaseStaminaUsing)
 	{
-		bBugZapperCoatShouldIncreaseStaminaUses = true;
+		bBugZapperCoatShouldIncreaseStaminaUsing = true;
 		SprintStaminaDrainRate *= 2.0f;
 		JumpStaminaCost *= 2.0f;
 		RollStaminaCost *= 2.0f;
 	}
-	else if (!bBugZapperCoatIsOn && bBugZapperCoatShouldIncreaseStaminaUses)
+	else if (!bBugZapperCoatIsOn && bBugZapperCoatShouldIncreaseStaminaUsing)
 	{
-		bBugZapperCoatShouldIncreaseStaminaUses = false;
+		bBugZapperCoatShouldIncreaseStaminaUsing = false;
 		SprintStaminaDrainRate /= 2.0f;
 		JumpStaminaCost /= 2.0f;
 		RollStaminaCost /= 2.0f;
@@ -3896,15 +3905,15 @@ float AAlsCharacter::SimonSweatpants_DealWithAttack(FText DamageType, float Dama
 
 void AAlsCharacter::SimonSweatpants_UsesLessStaminaBy_30()
 {
-	if (bSimonSweatpantsIsOn && !bSimonSweatpantsShouldDecreaseStaminaUses)
+	if (bSimonSweatpantsIsOn && !bSimonSweatpantsShouldDecreaseStaminaUsing)
 	{
-		bSimonSweatpantsShouldDecreaseStaminaUses = true;
+		bSimonSweatpantsShouldDecreaseStaminaUsing = true;
 		SprintStaminaDrainRate *= 0.7f;
 		JumpStaminaCost *= 0.7f;
 	}
-	else if (!bSimonSweatpantsIsOn && bSimonSweatpantsShouldDecreaseStaminaUses)
+	else if (!bSimonSweatpantsIsOn && bSimonSweatpantsShouldDecreaseStaminaUsing)
 	{
-		bSimonSweatpantsShouldDecreaseStaminaUses = false;
+		bSimonSweatpantsShouldDecreaseStaminaUsing = false;
 		SprintStaminaDrainRate /= 0.7f;
 		JumpStaminaCost /= 0.7f;
 	}
@@ -4098,4 +4107,213 @@ void AAlsCharacter::AmmoBeltVest_IncreaseStaminaOnReloading()
 	{
 		SetStamina(GetStamina() + 7.5f);
 	}
+}
+
+// MasterMinMooMooSlippers
+void AAlsCharacter::MasterMinMooMooSlippers_SpeedFromHealthBy_60(float Direction)
+{
+	MasterMinMooMooSlippersSpeedMultiplier = 1.0f;
+	MasterMinMooMooSlippersStrafeSpeedMultiplier = 1.0f;
+
+	if (bMasterMinMooMooSlippersIsOn && GetHealth() / GetMaxHealth() > 0.6f)
+	{
+		MasterMinMooMooSlippersSpeedMultiplier = 1.2f;
+		MasterMinMooMooSlippersStrafeSpeedMultiplier = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(1.3f, 1.0f), Direction);
+	}
+}
+
+void AAlsCharacter::MasterMinMooMooSlippers_UsesLessStaminaBy_25()
+{
+	if (bMasterMinMooMooSlippersIsOn && !bMasterMinMooMooShouldDecreaseStaminaUsing)
+	{
+		bMasterMinMooMooShouldDecreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 0.75f;
+		JumpStaminaCost *= 0.75f;
+		RollStaminaCost *= 0.75f;
+	}
+	else if (!bMasterMinMooMooSlippersIsOn && bMasterMinMooMooShouldDecreaseStaminaUsing)
+	{
+		bMasterMinMooMooShouldDecreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 0.75f;
+		JumpStaminaCost /= 0.75f;
+		RollStaminaCost /= 0.75f;
+	}
+}
+
+float AAlsCharacter::MasterMinMooMooSlippers_InteractWithDamage(FText DamageType, float DamageAmount)
+{
+	if (!bMasterMinMooMooSlippersIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (DamageType.ToString() == "Melee")
+	{
+		DamageAmount *= 0.85f;
+	}
+	else
+	{
+		DamageAmount *= 1.1f;
+	}
+
+	return DamageAmount;
+}
+
+// BounceHouseSuit
+void AAlsCharacter::BounceHouseSuit_UsesLessStaminaBy_50()
+{
+	if (bBounceHouseSuitIsOn && !bBounceHouseSuitShouldDecreaseStaminaUsing)
+	{
+		bBounceHouseSuitShouldDecreaseStaminaUsing = true;
+		JumpStaminaCost *= 0.5f;
+	}
+	else if (!bBounceHouseSuitIsOn && bBounceHouseSuitShouldDecreaseStaminaUsing)
+	{
+		bBounceHouseSuitShouldDecreaseStaminaUsing = false;
+		JumpStaminaCost /= 0.5f;
+	}
+}
+
+float AAlsCharacter::BounceHouseSuit_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bBounceHouseSuitIsOn && Player->AlsCharacterMovement->IsFalling())
+		{
+			return DamageAmount * 1.4f;
+		}
+	}
+
+	if (!bBounceHouseSuitIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (AlsCharacterMovement->IsFalling())
+	{
+		if (DamageType.ToString() != "Melee")
+		{
+			DamageAmount *= 0.85f;
+		}
+	}
+	else if (FMath::IsNearlyZero(GetVelocity().Length()))
+	{
+		DamageAmount *= 1.3f;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::BounceHouseSuit_IncreaseJumpHigh_40()
+{
+	if (bBounceHouseSuitIsOn && !bBounceHouseSuitShouldIncreaseJumpHigh)
+	{
+		bBounceHouseSuitShouldIncreaseJumpHigh = true;
+		AlsCharacterMovement->JumpZVelocity *= 1.4f;
+	}
+	else if (!bBounceHouseSuitIsOn && bBounceHouseSuitShouldIncreaseJumpHigh)
+	{
+		bBounceHouseSuitShouldIncreaseJumpHigh = false;
+		AlsCharacterMovement->JumpZVelocity /= 1.4f;
+	}
+}
+
+// SheriffOutfit
+void AAlsCharacter::SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50()
+{
+	SheriffOutfitRecoilMultiplier = 1.0f;
+	SheriffOutfitAccuracyMultiplier = 1.0f;
+	if (bSheriffOutfitIsOn && GetWeaponName() == "Code rifle")
+	{
+		if (GetStamina() / GetMaxStamina() < 0.5f)
+		{
+			SheriffOutfitAccuracyMultiplier = 0.8f;
+			SheriffOutfitRecoilMultiplier = 0.8f;
+		}
+	}
+}
+
+float AAlsCharacter::SheriffOutfit_CodeRifleIncreaseDamageBy_12_5(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bSheriffOutfitIsOn && Player->GetWeaponName() == "Code rifle")
+		{
+			DamageAmount *= 1.125f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+// ManillaOxfordAndSlacks
+float AAlsCharacter::ManillaOxfordAndSlacks_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bManillaOxfordAndSlacksIsOn && (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Folder"))) || EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.File")))))
+		{
+			return DamageAmount *= 1.4f;
+		}
+	}
+
+	if (!bManillaOxfordAndSlacksIsOn)
+	{
+		return DamageAmount;
+	}
+
+	AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+	if (!Enemy)
+	{
+		return DamageAmount;
+	}
+
+	if (GetStamina() / GetMaxStamina() > 0.7f && GetWeaponName() == "Vortex gun")
+	{
+		if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.File"))))
+		{
+			return 0.0f;
+		}
+	}
+	else if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.File"))) || Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Folder"))))
+	{
+		float ConvertedDamage = DamageAmount * 0.33f;
+		DamageAmount -= ConvertedDamage;
+		SetStamina(GetStamina() - ConvertedDamage);
+	}
+	//else if (GetHealth() / GetMaxHealth() > 0.8f && GetStamina() / GetMaxStamina() > 0.7f && GetWeaponName() == "Vortex gun")
+	//{
+	//	if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.File"))))
+	//	{
+	//		Enemy->Resistance = Minimal;
+	//	}
+	//}
+
+	return DamageAmount;
+}
+
+// HoareSweaterVest
+float AAlsCharacter::HoareSweaterVest_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+	if (Player && Player->bHoareSweaterVestIsOn && (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.GloopyBlue")))
+		|| EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.ArmourGreen")))
+		|| EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.BlueLegged")))))
+	{
+		DamageAmount *= 1.22f;
+	}
+
+	return DamageAmount;
 }
