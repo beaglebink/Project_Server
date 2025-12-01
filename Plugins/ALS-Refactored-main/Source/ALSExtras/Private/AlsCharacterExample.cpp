@@ -2108,14 +2108,15 @@ void AAlsCharacterExample::SheriffOutfit_Effect(bool Apply)
 
 void AAlsCharacterExample::ManillaOxfordAndSlacks_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ManillaOxfordAndSlacks"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ManillaOxfordAndSlacks"));
-	}
+	bManillaOxfordAndSlacksIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ManillaOxfordAndSlacks"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ManillaOxfordAndSlacks"));
+	//}
 }
 
 void AAlsCharacterExample::HoareSweaterVest_Effect(bool Apply)

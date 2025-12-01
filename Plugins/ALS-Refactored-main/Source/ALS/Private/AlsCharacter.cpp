@@ -4251,3 +4251,49 @@ float AAlsCharacter::SheriffOutfit_CodeRifleIncreaseDamageBy_12_5(AController* D
 
 	return DamageAmount;
 }
+
+float AAlsCharacter::ManillaOxfordAndSlacks_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bManillaOxfordAndSlacksIsOn && (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Folder"))) || EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.File")))))
+		{
+			return DamageAmount *= 1.4f;
+		}
+	}
+
+	if (!bManillaOxfordAndSlacksIsOn)
+	{
+		return DamageAmount;
+	}
+
+	AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+	if (!Enemy)
+	{
+		return DamageAmount;
+	}
+
+	if (GetStamina() / GetMaxStamina() > 0.7f && GetWeaponName() == "Vortex gun")
+	{
+		if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.File"))))
+		{
+			return 0.0f;
+		}
+	}
+	else if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.File"))) || Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Folder"))))
+	{
+		float ConvertedDamage = DamageAmount * 0.33f;
+		DamageAmount -= ConvertedDamage;
+		SetStamina(GetStamina() - ConvertedDamage);
+	}
+	//else if (GetHealth() / GetMaxHealth() > 0.8f && GetStamina() / GetMaxStamina() > 0.7f && GetWeaponName() == "Vortex gun")
+	//{
+	//	if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.File"))))
+	//	{
+	//		Enemy->Resistance = Minimal;
+	//	}
+	//}
+
+	return DamageAmount;
+}

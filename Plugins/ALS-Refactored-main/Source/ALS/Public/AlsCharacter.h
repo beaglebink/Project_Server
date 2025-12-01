@@ -1896,9 +1896,12 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float SheriffOutfit_CodeRifleIncreaseDamageBy_12_5(AController* DamageInstigator, float DamageAmount);
 
-
 	// ManillaOxfordAndSlacks
 protected:
+	uint8 bManillaOxfordAndSlacksIsOn : 1{false};
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float ManillaOxfordAndSlacks_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// HoareSweaterVest
 protected:
