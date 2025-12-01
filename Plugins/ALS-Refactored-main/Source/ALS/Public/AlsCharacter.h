@@ -1905,6 +1905,10 @@ protected:
 
 	// HoareSweaterVest
 protected:
+	uint8 bHoareSweaterVestIsOn : 1{false};
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float HoareSweaterVest_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// NuttySpectacles
 protected:

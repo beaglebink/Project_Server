@@ -2121,14 +2121,15 @@ void AAlsCharacterExample::ManillaOxfordAndSlacks_Effect(bool Apply)
 
 void AAlsCharacterExample::HoareSweaterVest_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HoareSweaterVest"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HoareSweaterVest"));
-	}
+	bHoareSweaterVestIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HoareSweaterVest"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HoareSweaterVest"));
+	//}
 }
 
 void AAlsCharacterExample::NuttySpectacles_Effect(bool Apply)

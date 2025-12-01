@@ -4252,6 +4252,7 @@ float AAlsCharacter::SheriffOutfit_CodeRifleIncreaseDamageBy_12_5(AController* D
 	return DamageAmount;
 }
 
+// ManillaOxfordAndSlacks
 float AAlsCharacter::ManillaOxfordAndSlacks_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
 {
 	if (DamageInstigator)
@@ -4294,6 +4295,25 @@ float AAlsCharacter::ManillaOxfordAndSlacks_InteractWithDamage(AController* Dama
 	//		Enemy->Resistance = Minimal;
 	//	}
 	//}
+
+	return DamageAmount;
+}
+
+// HoareSweaterVest
+float AAlsCharacter::HoareSweaterVest_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+	if (Player && Player->bHoareSweaterVestIsOn && (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.GloopyBlue")))
+		|| EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.ArmourGreen")))
+		|| EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Ghost.BlueLegged")))))
+	{
+		DamageAmount *= 1.22f;
+	}
 
 	return DamageAmount;
 }
