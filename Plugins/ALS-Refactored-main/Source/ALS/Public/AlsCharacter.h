@@ -1862,6 +1862,18 @@ protected:
 
 	// BounceHouseSuit
 protected:
+	uint8 bBounceHouseSuitIsOn : 1{false};
+
+	uint8 bBounceHouseSuitShouldDecreaseStaminaUsing : 1{false};
+
+	uint8 bBounceHouseSuitShouldIncreaseJumpHigh : 1{false};
+
+	void BounceHouseSuit_UsesLessStaminaBy_50();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float BounceHouseSuit_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	void BounceHouseSuit_IncreaseJumpHigh_40();
 
 	// SheriffOutfit
 protected:

@@ -2075,14 +2075,17 @@ void AAlsCharacterExample::MasterMinMooMooSlippers_Effect(bool Apply)
 
 void AAlsCharacterExample::BounceHouseSuit_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BounceHouseSuit"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BounceHouseSuit"));
-	}
+	bBounceHouseSuitIsOn = Apply;
+	BounceHouseSuit_UsesLessStaminaBy_50();
+	BounceHouseSuit_IncreaseJumpHigh_40();
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BounceHouseSuit"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BounceHouseSuit"));
+	//}
 }
 
 void AAlsCharacterExample::SheriffOutfit_Effect(bool Apply)

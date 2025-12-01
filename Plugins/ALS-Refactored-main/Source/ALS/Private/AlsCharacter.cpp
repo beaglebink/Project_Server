@@ -2203,7 +2203,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 {
-	if (bShouldIgnoreFallDamageAndStun)
+	if (bShouldIgnoreFallDamageAndStun || bBounceHouseSuitIsOn)
 	{
 		return;
 	}
@@ -4152,4 +4152,68 @@ float AAlsCharacter::MasterMinMooMooSlippers_InteractWithDamage(FText DamageType
 	}
 
 	return DamageAmount;
+}
+
+// BounceHouseSuit
+void AAlsCharacter::BounceHouseSuit_UsesLessStaminaBy_50()
+{
+	if (bBounceHouseSuitIsOn && !bBounceHouseSuitShouldDecreaseStaminaUsing)
+	{
+		bBounceHouseSuitShouldDecreaseStaminaUsing = true;
+		JumpStaminaCost *= 0.5f;
+	}
+	else if (!bBounceHouseSuitIsOn && bBounceHouseSuitShouldDecreaseStaminaUsing)
+	{
+		bBounceHouseSuitShouldDecreaseStaminaUsing = false;
+		JumpStaminaCost /= 0.5f;
+	}
+}
+
+float AAlsCharacter::BounceHouseSuit_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bBounceHouseSuitIsOn && Player->AlsCharacterMovement->IsFalling())
+		{
+			return DamageAmount * 1.4f;
+		}
+	}
+
+	if (!bBounceHouseSuitIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (AlsCharacterMovement->IsFalling())
+	{
+		if (DamageType.ToString() != "Melee")
+		{
+			DamageAmount *= 0.85f;
+		}
+	}
+	else if (FMath::IsNearlyZero(GetVelocity().Length()))
+	{
+		DamageAmount *= 1.3f;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::BounceHouseSuit_IncreaseJumpHigh_40()
+{
+	if (bBounceHouseSuitIsOn && !bBounceHouseSuitShouldIncreaseJumpHigh)
+	{
+		bBounceHouseSuitShouldIncreaseJumpHigh = true;
+		AlsCharacterMovement->JumpZVelocity *= 1.4f;
+	}
+	else if (!bBounceHouseSuitIsOn && bBounceHouseSuitShouldIncreaseJumpHigh)
+	{
+		bBounceHouseSuitShouldIncreaseJumpHigh = false;
+		AlsCharacterMovement->JumpZVelocity /= 1.4f;
+	}
 }
