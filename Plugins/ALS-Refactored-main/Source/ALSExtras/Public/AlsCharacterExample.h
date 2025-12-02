@@ -395,7 +395,7 @@ private:
 	void HoareSweaterVest_Effect(bool Apply = false);
 	void NuttySpectacles_Effect(bool Apply = false);
 	void BugHunterUniform_Effect(bool Apply = false);
-	void Effect_22(bool Apply = false);
+	void SniperFocusOnLongRange_Effect(bool Apply = false);
 	void Boxer_Effect(bool Apply = false);
 	void AdminPolo_Effect(bool Apply = false);
 	void Effect_25(bool Apply = false);

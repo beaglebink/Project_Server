@@ -2169,7 +2169,14 @@ void AAlsCharacter::StaminaRecovery()
 
 void AAlsCharacter::RefreshRecoil()
 {
-	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier;
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
+		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier;
+
+	//Recoil multiplier debug
+	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Green, FString::Printf(TEXT("RecoilMultiplier: %f"), RecoilMultiplier));
+	//}
 }
 
 void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
@@ -2195,7 +2202,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
-		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier;
+		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3075,7 +3082,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 	}
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier;
+		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -4321,3 +4328,50 @@ float AAlsCharacter::HoareSweaterVest_InteractWithDamage(AController* DamageInst
 
 // BugHunterUniform
 
+// SniperFocusOnLongRange
+void AAlsCharacter::SniperFocusOnLongRange_CheckRecoil(bool bSetRecoil)
+{
+	SniperFocusOnLongRangeRecoilOnChargingShotMultiplier = 1.0f;
+	SniperFocusOnLongRangeRecoilOnMovingMultiplier = 1.0f;
+
+	if (bSniperFocusOnLongRangeIsOn)
+	{
+		if (bSetRecoil)
+		{
+			SniperFocusOnLongRangeRecoilOnChargingShotMultiplier = 0.78f;
+		}
+
+		if (GetVelocity().Length() > 0.0f)
+		{
+			SniperFocusOnLongRangeRecoilOnMovingMultiplier = 1.3f;
+		}
+	}
+}
+
+float AAlsCharacter::SniperFocusOnLongRange_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bSniperFocusOnLongRangeIsOn)
+		{
+			if (Player->GetWeaponName() == "Code rifle" && FVector::Distance(GetActorLocation(), Player->GetActorLocation()) >= 500.0f)
+			{
+				return DamageAmount *= 1.0f + FMath::FRandRange(0.2f, 0.3f);
+			}
+			else if (FVector::Distance(GetActorLocation(), Player->GetActorLocation()) <= 300.0f)
+			{
+				return DamageAmount *= 0.8f;
+			}
+		}
+	}
+
+	if (bSniperFocusOnLongRangeIsOn)
+	{
+		if (DamageType.ToString() == "Melee")
+		{
+			return DamageAmount *= 1.3f;
+		}
+	}
+	return DamageAmount;
+}

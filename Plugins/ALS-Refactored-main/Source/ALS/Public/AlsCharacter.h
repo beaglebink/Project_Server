@@ -1923,9 +1923,30 @@ protected:
 protected:
 	uint8 bBugHunterUniformIsOn : 1{false};
 
+	// SniperFocusOnLongRange
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.0f;
 
-	// Effect_22
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float SniperFocusOnLongRangeMachineGunDamageMultiplier = 1.0f;
+
 protected:
+	uint8 bSniperFocusOnLongRangeIsOn : 1{false};
+
+	float SniperFocusOnLongRangeAccuracyMultiplier = 1.0f;
+
+	float SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
+
+	float SniperFocusOnLongRangeRecoilOnChargingShotMultiplier = 1.0f;
+
+	float SniperFocusOnLongRangeRecoilOnMovingMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void SniperFocusOnLongRange_CheckRecoil(bool bSetRecoil);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float SniperFocusOnLongRange_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
 	// Boxer
 protected:

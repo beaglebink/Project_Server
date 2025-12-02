@@ -1787,7 +1787,7 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::HoareSweaterVest, [this](bool Apply) {HoareSweaterVest_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::NuttySpectacles, [this](bool Apply) {NuttySpectacles_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::BugHunterUniform, [this](bool Apply) {BugHunterUniform_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_22, [this](bool Apply) {Effect_22(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::SniperFocusOnLongRange, [this](bool Apply) {SniperFocusOnLongRange_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Boxer, [this](bool Apply) {Boxer_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::AdminPolo, [this](bool Apply) {AdminPolo_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_25, [this](bool Apply) {Effect_25(Apply); });
@@ -2162,16 +2162,25 @@ void AAlsCharacterExample::BugHunterUniform_Effect(bool Apply)
 	//}
 }
 
-void AAlsCharacterExample::Effect_22(bool Apply)
+void AAlsCharacterExample::SniperFocusOnLongRange_Effect(bool Apply)
 {
+	bSniperFocusOnLongRangeIsOn = Apply;
+	SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.0f;
+	SniperFocusOnLongRangeMachineGunDamageMultiplier = 1.0f;
+	SniperFocusOnLongRangeAccuracyMultiplier = 1.0f;
+	SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_22"));
+		SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.25f;
+		SniperFocusOnLongRangeMachineGunDamageMultiplier = 0.8f;
+		SniperFocusOnLongRangeAccuracyMultiplier = 0.825f;
+		SniperFocusOnLongRangeSpeedMultiplier = 0.925f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_22"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_22"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_22"));
+	//}
 }
 
 void AAlsCharacterExample::Boxer_Effect(bool Apply)
