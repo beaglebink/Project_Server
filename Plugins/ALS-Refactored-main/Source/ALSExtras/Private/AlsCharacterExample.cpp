@@ -2092,12 +2092,14 @@ void AAlsCharacterExample::SheriffOutfit_Effect(bool Apply)
 {
 	bSheriffOutfitIsOn = Apply;
 	SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50();
-	SheriffOutfitSpeedMultiplier = 1.0f;
+	SheriffOutfit_FasterWeaponDraw_40 = 1.0f;
 	SheriffOutfit_FasterReload_25 = 1.0f;
+	SheriffOutfitSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
-		SheriffOutfitSpeedMultiplier = 1.075f;
+		SheriffOutfit_FasterWeaponDraw_40 = 1.4f;
 		SheriffOutfit_FasterReload_25 = 1.25f;
+		SheriffOutfitSpeedMultiplier = 1.075f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SheriffOutfit"));
 	}
 	//else
@@ -2134,26 +2136,30 @@ void AAlsCharacterExample::HoareSweaterVest_Effect(bool Apply)
 
 void AAlsCharacterExample::NuttySpectacles_Effect(bool Apply)
 {
+	bNuttySpectaclesIsOn = Apply;
+	NuttySpectaclesAccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NuttySpectacles"));
+		NuttySpectaclesAccuracyMultiplier = 0.85f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NuttySpectacles"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NuttySpectacles"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NuttySpectacles"));
+	//}
 }
 
 void AAlsCharacterExample::BugHunterUniform_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BugHunterUniform"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BugHunterUniform"));
-	}
+	bBugHunterUniformIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BugHunterUniform"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BugHunterUniform"));
+	//}
 }
 
 void AAlsCharacterExample::Effect_22(bool Apply)

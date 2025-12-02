@@ -1880,6 +1880,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float SheriffOutfit_FasterReload_25 = 1.0f;
 
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float SheriffOutfit_FasterWeaponDraw_40 = 1.0f;
+
 protected:
 	uint8 bSheriffOutfitIsOn : 1{false};
 
@@ -1912,9 +1915,14 @@ protected:
 
 	// NuttySpectacles
 protected:
+	uint8 bNuttySpectaclesIsOn : 1{false};
+
+	float NuttySpectaclesAccuracyMultiplier = 1.0f;
 
 	// BugHunterUniform
 protected:
+	uint8 bBugHunterUniformIsOn : 1{false};
+
 
 	// Effect_22
 protected:
