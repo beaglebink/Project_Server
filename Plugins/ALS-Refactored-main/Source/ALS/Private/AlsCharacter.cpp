@@ -3075,7 +3075,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 	}
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier;
+		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -4317,3 +4317,7 @@ float AAlsCharacter::HoareSweaterVest_InteractWithDamage(AController* DamageInst
 
 	return DamageAmount;
 }
+// NuttySpectacles
+
+// BugHunterUniform
+
