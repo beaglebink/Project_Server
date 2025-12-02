@@ -2092,12 +2092,14 @@ void AAlsCharacterExample::SheriffOutfit_Effect(bool Apply)
 {
 	bSheriffOutfitIsOn = Apply;
 	SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50();
-	SheriffOutfitSpeedMultiplier = 1.0f;
+	SheriffOutfit_FasterWeaponDraw_40 = 1.0f;
 	SheriffOutfit_FasterReload_25 = 1.0f;
+	SheriffOutfitSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
-		SheriffOutfitSpeedMultiplier = 1.075f;
+		SheriffOutfit_FasterWeaponDraw_40 = 1.4f;
 		SheriffOutfit_FasterReload_25 = 1.25f;
+		SheriffOutfitSpeedMultiplier = 1.075f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SheriffOutfit"));
 	}
 	//else

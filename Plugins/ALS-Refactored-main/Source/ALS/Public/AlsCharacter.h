@@ -1880,6 +1880,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float SheriffOutfit_FasterReload_25 = 1.0f;
 
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float SheriffOutfit_FasterWeaponDraw_40 = 1.0f;
+
 protected:
 	uint8 bSheriffOutfitIsOn : 1{false};
 
