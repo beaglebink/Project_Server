@@ -1950,6 +1950,23 @@ protected:
 
 	// Boxer
 protected:
+	uint8 bBoxerIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bBoxerMachineGunModeIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bBoxerChargedModeIsOn : 1{false};
+
+	float BoxerMachineGunAccuracyMultiplier = 1.0f;
+
+	float BoxerMachineGunRecoilMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void Boxer_CheckIfMachineGunModeIsOn();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float Boxer_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
 	// AdminPolo
 protected:

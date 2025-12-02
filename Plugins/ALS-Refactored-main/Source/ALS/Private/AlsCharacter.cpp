@@ -2170,7 +2170,7 @@ void AAlsCharacter::StaminaRecovery()
 void AAlsCharacter::RefreshRecoil()
 {
 	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
-		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier;
+		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -3082,12 +3082,18 @@ void AAlsCharacter::RefreshAimAccuracy()
 	}
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier;
+		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
 {
 	MainDamageMultiplier = DamageMultiplier_13 * LastStandDamageMultiplier * DamageMultiplier_25 * DamageMultiplierIfHealthIsUnder_30 * DamageMultiplierOnCrouch * TakenDamageMultiplier;
+
+	// Debug message
+	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(),0))
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 0, FColor::Green, FString::Printf(TEXT("DamageMultiplier - %2.2f"), MainDamageMultiplier));
+	//}
 }
 
 void AAlsCharacter::RefreshStaminaAndRecoilIfHealthIsUnder_20()
@@ -4372,6 +4378,44 @@ float AAlsCharacter::SniperFocusOnLongRange_InteractWithDamage(AController* Dama
 		{
 			return DamageAmount *= 1.3f;
 		}
+	}
+	return DamageAmount;
+}
+
+// Boxer
+void AAlsCharacter::Boxer_CheckIfMachineGunModeIsOn()
+{
+	BoxerMachineGunAccuracyMultiplier = 1.0f;
+	BoxerMachineGunRecoilMultiplier = 1.0f;
+
+	if (bBoxerIsOn && bBoxerMachineGunModeIsOn)
+	{
+		BoxerMachineGunAccuracyMultiplier = 0.85f;
+		BoxerMachineGunRecoilMultiplier = 0.8f;
+	}
+}
+
+float AAlsCharacter::Boxer_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bBoxerIsOn)
+		{
+			if (Player->bBoxerMachineGunModeIsOn)
+			{
+				DamageAmount *= 1.25f;
+			}
+			if (FVector::Distance(GetActorLocation(), Player->GetActorLocation()) >= 500.0f && Player->bBoxerChargedModeIsOn)
+			{
+				DamageAmount *= 0.8f;
+			}
+		}
+	}
+
+	if (bBoxerIsOn && DamageType.ToString() != "Melee")
+	{
+		DamageAmount *= 1.2f;
 	}
 	return DamageAmount;
 }

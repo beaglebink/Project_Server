@@ -2185,14 +2185,16 @@ void AAlsCharacterExample::SniperFocusOnLongRange_Effect(bool Apply)
 
 void AAlsCharacterExample::Boxer_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Boxer"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Boxer"));
-	}
+	bBoxerIsOn = Apply;
+	Boxer_CheckIfMachineGunModeIsOn();
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Boxer"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Boxer"));
+	//}
 }
 
 void AAlsCharacterExample::AdminPolo_Effect(bool Apply)
