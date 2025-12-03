@@ -218,8 +218,6 @@ void UBookfaceSubsystem::RemoveFriendRequest(const FString& FromUserId, const FS
     }
 }
 
-// ======================= Работа с сообщениями =======================
-
 UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
     const FString& FromUserId,
     const FString& ToUserId,
@@ -227,7 +225,6 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
     UBookfaceMessageObject* ParentMessage,
     bool /*IsTopLevel*/)
 {
-    // Находим профиль получателя
     FBookfaceProfileStructure* TargetProfile = UserProfiles.FindByPredicate(
         [&](const FBookfaceProfileStructure& Profile) { return Profile.UserId == ToUserId; });
 
@@ -237,7 +234,6 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
         return nullptr;
     }
 
-    // Создаём новое сообщение
     UBookfaceMessageObject* NewMessage = NewObject<UBookfaceMessageObject>(this);
     NewMessage->MessageId = FGuid::NewGuid().ToString();
     NewMessage->FromUserId = FromUserId;
@@ -249,12 +245,10 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
 
     if (ParentMessage)
     {
-        // Это комментарий/ответ
         ParentMessage->ReplyMessages.Add(NewMessage);
     }
     else
     {
-        // Это корневой пост
         TargetProfile->UserMessages.Add(NewMessage);
     }
 
@@ -266,13 +260,11 @@ bool UBookfaceSubsystem::RemoveMessageFromProfile(UBookfaceMessageObject* Messag
 {
     if (!MessageToRemove) return false;
 
-    // Если это комментарий
     if (MessageToRemove->ParentMessage)
     {
         return MessageToRemove->ParentMessage->ReplyMessages.Remove(MessageToRemove) > 0;
     }
 
-    // Иначе ищем профиль и удаляем корневой пост
     for (auto& Profile : UserProfiles)
     {
         if (Profile.UserId == MessageToRemove->ToUserId)
@@ -288,18 +280,15 @@ TArray<UBookfaceMessageObject*> UBookfaceSubsystem::GetAllPosts() const
 {
     TArray<UBookfaceMessageObject*> Aggregated;
 
-    // Собираем все корневые посты из профилей
     for (const auto& Profile : UserProfiles)
     {
         Aggregated.Append(Profile.UserMessages);
     }
 
-    // Возвращаем в реверсе, чтобы сохранить текущее поведение
     Algo::Reverse(Aggregated);
     return Aggregated;
 }
 
-// ======================= Сохранение сообщений =======================
 
 void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
 {
@@ -320,7 +309,6 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
         SaveGame->SavedFriendRequests = FriendRequests;
     }
 
-    // Обновляем только сообщения
     SaveGame->SavedAllPosts.Empty();
 
     auto SaveMessageRecursive = [&](UBookfaceMessageObject* Msg, const FString& ParentId, auto&& Self) -> void
@@ -367,7 +355,6 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
     );
 }
 
-// ======================= Загрузка данных =======================
 
 void UBookfaceSubsystem::LoadBookfaceDataAsync()
 {
@@ -455,8 +442,6 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
             })
     );
 }
-
-// ======================= Работа с профилями и заявками =======================
 
 void UBookfaceSubsystem::OnBookfaceAppOpened()
 {
