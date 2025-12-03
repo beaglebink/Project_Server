@@ -3832,16 +3832,11 @@ void AAlsCharacter::BugZapperCoat_ZapEnemies()
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);
 
-	bool bHit = GetWorld()->OverlapMultiByObjectType(Overlaps, GetActorLocation(), FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn), FCollisionShape::MakeSphere(ZapRadius), Params);
+	GetWorld()->OverlapMultiByObjectType(Overlaps, GetActorLocation(), FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn), FCollisionShape::MakeSphere(ZapRadius), Params);
 
-	if (!bHit)
+	for (const FOverlapResult& Result : Overlaps)
 	{
-		return;
-	}
-
-	for (const FOverlapResult& Hit : Overlaps)
-	{
-		AAlsCharacter* Enemy = Cast<AAlsCharacter>(Hit.GetActor());
+		AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor());
 
 		if (!Enemy || !Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")) || LevelEnemyManager->ZappedEnemies.Contains(Enemy))
 		{
@@ -4019,15 +4014,15 @@ void AAlsCharacter::MagneticVest_SlowEnemies()
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);
 
-	bool bHasOverlap = GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(MagneticRadius), Params);
+	GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(MagneticRadius), Params);
 
 	TSet<AActor*> CurrentEnemiesInRadius;
 
-	if (bHasOverlap)
+	for (const FOverlapResult& Result : Overlaps)
 	{
-		for (auto& Result : Overlaps)
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
 		{
-			if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 			{
 				CurrentEnemiesInRadius.Add(Enemy);
 				Enemy->MagneticVestSpeedMultiplier = 0.6f;
@@ -4333,6 +4328,122 @@ float AAlsCharacter::HoareSweaterVest_InteractWithDamage(AController* DamageInst
 // NuttySpectacles
 
 // BugHunterUniform
+void AAlsCharacter::BugHunterUniform_CheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->bBugHunterUniformIsOn)
+			{
+				if (GetHealth() <= DamageAmount)
+				{
+					++Player->BugHunterUniformEnemyKillsCounter;
+					if (Player->BugHunterUniformEnemyKillsCounter == 1)
+					{
+						FTimerHandle BugHunterUniformEnemyKillsTimerHandle;
+						GetWorldTimerManager().SetTimer(BugHunterUniformEnemyKillsTimerHandle, [Player]()
+							{
+								if (IsValid(Player))
+								{
+									Player->BugHunterUniformEnemyKillsCounter = 0;
+								}
+							}, 20.0f, false);
+					}
+
+					++Player->BugHunterUniformEnemyKillsCounterForStaminaAndAmmoRegain;
+					if (Player->BugHunterUniformEnemyKillsCounterForStaminaAndAmmoRegain >= 4)
+					{
+						Player->BugHunterUniformEnemyKillsCounterForStaminaAndAmmoRegain = 0;
+						Player->SetStamina(Player->GetStamina() + 20.0f);
+						Player->BugHunterUniform_RefillWeaponAmmo();
+					}
+				}
+			}
+		}
+	}
+}
+
+float AAlsCharacter::BugHunterUniform_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (bBugHunterUniformIsOn)
+	{
+		// Damage debuff after 3 hits
+		if (bBugHunterUniformEnemyDamageDebuffIsOn)
+		{
+			DamageAmount *= 1.0f - FMath::FRandRange(0.3f, 0.5f);
+		}
+		else
+		{
+			++BugHunterUniformEnemyHitsCounter;
+			if (BugHunterUniformEnemyHitsCounter >= 3)
+			{
+				bBugHunterUniformEnemyDamageDebuffIsOn = true;
+				FTimerHandle BugHunterUniformEnemyDamageDebuffTimerHandle;
+				GetWorldTimerManager().SetTimer(BugHunterUniformEnemyDamageDebuffTimerHandle, [this]()
+					{
+						BugHunterUniformEnemyHitsCounter = 0;
+						bBugHunterUniformEnemyDamageDebuffIsOn = false;
+					}, 20.0f, false);
+			}
+			else
+			{
+				FTimerHandle BugHunterUniformEnemyHitsTimerHandle;
+				GetWorldTimerManager().SetTimer(BugHunterUniformEnemyHitsTimerHandle, [this]()
+					{
+						if (BugHunterUniformEnemyHitsCounter > 0)
+						{
+							--BugHunterUniformEnemyHitsCounter;
+						}
+					}, 20.0f, false);
+			}
+		}
+
+		// Melee damage reduction
+		if (DamageType.ToString() == "Melee")
+		{
+			DamageAmount *= 0.925f;
+		}
+
+		// Reduce damage if more than 4 enemies nearby
+		const float VicinityRadius = 400.0f;
+		TArray<FOverlapResult> Overlaps;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(this);
+
+		GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(VicinityRadius), Params);
+
+		int32 EnemyCount = 0;
+		for (const FOverlapResult& Result : Overlaps)
+		{
+			if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+			{
+				if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+				{
+					++EnemyCount;
+				}
+			}
+		}
+		if (EnemyCount >= 4)
+		{
+			DamageAmount *= 0.85f;
+		}
+	}
+
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			DamageAmount *= 1.0f + Player->BugHunterUniformEnemyKillsCounter * 0.05f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::BugHunterUniform_RefillWeaponAmmo_Implementation()
+{
+}
 
 // SniperFocusOnLongRange
 void AAlsCharacter::SniperFocusOnLongRange_CheckRecoil(bool bSetRecoil)

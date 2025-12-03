@@ -1923,6 +1923,23 @@ protected:
 protected:
 	uint8 bBugHunterUniformIsOn : 1{false};
 
+	uint8 bBugHunterUniformEnemyDamageDebuffIsOn : 1{false};
+
+	int32 BugHunterUniformEnemyHitsCounter = 0;
+
+	int32 BugHunterUniformEnemyKillsCounter = 0;
+
+	int32 BugHunterUniformEnemyKillsCounterForStaminaAndAmmoRegain = 0;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void BugHunterUniform_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float BugHunterUniform_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
+	void BugHunterUniform_RefillWeaponAmmo();
+
 	// SniperFocusOnLongRange
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")

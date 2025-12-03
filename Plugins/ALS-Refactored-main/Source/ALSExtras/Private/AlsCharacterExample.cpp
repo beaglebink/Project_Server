@@ -2152,6 +2152,8 @@ void AAlsCharacterExample::NuttySpectacles_Effect(bool Apply)
 void AAlsCharacterExample::BugHunterUniform_Effect(bool Apply)
 {
 	bBugHunterUniformIsOn = Apply;
+	BugHunterUniformEnemyKillsCounter = 0;
+	BugHunterUniformEnemyKillsCounterForStaminaAndAmmoRegain = 0;
 	//if (Apply)
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BugHunterUniform"));
