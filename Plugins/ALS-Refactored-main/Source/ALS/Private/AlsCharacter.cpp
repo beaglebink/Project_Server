@@ -4530,3 +4530,24 @@ float AAlsCharacter::Boxer_InteractWithDamage(AController* DamageInstigator, FTe
 	}
 	return DamageAmount;
 }
+
+float AAlsCharacter::AdminPolo_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bAdminPoloIsOn)
+		{
+			if (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.File")))
+			{
+				DamageAmount *= 1.155f;
+			}
+			else
+			{
+				DamageAmount *= 1.075f;
+			}
+		}
+	}
+
+	return DamageAmount;
+}

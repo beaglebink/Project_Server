@@ -1986,7 +1986,15 @@ protected:
 	float Boxer_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
 	// AdminPolo
+public:
+	uint8 bAdminPoloIsOn : 1{false};
+
 protected:
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float AdminPoloSuctionMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float AdminPolo_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// Effect_25
 protected:

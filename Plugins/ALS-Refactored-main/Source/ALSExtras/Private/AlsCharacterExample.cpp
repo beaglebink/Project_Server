@@ -2201,14 +2201,17 @@ void AAlsCharacterExample::Boxer_Effect(bool Apply)
 
 void AAlsCharacterExample::AdminPolo_Effect(bool Apply)
 {
+	bAdminPoloIsOn = Apply;
+	AdminPoloSuctionMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AdminPolo"));
+		AdminPoloSuctionMultiplier = 1.075f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AdminPolo"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AdminPolo"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AdminPolo"));
+	//}
 }
 
 void AAlsCharacterExample::Effect_25(bool Apply)
