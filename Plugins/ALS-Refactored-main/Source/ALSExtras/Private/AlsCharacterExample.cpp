@@ -1790,7 +1790,7 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::SniperFocusOnLongRange, [this](bool Apply) {SniperFocusOnLongRange_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Boxer, [this](bool Apply) {Boxer_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::AdminPolo, [this](bool Apply) {AdminPolo_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_25, [this](bool Apply) {Effect_25(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::PorcelainCannon, [this](bool Apply) {PorcelainCannon_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::CarlOvercoat, [this](bool Apply) {CarlOvercoat_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_27, [this](bool Apply) {Effect_27(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) {SimonSweater_Effect(Apply); });
@@ -2214,16 +2214,22 @@ void AAlsCharacterExample::AdminPolo_Effect(bool Apply)
 	//}
 }
 
-void AAlsCharacterExample::Effect_25(bool Apply)
+void AAlsCharacterExample::PorcelainCannon_Effect(bool Apply)
 {
+	bPorcelainCannonIsOn = Apply;
+	PorcelainCannonSpeedMultiplier = 1.0f;
+	PorcelainCannonRecoilMultiplier = 1.0f;
+	PorcelainCannon_UsesMoreStaminaBy_50();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_25"));
+		PorcelainCannonSpeedMultiplier = 0.9f;
+		PorcelainCannonRecoilMultiplier = 1.2f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_25"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_25"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_25"));
+	//}
 }
 
 void AAlsCharacterExample::CarlOvercoat_Effect(bool Apply)

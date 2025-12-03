@@ -1996,8 +1996,20 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float AdminPolo_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
-	// Effect_25
+	// PorcelainCannon
 protected:
+	uint8 bPorcelainCannonIsOn : 1{false};
+
+	uint8 bPorcelainCannonShouldIncreaseStaminaUsing : 1{false};
+
+	float PorcelainCannonSpeedMultiplier = 1.0f;
+
+	float PorcelainCannonRecoilMultiplier = 1.0f;
+
+	void PorcelainCannon_UsesMoreStaminaBy_50();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float PorcelainCannon_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// CarlOvercoat
 protected:

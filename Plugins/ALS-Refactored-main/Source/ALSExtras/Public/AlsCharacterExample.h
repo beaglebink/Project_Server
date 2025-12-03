@@ -398,7 +398,7 @@ private:
 	void SniperFocusOnLongRange_Effect(bool Apply = false);
 	void Boxer_Effect(bool Apply = false);
 	void AdminPolo_Effect(bool Apply = false);
-	void Effect_25(bool Apply = false);
+	void PorcelainCannon_Effect(bool Apply = false);
 	void CarlOvercoat_Effect(bool Apply = false);
 	void Effect_27(bool Apply = false);
 	void SimonSweater_Effect(bool Apply = false);

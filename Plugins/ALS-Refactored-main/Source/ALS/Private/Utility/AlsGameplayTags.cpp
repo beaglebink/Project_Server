@@ -309,7 +309,7 @@ namespace ClothesEffectTags
 		UE_DEFINE_GAMEPLAY_TAG(SniperFocusOnLongRange, FName{ TEXTVIEW("Clothes.Effect.SniperFocusOnLongRange") })
 		UE_DEFINE_GAMEPLAY_TAG(Boxer, FName{ TEXTVIEW("Clothes.Effect.Boxer") })
 		UE_DEFINE_GAMEPLAY_TAG(AdminPolo, FName{ TEXTVIEW("Clothes.Effect.AdminPolo") })
-		UE_DEFINE_GAMEPLAY_TAG(Effect_25, FName{ TEXTVIEW("Clothes.Effect.Effect_25") })
+		UE_DEFINE_GAMEPLAY_TAG(PorcelainCannon, FName{ TEXTVIEW("Clothes.Effect.PorcelainCannon") })
 		UE_DEFINE_GAMEPLAY_TAG(CarlOvercoat, FName{ TEXTVIEW("Clothes.Effect.CarlOvercoat") })
 		UE_DEFINE_GAMEPLAY_TAG(Effect_27, FName{ TEXTVIEW("Clothes.Effect.Effect_27") })
 		UE_DEFINE_GAMEPLAY_TAG(SimonSweater, FName{ TEXTVIEW("Clothes.Effect.SimonSweater") })

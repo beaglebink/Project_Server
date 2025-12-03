@@ -2170,7 +2170,7 @@ void AAlsCharacter::StaminaRecovery()
 void AAlsCharacter::RefreshRecoil()
 {
 	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
-		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier;
+		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -2202,7 +2202,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
-		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier;
+		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -4531,6 +4531,7 @@ float AAlsCharacter::Boxer_InteractWithDamage(AController* DamageInstigator, FTe
 	return DamageAmount;
 }
 
+// AdminPolo
 float AAlsCharacter::AdminPolo_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
 {
 	if (DamageInstigator)
@@ -4547,6 +4548,44 @@ float AAlsCharacter::AdminPolo_InteractWithDamage(AController* DamageInstigator,
 				DamageAmount *= 1.075f;
 			}
 		}
+	}
+
+	return DamageAmount;
+}
+
+// PorcelainCannon
+void AAlsCharacter::PorcelainCannon_UsesMoreStaminaBy_50()
+{
+	if (bPorcelainCannonIsOn && !bPorcelainCannonShouldIncreaseStaminaUsing)
+	{
+		bPorcelainCannonShouldIncreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 1.5f;
+		JumpStaminaCost *= 1.5f;
+		RollStaminaCost *= 1.5f;
+	}
+	else if (!bPorcelainCannonIsOn && bPorcelainCannonShouldIncreaseStaminaUsing)
+	{
+		bPorcelainCannonShouldIncreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 1.5f;
+		JumpStaminaCost /= 1.5f;
+		RollStaminaCost /= 1.5f;
+	}
+}
+
+float AAlsCharacter::PorcelainCannon_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bPorcelainCannonIsOn)
+		{
+			DamageAmount *= 1.5f;
+		}
+	}
+
+	if (bPorcelainCannonIsOn)
+	{
+		DamageAmount *= 1.6f;
 	}
 
 	return DamageAmount;
