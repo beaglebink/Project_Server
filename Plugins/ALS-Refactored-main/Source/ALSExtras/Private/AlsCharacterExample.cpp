@@ -2234,13 +2234,23 @@ void AAlsCharacterExample::PorcelainCannon_Effect(bool Apply)
 
 void AAlsCharacterExample::CarlOvercoat_Effect(bool Apply)
 {
+	bCarlOvercoatIsOn = Apply;
+	CarlOvercoatDamageBonus = 0.0f;
+	CarlOvercoatEvasionBonus = 0.0f;
+	CarlOvercoatSpeedMultiplier = 1.0f;
+	CarlOvercoatRecoilMultiplier = 1.0f;
+	CarlOvercoatDamagePenalty = 0.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CarlOvercoat"));
+		CarlOvercoatSpeedMultiplier = 1.1f;
+		CarlOvercoatRecoilMultiplier = 0.82f;
+		GetWorldTimerManager().SetTimer(CarlOvercoatDamageInteractTimerHandle, this, &AAlsCharacter::CarlOvercoat_DamageAndEvasionBonusOverTime, 10.0f, true, 10.0f);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CarlOvercoat"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CarlOvercoat"));
+		GetWorldTimerManager().ClearTimer(CarlOvercoatDamageInteractTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CarlOvercoat"));
 	}
 }
 

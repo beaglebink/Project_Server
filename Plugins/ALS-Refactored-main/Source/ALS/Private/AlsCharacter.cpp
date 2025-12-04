@@ -2049,6 +2049,7 @@ void AAlsCharacter::SetHealth(float NewHealth)
 	CheckIfHealthIsUnder_20();
 	ShouldIgnoreStunIfHealthIsUnder_50();
 	CheckIfHealthIsUnder_30();
+	CarlOvercoat_DamageAndEvasionBonusReset();
 
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
@@ -2070,6 +2071,7 @@ void AAlsCharacter::SetStamina(float NewStamina)
 	RefreshHealthIfStaminaIsUnder_30();
 	CheckIfStaminaIsUnder_70();
 	SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50();
+	CarlOvercoat_DamageAndEvasionBonusReset();
 
 	OnStaminaChanged.Broadcast(Stamina, MaxStamina);
 }
@@ -2170,7 +2172,8 @@ void AAlsCharacter::StaminaRecovery()
 void AAlsCharacter::RefreshRecoil()
 {
 	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
-		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier;
+		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier
+		* CarlOvercoatRecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -2202,7 +2205,8 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
-		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier;
+		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
+		* CarlOvercoatSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -4588,5 +4592,41 @@ float AAlsCharacter::PorcelainCannon_InteractWithDamage(AController* DamageInsti
 		DamageAmount *= 1.6f;
 	}
 
+	return DamageAmount;
+}
+
+// CarlOvercoat
+void AAlsCharacter::CarlOvercoat_DamageAndEvasionBonusOverTime()
+{
+	CarlOvercoatDamageBonus = FMath::Clamp(CarlOvercoatDamageBonus + 0.01f, 0.0f, 0.5f);
+	CarlOvercoatEvasionBonus = FMath::Clamp(CarlOvercoatEvasionBonus + 0.01f, 0.0f, 0.5f);
+}
+
+void AAlsCharacter::CarlOvercoat_DamageAndEvasionBonusReset()
+{
+	if (GetHealth() < 80.0f || GetStamina() < 40.0f)
+	{
+		GetWorldTimerManager().ClearTimer(CarlOvercoatDamageInteractTimerHandle);
+		CarlOvercoatDamageBonus = 0.0f;
+		CarlOvercoatEvasionBonus = 0.0f;
+	}
+}
+
+float AAlsCharacter::CarlOvercoat_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (bCarlOvercoatIsOn)
+	{
+		CarlOvercoatDamagePenalty = FMath::Clamp(CarlOvercoatDamagePenalty + 0.015f, 0.0f, 0.6f);
+		DamageAmount *= 1.0f - CarlOvercoatDamageBonus;
+	}
+
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bCarlOvercoatIsOn)
+		{
+			DamageAmount *= 1 - Player->CarlOvercoatDamagePenalty;
+		}
+	}
 	return DamageAmount;
 }

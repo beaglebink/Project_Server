@@ -2013,6 +2013,28 @@ protected:
 
 	// CarlOvercoat
 protected:
+	uint8 bCarlOvercoatIsOn : 1{false};
+
+	FTimerHandle CarlOvercoatDamageInteractTimerHandle;
+
+	float CarlOvercoatDamageBonus = 0.0f;
+
+	float CarlOvercoatEvasionBonus = 0.0f;
+
+	float CarlOvercoatSpeedMultiplier = 1.0f;
+
+	float CarlOvercoatRecoilMultiplier = 1.0f;
+
+	float CarlOvercoatDamagePenalty = 0.0f;
+
+public:
+	void CarlOvercoat_DamageAndEvasionBonusOverTime();
+
+protected:
+	void CarlOvercoat_DamageAndEvasionBonusReset();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float CarlOvercoat_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// Effect_27
 protected:
