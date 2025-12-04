@@ -311,7 +311,7 @@ namespace ClothesEffectTags
 		UE_DEFINE_GAMEPLAY_TAG(AdminPolo, FName{ TEXTVIEW("Clothes.Effect.AdminPolo") })
 		UE_DEFINE_GAMEPLAY_TAG(PorcelainCannon, FName{ TEXTVIEW("Clothes.Effect.PorcelainCannon") })
 		UE_DEFINE_GAMEPLAY_TAG(CarlOvercoat, FName{ TEXTVIEW("Clothes.Effect.CarlOvercoat") })
-		UE_DEFINE_GAMEPLAY_TAG(Effect_27, FName{ TEXTVIEW("Clothes.Effect.Effect_27") })
+		UE_DEFINE_GAMEPLAY_TAG(DebsFootballPads, FName{ TEXTVIEW("Clothes.Effect.DebsFootballPads") })
 		UE_DEFINE_GAMEPLAY_TAG(SimonSweater, FName{ TEXTVIEW("Clothes.Effect.SimonSweater") })
 		UE_DEFINE_GAMEPLAY_TAG(Effect_29, FName{ TEXTVIEW("Clothes.Effect.Effect_29") })
 		UE_DEFINE_GAMEPLAY_TAG(LaoEddieNightRobe, FName{ TEXTVIEW("Clothes.Effect.LaoEddieNightRobe") })

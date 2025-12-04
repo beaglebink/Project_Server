@@ -400,7 +400,7 @@ private:
 	void AdminPolo_Effect(bool Apply = false);
 	void PorcelainCannon_Effect(bool Apply = false);
 	void CarlOvercoat_Effect(bool Apply = false);
-	void Effect_27(bool Apply = false);
+	void DebsFootballPads_Effect(bool Apply = false);
 	void SimonSweater_Effect(bool Apply = false);
 	void Effect_29(bool Apply = false);
 	void LaoEddieNightRobe_Effect(bool Apply = false);
