@@ -1787,10 +1787,10 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::HoareSweaterVest, [this](bool Apply) {HoareSweaterVest_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::NuttySpectacles, [this](bool Apply) {NuttySpectacles_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::BugHunterUniform, [this](bool Apply) {BugHunterUniform_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_22, [this](bool Apply) {Effect_22(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::SniperFocusOnLongRange, [this](bool Apply) {SniperFocusOnLongRange_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Boxer, [this](bool Apply) {Boxer_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::AdminPolo, [this](bool Apply) {AdminPolo_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_25, [this](bool Apply) {Effect_25(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::PorcelainCannon, [this](bool Apply) {PorcelainCannon_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::CarlOvercoat, [this](bool Apply) {CarlOvercoat_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_27, [this](bool Apply) {Effect_27(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) {SimonSweater_Effect(Apply); });
@@ -2152,6 +2152,8 @@ void AAlsCharacterExample::NuttySpectacles_Effect(bool Apply)
 void AAlsCharacterExample::BugHunterUniform_Effect(bool Apply)
 {
 	bBugHunterUniformIsOn = Apply;
+	BugHunterUniformEnemyKillsCounter = 0;
+	BugHunterUniformEnemyKillsCounterForStaminaAndAmmoRegain = 0;
 	//if (Apply)
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BugHunterUniform"));
@@ -2162,52 +2164,72 @@ void AAlsCharacterExample::BugHunterUniform_Effect(bool Apply)
 	//}
 }
 
-void AAlsCharacterExample::Effect_22(bool Apply)
+void AAlsCharacterExample::SniperFocusOnLongRange_Effect(bool Apply)
 {
+	bSniperFocusOnLongRangeIsOn = Apply;
+	SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.0f;
+	SniperFocusOnLongRangeMachineGunDamageMultiplier = 1.0f;
+	SniperFocusOnLongRangeAccuracyMultiplier = 1.0f;
+	SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_22"));
+		SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.25f;
+		SniperFocusOnLongRangeMachineGunDamageMultiplier = 0.8f;
+		SniperFocusOnLongRangeAccuracyMultiplier = 0.825f;
+		SniperFocusOnLongRangeSpeedMultiplier = 0.925f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_22"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_22"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_22"));
+	//}
 }
 
 void AAlsCharacterExample::Boxer_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Boxer"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Boxer"));
-	}
+	bBoxerIsOn = Apply;
+	Boxer_CheckIfMachineGunModeIsOn();
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Boxer"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Boxer"));
+	//}
 }
 
 void AAlsCharacterExample::AdminPolo_Effect(bool Apply)
 {
+	bAdminPoloIsOn = Apply;
+	AdminPoloSuctionMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AdminPolo"));
+		AdminPoloSuctionMultiplier = 1.075f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AdminPolo"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AdminPolo"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AdminPolo"));
+	//}
 }
 
-void AAlsCharacterExample::Effect_25(bool Apply)
+void AAlsCharacterExample::PorcelainCannon_Effect(bool Apply)
 {
+	bPorcelainCannonIsOn = Apply;
+	PorcelainCannonSpeedMultiplier = 1.0f;
+	PorcelainCannonRecoilMultiplier = 1.0f;
+	PorcelainCannon_UsesMoreStaminaBy_50();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_25"));
+		PorcelainCannonSpeedMultiplier = 0.9f;
+		PorcelainCannonRecoilMultiplier = 1.2f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_25"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_25"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_25"));
+	//}
 }
 
 void AAlsCharacterExample::CarlOvercoat_Effect(bool Apply)

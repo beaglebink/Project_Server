@@ -1923,18 +1923,93 @@ protected:
 protected:
 	uint8 bBugHunterUniformIsOn : 1{false};
 
+	uint8 bBugHunterUniformEnemyDamageDebuffIsOn : 1{false};
 
-	// Effect_22
+	int32 BugHunterUniformEnemyHitsCounter = 0;
+
+	int32 BugHunterUniformEnemyKillsCounter = 0;
+
+	int32 BugHunterUniformEnemyKillsCounterForStaminaAndAmmoRegain = 0;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void BugHunterUniform_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float BugHunterUniform_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
+	void BugHunterUniform_RefillWeaponAmmo();
+
+	// SniperFocusOnLongRange
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float SniperFocusOnLongRangeMachineGunDamageMultiplier = 1.0f;
+
 protected:
+	uint8 bSniperFocusOnLongRangeIsOn : 1{false};
+
+	float SniperFocusOnLongRangeAccuracyMultiplier = 1.0f;
+
+	float SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
+
+	float SniperFocusOnLongRangeRecoilOnChargingShotMultiplier = 1.0f;
+
+	float SniperFocusOnLongRangeRecoilOnMovingMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void SniperFocusOnLongRange_CheckRecoil(bool bSetRecoil);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float SniperFocusOnLongRange_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
 	// Boxer
 protected:
+	uint8 bBoxerIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bBoxerMachineGunModeIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bBoxerChargedModeIsOn : 1{false};
+
+	float BoxerMachineGunAccuracyMultiplier = 1.0f;
+
+	float BoxerMachineGunRecoilMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void Boxer_CheckIfMachineGunModeIsOn();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float Boxer_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
 	// AdminPolo
-protected:
+public:
+	uint8 bAdminPoloIsOn : 1{false};
 
-	// Effect_25
 protected:
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float AdminPoloSuctionMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float AdminPolo_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	// PorcelainCannon
+protected:
+	uint8 bPorcelainCannonIsOn : 1{false};
+
+	uint8 bPorcelainCannonShouldIncreaseStaminaUsing : 1{false};
+
+	float PorcelainCannonSpeedMultiplier = 1.0f;
+
+	float PorcelainCannonRecoilMultiplier = 1.0f;
+
+	void PorcelainCannon_UsesMoreStaminaBy_50();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float PorcelainCannon_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// CarlOvercoat
 protected:

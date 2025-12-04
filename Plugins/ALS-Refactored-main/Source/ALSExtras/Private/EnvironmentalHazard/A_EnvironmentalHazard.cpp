@@ -89,6 +89,10 @@ void AA_EnvironmentalHazard::OnMeshHit(UPrimitiveComponent* HitComp, AActor* Oth
 		{
 			DamageMultiplier = 0.5f;
 		}
+		else if (Player->bAdminPoloIsOn)
+		{
+			DamageMultiplier = 0.9f;
+		}
 	}
 }
 
