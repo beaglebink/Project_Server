@@ -30,6 +30,9 @@ struct FBookfaceMessageData
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString ParentMessageId;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<AActor*> SubscribedProfiles;
 };
 
 UCLASS()
@@ -46,4 +49,7 @@ public:
 
     UPROPERTY(VisibleAnywhere, Category = "SaveData")
     TArray<FBookfaceMessageData> SavedAllPosts;
+
+    UPROPERTY(VisibleAnywhere, Category = "SaveData")
+    TArray<FBookfaceMessageNoticeStructure> SavedMessageNotices;
 };

@@ -289,6 +289,17 @@ TArray<UBookfaceMessageObject*> UBookfaceSubsystem::GetAllPosts() const
     return Aggregated;
 }
 
+void UBookfaceSubsystem::OnSubscribe(UBookfaceMessageObject* Message, const FString& FromUserId)
+{
+
+}
+
+void UBookfaceSubsystem::StoreMessageNotice(const FBookfaceMessageNoticeStructure& Notice)
+{
+    MessageNotices.Add(Notice);
+
+    SaveMessageNoticesAsync();
+}
 
 void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
 {
@@ -328,6 +339,7 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
             Data.Timestamp = Msg->Timestamp;
             Data.LikesUserIds = Msg->LikesUserIds;
             Data.ParentMessageId = ParentId;
+			Data.SubscribedProfiles = Msg->SubscribedProfiles;
 
             SaveGame->SavedAllPosts.Add(Data);
 
@@ -392,6 +404,7 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
                     Msg->LikesUserIds = Data.LikesUserIds;
                     Msg->ParentMessage = nullptr;
                     Msg->ReplyMessages.Reset();
+                    Msg->SubscribedProfiles = Data.SubscribedProfiles;
 
                     IdToMessage.Add(Msg->MessageId, Msg);
                 }
@@ -567,4 +580,67 @@ void UBookfaceSubsystem::UpdateUserProfile(const FBookfaceProfileStructure& Upda
     }
     UserProfiles.Add(UpdatedProfile);
     SaveBookfaceDataAsync();
+}
+
+void UBookfaceSubsystem::SaveMessageNoticesAsync()
+{
+    UBookfaceSaveGame* SaveGame = nullptr;
+
+    if (UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
+    {
+        SaveGame = Cast<UBookfaceSaveGame>(
+            UGameplayStatics::LoadGameFromSlot(TEXT("BookfaceSlot"), 0));
+    }
+
+    if (!SaveGame)
+    {
+        SaveGame = Cast<UBookfaceSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
+        // Инициализация: не трогаем другие секции
+        SaveGame->SavedProfiles.Empty();
+        SaveGame->SavedFriendRequests.Empty();
+        SaveGame->SavedAllPosts.Empty();
+        SaveGame->SavedMessageNotices.Empty();
+    }
+
+    // Обновляем только уведомления
+    SaveGame->SavedMessageNotices = MessageNotices;
+
+    UGameplayStatics::AsyncSaveGameToSlot(
+        SaveGame, TEXT("BookfaceSlot"), 0,
+        FAsyncSaveGameToSlotDelegate::CreateLambda([](const FString& SlotName, const int32, bool bSuccess)
+            {
+                UE_LOG(LogTemp, Log, TEXT("Message notices save %s for slot '%s'"),
+                    bSuccess ? TEXT("succeeded") : TEXT("failed"), *SlotName);
+            })
+    );
+}
+
+void UBookfaceSubsystem::LoadMessageNoticesAsync()
+{
+    if (!UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
+    {
+        MessageNotices.Empty();
+        OnNoticesLoaded.Broadcast();
+        return;
+    }
+
+    UGameplayStatics::AsyncLoadGameFromSlot(
+        TEXT("BookfaceSlot"), 0,
+        FAsyncLoadGameFromSlotDelegate::CreateLambda([this](const FString&, const int32, USaveGame* LoadedGame)
+            {
+                UBookfaceSaveGame* Loaded = Cast<UBookfaceSaveGame>(LoadedGame);
+                if (!Loaded)
+                {
+                    MessageNotices.Empty();
+                    return;
+                }
+
+                MessageNotices = Loaded->SavedMessageNotices;
+
+                OnNoticesLoaded.Broadcast();
+
+                UE_LOG(LogTemp, Log, TEXT("Loaded %d message notices"), MessageNotices.Num());
+            })
+    );
 }

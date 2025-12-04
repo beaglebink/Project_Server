@@ -84,3 +84,18 @@ struct FBookfaceProfileStructure
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     TArray<UBookfaceMessageObject*> UserMessages;
 };
+
+USTRUCT(BlueprintType)
+struct FBookfaceMessageNoticeStructure
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	AActor* ProfileActor;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    UBookfaceMessageObject* RootMessage;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    UBookfaceMessageObject* Message;
+};

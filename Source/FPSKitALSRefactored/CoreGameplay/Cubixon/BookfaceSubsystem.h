@@ -14,6 +14,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAcceptFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBookfaceMessageAdded, UBookfaceMessageObject*, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBookfaceNoticesLoaded);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
@@ -51,6 +52,12 @@ public:
 
     UFUNCTION(BlueprintCallable)
     void UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile);
+
+    UFUNCTION(BlueprintCallable)
+    void SaveMessageNoticesAsync();
+
+	UFUNCTION(BlueprintCallable)
+    void LoadMessageNoticesAsync();
 
     UFUNCTION(BlueprintCallable)
     bool SetOnlineStatus(const FString& UserId, const bool bOnline);
@@ -94,6 +101,15 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure)
     TArray<UBookfaceMessageObject*> GetAllPosts() const;
 
+    UFUNCTION(BlueprintCallable)
+    void OnSubscribe(UBookfaceMessageObject* Message, const FString& FromUserId);
+
+    UFUNCTION(BlueprintCallable)
+    void StoreMessageNotice(const FBookfaceMessageNoticeStructure& Notice);
+
+    UFUNCTION(BlueprintCallable)
+	TArray<FBookfaceMessageNoticeStructure> GetMessageNotices() const { return MessageNotices; }
+
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnlineStatusChange OnlineStatusChange;
@@ -113,12 +129,18 @@ public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnBookfaceMessageAdded OnMessageAdded;
 
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
+	FOnBookfaceNoticesLoaded OnNoticesLoaded;
+
 private:
     UPROPERTY()
     TArray<FBookfaceProfileStructure> UserProfiles;
 
     UPROPERTY()
     TArray<FBookfaceFriendRequestStructure> FriendRequests;
+
+    UPROPERTY()
+	TArray<FBookfaceMessageNoticeStructure> MessageNotices;
 
     bool bHasLoadedSave = false;
 };

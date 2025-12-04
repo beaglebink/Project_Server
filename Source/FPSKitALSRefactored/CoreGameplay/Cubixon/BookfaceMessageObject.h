@@ -10,7 +10,7 @@ class FPSKITALSREFACTORED_API UBookfaceMessageObject : public UObject
     GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    UPROPERTY(BlueprintReadOnly, EditAnywhere)
     FString MessageId;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
@@ -33,4 +33,7 @@ public:
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
     TArray<FString> LikesUserIds;
+
+    UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Message")
+    TArray<AActor*> SubscribedProfiles;
 };
