@@ -24,20 +24,3 @@ protected:
 
     void InitializeWidgetsArray();
 };
-/*
-inline void UInsertableVerticalBox::RemoveWidgetFromArray(UWidget* Widget)
-{
-    if (!Widget)
-    {
-        return;
-    }
-
-    InitializeWidgetsArray();
-
-    int32 RemovedCount = Widgets.RemoveSingle(Widget);
-    if (RemovedCount > 0)
-    {
-        RemoveChild(Widget);
-    }
-}
-*/
