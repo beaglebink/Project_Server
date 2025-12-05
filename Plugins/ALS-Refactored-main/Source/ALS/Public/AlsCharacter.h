@@ -2086,8 +2086,20 @@ protected:
 	// Effect_29
 protected:
 
-	// LaoEddieNightRobe
+	// LaoEddiesNightRobe
 protected:
+	uint8 bLaoEddiesNightRobeIsOn : 1{false};
+
+	uint8 bLaoEddiesNightRobeShouldDecreaseStaminaUsing : 1{false};
+
+	uint8 bLaoEddiesNightRobeBeingShot : 1{false};
+
+	float LaoEddiesNightRobeSpeedMultiplier = 1.0f;
+
+	void LaoEddiesNightRobe_UsesMoreStaminaBy_15();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float LaoEddiesNightRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
 	// Effect_31
 protected:

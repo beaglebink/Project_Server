@@ -2212,7 +2212,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
-		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier;
+		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2289,6 +2289,7 @@ void AAlsCharacter::StunEffect(float Time)
 		StunRecoveryMultiplier = 0.1f;
 		GetWorldTimerManager().SetTimer(StunTimerHandle, StunDelegate, StunTimeLocal, false);
 	}
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("Stunned for %f seconds"), StunTimeLocal));
 }
 
 void AAlsCharacter::StunRecovery()
@@ -4773,4 +4774,67 @@ void AAlsCharacter::DebsFootballPads_CheckEnemyKills(AController* DamageInstigat
 
 void AAlsCharacter::DebsFootballPads_ZeroRifleRefill_50_Implementation()
 {
+}
+
+// SimonSweater
+
+// Effect_29
+
+// LaoEddiesNightRobe
+void AAlsCharacter::LaoEddiesNightRobe_UsesMoreStaminaBy_15()
+{
+	if (bLaoEddiesNightRobeIsOn && !bLaoEddiesNightRobeShouldDecreaseStaminaUsing)
+	{
+		bLaoEddiesNightRobeShouldDecreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 0.85f;
+		JumpStaminaCost *= 0.85f;
+		RollStaminaCost *= 0.85f;
+	}
+	else if (!bLaoEddiesNightRobeIsOn && bLaoEddiesNightRobeShouldDecreaseStaminaUsing)
+	{
+		bLaoEddiesNightRobeShouldDecreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 0.85f;
+		JumpStaminaCost /= 0.85f;
+		RollStaminaCost /= 0.85f;
+	}
+}
+
+float AAlsCharacter::LaoEddiesNightRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	// Stun enemy chance
+	AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+	if (Player && Player->bLaoEddiesNightRobeIsOn && !bLaoEddiesNightRobeBeingShot)
+	{
+		bLaoEddiesNightRobeBeingShot = true;
+		float ChanseToStunEnemy = 30.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) < ChanseToStunEnemy)
+		{
+			StunEffect(3.0f);
+		}
+	}
+
+	// Reflect damage chance
+	if (bLaoEddiesNightRobeIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (DamageType.ToString() != "Melee")
+			{
+				float ChanceToReflect = 25.0f;
+				float DamageToReflect = DamageAmount * FMath::FRandRange(0.1f, 0.3f);
+				if (FMath::FRandRange(0.0f, 100.0f) < ChanceToReflect)
+				{
+					DamageAmount -= DamageToReflect;
+					UGameplayStatics::ApplyDamage(Enemy, DamageToReflect, GetController(), this, nullptr);
+				}
+			}
+		}
+	}
+
+	return DamageAmount;
 }

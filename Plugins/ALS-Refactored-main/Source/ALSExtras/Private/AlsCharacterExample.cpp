@@ -1795,7 +1795,7 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::DebsFootballPads, [this](bool Apply) {DebsFootballPads_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) {SimonSweater_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_29, [this](bool Apply) {Effect_29(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::LaoEddieNightRobe, [this](bool Apply) {LaoEddieNightRobe_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::LaoEddiesNightRobe, [this](bool Apply) {LaoEddiesNightRobe_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_31, [this](bool Apply) {Effect_31(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_32, [this](bool Apply) {Effect_32(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_33, [this](bool Apply) {Effect_33(Apply); });
@@ -2302,16 +2302,20 @@ void AAlsCharacterExample::Effect_29(bool Apply)
 	}
 }
 
-void AAlsCharacterExample::LaoEddieNightRobe_Effect(bool Apply)
+void AAlsCharacterExample::LaoEddiesNightRobe_Effect(bool Apply)
 {
+	bLaoEddiesNightRobeIsOn = Apply;
+	LaoEddiesNightRobeSpeedMultiplier = 1.0f;
+	LaoEddiesNightRobe_UsesMoreStaminaBy_15();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply LaoEddieNightRobe"));
+		LaoEddiesNightRobeSpeedMultiplier = 1.1f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply LaoEddieNightRobe"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove LaoEddieNightRobe"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove LaoEddieNightRobe"));
+	//}
 }
 
 void AAlsCharacterExample::Effect_31(bool Apply)

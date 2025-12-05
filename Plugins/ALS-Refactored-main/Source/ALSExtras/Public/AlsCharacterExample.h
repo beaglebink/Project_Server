@@ -403,7 +403,7 @@ private:
 	void DebsFootballPads_Effect(bool Apply = false);
 	void SimonSweater_Effect(bool Apply = false);
 	void Effect_29(bool Apply = false);
-	void LaoEddieNightRobe_Effect(bool Apply = false);
+	void LaoEddiesNightRobe_Effect(bool Apply = false);
 	void Effect_31(bool Apply = false);
 	void Effect_32(bool Apply = false);
 	void Effect_33(bool Apply = false);
