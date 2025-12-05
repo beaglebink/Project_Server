@@ -275,7 +275,42 @@ bool UBookfaceSubsystem::RemoveMessageFromProfile(UBookfaceMessageObject* Messag
 
     return false;
 }
+void UBookfaceSubsystem::NoticeSubscribeProfile(const FString& ProfileID, UBookfaceMessageObject* RootMessage, UBookfaceMessageObject* ParentMessage, UBookfaceMessageObject* Message)
+{
+    if(ProfileID.IsEmpty())
+    {
+        return;
+    }
 
+    if(!RootMessage)
+    {
+        return;
+	}
+
+    FBookfaceMessageNoticeStructure NewNotice;
+    NewNotice.ProfileID = ProfileID;
+    NewNotice.RootMessage = RootMessage;
+	NewNotice.ParentMessage = ParentMessage;
+    NewNotice.Message = Message;
+
+    OnMessageNotice.Broadcast(NewNotice);
+}
+void UBookfaceSubsystem::StoreMessageNotice(const FString& ProfileID, const FBookfaceMessageNoticeStructure& Notice)
+{
+    FBookfaceProfileStructure* Profile = UserProfiles.FindByPredicate(
+		[&](const FBookfaceProfileStructure& P) { return P.UserId == ProfileID; });
+
+    if (Notice.ProfileID == ProfileID)
+    {
+        return;
+    }
+
+    if (Profile)
+    {
+        Profile->MessageNotices.AddUnique(Notice);
+	}
+}
+/*
 TArray<UBookfaceMessageObject*> UBookfaceSubsystem::GetAllPosts() const
 {
     TArray<UBookfaceMessageObject*> Aggregated;
@@ -289,18 +324,13 @@ TArray<UBookfaceMessageObject*> UBookfaceSubsystem::GetAllPosts() const
     return Aggregated;
 }
 
-void UBookfaceSubsystem::OnSubscribe(UBookfaceMessageObject* Message, const FString& FromUserId)
-{
-
-}
-
 void UBookfaceSubsystem::StoreMessageNotice(const FBookfaceMessageNoticeStructure& Notice)
 {
     MessageNotices.Add(Notice);
 
     SaveMessageNoticesAsync();
 }
-
+*/
 void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
 {
     UBookfaceSaveGame* SaveGame = nullptr;
@@ -339,7 +369,7 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
             Data.Timestamp = Msg->Timestamp;
             Data.LikesUserIds = Msg->LikesUserIds;
             Data.ParentMessageId = ParentId;
-			Data.SubscribedProfiles = Msg->SubscribedProfiles;
+			//Data.SubscribedProfiles = Msg->SubscribedProfiles;
 
             SaveGame->SavedAllPosts.Add(Data);
 
@@ -404,7 +434,7 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
                     Msg->LikesUserIds = Data.LikesUserIds;
                     Msg->ParentMessage = nullptr;
                     Msg->ReplyMessages.Reset();
-                    Msg->SubscribedProfiles = Data.SubscribedProfiles;
+                    //Msg->SubscribedProfiles = Data.SubscribedProfiles;
 
                     IdToMessage.Add(Msg->MessageId, Msg);
                 }
@@ -581,7 +611,7 @@ void UBookfaceSubsystem::UpdateUserProfile(const FBookfaceProfileStructure& Upda
     UserProfiles.Add(UpdatedProfile);
     SaveBookfaceDataAsync();
 }
-
+/*
 void UBookfaceSubsystem::SaveMessageNoticesAsync()
 {
     UBookfaceSaveGame* SaveGame = nullptr;
@@ -596,14 +626,13 @@ void UBookfaceSubsystem::SaveMessageNoticesAsync()
     {
         SaveGame = Cast<UBookfaceSaveGame>(
             UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
-        // Инициализация: не трогаем другие секции
+
         SaveGame->SavedProfiles.Empty();
         SaveGame->SavedFriendRequests.Empty();
         SaveGame->SavedAllPosts.Empty();
         SaveGame->SavedMessageNotices.Empty();
     }
 
-    // Обновляем только уведомления
     SaveGame->SavedMessageNotices = MessageNotices;
 
     UGameplayStatics::AsyncSaveGameToSlot(
@@ -633,6 +662,7 @@ void UBookfaceSubsystem::LoadMessageNoticesAsync()
                 if (!Loaded)
                 {
                     MessageNotices.Empty();
+                    OnNoticesLoaded.Broadcast();
                     return;
                 }
 
@@ -644,3 +674,4 @@ void UBookfaceSubsystem::LoadMessageNoticesAsync()
             })
     );
 }
+*/

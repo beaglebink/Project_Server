@@ -15,6 +15,29 @@ enum class EPrivacyVisibility : uint8
 };
 
 USTRUCT(BlueprintType)
+struct FBookfaceMessageNoticeStructure
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString ProfileID;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    UBookfaceMessageObject* RootMessage;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    UBookfaceMessageObject* ParentMessage;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    UBookfaceMessageObject* Message;
+
+    bool operator==(const FBookfaceMessageNoticeStructure& Other) const
+    {
+        return ProfileID == Other.ProfileID && RootMessage == Other.RootMessage && ParentMessage == Other.ParentMessage && Message == Other.Message;
+    }
+};
+
+USTRUCT(BlueprintType)
 struct FBookfaceFriendRequestStructure
 {
     GENERATED_BODY()
@@ -83,19 +106,8 @@ struct FBookfaceProfileStructure
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     TArray<UBookfaceMessageObject*> UserMessages;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	TArray<FBookfaceMessageNoticeStructure> MessageNotices;
 };
 
-USTRUCT(BlueprintType)
-struct FBookfaceMessageNoticeStructure
-{
-    GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	AActor* ProfileActor;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    UBookfaceMessageObject* RootMessage;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    UBookfaceMessageObject* Message;
-};

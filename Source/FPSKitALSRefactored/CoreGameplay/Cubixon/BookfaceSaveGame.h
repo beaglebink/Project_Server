@@ -50,6 +50,6 @@ public:
     UPROPERTY(VisibleAnywhere, Category = "SaveData")
     TArray<FBookfaceMessageData> SavedAllPosts;
 
-    UPROPERTY(VisibleAnywhere, Category = "SaveData")
-    TArray<FBookfaceMessageNoticeStructure> SavedMessageNotices;
+    //UPROPERTY(VisibleAnywhere, Category = "SaveData")
+    //TArray<FBookfaceMessageNoticeStructure> SavedMessageNotices;
 };

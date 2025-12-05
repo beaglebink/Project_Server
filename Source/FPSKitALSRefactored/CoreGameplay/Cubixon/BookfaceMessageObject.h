@@ -35,5 +35,5 @@ public:
     TArray<FString> LikesUserIds;
 
     UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Message")
-    TArray<AActor*> SubscribedProfiles;
+    TArray<FString> SubscribedProfiles;
 };
