@@ -2289,7 +2289,6 @@ void AAlsCharacter::StunEffect(float Time)
 		StunRecoveryMultiplier = 0.1f;
 		GetWorldTimerManager().SetTimer(StunTimerHandle, StunDelegate, StunTimeLocal, false);
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("Stunned for %f seconds"), StunTimeLocal));
 }
 
 void AAlsCharacter::StunRecovery()
@@ -4838,3 +4837,5 @@ float AAlsCharacter::LaoEddiesNightRobe_InteractWithDamage(AController* DamageIn
 
 	return DamageAmount;
 }
+
+// MoonDoggies

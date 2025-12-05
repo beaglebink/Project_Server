@@ -2101,8 +2101,14 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float LaoEddiesNightRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
-	// Effect_31
+	// MoonDoggies
 protected:
+	uint8 bMoonDoggiesIsOn : 1{false};
+	
+	uint8 bMoonDoggiesGhostsIgnoreHasBeenUsed : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bMoonDoggiesShouldGhostsIgnorePlayer : 1{false};
 
 	// Effect_32
 protected:

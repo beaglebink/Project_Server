@@ -1796,7 +1796,7 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) {SimonSweater_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_29, [this](bool Apply) {Effect_29(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::LaoEddiesNightRobe, [this](bool Apply) {LaoEddiesNightRobe_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_31, [this](bool Apply) {Effect_31(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::MoonDoggies, [this](bool Apply) {MoonDoggies_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_32, [this](bool Apply) {Effect_32(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_33, [this](bool Apply) {Effect_33(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_34, [this](bool Apply) {Effect_34(Apply); });
@@ -2318,16 +2318,27 @@ void AAlsCharacterExample::LaoEddiesNightRobe_Effect(bool Apply)
 	//}
 }
 
-void AAlsCharacterExample::Effect_31(bool Apply)
+void AAlsCharacterExample::MoonDoggies_Effect(bool Apply)
 {
-	if (Apply)
+	bMoonDoggiesIsOn = Apply;
+	if (!bMoonDoggiesGhostsIgnoreHasBeenUsed)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_31"));
+		bMoonDoggiesGhostsIgnoreHasBeenUsed = true;
+		bMoonDoggiesShouldGhostsIgnorePlayer = true;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [&]()
+			{
+				bMoonDoggiesShouldGhostsIgnorePlayer = false;
+			}, 120.0f, false);
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_31"));
-	}
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_31"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_31"));
+	//}
 }
 
 void AAlsCharacterExample::Effect_32(bool Apply)
