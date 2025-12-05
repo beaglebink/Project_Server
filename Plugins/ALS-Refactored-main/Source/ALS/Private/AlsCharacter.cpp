@@ -2212,7 +2212,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
-		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier;
+		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3092,7 +3092,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 	}
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier;
+		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()

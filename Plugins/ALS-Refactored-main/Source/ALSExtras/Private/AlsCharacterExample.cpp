@@ -2275,14 +2275,19 @@ void AAlsCharacterExample::DebsFootballPads_Effect(bool Apply)
 
 void AAlsCharacterExample::SimonSweater_Effect(bool Apply)
 {
+	bSimonSweaterIsOn = Apply;
+	SimonSweaterSpeedMultiplier = 1.0f;
+	SimonSweaterAccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimonSweater"));
+		SimonSweaterSpeedMultiplier = 1.05f;
+		SimonSweaterAccuracyMultiplier = 0.875f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimonSweater"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimonSweater"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimonSweater"));
+	//}
 }
 
 void AAlsCharacterExample::Effect_29(bool Apply)

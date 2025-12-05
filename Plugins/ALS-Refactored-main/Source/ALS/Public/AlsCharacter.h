@@ -2077,6 +2077,11 @@ protected:
 
 	// SimonSweater
 protected:
+	uint8 bSimonSweaterIsOn : 1{false};
+
+	float SimonSweaterSpeedMultiplier = 1.0f;
+
+	float SimonSweaterAccuracyMultiplier = 1.0f;
 
 	// Effect_29
 protected:
