@@ -2258,10 +2258,13 @@ void AAlsCharacterExample::DebsFootballPads_Effect(bool Apply)
 {
 	bDebsFootballPadsIsOn = Apply;
 	DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.0f;
+	DebsFootballPadsSpeedMultiplier = 1.0f;
 	DebsFootballPads_CheckIfShotgunModeIsOn();
+	DebsFootballPads_UsesMoreStaminaBy_50();
 	if (Apply)
 	{
 		DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.2f;
+		DebsFootballPadsSpeedMultiplier = 0.9f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_27"));
 	}
 	//else

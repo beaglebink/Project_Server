@@ -2045,10 +2045,16 @@ protected:
 
 	uint8 bDebsFootballPadsIsIncreasedMaxEnergy : 1{false};
 
+	uint8 bDebsFootballPadsShouldIncreaseStaminaUsing : 1{false};
+
 	float DebsFootballPadsRecoilMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.0f;
+
+	float DebsFootballPadsSpeedMultiplier = 1.0f;
+
+	int32 DebsFootballPadsEnemyKillsCounter = 0;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void DebsFootballPads_CheckIfShotgunModeIsOn();
@@ -2058,6 +2064,16 @@ protected:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
 	void DebsFootballPads_MaxEnergyCapacityCodeRifleShotgunMode(bool ShotgunModeIsOn);
+
+	void DebsFootballPads_UsesMoreStaminaBy_50();
+
+	bool DebsFootballPads_CheckFor5EnemiesWithin3mVicinity();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void DebsFootballPads_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
+	void DebsFootballPads_ZeroRifleRefill_50();
 
 	// SimonSweater
 protected:
