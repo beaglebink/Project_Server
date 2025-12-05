@@ -2036,8 +2036,28 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float CarlOvercoat_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
-	// Effect_27
+	// DebsFootballPads
 protected:
+	uint8 bDebsFootballPadsIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bDebsFootballPadsShotgunModeIsOn : 1{false};
+
+	uint8 bDebsFootballPadsIsIncreasedMaxEnergy : 1{false};
+
+	float DebsFootballPadsRecoilMultiplier = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void DebsFootballPads_CheckIfShotgunModeIsOn();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float DebsFootballPads_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
+	void DebsFootballPads_MaxEnergyCapacityCodeRifleShotgunMode(bool ShotgunModeIsOn);
 
 	// SimonSweater
 protected:

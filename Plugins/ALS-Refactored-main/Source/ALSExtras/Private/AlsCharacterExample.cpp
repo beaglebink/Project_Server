@@ -1792,7 +1792,7 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::AdminPolo, [this](bool Apply) {AdminPolo_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::PorcelainCannon, [this](bool Apply) {PorcelainCannon_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::CarlOvercoat, [this](bool Apply) {CarlOvercoat_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_27, [this](bool Apply) {Effect_27(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::DebsFootballPads, [this](bool Apply) {DebsFootballPads_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) {SimonSweater_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_29, [this](bool Apply) {Effect_29(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::LaoEddieNightRobe, [this](bool Apply) {LaoEddieNightRobe_Effect(Apply); });
@@ -2254,16 +2254,20 @@ void AAlsCharacterExample::CarlOvercoat_Effect(bool Apply)
 	}
 }
 
-void AAlsCharacterExample::Effect_27(bool Apply)
+void AAlsCharacterExample::DebsFootballPads_Effect(bool Apply)
 {
+	bDebsFootballPadsIsOn = Apply;
+	DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.0f;
+	DebsFootballPads_CheckIfShotgunModeIsOn();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_27"));
+		DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.2f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_27"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_27"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_27"));
+	//}
 }
 
 void AAlsCharacterExample::SimonSweater_Effect(bool Apply)

@@ -359,6 +359,12 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	CheckIfShouldDecreaseWalkRunSpeedAnDamage();
 
 	IncreaseHealth_30_20c();
+
+	// Debugging information.
+	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Green, FString::Printf(TEXT("Recoil: %2.2f"), RecoilMultiplier));
+	//}
 }
 
 void AAlsCharacter::PossessedBy(AController* NewController)
@@ -2173,7 +2179,7 @@ void AAlsCharacter::RefreshRecoil()
 {
 	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
 		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier
-		* CarlOvercoatRecoilMultiplier;
+		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -4629,4 +4635,37 @@ float AAlsCharacter::CarlOvercoat_InteractWithDamage(AController* DamageInstigat
 		}
 	}
 	return DamageAmount;
+}
+
+// DebsFootballPads
+void AAlsCharacter::DebsFootballPads_CheckIfShotgunModeIsOn()
+{
+	// Recoil multiplier
+	DebsFootballPadsRecoilMultiplier = 1.0f;
+	if (bDebsFootballPadsIsOn && !bDebsFootballPadsShotgunModeIsOn)
+	{
+		DebsFootballPadsRecoilMultiplier = 1.2f;
+	}
+
+	// Max energy capacity change
+	if (GetWeaponName() == "Code rifle" && bDebsFootballPadsIsIncreasedMaxEnergy)
+	{
+		bDebsFootballPadsIsIncreasedMaxEnergy = false;
+		DebsFootballPads_MaxEnergyCapacityCodeRifleShotgunMode(false);
+	}
+
+	if (bDebsFootballPadsIsOn && bDebsFootballPadsShotgunModeIsOn && !bDebsFootballPadsIsIncreasedMaxEnergy)
+	{
+		bDebsFootballPadsIsIncreasedMaxEnergy = true;
+		DebsFootballPads_MaxEnergyCapacityCodeRifleShotgunMode(true);
+	}
+}
+
+float AAlsCharacter::DebsFootballPads_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	return DamageAmount;
+}
+
+void AAlsCharacter::DebsFootballPads_MaxEnergyCapacityCodeRifleShotgunMode_Implementation(bool ShotgunModeIsOn)
+{
 }
