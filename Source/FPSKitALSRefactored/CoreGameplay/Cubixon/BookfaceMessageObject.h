@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
@@ -10,30 +10,39 @@ class FPSKITALSREFACTORED_API UBookfaceMessageObject : public UObject
     GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintReadOnly, EditAnywhere)
+    // Уникальный идентификатор сообщения
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString MessageId;
 
-    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
+    // Автор сообщения
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString FromUserId;
 
-    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
+    // Получатель (профиль, к которому относится сообщение)
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString ToUserId;
 
-    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
-    UBookfaceMessageObject* ParentMessage;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
-    TArray<UBookfaceMessageObject*> ReplyMessages;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
+    // Текст сообщения
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FText MessageContent;
 
-    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
+    // Время отправки
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FDateTime Timestamp;
 
-    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Message")
+    // Лайки
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     TArray<FString> LikesUserIds;
 
-    UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Message")
-    TArray<FString> SubscribedProfiles;
+    // 🔹 Подписчики на сообщение
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<FString> SubscribedUserIDs;
+
+    // Родительское сообщение (если это ответ)
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Transient)
+    UBookfaceMessageObject* ParentMessage;
+
+    // Ответы на сообщение
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Transient)
+    TArray<UBookfaceMessageObject*> ReplyMessages;
 };

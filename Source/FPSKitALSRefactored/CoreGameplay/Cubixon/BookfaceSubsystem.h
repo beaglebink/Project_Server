@@ -100,7 +100,7 @@ public:
     bool RemoveMessageFromProfile(UBookfaceMessageObject* MessageToRemove);
 
     UFUNCTION(BlueprintCallable)
-	void NoticeSubscribeProfile(const FString& ProfileID, UBookfaceMessageObject* RootMessage, UBookfaceMessageObject* ParentMessage, UBookfaceMessageObject* Message);
+	void NoticeSubscribeProfile(const FString& ProfileID, UBookfaceMessageObject* ParentMessage, UBookfaceMessageObject* Message);
 
     UFUNCTION(BlueprintCallable)
     void StoreMessageNotice(const FString& ProfileId, const FBookfaceMessageNoticeStructure& Notice);
@@ -114,6 +114,9 @@ public:
     UFUNCTION(BlueprintCallable)
 	TArray<FBookfaceMessageNoticeStructure> GetMessageNotices() const { return MessageNotices; }
     */
+private:
+    UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
+
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnlineStatusChange OnlineStatusChange;

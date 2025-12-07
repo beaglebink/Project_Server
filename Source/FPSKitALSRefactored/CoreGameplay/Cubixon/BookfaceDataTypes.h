@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
@@ -14,29 +14,75 @@ enum class EPrivacyVisibility : uint8
     VisibleToEveryone UMETA(DisplayName = "Visible to everyone")
 };
 
+// 🔹 Сериализуемая структура сообщения
+USTRUCT(BlueprintType)
+struct FBookfaceMessageData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString MessageId;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString FromUserId;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString ToUserId;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FText MessageContent;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FDateTime Timestamp;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<FString> LikesUserIds;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString ParentMessageId;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<FString> SubscribedUserIDs;
+};
+
+// 🔹 Уведомления
 USTRUCT(BlueprintType)
 struct FBookfaceMessageNoticeStructure
 {
     GENERATED_BODY()
 
+    // 🔹 Сериализуемые поля
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString ProfileID;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    UBookfaceMessageObject* RootMessage;
+    FString RootMessageId;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    UBookfaceMessageObject* ParentMessage;
+    FString ParentMessageId;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    UBookfaceMessageObject* Message;
+    FString MessageId;
+
+    // 🔹 Рабочие ссылки (не сериализуются)
+    UPROPERTY(Transient)
+    UBookfaceMessageObject* RootMessage = nullptr;
+
+    UPROPERTY(Transient)
+    UBookfaceMessageObject* ParentMessage = nullptr;
+
+    UPROPERTY(Transient)
+    UBookfaceMessageObject* Message = nullptr;
 
     bool operator==(const FBookfaceMessageNoticeStructure& Other) const
     {
-        return ProfileID == Other.ProfileID && RootMessage == Other.RootMessage && ParentMessage == Other.ParentMessage && Message == Other.Message;
+        return ProfileID == Other.ProfileID &&
+            MessageId == Other.MessageId &&
+            RootMessageId == Other.RootMessageId &&
+            ParentMessageId == Other.ParentMessageId;
     }
 };
-
+// 🔹 Заявка в друзья
 USTRUCT(BlueprintType)
 struct FBookfaceFriendRequestStructure
 {
@@ -54,6 +100,7 @@ struct FBookfaceFriendRequestStructure
     }
 };
 
+// 🔹 Доп. инфо
 USTRUCT(BlueprintType)
 struct FAboutInfoStructure
 {
@@ -69,6 +116,7 @@ struct FAboutInfoStructure
     EPrivacyVisibility PrivacyVisibility;
 };
 
+// 🔹 Профиль
 USTRUCT(BlueprintType)
 struct FBookfaceProfileStructure
 {
@@ -101,13 +149,18 @@ struct FBookfaceProfileStructure
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     EPrivacyVisibility BIO_Privacy;
 
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    UPROPERTY(Transient)
     bool IsOnline = false;
 
+    // 🔹 Сериализуемые сообщения
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<FBookfaceMessageData> SavedMessages;
+
+    // 🔹 Рабочие объекты сообщений (не сериализуются)
+    UPROPERTY(BlueprintReadWrite, Transient)
     TArray<UBookfaceMessageObject*> UserMessages;
 
+    // 🔹 Уведомления (сохраняются по ID)
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	TArray<FBookfaceMessageNoticeStructure> MessageNotices;
+    TArray<FBookfaceMessageNoticeStructure> MessageNotices;
 };
-

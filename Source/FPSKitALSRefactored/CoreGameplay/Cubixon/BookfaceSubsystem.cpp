@@ -243,6 +243,16 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
     NewMessage->ParentMessage = ParentMessage;
     NewMessage->ReplyMessages.Reset();
 
+    auto RootMessage = FindRootMessage(NewMessage);
+    RootMessage->SubscribedUserIDs.AddUnique(FromUserId);
+    /*
+    if (!ParentMessage)
+    {
+        NewMessage->SubscribedUserIDs.AddUnique(ToUserId);
+    }
+
+    NewMessage->SubscribedUserIDs.AddUnique(FromUserId);    
+    */
     if (ParentMessage)
     {
         ParentMessage->ReplyMessages.Add(NewMessage);
@@ -275,215 +285,77 @@ bool UBookfaceSubsystem::RemoveMessageFromProfile(UBookfaceMessageObject* Messag
 
     return false;
 }
-void UBookfaceSubsystem::NoticeSubscribeProfile(const FString& ProfileID, UBookfaceMessageObject* RootMessage, UBookfaceMessageObject* ParentMessage, UBookfaceMessageObject* Message)
+void UBookfaceSubsystem::NoticeSubscribeProfile(const FString& ProfileID,  UBookfaceMessageObject* ParentMessage, UBookfaceMessageObject* Message)
 {
     if(ProfileID.IsEmpty())
     {
         return;
     }
 
+    /*
     if(!RootMessage)
     {
         return;
 	}
+    */
 
     FBookfaceMessageNoticeStructure NewNotice;
     NewNotice.ProfileID = ProfileID;
-    NewNotice.RootMessage = RootMessage;
-	NewNotice.ParentMessage = ParentMessage;
+    NewNotice.RootMessage = FindRootMessage(Message);
+	NewNotice.ParentMessage = Message->ParentMessage;
     NewNotice.Message = Message;
 
     OnMessageNotice.Broadcast(NewNotice);
 }
+
+UBookfaceMessageObject* UBookfaceSubsystem::FindRootMessage(UBookfaceMessageObject* Message) const
+{
+    if (!Message)
+    {
+        return nullptr;
+    }
+
+    UBookfaceMessageObject* Current = Message;
+
+    // поднимаемся вверх по цепочке родителей
+    while (Current->ParentMessage != nullptr)
+    {
+        Current = Current->ParentMessage;
+    }
+
+    return Current; // это корневое сообщение
+}
+
+
 void UBookfaceSubsystem::StoreMessageNotice(const FString& ProfileID, const FBookfaceMessageNoticeStructure& Notice)
 {
     FBookfaceProfileStructure* Profile = UserProfiles.FindByPredicate(
-		[&](const FBookfaceProfileStructure& P) { return P.UserId == ProfileID; });
-
-    if (Notice.ProfileID == ProfileID)
-    {
-        return;
-    }
+        [&](const FBookfaceProfileStructure& P) { return P.UserId == ProfileID; });
 
     if (Profile)
     {
-        Profile->MessageNotices.AddUnique(Notice);
-	}
-}
-/*
-TArray<UBookfaceMessageObject*> UBookfaceSubsystem::GetAllPosts() const
-{
-    TArray<UBookfaceMessageObject*> Aggregated;
+        FBookfaceMessageNoticeStructure FixedNotice = Notice;
 
-    for (const auto& Profile : UserProfiles)
-    {
-        Aggregated.Append(Profile.UserMessages);
-    }
-
-    Algo::Reverse(Aggregated);
-    return Aggregated;
-}
-
-void UBookfaceSubsystem::StoreMessageNotice(const FBookfaceMessageNoticeStructure& Notice)
-{
-    MessageNotices.Add(Notice);
-
-    SaveMessageNoticesAsync();
-}
-*/
-void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
-{
-    UBookfaceSaveGame* SaveGame = nullptr;
-
-    if (UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
-    {
-        SaveGame = Cast<UBookfaceSaveGame>(
-            UGameplayStatics::LoadGameFromSlot(TEXT("BookfaceSlot"), 0));
-    }
-
-    if (!SaveGame)
-    {
-        SaveGame = Cast<UBookfaceSaveGame>(
-        UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
-
-        SaveGame->SavedProfiles = UserProfiles;
-        SaveGame->SavedFriendRequests = FriendRequests;
-    }
-
-    SaveGame->SavedAllPosts.Empty();
-
-    auto SaveMessageRecursive = [&](UBookfaceMessageObject* Msg, const FString& ParentId, auto&& Self) -> void
+        // 🔹 гарантируем, что MessageId заполнен
+        if (FixedNotice.Message && FixedNotice.Message->MessageId.IsEmpty() == false)
         {
-            if (!Msg) return;
-
-            if (Msg->MessageId.IsEmpty())
-            {
-                Msg->MessageId = FGuid::NewGuid().ToString();
-            }
-
-            FBookfaceMessageData Data;
-            Data.MessageId = Msg->MessageId;
-            Data.FromUserId = Msg->FromUserId;
-            Data.ToUserId = Msg->ToUserId;
-            Data.MessageContent = Msg->MessageContent;
-            Data.Timestamp = Msg->Timestamp;
-            Data.LikesUserIds = Msg->LikesUserIds;
-            Data.ParentMessageId = ParentId;
-			//Data.SubscribedProfiles = Msg->SubscribedProfiles;
-
-            SaveGame->SavedAllPosts.Add(Data);
-
-            for (UBookfaceMessageObject* Reply : Msg->ReplyMessages)
-            {
-                Self(Reply, Msg->MessageId, Self);
-            }
-        };
-
-    for (const auto& Profile : UserProfiles)
-    {
-        for (UBookfaceMessageObject* RootPost : Profile.UserMessages)
-        {
-            SaveMessageRecursive(RootPost, TEXT(""), SaveMessageRecursive);
+            FixedNotice.MessageId = FixedNotice.Message->MessageId;
         }
+
+        // 🔹 гарантируем, что RootMessageId заполнен
+        if (FixedNotice.RootMessage && FixedNotice.RootMessage->MessageId.IsEmpty() == false)
+        {
+            FixedNotice.RootMessageId = FixedNotice.RootMessage->MessageId;
+        }
+
+        // 🔹 гарантируем, что ParentMessageId заполнен
+        if (FixedNotice.ParentMessage && FixedNotice.ParentMessage->MessageId.IsEmpty() == false)
+        {
+            FixedNotice.ParentMessageId = FixedNotice.ParentMessage->MessageId;
+        }
+
+        Profile->MessageNotices.AddUnique(FixedNotice);
     }
-
-    UGameplayStatics::AsyncSaveGameToSlot(
-        SaveGame, TEXT("BookfaceSlot"), 0,
-        FAsyncSaveGameToSlotDelegate::CreateLambda([](const FString& SlotName, const int32, bool bSuccess)
-            {
-                UE_LOG(LogTemp, Log, TEXT("Messages save %s for slot '%s'"),
-                    bSuccess ? TEXT("succeeded") : TEXT("failed"), *SlotName);
-            })
-    );
-}
-
-
-void UBookfaceSubsystem::LoadBookfaceDataAsync()
-{
-    if (!UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
-    {
-        return;
-    }
-
-    UGameplayStatics::AsyncLoadGameFromSlot(
-        TEXT("BookfaceSlot"), 0,
-        FAsyncLoadGameFromSlotDelegate::CreateLambda([this](const FString&, const int32, USaveGame* LoadedGame)
-            {
-                UBookfaceSaveGame* Loaded = Cast<UBookfaceSaveGame>(LoadedGame);
-                if (!Loaded) return;
-
-                UserProfiles = Loaded->SavedProfiles;
-                FriendRequests = Loaded->SavedFriendRequests;
-
-                for (auto& Profile : UserProfiles)
-                {
-                    Profile.UserMessages.Empty();
-                }
-
-                TMap<FString, UBookfaceMessageObject*> IdToMessage;
-                IdToMessage.Reserve(Loaded->SavedAllPosts.Num());
-
-                for (const FBookfaceMessageData& Data : Loaded->SavedAllPosts)
-                {
-                    UBookfaceMessageObject* Msg = NewObject<UBookfaceMessageObject>(this);
-                    Msg->MessageId = Data.MessageId;
-                    Msg->FromUserId = Data.FromUserId;
-                    Msg->ToUserId = Data.ToUserId;
-                    Msg->MessageContent = Data.MessageContent;
-                    Msg->Timestamp = Data.Timestamp;
-                    Msg->LikesUserIds = Data.LikesUserIds;
-                    Msg->ParentMessage = nullptr;
-                    Msg->ReplyMessages.Reset();
-                    //Msg->SubscribedProfiles = Data.SubscribedProfiles;
-
-                    IdToMessage.Add(Msg->MessageId, Msg);
-                }
-
-                for (const FBookfaceMessageData& Data : Loaded->SavedAllPosts)
-                {
-                    UBookfaceMessageObject* Msg = IdToMessage.FindRef(Data.MessageId);
-                    if (!Msg) continue;
-
-                    if (!Data.ParentMessageId.IsEmpty())
-                    {
-                        if (UBookfaceMessageObject* Parent = IdToMessage.FindRef(Data.ParentMessageId))
-                        {
-                            Msg->ParentMessage = Parent;
-                            Parent->ReplyMessages.Add(Msg);
-                        }
-                        else
-                        {
-                            UE_LOG(LogTemp, Warning, TEXT("Missing parent '%s' for message '%s'"),
-                                *Data.ParentMessageId, *Data.MessageId);
-                        }
-                    }
-                    else
-                    {
-                        FBookfaceProfileStructure* TargetProfile = UserProfiles.FindByPredicate(
-                            [&](const FBookfaceProfileStructure& P) { return P.UserId == Data.ToUserId; });
-
-                        if (TargetProfile)
-                        {
-                            TargetProfile->UserMessages.Add(Msg);
-                        }
-                        else
-                        {
-                            UE_LOG(LogTemp, Warning, TEXT("Profile '%s' not found for root message '%s'"),
-                                *Data.ToUserId, *Data.MessageId);
-                        }
-                    }
-                }
-
-                bHasLoadedSave = true;
-
-                int32 RootCount = 0;
-                for (const auto& P : UserProfiles) RootCount += P.UserMessages.Num();
-
-                UE_LOG(LogTemp, Log, TEXT("Loaded %d profiles, %d requests, %d messages total, %d root posts"),
-                    UserProfiles.Num(), FriendRequests.Num(),
-                    Loaded->SavedAllPosts.Num(), RootCount);
-            })
-    );
 }
 
 void UBookfaceSubsystem::OnBookfaceAppOpened()
@@ -507,7 +379,7 @@ void UBookfaceSubsystem::OnBookfaceAppOpened()
         {
             NewSave->SavedProfiles.Empty();
             NewSave->SavedFriendRequests.Empty();
-            NewSave->SavedAllPosts.Empty();
+            //NewSave->SavedAllPosts.Empty();
 
             UGameplayStatics::AsyncSaveGameToSlot(
                 NewSave,
@@ -531,7 +403,7 @@ void UBookfaceSubsystem::OnBookfaceAppOpened()
     }
 }
 
-void UBookfaceSubsystem::SaveBookfaceDataAsync()
+void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
 {
     UBookfaceSaveGame* SaveGame = nullptr;
 
@@ -544,19 +416,82 @@ void UBookfaceSubsystem::SaveBookfaceDataAsync()
     if (!SaveGame)
     {
         SaveGame = Cast<UBookfaceSaveGame>(
-        UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
-            
-        SaveGame->SavedAllPosts.Empty();
+            UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
     }
 
+    // Сохраняем профили и заявки
     SaveGame->SavedProfiles = UserProfiles;
     SaveGame->SavedFriendRequests = FriendRequests;
+
+    // 🔹 Сериализуем сообщения и уведомления для каждого профиля
+    for (int32 i = 0; i < UserProfiles.Num(); ++i)
+    {
+        SaveGame->SavedProfiles[i].SavedMessages.Empty();
+
+        auto SaveMessageRecursive = [&](UBookfaceMessageObject* Msg, const FString& ParentId, auto&& Self) -> void
+            {
+                if (!Msg) return;
+
+                if (Msg->MessageId.IsEmpty())
+                {
+                    Msg->MessageId = FGuid::NewGuid().ToString();
+                }
+
+                FBookfaceMessageData Data;
+                Data.MessageId = Msg->MessageId;
+                Data.FromUserId = Msg->FromUserId;
+                Data.ToUserId = Msg->ToUserId;
+                Data.MessageContent = Msg->MessageContent;
+                Data.Timestamp = Msg->Timestamp;
+                Data.LikesUserIds = Msg->LikesUserIds;
+                Data.ParentMessageId = ParentId;
+                Data.SubscribedUserIDs = Msg->SubscribedUserIDs;
+
+                SaveGame->SavedProfiles[i].SavedMessages.Add(Data);
+
+                for (UBookfaceMessageObject* Reply : Msg->ReplyMessages)
+                {
+                    Self(Reply, Msg->MessageId, Self);
+                }
+            };
+
+        for (UBookfaceMessageObject* RootPost : UserProfiles[i].UserMessages)
+        {
+            SaveMessageRecursive(RootPost, TEXT(""), SaveMessageRecursive);
+        }
+
+        // 🔹 Перед сохранением уведомлений гарантируем, что ID заполнены
+        for (auto& Notice : UserProfiles[i].MessageNotices)
+        {
+            if (Notice.Message && !Notice.Message->MessageId.IsEmpty())
+                Notice.MessageId = Notice.Message->MessageId;
+
+            if (Notice.RootMessage && !Notice.RootMessage->MessageId.IsEmpty())
+                Notice.RootMessageId = Notice.RootMessage->MessageId;
+
+            if (Notice.ParentMessage && !Notice.ParentMessage->MessageId.IsEmpty())
+                Notice.ParentMessageId = Notice.ParentMessage->MessageId;
+        }
+
+        // 🔹 Собираем валидные ID из всех сохранённых сообщений профиля
+        TSet<FString> ValidIds;
+        for (const FBookfaceMessageData& Data : SaveGame->SavedProfiles[i].SavedMessages)
+        {
+            ValidIds.Add(Data.MessageId);
+        }
+
+        // 🔹 Удаляем только те уведомления, которые реально ссылаются на несуществующие сообщения
+        SaveGame->SavedProfiles[i].MessageNotices.RemoveAll([&](const FBookfaceMessageNoticeStructure& Notice)
+            {
+                return !ValidIds.Contains(Notice.MessageId);
+            });
+    }
 
     UGameplayStatics::AsyncSaveGameToSlot(
         SaveGame, TEXT("BookfaceSlot"), 0,
         FAsyncSaveGameToSlotDelegate::CreateLambda([](const FString& SlotName, const int32, bool bSuccess)
             {
-                UE_LOG(LogTemp, Log, TEXT("Profiles/requests save %s for slot '%s'"),
+                UE_LOG(LogTemp, Log, TEXT("Messages save %s for slot '%s'"),
                     bSuccess ? TEXT("succeeded") : TEXT("failed"), *SlotName);
             })
     );
@@ -611,8 +546,8 @@ void UBookfaceSubsystem::UpdateUserProfile(const FBookfaceProfileStructure& Upda
     UserProfiles.Add(UpdatedProfile);
     SaveBookfaceDataAsync();
 }
-/*
-void UBookfaceSubsystem::SaveMessageNoticesAsync()
+
+void UBookfaceSubsystem::SaveBookfaceDataAsync()
 {
     UBookfaceSaveGame* SaveGame = nullptr;
 
@@ -626,31 +561,63 @@ void UBookfaceSubsystem::SaveMessageNoticesAsync()
     {
         SaveGame = Cast<UBookfaceSaveGame>(
             UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
-
-        SaveGame->SavedProfiles.Empty();
-        SaveGame->SavedFriendRequests.Empty();
-        SaveGame->SavedAllPosts.Empty();
-        SaveGame->SavedMessageNotices.Empty();
     }
 
-    SaveGame->SavedMessageNotices = MessageNotices;
+    SaveGame->SavedProfiles = UserProfiles;
+    SaveGame->SavedFriendRequests = FriendRequests;
+
+    // сериализация сообщений в SavedMessages каждого профиля
+    for (int32 i = 0; i < UserProfiles.Num(); ++i)
+    {
+        SaveGame->SavedProfiles[i].SavedMessages.Empty();
+
+        auto SaveMessageRecursive = [&](UBookfaceMessageObject* Msg, const FString& ParentId, auto&& Self) -> void
+            {
+                if (!Msg) return;
+
+                if (Msg->MessageId.IsEmpty())
+                {
+                    Msg->MessageId = FGuid::NewGuid().ToString();
+                }
+
+                FBookfaceMessageData Data;
+                Data.MessageId = Msg->MessageId;
+                Data.FromUserId = Msg->FromUserId;
+                Data.ToUserId = Msg->ToUserId;
+                Data.MessageContent = Msg->MessageContent;
+                Data.Timestamp = Msg->Timestamp;
+                Data.LikesUserIds = Msg->LikesUserIds;
+                Data.ParentMessageId = ParentId;
+                Data.SubscribedUserIDs = Msg->SubscribedUserIDs;
+
+                SaveGame->SavedProfiles[i].SavedMessages.Add(Data);
+
+                for (UBookfaceMessageObject* Reply : Msg->ReplyMessages)
+                {
+                    Self(Reply, Msg->MessageId, Self);
+                }
+            };
+
+        for (UBookfaceMessageObject* RootPost : UserProfiles[i].UserMessages)
+        {
+            SaveMessageRecursive(RootPost, TEXT(""), SaveMessageRecursive);
+        }
+    }
 
     UGameplayStatics::AsyncSaveGameToSlot(
         SaveGame, TEXT("BookfaceSlot"), 0,
         FAsyncSaveGameToSlotDelegate::CreateLambda([](const FString& SlotName, const int32, bool bSuccess)
             {
-                UE_LOG(LogTemp, Log, TEXT("Message notices save %s for slot '%s'"),
+                UE_LOG(LogTemp, Log, TEXT("Profiles/requests/messages save %s for slot '%s'"),
                     bSuccess ? TEXT("succeeded") : TEXT("failed"), *SlotName);
             })
     );
 }
 
-void UBookfaceSubsystem::LoadMessageNoticesAsync()
+void UBookfaceSubsystem::LoadBookfaceDataAsync()
 {
     if (!UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
     {
-        MessageNotices.Empty();
-        OnNoticesLoaded.Broadcast();
         return;
     }
 
@@ -659,19 +626,91 @@ void UBookfaceSubsystem::LoadMessageNoticesAsync()
         FAsyncLoadGameFromSlotDelegate::CreateLambda([this](const FString&, const int32, USaveGame* LoadedGame)
             {
                 UBookfaceSaveGame* Loaded = Cast<UBookfaceSaveGame>(LoadedGame);
-                if (!Loaded)
+                if (!Loaded) return;
+
+                // Загружаем профили и заявки
+                UserProfiles = Loaded->SavedProfiles;
+                FriendRequests = Loaded->SavedFriendRequests;
+
+                // Глобальная карта всех сообщений по ID
+                TMap<FString, UBookfaceMessageObject*> GlobalIdToMessage;
+
+                // Восстанавливаем сообщения для каждого профиля
+                for (auto& Profile : UserProfiles)
                 {
-                    MessageNotices.Empty();
-                    OnNoticesLoaded.Broadcast();
-                    return;
+                    Profile.UserMessages.Empty();
+
+                    TMap<FString, UBookfaceMessageObject*> IdToMessage;
+
+                    // Создаём объекты сообщений из сериализованных данных
+                    for (const FBookfaceMessageData& Data : Profile.SavedMessages)
+                    {
+                        UBookfaceMessageObject* Msg = NewObject<UBookfaceMessageObject>(this);
+                        Msg->MessageId = Data.MessageId;
+                        Msg->FromUserId = Data.FromUserId;
+                        Msg->ToUserId = Data.ToUserId;
+                        Msg->MessageContent = Data.MessageContent;
+                        Msg->Timestamp = Data.Timestamp;
+                        Msg->LikesUserIds = Data.LikesUserIds;
+                        Msg->SubscribedUserIDs = Data.SubscribedUserIDs;
+                        Msg->ParentMessage = nullptr;
+                        Msg->ReplyMessages.Reset();
+
+                        IdToMessage.Add(Msg->MessageId, Msg);
+                        GlobalIdToMessage.Add(Msg->MessageId, Msg);
+                    }
+
+                    // Восстанавливаем связи родитель ↔ ответы
+                    for (const FBookfaceMessageData& Data : Profile.SavedMessages)
+                    {
+                        UBookfaceMessageObject* Msg = IdToMessage.FindRef(Data.MessageId);
+                        if (!Msg) continue;
+
+                        if (!Data.ParentMessageId.IsEmpty())
+                        {
+                            if (UBookfaceMessageObject* Parent = IdToMessage.FindRef(Data.ParentMessageId))
+                            {
+                                Msg->ParentMessage = Parent;
+                                Parent->ReplyMessages.Add(Msg);
+                            }
+                            else
+                            {
+                                UE_LOG(LogTemp, Warning, TEXT("Missing parent '%s' for message '%s'"),
+                                    *Data.ParentMessageId, *Data.MessageId);
+                            }
+                        }
+                        else
+                        {
+                            Profile.UserMessages.Add(Msg);
+                        }
+                    }
                 }
 
-                MessageNotices = Loaded->SavedMessageNotices;
+                // 🔹 Восстанавливаем уведомления для всех профилей
+                for (auto& Profile : UserProfiles)
+                {
+                    for (auto& Notice : Profile.MessageNotices)
+                    {
+                        if (Notice.MessageId.IsEmpty())
+                        {
+                            UE_LOG(LogTemp, Warning, TEXT("Notice for profile '%s' has empty MessageId"),
+                                *Profile.UserId);
+                            continue;
+                        }
 
-                OnNoticesLoaded.Broadcast();
+                        Notice.Message = GlobalIdToMessage.FindRef(Notice.MessageId);
+                        Notice.RootMessage = GlobalIdToMessage.FindRef(Notice.RootMessageId);
+                        Notice.ParentMessage = GlobalIdToMessage.FindRef(Notice.ParentMessageId);
+                    }
+                }
 
-                UE_LOG(LogTemp, Log, TEXT("Loaded %d message notices"), MessageNotices.Num());
+                bHasLoadedSave = true;
+
+                int32 RootCount = 0;
+                for (const auto& P : UserProfiles) RootCount += P.UserMessages.Num();
+
+                UE_LOG(LogTemp, Log, TEXT("Loaded %d profiles, %d requests, %d root posts"),
+                    UserProfiles.Num(), FriendRequests.Num(), RootCount);
             })
     );
 }
-*/

@@ -1,39 +1,9 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
 #include "BookfaceDataTypes.h"
 #include "BookfaceSaveGame.generated.h"
-
-USTRUCT(BlueprintType)
-struct FBookfaceMessageData
-{
-    GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString MessageId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString FromUserId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString ToUserId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FText MessageContent;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FDateTime Timestamp;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    TArray<FString> LikesUserIds;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString ParentMessageId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    TArray<AActor*> SubscribedProfiles;
-};
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSaveGame : public USaveGame
@@ -41,15 +11,15 @@ class FPSKITALSREFACTORED_API UBookfaceSaveGame : public USaveGame
     GENERATED_BODY()
 
 public:
-    UPROPERTY(VisibleAnywhere, Category = "SaveData")
+    // 🔹 Сохраняемые профили (включая SavedMessages внутри каждого профиля)
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SaveData")
     TArray<FBookfaceProfileStructure> SavedProfiles;
 
+    // 🔹 Сохраняемые заявки в друзья
     UPROPERTY(VisibleAnywhere, Category = "SaveData")
     TArray<FBookfaceFriendRequestStructure> SavedFriendRequests;
 
+    // 🔹 Сохраняемые уведомления
     UPROPERTY(VisibleAnywhere, Category = "SaveData")
-    TArray<FBookfaceMessageData> SavedAllPosts;
-
-    //UPROPERTY(VisibleAnywhere, Category = "SaveData")
-    //TArray<FBookfaceMessageNoticeStructure> SavedMessageNotices;
+    TArray<FBookfaceMessageNoticeStructure> SavedMessageNotices;
 };
