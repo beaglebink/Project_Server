@@ -245,6 +245,11 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
 
     auto RootMessage = FindRootMessage(NewMessage);
     RootMessage->SubscribedUserIDs.AddUnique(FromUserId);
+
+    if (!ParentMessage && FromUserId != ToUserId)
+    {
+		RootMessage->SubscribedUserIDs.AddUnique(ToUserId);
+    }
     /*
     if (!ParentMessage)
     {
