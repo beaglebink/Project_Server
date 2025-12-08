@@ -2212,7 +2212,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
-		* CarlOvercoatSpeedMultiplier;
+		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3092,7 +3092,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 	}
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier;
+		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -4663,9 +4663,179 @@ void AAlsCharacter::DebsFootballPads_CheckIfShotgunModeIsOn()
 
 float AAlsCharacter::DebsFootballPads_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
 {
+	// Increased damage in shotgun mode
+	if (DamageInstigator)
+	{
+		AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+		if (Player && Player->bDebsFootballPadsIsOn)
+		{
+			if (Player->bDebsFootballPadsShotgunModeIsOn)
+			{
+				DamageAmount *= 1.25f;
+			}
+
+			if (Player->DebsFootballPads_CheckFor5EnemiesWithin3mVicinity())
+			{
+				DamageAmount *= 1.15f;
+			}
+		}
+	}
+
+	// Damage reduction
+	if (bDebsFootballPadsIsOn)
+	{
+		DamageAmount *= 0.88f;
+	}
+
 	return DamageAmount;
 }
 
 void AAlsCharacter::DebsFootballPads_MaxEnergyCapacityCodeRifleShotgunMode_Implementation(bool ShotgunModeIsOn)
 {
 }
+
+void AAlsCharacter::DebsFootballPads_UsesMoreStaminaBy_50()
+{
+	if (bDebsFootballPadsIsOn && !bDebsFootballPadsShouldIncreaseStaminaUsing)
+	{
+		bDebsFootballPadsShouldIncreaseStaminaUsing = true;
+		JumpStaminaCost *= 1.5f;
+		RollStaminaCost *= 1.5f;
+	}
+	else if (!bDebsFootballPadsIsOn && bDebsFootballPadsShouldIncreaseStaminaUsing)
+	{
+		bDebsFootballPadsShouldIncreaseStaminaUsing = false;
+		JumpStaminaCost /= 1.5f;
+		RollStaminaCost /= 1.5f;
+	}
+}
+
+bool AAlsCharacter::DebsFootballPads_CheckFor5EnemiesWithin3mVicinity()
+{
+	const float VicinityRadius = 300.0f;
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(VicinityRadius), Params);
+
+	int32 EnemyCount = 0;
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+			{
+				++EnemyCount;
+			}
+		}
+	}
+
+	return EnemyCount >= 5;
+}
+
+void AAlsCharacter::DebsFootballPads_CheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->bDebsFootballPadsIsOn)
+			{
+				if (GetHealth() <= DamageAmount)
+				{
+					++Player->DebsFootballPadsEnemyKillsCounter;
+					FTimerHandle DebsFootballPadsEnemyKillsTimerHandle;
+					if (Player->DebsFootballPadsEnemyKillsCounter == 1)
+					{
+						GetWorldTimerManager().SetTimer(DebsFootballPadsEnemyKillsTimerHandle, [Player]()
+							{
+								if (IsValid(Player))
+								{
+									Player->BugHunterUniformEnemyKillsCounter = 0;
+								}
+							}, 25.0f, false);
+					}
+					else if (Player->DebsFootballPadsEnemyKillsCounter >= 10)
+					{
+						Player->DebsFootballPadsEnemyKillsCounter = 0;
+						GetWorldTimerManager().ClearTimer(DebsFootballPadsEnemyKillsTimerHandle);
+						if (Player->GetWeaponName() == "ZeroGun")
+						{
+							Player->DebsFootballPads_ZeroRifleRefill_50();
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void AAlsCharacter::DebsFootballPads_ZeroRifleRefill_50_Implementation()
+{
+}
+
+// SimonSweater
+
+// Effect_29
+
+// LaoEddiesNightRobe
+void AAlsCharacter::LaoEddiesNightRobe_UsesMoreStaminaBy_15()
+{
+	if (bLaoEddiesNightRobeIsOn && !bLaoEddiesNightRobeShouldDecreaseStaminaUsing)
+	{
+		bLaoEddiesNightRobeShouldDecreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 0.85f;
+		JumpStaminaCost *= 0.85f;
+		RollStaminaCost *= 0.85f;
+	}
+	else if (!bLaoEddiesNightRobeIsOn && bLaoEddiesNightRobeShouldDecreaseStaminaUsing)
+	{
+		bLaoEddiesNightRobeShouldDecreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 0.85f;
+		JumpStaminaCost /= 0.85f;
+		RollStaminaCost /= 0.85f;
+	}
+}
+
+float AAlsCharacter::LaoEddiesNightRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	// Stun enemy chance
+	AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+	if (Player && Player->bLaoEddiesNightRobeIsOn && !bLaoEddiesNightRobeBeingShot)
+	{
+		bLaoEddiesNightRobeBeingShot = true;
+		float ChanseToStunEnemy = 30.0f;
+		if (FMath::FRandRange(0.0f, 100.0f) < ChanseToStunEnemy)
+		{
+			StunEffect(3.0f);
+		}
+	}
+
+	// Reflect damage chance
+	if (bLaoEddiesNightRobeIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (DamageType.ToString() != "Melee")
+			{
+				float ChanceToReflect = 25.0f;
+				float DamageToReflect = DamageAmount * FMath::FRandRange(0.1f, 0.3f);
+				if (FMath::FRandRange(0.0f, 100.0f) < ChanceToReflect)
+				{
+					DamageAmount -= DamageToReflect;
+					UGameplayStatics::ApplyDamage(Enemy, DamageToReflect, GetController(), this, nullptr);
+				}
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+// MoonDoggies

@@ -1795,8 +1795,8 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::DebsFootballPads, [this](bool Apply) {DebsFootballPads_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::SimonSweater, [this](bool Apply) {SimonSweater_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_29, [this](bool Apply) {Effect_29(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::LaoEddieNightRobe, [this](bool Apply) {LaoEddieNightRobe_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_31, [this](bool Apply) {Effect_31(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::LaoEddiesNightRobe, [this](bool Apply) {LaoEddiesNightRobe_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::MoonDoggies, [this](bool Apply) {MoonDoggies_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_32, [this](bool Apply) {Effect_32(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_33, [this](bool Apply) {Effect_33(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_34, [this](bool Apply) {Effect_34(Apply); });
@@ -2258,10 +2258,13 @@ void AAlsCharacterExample::DebsFootballPads_Effect(bool Apply)
 {
 	bDebsFootballPadsIsOn = Apply;
 	DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.0f;
+	DebsFootballPadsSpeedMultiplier = 1.0f;
 	DebsFootballPads_CheckIfShotgunModeIsOn();
+	DebsFootballPads_UsesMoreStaminaBy_50();
 	if (Apply)
 	{
 		DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.2f;
+		DebsFootballPadsSpeedMultiplier = 0.9f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_27"));
 	}
 	//else
@@ -2272,14 +2275,19 @@ void AAlsCharacterExample::DebsFootballPads_Effect(bool Apply)
 
 void AAlsCharacterExample::SimonSweater_Effect(bool Apply)
 {
+	bSimonSweaterIsOn = Apply;
+	SimonSweaterSpeedMultiplier = 1.0f;
+	SimonSweaterAccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimonSweater"));
+		SimonSweaterSpeedMultiplier = 1.05f;
+		SimonSweaterAccuracyMultiplier = 0.875f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimonSweater"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimonSweater"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove SimonSweater"));
+	//}
 }
 
 void AAlsCharacterExample::Effect_29(bool Apply)
@@ -2294,28 +2302,43 @@ void AAlsCharacterExample::Effect_29(bool Apply)
 	}
 }
 
-void AAlsCharacterExample::LaoEddieNightRobe_Effect(bool Apply)
+void AAlsCharacterExample::LaoEddiesNightRobe_Effect(bool Apply)
 {
+	bLaoEddiesNightRobeIsOn = Apply;
+	LaoEddiesNightRobeSpeedMultiplier = 1.0f;
+	LaoEddiesNightRobe_UsesMoreStaminaBy_15();
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply LaoEddieNightRobe"));
+		LaoEddiesNightRobeSpeedMultiplier = 1.1f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply LaoEddieNightRobe"));
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove LaoEddieNightRobe"));
-	}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove LaoEddieNightRobe"));
+	//}
 }
 
-void AAlsCharacterExample::Effect_31(bool Apply)
+void AAlsCharacterExample::MoonDoggies_Effect(bool Apply)
 {
-	if (Apply)
+	bMoonDoggiesIsOn = Apply;
+	if (!bMoonDoggiesGhostsIgnoreHasBeenUsed)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_31"));
+		bMoonDoggiesGhostsIgnoreHasBeenUsed = true;
+		bMoonDoggiesShouldGhostsIgnorePlayer = true;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [&]()
+			{
+				bMoonDoggiesShouldGhostsIgnorePlayer = false;
+			}, 120.0f, false);
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_31"));
-	}
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_31"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_31"));
+	//}
 }
 
 void AAlsCharacterExample::Effect_32(bool Apply)

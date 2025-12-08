@@ -2045,10 +2045,16 @@ protected:
 
 	uint8 bDebsFootballPadsIsIncreasedMaxEnergy : 1{false};
 
+	uint8 bDebsFootballPadsShouldIncreaseStaminaUsing : 1{false};
+
 	float DebsFootballPadsRecoilMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.0f;
+
+	float DebsFootballPadsSpeedMultiplier = 1.0f;
+
+	int32 DebsFootballPadsEnemyKillsCounter = 0;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void DebsFootballPads_CheckIfShotgunModeIsOn();
@@ -2059,17 +2065,50 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
 	void DebsFootballPads_MaxEnergyCapacityCodeRifleShotgunMode(bool ShotgunModeIsOn);
 
+	void DebsFootballPads_UsesMoreStaminaBy_50();
+
+	bool DebsFootballPads_CheckFor5EnemiesWithin3mVicinity();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void DebsFootballPads_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ClothesEffect")
+	void DebsFootballPads_ZeroRifleRefill_50();
+
 	// SimonSweater
 protected:
+	uint8 bSimonSweaterIsOn : 1{false};
+
+	float SimonSweaterSpeedMultiplier = 1.0f;
+
+	float SimonSweaterAccuracyMultiplier = 1.0f;
 
 	// Effect_29
 protected:
 
-	// LaoEddieNightRobe
+	// LaoEddiesNightRobe
 protected:
+	uint8 bLaoEddiesNightRobeIsOn : 1{false};
 
-	// Effect_31
+	uint8 bLaoEddiesNightRobeShouldDecreaseStaminaUsing : 1{false};
+
+	uint8 bLaoEddiesNightRobeBeingShot : 1{false};
+
+	float LaoEddiesNightRobeSpeedMultiplier = 1.0f;
+
+	void LaoEddiesNightRobe_UsesMoreStaminaBy_15();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float LaoEddiesNightRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	// MoonDoggies
 protected:
+	uint8 bMoonDoggiesIsOn : 1{false};
+	
+	uint8 bMoonDoggiesGhostsIgnoreHasBeenUsed : 1{false};
+
+	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
+	uint8 bMoonDoggiesShouldGhostsIgnorePlayer : 1{false};
 
 	// Effect_32
 protected:
