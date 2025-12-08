@@ -105,15 +105,12 @@ public:
     UFUNCTION(BlueprintCallable)
     void StoreMessageNotice(const FString& ProfileId, const FBookfaceMessageNoticeStructure& Notice);
 
-/*  UFUNCTION(BlueprintCallable, BlueprintPure)
-    TArray<UBookfaceMessageObject*> GetAllPosts() const;
+    UFUNCTION(BlueprintCallable)
+	void RemoveMessageNotice(const FString& ProfileId, const FBookfaceMessageNoticeStructure& Notice);
 
     UFUNCTION(BlueprintCallable)
-    void StoreMessageNotice(const FBookfaceMessageNoticeStructure& Notice);
-
-    UFUNCTION(BlueprintCallable)
-	TArray<FBookfaceMessageNoticeStructure> GetMessageNotices() const { return MessageNotices; }
-    */
+	void ClearAllMessageNotices(const FString& ProfileId);
+    
 private:
     UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
 

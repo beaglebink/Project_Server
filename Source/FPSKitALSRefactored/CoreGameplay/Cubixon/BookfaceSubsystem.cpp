@@ -363,6 +363,29 @@ void UBookfaceSubsystem::StoreMessageNotice(const FString& ProfileID, const FBoo
     }
 }
 
+void UBookfaceSubsystem::RemoveMessageNotice(const FString& ProfileId, const FBookfaceMessageNoticeStructure& Notice)
+{
+    FBookfaceProfileStructure* Profile = UserProfiles.FindByPredicate(
+        [&](const FBookfaceProfileStructure& P) { return P.UserId == ProfileId; });
+    if (Profile)
+    {
+        Profile->MessageNotices.RemoveAll([&](const FBookfaceMessageNoticeStructure& ExistingNotice)
+            {
+                return ExistingNotice == Notice;
+            });
+	}
+}
+
+void UBookfaceSubsystem::ClearAllMessageNotices(const FString& ProfileId)
+{
+    FBookfaceProfileStructure* Profile = UserProfiles.FindByPredicate(
+        [&](const FBookfaceProfileStructure& P) { return P.UserId == ProfileId; });
+    if (Profile)
+    {
+        Profile->MessageNotices.Empty();
+	}
+}
+
 void UBookfaceSubsystem::OnBookfaceAppOpened()
 {
     if (bHasLoadedSave)
