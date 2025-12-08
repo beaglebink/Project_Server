@@ -2104,7 +2104,7 @@ protected:
 	// MoonDoggies
 protected:
 	uint8 bMoonDoggiesIsOn : 1{false};
-	
+
 	uint8 bMoonDoggiesGhostsIgnoreHasBeenUsed : 1{false};
 
 	uint8 bMoonDoggiesStaminaAndAccuracyOn2GhostTypes : 1{false};
@@ -2134,7 +2134,7 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float Garbage_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void Garbage_IncreaseStaminaRegenPercentForEnemyKilled(AController* DamageInstigator, float DamageAmount);
 
@@ -2143,60 +2143,102 @@ protected:
 
 	// PDEnergizerBattery
 protected:
+	uint8 bPDEnergizerBatteryIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadOnly)
+	float PDEnergizerBattery_RechargerMultiplier = 1.0f;
+
+	uint8 bPDEnergizerBatteryHasUsedLifeSteal : 1{false};
+
+	FTimerHandle PDEnergizerBatteryLifeStealHandle;
+
+	float PDEnergizerBattery_StaminaRateMultiplier = 1.0f;
+
+	FTimerHandle PDEnergizerBatteryStaminaRecoveryHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float PDEnergizerBattery_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void PDEnergizerBattery_ShouldStealLife(AController* DamageInstigator, float DamageAmount);
+
+	void PDEnergizerBattery_IncreaseStaminaRecoveryOnStationary();
 
 	// DesperadoPoncho
 protected:
+	uint8 bDesperadoPonchoIsOn : 1{false};
 
 	// DeliverySpandex
 protected:
+	uint8 bDeliverySpandexIsOn : 1{false};
 
 	// WW2Uniform
 protected:
+	uint8 bWW2UniformIsOn : 1{false};
 
 	// GreenhouseOutfit
 protected:
+	uint8 bGreenhouseOutfitIsOn : 1{false};
 
 	// HeartShapedSweater
 protected:
+	uint8 bHeartShapedSweaterIsOn : 1{false};
 
 	// CableRepairOutfit
 protected:
+	uint8 bCableRepairOutfitIsOn : 1{false};
 
-	// Effect_41
+	// NetworkSpecialist
 protected:
+	uint8 bNetworkSpecialistIsOn : 1{false};
 
 	// TroubleshooterJacket
 protected:
+	uint8 bTroubleshooterJacketIsOn : 1{false};
 
 	// HotSwapPatch
 protected:
+	uint8 bHotSwapPatchIsOn : 1{false};
 
-	// ChefApron
+	// ChefsApron
 protected:
+	uint8 bChefsApronIsOn : 1{false};
 
 	// MiddleAgedCyborgSamuraiTortoiseShell
 protected:
+	uint8 bMiddleAgedCyborgSamuraiTortoiseShellIsOn : 1{false};
 
 	// RastaRobe
 protected:
+	uint8 bRastaRobeIsOn : 1{false};
 
 	// UndertakerCloak
 protected:
+	uint8 bUndertakerCloakIsOn : 1{false};
 
 	// TranquilBlouse
 protected:
+	uint8 bTranquilBlouseIsOn : 1{false};
 
-	// Effect_49
+	// AntiGlitchHarness
 protected:
+	uint8 bAntiGlitchHarnessIsOn : 1{false};
 
-	// KnuthOvercoat
+	// KnuthsOvercoat
 protected:
+	uint8 bKnuthsOvercoatIsOn : 1{false};
 
 	// VcarSweatShirt
 protected:
+	uint8 bVcarSweatShirtIsOn : 1{false};
 
-	// Effect_52
+	// AnandsTurtleneck
 protected:
+	uint8 bAnandsTurtleneckIsOn : 1{false};
+
+	// GamerGear
+protected:
+	uint8 bGamerGearIsOn : 1{false};
 
 };
 

@@ -362,6 +362,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	IncreaseHealth_30_20c();
 
+	PDEnergizerBattery_IncreaseStaminaRecoveryOnStationary();
+
 	// Debugging information.
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
 	//{
@@ -2174,7 +2176,8 @@ void AAlsCharacter::HealthRecovery()
 
 void AAlsCharacter::StaminaRecovery()
 {
-	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier;
+	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier
+		* PDEnergizerBattery_StaminaRateMultiplier;
 	SetStamina(GetStamina() + StaminaRate);
 
 	// Debug Stamina regeneration rate
@@ -4966,4 +4969,82 @@ float AAlsCharacter::Garbage_DecreaseClogChanceBy_10(float ClogAmount)
 	ClogAmount *= 0.9f;
 
 	return ClogAmount;
+}
+
+// PDEnergizerBattery
+float AAlsCharacter::PDEnergizerBattery_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bPDEnergizerBatteryIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (DamageType.ToString() != "Melee")
+			{
+				if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Furry.Claw")) ||
+					Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Bot.Net")) ||
+					Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Guy.LittleElectric")) ||
+					Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Pointer")))
+				{
+					float ChanceToReplenishHealth = 10.0f;
+					if (FMath::FRandRange(0.0f, 100.0f) < ChanceToReplenishHealth)
+					{
+						SetHealth(GetHealth() + 10.0f);
+						DamageAmount = 0.0f;
+					}
+				}
+
+				float ChanceToReplenishStamina = 10.0f;
+				if (FMath::FRandRange(0.0f, 100.0f) < ChanceToReplenishStamina)
+				{
+					SetStamina(GetStamina() + 4.0f);
+					DamageAmount = 0.0f;
+				}
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::PDEnergizerBattery_ShouldStealLife(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (GetWorldTimerManager().IsTimerActive(Player->PDEnergizerBatteryLifeStealHandle))
+			{
+				if (DamageAmount >= GetHealth())
+				{
+					Player->SetHealth(Player->GetHealth() + 2.0f);
+				}
+			}
+		}
+	}
+}
+
+void AAlsCharacter::PDEnergizerBattery_IncreaseStaminaRecoveryOnStationary()
+{
+	if (!bPDEnergizerBatteryIsOn)
+	{
+		return;
+	}
+
+	if (GetVelocity().IsNearlyZero() && !GetWorldTimerManager().IsTimerActive(PDEnergizerBatteryStaminaRecoveryHandle))
+	{
+		GetWorldTimerManager().SetTimer(PDEnergizerBatteryStaminaRecoveryHandle, [this]()
+			{
+				PDEnergizerBattery_StaminaRateMultiplier = 1.6f;
+			}, 6.0f, false);
+	}
+	if (!GetVelocity().IsNearlyZero())
+	{
+		GetWorldTimerManager().ClearTimer(PDEnergizerBatteryStaminaRecoveryHandle);
+		PDEnergizerBattery_StaminaRateMultiplier = 1.0f;
+	}
 }

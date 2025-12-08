@@ -1806,18 +1806,19 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::GreenhouseOutfit, [this](bool Apply) {GreenhouseOutfit_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::HeartShapedSweater, [this](bool Apply) {HeartShapedSweater_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::CableRepairOutfit, [this](bool Apply) {CableRepairOutfit_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_41, [this](bool Apply) {Effect_41(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::NetworkSpecialist, [this](bool Apply) {NetworkSpecialist_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::TroubleshooterJacket, [this](bool Apply) {TroubleshooterJacket_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::HotSwapPatch, [this](bool Apply) {HotSwapPatch_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::ChefApron, [this](bool Apply) {ChefApron_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::ChefsApron, [this](bool Apply) {ChefsApron_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::MiddleAgedCyborgSamuraiTortoiseShell, [this](bool Apply) {MiddleAgedCyborgSamuraiTortoiseShell_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::RastaRobe, [this](bool Apply) {RastaRobe_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::UndertakerCloak, [this](bool Apply) {UndertakerCloak_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::TranquilBlouse, [this](bool Apply) {TranquilBlouse_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_49, [this](bool Apply) {Effect_49(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::KnuthOvercoat, [this](bool Apply) {KnuthOvercoat_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::AntiGlitchHarness, [this](bool Apply) {AntiGlitchHarness_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::KnuthsOvercoat, [this](bool Apply) {KnuthsOvercoat_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::VcarSweatShirt, [this](bool Apply) {VcarSweatShirt_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_52, [this](bool Apply) {Effect_52(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::AnandsTurtleneck, [this](bool Apply) {AnandsTurtleneck_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::GamerGear, [this](bool Apply) {GamerGear_Effect(Apply); });
 }
 
 void AAlsCharacterExample::AlphabetCoat_Effect(bool Apply)
@@ -2359,228 +2360,270 @@ void AAlsCharacterExample::Garbage_Effect(bool Apply)
 
 void AAlsCharacterExample::PDEnergizerBattery_Effect(bool Apply)
 {
+	bPDEnergizerBatteryIsOn = Apply;
+	PDEnergizerBattery_RechargerMultiplier = 1.0f;
 	if (Apply)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_33"));
+		PDEnergizerBattery_RechargerMultiplier = 1.275f;
+		if (!bPDEnergizerBatteryHasUsedLifeSteal)
+		{
+			bPDEnergizerBatteryHasUsedLifeSteal = true;
+			GetWorldTimerManager().SetTimer(PDEnergizerBatteryLifeStealHandle, []()
+				{
+				}, 40.0f, false);
+		}
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_33"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_33"));
+		GetWorldTimerManager().ClearTimer(PDEnergizerBatteryLifeStealHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_33"));
 	}
 }
 
 void AAlsCharacterExample::DesperadoPoncho_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply DesperadoPoncho"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove DesperadoPoncho"));
-	}
+	bDesperadoPonchoIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply DesperadoPoncho"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove DesperadoPoncho"));
+	//}
 }
 
 void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_36"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_36"));
-	}
+	bDeliverySpandexIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_36"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_36"));
+	//}
 }
 
 void AAlsCharacterExample::WW2Uniform_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WW2Uniform"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove WW2Uniform"));
-	}
+	bWW2UniformIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WW2Uniform"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove WW2Uniform"));
+	//}
 }
 
 void AAlsCharacterExample::GreenhouseOutfit_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GreenhouseOutfit"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GreenhouseOutfit"));
-	}
+	bGreenhouseOutfitIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GreenhouseOutfit"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GreenhouseOutfit"));
+	//}
 }
 
 void AAlsCharacterExample::HeartShapedSweater_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HeartShapedSweater"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HeartShapedSweater"));
-	}
+	bHeartShapedSweaterIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HeartShapedSweater"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HeartShapedSweater"));
+	//}
 }
 
 void AAlsCharacterExample::CableRepairOutfit_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CableRepairOutfit"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CableRepairOutfit"));
-	}
+	bCableRepairOutfitIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CableRepairOutfit"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CableRepairOutfit"));
+	//}
 }
 
-void AAlsCharacterExample::Effect_41(bool Apply)
+void AAlsCharacterExample::NetworkSpecialist_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_41"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_41"));
-	}
+	bNetworkSpecialistIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_41"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_41"));
+	//}
 }
 
 void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TroubleshooterJacket"));
-	}
+	bTroubleshooterJacketIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TroubleshooterJacket"));
+	//}
 }
 
 void AAlsCharacterExample::HotSwapPatch_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HotSwapPatch"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HotSwapPatch"));
-	}
+	bHotSwapPatchIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HotSwapPatch"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HotSwapPatch"));
+	//}
 }
 
-void AAlsCharacterExample::ChefApron_Effect(bool Apply)
+void AAlsCharacterExample::ChefsApron_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ChefApron"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ChefApron"));
-	}
+	bChefsApronIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ChefApron"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ChefApron"));
+	//}
 }
 
 void AAlsCharacterExample::MiddleAgedCyborgSamuraiTortoiseShell_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MiddleAgedCyborgSamuraiTortoiseShell"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MiddleAgedCyborgSamuraiTortoiseShell"));
-	}
+	bMiddleAgedCyborgSamuraiTortoiseShellIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MiddleAgedCyborgSamuraiTortoiseShell"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MiddleAgedCyborgSamuraiTortoiseShell"));
+	//}
 }
 
 void AAlsCharacterExample::RastaRobe_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply RastaRobe"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RastaRobe"));
-	}
+	bRastaRobeIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply RastaRobe"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove RastaRobe"));
+	//}
 }
 
 void AAlsCharacterExample::UndertakerCloak_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply UndertakerCloak"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove UndertakerCloak"));
-	}
+	bUndertakerCloakIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply UndertakerCloak"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove UndertakerCloak"));
+	//}
 }
 
 void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TranquilBlouse"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TranquilBlouse"));
-	}
+	bTranquilBlouseIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TranquilBlouse"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TranquilBlouse"));
+	//}
 }
 
-void AAlsCharacterExample::Effect_49(bool Apply)
+void AAlsCharacterExample::AntiGlitchHarness_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_49"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_49"));
-	}
+	bAntiGlitchHarnessIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AntiGlitchHarness"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AntiGlitchHarness"));
+	//}
 }
 
-void AAlsCharacterExample::KnuthOvercoat_Effect(bool Apply)
+void AAlsCharacterExample::KnuthsOvercoat_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply KnuthOvercoat"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove KnuthOvercoat"));
-	}
+	bKnuthsOvercoatIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply KnuthsOvercoat"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove KnuthsOvercoat"));
+	//}
 }
 
 void AAlsCharacterExample::VcarSweatShirt_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply VcarSweatShirt"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove VcarSweatShirt"));
-	}
+	bVcarSweatShirtIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply VcarSweatShirt"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove VcarSweatShirt"));
+	//}
 }
 
-void AAlsCharacterExample::Effect_52(bool Apply)
+void AAlsCharacterExample::AnandsTurtleneck_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_52"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_52"));
-	}
+	bAnandsTurtleneckIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AnandsTurtleneck"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AnandsTurtleneck"));
+	//}
+}
+
+void AAlsCharacterExample::GamerGear_Effect(bool Apply)
+{
+	bGamerGearIsOn = Apply;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GamerGear"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GamerGear"));
+	//}
 }
