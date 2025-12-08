@@ -423,7 +423,10 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
     SaveGame->SavedProfiles = UserProfiles;
     SaveGame->SavedFriendRequests = FriendRequests;
 
-    // 🔹 Сериализуем сообщения и уведомления для каждого профиля
+    // 🔹 Глобальное множество всех валидных ID сообщений
+    TSet<FString> GlobalValidIds;
+
+    // Сериализуем сообщения для каждого профиля
     for (int32 i = 0; i < UserProfiles.Num(); ++i)
     {
         SaveGame->SavedProfiles[i].SavedMessages.Empty();
@@ -449,6 +452,9 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
 
                 SaveGame->SavedProfiles[i].SavedMessages.Add(Data);
 
+                // Добавляем в глобальный список валидных ID
+                GlobalValidIds.Add(Data.MessageId);
+
                 for (UBookfaceMessageObject* Reply : Msg->ReplyMessages)
                 {
                     Self(Reply, Msg->MessageId, Self);
@@ -472,18 +478,14 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
             if (Notice.ParentMessage && !Notice.ParentMessage->MessageId.IsEmpty())
                 Notice.ParentMessageId = Notice.ParentMessage->MessageId;
         }
+    }
 
-        // 🔹 Собираем валидные ID из всех сохранённых сообщений профиля
-        TSet<FString> ValidIds;
-        for (const FBookfaceMessageData& Data : SaveGame->SavedProfiles[i].SavedMessages)
-        {
-            ValidIds.Add(Data.MessageId);
-        }
-
-        // 🔹 Удаляем только те уведомления, которые реально ссылаются на несуществующие сообщения
+    // 🔹 Теперь чистим уведомления по глобальному множеству ID
+    for (int32 i = 0; i < SaveGame->SavedProfiles.Num(); ++i)
+    {
         SaveGame->SavedProfiles[i].MessageNotices.RemoveAll([&](const FBookfaceMessageNoticeStructure& Notice)
             {
-                return !ValidIds.Contains(Notice.MessageId);
+                return !GlobalValidIds.Contains(Notice.MessageId);
             });
     }
 

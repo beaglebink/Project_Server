@@ -65,13 +65,13 @@ struct FBookfaceMessageNoticeStructure
     FString MessageId;
 
     // 🔹 Рабочие ссылки (не сериализуются)
-    UPROPERTY(Transient)
+    UPROPERTY(BlueprintReadOnly, Transient)
     UBookfaceMessageObject* RootMessage = nullptr;
 
-    UPROPERTY(Transient)
+    UPROPERTY(BlueprintReadOnly, Transient)
     UBookfaceMessageObject* ParentMessage = nullptr;
 
-    UPROPERTY(Transient)
+    UPROPERTY(BlueprintReadOnly, Transient)
     UBookfaceMessageObject* Message = nullptr;
 
     bool operator==(const FBookfaceMessageNoticeStructure& Other) const

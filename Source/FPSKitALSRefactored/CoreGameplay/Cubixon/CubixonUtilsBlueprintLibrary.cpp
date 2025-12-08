@@ -196,6 +196,9 @@ void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEd
         Y += LineSize.Y;
     }
 
+    if (RealLines.Num() == 0)
+        return;
+
     SlateWidget->GoTo(FTextLocation(RealLines.Num() - 1, RealLines.Last().Len()));
 }
 
