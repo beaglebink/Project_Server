@@ -165,6 +165,8 @@ void AAlsCharacter::BeginPlay()
 	{
 		LevelEnemyManager->RegisterEnemy(EnemyTag);
 	}
+	//MoonDoggies
+	LevelEnemyManager->OnGhostsTypesNumberChange.AddDynamic(this, &AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange);
 
 	if (GetLocalRole() >= ROLE_AutonomousProxy)
 	{
@@ -3092,7 +3094,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 	}
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier;
+		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier * MoonDoggiesAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -4839,3 +4841,66 @@ float AAlsCharacter::LaoEddiesNightRobe_InteractWithDamage(AController* DamageIn
 }
 
 // MoonDoggies
+float AAlsCharacter::MoonDoggies_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+	if (Player && Player->bMoonDoggiesIsOn)
+	{
+		if (LevelEnemyManager->GhostEnemyTypes.Num() == 2)
+		{
+			DamageAmount *= 1.1f;
+		}
+
+		if (LevelEnemyManager->GhostEnemyTypes.Num() >= 3)
+		{
+			++Player->MoonDoggiesPlayerShootCounter;
+			if (Player->MoonDoggiesPlayerShootCounter < 6)
+			{
+				MoonDoggiesEnemyDamageDebuff = 0.2f * (Player->MoonDoggiesPlayerShootCounter - 1);
+			}
+
+			DamageAmount *= 1.125f;
+		}
+	}
+
+	if (bMoonDoggiesIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			DamageAmount *= 1 - Enemy->MoonDoggiesEnemyDamageDebuff;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(int32 GhostsTypesNum)
+{
+	SetMaxStamina(GetMaxStamina() / (1.0f + 0.15f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn2GhostTypes) + 0.2f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn3GhostTypes)));
+	MoonDoggiesAccuracyMultiplier = 1.0f;
+	bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = false;
+	bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = false;
+
+	if (bMoonDoggiesIsOn)
+	{
+		if (GhostsTypesNum == 2)
+		{
+			bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = true;
+			bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = false;
+			MoonDoggiesAccuracyMultiplier = 0.85f;
+		}
+		else if (GhostsTypesNum >= 3)
+		{
+			bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = false;
+			bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = true;
+			MoonDoggiesAccuracyMultiplier = 0.8f;
+		}
+		SetMaxStamina(GetMaxStamina() * (1 + 0.15f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn2GhostTypes) + 0.2f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn3GhostTypes)));
+	}
+	SetStamina(GetStamina());
+}

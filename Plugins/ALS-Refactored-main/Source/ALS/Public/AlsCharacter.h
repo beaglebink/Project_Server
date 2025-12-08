@@ -2107,8 +2107,24 @@ protected:
 	
 	uint8 bMoonDoggiesGhostsIgnoreHasBeenUsed : 1{false};
 
+	uint8 bMoonDoggiesStaminaAndAccuracyOn2GhostTypes : 1{false};
+
+	uint8 bMoonDoggiesStaminaAndAccuracyOn3GhostTypes : 1{false};
+
+	int32 MoonDoggiesPlayerShootCounter = 0;
+
+	float MoonDoggiesEnemyDamageDebuff = 0.0f;
+
+	float MoonDoggiesAccuracyMultiplier = 1.0f;
+
 	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
 	uint8 bMoonDoggiesShouldGhostsIgnorePlayer : 1{false};
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float MoonDoggies_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION()
+	void MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(int32 GhostsTypesNum);
 
 	// Effect_32
 protected:

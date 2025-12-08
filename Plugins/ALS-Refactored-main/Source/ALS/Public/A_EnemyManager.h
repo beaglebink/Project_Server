@@ -5,6 +5,8 @@
 #include "Utility/AlsGameplayTags.h"
 #include "A_EnemyManager.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGhostsTypesNumberChange, int32, GhostTypesNumber);
+
 class AAlsCharacterExample;
 
 UCLASS()
@@ -25,8 +27,13 @@ private:
 	TMap<FGameplayTag, int32> EnemyTypeCounts;
 
 public:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	TSet<AActor*> ZappedEnemies; // BugZapperCoat effect
+
+	UPROPERTY(BlueprintReadOnly)
+	TMap<FGameplayTag, int32> GhostEnemyTypes; // MoonDoggies effect
+
+	FOnGhostsTypesNumberChange OnGhostsTypesNumberChange;
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
 	void RegisterEnemy(FGameplayTag EnemyType);

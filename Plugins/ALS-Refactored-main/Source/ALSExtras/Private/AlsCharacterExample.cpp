@@ -16,6 +16,7 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include <Blueprint/AIBlueprintHelperLibrary.h>
 #include "BehaviorTree/BlackboardComponent.h"
+#include "A_EnemyManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlsCharacterExample)
 
@@ -2331,13 +2332,15 @@ void AAlsCharacterExample::MoonDoggies_Effect(bool Apply)
 				bMoonDoggiesShouldGhostsIgnorePlayer = false;
 			}, 120.0f, false);
 	}
+
+	MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(LevelEnemyManager->GhostEnemyTypes.Num());
 	//if (Apply)
 	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_31"));
-	//}
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MoonDoggies"));
+//	}
 	//else
 	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_31"));
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MoonDoggies"));
 	//}
 }
 
