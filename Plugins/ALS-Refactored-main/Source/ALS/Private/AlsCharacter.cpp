@@ -2174,7 +2174,14 @@ void AAlsCharacter::HealthRecovery()
 
 void AAlsCharacter::StaminaRecovery()
 {
-	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11);
+	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier;
+	SetStamina(GetStamina() + StaminaRate);
+
+	// Debug Stamina regeneration rate
+	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("Stamina RegRate: %2.4f"), StaminaRate));
+	//}
 }
 
 void AAlsCharacter::RefreshRecoil()
@@ -4903,4 +4910,60 @@ void AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(int32 G
 		SetMaxStamina(GetMaxStamina() * (1 + 0.15f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn2GhostTypes) + 0.2f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn3GhostTypes)));
 	}
 	SetStamina(GetStamina());
+}
+
+// Garbage
+float AAlsCharacter::Garbage_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bGarbageIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.GreenFlesh")) || Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Hex")))
+			{
+				DamageAmount *= 0.75f;
+			}
+		}
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bGarbageIsOn && (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.GreenFlesh")) || EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Hex"))))
+		{
+			DamageAmount *= 1.1f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::Garbage_IncreaseStaminaRegenPercentForEnemyKilled(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->bGarbageIsOn && DamageAmount >= GetHealth())
+			{
+				Player->Garbage_StaminaRegenPercentMultiplier = FMath::Clamp(Player->Garbage_StaminaRegenPercentMultiplier + 0.025f, 0.0f, 1.5f);
+			}
+		}
+	}
+}
+
+float AAlsCharacter::Garbage_DecreaseClogChanceBy_10(float ClogAmount)
+{
+	if (!bGarbageIsOn)
+	{
+		return ClogAmount;
+	}
+
+	ClogAmount *= 0.9f;
+
+	return ClogAmount;
 }

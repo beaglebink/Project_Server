@@ -2126,19 +2126,28 @@ protected:
 	UFUNCTION()
 	void MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(int32 GhostsTypesNum);
 
-	// Effect_32
+	// Garbage
 protected:
+	uint8 bGarbageIsOn : 1{false};
 
-	// Effect_33
-protected:
+	float Garbage_StaminaRegenPercentMultiplier = 1.0f;
 
-	// Effect_34
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float Garbage_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+	
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void Garbage_IncreaseStaminaRegenPercentForEnemyKilled(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float Garbage_DecreaseClogChanceBy_10(float ClogAmount);
+
+	// PDEnergizerBattery
 protected:
 
 	// DesperadoPoncho
 protected:
 
-	// Effect_36
+	// DeliverySpandex
 protected:
 
 	// WW2Uniform

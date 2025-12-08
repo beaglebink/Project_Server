@@ -1798,11 +1798,10 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::Effect_29, [this](bool Apply) {Effect_29(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::LaoEddiesNightRobe, [this](bool Apply) {LaoEddiesNightRobe_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::MoonDoggies, [this](bool Apply) {MoonDoggies_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_32, [this](bool Apply) {Effect_32(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_33, [this](bool Apply) {Effect_33(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_34, [this](bool Apply) {Effect_34(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::Garbage, [this](bool Apply) {Garbage_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::PDEnergizerBattery, [this](bool Apply) {PDEnergizerBattery_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::DesperadoPoncho, [this](bool Apply) {DesperadoPoncho_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::Effect_36, [this](bool Apply) {Effect_36(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::DeliverySpandex, [this](bool Apply) {DeliverySpandex_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::WW2Uniform, [this](bool Apply) {WW2Uniform_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::GreenhouseOutfit, [this](bool Apply) {GreenhouseOutfit_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::HeartShapedSweater, [this](bool Apply) {HeartShapedSweater_Effect(Apply); });
@@ -2344,19 +2343,21 @@ void AAlsCharacterExample::MoonDoggies_Effect(bool Apply)
 	//}
 }
 
-void AAlsCharacterExample::Effect_32(bool Apply)
+void AAlsCharacterExample::Garbage_Effect(bool Apply)
 {
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_32"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_32"));
-	}
+	bGarbageIsOn = Apply;
+	Garbage_StaminaRegenPercentMultiplier = 1.0f;
+	//if (Apply)
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_32"));
+	//}
+	//else
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_32"));
+	//}
 }
 
-void AAlsCharacterExample::Effect_33(bool Apply)
+void AAlsCharacterExample::PDEnergizerBattery_Effect(bool Apply)
 {
 	if (Apply)
 	{
@@ -2365,18 +2366,6 @@ void AAlsCharacterExample::Effect_33(bool Apply)
 	else
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_33"));
-	}
-}
-
-void AAlsCharacterExample::Effect_34(bool Apply)
-{
-	if (Apply)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_34"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_34"));
 	}
 }
 
@@ -2392,7 +2381,7 @@ void AAlsCharacterExample::DesperadoPoncho_Effect(bool Apply)
 	}
 }
 
-void AAlsCharacterExample::Effect_36(bool Apply)
+void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 {
 	if (Apply)
 	{
