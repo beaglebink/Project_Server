@@ -19,6 +19,13 @@ void AA_EnemyManager::Tick(float DeltaTime)
 void AA_EnemyManager::RegisterEnemy(FGameplayTag EnemyType)
 {
 	++EnemyTypeCounts.FindOrAdd(EnemyType);
+
+	//  MoonDoggies effect
+	if (EnemyType.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost")))
+	{
+		++GhostEnemyTypes.FindOrAdd(EnemyType);
+		OnGhostsTypesNumberChange.Broadcast(GhostEnemyTypes.Num());
+	}
 }
 
 void AA_EnemyManager::UnregisterEnemy(AActor* Enemy, FGameplayTag EnemyType)
@@ -31,8 +38,19 @@ void AA_EnemyManager::UnregisterEnemy(AActor* Enemy, FGameplayTag EnemyType)
 			EnemyTypeCounts.Remove(EnemyType);
 		}
 	}
-
+	//  BugZapperCoat effect
 	ZappedEnemies.Remove(Enemy);
+
+	//  MoonDoggies effect
+	if (int32* CountPtr = GhostEnemyTypes.Find(EnemyType))
+	{
+		--(*CountPtr);
+		if (*CountPtr <= 0)
+		{
+			GhostEnemyTypes.Remove(EnemyType);
+		}
+	}
+	OnGhostsTypesNumberChange.Broadcast(GhostEnemyTypes.Num());
 }
 
 int32 AA_EnemyManager::GetEnemyCount(FGameplayTag EnemyType) const
@@ -43,4 +61,3 @@ int32 AA_EnemyManager::GetEnemyCount(FGameplayTag EnemyType) const
 	}
 	return 0;
 }
-

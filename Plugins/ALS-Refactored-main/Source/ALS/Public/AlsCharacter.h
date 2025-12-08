@@ -2107,22 +2107,47 @@ protected:
 	
 	uint8 bMoonDoggiesGhostsIgnoreHasBeenUsed : 1{false};
 
+	uint8 bMoonDoggiesStaminaAndAccuracyOn2GhostTypes : 1{false};
+
+	uint8 bMoonDoggiesStaminaAndAccuracyOn3GhostTypes : 1{false};
+
+	int32 MoonDoggiesPlayerShootCounter = 0;
+
+	float MoonDoggiesEnemyDamageDebuff = 0.0f;
+
+	float MoonDoggiesAccuracyMultiplier = 1.0f;
+
 	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
 	uint8 bMoonDoggiesShouldGhostsIgnorePlayer : 1{false};
 
-	// Effect_32
-protected:
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float MoonDoggies_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
-	// Effect_33
-protected:
+	UFUNCTION()
+	void MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(int32 GhostsTypesNum);
 
-	// Effect_34
+	// Garbage
+protected:
+	uint8 bGarbageIsOn : 1{false};
+
+	float Garbage_StaminaRegenPercentMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float Garbage_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+	
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void Garbage_IncreaseStaminaRegenPercentForEnemyKilled(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float Garbage_DecreaseClogChanceBy_10(float ClogAmount);
+
+	// PDEnergizerBattery
 protected:
 
 	// DesperadoPoncho
 protected:
 
-	// Effect_36
+	// DeliverySpandex
 protected:
 
 	// WW2Uniform

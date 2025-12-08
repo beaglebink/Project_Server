@@ -165,6 +165,8 @@ void AAlsCharacter::BeginPlay()
 	{
 		LevelEnemyManager->RegisterEnemy(EnemyTag);
 	}
+	//MoonDoggies
+	LevelEnemyManager->OnGhostsTypesNumberChange.AddDynamic(this, &AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange);
 
 	if (GetLocalRole() >= ROLE_AutonomousProxy)
 	{
@@ -2172,7 +2174,14 @@ void AAlsCharacter::HealthRecovery()
 
 void AAlsCharacter::StaminaRecovery()
 {
-	SetStamina(GetStamina() + StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11);
+	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier;
+	SetStamina(GetStamina() + StaminaRate);
+
+	// Debug Stamina regeneration rate
+	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
+	//{
+	//	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("Stamina RegRate: %2.4f"), StaminaRate));
+	//}
 }
 
 void AAlsCharacter::RefreshRecoil()
@@ -3092,7 +3101,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 	}
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier;
+		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier * MoonDoggiesAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -4839,3 +4848,122 @@ float AAlsCharacter::LaoEddiesNightRobe_InteractWithDamage(AController* DamageIn
 }
 
 // MoonDoggies
+float AAlsCharacter::MoonDoggies_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn());
+	if (Player && Player->bMoonDoggiesIsOn)
+	{
+		if (LevelEnemyManager->GhostEnemyTypes.Num() == 2)
+		{
+			DamageAmount *= 1.1f;
+		}
+
+		if (LevelEnemyManager->GhostEnemyTypes.Num() >= 3)
+		{
+			++Player->MoonDoggiesPlayerShootCounter;
+			if (Player->MoonDoggiesPlayerShootCounter < 6)
+			{
+				MoonDoggiesEnemyDamageDebuff = 0.2f * (Player->MoonDoggiesPlayerShootCounter - 1);
+			}
+
+			DamageAmount *= 1.125f;
+		}
+	}
+
+	if (bMoonDoggiesIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			DamageAmount *= 1 - Enemy->MoonDoggiesEnemyDamageDebuff;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(int32 GhostsTypesNum)
+{
+	SetMaxStamina(GetMaxStamina() / (1.0f + 0.15f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn2GhostTypes) + 0.2f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn3GhostTypes)));
+	MoonDoggiesAccuracyMultiplier = 1.0f;
+	bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = false;
+	bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = false;
+
+	if (bMoonDoggiesIsOn)
+	{
+		if (GhostsTypesNum == 2)
+		{
+			bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = true;
+			bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = false;
+			MoonDoggiesAccuracyMultiplier = 0.85f;
+		}
+		else if (GhostsTypesNum >= 3)
+		{
+			bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = false;
+			bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = true;
+			MoonDoggiesAccuracyMultiplier = 0.8f;
+		}
+		SetMaxStamina(GetMaxStamina() * (1 + 0.15f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn2GhostTypes) + 0.2f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn3GhostTypes)));
+	}
+	SetStamina(GetStamina());
+}
+
+// Garbage
+float AAlsCharacter::Garbage_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bGarbageIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.GreenFlesh")) || Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Hex")))
+			{
+				DamageAmount *= 0.75f;
+			}
+		}
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bGarbageIsOn && (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.GreenFlesh")) || EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Hex"))))
+		{
+			DamageAmount *= 1.1f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::Garbage_IncreaseStaminaRegenPercentForEnemyKilled(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->bGarbageIsOn && DamageAmount >= GetHealth())
+			{
+				Player->Garbage_StaminaRegenPercentMultiplier = FMath::Clamp(Player->Garbage_StaminaRegenPercentMultiplier + 0.025f, 0.0f, 1.5f);
+			}
+		}
+	}
+}
+
+float AAlsCharacter::Garbage_DecreaseClogChanceBy_10(float ClogAmount)
+{
+	if (!bGarbageIsOn)
+	{
+		return ClogAmount;
+	}
+
+	ClogAmount *= 0.9f;
+
+	return ClogAmount;
+}

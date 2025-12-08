@@ -405,11 +405,10 @@ private:
 	void Effect_29(bool Apply = false);
 	void LaoEddiesNightRobe_Effect(bool Apply = false);
 	void MoonDoggies_Effect(bool Apply = false);
-	void Effect_32(bool Apply = false);
-	void Effect_33(bool Apply = false);
-	void Effect_34(bool Apply = false);
+	void Garbage_Effect(bool Apply = false);
+	void PDEnergizerBattery_Effect(bool Apply = false);
 	void DesperadoPoncho_Effect(bool Apply = false);
-	void Effect_36(bool Apply = false);
+	void DeliverySpandex_Effect(bool Apply = false);
 	void WW2Uniform_Effect(bool Apply = false);
 	void GreenhouseOutfit_Effect(bool Apply = false);
 	void HeartShapedSweater_Effect(bool Apply = false);
