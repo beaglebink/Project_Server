@@ -2104,7 +2104,7 @@ protected:
 	// MoonDoggies
 protected:
 	uint8 bMoonDoggiesIsOn : 1{false};
-	
+
 	uint8 bMoonDoggiesGhostsIgnoreHasBeenUsed : 1{false};
 
 	uint8 bMoonDoggiesStaminaAndAccuracyOn2GhostTypes : 1{false};
@@ -2134,7 +2134,7 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float Garbage_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void Garbage_IncreaseStaminaRegenPercentForEnemyKilled(AController* DamageInstigator, float DamageAmount);
 
@@ -2143,60 +2143,167 @@ protected:
 
 	// PDEnergizerBattery
 protected:
+	uint8 bPDEnergizerBatteryIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadOnly)
+	float PDEnergizerBattery_RechargerMultiplier = 1.0f;
+
+	uint8 bPDEnergizerBatteryHasUsedLifeSteal : 1{false};
+
+	FTimerHandle PDEnergizerBatteryLifeStealHandle;
+
+	float PDEnergizerBattery_StaminaRateMultiplier = 1.0f;
+
+	FTimerHandle PDEnergizerBatteryStaminaRecoveryHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float PDEnergizerBattery_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void PDEnergizerBattery_ShouldStealLife(AController* DamageInstigator, float DamageAmount);
+
+	void PDEnergizerBattery_IncreaseStaminaRecoveryOnStationary();
 
 	// DesperadoPoncho
 protected:
+	uint8 bDesperadoPonchoIsOn : 1{false};
+
+	float DesperadoPonchoWeaponSpeedMultiplier = 1.0f;
+
+	float DesperadoPonchoWeaponStrafeSpeedMultiplier = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float DesperadoPonchoWeaponSwitchMultiplier = 1.0f;
+
+	float DesperadoPonchoAccuracyMultiplier = 1.0f;
+
+	float DesperadoPonchoDamageMultiplier = 1.0f;
+
+	int32 DesperadoPonchoMissHitCounter = 0;
+
+	float DesperadoPonchoRecoilMultiplier = 1.0f;
+
+	FTimerHandle DesperadoPonchoMissHitTimerHandle;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float DesperadoPonchoReloadMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void DesperadoPoncho_MissHitHandle(AActor* HitActor);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float DesperadoPoncho_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void DesperadoPoncho_ReloadAddsStamina();
 
 	// DeliverySpandex
 protected:
+	uint8 bDeliverySpandexIsOn : 1{false};
+
+	uint8 bDeliverySpandexShouldDecreaseStaminaUsingOnSprint : 1{false};
+
+	float DeliverySpandexDamagePenaltyMultiplier = 1.0f;
+
+	float DeliverySpandexAccuracyMultiplier = 1.0f;
+
+	float DeliverySpandexRecoilMultiplier = 1.0f;
+
+	float DeliverySpandexSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float DeliverySpandex_InteractWithDamage(float DamageAmount);
+
+	void DeliverySpandex_AccuracyRecoilStaminaOnMovingHandle();
+
+	void DeliverySpandex_SprintUsesLessStaminaBy_20();
 
 	// WW2Uniform
 protected:
+	uint8 bWW2UniformIsOn : 1{false};
+
+	uint8 bWW2UniformHasUsedDamageReflection : 1{false};
+
+	uint8 bWW2UniformShouldDecreaseStaminaUsing : 1{false};
+
+	float WW2UniformDamageMultiplier = 1.0f;
+
+	float WW2UniformSpeedMultiplier = 1.0f;
+
+	float WW2UniformRecoilMultiplier = 1.0f;
+
+	float WW2UniformAccuracyMultiplier = 1.0f;
+
+	FTimerHandle WW2UniformDamageReflectionHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float WW2Uniform_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	void WW2Uniform_Under20HealthHandle();
 
 	// GreenhouseOutfit
 protected:
+	uint8 bGreenhouseOutfitIsOn : 1{false};
 
 	// HeartShapedSweater
 protected:
+	uint8 bHeartShapedSweaterIsOn : 1{false};
 
 	// CableRepairOutfit
 protected:
+	uint8 bCableRepairOutfitIsOn : 1{false};
 
-	// Effect_41
+	// NetworkSpecialist
 protected:
+	uint8 bNetworkSpecialistIsOn : 1{false};
 
 	// TroubleshooterJacket
 protected:
+	uint8 bTroubleshooterJacketIsOn : 1{false};
 
 	// HotSwapPatch
 protected:
+	uint8 bHotSwapPatchIsOn : 1{false};
 
-	// ChefApron
+	// ChefsApron
 protected:
+	uint8 bChefsApronIsOn : 1{false};
 
 	// MiddleAgedCyborgSamuraiTortoiseShell
 protected:
+	uint8 bMiddleAgedCyborgSamuraiTortoiseShellIsOn : 1{false};
 
 	// RastaRobe
 protected:
+	uint8 bRastaRobeIsOn : 1{false};
 
 	// UndertakerCloak
 protected:
+	uint8 bUndertakerCloakIsOn : 1{false};
 
 	// TranquilBlouse
 protected:
+	uint8 bTranquilBlouseIsOn : 1{false};
 
-	// Effect_49
+	// AntiGlitchHarness
 protected:
+	uint8 bAntiGlitchHarnessIsOn : 1{false};
 
-	// KnuthOvercoat
+	// KnuthsOvercoat
 protected:
+	uint8 bKnuthsOvercoatIsOn : 1{false};
 
 	// VcarSweatShirt
 protected:
+	uint8 bVcarSweatShirtIsOn : 1{false};
 
-	// Effect_52
+	// AnandsTurtleneck
 protected:
+	uint8 bAnandsTurtleneckIsOn : 1{false};
+
+	// GamerGear
+protected:
+	uint8 bGamerGearIsOn : 1{false};
 
 };
 
