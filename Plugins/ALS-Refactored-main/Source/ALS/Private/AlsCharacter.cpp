@@ -365,9 +365,9 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	PDEnergizerBattery_IncreaseStaminaRecoveryOnStationary();
 
 	// Debugging information.
-	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
+	//if (this != UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
 	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Green, FString::Printf(TEXT("Recoil: %2.2f"), RecoilMultiplier));
+	//	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Green, FString::Printf(TEXT("Health: %2.2f"), GetHealth()));
 	//}
 }
 
@@ -2160,17 +2160,20 @@ void AAlsCharacter::SetArmour(float NewArmour)
 
 void AAlsCharacter::HealthRecovery()
 {
-	if (GetHealth() <= 33.0f)
+	if (!EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 33.0f));
-	}
-	else if (GetHealth() <= 67.0f)
-	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 67.0f));
-	}
-	else if (GetHealth() <= 100.0f)
-	{
-		SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 100.0f));
+		if (GetHealth() <= 33.0f)
+		{
+			SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 33.0f));
+		}
+		else if (GetHealth() <= 67.0f)
+		{
+			SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 67.0f));
+		}
+		else if (GetHealth() <= 100.0f)
+		{
+			SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 100.0f));
+		}
 	}
 }
 
@@ -2191,7 +2194,7 @@ void AAlsCharacter::RefreshRecoil()
 {
 	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
 		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier
-		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier;
+		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -2213,6 +2216,9 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 	//ClothesEffect SheriffOutfit bonus for strafe movement
 	SheriffOutfitStrafeSpeedMultiplier = 1.0f + FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.15f * static_cast<int32>(bSheriffOutfitIsOn), 0.0f), FMath::Abs(MovementDirection));
 
+	//ClothesEffect DesperadoPoncho bonus for strafe movement
+	SheriffOutfitStrafeSpeedMultiplier = 1.0f + FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.4f * static_cast<int32>(bDesperadoPonchoIsOn), 0.0f), FMath::Abs(MovementDirection));
+
 	// The less health left the slower movement
 	float DamageMovementPenalty = FMath::Clamp(GetHealth() / GetMaxHealth(), 1.0f - HealthMovementPenalty_01, 1.0f);
 
@@ -2224,7 +2230,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
-		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier;
+		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3104,7 +3110,8 @@ void AAlsCharacter::RefreshAimAccuracy()
 	}
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier * MoonDoggiesAccuracyMultiplier;
+		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier * MoonDoggiesAccuracyMultiplier
+		* DesperadoPonchoAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3185,7 +3192,7 @@ void AAlsCharacter::CheckIfHealthIsUnder_20()
 	LastStandSpeedMultiplier = 1.0f;
 	LastStandDamageMultiplier = 1.0f;
 
-	if (GetHealth() < GetMaxHealth() * 0.2f)
+	if (GetHealth() < GetMaxHealth() * 0.2f && !EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 	{
 		LastStandSpeedMultiplier = 1.2f;
 		LastStandDamageMultiplier = 0.8f;
@@ -5048,3 +5055,64 @@ void AAlsCharacter::PDEnergizerBattery_IncreaseStaminaRecoveryOnStationary()
 		PDEnergizerBattery_StaminaRateMultiplier = 1.0f;
 	}
 }
+
+// DesperadoPoncho
+void AAlsCharacter::DesperadoPoncho_MissHitHandle(AActor* HitActor)
+{
+	if (!bDesperadoPonchoIsOn)
+	{
+		return;
+	}
+
+	if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(HitActor))
+	{
+		if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+		{
+			DesperadoPonchoMissHitCounter = 0;
+			DesperadoPonchoAccuracyMultiplier = FMath::Clamp(DesperadoPonchoAccuracyMultiplier - 0.005f, 0.0f, 1.0f);
+			DesperadoPonchoDamageMultiplier += 0.005f;
+			GetWorldTimerManager().SetTimer(DesperadoPonchoMissHitTimerHandle, [this]()
+				{
+					DesperadoPonchoAccuracyMultiplier = 0.9f;
+					DesperadoPonchoDamageMultiplier = 1.0f;
+				}, 15.0f, false);
+
+			return;
+		}
+	}
+
+	++DesperadoPonchoMissHitCounter;
+	if (DesperadoPonchoMissHitCounter >= 2)
+	{
+		DesperadoPonchoMissHitCounter = 0;
+		DesperadoPonchoAccuracyMultiplier = 0.9f;
+		DesperadoPonchoDamageMultiplier = 1.0f;
+		GetWorldTimerManager().ClearTimer(DesperadoPonchoMissHitTimerHandle);
+	}
+}
+
+float AAlsCharacter::DesperadoPoncho_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (DamageInstigator)
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->bDesperadoPonchoIsOn)
+			{
+				return DamageAmount * Player->DesperadoPonchoDamageMultiplier;
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::DesperadoPoncho_ReloadAddsStamina()
+{
+	if (bDesperadoPonchoIsOn)
+	{
+		SetStamina(GetStamina() + 10.0f);
+	}
+}
+
+// DeliverySpandex

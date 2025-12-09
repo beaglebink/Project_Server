@@ -2384,14 +2384,26 @@ void AAlsCharacterExample::PDEnergizerBattery_Effect(bool Apply)
 void AAlsCharacterExample::DesperadoPoncho_Effect(bool Apply)
 {
 	bDesperadoPonchoIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply DesperadoPoncho"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove DesperadoPoncho"));
-	//}
+	DesperadoPonchoWeaponSpeedMultiplier = 1.0f;
+	DesperadoPonchoWeaponSwitchMultiplier = 1.0f;
+	DesperadoPonchoAccuracyMultiplier = 1.0f;
+	DesperadoPonchoDamageMultiplier = 1.0f;
+	DesperadoPonchoReloadMultiplier = 1.0f;
+	DesperadoPonchoRecoilMultiplier = 1.0f;
+	if (Apply)
+	{
+		DesperadoPonchoWeaponSpeedMultiplier = 1.1f;
+		DesperadoPonchoWeaponSwitchMultiplier = 1.3f;
+		DesperadoPonchoAccuracyMultiplier = 0.9f;
+		DesperadoPonchoReloadMultiplier = 1.4f;
+		DesperadoPonchoRecoilMultiplier = 0.9f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply DesperadoPoncho"));
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(DesperadoPonchoMissHitTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove DesperadoPoncho"));
+	}
 }
 
 void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)

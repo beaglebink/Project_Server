@@ -2168,6 +2168,35 @@ protected:
 protected:
 	uint8 bDesperadoPonchoIsOn : 1{false};
 
+	float DesperadoPonchoWeaponSpeedMultiplier = 1.0f;
+	
+	float DesperadoPonchoWeaponStrafeSpeedMultiplier = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float DesperadoPonchoWeaponSwitchMultiplier = 1.0f;
+	
+	float DesperadoPonchoAccuracyMultiplier = 1.0f;
+
+	float DesperadoPonchoDamageMultiplier = 1.0f;
+
+	int32 DesperadoPonchoMissHitCounter = 0;
+
+	float DesperadoPonchoRecoilMultiplier = 1.0f;
+
+	FTimerHandle DesperadoPonchoMissHitTimerHandle;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float DesperadoPonchoReloadMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void DesperadoPoncho_MissHitHandle(AActor* HitActor);
+	
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float DesperadoPoncho_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void DesperadoPoncho_ReloadAddsStamina();
+
 	// DeliverySpandex
 protected:
 	uint8 bDeliverySpandexIsOn : 1{false};
