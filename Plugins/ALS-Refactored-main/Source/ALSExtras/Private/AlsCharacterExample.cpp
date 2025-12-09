@@ -2409,10 +2409,17 @@ void AAlsCharacterExample::DesperadoPoncho_Effect(bool Apply)
 void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 {
 	bDeliverySpandexIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_36"));
-	//}
+	DeliverySpandexDamagePenaltyMultiplier = 1.0f;
+	DeliverySpandexAccuracyMultiplier = 1.0f;
+	DeliverySpandexRecoilMultiplier = 1.0f;
+	DeliverySpandexSpeedMultiplier = 1.0f;
+	DeliverySpandex_SprintUsesLessStaminaBy_20();
+	if (Apply)
+	{
+		DeliverySpandexDamagePenaltyMultiplier = 0.0f;
+		DeliverySpandexSpeedMultiplier = 1.1f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_36"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_36"));

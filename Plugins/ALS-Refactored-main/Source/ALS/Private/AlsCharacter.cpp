@@ -364,6 +364,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	PDEnergizerBattery_IncreaseStaminaRecoveryOnStationary();
 
+	DeliverySpandex_AccuracyRecoilStaminaOnMovingHandle();
+
 	// Debugging information.
 	//if (this != UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
 	//{
@@ -2194,7 +2196,7 @@ void AAlsCharacter::RefreshRecoil()
 {
 	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
 		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier
-		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier;
+		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier * DeliverySpandexRecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -2230,7 +2232,8 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
-		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier;
+		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
+		* DeliverySpandexSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2327,7 +2330,7 @@ void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)
 	}
 
 	float DamageSlowdownDuration = DeltaHealth / 10.0f * DamageSlowdownTime * AfterMeleeImpactMultiplier;
-	DamageSlowdownMultiplier -= (DeltaHealth / GetMaxHealth() * DamageSlowdownEffect);
+	DamageSlowdownMultiplier -= (DeltaHealth / GetMaxHealth() * DamageSlowdownEffect * DeliverySpandexDamagePenaltyMultiplier);
 
 	FTimerHandle TimerHandle;
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&]()
@@ -3111,7 +3114,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
 		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier * MoonDoggiesAccuracyMultiplier
-		* DesperadoPonchoAccuracyMultiplier;
+		* DesperadoPonchoAccuracyMultiplier * DeliverySpandexAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -5116,3 +5119,54 @@ void AAlsCharacter::DesperadoPoncho_ReloadAddsStamina()
 }
 
 // DeliverySpandex
+float AAlsCharacter::DeliverySpandex_InteractWithDamage(float DamageAmount)
+{
+	if (!bDeliverySpandexIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (GetVelocity().IsNearlyZero())
+	{
+		DamageAmount *= 1.15f;
+	}
+	else if (GetLocomotionAction() == AlsLocomotionActionTags::Rolling || GetDesiredGait() == AlsGaitTags::Sprinting)
+	{
+		DamageAmount *= 0.845f;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::DeliverySpandex_AccuracyRecoilStaminaOnMovingHandle()
+{
+	if (!bDeliverySpandexIsOn)
+	{
+		return;
+	}
+
+	DeliverySpandexAccuracyMultiplier = 1.0f;
+	DeliverySpandexRecoilMultiplier = 1.0f;
+
+	if (!GetVelocity().IsNearlyZero())
+	{
+		DeliverySpandexAccuracyMultiplier = 0.845f;
+		DeliverySpandexRecoilMultiplier = 0.845f;
+	}
+}
+
+void AAlsCharacter::DeliverySpandex_SprintUsesLessStaminaBy_20()
+{
+	if (bDeliverySpandexIsOn && !bDeliverySpandexShouldDecreaseStaminaUsingOnSprint)
+	{
+		bDeliverySpandexShouldDecreaseStaminaUsingOnSprint = true;
+		SprintStaminaDrainRate *= 0.8f;
+	}
+	else if (!bDeliverySpandexIsOn && bDeliverySpandexShouldDecreaseStaminaUsingOnSprint)
+	{
+		bDeliverySpandexShouldDecreaseStaminaUsingOnSprint = false;
+		SprintStaminaDrainRate /= 0.8f;
+	}
+}
+
+// WW2Uniform

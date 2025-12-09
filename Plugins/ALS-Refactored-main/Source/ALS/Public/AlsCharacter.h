@@ -2169,12 +2169,12 @@ protected:
 	uint8 bDesperadoPonchoIsOn : 1{false};
 
 	float DesperadoPonchoWeaponSpeedMultiplier = 1.0f;
-	
+
 	float DesperadoPonchoWeaponStrafeSpeedMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float DesperadoPonchoWeaponSwitchMultiplier = 1.0f;
-	
+
 	float DesperadoPonchoAccuracyMultiplier = 1.0f;
 
 	float DesperadoPonchoDamageMultiplier = 1.0f;
@@ -2190,7 +2190,7 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void DesperadoPoncho_MissHitHandle(AActor* HitActor);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float DesperadoPoncho_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
@@ -2200,6 +2200,23 @@ protected:
 	// DeliverySpandex
 protected:
 	uint8 bDeliverySpandexIsOn : 1{false};
+
+	uint8 bDeliverySpandexShouldDecreaseStaminaUsingOnSprint : 1{false};
+
+	float DeliverySpandexDamagePenaltyMultiplier = 1.0f;
+
+	float DeliverySpandexAccuracyMultiplier = 1.0f;
+
+	float DeliverySpandexRecoilMultiplier = 1.0f;
+
+	float DeliverySpandexSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float DeliverySpandex_InteractWithDamage(float DamageAmount);
+
+	void DeliverySpandex_AccuracyRecoilStaminaOnMovingHandle();
+
+	void DeliverySpandex_SprintUsesLessStaminaBy_20();
 
 	// WW2Uniform
 protected:
