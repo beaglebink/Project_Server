@@ -2062,6 +2062,7 @@ void AAlsCharacter::SetHealth(float NewHealth)
 	ShouldIgnoreStunIfHealthIsUnder_50();
 	CheckIfHealthIsUnder_30();
 	CarlOvercoat_DamageAndEvasionBonusReset();
+	WW2Uniform_Under20HealthHandle();
 
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
@@ -2196,7 +2197,7 @@ void AAlsCharacter::RefreshRecoil()
 {
 	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
 		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier
-		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier * DeliverySpandexRecoilMultiplier;
+		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier * DeliverySpandexRecoilMultiplier * WW2UniformRecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -2233,7 +2234,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
 		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
-		* DeliverySpandexSpeedMultiplier;
+		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3114,7 +3115,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
 		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier * MoonDoggiesAccuracyMultiplier
-		* DesperadoPonchoAccuracyMultiplier * DeliverySpandexAccuracyMultiplier;
+		* DesperadoPonchoAccuracyMultiplier * DeliverySpandexAccuracyMultiplier * WW2UniformAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3749,7 +3750,10 @@ float AAlsCharacter::PorcupineCoat_DecreaseMeleeDamageBy_10_40(AController* Dama
 		{
 			if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
 			{
-				UGameplayStatics::ApplyDamage(Enemy, DamageAmount * 0.2f, GetController(), this, UDamageType::StaticClass());
+				if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+				{
+					UGameplayStatics::ApplyDamage(Enemy, DamageAmount * 0.2f, GetController(), this, UDamageType::StaticClass());
+				}
 			}
 		}
 	}
@@ -3837,8 +3841,11 @@ float AAlsCharacter::BugZapperCoat_DealDamage(AController* DamageInstigator, FTe
 		{
 			if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
 			{
-				const float MeleeRevertedDamage = Enemy->GetMaxHealth() * 0.1f;
-				UGameplayStatics::ApplyDamage(Enemy, MeleeRevertedDamage, GetController(), this, nullptr);
+				if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+				{
+					const float MeleeRevertedDamage = Enemy->GetMaxHealth() * 0.1f;
+					UGameplayStatics::ApplyDamage(Enemy, MeleeRevertedDamage, GetController(), this, nullptr);
+				}
 			}
 		}
 	}
@@ -4844,14 +4851,17 @@ float AAlsCharacter::LaoEddiesNightRobe_InteractWithDamage(AController* DamageIn
 	{
 		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
 		{
-			if (DamageType.ToString() != "Melee")
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 			{
-				float ChanceToReflect = 25.0f;
-				float DamageToReflect = DamageAmount * FMath::FRandRange(0.1f, 0.3f);
-				if (FMath::FRandRange(0.0f, 100.0f) < ChanceToReflect)
+				if (DamageType.ToString() != "Melee")
 				{
-					DamageAmount -= DamageToReflect;
-					UGameplayStatics::ApplyDamage(Enemy, DamageToReflect, GetController(), this, nullptr);
+					float ChanceToReflect = 25.0f;
+					float DamageToReflect = DamageAmount * FMath::FRandRange(0.1f, 0.3f);
+					if (FMath::FRandRange(0.0f, 100.0f) < ChanceToReflect)
+					{
+						DamageAmount -= DamageToReflect;
+						UGameplayStatics::ApplyDamage(Enemy, DamageToReflect, GetController(), this, nullptr);
+					}
 				}
 			}
 		}
@@ -5170,3 +5180,76 @@ void AAlsCharacter::DeliverySpandex_SprintUsesLessStaminaBy_20()
 }
 
 // WW2Uniform
+float AAlsCharacter::WW2Uniform_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bWW2UniformIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+			{
+				if (!GetWorldTimerManager().IsTimerActive(WW2UniformDamageReflectionHandle))
+				{
+					if (GetHealth() < GetMaxHealth() * 0.3f && !bWW2UniformHasUsedDamageReflection)
+					{
+						GetWorldTimerManager().SetTimer(WW2UniformDamageReflectionHandle, [this]()
+							{
+								bWW2UniformHasUsedDamageReflection = true;
+							}, 30.0f, false);
+					}
+					else if (GetHealth() < GetMaxHealth() * 0.5f)
+					{
+						float ReflectedDamage = DamageAmount * 0.25f;
+						DamageAmount -= ReflectedDamage;
+						UGameplayStatics::ApplyDamage(Enemy, ReflectedDamage, GetController(), this, nullptr);
+					}
+				}
+
+				if (GetWorldTimerManager().IsTimerActive(WW2UniformDamageReflectionHandle))
+				{
+					float ReflectedDamage = DamageAmount * 0.5f;
+					DamageAmount -= ReflectedDamage;
+					UGameplayStatics::ApplyDamage(Enemy, ReflectedDamage, GetController(), this, nullptr);
+				}
+			}
+		}
+
+		WW2UniformDamageMultiplier = FMath::Clamp(WW2UniformDamageMultiplier + 0.005f, 0.0f, 1.4f);
+		WW2UniformSpeedMultiplier = FMath::Clamp(WW2UniformSpeedMultiplier + 0.005f, 0.0f, 1.2f);
+		WW2UniformRecoilMultiplier = FMath::Clamp(WW2UniformRecoilMultiplier + 0.005f, 0.0f, 1.4f);
+		WW2UniformAccuracyMultiplier = FMath::Clamp(WW2UniformAccuracyMultiplier + 0.005f, 0.0f, 1.4f);
+		DamageAmount *= 0.815;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		DamageAmount *= Player->WW2UniformDamageMultiplier;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::WW2Uniform_Under20HealthHandle()
+{
+	if (GetHealth() < 20.0f && bWW2UniformIsOn && !bWW2UniformShouldDecreaseStaminaUsing)
+	{
+		bWW2UniformShouldDecreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 0.000001f;
+		JumpStaminaCost *= 0.000001f;
+		RollStaminaCost *= 0.000001f;
+		WW2UniformRecoilMultiplier *= 0.6f;
+	}
+	else if ((GetHealth() >= 20.0f || !bWW2UniformIsOn) && bWW2UniformShouldDecreaseStaminaUsing)
+	{
+		bWW2UniformShouldDecreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 0.000001f;
+		JumpStaminaCost /= 0.000001f;
+		RollStaminaCost /= 0.000001f;
+		WW2UniformRecoilMultiplier /= 0.6f;
+	}
+}

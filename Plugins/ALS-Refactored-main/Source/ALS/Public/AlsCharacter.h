@@ -2222,6 +2222,25 @@ protected:
 protected:
 	uint8 bWW2UniformIsOn : 1{false};
 
+	uint8 bWW2UniformHasUsedDamageReflection : 1{false};
+
+	uint8 bWW2UniformShouldDecreaseStaminaUsing : 1{false};
+
+	float WW2UniformDamageMultiplier = 1.0f;
+
+	float WW2UniformSpeedMultiplier = 1.0f;
+
+	float WW2UniformRecoilMultiplier = 1.0f;
+
+	float WW2UniformAccuracyMultiplier = 1.0f;
+
+	FTimerHandle WW2UniformDamageReflectionHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float WW2Uniform_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	void WW2Uniform_Under20HealthHandle();
+
 	// GreenhouseOutfit
 protected:
 	uint8 bGreenhouseOutfitIsOn : 1{false};

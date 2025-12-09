@@ -2429,6 +2429,11 @@ void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 void AAlsCharacterExample::WW2Uniform_Effect(bool Apply)
 {
 	bWW2UniformIsOn = Apply;
+	WW2UniformDamageMultiplier = 1.0f;
+	WW2UniformSpeedMultiplier = 1.0f;
+	WW2UniformRecoilMultiplier = 1.0f;
+	WW2UniformAccuracyMultiplier = 1.0f;
+	WW2Uniform_Under20HealthHandle();
 	//if (Apply)
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply WW2Uniform"));
