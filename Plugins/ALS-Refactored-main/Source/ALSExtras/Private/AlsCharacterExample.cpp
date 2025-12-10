@@ -2467,14 +2467,23 @@ void AAlsCharacterExample::GreenhouseOutfit_Effect(bool Apply)
 void AAlsCharacterExample::HeartShapedSweater_Effect(bool Apply)
 {
 	bHeartShapedSweaterIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HeartShapedSweater"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HeartShapedSweater"));
-	//}
+	HeartShapedSweaterHealthRegenMultiplier = 1.0f;
+	if (Apply)
+	{
+		bHeartShapedSweaterFireBan = true;
+		GetWorldTimerManager().SetTimer(HeartShapedSweaterResetFireBanHandle, [this]()
+			{
+				bHeartShapedSweaterFireBan = false;
+			}, 20.0f, false);
+		HeartShapedSweaterHealthRegenMultiplier = 1.25f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HeartShapedSweater"));
+	}
+	else
+	{
+		bHeartShapedSweaterFireBan = false;
+		GetWorldTimerManager().ClearTimer(HeartShapedSweaterResetFireBanHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HeartShapedSweater"));
+	}
 }
 
 void AAlsCharacterExample::CableRepairOutfit_Effect(bool Apply)

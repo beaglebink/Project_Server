@@ -2266,6 +2266,16 @@ protected:
 protected:
 	uint8 bHeartShapedSweaterIsOn : 1{false};
 
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	uint8 bHeartShapedSweaterFireBan : 1{false};
+
+	float HeartShapedSweaterHealthRegenMultiplier = 1.0f;
+
+	FTimerHandle HeartShapedSweaterResetFireBanHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float HeartShapedSweater_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
 	// CableRepairOutfit
 protected:
 	uint8 bCableRepairOutfitIsOn : 1{false};

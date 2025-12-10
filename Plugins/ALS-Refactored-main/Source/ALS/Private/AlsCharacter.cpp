@@ -2167,7 +2167,9 @@ void AAlsCharacter::HealthRecovery()
 {
 	if (!EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 	{
-		float HealthRecoveryRate = GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12 * GreenhouseOutfitHealthRegenMultiplier;
+		float HealthRecoveryRate = GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12 * GreenhouseOutfitHealthRegenMultiplier
+			* HeartShapedSweaterHealthRegenMultiplier;
+
 		if (GetHealth() <= 33.0f)
 		{
 			SetHealth(FMath::Clamp(GetHealth() + HealthRecoveryRate, 0.0f, 33.0f));
@@ -5318,4 +5320,43 @@ void AAlsCharacter::GreenhouseOutfitResetHealthRegenTimerHandle()
 {
 	GreenhouseOutfitHealthRegenMultiplier = 1.2f;
 	GetWorldTimerManager().ClearTimer(GreenhouseOutfitHealthRegenTimerHandle);
+}
+
+// HeartShapedSweater
+float AAlsCharacter::HeartShapedSweater_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bHeartShapedSweaterIsOn)
+	{
+		if (bHeartShapedSweaterFireBan)
+		{
+			float DamageConvertedToHealth = DamageAmount * 0.9f;
+			SetHealth(GetHealth() + DamageConvertedToHealth);
+			DamageAmount -= DamageConvertedToHealth;
+		}
+
+		HeartShapedSweaterHealthRegenMultiplier = FMath::Clamp(HeartShapedSweaterHealthRegenMultiplier + DamageAmount * 0.0125f, 0.0f, 1.75f);
+
+		if (DamageType.ToString() == "Melee")
+		{
+			float ChanceToReplenishHealth = 25.0f;
+			if (FMath::FRandRange(0.0f, 100.0f) < ChanceToReplenishHealth)
+			{
+				SetHealth(GetHealth() + 4.0f);
+			}
+		}
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bHeartShapedSweaterIsOn)
+		{
+			DamageAmount *= 0.9f;
+		}
+	}
+	return DamageAmount;
 }
