@@ -1800,15 +1800,17 @@ protected:
 
 	uint8 bMagneticVestShouldIncreaseStaminaUses : 1{false};
 
+public:
 	float MagneticVestSpeedMultiplier = 1.0f;
 
+protected:
 	float MagneticVestAccuracyMultiplier = 1.0f;
 
 	float MagneticVestRecoilMultiplier = 1.0f;
 
 	FTimerHandle MagneticVestEnemySlowerTimerHandle;
 
-	TSet<AAlsCharacter*> SlowedEnemies;
+	TSet<AAlsCharacter*> MagneticVestSlowedEnemies;
 
 	void MagneticVest_SlowEnemies();
 
@@ -2279,6 +2281,28 @@ protected:
 	// CableRepairOutfit
 protected:
 	uint8 bCableRepairOutfitIsOn : 1{false};
+
+public:
+	float CableRepairOutfitSpeedMultiplier = 1.0f;
+
+protected:
+	float CableRepairOutfitChanceToReflectMelee = 15.0f;
+
+	FTimerHandle CableRepairOutfitCheckRadiusHandle;
+
+	FTimerHandle CableRepairOutfitNoneFlyingSlowHandle;
+
+	FTimerHandle CableRepairOutfitNoneFlyingCooldownHandle;
+
+	TSet<AAlsCharacter*> CableRepairOutfitSlowedNoneFlyingEnemies;
+
+	TSet<AAlsCharacter*> CableRepairOutfitSlowedGroundedEnemies;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float CableRepairOutfit_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+public:
+	void CableRepairOutfitSlowEnemies();
 
 	// NetworkSpecialist
 protected:

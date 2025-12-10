@@ -2241,7 +2241,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
 		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
-		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier;
+		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier * CableRepairOutfitSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -4052,6 +4052,7 @@ float AAlsCharacter::NullAndVoidHat_DamageAndEffect(float DamageAmount)
 	return DamageAmount * NullAndVoidHatDamageMultiplier;
 }
 
+// MagneticVest
 void AAlsCharacter::MagneticVest_SlowEnemies()
 {
 	const float MagneticRadius = 400.0f;
@@ -4072,12 +4073,12 @@ void AAlsCharacter::MagneticVest_SlowEnemies()
 			{
 				CurrentEnemiesInRadius.Add(Enemy);
 				Enemy->MagneticVestSpeedMultiplier = 0.6f;
-				SlowedEnemies.Add(Enemy);
+				MagneticVestSlowedEnemies.Add(Enemy);
 			}
 		}
 	}
 
-	for (auto It = SlowedEnemies.CreateIterator(); It; ++It)
+	for (auto It = MagneticVestSlowedEnemies.CreateIterator(); It; ++It)
 	{
 		if (!CurrentEnemiesInRadius.Contains(*It))
 		{
@@ -4090,7 +4091,6 @@ void AAlsCharacter::MagneticVest_SlowEnemies()
 	}
 }
 
-// MagneticVest
 float AAlsCharacter::MagneticVest_DamageAndEffect(FText DamageType, float DamageAmount)
 {
 	if (!bMagneticVestIsOn)
@@ -5359,4 +5359,123 @@ float AAlsCharacter::HeartShapedSweater_InteractWithDamage(AController* DamageIn
 		}
 	}
 	return DamageAmount;
+}
+
+// CableRepairOutfit
+float AAlsCharacter::CableRepairOutfit_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bCableRepairOutfitIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+			{
+				if (DamageType.ToString() == "Melee")
+				{
+					CableRepairOutfitChanceToReflectMelee = FMath::Clamp(CableRepairOutfitChanceToReflectMelee + 0.005f, 0.0f, 35.0f);
+					if (FMath::FRandRange(0.0f, 100.0f) < CableRepairOutfitChanceToReflectMelee)
+					{
+						float ReflectedMeleeDamageAmount = DamageAmount * 0.3f;
+						DamageAmount -= ReflectedMeleeDamageAmount;
+						UGameplayStatics::ApplyDamage(Enemy, ReflectedMeleeDamageAmount, GetController(), this, nullptr);
+					}
+				}
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::CableRepairOutfitSlowEnemies()
+{
+	//None flying enemies
+	const float NoneFlyingRadius = 300.0f;
+
+	TArray<FOverlapResult> NoneFlyingOverlaps;
+	FCollisionQueryParams NoneFlyingParams;
+	NoneFlyingParams.AddIgnoredActor(this);
+
+	GetWorld()->OverlapMultiByChannel(NoneFlyingOverlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(NoneFlyingRadius), NoneFlyingParams);
+
+	TSet<AActor*> CurrentNoneFlyingEnemiesInRadius;
+
+	for (const FOverlapResult& Result : NoneFlyingOverlaps)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.NoneFlying"))) // Should be corrected when noneflying enemies will be realized or when be named
+			{
+				if (!GetWorldTimerManager().IsTimerActive(Enemy->CableRepairOutfitNoneFlyingSlowHandle) && !GetWorldTimerManager().IsTimerActive(Enemy->CableRepairOutfitNoneFlyingCooldownHandle))
+				{
+					CurrentNoneFlyingEnemiesInRadius.Add(Enemy);
+					Enemy->CableRepairOutfitSpeedMultiplier = 0.2f;
+					CableRepairOutfitSlowedNoneFlyingEnemies.Add(Enemy);
+					GetWorldTimerManager().SetTimer(Enemy->CableRepairOutfitNoneFlyingSlowHandle, [this, Enemy]()
+						{
+							if (IsValid(Enemy))
+							{
+								Enemy->CableRepairOutfitSpeedMultiplier = 1.0f;
+								GetWorldTimerManager().SetTimer(Enemy->CableRepairOutfitNoneFlyingCooldownHandle, 300.0f, false);
+							}
+						}, 40.0f, false);
+				}
+			}
+		}
+	}
+
+	for (auto It = CableRepairOutfitSlowedNoneFlyingEnemies.CreateIterator(); It; ++It)
+	{
+		if (!CurrentNoneFlyingEnemiesInRadius.Contains(*It))
+		{
+			if (IsValid(*It))
+			{
+				(*It)->CableRepairOutfitSpeedMultiplier = 1.0f;
+				GetWorldTimerManager().ClearTimer((*It)->CableRepairOutfitNoneFlyingSlowHandle);
+				GetWorldTimerManager().ClearTimer((*It)->CableRepairOutfitNoneFlyingCooldownHandle);
+				It.RemoveCurrent();
+			}
+		}
+	}
+
+	//Grounded enemies
+	const float GroundedRadius = 200.0f;
+
+	TArray<FOverlapResult> GroundedOverlaps;
+	FCollisionQueryParams GroundedParams;
+	GroundedParams.AddIgnoredActor(this);
+
+	GetWorld()->OverlapMultiByChannel(GroundedOverlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(GroundedRadius), GroundedParams);
+
+	TSet<AActor*> CurrentGroundedEnemiesInRadius;
+
+	for (const FOverlapResult& Result : GroundedOverlaps)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Grounded"))) // Should be corrected when Grounded enemies will be realized or when be named
+			{
+				CurrentGroundedEnemiesInRadius.Add(Enemy);
+				Enemy->CableRepairOutfitSpeedMultiplier = 0.7f;
+				CableRepairOutfitSlowedGroundedEnemies.Add(Enemy);
+			}
+		}
+	}
+
+	for (auto It = CableRepairOutfitSlowedGroundedEnemies.CreateIterator(); It; ++It)
+	{
+		if (!CurrentGroundedEnemiesInRadius.Contains(*It))
+		{
+			if (IsValid(*It))
+			{
+				(*It)->CableRepairOutfitSpeedMultiplier = 1.0f;
+				It.RemoveCurrent();
+			}
+		}
+	}
 }

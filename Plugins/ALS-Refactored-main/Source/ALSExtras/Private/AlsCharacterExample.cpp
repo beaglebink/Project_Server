@@ -2033,15 +2033,20 @@ void AAlsCharacterExample::MagneticVest_Effect(bool Apply)
 	{
 		MagneticVestAccuracyMultiplier = 1.175f;
 		MagneticVestRecoilMultiplier = 1.15f;
-		if (!GetWorldTimerManager().IsTimerActive(MagneticVestEnemySlowerTimerHandle))
-		{
-			GetWorldTimerManager().SetTimer(MagneticVestEnemySlowerTimerHandle, this, &AAlsCharacterExample::MagneticVest_SlowEnemies, 0.5f, true);
-		}
+		GetWorldTimerManager().SetTimer(MagneticVestEnemySlowerTimerHandle, this, &AAlsCharacterExample::MagneticVest_SlowEnemies, 0.5f, true);
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MagneticVest"));
 	}
 	else
 	{
 		GetWorldTimerManager().ClearTimer(MagneticVestEnemySlowerTimerHandle);
+		for (AAlsCharacter* SlowedEnemy : MagneticVestSlowedEnemies)
+		{
+			if (IsValid(SlowedEnemy))
+			{
+				SlowedEnemy->MagneticVestSpeedMultiplier = 1.0f;
+			}
+		}
+		MagneticVestSlowedEnemies.Empty();
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MagneticVest"));
 	}
 }
@@ -2489,14 +2494,33 @@ void AAlsCharacterExample::HeartShapedSweater_Effect(bool Apply)
 void AAlsCharacterExample::CableRepairOutfit_Effect(bool Apply)
 {
 	bCableRepairOutfitIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CableRepairOutfit"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CableRepairOutfit"));
-	//}
+	CableRepairOutfitChanceToReflectMelee = 15.0f;
+	if (Apply)
+	{
+		GetWorldTimerManager().SetTimer(CableRepairOutfitCheckRadiusHandle, this, &AAlsCharacter::CableRepairOutfitSlowEnemies, 0.5f, true);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CableRepairOutfit"));
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(CableRepairOutfitCheckRadiusHandle);
+		for (AAlsCharacter* SlowedEnemy : CableRepairOutfitSlowedNoneFlyingEnemies)
+		{
+			if (IsValid(SlowedEnemy))
+			{
+				SlowedEnemy->CableRepairOutfitSpeedMultiplier = 1.0f;
+			}
+		}
+		for (AAlsCharacter* SlowedEnemy : CableRepairOutfitSlowedGroundedEnemies)
+		{
+			if (IsValid(SlowedEnemy))
+			{
+				SlowedEnemy->CableRepairOutfitSpeedMultiplier = 1.0f;
+			}
+		}
+		CableRepairOutfitSlowedNoneFlyingEnemies.Empty();
+		CableRepairOutfitSlowedGroundedEnemies.Empty();
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove CableRepairOutfit"));
+	}
 }
 
 void AAlsCharacterExample::NetworkSpecialist_Effect(bool Apply)
