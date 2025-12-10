@@ -366,6 +366,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	DeliverySpandex_AccuracyRecoilStaminaOnMovingHandle();
 
+	GreenhouseOutfitCheckToIncreaseHealthRegen();
+
 	// Debugging information.
 	//if (this != UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
 	//{
@@ -2165,25 +2167,28 @@ void AAlsCharacter::HealthRecovery()
 {
 	if (!EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 	{
+		float HealthRecoveryRate = GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12 * GreenhouseOutfitHealthRegenMultiplier;
 		if (GetHealth() <= 33.0f)
 		{
-			SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 33.0f));
+			SetHealth(FMath::Clamp(GetHealth() + HealthRecoveryRate, 0.0f, 33.0f));
 		}
 		else if (GetHealth() <= 67.0f)
 		{
-			SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 67.0f));
+			SetHealth(FMath::Clamp(GetHealth() + HealthRecoveryRate, 0.0f, 67.0f));
 		}
 		else if (GetHealth() <= 100.0f)
 		{
-			SetHealth(FMath::Clamp(GetHealth() + GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12, 0.0f, 100.0f));
+			SetHealth(FMath::Clamp(GetHealth() + HealthRecoveryRate, 0.0f, 100.0f));
 		}
+		// debug
+		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("HealthRecoveryRate: %2.6f"), HealthRecoveryRate));
 	}
 }
 
 void AAlsCharacter::StaminaRecovery()
 {
 	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier
-		* PDEnergizerBattery_StaminaRateMultiplier;
+		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfitStaminaRegenMultiplier;
 	SetStamina(GetStamina() + StaminaRate);
 
 	// Debug Stamina regeneration rate
@@ -2234,7 +2239,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
 		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
-		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier;
+		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -5252,4 +5257,65 @@ void AAlsCharacter::WW2Uniform_Under20HealthHandle()
 		RollStaminaCost /= 0.000001f;
 		WW2UniformRecoilMultiplier /= 0.6f;
 	}
+}
+
+// GreenhouseOutfit
+float AAlsCharacter::GreenhouseOutfit_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bGreenhouseOutfitIsOn)
+	{
+		GreenhouseOutfitResetHealthRegenTimerHandle();
+
+		if (!GetVelocity().IsNearlyZero())
+		{
+			DamageAmount *= 1.1f;
+		}
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bGreenhouseOutfitIsOn)
+		{
+			DamageAmount *= 0.9f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::GreenhouseOutfitCheckToIncreaseHealthRegen()
+{
+	if (!bGreenhouseOutfitIsOn)
+	{
+		return;
+	}
+
+	if (!GetWorldTimerManager().IsTimerActive(GreenhouseOutfitHealthRegenTimerHandle))
+	{
+		if (GetVelocity().IsNearlyZero())
+		{
+			GetWorldTimerManager().SetTimer(GreenhouseOutfitHealthRegenTimerHandle, [this]()
+				{
+					GreenhouseOutfitHealthRegenMultiplier = 1.5f;
+				}, 10.0f, false);
+		}
+	}
+	else
+	{
+		if (!GetVelocity().IsNearlyZero())
+		{
+			GreenhouseOutfitResetHealthRegenTimerHandle();
+		}
+	}
+}
+
+void AAlsCharacter::GreenhouseOutfitResetHealthRegenTimerHandle()
+{
+	GreenhouseOutfitHealthRegenMultiplier = 1.2f;
+	GetWorldTimerManager().ClearTimer(GreenhouseOutfitHealthRegenTimerHandle);
 }

@@ -2245,6 +2245,23 @@ protected:
 protected:
 	uint8 bGreenhouseOutfitIsOn : 1{false};
 
+	float GreenhouseOutfitHealthRegenMultiplier = 1.0f;
+
+	float GreenhouseOutfitStaminaRegenMultiplier = 1.0f;
+
+	float GreenhouseOutfitSpeedMultiplier = 1.0f;
+
+	FTimerHandle GreenhouseOutfitHealthRegenTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float GreenhouseOutfit_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void GreenhouseOutfitCheckToIncreaseHealthRegen();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void GreenhouseOutfitResetHealthRegenTimerHandle();
+
 	// HeartShapedSweater
 protected:
 	uint8 bHeartShapedSweaterIsOn : 1{false};

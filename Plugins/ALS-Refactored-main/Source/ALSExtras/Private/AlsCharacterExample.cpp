@@ -2447,14 +2447,21 @@ void AAlsCharacterExample::WW2Uniform_Effect(bool Apply)
 void AAlsCharacterExample::GreenhouseOutfit_Effect(bool Apply)
 {
 	bGreenhouseOutfitIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GreenhouseOutfit"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GreenhouseOutfit"));
-	//}
+	GreenhouseOutfitHealthRegenMultiplier = 1.0f;
+	GreenhouseOutfitStaminaRegenMultiplier = 1.0f;
+	GreenhouseOutfitSpeedMultiplier = 1.0f;
+	if (Apply)
+	{
+		GreenhouseOutfitHealthRegenMultiplier = 1.2f;
+		GreenhouseOutfitStaminaRegenMultiplier = 1.1f;
+		GreenhouseOutfitSpeedMultiplier = 0.845f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GreenhouseOutfit"));
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(GreenhouseOutfitHealthRegenTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GreenhouseOutfit"));
+	}
 }
 
 void AAlsCharacterExample::HeartShapedSweater_Effect(bool Apply)
