@@ -2323,6 +2323,27 @@ protected:
 protected:
 	uint8 bTroubleshooterJacketIsOn : 1{false};
 
+private:
+	uint8 bTroubleshooterJacketIsShooting : 1{false};
+
+protected:
+	float TroubleshooterJacketStaminaRateMultiplier = 1.0f;
+
+	float TroubleshooterJacketRecoilMultiplier = 1.0f;
+
+	float TroubleshooterJacketSpeedMultiplier = 1.0f;
+
+	float TroubleshooterJacketAccuracyMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float TroubleshooterJacket_InteractWithDamage(float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void SetTroubleshooterJacketIsShooting(bool IsShooting);
+	
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	bool GetTroubleshooterJacketIsShooting();
+
 	// HotSwapPatch
 protected:
 	uint8 bHotSwapPatchIsOn : 1{false};

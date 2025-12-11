@@ -2543,10 +2543,15 @@ void AAlsCharacterExample::NetworkSpecialist_Effect(bool Apply)
 void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
 {
 	bTroubleshooterJacketIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
-	//}
+	SetTroubleshooterJacketIsShooting(false);
+	TroubleshooterJacketRecoilMultiplier = 1.0f;
+	TroubleshooterJacketAccuracyMultiplier = 1.0f;
+	if (Apply)
+	{
+		TroubleshooterJacketRecoilMultiplier = 0.85f;
+		TroubleshooterJacketAccuracyMultiplier = 0.75f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TroubleshooterJacket"));
