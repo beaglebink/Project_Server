@@ -1394,7 +1394,7 @@ protected:
 	uint8 bShouldIgnoreDamageOnRoll : 1{false};
 
 	UFUNCTION(BlueprintCallable, Category = "FoodEffects")
-	float RecalculateDamage(float Damage, FText WeaponName);
+	float RecalculateDamage(FText DamageType, float DamageAmount);
 
 	//Effect_22
 protected:
@@ -2307,6 +2307,17 @@ public:
 	// NetworkSpecialist
 protected:
 	uint8 bNetworkSpecialistIsOn : 1{false};
+
+	float NetworkSpecialistSpeedMultiplier = 1.0f;
+
+	int32 NetworkSpecialist_LinkedEnemiesCounter = 0;
+
+	TSet<AActor*> NetworkSpecialist_LinkedEnemies;
+
+	FTimerHandle NetworkSpecialist_LinkedEnemiesTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float NetworkSpecialist_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// TroubleshooterJacket
 protected:
