@@ -1287,8 +1287,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effects")
 	void SprintTimeDelayCount();
 
-	//Potion Effects *******************************************************************
-		//Effect_1
+	//Food(Potion) Effects *******************************************************************
+	// Getting sick
+private:
+	int32 FoodAteCounter = 0;
+
+protected:
+	bool FoodEatingHandle(); // Should add sick mechanic !!!!!
+
+	//Effect_1
 public:
 	float RecoilMultiplier_1 = 1.0f;
 
@@ -2373,6 +2380,21 @@ protected:
 	// ChefsApron
 protected:
 	uint8 bChefsApronIsOn : 1{false};
+
+	uint8 bChefsApronIsCheckedLimit : 1{false};
+
+	float ChefsApronFoodModifier = 1.0f;
+
+	float ChefsApronHealthRateRegenMultiplier = 1.0f;
+
+	FTimerHandle ChefsApronStaminaOnAteTimerHandle;
+
+	FTimerHandle ChefsApronDamageOnAteTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float ChefsApron_InteractWithDamage(float DamageAmount);
+
+	void ChefsApron_HasChanceToPassHealthLimit(float HealthAmount);
 
 	// MiddleAgedCyborgSamuraiTortoiseShell
 protected:

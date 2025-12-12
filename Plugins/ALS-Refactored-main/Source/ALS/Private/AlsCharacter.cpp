@@ -2168,15 +2168,21 @@ void AAlsCharacter::HealthRecovery()
 	if (!EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 	{
 		float HealthRecoveryRate = GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12 * GreenhouseOutfitHealthRegenMultiplier
-			* HeartShapedSweaterHealthRegenMultiplier;
+			* HeartShapedSweaterHealthRegenMultiplier * ChefsApronHealthRateRegenMultiplier;
 
 		if (GetHealth() <= 33.0f)
 		{
 			SetHealth(FMath::Clamp(GetHealth() + HealthRecoveryRate, 0.0f, 33.0f));
+
+			//ChefsApron
+			ChefsApron_HasChanceToPassHealthLimit(GetHealth());
 		}
 		else if (GetHealth() <= 67.0f)
 		{
 			SetHealth(FMath::Clamp(GetHealth() + HealthRecoveryRate, 0.0f, 67.0f));
+
+			//ChefsApron
+			ChefsApron_HasChanceToPassHealthLimit(GetHealth());
 		}
 		else if (GetHealth() <= 100.0f)
 		{
@@ -3056,12 +3062,42 @@ void AAlsCharacter::SprintTimeDelayCount()
 	SprintTimeDelay = FMath::Clamp(SprintTimeDelay, 0.0f, SprintTimeDelayMax);
 }
 
+bool AAlsCharacter::FoodEatingHandle()
+{
+	++FoodAteCounter;
+	if (FoodAteCounter > 2 + static_cast<int32>(bChefsApronIsOn))
+	{
+		//Call GettingSick function; Should be reailized !!!!!!!!!
+		return false;
+	}
+
+	//ChefsApron
+	if (bChefsApronIsOn)
+	{
+		if (!GetWorldTimerManager().IsTimerActive(ChefsApronStaminaOnAteTimerHandle))
+		{
+			SprintStaminaDrainRate *= 0.000001f;
+			JumpStaminaCost *= 0.000001f;
+			RollStaminaCost *= 0.000001f;
+		}
+		GetWorldTimerManager().SetTimer(ChefsApronStaminaOnAteTimerHandle, [this]()
+			{
+				SprintStaminaDrainRate /= 0.000001f;
+				JumpStaminaCost /= 0.000001f;
+				RollStaminaCost /= 0.000001f;
+			}, 30.0f, false);
+		GetWorldTimerManager().SetTimer(ChefsApronDamageOnAteTimerHandle, 20.0f, false);
+	}
+
+	return true;
+}
+
 void AAlsCharacter::CheckForHealthReplenish()
 {
 	if (bShouldReplenish_50 && GetHealth() <= 10.0f)
 	{
 		bShouldReplenish_50 = false;
-		Health = 50.0f;
+		SetHealth(50.0f * ChefsApronFoodModifier);
 	}
 }
 
@@ -3248,7 +3284,7 @@ void AAlsCharacter::IncreaseHealth_30_20c()
 {
 	if (bShouldIncreaseHealth_30)
 	{
-		SetHealth(GetHealth() + 30.0f * GetWorld()->GetDeltaSeconds() / 20.0f);
+		SetHealth(GetHealth() + 30.0f * GetWorld()->GetDeltaSeconds() / 20.0f * ChefsApronFoodModifier);
 	}
 }
 
@@ -5666,5 +5702,47 @@ void AAlsCharacter::HotSwapPatchDamageOnFireHandle()
 	if (HotSwapPatchShootCounter > 2)
 	{
 		HotSwapPatchDamageMultiplier = 0.6f;
+	}
+}
+
+// ChefsApron
+float AAlsCharacter::ChefsApron_InteractWithDamage(float DamageAmount)
+{
+	if (bChefsApronIsOn && GetWorldTimerManager().IsTimerActive(ChefsApronDamageOnAteTimerHandle))
+	{
+		DamageAmount *= 0.8f;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::ChefsApron_HasChanceToPassHealthLimit(float HealthAmount)
+{
+	if (!bChefsApronIsOn)
+	{
+		return;
+	}
+
+	float ChanceToPassHealthLimit = 20.0f;
+
+	if (HealthAmount == 33.0f)
+	{
+		if (!bChefsApronIsCheckedLimit)
+		{
+			bChefsApronIsCheckedLimit = true;
+			SetHealth(GetHealth() + static_cast<int32>(FMath::FRandRange(0.0f, 100.0f) < ChanceToPassHealthLimit));
+		}
+	}
+	else if (HealthAmount == 67.0f)
+	{
+		if (!bChefsApronIsCheckedLimit)
+		{
+			bChefsApronIsCheckedLimit = true;
+			SetHealth(GetHealth() + static_cast<int32>(FMath::FRandRange(0.0f, 100.0f) < ChanceToPassHealthLimit));
+		}
+	}
+	else
+	{
+		bChefsApronIsCheckedLimit = false;
 	}
 }

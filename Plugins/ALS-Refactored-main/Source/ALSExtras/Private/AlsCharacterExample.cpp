@@ -964,7 +964,10 @@ void AAlsCharacterExample::FoodEffectByTag(const FGameplayTag& Tag, bool Apply)
 {
 	if (const TFunction<void(bool)>* Func = FoodEffectMap.Find(Tag))
 	{
-		(*Func)(Apply);
+		if (FoodEatingHandle())
+		{
+			(*Func)(Apply);
+		}
 	}
 }
 
@@ -1478,7 +1481,7 @@ void AAlsCharacterExample::SetEffect_37(bool Apply)
 {
 	if (!GetWorldTimerManager().IsTimerActive(WaitEffectTimerHandle) || bShouldResetWaitToUseEffect_20)
 	{
-		SetHealth(GetHealth() + 15.0f * HealAmountMultiplier);
+		SetHealth(GetHealth() + 15.0f * HealAmountMultiplier * ChefsApronFoodModifier);
 
 		if (!bShouldResetWaitToUseEffect_20)
 		{
@@ -2580,14 +2583,26 @@ void AAlsCharacterExample::HotSwapPatch_Effect(bool Apply)
 void AAlsCharacterExample::ChefsApron_Effect(bool Apply)
 {
 	bChefsApronIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ChefApron"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ChefApron"));
-	//}
+	ChefsApronFoodModifier = 1.0f;
+	ChefsApronHealthRateRegenMultiplier = 1.0f;
+	if (Apply)
+	{
+		ChefsApronFoodModifier = 1.5f;
+		ChefsApronHealthRateRegenMultiplier = 1.15f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply ChefApron"));
+	}
+	else
+	{
+		if (GetWorldTimerManager().IsTimerActive(ChefsApronStaminaOnAteTimerHandle))
+		{
+			GetWorldTimerManager().ClearTimer(ChefsApronStaminaOnAteTimerHandle);
+			SprintStaminaDrainRate /= 0.000001f;
+			JumpStaminaCost /= 0.000001f;
+			RollStaminaCost /= 0.000001f;
+		}
+		GetWorldTimerManager().ClearTimer(ChefsApronDamageOnAteTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove ChefApron"));
+	}
 }
 
 void AAlsCharacterExample::MiddleAgedCyborgSamuraiTortoiseShell_Effect(bool Apply)
