@@ -90,5 +90,5 @@ void AA_FacetedCube::OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
 		DangerSidesQuantity += SideState;
 	}
 
-	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused * DamageMultiplier * DangerSidesQuantity, OtherActor->GetInstigatorController(), this, nullptr);
+	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused * DamageMultiplier * DangerSidesQuantity, OtherActor->GetInstigatorController(), this, HazardDamageTypeClass);
 }

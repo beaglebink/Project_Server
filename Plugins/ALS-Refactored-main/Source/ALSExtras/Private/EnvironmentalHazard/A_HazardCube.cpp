@@ -75,5 +75,5 @@ void AA_HazardCube::OnMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 		}
 	}
 
-	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused * DamageMultiplier, OtherActor->GetInstigatorController(), this, nullptr);
+	UGameplayStatics::ApplyDamage(OtherActor, DamageCaused * DamageMultiplier, OtherActor->GetInstigatorController(), this, HazardDamageTypeClass);
 }

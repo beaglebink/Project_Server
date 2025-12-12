@@ -2247,7 +2247,8 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
 		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
-		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier * CableRepairOutfitSpeedMultiplier * NetworkSpecialistSpeedMultiplier * TroubleshooterJacketSpeedMultiplier;
+		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier * CableRepairOutfitSpeedMultiplier * NetworkSpecialistSpeedMultiplier * TroubleshooterJacketSpeedMultiplier
+		* MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -5744,5 +5745,61 @@ void AAlsCharacter::ChefsApron_HasChanceToPassHealthLimit(float HealthAmount)
 	else
 	{
 		bChefsApronIsCheckedLimit = false;
+	}
+}
+
+// MiddleAgedCyborgSamuraiTortoiseShell
+float AAlsCharacter::MiddleAgedCyborgSamuraiTortoiseShell_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!bMiddleAgedCyborgSamuraiTortoiseShellIsOn)
+	{
+		return DamageAmount;
+	}
+
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (FVector::DotProduct((GetActorLocation() - Enemy->GetActorLocation()).GetSafeNormal(), GetActorForwardVector()) > 0.5f)
+		{
+			DamageAmount *= 0.4f;
+		}
+	}
+
+	if (DamageType.ToString() == "Melee")
+	{
+		DamageAmount *= 0.765f;
+	}
+	else
+	{
+		DamageAmount *= 0.845f;
+	}
+
+	if (bIsCrouched)
+	{
+		DamageAmount *= 0.7f;
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::MiddleAgedCyborgSamuraiTortoiseShell_UsesMoreStamina()
+{
+	if (bMiddleAgedCyborgSamuraiTortoiseShellIsOn && !bMiddleAgedCyborgSamuraiTortoiseShellShouldIncreaseStaminaUsing)
+	{
+		bMiddleAgedCyborgSamuraiTortoiseShellShouldIncreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 1.5f;
+		JumpStaminaCost *= 1.5f;
+		RollStaminaCost *= 3.0f;
+	}
+	else if (!bMiddleAgedCyborgSamuraiTortoiseShellIsOn && bMiddleAgedCyborgSamuraiTortoiseShellShouldIncreaseStaminaUsing)
+	{
+		bMiddleAgedCyborgSamuraiTortoiseShellShouldIncreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 1.5f;
+		JumpStaminaCost /= 1.5f;
+		RollStaminaCost /= 3.0f;
 	}
 }

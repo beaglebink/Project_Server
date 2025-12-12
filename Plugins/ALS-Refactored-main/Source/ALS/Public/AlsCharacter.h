@@ -2400,6 +2400,15 @@ protected:
 protected:
 	uint8 bMiddleAgedCyborgSamuraiTortoiseShellIsOn : 1{false};
 
+	uint8 bMiddleAgedCyborgSamuraiTortoiseShellShouldIncreaseStaminaUsing : 1{false};
+
+	float MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float MiddleAgedCyborgSamuraiTortoiseShell_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	void MiddleAgedCyborgSamuraiTortoiseShell_UsesMoreStamina();
+
 	// RastaRobe
 protected:
 	uint8 bRastaRobeIsOn : 1{false};

@@ -2608,10 +2608,13 @@ void AAlsCharacterExample::ChefsApron_Effect(bool Apply)
 void AAlsCharacterExample::MiddleAgedCyborgSamuraiTortoiseShell_Effect(bool Apply)
 {
 	bMiddleAgedCyborgSamuraiTortoiseShellIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MiddleAgedCyborgSamuraiTortoiseShell"));
-	//}
+	MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 1.0f;
+	MiddleAgedCyborgSamuraiTortoiseShell_UsesMoreStamina();
+	if (Apply)
+	{
+		MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 0.7f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MiddleAgedCyborgSamuraiTortoiseShell"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MiddleAgedCyborgSamuraiTortoiseShell"));
