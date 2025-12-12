@@ -2526,23 +2526,32 @@ void AAlsCharacterExample::CableRepairOutfit_Effect(bool Apply)
 void AAlsCharacterExample::NetworkSpecialist_Effect(bool Apply)
 {
 	bNetworkSpecialistIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_41"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove Effect_41"));
-	//}
+	NetworkSpecialistSpeedMultiplier = 1.0f;
+	if (Apply)
+	{
+		NetworkSpecialistSpeedMultiplier = 1.075f;
+		SetMaxStamina(GetMaxStamina() * 1.075f);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NetworkSpecialist"));
+	}
+	else
+	{
+		SetMaxStamina(GetMaxStamina() / 1.075f);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove NetworkSpecialist"));
+	}
 }
 
 void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
 {
 	bTroubleshooterJacketIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
-	//}
+	SetTroubleshooterJacketIsShooting(false);
+	TroubleshooterJacketRecoilMultiplier = 1.0f;
+	TroubleshooterJacketAccuracyMultiplier = 1.0f;
+	if (Apply)
+	{
+		TroubleshooterJacketRecoilMultiplier = 0.85f;
+		TroubleshooterJacketAccuracyMultiplier = 0.75f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TroubleshooterJacket"));

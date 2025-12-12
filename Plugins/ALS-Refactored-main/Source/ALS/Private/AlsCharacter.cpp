@@ -2190,7 +2190,7 @@ void AAlsCharacter::HealthRecovery()
 void AAlsCharacter::StaminaRecovery()
 {
 	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier
-		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfitStaminaRegenMultiplier;
+		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfitStaminaRegenMultiplier * TroubleshooterJacketStaminaRateMultiplier;
 	SetStamina(GetStamina() + StaminaRate);
 
 	// Debug Stamina regeneration rate
@@ -2204,7 +2204,7 @@ void AAlsCharacter::RefreshRecoil()
 {
 	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
 		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier
-		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier * DeliverySpandexRecoilMultiplier * WW2UniformRecoilMultiplier;
+		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier * DeliverySpandexRecoilMultiplier * WW2UniformRecoilMultiplier * TroubleshooterJacketRecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -2241,7 +2241,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
 		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
-		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier * CableRepairOutfitSpeedMultiplier;
+		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier * CableRepairOutfitSpeedMultiplier * NetworkSpecialistSpeedMultiplier * TroubleshooterJacketSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -3099,7 +3099,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 	{
 		if (bIsAimPrecisionOnMoveApplied)
 		{
-			if (GetVelocity().Length() == 0.0f)
+			if (GetVelocity().IsNearlyZero())
 			{
 				AimAccuracyOnMove = 1.25f;
 			}
@@ -3122,7 +3122,7 @@ void AAlsCharacter::RefreshAimAccuracy()
 
 	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
 		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier * MoonDoggiesAccuracyMultiplier
-		* DesperadoPonchoAccuracyMultiplier * DeliverySpandexAccuracyMultiplier * WW2UniformAccuracyMultiplier;
+		* DesperadoPonchoAccuracyMultiplier * DeliverySpandexAccuracyMultiplier * WW2UniformAccuracyMultiplier * TroubleshooterJacketAccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3181,7 +3181,7 @@ void AAlsCharacter::RefreshDamageAmountOnMovingOrOnStanding()
 	}
 }
 
-float AAlsCharacter::RecalculateDamage(float Damage, FText WeaponName)
+float AAlsCharacter::RecalculateDamage(FText DamageType, float DamageAmount)
 {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, WeaponName.ToString());
 
@@ -3190,12 +3190,12 @@ float AAlsCharacter::RecalculateDamage(float Damage, FText WeaponName)
 		return 0.0f;
 	}
 
-	if ((bShouldReduceDamageMelee && WeaponName.ToString() == "Melee") || (bShouldReduceDamageProjectile && WeaponName.ToString() == "Projectile"))
+	if ((bShouldReduceDamageMelee && DamageType.ToString() == "Melee") || (bShouldReduceDamageProjectile && DamageType.ToString() == "Projectile"))
 	{
-		return Damage * 0.5f;
+		return DamageAmount * 0.5f;
 	}
 
-	return Damage;
+	return DamageAmount;
 }
 
 void AAlsCharacter::CheckIfHealthIsUnder_20()
@@ -5478,4 +5478,128 @@ void AAlsCharacter::CableRepairOutfitSlowEnemies()
 			}
 		}
 	}
+}
+
+// NetworkSpecialist
+float AAlsCharacter::NetworkSpecialist_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bNetworkSpecialistIsOn)
+		{
+			//Chain attack
+			const float ChainRadius = 250.0f;
+
+			TArray<FOverlapResult> Overlaps;
+			FCollisionQueryParams Params;
+			Params.AddIgnoredActor(Player);
+			Params.AddIgnoredActor(this);
+
+			GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(ChainRadius), Params);
+
+			TSet<AActor*> CurrentChainedEnemiesInRadius;
+
+			for (const FOverlapResult& Result : Overlaps)
+			{
+				if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+				{
+					if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+					{
+						CurrentChainedEnemiesInRadius.Add(Enemy);
+					}
+				}
+			}
+			float ChainedDamage = 0.0f;
+			if (CurrentChainedEnemiesInRadius.Num() >= 2)
+			{
+				ChainedDamage = DamageAmount / CurrentChainedEnemiesInRadius.Num();
+			}
+			for (AActor* Enemy : CurrentChainedEnemiesInRadius)
+			{
+				if (IsValid(Enemy))
+				{
+					UGameplayStatics::ApplyDamage(Enemy, ChainedDamage, GetController(), this, nullptr);
+				}
+			}
+
+			//Linked enemies
+			if (Player->GetWeaponName() == "Code rifle")
+			{
+				if (Player->NetworkSpecialist_LinkedEnemies.Contains(this))
+				{
+					Player->NetworkSpecialist_LinkedEnemiesCounter = 5;
+					for (AActor* LinkedEnemy : Player->NetworkSpecialist_LinkedEnemies)
+					{
+						if (IsValid(LinkedEnemy) && LinkedEnemy != this)
+						{
+							UGameplayStatics::ApplyDamage(LinkedEnemy, DamageAmount, GetController(), this, nullptr);
+						}
+					}
+				}
+				else if (Player->NetworkSpecialist_LinkedEnemiesCounter < 5)
+				{
+					if (Player->NetworkSpecialist_LinkedEnemiesCounter == 0)
+					{
+						GetWorldTimerManager().SetTimer(NetworkSpecialist_LinkedEnemiesTimerHandle, [Player]()
+							{
+								if (IsValid(Player))
+								{
+									Player->NetworkSpecialist_LinkedEnemiesCounter = 5;
+									Player->NetworkSpecialist_LinkedEnemies.Empty();
+								}
+							}, 60.0f, false);
+					}
+
+					++Player->NetworkSpecialist_LinkedEnemiesCounter;
+					Player->NetworkSpecialist_LinkedEnemies.Add(this);
+				}
+			}
+
+			//Increased damage for certain enemies
+			if (EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.RoboBlue")) ||
+				EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.FileBlack")) ||
+				EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Bot.Net")) ||
+				EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.BlueLegged")) ||
+				EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Program")))
+			{
+				DamageAmount *= 1.175f;
+			}
+		}
+	}
+	return DamageAmount;
+}
+
+// TroubleshooterJacket
+float AAlsCharacter::TroubleshooterJacket_InteractWithDamage(float DamageAmount)
+{
+	if (bTroubleshooterJacketIsOn)
+	{
+		if (!bTroubleshooterJacketIsShooting)
+		{
+			DamageAmount *= 1.25f;
+		}
+		else
+		{
+			DamageAmount *= 0.825f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::SetTroubleshooterJacketIsShooting(bool IsShooting)
+{
+	bTroubleshooterJacketIsShooting = IsShooting;
+	TroubleshooterJacketStaminaRateMultiplier = 1.0f + 0.3f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
+	TroubleshooterJacketSpeedMultiplier = 1.0f + 0.15f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
+}
+
+bool AAlsCharacter::GetTroubleshooterJacketIsShooting()
+{
+	return bTroubleshooterJacketIsShooting;
 }
