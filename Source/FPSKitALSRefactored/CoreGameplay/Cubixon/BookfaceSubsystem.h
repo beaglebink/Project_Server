@@ -114,6 +114,8 @@ public:
 private:
     UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
 
+    void ProcessingSubscriptions(UBookfaceMessageObject* Message, const FString& UserId);
+
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnlineStatusChange OnlineStatusChange;

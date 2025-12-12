@@ -43,6 +43,9 @@ struct FBookfaceMessageData
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     TArray<FString> SubscribedUserIDs;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<FString> UnSubscribedUserIDs;
 };
 
 // 🔹 Уведомления

@@ -38,6 +38,10 @@ public:
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     TArray<FString> SubscribedUserIDs;
 
+    // Отписки
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    TArray<FString> UnSubscribedUserIDs;
+
     // Родительское сообщение (если это ответ)
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Transient)
     UBookfaceMessageObject* ParentMessage;

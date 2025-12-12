@@ -243,21 +243,19 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
     NewMessage->ParentMessage = ParentMessage;
     NewMessage->ReplyMessages.Reset();
 
+
     auto RootMessage = FindRootMessage(NewMessage);
-    RootMessage->SubscribedUserIDs.AddUnique(FromUserId);
+    //RootMessage->SubscribedUserIDs.AddUnique(FromUserId);
 
     if (!ParentMessage && FromUserId != ToUserId)
     {
 		RootMessage->SubscribedUserIDs.AddUnique(ToUserId);
-    }
-    /*
-    if (!ParentMessage)
-    {
-        NewMessage->SubscribedUserIDs.AddUnique(ToUserId);
+        RootMessage->SubscribedUserIDs.AddUnique(FromUserId);
+		RootMessage->UnSubscribedUserIDs.Remove(ToUserId);
     }
 
-    NewMessage->SubscribedUserIDs.AddUnique(FromUserId);    
-    */
+    ProcessingSubscriptions(NewMessage, FromUserId);
+
     if (ParentMessage)
     {
         ParentMessage->ReplyMessages.Add(NewMessage);
@@ -329,6 +327,29 @@ UBookfaceMessageObject* UBookfaceSubsystem::FindRootMessage(UBookfaceMessageObje
     }
 
     return Current; // это корневое сообщение
+}
+
+void UBookfaceSubsystem::ProcessingSubscriptions(UBookfaceMessageObject* Message, const FString& UserId)
+{
+    if (!Message)
+    {
+        return;
+    }
+
+    UBookfaceMessageObject* Current = Message;
+
+    Current->SubscribedUserIDs.AddUnique(UserId);
+    Current->UnSubscribedUserIDs.Remove(UserId);
+
+    while (Current->ParentMessage != nullptr)
+    {
+        Current = Current->ParentMessage;
+
+        Current->SubscribedUserIDs.AddUnique(UserId);
+        Current->UnSubscribedUserIDs.Remove(UserId);
+    }
+
+    return;
 }
 
 
@@ -477,6 +498,7 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
                 Data.LikesUserIds = Msg->LikesUserIds;
                 Data.ParentMessageId = ParentId;
                 Data.SubscribedUserIDs = Msg->SubscribedUserIDs;
+                Data.UnSubscribedUserIDs = Msg->UnSubscribedUserIDs;
 
                 SaveGame->SavedProfiles[i].SavedMessages.Add(Data);
 
@@ -619,6 +641,7 @@ void UBookfaceSubsystem::SaveBookfaceDataAsync()
                 Data.LikesUserIds = Msg->LikesUserIds;
                 Data.ParentMessageId = ParentId;
                 Data.SubscribedUserIDs = Msg->SubscribedUserIDs;
+                Data.UnSubscribedUserIDs = Msg->UnSubscribedUserIDs;
 
                 SaveGame->SavedProfiles[i].SavedMessages.Add(Data);
 
@@ -683,6 +706,7 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
                         Msg->Timestamp = Data.Timestamp;
                         Msg->LikesUserIds = Data.LikesUserIds;
                         Msg->SubscribedUserIDs = Data.SubscribedUserIDs;
+                        Msg->UnSubscribedUserIDs = Data.UnSubscribedUserIDs;
                         Msg->ParentMessage = nullptr;
                         Msg->ReplyMessages.Reset();
 
