@@ -5603,3 +5603,68 @@ bool AAlsCharacter::GetTroubleshooterJacketIsShooting()
 {
 	return bTroubleshooterJacketIsShooting;
 }
+
+// HotSwapPatch
+float AAlsCharacter::HotSwapPatch_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bHotSwapPatchIsOn)
+		{
+			DamageAmount *= Player->HotSwapPatchDamageMultiplier;
+		}
+	}
+	return DamageAmount;
+}
+
+void AAlsCharacter::HotSwapPatchOnSwitchWeaponHandle()
+{
+	if (!bHotSwapPatchIsOn)
+	{
+		return;
+	}
+
+	bHotSwapPatchHasSwitchedWeapon = true;
+
+	//Evasion
+	HotSwapPatchEvasionMultiplier = 1.2f; // Should evasion logic be implemented !!!!!
+	GetWorldTimerManager().SetTimer(HotSwapPatchOnSwitchWeapontimerHandle, [this]()
+		{
+			HotSwapPatchEvasionMultiplier = 1.0f;
+		}, 15.0f, false);
+
+	//Switch speed
+	HotSwapPatchSwitchSpeedMultiplier = FMath::Clamp(HotSwapPatchSwitchSpeedMultiplier + 0.05f, 0.0f, 1.6f);
+
+	//Damage
+	HotSwapPatchShootCounter = 0;
+}
+
+void AAlsCharacter::HotSwapPatchDamageOnFireHandle()
+{
+	if (!bHotSwapPatchIsOn)
+	{
+		return;
+	}
+
+	++HotSwapPatchShootCounter;
+	if (HotSwapPatchShootCounter == 1 && bHotSwapPatchHasSwitchedWeapon)
+	{
+		if (HotSwapPatchDamageMultiplier < 1.0f)
+		{
+			HotSwapPatchDamageMultiplier = 1.0f;
+		}
+		bHotSwapPatchHasSwitchedWeapon = false;
+		HotSwapPatchDamageMultiplier = FMath::Clamp(HotSwapPatchDamageMultiplier + 0.1f, 0.0f, 1.7f);
+	}
+
+	if (HotSwapPatchShootCounter > 2)
+	{
+		HotSwapPatchDamageMultiplier = 0.6f;
+	}
+}

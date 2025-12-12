@@ -2561,14 +2561,20 @@ void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
 void AAlsCharacterExample::HotSwapPatch_Effect(bool Apply)
 {
 	bHotSwapPatchIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HotSwapPatch"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HotSwapPatch"));
-	//}
+	bHotSwapPatchHasSwitchedWeapon = false;
+	HotSwapPatchEvasionMultiplier = 1.0f;
+	HotSwapPatchDamageMultiplier = 1.0f;
+	HotSwapPatchSwitchSpeedMultiplier = 1.0f;
+	if (Apply)
+	{
+		HotSwapPatchSwitchSpeedMultiplier = 1.25f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply HotSwapPatch"));
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(HotSwapPatchOnSwitchWeapontimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove HotSwapPatch"));
+	}
 }
 
 void AAlsCharacterExample::ChefsApron_Effect(bool Apply)

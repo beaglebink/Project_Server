@@ -2340,13 +2340,35 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void SetTroubleshooterJacketIsShooting(bool IsShooting);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	bool GetTroubleshooterJacketIsShooting();
 
 	// HotSwapPatch
 protected:
 	uint8 bHotSwapPatchIsOn : 1{false};
+
+	uint8 bHotSwapPatchHasSwitchedWeapon : 1{false};
+
+	int32 HotSwapPatchShootCounter = 0;
+
+	float HotSwapPatchEvasionMultiplier = 1.0f;
+
+	float HotSwapPatchDamageMultiplier = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float HotSwapPatchSwitchSpeedMultiplier = 1.0f;
+
+	FTimerHandle HotSwapPatchOnSwitchWeapontimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float HotSwapPatch_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void HotSwapPatchOnSwitchWeaponHandle();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void HotSwapPatchDamageOnFireHandle();
 
 	// ChefsApron
 protected:
