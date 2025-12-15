@@ -2424,14 +2424,26 @@ protected:
 	FTimerHandle RastaRobeUnderEffectTimerHandle;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
-	void RastaRobeCheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+	void RastaRobe_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float RastaRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
-	// UndertakerCloak
+	// UndertakersCloak
 protected:
-	uint8 bUndertakerCloakIsOn : 1{false};
+	uint8 bUndertakersCloakIsOn : 1{false};
+
+	uint8 bUndertakersHasUsedRestoreHealth : 1{false};
+
+	float UndertakersCloakChanceToKillEnemyWithin2m = 15.0f;
+
+	FTimerHandle UndertakersCloakHealthRegenTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void UndertakersCloak_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float UndertakersCloak_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// TranquilBlouse
 protected:

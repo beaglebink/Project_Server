@@ -1815,7 +1815,7 @@ void AAlsCharacterExample::InitializeClothesEffectMap()
 	ClothesEffectMap.Add(ClothesEffectTags::ChefsApron, [this](bool Apply) {ChefsApron_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::MiddleAgedCyborgSamuraiTortoiseShell, [this](bool Apply) {MiddleAgedCyborgSamuraiTortoiseShell_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::RastaRobe, [this](bool Apply) {RastaRobe_Effect(Apply); });
-	ClothesEffectMap.Add(ClothesEffectTags::UndertakerCloak, [this](bool Apply) {UndertakerCloak_Effect(Apply); });
+	ClothesEffectMap.Add(ClothesEffectTags::UndertakersCloak, [this](bool Apply) {UndertakersCloak_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::TranquilBlouse, [this](bool Apply) {TranquilBlouse_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::AntiGlitchHarness, [this](bool Apply) {AntiGlitchHarness_Effect(Apply); });
 	ClothesEffectMap.Add(ClothesEffectTags::KnuthsOvercoat, [this](bool Apply) {KnuthsOvercoat_Effect(Apply); });
@@ -2634,17 +2634,18 @@ void AAlsCharacterExample::RastaRobe_Effect(bool Apply)
 	//}
 }
 
-void AAlsCharacterExample::UndertakerCloak_Effect(bool Apply)
+void AAlsCharacterExample::UndertakersCloak_Effect(bool Apply)
 {
-	bUndertakerCloakIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply UndertakerCloak"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove UndertakerCloak"));
-	//}
+	bUndertakersCloakIsOn = Apply;
+	if (Apply)
+	{
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply UndertakersCloak"));
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(UndertakersCloakHealthRegenTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove UndertakersCloak"));
+	}
 }
 
 void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)

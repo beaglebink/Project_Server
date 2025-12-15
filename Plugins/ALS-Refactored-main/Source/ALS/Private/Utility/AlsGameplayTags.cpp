@@ -330,7 +330,7 @@ namespace ClothesEffectTags
 		UE_DEFINE_GAMEPLAY_TAG(ChefsApron, FName{ TEXTVIEW("Clothes.Effect.ChefsApron") })
 		UE_DEFINE_GAMEPLAY_TAG(MiddleAgedCyborgSamuraiTortoiseShell, FName{ TEXTVIEW("Clothes.Effect.MiddleAgedCyborgSamuraiTortoiseShell") })
 		UE_DEFINE_GAMEPLAY_TAG(RastaRobe, FName{ TEXTVIEW("Clothes.Effect.RastaRobe") })
-		UE_DEFINE_GAMEPLAY_TAG(UndertakerCloak, FName{ TEXTVIEW("Clothes.Effect.UndertakerCloak") })
+		UE_DEFINE_GAMEPLAY_TAG(UndertakersCloak, FName{ TEXTVIEW("Clothes.Effect.UndertakersCloak") })
 		UE_DEFINE_GAMEPLAY_TAG(TranquilBlouse, FName{ TEXTVIEW("Clothes.Effect.TranquilBlouse") })
 		UE_DEFINE_GAMEPLAY_TAG(AntiGlitchHarness, FName{ TEXTVIEW("Clothes.Effect.AntiGlitchHarness") })
 		UE_DEFINE_GAMEPLAY_TAG(KnuthsOvercoat, FName{ TEXTVIEW("Clothes.Effect.KnuthsOvercoat") })

@@ -5813,7 +5813,7 @@ void AAlsCharacter::MiddleAgedCyborgSamuraiTortoiseShell_UsesMoreStamina()
 }
 
 // RastaRobe
-void AAlsCharacter::RastaRobeCheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+void AAlsCharacter::RastaRobe_CheckEnemyKills(AController* DamageInstigator, float DamageAmount)
 {
 	if (!DamageInstigator)
 	{
@@ -5864,6 +5864,83 @@ float AAlsCharacter::RastaRobe_InteractWithDamage(AController* DamageInstigator,
 			{
 				DamageAmount *= 0.7f;
 			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+// UndertakersCloak
+void AAlsCharacter::UndertakersCloak_CheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bUndertakersCloakIsOn)
+		{
+			if (GetHealth() <= DamageAmount)
+			{
+				// Enemy within 2m dies on chance
+				if (FMath::FRandRange(0.0f, 100.0f) < UndertakersCloakChanceToKillEnemyWithin2m)
+				{
+					const float DeathRadius = 200.0f;
+
+					TArray<FOverlapResult> Overlaps;
+					FCollisionQueryParams Params;
+					Params.AddIgnoredActor(Player);
+					Params.AddIgnoredActor(this);
+
+					GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(DeathRadius), Params);
+
+					for (const FOverlapResult& Result : Overlaps)
+					{
+						if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+						{
+							if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+							{
+								Player->SetHealth(Player->GetHealth() + 2.0f);
+								UGameplayStatics::ApplyDamage(Enemy, Enemy->GetHealth() * 2.0f, GetController(), this, nullptr);
+								break;
+							}
+						}
+					}
+				}
+				UndertakersCloakChanceToKillEnemyWithin2m += 0.005f;
+
+				// Stamina + 
+				Player->SetStamina(Player->GetStamina() + 1.5f);
+
+				// Health +
+				if (!Player->bUndertakersHasUsedRestoreHealth)
+				{
+					Player->bUndertakersHasUsedRestoreHealth = true;
+					GetWorldTimerManager().SetTimer(Player->UndertakersCloakHealthRegenTimerHandle, 30.0f, false);
+				}
+				if (GetWorldTimerManager().IsTimerActive(Player->UndertakersCloakHealthRegenTimerHandle))
+				{
+					Player->SetHealth(Player->GetHealth() + 2.0f);
+				}
+			}
+		}
+	}
+}
+
+float AAlsCharacter::UndertakersCloak_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bUndertakersCloakIsOn)
+		{
+			DamageAmount *= 1.075f;
 		}
 	}
 
