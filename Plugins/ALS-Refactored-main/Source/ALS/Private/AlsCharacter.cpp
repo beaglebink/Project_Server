@@ -2168,7 +2168,7 @@ void AAlsCharacter::HealthRecovery()
 	if (!EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 	{
 		float HealthRecoveryRate = GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12 * GreenhouseOutfitHealthRegenMultiplier
-			* HeartShapedSweaterHealthRegenMultiplier * ChefsApronHealthRateRegenMultiplier;
+			* HeartShapedSweaterHealthRegenMultiplier * ChefsApronHealthRateRegenMultiplier * RastaRobeHealthRateMultiplier;
 
 		if (GetHealth() <= 33.0f)
 		{
@@ -2315,6 +2315,7 @@ void AAlsCharacter::StunEffect(float Time)
 	StunDelegate.BindLambda([this]()
 		{
 			bIsStunned = false;
+			bIsKnockedDown = false;
 			StopRagdolling();
 		});
 
@@ -2584,6 +2585,7 @@ void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceR
 
 	if (UKismetMathLibrary::Vector_Distance(InstigatorLocation, GetActorLocation()) <= InfluenceRadius)
 	{
+		bIsKnockedDown = true;
 		float Force = GetMesh()->IsSimulatingPhysics("pelvis") ? 200.0f : 5000.0f;
 		StartRagdolling();
 		GetMesh()->AddRadialImpulse(InstigatorLocation, InfluenceRadius, Force, ERadialImpulseFalloff::RIF_Constant, true);
@@ -2668,6 +2670,12 @@ void AAlsCharacter::ShockEffect()
 
 void AAlsCharacter::SetSlowedEffect(float SlowdownValue)
 {
+	bIsSlowed = false;
+	if (SlowdownValue < 1.0f)
+	{
+		bIsSlowed = true;
+	}
+
 	if (ShouldIgnoreEnemyAbilityEffect() || bShouldIgnoreSlowEffect)
 	{
 		Slowdown_01Range = 1.0f;
@@ -5802,4 +5810,62 @@ void AAlsCharacter::MiddleAgedCyborgSamuraiTortoiseShell_UsesMoreStamina()
 		JumpStaminaCost /= 1.5f;
 		RollStaminaCost /= 3.0f;
 	}
+}
+
+// RastaRobe
+void AAlsCharacter::RastaRobeCheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bRastaRobeIsOn)
+		{
+			if (GetHealth() <= DamageAmount)
+			{
+				Player->RastaRobeHealthRateMultiplier += 0.02f;
+			}
+		}
+	}
+}
+
+float AAlsCharacter::RastaRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bRastaRobeIsOn && GetWorldTimerManager().IsTimerActive(Player->RastaRobeUnderEffectTimerHandle))
+		{
+			if (Player->bIsDiscombobulated || Player->bIsKnockedDown || Player->bIsStunned || Player->bIsSlowed /*|| Player->bIsVisuallyDistorted SHOULD BE ADDED*/)
+			{
+				if (DamageType.ToString() != "Melee")
+				{
+					DamageAmount *= 1.5f;
+				}
+			}
+		}
+	}
+
+	if (bRastaRobeIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Tumor")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.GreenFlesh")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Gooey")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.CreepyCute")))
+			{
+				DamageAmount *= 0.7f;
+			}
+		}
+	}
+
+	return DamageAmount;
 }

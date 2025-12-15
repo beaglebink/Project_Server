@@ -1045,6 +1045,9 @@ public:
 
 	//Knockdown effect
 public:
+	UPROPERTY(BlueprintReadOnly, Category = "KnockdownEffect")
+	uint8 bIsKnockedDown : 1{false};
+
 	UFUNCTION(BlueprintCallable, Category = "KnockdownEffect")
 	void KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius);
 
@@ -1077,6 +1080,9 @@ protected:
 	float Slowdown_01Range = 1.0f;
 
 public:
+	UPROPERTY(BlueprintReadOnly, Category = "SlowedEffect")
+	uint8 bIsSlowed : 1{false};
+
 	UFUNCTION(BlueprintCallable, Category = "SlowedEffect")
 	void SetSlowedEffect(float SlowdownValue);
 
@@ -2412,6 +2418,16 @@ protected:
 	// RastaRobe
 protected:
 	uint8 bRastaRobeIsOn : 1{false};
+
+	float RastaRobeHealthRateMultiplier = 1.0f;
+
+	FTimerHandle RastaRobeUnderEffectTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void RastaRobeCheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float RastaRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 
 	// UndertakerCloak
 protected:
