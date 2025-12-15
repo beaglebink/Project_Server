@@ -368,6 +368,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 
 	GreenhouseOutfitCheckToIncreaseHealthRegen();
 
+	TranquilBlouseSetStaminaRateMultiplier();
+
 	// Debugging information.
 	//if (this != UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
 	//{
@@ -2196,7 +2198,7 @@ void AAlsCharacter::HealthRecovery()
 void AAlsCharacter::StaminaRecovery()
 {
 	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier
-		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfitStaminaRegenMultiplier * TroubleshooterJacketStaminaRateMultiplier;
+		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfitStaminaRegenMultiplier * TroubleshooterJacketStaminaRateMultiplier * TranquilBlouseStaminaRateMultiplier;
 	SetStamina(GetStamina() + StaminaRate);
 
 	// Debug Stamina regeneration rate
@@ -2248,7 +2250,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
 		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
 		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier * CableRepairOutfitSpeedMultiplier * NetworkSpecialistSpeedMultiplier * TroubleshooterJacketSpeedMultiplier
-		* MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier;
+		* MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier * TranquilBlouseSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -5942,6 +5944,31 @@ float AAlsCharacter::UndertakersCloak_InteractWithDamage(AController* DamageInst
 		{
 			DamageAmount *= 1.075f;
 		}
+	}
+
+	return DamageAmount;
+}
+
+// TranquilBlouse
+void AAlsCharacter::TranquilBlouseSetStaminaRateMultiplier()
+{
+	TranquilBlouseStaminaRateMultiplier = 1.0f;
+	if (bTranquilBlouseIsOn && GetVelocity().IsNearlyZero())
+	{
+		TranquilBlouseStaminaRateMultiplier = 1.2f;
+	}
+}
+
+float AAlsCharacter::TranquilBlouse_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bTranquilBlouseIsOn)
+	{
+		//No accuracy penalty when being meleed or hit by projectile
 	}
 
 	return DamageAmount;

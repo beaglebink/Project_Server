@@ -2452,6 +2452,15 @@ protected:
 protected:
 	uint8 bTranquilBlouseIsOn : 1{false};
 
+	float TranquilBlouseStaminaRateMultiplier = 1.0f;
+
+	float TranquilBlouseSpeedMultiplier = 1.0f;
+
+	void TranquilBlouseSetStaminaRateMultiplier();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float TranquilBlouse_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
 	// AntiGlitchHarness
 protected:
 	uint8 bAntiGlitchHarnessIsOn : 1{false};

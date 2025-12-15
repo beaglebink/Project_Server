@@ -2651,10 +2651,13 @@ void AAlsCharacterExample::UndertakersCloak_Effect(bool Apply)
 void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
 {
 	bTranquilBlouseIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TranquilBlouse"));
-	//}
+	TranquilBlouseStaminaRateMultiplier = 1.0f;
+	TranquilBlouseSpeedMultiplier = 1.0f;
+	if (Apply)
+	{
+		TranquilBlouseSpeedMultiplier = 1.1f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TranquilBlouse"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove TranquilBlouse"));
