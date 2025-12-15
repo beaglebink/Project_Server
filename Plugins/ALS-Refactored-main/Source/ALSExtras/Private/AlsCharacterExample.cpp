@@ -2667,10 +2667,25 @@ void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
 void AAlsCharacterExample::AntiGlitchHarness_Effect(bool Apply)
 {
 	bAntiGlitchHarnessIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AntiGlitchHarness"));
-	//}
+	AntiGlitchHarnessPlayerDamageMultiplier = 1.0f;
+	AntiGlitchHarnessPlayerEnemyMultiplier = 1.0f;
+	AntiGlitchHarness_StaminaOnEnemiesPresence();
+	if (Apply)
+	{
+		if (!bAntiGlitchHarnessHasUsedRollDice)
+		{
+			bAntiGlitchHarnessHasUsedRollDice = true;
+			AntiGlitchHarnessPlayerDamageMultiplier = 1.0f + FMath::FRandRange(-0.5f, 0.5f);
+			AntiGlitchHarnessPlayerEnemyMultiplier = 1.0f + FMath::FRandRange(-0.5f, 0.5f);
+			FTimerHandle AntiGlitchHarnessTimerHandle;
+			GetWorldTimerManager().SetTimer(AntiGlitchHarnessTimerHandle, [this]()
+				{
+					AntiGlitchHarnessPlayerDamageMultiplier = 1.0f;
+					AntiGlitchHarnessPlayerEnemyMultiplier = 1.0f;
+				}, 240.0f, false);
+		}
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AntiGlitchHarness"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove AntiGlitchHarness"));
@@ -2680,6 +2695,8 @@ void AAlsCharacterExample::AntiGlitchHarness_Effect(bool Apply)
 void AAlsCharacterExample::KnuthsOvercoat_Effect(bool Apply)
 {
 	bKnuthsOvercoatIsOn = Apply;
+	KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
+	KnuthsOvercoatFirstEnemyKilledTag = FGameplayTag::EmptyTag;
 	//if (Apply)
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply KnuthsOvercoat"));

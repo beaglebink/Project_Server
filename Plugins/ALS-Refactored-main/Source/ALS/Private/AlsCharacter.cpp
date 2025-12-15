@@ -168,6 +168,9 @@ void AAlsCharacter::BeginPlay()
 	//MoonDoggies
 	LevelEnemyManager->OnGhostsTypesNumberChange.AddDynamic(this, &AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange);
 
+	//AntiGlitchHarness
+	LevelEnemyManager->OnEnemyTypeAddedRemoved.AddDynamic(this, &AAlsCharacter::AntiGlitchHarness_StaminaOnEnemiesPresence);
+
 	if (GetLocalRole() >= ROLE_AutonomousProxy)
 	{
 		// Teleportation of simulated proxies is detected differently, see
@@ -5969,6 +5972,131 @@ float AAlsCharacter::TranquilBlouse_InteractWithDamage(AController* DamageInstig
 	if (bTranquilBlouseIsOn)
 	{
 		//No accuracy penalty when being meleed or hit by projectile
+	}
+
+	return DamageAmount;
+}
+
+// AntiGlitchHarness
+void AAlsCharacter::AntiGlitchHarness_StaminaOnEnemiesPresence()
+{
+	if (bAntiGlitchHarnessIsOn)
+	{
+		if (LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Guy::LittleElectric) ||
+			LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Gremlin::Green) ||
+			LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Teeth::Side) ||
+			LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Furry::Claw) ||
+			LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Ghost::FurryBlue))
+		{
+			if (!bAntiGlitchHarnessHasIncreasedStamina)
+			{
+				bAntiGlitchHarnessHasIncreasedStamina = true;
+				SetMaxStamina(GetMaxStamina() * 1.4f);
+			}
+			return;
+		}
+	}
+
+	if (bAntiGlitchHarnessHasIncreasedStamina)
+	{
+		bAntiGlitchHarnessHasIncreasedStamina = false;
+		SetMaxStamina(GetMaxStamina() / 1.4f);
+	}
+}
+
+float AAlsCharacter::AntiGlitchHarness_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bAntiGlitchHarnessIsOn)
+	{
+		DamageAmount *= AntiGlitchHarnessPlayerEnemyMultiplier;
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Guy.LittleElectric")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Gremlin.Green")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Teeth.Side")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Furry.Claw")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.FurryBlue")))
+			{
+				DamageAmount *= 0.8f;
+			}
+		}
+	}
+	else if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bAntiGlitchHarnessIsOn)
+		{
+			DamageAmount *= Player->AntiGlitchHarnessPlayerDamageMultiplier;
+		}
+	}
+
+	return DamageAmount;
+}
+
+// KnuthsOvercoat
+void AAlsCharacter::KnuthsOvercoat_CheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bKnuthsOvercoatIsOn)
+		{
+			if (GetHealth() <= DamageAmount)
+			{
+				if (Player->KnuthsOvercoatFirstEnemyKilledTag != EnemyTag)
+				{
+					Player->KnuthsOvercoatFirstEnemyKilledTag = EnemyTag;
+					Player->KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
+					Player->KnuthsOvercoatEnemyHitCounter = 0;
+				}
+				else
+				{
+					Player->KnuthsOvercoatSameEnemyTypeDamageMultiplier = FMath::Clamp(Player->KnuthsOvercoatSameEnemyTypeDamageMultiplier + 0.055f, 0.0f, 2.0f);
+				}
+			}
+		}
+	}
+}
+
+float AAlsCharacter::KnuthsOvercoat_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bKnuthsOvercoatIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag != KnuthsOvercoatFirstEnemyKilledTag)
+			{
+				++KnuthsOvercoatEnemyHitCounter;
+				if (KnuthsOvercoatEnemyHitCounter >= 3)
+				{
+					KnuthsOvercoatEnemyHitCounter = 0;
+					KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
+				}
+			}
+		}
+	}
+	else
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->KnuthsOvercoatFirstEnemyKilledTag == EnemyTag)
+			{
+				DamageAmount *= Player->KnuthsOvercoatSameEnemyTypeDamageMultiplier;
+			}
+		}
 	}
 
 	return DamageAmount;

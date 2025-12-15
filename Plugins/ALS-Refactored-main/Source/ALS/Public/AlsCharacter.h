@@ -2465,9 +2465,35 @@ protected:
 protected:
 	uint8 bAntiGlitchHarnessIsOn : 1{false};
 
+	uint8 bAntiGlitchHarnessHasIncreasedStamina : 1{false};
+
+	uint8 bAntiGlitchHarnessHasUsedRollDice : 1{false};
+
+	float AntiGlitchHarnessPlayerDamageMultiplier = 1.0f;
+
+	float AntiGlitchHarnessPlayerEnemyMultiplier = 1.0f;
+
+	UFUNCTION()
+	void AntiGlitchHarness_StaminaOnEnemiesPresence();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float AntiGlitchHarness_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
 	// KnuthsOvercoat
 protected:
 	uint8 bKnuthsOvercoatIsOn : 1{false};
+
+	FGameplayTag KnuthsOvercoatFirstEnemyKilledTag = FGameplayTag::EmptyTag;
+
+	float KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
+
+	int32 KnuthsOvercoatEnemyHitCounter = 0;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void KnuthsOvercoat_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float KnuthsOvercoat_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// VcarSweatShirt
 protected:
