@@ -187,6 +187,9 @@ public:
 
 	virtual void Restart() override;
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Death")
+	bool CheckIfDead();
+
 private:
 	void RefreshMeshProperties() const;
 

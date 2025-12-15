@@ -5900,7 +5900,7 @@ void AAlsCharacter::UndertakersCloak_CheckEnemyKills(AController* DamageInstigat
 					{
 						if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
 						{
-							if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+							if (!Enemy->CheckIfDead() && Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 							{
 								Player->SetHealth(Player->GetHealth() + 2.0f);
 								UGameplayStatics::ApplyDamage(Enemy, Enemy->GetHealth() * 2.0f, GetController(), this, nullptr);
