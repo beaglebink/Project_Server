@@ -2248,7 +2248,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 
 	// Final speed depends on  weapon weight, health left, damage got, surface slope angle and wind.
 	SpeedMultiplier *= (1 - WeaponMovementPenalty) * DamageMovementPenalty * DamageSlowdownMultiplier * SurfaceSlopeEffectMultiplier * WindIfluenceEffect0_2 * StunRecoveryMultiplier * StickyMultiplier * StickyStuckMultiplier
-		* ShockSpeedMultiplier * Slowdown_01Range * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
+		* ShockSpeedMultiplier * SlowdownEffectSpeedMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * MagneticEffectSpeedMultiplier * ConcatenationEffectSpeedMultiplier * StaticGrenadeEffect * WeightMultiplier
 		* LastStandSpeedMultiplier * WalkAndRunSpeedMultiplier_15 * WalkRunSpeedMultiplier_25 * SpeedMultiplierIfStaminaLess_70 * SpeedMultiplierOnMeleeDamage_40 * GladiatorOutfitSpeedMultiplier * PorcupineCoatSpeedMultiplier
 		* ForcefieldCoatSpeedMultiplier * BugZapperCoatSpeedMultiplier * SimonSweatpantsSpeedMultiplier * RebootVestSpeedMultiplier * RebootVestNewLifeSpeedMultiplier * RebootVestStrafingSpeedMultiplier * MagneticVestSpeedMultiplier
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
@@ -2307,6 +2307,12 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 
 void AAlsCharacter::StunEffect(float Time)
 {
+	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_25 * PorcupineCoat_EffectsChanceMultiplier_25 * MasterMinMooMooSlippers_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier;
+	if (FMath::FRandRange(0.0f, 100.0f) >= ChanceForEffect)
+	{
+		return;
+	}
+
 	if (bShouldIgnoreStun || ShouldIgnoreEnemyAbilityEffect() || ShouldIgnoreStunIfHealthIsUnder_50())
 	{
 		return;
@@ -2568,6 +2574,12 @@ void AAlsCharacter::SetArmLockEffect_Implementation(bool bIsSet, bool bShouldRes
 
 void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPower)
 {
+	float ChanceForEffect = 100.0f * JanitorOveralls_EffectsChanceMultiplier * GladiatorOutfit_EffectsChanceMultiplier_30 * PorcupineCoat_EffectsChanceMultiplier_20;
+	if (FMath::FRandRange(0.0f, 100.0f) >= ChanceForEffect)
+	{
+		return;
+	}
+
 	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownAndStumbleEffect())
 	{
 		return;
@@ -2584,6 +2596,12 @@ void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPo
 
 void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius)
 {
+	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_25 * MasterMinMooMooSlippers_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier;
+	if (FMath::FRandRange(0.0f, 100.0f) >= ChanceForEffect)
+	{
+		return;
+	}
+
 	if (ShouldIgnoreEnemyAbilityEffect() || CheckIfShouldIgnoreKnockdownEffect_44() || CheckIfShouldIgnoreKnockdownEffect_52() || CheckIfShouldIgnoreKnockdownAndStumbleEffect())
 	{
 		return;
@@ -2596,6 +2614,18 @@ void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceR
 		StartRagdolling();
 		GetMesh()->AddRadialImpulse(InstigatorLocation, InfluenceRadius, Force, ERadialImpulseFalloff::RIF_Constant, true);
 		StunEffect(2.0f);
+	}
+}
+
+void AAlsCharacter::SetShockEffect(bool IsSet)
+{
+	float ChanceForEffect = 100.0f * JanitorOveralls_EffectsChanceMultiplier;
+
+	bIsShocked = false;
+
+	if (FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect * static_cast<int32>(IsSet))
+	{
+		bIsShocked = true;
 	}
 }
 
@@ -2676,20 +2706,36 @@ void AAlsCharacter::ShockEffect()
 
 void AAlsCharacter::SetSlowedEffect(float SlowdownValue)
 {
-	bIsSlowed = false;
-	if (SlowdownValue < 1.0f)
-	{
-		bIsSlowed = true;
-	}
+	float ChanceForEffect = 100.0f * MasterMinMooMooSlippers_EffectsChanceMultiplier * BounceHouseSuit_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier * AdminPolo_EffectsChanceMultiplier;
 
-	if (ShouldIgnoreEnemyAbilityEffect() || bShouldIgnoreSlowEffect)
+	bIsSlowed = false;
+	SlowdownEffectSpeedMultiplier = 1.0f;
+
+	if (FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect && !ShouldIgnoreEnemyAbilityEffect() && !bShouldIgnoreSlowEffect)
 	{
-		Slowdown_01Range = 1.0f;
+		SlowdownEffectSpeedMultiplier = FMath::Clamp(SlowdownValue, 0.0f, 1.0f);
+		if (SlowdownEffectSpeedMultiplier < 1.0f)
+		{
+			bIsSlowed = true;
+		}
 	}
-	else
+}
+
+void AAlsCharacter::SetDiscombobulateEffect(bool IsSet)
+{
+	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_30 * MasterMinMooMooSlippers_EffectsChanceMultiplier * BounceHouseSuit_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier;
+
+	bIsDiscombobulated = false;
+
+	if (FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect * static_cast<int32>(IsSet))
 	{
-		Slowdown_01Range = FMath::Clamp(SlowdownValue, 0.0f, 1.0f);
+		bIsDiscombobulated = true;
 	}
+}
+
+bool AAlsCharacter::GetDiscombobulateEffect()
+{
+	return bIsDiscombobulated;
 }
 
 void AAlsCharacter::DiscombobulateEffect()
@@ -2714,9 +2760,11 @@ void AAlsCharacter::DiscombobulateEffect()
 	}
 }
 
-void AAlsCharacter::SetRemoveBlindness(bool IsSet)
+void AAlsCharacter::SetBlindEffect(bool IsSet)
 {
-	if (IsSet && !bShouldIgnoreBlindnessEffect && !ShouldIgnoreEnemyAbilityEffect())
+	float ChanceForEffect = 1.0f * AdminPolo_EffectsChanceMultiplier;
+
+	if (FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect && IsSet && !bShouldIgnoreBlindnessEffect && !ShouldIgnoreEnemyAbilityEffect())
 	{
 		if (!BlindnessWidget && BlindnessWidgetClass)
 		{
@@ -2761,17 +2809,17 @@ void AAlsCharacter::SetReverseEffect(bool IsSet)
 	}
 }
 
-void AAlsCharacter::SetRemoveWireEffect(bool bIsSet, float EffectPower)
+void AAlsCharacter::SetWireEffect(bool bIsSet, float EffectPower)
 {
-	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
+	float ChanceForEffect = 100.0f * JanitorOveralls_EffectsChanceMultiplier;
+
+	bIsWired = false;
+	WireEffectPower_01Range = 1.0f;
+
+	if (bIsSet && FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect && !ShouldIgnoreEnemyAbilityEffect())
 	{
 		bIsWired = true;
 		WireEffectPower_01Range = FMath::Clamp(1 - EffectPower, 0.0f, 1.0f);
-	}
-	else
-	{
-		bIsWired = false;
-		WireEffectPower_01Range = 1.0f;
 	}
 }
 
@@ -2780,10 +2828,10 @@ void AAlsCharacter::ShakeMouseRemoveEffect(FVector2D Value)
 	CurrentMouseValueLength = Value.Length();
 	if (CurrentMouseValueLength > 30.0f && PrevMouseValueLength > 30.0f && PrevPrevMouseValueLength < 10.0f)
 	{
-		SetRemoveWireEffect(false);
+		SetWireEffect(false);
 		if (bIsTwoKeysHold)
 		{
-			SetRemoveGrappleEffect(false);
+			SetGrappleEffect(false);
 		}
 	}
 	PrevPrevMouseValueLength = PrevMouseValueLength;
@@ -2816,10 +2864,12 @@ float AAlsCharacter::GetStaticGrenadeEffect() const
 	return Effect;
 }
 
-void AAlsCharacter::SetRemoveGrappleEffect(bool bIsSet)
+void AAlsCharacter::SetGrappleEffect(bool bIsSet)
 {
-	static uint8 Counter = 0;
-	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
+	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_25 * PorcupineCoat_EffectsChanceMultiplier_40 * BugZapperCoat_EffectsChanceMultiplier * MasterMinMooMooSlippers_EffectsChanceMultiplier
+		* SniperFocusOnLongRange_EffectsChanceMultiplier;
+
+	if (bIsSet && FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect && !ShouldIgnoreEnemyAbilityEffect())
 	{
 		if (Counter < 3)
 		{
@@ -2881,16 +2931,17 @@ void AAlsCharacter::SetRemoveMagneticEffect(bool bIsSet, float SphereRadius, flo
 	MagneticEffectPower_Range01 = FMath::Clamp(MagnetPower, 0.01f, 1.0f);
 }
 
-void AAlsCharacter::SetRemoveInkEffect(bool bIsSet, float EffectPower)
+void AAlsCharacter::SetInkEffect(bool bIsSet, float EffectPower)
 {
-	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
+	float ChanceForEffect = 100.0f * JanitorOveralls_EffectsChanceMultiplier;
+
+	bIsInked = false;
+
+	if (bIsSet && FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect && !ShouldIgnoreEnemyAbilityEffect())
 	{
 		bIsInked = true;
 	}
-	else
-	{
-		bIsInked = false;
-	}
+
 	InkEffectPower_01Range = FMath::Clamp(EffectPower, 0.0f, 1.0f);
 	InkTimeDelay = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), FVector2D(0.0001f, 1.0f), InkEffectPower_01Range);
 }
@@ -2974,6 +3025,12 @@ void AAlsCharacter::Restore_Speed_JumpHeight_Health()
 
 void AAlsCharacter::Alter_Speed_JumpHeight_Health_Stamina(float DeltaSpeed, float DeltaJumpHeight, float DeltaHealth, float DeltaStamina, float TimeToRestore)
 {
+	float ChanceForEffect = 100.0f * AdminPolo_EffectsChanceMultiplier;
+	if (FMath::FRandRange(0.0f, 100.0f) >= ChanceForEffect)
+	{
+		return;
+	}
+
 	if (bShouldIgnoreEnemyAbilityEffect)
 	{
 		return;
