@@ -1625,7 +1625,7 @@ protected:
 
 	float AlphabetCoatAccuracyMultiplier = 1.0f;
 
-	float AlphabetCoatRecoilMultiplier = 1.0f;
+	float AlphabetCoat_RecoilMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float AlphabetCoat_RedirectDamageFromHealthToStamina_15(AController* DamageInstigator, float DamageAmount);
@@ -1822,7 +1822,7 @@ public:
 protected:
 	float MagneticVestAccuracyMultiplier = 1.0f;
 
-	float MagneticVestRecoilMultiplier = 1.0f;
+	float MagneticVest_RecoilMultiplier = 1.0f;
 
 	FTimerHandle MagneticVestEnemySlowerTimerHandle;
 
@@ -1904,7 +1904,7 @@ public:
 protected:
 	uint8 bSheriffOutfitIsOn : 1{false};
 
-	float SheriffOutfitRecoilMultiplier = 1.0f;
+	float SheriffOutfit_RecoilMultiplier = 1.0f;
 
 	float SheriffOutfitAccuracyMultiplier = 1.0f;
 
@@ -1995,7 +1995,7 @@ protected:
 
 	float BoxerMachineGunAccuracyMultiplier = 1.0f;
 
-	float BoxerMachineGunRecoilMultiplier = 1.0f;
+	float BoxerMachineGun_RecoilMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void Boxer_CheckIfMachineGunModeIsOn();
@@ -2022,7 +2022,7 @@ protected:
 
 	float PorcelainCannonSpeedMultiplier = 1.0f;
 
-	float PorcelainCannonRecoilMultiplier = 1.0f;
+	float PorcelainCannon_RecoilMultiplier = 1.0f;
 
 	void PorcelainCannon_UsesMoreStaminaBy_50();
 
@@ -2041,7 +2041,7 @@ protected:
 
 	float CarlOvercoatSpeedMultiplier = 1.0f;
 
-	float CarlOvercoatRecoilMultiplier = 1.0f;
+	float CarlOvercoat_RecoilMultiplier = 1.0f;
 
 	float CarlOvercoatDamagePenalty = 0.0f;
 
@@ -2065,7 +2065,7 @@ protected:
 
 	uint8 bDebsFootballPadsShouldIncreaseStaminaUsing : 1{false};
 
-	float DebsFootballPadsRecoilMultiplier = 1.0f;
+	float DebsFootballPads_RecoilMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.0f;
@@ -2148,7 +2148,7 @@ protected:
 protected:
 	uint8 bGarbageIsOn : 1{false};
 
-	float Garbage_StaminaRegenPercentMultiplier = 1.0f;
+	float Garbage_StaminaRateMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float Garbage_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
@@ -2199,7 +2199,7 @@ protected:
 
 	int32 DesperadoPonchoMissHitCounter = 0;
 
-	float DesperadoPonchoRecoilMultiplier = 1.0f;
+	float DesperadoPoncho_RecoilMultiplier = 1.0f;
 
 	FTimerHandle DesperadoPonchoMissHitTimerHandle;
 
@@ -2225,7 +2225,7 @@ protected:
 
 	float DeliverySpandexAccuracyMultiplier = 1.0f;
 
-	float DeliverySpandexRecoilMultiplier = 1.0f;
+	float DeliverySpandex_RecoilMultiplier = 1.0f;
 
 	float DeliverySpandexSpeedMultiplier = 1.0f;
 
@@ -2248,7 +2248,7 @@ protected:
 
 	float WW2UniformSpeedMultiplier = 1.0f;
 
-	float WW2UniformRecoilMultiplier = 1.0f;
+	float WW2Uniform_RecoilMultiplier = 1.0f;
 
 	float WW2UniformAccuracyMultiplier = 1.0f;
 
@@ -2265,7 +2265,7 @@ protected:
 
 	float GreenhouseOutfitHealthRegenMultiplier = 1.0f;
 
-	float GreenhouseOutfitStaminaRegenMultiplier = 1.0f;
+	float GreenhouseOutfit_StaminaRateMultiplier = 1.0f;
 
 	float GreenhouseOutfitSpeedMultiplier = 1.0f;
 
@@ -2343,9 +2343,9 @@ private:
 	uint8 bTroubleshooterJacketIsShooting : 1{false};
 
 protected:
-	float TroubleshooterJacketStaminaRateMultiplier = 1.0f;
+	float TroubleshooterJacket_StaminaRateMultiplier = 1.0f;
 
-	float TroubleshooterJacketRecoilMultiplier = 1.0f;
+	float TroubleshooterJacket_RecoilMultiplier = 1.0f;
 
 	float TroubleshooterJacketSpeedMultiplier = 1.0f;
 
@@ -2452,7 +2452,7 @@ protected:
 protected:
 	uint8 bTranquilBlouseIsOn : 1{false};
 
-	float TranquilBlouseStaminaRateMultiplier = 1.0f;
+	float TranquilBlouse_StaminaRateMultiplier = 1.0f;
 
 	float TranquilBlouseSpeedMultiplier = 1.0f;
 
@@ -2500,6 +2500,17 @@ protected:
 	// VcarSweatShirt
 protected:
 	uint8 bVcarSweatShirtIsOn : 1{false};
+
+	uint8 bVcarSweatShirtShouldDecreaseStaminaUsing : 1{false};
+
+	float VcarSweatShirt_StaminaRateMultiplier = 1.0f;
+
+	float VcarSweatShirt_RecoilMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float VcarSweatShirt_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	void VcarSweatShirt_UsesLessStamina();
 
 	// AnandsTurtleneck
 protected:

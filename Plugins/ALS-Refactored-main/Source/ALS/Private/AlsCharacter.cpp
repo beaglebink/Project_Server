@@ -2200,8 +2200,8 @@ void AAlsCharacter::HealthRecovery()
 
 void AAlsCharacter::StaminaRecovery()
 {
-	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier
-		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfitStaminaRegenMultiplier * TroubleshooterJacketStaminaRateMultiplier * TranquilBlouseStaminaRateMultiplier;
+	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRateMultiplier
+		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfit_StaminaRateMultiplier * TroubleshooterJacket_StaminaRateMultiplier * TranquilBlouse_StaminaRateMultiplier * VcarSweatShirt_StaminaRateMultiplier;
 	SetStamina(GetStamina() + StaminaRate);
 
 	// Debug Stamina regeneration rate
@@ -2213,9 +2213,10 @@ void AAlsCharacter::StaminaRecovery()
 
 void AAlsCharacter::RefreshRecoil()
 {
-	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
-		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier
-		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier * DeliverySpandexRecoilMultiplier * WW2UniformRecoilMultiplier * TroubleshooterJacketRecoilMultiplier;
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoat_RecoilMultiplier * MagneticVest_RecoilMultiplier * SheriffOutfit_RecoilMultiplier
+		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGun_RecoilMultiplier * PorcelainCannon_RecoilMultiplier
+		* CarlOvercoat_RecoilMultiplier * DebsFootballPads_RecoilMultiplier * DesperadoPoncho_RecoilMultiplier * DeliverySpandex_RecoilMultiplier * WW2Uniform_RecoilMultiplier * TroubleshooterJacket_RecoilMultiplier
+		* VcarSweatShirt_RecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -3542,7 +3543,7 @@ float AAlsCharacter::AlphabetCoat_IncreaseDamageBy_20(AController* DamageInstiga
 void AAlsCharacter::AlphabetCoat_CheckAccuracyAndRecoil_25()
 {
 	AlphabetCoatAccuracyMultiplier = 1.0f;
-	AlphabetCoatRecoilMultiplier = 1.0f;
+	AlphabetCoat_RecoilMultiplier = 1.0f;
 
 	if (bAlphabetCoatIsOn &&
 		(LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Hex) > 0 ||
@@ -3551,7 +3552,7 @@ void AAlsCharacter::AlphabetCoat_CheckAccuracyAndRecoil_25()
 			LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
 	{
 		AlphabetCoatAccuracyMultiplier = 0.75f;
-		AlphabetCoatRecoilMultiplier = 0.75f;
+		AlphabetCoat_RecoilMultiplier = 0.75f;
 	}
 }
 
@@ -4330,14 +4331,14 @@ void AAlsCharacter::BounceHouseSuit_IncreaseJumpHigh_40()
 // SheriffOutfit
 void AAlsCharacter::SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50()
 {
-	SheriffOutfitRecoilMultiplier = 1.0f;
+	SheriffOutfit_RecoilMultiplier = 1.0f;
 	SheriffOutfitAccuracyMultiplier = 1.0f;
 	if (bSheriffOutfitIsOn && GetWeaponName() == "Code rifle")
 	{
 		if (GetStamina() / GetMaxStamina() < 0.5f)
 		{
 			SheriffOutfitAccuracyMultiplier = 0.8f;
-			SheriffOutfitRecoilMultiplier = 0.8f;
+			SheriffOutfit_RecoilMultiplier = 0.8f;
 		}
 	}
 }
@@ -4593,12 +4594,12 @@ float AAlsCharacter::SniperFocusOnLongRange_InteractWithDamage(AController* Dama
 void AAlsCharacter::Boxer_CheckIfMachineGunModeIsOn()
 {
 	BoxerMachineGunAccuracyMultiplier = 1.0f;
-	BoxerMachineGunRecoilMultiplier = 1.0f;
+	BoxerMachineGun_RecoilMultiplier = 1.0f;
 
 	if (bBoxerIsOn && bBoxerMachineGunModeIsOn)
 	{
 		BoxerMachineGunAccuracyMultiplier = 0.85f;
-		BoxerMachineGunRecoilMultiplier = 0.8f;
+		BoxerMachineGun_RecoilMultiplier = 0.8f;
 	}
 }
 
@@ -4727,10 +4728,10 @@ float AAlsCharacter::CarlOvercoat_InteractWithDamage(AController* DamageInstigat
 void AAlsCharacter::DebsFootballPads_CheckIfShotgunModeIsOn()
 {
 	// Recoil multiplier
-	DebsFootballPadsRecoilMultiplier = 1.0f;
+	DebsFootballPads_RecoilMultiplier = 1.0f;
 	if (bDebsFootballPadsIsOn && !bDebsFootballPadsShotgunModeIsOn)
 	{
-		DebsFootballPadsRecoilMultiplier = 1.2f;
+		DebsFootballPads_RecoilMultiplier = 1.2f;
 	}
 
 	// Max energy capacity change
@@ -5030,7 +5031,7 @@ void AAlsCharacter::Garbage_IncreaseStaminaRegenPercentForEnemyKilled(AControlle
 		{
 			if (Player->bGarbageIsOn && DamageAmount >= GetHealth())
 			{
-				Player->Garbage_StaminaRegenPercentMultiplier = FMath::Clamp(Player->Garbage_StaminaRegenPercentMultiplier + 0.025f, 0.0f, 1.5f);
+				Player->Garbage_StaminaRateMultiplier = FMath::Clamp(Player->Garbage_StaminaRateMultiplier + 0.025f, 0.0f, 1.5f);
 			}
 		}
 	}
@@ -5213,12 +5214,12 @@ void AAlsCharacter::DeliverySpandex_AccuracyRecoilStaminaOnMovingHandle()
 	}
 
 	DeliverySpandexAccuracyMultiplier = 1.0f;
-	DeliverySpandexRecoilMultiplier = 1.0f;
+	DeliverySpandex_RecoilMultiplier = 1.0f;
 
 	if (!GetVelocity().IsNearlyZero())
 	{
 		DeliverySpandexAccuracyMultiplier = 0.845f;
-		DeliverySpandexRecoilMultiplier = 0.845f;
+		DeliverySpandex_RecoilMultiplier = 0.845f;
 	}
 }
 
@@ -5278,7 +5279,7 @@ float AAlsCharacter::WW2Uniform_InteractWithDamage(AController* DamageInstigator
 
 		WW2UniformDamageMultiplier = FMath::Clamp(WW2UniformDamageMultiplier + 0.005f, 0.0f, 1.4f);
 		WW2UniformSpeedMultiplier = FMath::Clamp(WW2UniformSpeedMultiplier + 0.005f, 0.0f, 1.2f);
-		WW2UniformRecoilMultiplier = FMath::Clamp(WW2UniformRecoilMultiplier + 0.005f, 0.0f, 1.4f);
+		WW2Uniform_RecoilMultiplier = FMath::Clamp(WW2Uniform_RecoilMultiplier + 0.005f, 0.0f, 1.4f);
 		WW2UniformAccuracyMultiplier = FMath::Clamp(WW2UniformAccuracyMultiplier + 0.005f, 0.0f, 1.4f);
 		DamageAmount *= 0.815;
 	}
@@ -5299,7 +5300,7 @@ void AAlsCharacter::WW2Uniform_Under20HealthHandle()
 		SprintStaminaDrainRate *= 0.000001f;
 		JumpStaminaCost *= 0.000001f;
 		RollStaminaCost *= 0.000001f;
-		WW2UniformRecoilMultiplier *= 0.6f;
+		WW2Uniform_RecoilMultiplier *= 0.6f;
 	}
 	else if ((GetHealth() >= 20.0f || !bWW2UniformIsOn) && bWW2UniformShouldDecreaseStaminaUsing)
 	{
@@ -5307,7 +5308,7 @@ void AAlsCharacter::WW2Uniform_Under20HealthHandle()
 		SprintStaminaDrainRate /= 0.000001f;
 		JumpStaminaCost /= 0.000001f;
 		RollStaminaCost /= 0.000001f;
-		WW2UniformRecoilMultiplier /= 0.6f;
+		WW2Uniform_RecoilMultiplier /= 0.6f;
 	}
 }
 
@@ -5645,7 +5646,7 @@ float AAlsCharacter::TroubleshooterJacket_InteractWithDamage(float DamageAmount)
 void AAlsCharacter::SetTroubleshooterJacketIsShooting(bool IsShooting)
 {
 	bTroubleshooterJacketIsShooting = IsShooting;
-	TroubleshooterJacketStaminaRateMultiplier = 1.0f + 0.3f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
+	TroubleshooterJacket_StaminaRateMultiplier = 1.0f + 0.3f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
 	TroubleshooterJacketSpeedMultiplier = 1.0f + 0.15f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
 }
 
@@ -5955,10 +5956,10 @@ float AAlsCharacter::UndertakersCloak_InteractWithDamage(AController* DamageInst
 // TranquilBlouse
 void AAlsCharacter::TranquilBlouseSetStaminaRateMultiplier()
 {
-	TranquilBlouseStaminaRateMultiplier = 1.0f;
+	TranquilBlouse_StaminaRateMultiplier = 1.0f;
 	if (bTranquilBlouseIsOn && GetVelocity().IsNearlyZero())
 	{
-		TranquilBlouseStaminaRateMultiplier = 1.2f;
+		TranquilBlouse_StaminaRateMultiplier = 1.2f;
 	}
 }
 
@@ -6113,4 +6114,41 @@ float AAlsCharacter::KnuthsOvercoat_InteractWithDamage(AController* DamageInstig
 	}
 
 	return DamageAmount;
+}
+
+// VcarSweatShirt
+float AAlsCharacter::VcarSweatShirt_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bVcarSweatShirtIsOn)
+	{
+		DamageAmount *= 0.875f;
+	}
+	else if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bVcarSweatShirtIsOn)
+		{
+			DamageAmount *= 1.075f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::VcarSweatShirt_UsesLessStamina()
+{
+	if (bVcarSweatShirtIsOn && !bVcarSweatShirtShouldDecreaseStaminaUsing)
+	{
+		bVcarSweatShirtShouldDecreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 0.82f;
+	}
+	else if (!bVcarSweatShirtIsOn && bVcarSweatShirtShouldDecreaseStaminaUsing)
+	{
+		bVcarSweatShirtShouldDecreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 0.82f;
+	}
 }

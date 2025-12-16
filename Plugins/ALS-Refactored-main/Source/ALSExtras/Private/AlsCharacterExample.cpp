@@ -2031,11 +2031,11 @@ void AAlsCharacterExample::MagneticVest_Effect(bool Apply)
 {
 	bMagneticVestIsOn = Apply;
 	MagneticVestAccuracyMultiplier = 1.0f;
-	MagneticVestRecoilMultiplier = 1.0f;
+	MagneticVest_RecoilMultiplier = 1.0f;
 	if (Apply)
 	{
 		MagneticVestAccuracyMultiplier = 1.175f;
-		MagneticVestRecoilMultiplier = 1.15f;
+		MagneticVest_RecoilMultiplier = 1.15f;
 		GetWorldTimerManager().SetTimer(MagneticVestEnemySlowerTimerHandle, this, &AAlsCharacterExample::MagneticVest_SlowEnemies, 0.5f, true);
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MagneticVest"));
 	}
@@ -2227,12 +2227,12 @@ void AAlsCharacterExample::PorcelainCannon_Effect(bool Apply)
 {
 	bPorcelainCannonIsOn = Apply;
 	PorcelainCannonSpeedMultiplier = 1.0f;
-	PorcelainCannonRecoilMultiplier = 1.0f;
+	PorcelainCannon_RecoilMultiplier = 1.0f;
 	PorcelainCannon_UsesMoreStaminaBy_50();
 	if (Apply)
 	{
 		PorcelainCannonSpeedMultiplier = 0.9f;
-		PorcelainCannonRecoilMultiplier = 1.2f;
+		PorcelainCannon_RecoilMultiplier = 1.2f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_25"));
 	}
 	//else
@@ -2247,12 +2247,12 @@ void AAlsCharacterExample::CarlOvercoat_Effect(bool Apply)
 	CarlOvercoatDamageBonus = 0.0f;
 	CarlOvercoatEvasionBonus = 0.0f;
 	CarlOvercoatSpeedMultiplier = 1.0f;
-	CarlOvercoatRecoilMultiplier = 1.0f;
+	CarlOvercoat_RecoilMultiplier = 1.0f;
 	CarlOvercoatDamagePenalty = 0.0f;
 	if (Apply)
 	{
 		CarlOvercoatSpeedMultiplier = 1.1f;
-		CarlOvercoatRecoilMultiplier = 0.82f;
+		CarlOvercoat_RecoilMultiplier = 0.82f;
 		GetWorldTimerManager().SetTimer(CarlOvercoatDamageInteractTimerHandle, this, &AAlsCharacter::CarlOvercoat_DamageAndEvasionBonusOverTime, 10.0f, true, 10.0f);
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply CarlOvercoat"));
 	}
@@ -2355,7 +2355,7 @@ void AAlsCharacterExample::MoonDoggies_Effect(bool Apply)
 void AAlsCharacterExample::Garbage_Effect(bool Apply)
 {
 	bGarbageIsOn = Apply;
-	Garbage_StaminaRegenPercentMultiplier = 1.0f;
+	Garbage_StaminaRateMultiplier = 1.0f;
 	//if (Apply)
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_32"));
@@ -2397,14 +2397,14 @@ void AAlsCharacterExample::DesperadoPoncho_Effect(bool Apply)
 	DesperadoPonchoAccuracyMultiplier = 1.0f;
 	DesperadoPonchoDamageMultiplier = 1.0f;
 	DesperadoPonchoReloadMultiplier = 1.0f;
-	DesperadoPonchoRecoilMultiplier = 1.0f;
+	DesperadoPoncho_RecoilMultiplier = 1.0f;
 	if (Apply)
 	{
 		DesperadoPonchoWeaponSpeedMultiplier = 1.1f;
 		DesperadoPonchoWeaponSwitchMultiplier = 1.3f;
 		DesperadoPonchoAccuracyMultiplier = 0.9f;
 		DesperadoPonchoReloadMultiplier = 1.4f;
-		DesperadoPonchoRecoilMultiplier = 0.9f;
+		DesperadoPoncho_RecoilMultiplier = 0.9f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply DesperadoPoncho"));
 	}
 	else
@@ -2419,7 +2419,7 @@ void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 	bDeliverySpandexIsOn = Apply;
 	DeliverySpandexDamagePenaltyMultiplier = 1.0f;
 	DeliverySpandexAccuracyMultiplier = 1.0f;
-	DeliverySpandexRecoilMultiplier = 1.0f;
+	DeliverySpandex_RecoilMultiplier = 1.0f;
 	DeliverySpandexSpeedMultiplier = 1.0f;
 	DeliverySpandex_SprintUsesLessStaminaBy_20();
 	if (Apply)
@@ -2439,7 +2439,7 @@ void AAlsCharacterExample::WW2Uniform_Effect(bool Apply)
 	bWW2UniformIsOn = Apply;
 	WW2UniformDamageMultiplier = 1.0f;
 	WW2UniformSpeedMultiplier = 1.0f;
-	WW2UniformRecoilMultiplier = 1.0f;
+	WW2Uniform_RecoilMultiplier = 1.0f;
 	WW2UniformAccuracyMultiplier = 1.0f;
 	WW2Uniform_Under20HealthHandle();
 	//if (Apply)
@@ -2456,12 +2456,12 @@ void AAlsCharacterExample::GreenhouseOutfit_Effect(bool Apply)
 {
 	bGreenhouseOutfitIsOn = Apply;
 	GreenhouseOutfitHealthRegenMultiplier = 1.0f;
-	GreenhouseOutfitStaminaRegenMultiplier = 1.0f;
+	GreenhouseOutfit_StaminaRateMultiplier = 1.0f;
 	GreenhouseOutfitSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
 		GreenhouseOutfitHealthRegenMultiplier = 1.2f;
-		GreenhouseOutfitStaminaRegenMultiplier = 1.1f;
+		GreenhouseOutfit_StaminaRateMultiplier = 1.1f;
 		GreenhouseOutfitSpeedMultiplier = 0.845f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GreenhouseOutfit"));
 	}
@@ -2547,11 +2547,11 @@ void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
 {
 	bTroubleshooterJacketIsOn = Apply;
 	SetTroubleshooterJacketIsShooting(false);
-	TroubleshooterJacketRecoilMultiplier = 1.0f;
+	TroubleshooterJacket_RecoilMultiplier = 1.0f;
 	TroubleshooterJacketAccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		TroubleshooterJacketRecoilMultiplier = 0.85f;
+		TroubleshooterJacket_RecoilMultiplier = 0.85f;
 		TroubleshooterJacketAccuracyMultiplier = 0.75f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
 	}
@@ -2651,7 +2651,7 @@ void AAlsCharacterExample::UndertakersCloak_Effect(bool Apply)
 void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
 {
 	bTranquilBlouseIsOn = Apply;
-	TranquilBlouseStaminaRateMultiplier = 1.0f;
+	TranquilBlouse_StaminaRateMultiplier = 1.0f;
 	TranquilBlouseSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
@@ -2711,10 +2711,15 @@ void AAlsCharacterExample::KnuthsOvercoat_Effect(bool Apply)
 void AAlsCharacterExample::VcarSweatShirt_Effect(bool Apply)
 {
 	bVcarSweatShirtIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply VcarSweatShirt"));
-	//}
+	VcarSweatShirt_StaminaRateMultiplier = 1.0f;
+	VcarSweatShirt_RecoilMultiplier = 1.0f;
+	VcarSweatShirt_UsesLessStamina();
+	if (Apply)
+	{
+		VcarSweatShirt_StaminaRateMultiplier = 1.2f;
+		VcarSweatShirt_RecoilMultiplier = 0.6f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply VcarSweatShirt"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove VcarSweatShirt"));
