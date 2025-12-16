@@ -6,6 +6,7 @@
 #include "A_EnemyManager.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGhostsTypesNumberChange, int32, GhostTypesNumber);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE (FOnEnemyTypeAddedRemoved);
 
 class AAlsCharacterExample;
 
@@ -23,7 +24,6 @@ protected:
 public:	
 	virtual void Tick(float DeltaTime) override;
 
-private:
 	TMap<FGameplayTag, int32> EnemyTypeCounts;
 
 public:
@@ -34,6 +34,8 @@ public:
 	TMap<FGameplayTag, int32> GhostEnemyTypes; // MoonDoggies effect
 
 	FOnGhostsTypesNumberChange OnGhostsTypesNumberChange;
+
+	FOnEnemyTypeAddedRemoved OnEnemyTypeAddedRemoved;
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy Manager")
 	void RegisterEnemy(FGameplayTag EnemyType);

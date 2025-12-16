@@ -187,6 +187,9 @@ public:
 
 	virtual void Restart() override;
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Death")
+	bool CheckIfDead();
+
 private:
 	void RefreshMeshProperties() const;
 
@@ -1045,6 +1048,9 @@ public:
 
 	//Knockdown effect
 public:
+	UPROPERTY(BlueprintReadOnly, Category = "KnockdownEffect")
+	uint8 bIsKnockedDown : 1{false};
+
 	UFUNCTION(BlueprintCallable, Category = "KnockdownEffect")
 	void KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius);
 
@@ -1077,6 +1083,9 @@ protected:
 	float Slowdown_01Range = 1.0f;
 
 public:
+	UPROPERTY(BlueprintReadOnly, Category = "SlowedEffect")
+	uint8 bIsSlowed : 1{false};
+
 	UFUNCTION(BlueprintCallable, Category = "SlowedEffect")
 	void SetSlowedEffect(float SlowdownValue);
 
@@ -1614,9 +1623,9 @@ protected:
 protected:
 	uint8 bAlphabetCoatIsOn : 1{false};
 
-	float AlphabetCoatAccuracyMultiplier = 1.0f;
+	float AlphabetCoat_AccuracyMultiplier = 1.0f;
 
-	float AlphabetCoatRecoilMultiplier = 1.0f;
+	float AlphabetCoat_RecoilMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float AlphabetCoat_RedirectDamageFromHealthToStamina_15(AController* DamageInstigator, float DamageAmount);
@@ -1631,7 +1640,7 @@ protected:
 protected:
 	uint8 bByteVestIsOn : 1{false};
 
-	float ByteVestAccuracyMultiplier = 1.0f;
+	float ByteVest_AccuracyMultiplier = 1.0f;
 
 	float ByteVestPrevDamageAmount = 0.0f;
 
@@ -1679,7 +1688,7 @@ protected:
 
 	FTimerHandle ImmuneToIntegerAndUnicodeEffectsTimerHandle;
 
-	float CalculatorGogglesAccuracyMultiplier = 1.0f;
+	float CalculatorGoggles_AccuracyMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float CalculatorGoggles_DecreaseDamageBy_20(AController* DamageInstigator, float DamageAmount);
@@ -1811,9 +1820,9 @@ public:
 	float MagneticVestSpeedMultiplier = 1.0f;
 
 protected:
-	float MagneticVestAccuracyMultiplier = 1.0f;
+	float MagneticVest_AccuracyMultiplier = 1.0f;
 
-	float MagneticVestRecoilMultiplier = 1.0f;
+	float MagneticVest_RecoilMultiplier = 1.0f;
 
 	FTimerHandle MagneticVestEnemySlowerTimerHandle;
 
@@ -1895,9 +1904,9 @@ public:
 protected:
 	uint8 bSheriffOutfitIsOn : 1{false};
 
-	float SheriffOutfitRecoilMultiplier = 1.0f;
+	float SheriffOutfit_RecoilMultiplier = 1.0f;
 
-	float SheriffOutfitAccuracyMultiplier = 1.0f;
+	float SheriffOutfit_AccuracyMultiplier = 1.0f;
 
 	float SheriffOutfitSpeedMultiplier = 1.0f;
 
@@ -1926,7 +1935,7 @@ protected:
 protected:
 	uint8 bNuttySpectaclesIsOn : 1{false};
 
-	float NuttySpectaclesAccuracyMultiplier = 1.0f;
+	float NuttySpectacles_AccuracyMultiplier = 1.0f;
 
 	// BugHunterUniform
 protected:
@@ -1960,7 +1969,7 @@ public:
 protected:
 	uint8 bSniperFocusOnLongRangeIsOn : 1{false};
 
-	float SniperFocusOnLongRangeAccuracyMultiplier = 1.0f;
+	float SniperFocusOnLongRange_AccuracyMultiplier = 1.0f;
 
 	float SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
 
@@ -1984,9 +1993,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
 	uint8 bBoxerChargedModeIsOn : 1{false};
 
-	float BoxerMachineGunAccuracyMultiplier = 1.0f;
+	float BoxerMachineGun_AccuracyMultiplier = 1.0f;
 
-	float BoxerMachineGunRecoilMultiplier = 1.0f;
+	float BoxerMachineGun_RecoilMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void Boxer_CheckIfMachineGunModeIsOn();
@@ -2013,7 +2022,7 @@ protected:
 
 	float PorcelainCannonSpeedMultiplier = 1.0f;
 
-	float PorcelainCannonRecoilMultiplier = 1.0f;
+	float PorcelainCannon_RecoilMultiplier = 1.0f;
 
 	void PorcelainCannon_UsesMoreStaminaBy_50();
 
@@ -2032,7 +2041,7 @@ protected:
 
 	float CarlOvercoatSpeedMultiplier = 1.0f;
 
-	float CarlOvercoatRecoilMultiplier = 1.0f;
+	float CarlOvercoat_RecoilMultiplier = 1.0f;
 
 	float CarlOvercoatDamagePenalty = 0.0f;
 
@@ -2056,7 +2065,7 @@ protected:
 
 	uint8 bDebsFootballPadsShouldIncreaseStaminaUsing : 1{false};
 
-	float DebsFootballPadsRecoilMultiplier = 1.0f;
+	float DebsFootballPads_RecoilMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float DebsFootballPadsZeroerProjectileRadiusMultiplier = 1.0f;
@@ -2090,7 +2099,7 @@ protected:
 
 	float SimonSweaterSpeedMultiplier = 1.0f;
 
-	float SimonSweaterAccuracyMultiplier = 1.0f;
+	float SimonSweater_AccuracyMultiplier = 1.0f;
 
 	// Effect_29
 protected:
@@ -2124,7 +2133,7 @@ protected:
 
 	float MoonDoggiesEnemyDamageDebuff = 0.0f;
 
-	float MoonDoggiesAccuracyMultiplier = 1.0f;
+	float MoonDoggies_AccuracyMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
 	uint8 bMoonDoggiesShouldGhostsIgnorePlayer : 1{false};
@@ -2139,7 +2148,7 @@ protected:
 protected:
 	uint8 bGarbageIsOn : 1{false};
 
-	float Garbage_StaminaRegenPercentMultiplier = 1.0f;
+	float Garbage_StaminaRateMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float Garbage_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
@@ -2184,13 +2193,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float DesperadoPonchoWeaponSwitchMultiplier = 1.0f;
 
-	float DesperadoPonchoAccuracyMultiplier = 1.0f;
+	float DesperadoPoncho_AccuracyMultiplier = 1.0f;
 
 	float DesperadoPonchoDamageMultiplier = 1.0f;
 
 	int32 DesperadoPonchoMissHitCounter = 0;
 
-	float DesperadoPonchoRecoilMultiplier = 1.0f;
+	float DesperadoPoncho_RecoilMultiplier = 1.0f;
 
 	FTimerHandle DesperadoPonchoMissHitTimerHandle;
 
@@ -2214,9 +2223,9 @@ protected:
 
 	float DeliverySpandexDamagePenaltyMultiplier = 1.0f;
 
-	float DeliverySpandexAccuracyMultiplier = 1.0f;
+	float DeliverySpandex_AccuracyMultiplier = 1.0f;
 
-	float DeliverySpandexRecoilMultiplier = 1.0f;
+	float DeliverySpandex_RecoilMultiplier = 1.0f;
 
 	float DeliverySpandexSpeedMultiplier = 1.0f;
 
@@ -2239,9 +2248,9 @@ protected:
 
 	float WW2UniformSpeedMultiplier = 1.0f;
 
-	float WW2UniformRecoilMultiplier = 1.0f;
+	float WW2Uniform_RecoilMultiplier = 1.0f;
 
-	float WW2UniformAccuracyMultiplier = 1.0f;
+	float WW2Uniform_AccuracyMultiplier = 1.0f;
 
 	FTimerHandle WW2UniformDamageReflectionHandle;
 
@@ -2256,7 +2265,7 @@ protected:
 
 	float GreenhouseOutfitHealthRegenMultiplier = 1.0f;
 
-	float GreenhouseOutfitStaminaRegenMultiplier = 1.0f;
+	float GreenhouseOutfit_StaminaRateMultiplier = 1.0f;
 
 	float GreenhouseOutfitSpeedMultiplier = 1.0f;
 
@@ -2334,13 +2343,13 @@ private:
 	uint8 bTroubleshooterJacketIsShooting : 1{false};
 
 protected:
-	float TroubleshooterJacketStaminaRateMultiplier = 1.0f;
+	float TroubleshooterJacket_StaminaRateMultiplier = 1.0f;
 
-	float TroubleshooterJacketRecoilMultiplier = 1.0f;
+	float TroubleshooterJacket_RecoilMultiplier = 1.0f;
 
 	float TroubleshooterJacketSpeedMultiplier = 1.0f;
 
-	float TroubleshooterJacketAccuracyMultiplier = 1.0f;
+	float TroubleshooterJacket_AccuracyMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float TroubleshooterJacket_InteractWithDamage(float DamageAmount);
@@ -2413,25 +2422,95 @@ protected:
 protected:
 	uint8 bRastaRobeIsOn : 1{false};
 
-	// UndertakerCloak
+	float RastaRobeHealthRateMultiplier = 1.0f;
+
+	FTimerHandle RastaRobeUnderEffectTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void RastaRobe_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float RastaRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	// UndertakersCloak
 protected:
-	uint8 bUndertakerCloakIsOn : 1{false};
+	uint8 bUndertakersCloakIsOn : 1{false};
+
+	uint8 bUndertakersHasUsedRestoreHealth : 1{false};
+
+	float UndertakersCloakChanceToKillEnemyWithin2m = 15.0f;
+
+	FTimerHandle UndertakersCloakHealthRegenTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void UndertakersCloak_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float UndertakersCloak_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// TranquilBlouse
 protected:
 	uint8 bTranquilBlouseIsOn : 1{false};
 
+	float TranquilBlouse_StaminaRateMultiplier = 1.0f;
+
+	float TranquilBlouseSpeedMultiplier = 1.0f;
+
+	void TranquilBlouseSetStaminaRateMultiplier();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float TranquilBlouse_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
 	// AntiGlitchHarness
 protected:
 	uint8 bAntiGlitchHarnessIsOn : 1{false};
+
+	uint8 bAntiGlitchHarnessHasIncreasedStamina : 1{false};
+
+	uint8 bAntiGlitchHarnessHasUsedRollDice : 1{false};
+
+	float AntiGlitchHarnessPlayerDamageMultiplier = 1.0f;
+
+	float AntiGlitchHarnessPlayerEnemyMultiplier = 1.0f;
+
+	UFUNCTION()
+	void AntiGlitchHarness_StaminaOnEnemiesPresence();
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float AntiGlitchHarness_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
 
 	// KnuthsOvercoat
 protected:
 	uint8 bKnuthsOvercoatIsOn : 1{false};
 
+	FGameplayTag KnuthsOvercoatFirstEnemyKilledTag = FGameplayTag::EmptyTag;
+
+	float KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
+
+	int32 KnuthsOvercoatEnemyHitCounter = 0;
+
+	TMap<FGameplayTag, float> KnuthsOvercoatDamageByOrder;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void KnuthsOvercoat_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float KnuthsOvercoat_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
 	// VcarSweatShirt
 protected:
 	uint8 bVcarSweatShirtIsOn : 1{false};
+
+	uint8 bVcarSweatShirtShouldDecreaseStaminaUsing : 1{false};
+
+	float VcarSweatShirt_StaminaRateMultiplier = 1.0f;
+
+	float VcarSweatShirt_RecoilMultiplier = 1.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float VcarSweatShirt_InteractWithDamage(AController* DamageInstigator, float DamageAmount);
+
+	void VcarSweatShirt_UsesLessStamina();
 
 	// AnandsTurtleneck
 protected:
@@ -2441,6 +2520,25 @@ protected:
 protected:
 	uint8 bGamerGearIsOn : 1{false};
 
+	uint8 bGamerGearHasUsedMinDamageEffect : 1{false};
+
+	float GamerGear_AccuracyMultiplier = 1.0f;
+
+	float GamerGear_RecoilMultiplier = 1.0f;
+
+	float GamerGear_NextShotDamageAdition = 0.0f;
+
+	float GamerGear_MinDamageForLast30c = INT_MAX;
+
+	FTimerHandle GamerGear_MinDamageTimerHandle;
+
+	FTimerHandle GamerGear_UseMinDamageTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void GamerGear_CheckEnemyKills(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float GamerGear_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

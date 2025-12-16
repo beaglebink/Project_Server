@@ -168,6 +168,9 @@ void AAlsCharacter::BeginPlay()
 	//MoonDoggies
 	LevelEnemyManager->OnGhostsTypesNumberChange.AddDynamic(this, &AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange);
 
+	//AntiGlitchHarness
+	LevelEnemyManager->OnEnemyTypeAddedRemoved.AddDynamic(this, &AAlsCharacter::AntiGlitchHarness_StaminaOnEnemiesPresence);
+
 	if (GetLocalRole() >= ROLE_AutonomousProxy)
 	{
 		// Teleportation of simulated proxies is detected differently, see
@@ -367,6 +370,8 @@ void AAlsCharacter::Tick(const float DeltaTime)
 	DeliverySpandex_AccuracyRecoilStaminaOnMovingHandle();
 
 	GreenhouseOutfitCheckToIncreaseHealthRegen();
+
+	TranquilBlouseSetStaminaRateMultiplier();
 
 	// Debugging information.
 	//if (this != UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -2168,7 +2173,7 @@ void AAlsCharacter::HealthRecovery()
 	if (!EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 	{
 		float HealthRecoveryRate = GetWorld()->GetDeltaSeconds() * 0.25f * HealthRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * HealthRecoveryRateValue_12 * GreenhouseOutfitHealthRegenMultiplier
-			* HeartShapedSweaterHealthRegenMultiplier * ChefsApronHealthRateRegenMultiplier;
+			* HeartShapedSweaterHealthRegenMultiplier * ChefsApronHealthRateRegenMultiplier * RastaRobeHealthRateMultiplier;
 
 		if (GetHealth() <= 33.0f)
 		{
@@ -2195,8 +2200,8 @@ void AAlsCharacter::HealthRecovery()
 
 void AAlsCharacter::StaminaRecovery()
 {
-	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRegenPercentMultiplier
-		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfitStaminaRegenMultiplier * TroubleshooterJacketStaminaRateMultiplier;
+	float StaminaRate = StaminaRegenerationRate * StaminaRecoveryRate_50 * StaminaHealthStandingMultiplier * StaminaHealthRunningMultiplier * StaminaRegenerationRateValue_11 * Garbage_StaminaRateMultiplier
+		* PDEnergizerBattery_StaminaRateMultiplier * GreenhouseOutfit_StaminaRateMultiplier * TroubleshooterJacket_StaminaRateMultiplier * TranquilBlouse_StaminaRateMultiplier * VcarSweatShirt_StaminaRateMultiplier;
 	SetStamina(GetStamina() + StaminaRate);
 
 	// Debug Stamina regeneration rate
@@ -2208,9 +2213,10 @@ void AAlsCharacter::StaminaRecovery()
 
 void AAlsCharacter::RefreshRecoil()
 {
-	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoatRecoilMultiplier * MagneticVestRecoilMultiplier * SheriffOutfitRecoilMultiplier
-		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGunRecoilMultiplier * PorcelainCannonRecoilMultiplier
-		* CarlOvercoatRecoilMultiplier * DebsFootballPadsRecoilMultiplier * DesperadoPonchoRecoilMultiplier * DeliverySpandexRecoilMultiplier * WW2UniformRecoilMultiplier * TroubleshooterJacketRecoilMultiplier;
+	RecoilMultiplier = RecoilMultiplier_1 * RecoilMultiplierValue_11 * RecoilMultiplierOnRapidFire * AlphabetCoat_RecoilMultiplier * MagneticVest_RecoilMultiplier * SheriffOutfit_RecoilMultiplier
+		* SniperFocusOnLongRangeRecoilOnChargingShotMultiplier * SniperFocusOnLongRangeRecoilOnMovingMultiplier * BoxerMachineGun_RecoilMultiplier * PorcelainCannon_RecoilMultiplier
+		* CarlOvercoat_RecoilMultiplier * DebsFootballPads_RecoilMultiplier * DesperadoPoncho_RecoilMultiplier * DeliverySpandex_RecoilMultiplier * WW2Uniform_RecoilMultiplier * TroubleshooterJacket_RecoilMultiplier
+		* VcarSweatShirt_RecoilMultiplier * GamerGear_RecoilMultiplier;
 
 	//Recoil multiplier debug
 	//if (this == UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -2248,7 +2254,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
 		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
 		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier * CableRepairOutfitSpeedMultiplier * NetworkSpecialistSpeedMultiplier * TroubleshooterJacketSpeedMultiplier
-		* MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier;
+		* MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier * TranquilBlouseSpeedMultiplier;
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
@@ -2315,6 +2321,7 @@ void AAlsCharacter::StunEffect(float Time)
 	StunDelegate.BindLambda([this]()
 		{
 			bIsStunned = false;
+			bIsKnockedDown = false;
 			StopRagdolling();
 		});
 
@@ -2584,6 +2591,7 @@ void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceR
 
 	if (UKismetMathLibrary::Vector_Distance(InstigatorLocation, GetActorLocation()) <= InfluenceRadius)
 	{
+		bIsKnockedDown = true;
 		float Force = GetMesh()->IsSimulatingPhysics("pelvis") ? 200.0f : 5000.0f;
 		StartRagdolling();
 		GetMesh()->AddRadialImpulse(InstigatorLocation, InfluenceRadius, Force, ERadialImpulseFalloff::RIF_Constant, true);
@@ -2668,6 +2676,12 @@ void AAlsCharacter::ShockEffect()
 
 void AAlsCharacter::SetSlowedEffect(float SlowdownValue)
 {
+	bIsSlowed = false;
+	if (SlowdownValue < 1.0f)
+	{
+		bIsSlowed = true;
+	}
+
 	if (ShouldIgnoreEnemyAbilityEffect() || bShouldIgnoreSlowEffect)
 	{
 		Slowdown_01Range = 1.0f;
@@ -3157,9 +3171,9 @@ void AAlsCharacter::RefreshAimAccuracy()
 		}
 	}
 
-	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoatAccuracyMultiplier * ByteVestAccuracyMultiplier * CalculatorGogglesAccuracyMultiplier * MagneticVestAccuracyMultiplier
-		* SheriffOutfitAccuracyMultiplier * NuttySpectaclesAccuracyMultiplier * SniperFocusOnLongRangeAccuracyMultiplier * BoxerMachineGunAccuracyMultiplier * SimonSweaterAccuracyMultiplier * MoonDoggiesAccuracyMultiplier
-		* DesperadoPonchoAccuracyMultiplier * DeliverySpandexAccuracyMultiplier * WW2UniformAccuracyMultiplier * TroubleshooterJacketAccuracyMultiplier;
+	AimAccuracyMultiplier = AimAccuracyOnMove * AimAccuracyOnStrafing * AimAccuracyOnWalking * AimAccuracy_50 * AlphabetCoat_AccuracyMultiplier * ByteVest_AccuracyMultiplier * CalculatorGoggles_AccuracyMultiplier * MagneticVest_AccuracyMultiplier
+		* SheriffOutfit_AccuracyMultiplier * NuttySpectacles_AccuracyMultiplier * SniperFocusOnLongRange_AccuracyMultiplier * BoxerMachineGun_AccuracyMultiplier * SimonSweater_AccuracyMultiplier * MoonDoggies_AccuracyMultiplier
+		* DesperadoPoncho_AccuracyMultiplier * DeliverySpandex_AccuracyMultiplier * WW2Uniform_AccuracyMultiplier * TroubleshooterJacket_AccuracyMultiplier * GamerGear_AccuracyMultiplier;
 }
 
 void AAlsCharacter::RefreshDamage()
@@ -3528,8 +3542,8 @@ float AAlsCharacter::AlphabetCoat_IncreaseDamageBy_20(AController* DamageInstiga
 
 void AAlsCharacter::AlphabetCoat_CheckAccuracyAndRecoil_25()
 {
-	AlphabetCoatAccuracyMultiplier = 1.0f;
-	AlphabetCoatRecoilMultiplier = 1.0f;
+	AlphabetCoat_AccuracyMultiplier = 1.0f;
+	AlphabetCoat_RecoilMultiplier = 1.0f;
 
 	if (bAlphabetCoatIsOn &&
 		(LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Hex) > 0 ||
@@ -3537,8 +3551,8 @@ void AAlsCharacter::AlphabetCoat_CheckAccuracyAndRecoil_25()
 			LevelEnemyManager->GetEnemyCount(EnemyTags::Ghost::Ink) > 0 ||
 			LevelEnemyManager->GetEnemyCount(FGameplayTag::RequestGameplayTag(FName("Enemy.Fish"))) > 0))
 	{
-		AlphabetCoatAccuracyMultiplier = 0.75f;
-		AlphabetCoatRecoilMultiplier = 0.75f;
+		AlphabetCoat_AccuracyMultiplier = 0.75f;
+		AlphabetCoat_RecoilMultiplier = 0.75f;
 	}
 }
 
@@ -4317,14 +4331,14 @@ void AAlsCharacter::BounceHouseSuit_IncreaseJumpHigh_40()
 // SheriffOutfit
 void AAlsCharacter::SheriffOutfit_CheckAccuracyAndRecoilFromStamina_50()
 {
-	SheriffOutfitRecoilMultiplier = 1.0f;
-	SheriffOutfitAccuracyMultiplier = 1.0f;
+	SheriffOutfit_RecoilMultiplier = 1.0f;
+	SheriffOutfit_AccuracyMultiplier = 1.0f;
 	if (bSheriffOutfitIsOn && GetWeaponName() == "Code rifle")
 	{
 		if (GetStamina() / GetMaxStamina() < 0.5f)
 		{
-			SheriffOutfitAccuracyMultiplier = 0.8f;
-			SheriffOutfitRecoilMultiplier = 0.8f;
+			SheriffOutfit_AccuracyMultiplier = 0.8f;
+			SheriffOutfit_RecoilMultiplier = 0.8f;
 		}
 	}
 }
@@ -4579,13 +4593,13 @@ float AAlsCharacter::SniperFocusOnLongRange_InteractWithDamage(AController* Dama
 // Boxer
 void AAlsCharacter::Boxer_CheckIfMachineGunModeIsOn()
 {
-	BoxerMachineGunAccuracyMultiplier = 1.0f;
-	BoxerMachineGunRecoilMultiplier = 1.0f;
+	BoxerMachineGun_AccuracyMultiplier = 1.0f;
+	BoxerMachineGun_RecoilMultiplier = 1.0f;
 
 	if (bBoxerIsOn && bBoxerMachineGunModeIsOn)
 	{
-		BoxerMachineGunAccuracyMultiplier = 0.85f;
-		BoxerMachineGunRecoilMultiplier = 0.8f;
+		BoxerMachineGun_AccuracyMultiplier = 0.85f;
+		BoxerMachineGun_RecoilMultiplier = 0.8f;
 	}
 }
 
@@ -4714,10 +4728,10 @@ float AAlsCharacter::CarlOvercoat_InteractWithDamage(AController* DamageInstigat
 void AAlsCharacter::DebsFootballPads_CheckIfShotgunModeIsOn()
 {
 	// Recoil multiplier
-	DebsFootballPadsRecoilMultiplier = 1.0f;
+	DebsFootballPads_RecoilMultiplier = 1.0f;
 	if (bDebsFootballPadsIsOn && !bDebsFootballPadsShotgunModeIsOn)
 	{
-		DebsFootballPadsRecoilMultiplier = 1.2f;
+		DebsFootballPads_RecoilMultiplier = 1.2f;
 	}
 
 	// Max energy capacity change
@@ -4956,7 +4970,7 @@ float AAlsCharacter::MoonDoggies_InteractWithDamage(AController* DamageInstigato
 void AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(int32 GhostsTypesNum)
 {
 	SetMaxStamina(GetMaxStamina() / (1.0f + 0.15f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn2GhostTypes) + 0.2f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn3GhostTypes)));
-	MoonDoggiesAccuracyMultiplier = 1.0f;
+	MoonDoggies_AccuracyMultiplier = 1.0f;
 	bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = false;
 	bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = false;
 
@@ -4966,13 +4980,13 @@ void AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange(int32 G
 		{
 			bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = true;
 			bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = false;
-			MoonDoggiesAccuracyMultiplier = 0.85f;
+			MoonDoggies_AccuracyMultiplier = 0.85f;
 		}
 		else if (GhostsTypesNum >= 3)
 		{
 			bMoonDoggiesStaminaAndAccuracyOn2GhostTypes = false;
 			bMoonDoggiesStaminaAndAccuracyOn3GhostTypes = true;
-			MoonDoggiesAccuracyMultiplier = 0.8f;
+			MoonDoggies_AccuracyMultiplier = 0.8f;
 		}
 		SetMaxStamina(GetMaxStamina() * (1 + 0.15f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn2GhostTypes) + 0.2f * static_cast<int32>(bMoonDoggiesStaminaAndAccuracyOn3GhostTypes)));
 	}
@@ -5017,7 +5031,7 @@ void AAlsCharacter::Garbage_IncreaseStaminaRegenPercentForEnemyKilled(AControlle
 		{
 			if (Player->bGarbageIsOn && DamageAmount >= GetHealth())
 			{
-				Player->Garbage_StaminaRegenPercentMultiplier = FMath::Clamp(Player->Garbage_StaminaRegenPercentMultiplier + 0.025f, 0.0f, 1.5f);
+				Player->Garbage_StaminaRateMultiplier = FMath::Clamp(Player->Garbage_StaminaRateMultiplier + 0.025f, 0.0f, 1.5f);
 			}
 		}
 	}
@@ -5126,11 +5140,11 @@ void AAlsCharacter::DesperadoPoncho_MissHitHandle(AActor* HitActor)
 		if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
 		{
 			DesperadoPonchoMissHitCounter = 0;
-			DesperadoPonchoAccuracyMultiplier = FMath::Clamp(DesperadoPonchoAccuracyMultiplier - 0.005f, 0.0f, 1.0f);
+			DesperadoPoncho_AccuracyMultiplier = FMath::Clamp(DesperadoPoncho_AccuracyMultiplier - 0.005f, 0.0f, 1.0f);
 			DesperadoPonchoDamageMultiplier += 0.005f;
 			GetWorldTimerManager().SetTimer(DesperadoPonchoMissHitTimerHandle, [this]()
 				{
-					DesperadoPonchoAccuracyMultiplier = 0.9f;
+					DesperadoPoncho_AccuracyMultiplier = 0.9f;
 					DesperadoPonchoDamageMultiplier = 1.0f;
 				}, 15.0f, false);
 
@@ -5142,7 +5156,7 @@ void AAlsCharacter::DesperadoPoncho_MissHitHandle(AActor* HitActor)
 	if (DesperadoPonchoMissHitCounter >= 2)
 	{
 		DesperadoPonchoMissHitCounter = 0;
-		DesperadoPonchoAccuracyMultiplier = 0.9f;
+		DesperadoPoncho_AccuracyMultiplier = 0.9f;
 		DesperadoPonchoDamageMultiplier = 1.0f;
 		GetWorldTimerManager().ClearTimer(DesperadoPonchoMissHitTimerHandle);
 	}
@@ -5199,13 +5213,13 @@ void AAlsCharacter::DeliverySpandex_AccuracyRecoilStaminaOnMovingHandle()
 		return;
 	}
 
-	DeliverySpandexAccuracyMultiplier = 1.0f;
-	DeliverySpandexRecoilMultiplier = 1.0f;
+	DeliverySpandex_AccuracyMultiplier = 1.0f;
+	DeliverySpandex_RecoilMultiplier = 1.0f;
 
 	if (!GetVelocity().IsNearlyZero())
 	{
-		DeliverySpandexAccuracyMultiplier = 0.845f;
-		DeliverySpandexRecoilMultiplier = 0.845f;
+		DeliverySpandex_AccuracyMultiplier = 0.845f;
+		DeliverySpandex_RecoilMultiplier = 0.845f;
 	}
 }
 
@@ -5265,8 +5279,8 @@ float AAlsCharacter::WW2Uniform_InteractWithDamage(AController* DamageInstigator
 
 		WW2UniformDamageMultiplier = FMath::Clamp(WW2UniformDamageMultiplier + 0.005f, 0.0f, 1.4f);
 		WW2UniformSpeedMultiplier = FMath::Clamp(WW2UniformSpeedMultiplier + 0.005f, 0.0f, 1.2f);
-		WW2UniformRecoilMultiplier = FMath::Clamp(WW2UniformRecoilMultiplier + 0.005f, 0.0f, 1.4f);
-		WW2UniformAccuracyMultiplier = FMath::Clamp(WW2UniformAccuracyMultiplier + 0.005f, 0.0f, 1.4f);
+		WW2Uniform_RecoilMultiplier = FMath::Clamp(WW2Uniform_RecoilMultiplier + 0.005f, 0.0f, 1.4f);
+		WW2Uniform_AccuracyMultiplier = FMath::Clamp(WW2Uniform_AccuracyMultiplier + 0.005f, 0.0f, 1.4f);
 		DamageAmount *= 0.815;
 	}
 
@@ -5286,7 +5300,7 @@ void AAlsCharacter::WW2Uniform_Under20HealthHandle()
 		SprintStaminaDrainRate *= 0.000001f;
 		JumpStaminaCost *= 0.000001f;
 		RollStaminaCost *= 0.000001f;
-		WW2UniformRecoilMultiplier *= 0.6f;
+		WW2Uniform_RecoilMultiplier *= 0.6f;
 	}
 	else if ((GetHealth() >= 20.0f || !bWW2UniformIsOn) && bWW2UniformShouldDecreaseStaminaUsing)
 	{
@@ -5294,7 +5308,7 @@ void AAlsCharacter::WW2Uniform_Under20HealthHandle()
 		SprintStaminaDrainRate /= 0.000001f;
 		JumpStaminaCost /= 0.000001f;
 		RollStaminaCost /= 0.000001f;
-		WW2UniformRecoilMultiplier /= 0.6f;
+		WW2Uniform_RecoilMultiplier /= 0.6f;
 	}
 }
 
@@ -5632,7 +5646,7 @@ float AAlsCharacter::TroubleshooterJacket_InteractWithDamage(float DamageAmount)
 void AAlsCharacter::SetTroubleshooterJacketIsShooting(bool IsShooting)
 {
 	bTroubleshooterJacketIsShooting = IsShooting;
-	TroubleshooterJacketStaminaRateMultiplier = 1.0f + 0.3f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
+	TroubleshooterJacket_StaminaRateMultiplier = 1.0f + 0.3f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
 	TroubleshooterJacketSpeedMultiplier = 1.0f + 0.15f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
 }
 
@@ -5802,4 +5816,404 @@ void AAlsCharacter::MiddleAgedCyborgSamuraiTortoiseShell_UsesMoreStamina()
 		JumpStaminaCost /= 1.5f;
 		RollStaminaCost /= 3.0f;
 	}
+}
+
+// RastaRobe
+void AAlsCharacter::RastaRobe_CheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bRastaRobeIsOn)
+		{
+			if (GetHealth() <= DamageAmount)
+			{
+				Player->RastaRobeHealthRateMultiplier += 0.02f;
+			}
+		}
+	}
+}
+
+float AAlsCharacter::RastaRobe_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bRastaRobeIsOn && GetWorldTimerManager().IsTimerActive(Player->RastaRobeUnderEffectTimerHandle))
+		{
+			if (Player->bIsDiscombobulated || Player->bIsKnockedDown || Player->bIsStunned || Player->bIsSlowed /*|| Player->bIsVisuallyDistorted SHOULD BE ADDED*/)
+			{
+				if (DamageType.ToString() != "Melee")
+				{
+					DamageAmount *= 1.5f;
+				}
+			}
+		}
+	}
+
+	if (bRastaRobeIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Tumor")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.GreenFlesh")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.Gooey")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.CreepyCute")))
+			{
+				DamageAmount *= 0.7f;
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+// UndertakersCloak
+void AAlsCharacter::UndertakersCloak_CheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bUndertakersCloakIsOn)
+		{
+			if (GetHealth() <= DamageAmount)
+			{
+				// Enemy within 2m dies on chance
+				if (FMath::FRandRange(0.0f, 100.0f) < UndertakersCloakChanceToKillEnemyWithin2m)
+				{
+					const float DeathRadius = 200.0f;
+
+					TArray<FOverlapResult> Overlaps;
+					FCollisionQueryParams Params;
+					Params.AddIgnoredActor(Player);
+					Params.AddIgnoredActor(this);
+
+					GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(DeathRadius), Params);
+
+					for (const FOverlapResult& Result : Overlaps)
+					{
+						if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(Result.GetActor()))
+						{
+							if (!Enemy->CheckIfDead() && Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy")))
+							{
+								Player->SetHealth(Player->GetHealth() + 2.0f);
+								UGameplayStatics::ApplyDamage(Enemy, Enemy->GetHealth() * 2.0f, GetController(), this, nullptr);
+								break;
+							}
+						}
+					}
+				}
+				UndertakersCloakChanceToKillEnemyWithin2m += 0.005f;
+
+				// Stamina + 
+				Player->SetStamina(Player->GetStamina() + 1.5f);
+
+				// Health +
+				if (!Player->bUndertakersHasUsedRestoreHealth)
+				{
+					Player->bUndertakersHasUsedRestoreHealth = true;
+					GetWorldTimerManager().SetTimer(Player->UndertakersCloakHealthRegenTimerHandle, 30.0f, false);
+				}
+				if (GetWorldTimerManager().IsTimerActive(Player->UndertakersCloakHealthRegenTimerHandle))
+				{
+					Player->SetHealth(Player->GetHealth() + 2.0f);
+				}
+			}
+		}
+	}
+}
+
+float AAlsCharacter::UndertakersCloak_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bUndertakersCloakIsOn)
+		{
+			DamageAmount *= 1.075f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+// TranquilBlouse
+void AAlsCharacter::TranquilBlouseSetStaminaRateMultiplier()
+{
+	TranquilBlouse_StaminaRateMultiplier = 1.0f;
+	if (bTranquilBlouseIsOn && GetVelocity().IsNearlyZero())
+	{
+		TranquilBlouse_StaminaRateMultiplier = 1.2f;
+	}
+}
+
+float AAlsCharacter::TranquilBlouse_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bTranquilBlouseIsOn)
+	{
+		//No accuracy penalty when being meleed or hit by projectile
+	}
+
+	return DamageAmount;
+}
+
+// AntiGlitchHarness
+void AAlsCharacter::AntiGlitchHarness_StaminaOnEnemiesPresence()
+{
+	if (bAntiGlitchHarnessIsOn)
+	{
+		if (LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Guy::LittleElectric) ||
+			LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Gremlin::Green) ||
+			LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Teeth::Side) ||
+			LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Furry::Claw) ||
+			LevelEnemyManager->EnemyTypeCounts.Contains(EnemyTags::Ghost::FurryBlue))
+		{
+			if (!bAntiGlitchHarnessHasIncreasedStamina)
+			{
+				bAntiGlitchHarnessHasIncreasedStamina = true;
+				SetMaxStamina(GetMaxStamina() * 1.4f);
+			}
+			return;
+		}
+	}
+
+	if (bAntiGlitchHarnessHasIncreasedStamina)
+	{
+		bAntiGlitchHarnessHasIncreasedStamina = false;
+		SetMaxStamina(GetMaxStamina() / 1.4f);
+	}
+}
+
+float AAlsCharacter::AntiGlitchHarness_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bAntiGlitchHarnessIsOn)
+	{
+		DamageAmount *= AntiGlitchHarnessPlayerEnemyMultiplier;
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Guy.LittleElectric")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Gremlin.Green")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Teeth.Side")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Furry.Claw")) ||
+				Enemy->EnemyTag.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost.FurryBlue")))
+			{
+				DamageAmount *= 0.8f;
+			}
+		}
+	}
+	else if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bAntiGlitchHarnessIsOn)
+		{
+			DamageAmount *= Player->AntiGlitchHarnessPlayerDamageMultiplier;
+		}
+	}
+
+	return DamageAmount;
+}
+
+// KnuthsOvercoat
+void AAlsCharacter::KnuthsOvercoat_CheckEnemyKills(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bKnuthsOvercoatIsOn)
+		{
+			if (GetHealth() <= DamageAmount)
+			{
+				if (Player->KnuthsOvercoatFirstEnemyKilledTag != EnemyTag)
+				{
+					Player->KnuthsOvercoatFirstEnemyKilledTag = EnemyTag;
+					Player->KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
+					Player->KnuthsOvercoatEnemyHitCounter = 0;
+				}
+				else
+				{
+					Player->KnuthsOvercoatSameEnemyTypeDamageMultiplier = FMath::Clamp(Player->KnuthsOvercoatSameEnemyTypeDamageMultiplier + 0.055f, 0.0f, 2.0f);
+				}
+			}
+		}
+	}
+}
+
+float AAlsCharacter::KnuthsOvercoat_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bKnuthsOvercoatIsOn)
+	{
+		if (AAlsCharacter* Enemy = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Enemy->EnemyTag != KnuthsOvercoatFirstEnemyKilledTag)
+			{
+				++KnuthsOvercoatEnemyHitCounter;
+				if (KnuthsOvercoatEnemyHitCounter >= 3)
+				{
+					KnuthsOvercoatEnemyHitCounter = 0;
+					KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
+				}
+			}
+
+			if (!KnuthsOvercoatDamageByOrder.Contains(Enemy->EnemyTag))
+			{
+				if (KnuthsOvercoatDamageByOrder.IsEmpty())
+				{
+					KnuthsOvercoatDamageByOrder.FindOrAdd(Enemy->EnemyTag) = 1.0f;
+				}
+				else
+				{
+					KnuthsOvercoatDamageByOrder.FindOrAdd(Enemy->EnemyTag) = 1.0f + (KnuthsOvercoatDamageByOrder.Num() + 1) * 0.075f;
+				}
+			}
+			DamageAmount *= *KnuthsOvercoatDamageByOrder.Find(Enemy->EnemyTag);
+		}
+	}
+	else
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->KnuthsOvercoatFirstEnemyKilledTag == EnemyTag)
+			{
+				DamageAmount *= Player->KnuthsOvercoatSameEnemyTypeDamageMultiplier;
+			}
+		}
+	}
+
+	return DamageAmount;
+}
+
+// VcarSweatShirt
+float AAlsCharacter::VcarSweatShirt_InteractWithDamage(AController* DamageInstigator, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bVcarSweatShirtIsOn)
+	{
+		DamageAmount *= 0.875f;
+	}
+	else if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bVcarSweatShirtIsOn)
+		{
+			DamageAmount *= 1.075f;
+		}
+	}
+
+	return DamageAmount;
+}
+
+void AAlsCharacter::VcarSweatShirt_UsesLessStamina()
+{
+	if (bVcarSweatShirtIsOn && !bVcarSweatShirtShouldDecreaseStaminaUsing)
+	{
+		bVcarSweatShirtShouldDecreaseStaminaUsing = true;
+		SprintStaminaDrainRate *= 0.82f;
+	}
+	else if (!bVcarSweatShirtIsOn && bVcarSweatShirtShouldDecreaseStaminaUsing)
+	{
+		bVcarSweatShirtShouldDecreaseStaminaUsing = false;
+		SprintStaminaDrainRate /= 0.82f;
+	}
+}
+
+// GamerGear
+void AAlsCharacter::GamerGear_CheckEnemyKills(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return;
+	}
+
+	if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+	{
+		if (Player->bGamerGearIsOn && DamageType.ToString() != "Melee")
+		{
+			Player->GamerGear_NextShotDamageAdition = DamageAmount - GetHealth();
+			if (Player->GamerGear_NextShotDamageAdition < 0.0f)
+			{
+				Player->GamerGear_NextShotDamageAdition = 0.0f;
+			}
+		}
+	}
+}
+
+float AAlsCharacter::GamerGear_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount)
+{
+	if (!DamageInstigator)
+	{
+		return DamageAmount;
+	}
+
+	if (bGamerGearIsOn)
+	{
+		if (!bGamerGearHasUsedMinDamageEffect && !GetWorldTimerManager().IsTimerActive(GamerGear_MinDamageTimerHandle))
+		{
+			bGamerGearHasUsedMinDamageEffect = true;
+			GetWorldTimerManager().SetTimer(GamerGear_MinDamageTimerHandle, [this]()
+				{
+					GetWorldTimerManager().SetTimer(GamerGear_UseMinDamageTimerHandle, [this]()
+						{
+							GamerGear_MinDamageForLast30c = INT_MAX;
+						}, 120.0f, false);
+				}, 30.0f, false);
+		}
+		if (GetWorldTimerManager().IsTimerActive(GamerGear_MinDamageTimerHandle))
+		{
+			GamerGear_MinDamageForLast30c = FMath::Min(GamerGear_MinDamageForLast30c, DamageAmount);
+		}
+
+		if (GetWorldTimerManager().IsTimerActive(GamerGear_UseMinDamageTimerHandle))
+		{
+			DamageAmount = GamerGear_MinDamageForLast30c;
+		}
+	}
+	else
+	{
+		if (AAlsCharacter* Player = Cast<AAlsCharacter>(DamageInstigator->GetPawn()))
+		{
+			if (Player->bGamerGearIsOn && DamageType.ToString() != "Melee")
+			{
+				DamageAmount += Player->GamerGear_NextShotDamageAdition;
+			}
+		}
+	}
+
+	return DamageAmount;
 }

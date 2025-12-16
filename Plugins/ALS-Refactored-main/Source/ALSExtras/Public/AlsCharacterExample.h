@@ -419,7 +419,7 @@ private:
 	void ChefsApron_Effect(bool Apply = false);
 	void MiddleAgedCyborgSamuraiTortoiseShell_Effect(bool Apply = false);
 	void RastaRobe_Effect(bool Apply = false);
-	void UndertakerCloak_Effect(bool Apply = false);
+	void UndertakersCloak_Effect(bool Apply = false);
 	void TranquilBlouse_Effect(bool Apply = false);
 	void AntiGlitchHarness_Effect(bool Apply = false);
 	void KnuthsOvercoat_Effect(bool Apply = false);

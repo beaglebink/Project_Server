@@ -19,6 +19,7 @@ void AA_EnemyManager::Tick(float DeltaTime)
 void AA_EnemyManager::RegisterEnemy(FGameplayTag EnemyType)
 {
 	++EnemyTypeCounts.FindOrAdd(EnemyType);
+	OnEnemyTypeAddedRemoved.Broadcast();
 
 	//  MoonDoggies effect
 	if (EnemyType.MatchesTag(FGameplayTag::RequestGameplayTag("Enemy.Ghost")))
@@ -36,6 +37,7 @@ void AA_EnemyManager::UnregisterEnemy(AActor* Enemy, FGameplayTag EnemyType)
 		if (*CountPtr <= 0)
 		{
 			EnemyTypeCounts.Remove(EnemyType);
+			OnEnemyTypeAddedRemoved.Broadcast();
 		}
 	}
 	//  BugZapperCoat effect
