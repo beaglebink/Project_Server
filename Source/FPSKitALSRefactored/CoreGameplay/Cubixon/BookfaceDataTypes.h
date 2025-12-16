@@ -14,6 +14,13 @@ enum class EPrivacyVisibility : uint8
     VisibleToEveryone UMETA(DisplayName = "Visible to everyone")
 };
 
+UENUM(BlueprintType)
+enum class ENotifyType : uint8
+{
+    MessageActivityNotify   UMETA(DisplayName = "Message activity"),
+    MessageLikeNotify       UMETA(DisplayName = "Message like"),
+};
+
 // 🔹 Сериализуемая структура сообщения
 USTRUCT(BlueprintType)
 struct FBookfaceMessageData
@@ -56,6 +63,12 @@ struct FBookfaceMessageNoticeStructure
 
     // 🔹 Сериализуемые поля
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    ENotifyType MessageType;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString LikeUserId;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString ProfileID;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
@@ -82,8 +95,11 @@ struct FBookfaceMessageNoticeStructure
         return ProfileID == Other.ProfileID &&
             MessageId == Other.MessageId &&
             RootMessageId == Other.RootMessageId &&
-            ParentMessageId == Other.ParentMessageId;
+            ParentMessageId == Other.ParentMessageId &&
+            MessageType == Other.MessageType &&
+            LikeUserId == Other.LikeUserId;
     }
+
 };
 // 🔹 Заявка в друзья
 USTRUCT(BlueprintType)

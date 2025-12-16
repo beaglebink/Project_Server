@@ -303,11 +303,28 @@ void UBookfaceSubsystem::NoticeSubscribeProfile(const FString& ProfileID,  UBook
     */
 
     FBookfaceMessageNoticeStructure NewNotice;
+	NewNotice.MessageType = ENotifyType::MessageActivityNotify;
     NewNotice.ProfileID = ProfileID;
     NewNotice.RootMessage = FindRootMessage(Message);
 	NewNotice.ParentMessage = Message->ParentMessage;
     NewNotice.Message = Message;
 
+    OnMessageNotice.Broadcast(NewNotice);
+}
+
+void UBookfaceSubsystem::NoticeLikeMessage(const FString& ProfileID, const FString& LikerUserID, UBookfaceMessageObject* Message)
+{
+    if(ProfileID.IsEmpty() || LikerUserID.IsEmpty() || !Message)
+    {
+        return;
+    }
+    FBookfaceMessageNoticeStructure NewNotice;
+    NewNotice.MessageType = ENotifyType::MessageLikeNotify;
+	NewNotice.LikeUserId = LikerUserID;
+    NewNotice.ProfileID = ProfileID;
+    NewNotice.RootMessage = FindRootMessage(Message);
+    NewNotice.ParentMessage = Message->ParentMessage;
+    NewNotice.Message = Message;
     OnMessageNotice.Broadcast(NewNotice);
 }
 
@@ -379,7 +396,15 @@ void UBookfaceSubsystem::StoreMessageNotice(const FString& ProfileID, const FBoo
         {
             FixedNotice.ParentMessageId = FixedNotice.ParentMessage->MessageId;
         }
-
+        /*
+        if (Profile->MessageNotices.Contains(FixedNotice) && Notice.MessageType == ENotifyType::MessageLikeNotify)
+        {
+            Profile->MessageNotices.RemoveAll([&](const FBookfaceMessageNoticeStructure& ExistingNotice)
+                {
+                    return ExistingNotice == FixedNotice;
+				});
+        }
+        */
         Profile->MessageNotices.AddUnique(FixedNotice);
     }
 }

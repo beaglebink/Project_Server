@@ -103,6 +103,9 @@ public:
 	void NoticeSubscribeProfile(const FString& ProfileID, UBookfaceMessageObject* ParentMessage, UBookfaceMessageObject* Message);
 
     UFUNCTION(BlueprintCallable)
+    void NoticeLikeMessage(const FString& ProfileID, const FString& LikerUserID, UBookfaceMessageObject* Message);
+
+    UFUNCTION(BlueprintCallable)
     void StoreMessageNotice(const FString& ProfileId, const FBookfaceMessageNoticeStructure& Notice);
 
     UFUNCTION(BlueprintCallable)
