@@ -1623,7 +1623,7 @@ protected:
 protected:
 	uint8 bAlphabetCoatIsOn : 1{false};
 
-	float AlphabetCoatAccuracyMultiplier = 1.0f;
+	float AlphabetCoat_AccuracyMultiplier = 1.0f;
 
 	float AlphabetCoat_RecoilMultiplier = 1.0f;
 
@@ -1640,7 +1640,7 @@ protected:
 protected:
 	uint8 bByteVestIsOn : 1{false};
 
-	float ByteVestAccuracyMultiplier = 1.0f;
+	float ByteVest_AccuracyMultiplier = 1.0f;
 
 	float ByteVestPrevDamageAmount = 0.0f;
 
@@ -1688,7 +1688,7 @@ protected:
 
 	FTimerHandle ImmuneToIntegerAndUnicodeEffectsTimerHandle;
 
-	float CalculatorGogglesAccuracyMultiplier = 1.0f;
+	float CalculatorGoggles_AccuracyMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float CalculatorGoggles_DecreaseDamageBy_20(AController* DamageInstigator, float DamageAmount);
@@ -1820,7 +1820,7 @@ public:
 	float MagneticVestSpeedMultiplier = 1.0f;
 
 protected:
-	float MagneticVestAccuracyMultiplier = 1.0f;
+	float MagneticVest_AccuracyMultiplier = 1.0f;
 
 	float MagneticVest_RecoilMultiplier = 1.0f;
 
@@ -1906,7 +1906,7 @@ protected:
 
 	float SheriffOutfit_RecoilMultiplier = 1.0f;
 
-	float SheriffOutfitAccuracyMultiplier = 1.0f;
+	float SheriffOutfit_AccuracyMultiplier = 1.0f;
 
 	float SheriffOutfitSpeedMultiplier = 1.0f;
 
@@ -1935,7 +1935,7 @@ protected:
 protected:
 	uint8 bNuttySpectaclesIsOn : 1{false};
 
-	float NuttySpectaclesAccuracyMultiplier = 1.0f;
+	float NuttySpectacles_AccuracyMultiplier = 1.0f;
 
 	// BugHunterUniform
 protected:
@@ -1969,7 +1969,7 @@ public:
 protected:
 	uint8 bSniperFocusOnLongRangeIsOn : 1{false};
 
-	float SniperFocusOnLongRangeAccuracyMultiplier = 1.0f;
+	float SniperFocusOnLongRange_AccuracyMultiplier = 1.0f;
 
 	float SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
 
@@ -1993,7 +1993,7 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
 	uint8 bBoxerChargedModeIsOn : 1{false};
 
-	float BoxerMachineGunAccuracyMultiplier = 1.0f;
+	float BoxerMachineGun_AccuracyMultiplier = 1.0f;
 
 	float BoxerMachineGun_RecoilMultiplier = 1.0f;
 
@@ -2099,7 +2099,7 @@ protected:
 
 	float SimonSweaterSpeedMultiplier = 1.0f;
 
-	float SimonSweaterAccuracyMultiplier = 1.0f;
+	float SimonSweater_AccuracyMultiplier = 1.0f;
 
 	// Effect_29
 protected:
@@ -2133,7 +2133,7 @@ protected:
 
 	float MoonDoggiesEnemyDamageDebuff = 0.0f;
 
-	float MoonDoggiesAccuracyMultiplier = 1.0f;
+	float MoonDoggies_AccuracyMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "ClothesEffect")
 	uint8 bMoonDoggiesShouldGhostsIgnorePlayer : 1{false};
@@ -2193,7 +2193,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float DesperadoPonchoWeaponSwitchMultiplier = 1.0f;
 
-	float DesperadoPonchoAccuracyMultiplier = 1.0f;
+	float DesperadoPoncho_AccuracyMultiplier = 1.0f;
 
 	float DesperadoPonchoDamageMultiplier = 1.0f;
 
@@ -2223,7 +2223,7 @@ protected:
 
 	float DeliverySpandexDamagePenaltyMultiplier = 1.0f;
 
-	float DeliverySpandexAccuracyMultiplier = 1.0f;
+	float DeliverySpandex_AccuracyMultiplier = 1.0f;
 
 	float DeliverySpandex_RecoilMultiplier = 1.0f;
 
@@ -2250,7 +2250,7 @@ protected:
 
 	float WW2Uniform_RecoilMultiplier = 1.0f;
 
-	float WW2UniformAccuracyMultiplier = 1.0f;
+	float WW2Uniform_AccuracyMultiplier = 1.0f;
 
 	FTimerHandle WW2UniformDamageReflectionHandle;
 
@@ -2349,7 +2349,7 @@ protected:
 
 	float TroubleshooterJacketSpeedMultiplier = 1.0f;
 
-	float TroubleshooterJacketAccuracyMultiplier = 1.0f;
+	float TroubleshooterJacket_AccuracyMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float TroubleshooterJacket_InteractWithDamage(float DamageAmount);
@@ -2520,6 +2520,25 @@ protected:
 protected:
 	uint8 bGamerGearIsOn : 1{false};
 
+	uint8 bGamerGearHasUsedMinDamageEffect : 1{false};
+
+	float GamerGear_AccuracyMultiplier = 1.0f;
+
+	float GamerGear_RecoilMultiplier = 1.0f;
+
+	float GamerGear_NextShotDamageAdition = 0.0f;
+
+	float GamerGear_MinDamageForLast30c = INT_MAX;
+
+	FTimerHandle GamerGear_MinDamageTimerHandle;
+
+	FTimerHandle GamerGear_UseMinDamageTimerHandle;
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	void GamerGear_CheckEnemyKills(AController* DamageInstigator, FText DamageType, float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
+	float GamerGear_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

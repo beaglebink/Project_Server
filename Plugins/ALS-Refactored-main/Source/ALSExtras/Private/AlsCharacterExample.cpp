@@ -1840,10 +1840,10 @@ void AAlsCharacterExample::AlphabetCoat_Effect(bool Apply)
 void AAlsCharacterExample::ByteVest_Effect(bool Apply)
 {
 	bByteVestIsOn = Apply;
-	ByteVestAccuracyMultiplier = 1.0f;
+	ByteVest_AccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		ByteVestAccuracyMultiplier = 0.9f;
+		ByteVest_AccuracyMultiplier = 0.9f;
 	}
 	else
 	{
@@ -1885,10 +1885,10 @@ void AAlsCharacterExample::WasherOveralls_Effect(bool Apply)
 void AAlsCharacterExample::CalculatorGoggles_Effect(bool Apply)
 {
 	bCalculatorGogglesIsOn = Apply;
-	CalculatorGogglesAccuracyMultiplier = 1.0f;
+	CalculatorGoggles_AccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		CalculatorGogglesAccuracyMultiplier = 0.9f;
+		CalculatorGoggles_AccuracyMultiplier = 0.9f;
 
 		bIsImmuneToIntegerAndUnicodeEffects = true;
 		if (!GetWorldTimerManager().IsTimerActive(ImmuneToIntegerAndUnicodeEffectsTimerHandle))
@@ -2030,11 +2030,11 @@ void AAlsCharacterExample::NullAndVoidHat_Effect(bool Apply)
 void AAlsCharacterExample::MagneticVest_Effect(bool Apply)
 {
 	bMagneticVestIsOn = Apply;
-	MagneticVestAccuracyMultiplier = 1.0f;
+	MagneticVest_AccuracyMultiplier = 1.0f;
 	MagneticVest_RecoilMultiplier = 1.0f;
 	if (Apply)
 	{
-		MagneticVestAccuracyMultiplier = 1.175f;
+		MagneticVest_AccuracyMultiplier = 1.175f;
 		MagneticVest_RecoilMultiplier = 1.15f;
 		GetWorldTimerManager().SetTimer(MagneticVestEnemySlowerTimerHandle, this, &AAlsCharacterExample::MagneticVest_SlowEnemies, 0.5f, true);
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MagneticVest"));
@@ -2146,10 +2146,10 @@ void AAlsCharacterExample::HoareSweaterVest_Effect(bool Apply)
 void AAlsCharacterExample::NuttySpectacles_Effect(bool Apply)
 {
 	bNuttySpectaclesIsOn = Apply;
-	NuttySpectaclesAccuracyMultiplier = 1.0f;
+	NuttySpectacles_AccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
-		NuttySpectaclesAccuracyMultiplier = 0.85f;
+		NuttySpectacles_AccuracyMultiplier = 0.85f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply NuttySpectacles"));
 	}
 	//else
@@ -2178,13 +2178,13 @@ void AAlsCharacterExample::SniperFocusOnLongRange_Effect(bool Apply)
 	bSniperFocusOnLongRangeIsOn = Apply;
 	SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.0f;
 	SniperFocusOnLongRangeMachineGunDamageMultiplier = 1.0f;
-	SniperFocusOnLongRangeAccuracyMultiplier = 1.0f;
+	SniperFocusOnLongRange_AccuracyMultiplier = 1.0f;
 	SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
 		SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.25f;
 		SniperFocusOnLongRangeMachineGunDamageMultiplier = 0.8f;
-		SniperFocusOnLongRangeAccuracyMultiplier = 0.825f;
+		SniperFocusOnLongRange_AccuracyMultiplier = 0.825f;
 		SniperFocusOnLongRangeSpeedMultiplier = 0.925f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_22"));
 	}
@@ -2286,11 +2286,11 @@ void AAlsCharacterExample::SimonSweater_Effect(bool Apply)
 {
 	bSimonSweaterIsOn = Apply;
 	SimonSweaterSpeedMultiplier = 1.0f;
-	SimonSweaterAccuracyMultiplier = 1.0f;
+	SimonSweater_AccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
 		SimonSweaterSpeedMultiplier = 1.05f;
-		SimonSweaterAccuracyMultiplier = 0.875f;
+		SimonSweater_AccuracyMultiplier = 0.875f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply SimonSweater"));
 	}
 	//else
@@ -2394,7 +2394,7 @@ void AAlsCharacterExample::DesperadoPoncho_Effect(bool Apply)
 	bDesperadoPonchoIsOn = Apply;
 	DesperadoPonchoWeaponSpeedMultiplier = 1.0f;
 	DesperadoPonchoWeaponSwitchMultiplier = 1.0f;
-	DesperadoPonchoAccuracyMultiplier = 1.0f;
+	DesperadoPoncho_AccuracyMultiplier = 1.0f;
 	DesperadoPonchoDamageMultiplier = 1.0f;
 	DesperadoPonchoReloadMultiplier = 1.0f;
 	DesperadoPoncho_RecoilMultiplier = 1.0f;
@@ -2402,7 +2402,7 @@ void AAlsCharacterExample::DesperadoPoncho_Effect(bool Apply)
 	{
 		DesperadoPonchoWeaponSpeedMultiplier = 1.1f;
 		DesperadoPonchoWeaponSwitchMultiplier = 1.3f;
-		DesperadoPonchoAccuracyMultiplier = 0.9f;
+		DesperadoPoncho_AccuracyMultiplier = 0.9f;
 		DesperadoPonchoReloadMultiplier = 1.4f;
 		DesperadoPoncho_RecoilMultiplier = 0.9f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply DesperadoPoncho"));
@@ -2418,7 +2418,7 @@ void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 {
 	bDeliverySpandexIsOn = Apply;
 	DeliverySpandexDamagePenaltyMultiplier = 1.0f;
-	DeliverySpandexAccuracyMultiplier = 1.0f;
+	DeliverySpandex_AccuracyMultiplier = 1.0f;
 	DeliverySpandex_RecoilMultiplier = 1.0f;
 	DeliverySpandexSpeedMultiplier = 1.0f;
 	DeliverySpandex_SprintUsesLessStaminaBy_20();
@@ -2440,7 +2440,7 @@ void AAlsCharacterExample::WW2Uniform_Effect(bool Apply)
 	WW2UniformDamageMultiplier = 1.0f;
 	WW2UniformSpeedMultiplier = 1.0f;
 	WW2Uniform_RecoilMultiplier = 1.0f;
-	WW2UniformAccuracyMultiplier = 1.0f;
+	WW2Uniform_AccuracyMultiplier = 1.0f;
 	WW2Uniform_Under20HealthHandle();
 	//if (Apply)
 	//{
@@ -2548,11 +2548,11 @@ void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
 	bTroubleshooterJacketIsOn = Apply;
 	SetTroubleshooterJacketIsShooting(false);
 	TroubleshooterJacket_RecoilMultiplier = 1.0f;
-	TroubleshooterJacketAccuracyMultiplier = 1.0f;
+	TroubleshooterJacket_AccuracyMultiplier = 1.0f;
 	if (Apply)
 	{
 		TroubleshooterJacket_RecoilMultiplier = 0.85f;
-		TroubleshooterJacketAccuracyMultiplier = 0.75f;
+		TroubleshooterJacket_AccuracyMultiplier = 0.75f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TroubleshooterJacket"));
 	}
 	//else
@@ -2742,12 +2742,20 @@ void AAlsCharacterExample::AnandsTurtleneck_Effect(bool Apply)
 void AAlsCharacterExample::GamerGear_Effect(bool Apply)
 {
 	bGamerGearIsOn = Apply;
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GamerGear"));
-	//}
-	//else
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GamerGear"));
-	//}
+	GamerGear_AccuracyMultiplier = 1.0f;
+	GamerGear_RecoilMultiplier = 1.0f;
+	GamerGear_NextShotDamageAdition = 0.0f;
+	GamerGear_MinDamageForLast30c = INT_MAX;
+	if (Apply)
+	{
+		GamerGear_AccuracyMultiplier = 0.85f;
+		GamerGear_RecoilMultiplier = 0.85f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GamerGear"));
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(GamerGear_MinDamageTimerHandle);
+		GetWorldTimerManager().ClearTimer(GamerGear_UseMinDamageTimerHandle);
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GamerGear"));
+	}
 }
