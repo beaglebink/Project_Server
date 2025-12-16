@@ -6086,6 +6086,19 @@ float AAlsCharacter::KnuthsOvercoat_InteractWithDamage(AController* DamageInstig
 					KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
 				}
 			}
+
+			if (!KnuthsOvercoatDamageByOrder.Contains(Enemy->EnemyTag))
+			{
+				if (KnuthsOvercoatDamageByOrder.IsEmpty())
+				{
+					KnuthsOvercoatDamageByOrder.FindOrAdd(Enemy->EnemyTag) = 1.0f;
+				}
+				else
+				{
+					KnuthsOvercoatDamageByOrder.FindOrAdd(Enemy->EnemyTag) = 1.0f + (KnuthsOvercoatDamageByOrder.Num() + 1) * 0.075f;
+				}
+			}
+			DamageAmount *= *KnuthsOvercoatDamageByOrder.Find(Enemy->EnemyTag);
 		}
 	}
 	else

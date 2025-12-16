@@ -2489,6 +2489,8 @@ protected:
 
 	int32 KnuthsOvercoatEnemyHitCounter = 0;
 
+	TMap<FGameplayTag, float> KnuthsOvercoatDamageByOrder;
+
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	void KnuthsOvercoat_CheckEnemyKills(AController* DamageInstigator, float DamageAmount);
 

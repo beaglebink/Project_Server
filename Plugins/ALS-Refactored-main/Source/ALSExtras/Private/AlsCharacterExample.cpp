@@ -2697,6 +2697,7 @@ void AAlsCharacterExample::KnuthsOvercoat_Effect(bool Apply)
 	bKnuthsOvercoatIsOn = Apply;
 	KnuthsOvercoatSameEnemyTypeDamageMultiplier = 1.0f;
 	KnuthsOvercoatFirstEnemyKilledTag = FGameplayTag::EmptyTag;
+	KnuthsOvercoatDamageByOrder.Empty();
 	//if (Apply)
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply KnuthsOvercoat"));
