@@ -223,7 +223,7 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
     const FString& ToUserId,
     const FText& MessageText,
     UBookfaceMessageObject* ParentMessage,
-    bool /*IsTopLevel*/)
+    const EPrivacyVisibility& Privacy)
 {
     FBookfaceProfileStructure* TargetProfile = UserProfiles.FindByPredicate(
         [&](const FBookfaceProfileStructure& Profile) { return Profile.UserId == ToUserId; });
@@ -238,6 +238,7 @@ UBookfaceMessageObject* UBookfaceSubsystem::AddMessageToProfile(
     NewMessage->MessageId = FGuid::NewGuid().ToString();
     NewMessage->FromUserId = FromUserId;
     NewMessage->ToUserId = ToUserId;
+	NewMessage->PrivacyVisibility = Privacy;
     NewMessage->MessageContent = MessageText;
     NewMessage->Timestamp = FDateTime::UtcNow();
     NewMessage->ParentMessage = ParentMessage;
@@ -518,6 +519,7 @@ void UBookfaceSubsystem::SaveBookfaceMessagesAsync()
                 Data.MessageId = Msg->MessageId;
                 Data.FromUserId = Msg->FromUserId;
                 Data.ToUserId = Msg->ToUserId;
+				Data.PrivacyVisibility = Msg->PrivacyVisibility;
                 Data.MessageContent = Msg->MessageContent;
                 Data.Timestamp = Msg->Timestamp;
                 Data.LikesUserIds = Msg->LikesUserIds;
@@ -727,6 +729,7 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
                         Msg->MessageId = Data.MessageId;
                         Msg->FromUserId = Data.FromUserId;
                         Msg->ToUserId = Data.ToUserId;
+						Msg->PrivacyVisibility = Data.PrivacyVisibility;
                         Msg->MessageContent = Data.MessageContent;
                         Msg->Timestamp = Data.Timestamp;
                         Msg->LikesUserIds = Data.LikesUserIds;
