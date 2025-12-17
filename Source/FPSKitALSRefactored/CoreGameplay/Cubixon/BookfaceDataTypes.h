@@ -37,6 +37,9 @@ struct FBookfaceMessageData
     FString ToUserId;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    EPrivacyVisibility PrivacyVisibility;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FText MessageContent;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)

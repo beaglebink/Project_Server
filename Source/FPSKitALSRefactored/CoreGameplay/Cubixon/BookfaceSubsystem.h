@@ -94,7 +94,7 @@ public:
         const FString& ToUserId,
         const FText& MessageText,
         UBookfaceMessageObject* ParentMessage = nullptr,
-        bool IsTopLevel = false);
+        const EPrivacyVisibility& Privacy = EPrivacyVisibility::VisibleToEveryone);
 
     UFUNCTION(BlueprintCallable)
     bool RemoveMessageFromProfile(UBookfaceMessageObject* MessageToRemove);
