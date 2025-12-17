@@ -2307,7 +2307,9 @@ void AAlsCharacter::CalculateFallDistanceToCountStunAndDamage()
 
 void AAlsCharacter::StunEffect(float Time)
 {
-	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_25 * PorcupineCoat_EffectsChanceMultiplier_25 * MasterMinMooMooSlippers_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier;
+	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_25 * PorcupineCoat_EffectsChanceMultiplier_25 * MasterMinMooMooSlippers_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier
+		* DeliverySpandex_EffectsChanceMultiplier_30 * TroubleshooterJacket_EffectsChanceMultiplier * MiddleAgedCyborgSamuraiTortoiseShell_EffectsChanceMultiplier * TranquilBlouse_EffectsChanceMultiplier
+		* VcarSweatShirt_NegatesStunAndKnockdown;
 	if (FMath::FRandRange(0.0f, 100.0f) >= ChanceForEffect)
 	{
 		return;
@@ -2318,7 +2320,7 @@ void AAlsCharacter::StunEffect(float Time)
 		return;
 	}
 
-	float StunTimeLocal = Time;
+	float StunTimeLocal = Time * DeliverySpandex_EffectsDurationMultiplier;
 	if (bIsStunned)
 	{
 		StunTimeLocal += GetWorldTimerManager().GetTimerRemaining(StunTimerHandle);
@@ -2346,7 +2348,7 @@ void AAlsCharacter::StunRecovery()
 	{
 		StunRecoveryMultiplier += GetWorld()->GetDeltaSeconds() / StunRecoveryTime;
 	}
-	StunRecoveryMultiplier = UKismetMathLibrary::FClamp(StunRecoveryMultiplier, 0.1f, 1.0f);
+	StunRecoveryMultiplier = FMath::Clamp(StunRecoveryMultiplier, 0.1f, 1.0f);
 }
 
 void AAlsCharacter::CalculateDamageSlowdownDuration(float NewHealth)
@@ -2574,7 +2576,7 @@ void AAlsCharacter::SetArmLockEffect_Implementation(bool bIsSet, bool bShouldRes
 
 void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPower)
 {
-	float ChanceForEffect = 100.0f * JanitorOveralls_EffectsChanceMultiplier * GladiatorOutfit_EffectsChanceMultiplier_30 * PorcupineCoat_EffectsChanceMultiplier_20;
+	float ChanceForEffect = 100.0f * JanitorOveralls_EffectsChanceMultiplier * GladiatorOutfit_EffectsChanceMultiplier_30 * PorcupineCoat_EffectsChanceMultiplier_20 * MiddleAgedCyborgSamuraiTortoiseShell_EffectsChanceMultiplier;
 	if (FMath::FRandRange(0.0f, 100.0f) >= ChanceForEffect)
 	{
 		return;
@@ -2596,7 +2598,8 @@ void AAlsCharacter::StumbleEffect(FVector InstigatorLocation, float InstigatorPo
 
 void AAlsCharacter::KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius)
 {
-	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_25 * MasterMinMooMooSlippers_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier;
+	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_25 * MasterMinMooMooSlippers_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier * DeliverySpandex_EffectsChanceMultiplier_30
+		* TroubleshooterJacket_EffectsChanceMultiplier * MiddleAgedCyborgSamuraiTortoiseShell_NegatesKnockdown * TranquilBlouse_EffectsChanceMultiplier * VcarSweatShirt_NegatesStunAndKnockdown;
 	if (FMath::FRandRange(0.0f, 100.0f) >= ChanceForEffect)
 	{
 		return;
@@ -2706,7 +2709,8 @@ void AAlsCharacter::ShockEffect()
 
 void AAlsCharacter::SetSlowedEffect(float SlowdownValue)
 {
-	float ChanceForEffect = 100.0f * MasterMinMooMooSlippers_EffectsChanceMultiplier * BounceHouseSuit_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier * AdminPolo_EffectsChanceMultiplier;
+	float ChanceForEffect = 100.0f * MasterMinMooMooSlippers_EffectsChanceMultiplier * BounceHouseSuit_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier * AdminPolo_EffectsChanceMultiplier
+		* DeliverySpandex_EffectsChanceMultiplier_40 * VcarSweatShirt_EffectsChanceMultiplier;
 
 	bIsSlowed = false;
 	SlowdownEffectSpeedMultiplier = 1.0f;
@@ -2723,7 +2727,8 @@ void AAlsCharacter::SetSlowedEffect(float SlowdownValue)
 
 void AAlsCharacter::SetDiscombobulateEffect(bool IsSet)
 {
-	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_30 * MasterMinMooMooSlippers_EffectsChanceMultiplier * BounceHouseSuit_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier;
+	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_30 * MasterMinMooMooSlippers_EffectsChanceMultiplier * BounceHouseSuit_EffectsChanceMultiplier * SniperFocusOnLongRange_EffectsChanceMultiplier
+		* TranquilBlouse_EffectsChanceMultiplier;
 
 	bIsDiscombobulated = false;
 
@@ -2762,7 +2767,7 @@ void AAlsCharacter::DiscombobulateEffect()
 
 void AAlsCharacter::SetBlindEffect(bool IsSet)
 {
-	float ChanceForEffect = 1.0f * AdminPolo_EffectsChanceMultiplier;
+	float ChanceForEffect = 1.0f * AdminPolo_EffectsChanceMultiplier * TroubleshooterJacket_EffectsChanceMultiplier;
 
 	if (FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect && IsSet && !bShouldIgnoreBlindnessEffect && !ShouldIgnoreEnemyAbilityEffect())
 	{
@@ -2867,7 +2872,7 @@ float AAlsCharacter::GetStaticGrenadeEffect() const
 void AAlsCharacter::SetGrappleEffect(bool bIsSet)
 {
 	float ChanceForEffect = 100.0f * GladiatorOutfit_EffectsChanceMultiplier_25 * PorcupineCoat_EffectsChanceMultiplier_40 * BugZapperCoat_EffectsChanceMultiplier * MasterMinMooMooSlippers_EffectsChanceMultiplier
-		* SniperFocusOnLongRange_EffectsChanceMultiplier;
+		* SniperFocusOnLongRange_EffectsChanceMultiplier * AntiGlitchHarness_EffectsChanceMultiplier;
 
 	if (bIsSet && FMath::FRandRange(0.0f, 100.0f) < ChanceForEffect && !ShouldIgnoreEnemyAbilityEffect())
 	{
@@ -5705,6 +5710,7 @@ void AAlsCharacter::SetTroubleshooterJacketIsShooting(bool IsShooting)
 	bTroubleshooterJacketIsShooting = IsShooting;
 	TroubleshooterJacket_StaminaRateMultiplier = 1.0f + 0.3f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
 	TroubleshooterJacketSpeedMultiplier = 1.0f + 0.15f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
+	TroubleshooterJacket_EffectsChanceMultiplier = 1.0f - 0.3f * static_cast<int32>(bTroubleshooterJacketIsOn) * static_cast<int32>(bTroubleshooterJacketIsShooting);
 }
 
 bool AAlsCharacter::GetTroubleshooterJacketIsShooting()

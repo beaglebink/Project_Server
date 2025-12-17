@@ -2257,6 +2257,12 @@ protected:
 
 	float DeliverySpandexDamagePenaltyMultiplier = 1.0f;
 
+	float DeliverySpandex_EffectsChanceMultiplier_40 = 1.0f;
+
+	float DeliverySpandex_EffectsChanceMultiplier_30 = 1.0f;
+
+	float DeliverySpandex_EffectsDurationMultiplier = 1.0f;
+
 	float DeliverySpandex_AccuracyMultiplier = 1.0f;
 
 	float DeliverySpandex_RecoilMultiplier = 1.0f;
@@ -2383,6 +2389,8 @@ protected:
 
 	float TroubleshooterJacketSpeedMultiplier = 1.0f;
 
+	float TroubleshooterJacket_EffectsChanceMultiplier = 1.0f;
+
 	float TroubleshooterJacket_AccuracyMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
@@ -2445,6 +2453,10 @@ protected:
 
 	uint8 bMiddleAgedCyborgSamuraiTortoiseShellShouldIncreaseStaminaUsing : 1{false};
 
+	float MiddleAgedCyborgSamuraiTortoiseShell_NegatesKnockdown = 1.0f;
+
+	float MiddleAgedCyborgSamuraiTortoiseShell_EffectsChanceMultiplier = 1.0f;
+
 	float MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
@@ -2486,6 +2498,8 @@ protected:
 protected:
 	uint8 bTranquilBlouseIsOn : 1{false};
 
+	float TranquilBlouse_EffectsChanceMultiplier = 1.0f;
+
 	float TranquilBlouse_StaminaRateMultiplier = 1.0f;
 
 	float TranquilBlouseSpeedMultiplier = 1.0f;
@@ -2502,6 +2516,8 @@ protected:
 	uint8 bAntiGlitchHarnessHasIncreasedStamina : 1{false};
 
 	uint8 bAntiGlitchHarnessHasUsedRollDice : 1{false};
+
+	float AntiGlitchHarness_EffectsChanceMultiplier = 1.0f;
 
 	float AntiGlitchHarnessPlayerDamageMultiplier = 1.0f;
 
@@ -2536,6 +2552,10 @@ protected:
 	uint8 bVcarSweatShirtIsOn : 1{false};
 
 	uint8 bVcarSweatShirtShouldDecreaseStaminaUsing : 1{false};
+
+	float VcarSweatShirt_NegatesStunAndKnockdown = 1.0f;
+
+	float VcarSweatShirt_EffectsChanceMultiplier = 1.0f;
 
 	float VcarSweatShirt_StaminaRateMultiplier = 1.0f;
 

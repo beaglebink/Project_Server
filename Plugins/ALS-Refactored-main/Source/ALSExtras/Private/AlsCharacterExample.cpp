@@ -2440,6 +2440,9 @@ void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 {
 	bDeliverySpandexIsOn = Apply;
 	DeliverySpandexDamagePenaltyMultiplier = 1.0f;
+	DeliverySpandex_EffectsChanceMultiplier_40 = 1.0f;
+	DeliverySpandex_EffectsChanceMultiplier_30 = 1.0f;
+	DeliverySpandex_EffectsDurationMultiplier = 1.0f;
 	DeliverySpandex_AccuracyMultiplier = 1.0f;
 	DeliverySpandex_RecoilMultiplier = 1.0f;
 	DeliverySpandexSpeedMultiplier = 1.0f;
@@ -2447,6 +2450,9 @@ void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 	if (Apply)
 	{
 		DeliverySpandexDamagePenaltyMultiplier = 0.0f;
+		DeliverySpandex_EffectsChanceMultiplier_40 = 0.6f;
+		DeliverySpandex_EffectsChanceMultiplier_30 = 0.7f;
+		DeliverySpandex_EffectsDurationMultiplier = 1.5f;
 		DeliverySpandexSpeedMultiplier = 1.1f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_36"));
 	}
@@ -2569,6 +2575,7 @@ void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
 {
 	bTroubleshooterJacketIsOn = Apply;
 	SetTroubleshooterJacketIsShooting(false);
+	TroubleshooterJacket_EffectsChanceMultiplier = 1.0f;
 	TroubleshooterJacket_RecoilMultiplier = 1.0f;
 	TroubleshooterJacket_AccuracyMultiplier = 1.0f;
 	if (Apply)
@@ -2630,10 +2637,14 @@ void AAlsCharacterExample::ChefsApron_Effect(bool Apply)
 void AAlsCharacterExample::MiddleAgedCyborgSamuraiTortoiseShell_Effect(bool Apply)
 {
 	bMiddleAgedCyborgSamuraiTortoiseShellIsOn = Apply;
+	MiddleAgedCyborgSamuraiTortoiseShell_NegatesKnockdown = 1.0f;
+	MiddleAgedCyborgSamuraiTortoiseShell_EffectsChanceMultiplier = 1.0f;
 	MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 1.0f;
 	MiddleAgedCyborgSamuraiTortoiseShell_UsesMoreStamina();
 	if (Apply)
 	{
+		MiddleAgedCyborgSamuraiTortoiseShell_NegatesKnockdown = 0.0f;
+		MiddleAgedCyborgSamuraiTortoiseShell_EffectsChanceMultiplier = 0.4f;
 		MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 0.7f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MiddleAgedCyborgSamuraiTortoiseShell"));
 	}
@@ -2673,10 +2684,12 @@ void AAlsCharacterExample::UndertakersCloak_Effect(bool Apply)
 void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
 {
 	bTranquilBlouseIsOn = Apply;
+	TranquilBlouse_EffectsChanceMultiplier = 1.0f;
 	TranquilBlouse_StaminaRateMultiplier = 1.0f;
 	TranquilBlouseSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
+		TranquilBlouse_EffectsChanceMultiplier = 0.7f;
 		TranquilBlouseSpeedMultiplier = 1.1f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TranquilBlouse"));
 	}
@@ -2689,11 +2702,13 @@ void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
 void AAlsCharacterExample::AntiGlitchHarness_Effect(bool Apply)
 {
 	bAntiGlitchHarnessIsOn = Apply;
+	AntiGlitchHarness_EffectsChanceMultiplier = 1.0f;
 	AntiGlitchHarnessPlayerDamageMultiplier = 1.0f;
 	AntiGlitchHarnessPlayerEnemyMultiplier = 1.0f;
 	AntiGlitchHarness_StaminaOnEnemiesPresence();
 	if (Apply)
 	{
+		AntiGlitchHarness_EffectsChanceMultiplier = 0.5f;
 		if (!bAntiGlitchHarnessHasUsedRollDice)
 		{
 			bAntiGlitchHarnessHasUsedRollDice = true;
@@ -2733,11 +2748,15 @@ void AAlsCharacterExample::KnuthsOvercoat_Effect(bool Apply)
 void AAlsCharacterExample::VcarSweatShirt_Effect(bool Apply)
 {
 	bVcarSweatShirtIsOn = Apply;
+	VcarSweatShirt_NegatesStunAndKnockdown = 1.0f;
+	VcarSweatShirt_EffectsChanceMultiplier = 1.0f;
 	VcarSweatShirt_StaminaRateMultiplier = 1.0f;
 	VcarSweatShirt_RecoilMultiplier = 1.0f;
 	VcarSweatShirt_UsesLessStamina();
 	if (Apply)
 	{
+		VcarSweatShirt_NegatesStunAndKnockdown = 0.0f;
+		VcarSweatShirt_EffectsChanceMultiplier = 0.6f;
 		VcarSweatShirt_StaminaRateMultiplier = 1.2f;
 		VcarSweatShirt_RecoilMultiplier = 0.6f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply VcarSweatShirt"));
