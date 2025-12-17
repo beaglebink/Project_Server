@@ -177,7 +177,7 @@ void AAlsCharacterExample::EndStun()
 	}
 	if (bIsWired)
 	{
-		SetRemoveWireEffect(false, 0.0f);
+		SetWireEffect(false, 0.0f);
 	}
 	if (bIsGrappled)
 	{
@@ -248,7 +248,7 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 
 	ShakeMouseRemoveEffect(Value);
 
-	if (bIsDiscombobulated)
+	if (GetDiscombobulateEffect())
 	{
 		FTimerHandle TimerHandle;
 		GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
@@ -269,7 +269,7 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 				}
 			}, InkTimeDelay, false);
 	}
-	if (!bIsDiscombobulated && !bIsInked)
+	if (!GetDiscombobulateEffect() && !bIsInked)
 	{
 		AddControllerPitchInput(PitchDirection);
 		AddControllerYawInput(YawDirection);
@@ -289,7 +289,7 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 	float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier;
 	float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier;
 
-	if (bIsDiscombobulated)
+	if (GetDiscombobulateEffect())
 	{
 		FTimerHandle TimerHandle;
 		GetWorldTimerManager().SetTimer(TimerHandle, [this, PitchDirection, YawDirection]()
@@ -310,7 +310,7 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 				}
 			}, InkTimeDelay, false);
 	}
-	if (!bIsDiscombobulated && !bIsInked)
+	if (!GetDiscombobulateEffect() && !bIsInked)
 	{
 		AddControllerPitchInput(PitchDirection);
 		AddControllerYawInput(YawDirection);
@@ -332,7 +332,7 @@ void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)
 
 	const auto ForwardDirection{ UAlsMath::AngleToDirectionXY(UE_REAL_TO_FLOAT(GetViewState().Rotation.Yaw)) };
 	const auto RightDirection{ UAlsMath::PerpendicularCounterClockwiseXY(ForwardDirection) };
-	if (bIsDiscombobulated)
+	if (GetDiscombobulateEffect())
 	{
 		FVector Direction = ForwardDirection * Value.Y + RightDirection * Value.X;
 		FTimerHandle TimerHandle;
@@ -385,7 +385,7 @@ void AAlsCharacterExample::Input_OnSprint(const FInputActionValue& ActionValue)
 			}
 		};
 
-	if (bIsDiscombobulated)
+	if (GetDiscombobulateEffect())
 	{
 		FTimerHandle TimerHandleDiscombobulate;
 		GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, StartSprintLambda, DiscombobulateTimeDelay, false);
@@ -445,7 +445,7 @@ void AAlsCharacterExample::Input_OnJump(const FInputActionValue& ActionValue)
 
 	if (GetStamina() > JumpStaminaCost && ActionValue.Get<bool>())
 	{
-		if (bIsDiscombobulated)
+		if (GetDiscombobulateEffect())
 		{
 			FTimerHandle TimerHandleDiscombobulate;
 			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, [this]()
@@ -550,7 +550,7 @@ void AAlsCharacterExample::Input_OnRoll()
 
 	if (GetStamina() > RollStaminaCost)
 	{
-		if (bIsDiscombobulated)
+		if (GetDiscombobulateEffect())
 		{
 			FTimerHandle TimerHandleDiscombobulate;
 			GetWorldTimerManager().SetTimer(TimerHandleDiscombobulate, [this, CurrentPlayRate]()
@@ -1090,7 +1090,7 @@ void AAlsCharacterExample::SetEffect_9(bool Apply)
 	if (Apply)
 	{
 		bShouldIgnoreBlindnessEffect = true;
-		SetRemoveBlindness(false);
+		SetBlindEffect(false);
 
 		GetWorldTimerManager().SetTimer(EffectTimerHandles[9].EffectTimerHandle, EffectTimerHandles[9].EffectDelegate, 900.0f, false);
 	}
@@ -1855,9 +1855,11 @@ void AAlsCharacterExample::JanitorOveralls_Effect(bool Apply)
 {
 	bJanitorOverallsIsOn = Apply;
 	JanitorOverallsSuctionMultiplier = 1.0f;
+	JanitorOveralls_EffectsChanceMultiplier = 1.0f;
 	if (Apply)
 	{
 		JanitorOverallsSuctionMultiplier = 1.2f;
+		JanitorOveralls_EffectsChanceMultiplier = 0.65f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply JanitorOveralls"));
 	}
 	//else
@@ -1911,9 +1913,13 @@ void AAlsCharacterExample::CalculatorGoggles_Effect(bool Apply)
 void AAlsCharacterExample::GladiatorOutfit_Effect(bool Apply)
 {
 	bGladiatorOutfitIsOn = Apply;
+	GladiatorOutfit_EffectsChanceMultiplier_25 = 1.0f;
+	GladiatorOutfit_EffectsChanceMultiplier_30 = 1.0f;
 	GladiatorOutfit_UsesLessStaminaBy_20();
 	if (Apply)
 	{
+		GladiatorOutfit_EffectsChanceMultiplier_25 = 0.75f;
+		GladiatorOutfit_EffectsChanceMultiplier_30 = 0.7f;
 		GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply GladiatorOutfit"));
 	}
 	else
@@ -1928,11 +1934,17 @@ void AAlsCharacterExample::GladiatorOutfit_Effect(bool Apply)
 void AAlsCharacterExample::PorcupineCoat_Effect(bool Apply)
 {
 	bPorcupineCoatIsOn = Apply;
+	PorcupineCoat_EffectsChanceMultiplier_40 = 1.0f;
+	PorcupineCoat_EffectsChanceMultiplier_25 = 1.0f;
+	PorcupineCoat_EffectsChanceMultiplier_20 = 1.0f;
 	PorcupineCoatSpeedMultiplier = 1.0f;
 	bPorcupineCoatNoRoll = false;
 	PorcupineCoat_UsesMoreStaminaJumpBy_300RunBy_200();
 	if (Apply)
 	{
+		PorcupineCoat_EffectsChanceMultiplier_40 = 0.6f;
+		PorcupineCoat_EffectsChanceMultiplier_25 = 0.75f;
+		PorcupineCoat_EffectsChanceMultiplier_20 = 0.8f;
 		PorcupineCoatSpeedMultiplier = 0.7f;
 		bPorcupineCoatNoRoll = true;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply PorcupineCoat"));
@@ -1962,10 +1974,12 @@ void AAlsCharacterExample::ForcefieldCoat_Effect(bool Apply)
 void AAlsCharacterExample::BugZapperCoat_Effect(bool Apply)
 {
 	bBugZapperCoatIsOn = Apply;
+	BugZapperCoat_EffectsChanceMultiplier = 1.0f;
 	BugZapperCoatSpeedMultiplier = 1.0f;
 	BugZapperCoat_UsesMoreStaminaBy_200();
 	if (Apply)
 	{
+		BugZapperCoat_EffectsChanceMultiplier = 0.7f;
 		BugZapperCoatSpeedMultiplier = 0.75f;
 		if (!GetWorldTimerManager().IsTimerActive(BugZapperCoatZapTimerHandle))
 		{
@@ -2071,11 +2085,13 @@ void AAlsCharacterExample::AmmoBeltVest_Effect(bool Apply)
 void AAlsCharacterExample::MasterMinMooMooSlippers_Effect(bool Apply)
 {
 	bMasterMinMooMooSlippersIsOn = Apply;
+	MasterMinMooMooSlippers_EffectsChanceMultiplier = 1.0f;
 	MasterMinMooMooSlippers_UsesLessStaminaBy_25();
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MasterMinMooMooSlippers"));
-	//}
+	if (Apply)
+	{
+		MasterMinMooMooSlippers_EffectsChanceMultiplier = 0.6f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MasterMinMooMooSlippers"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove MasterMinMooMooSlippers"));
@@ -2085,12 +2101,14 @@ void AAlsCharacterExample::MasterMinMooMooSlippers_Effect(bool Apply)
 void AAlsCharacterExample::BounceHouseSuit_Effect(bool Apply)
 {
 	bBounceHouseSuitIsOn = Apply;
+	BounceHouseSuit_EffectsChanceMultiplier = 1.0f;
 	BounceHouseSuit_UsesLessStaminaBy_50();
 	BounceHouseSuit_IncreaseJumpHigh_40();
-	//if (Apply)
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BounceHouseSuit"));
-	//}
+	if (Apply)
+	{
+		BounceHouseSuit_EffectsChanceMultiplier = 0.825f;
+		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply BounceHouseSuit"));
+	}
 	//else
 	//{
 	//	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove BounceHouseSuit"));
@@ -2180,12 +2198,14 @@ void AAlsCharacterExample::SniperFocusOnLongRange_Effect(bool Apply)
 	SniperFocusOnLongRangeMachineGunDamageMultiplier = 1.0f;
 	SniperFocusOnLongRange_AccuracyMultiplier = 1.0f;
 	SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
+	SniperFocusOnLongRange_EffectsChanceMultiplier = 1.0f;
 	if (Apply)
 	{
 		SniperFocusOnLongRangeChargeShotDamageMultiplier = 1.25f;
 		SniperFocusOnLongRangeMachineGunDamageMultiplier = 0.8f;
 		SniperFocusOnLongRange_AccuracyMultiplier = 0.825f;
 		SniperFocusOnLongRangeSpeedMultiplier = 0.925f;
+		SniperFocusOnLongRange_EffectsChanceMultiplier = 1.15f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_22"));
 	}
 	//else
@@ -2211,9 +2231,11 @@ void AAlsCharacterExample::Boxer_Effect(bool Apply)
 void AAlsCharacterExample::AdminPolo_Effect(bool Apply)
 {
 	bAdminPoloIsOn = Apply;
+	AdminPolo_EffectsChanceMultiplier = 1.0f;
 	AdminPoloSuctionMultiplier = 1.0f;
 	if (Apply)
 	{
+		AdminPolo_EffectsChanceMultiplier = 0.775f;
 		AdminPoloSuctionMultiplier = 1.075f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply AdminPolo"));
 	}
@@ -2418,6 +2440,9 @@ void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 {
 	bDeliverySpandexIsOn = Apply;
 	DeliverySpandexDamagePenaltyMultiplier = 1.0f;
+	DeliverySpandex_EffectsChanceMultiplier_40 = 1.0f;
+	DeliverySpandex_EffectsChanceMultiplier_30 = 1.0f;
+	DeliverySpandex_EffectsDurationMultiplier = 1.0f;
 	DeliverySpandex_AccuracyMultiplier = 1.0f;
 	DeliverySpandex_RecoilMultiplier = 1.0f;
 	DeliverySpandexSpeedMultiplier = 1.0f;
@@ -2425,6 +2450,9 @@ void AAlsCharacterExample::DeliverySpandex_Effect(bool Apply)
 	if (Apply)
 	{
 		DeliverySpandexDamagePenaltyMultiplier = 0.0f;
+		DeliverySpandex_EffectsChanceMultiplier_40 = 0.6f;
+		DeliverySpandex_EffectsChanceMultiplier_30 = 0.7f;
+		DeliverySpandex_EffectsDurationMultiplier = 1.5f;
 		DeliverySpandexSpeedMultiplier = 1.1f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply Effect_36"));
 	}
@@ -2547,6 +2575,7 @@ void AAlsCharacterExample::TroubleshooterJacket_Effect(bool Apply)
 {
 	bTroubleshooterJacketIsOn = Apply;
 	SetTroubleshooterJacketIsShooting(false);
+	TroubleshooterJacket_EffectsChanceMultiplier = 1.0f;
 	TroubleshooterJacket_RecoilMultiplier = 1.0f;
 	TroubleshooterJacket_AccuracyMultiplier = 1.0f;
 	if (Apply)
@@ -2608,10 +2637,14 @@ void AAlsCharacterExample::ChefsApron_Effect(bool Apply)
 void AAlsCharacterExample::MiddleAgedCyborgSamuraiTortoiseShell_Effect(bool Apply)
 {
 	bMiddleAgedCyborgSamuraiTortoiseShellIsOn = Apply;
+	MiddleAgedCyborgSamuraiTortoiseShell_NegatesKnockdown = 1.0f;
+	MiddleAgedCyborgSamuraiTortoiseShell_EffectsChanceMultiplier = 1.0f;
 	MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 1.0f;
 	MiddleAgedCyborgSamuraiTortoiseShell_UsesMoreStamina();
 	if (Apply)
 	{
+		MiddleAgedCyborgSamuraiTortoiseShell_NegatesKnockdown = 0.0f;
+		MiddleAgedCyborgSamuraiTortoiseShell_EffectsChanceMultiplier = 0.4f;
 		MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 0.7f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply MiddleAgedCyborgSamuraiTortoiseShell"));
 	}
@@ -2651,10 +2684,12 @@ void AAlsCharacterExample::UndertakersCloak_Effect(bool Apply)
 void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
 {
 	bTranquilBlouseIsOn = Apply;
+	TranquilBlouse_EffectsChanceMultiplier = 1.0f;
 	TranquilBlouse_StaminaRateMultiplier = 1.0f;
 	TranquilBlouseSpeedMultiplier = 1.0f;
 	if (Apply)
 	{
+		TranquilBlouse_EffectsChanceMultiplier = 0.7f;
 		TranquilBlouseSpeedMultiplier = 1.1f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply TranquilBlouse"));
 	}
@@ -2667,11 +2702,13 @@ void AAlsCharacterExample::TranquilBlouse_Effect(bool Apply)
 void AAlsCharacterExample::AntiGlitchHarness_Effect(bool Apply)
 {
 	bAntiGlitchHarnessIsOn = Apply;
+	AntiGlitchHarness_EffectsChanceMultiplier = 1.0f;
 	AntiGlitchHarnessPlayerDamageMultiplier = 1.0f;
 	AntiGlitchHarnessPlayerEnemyMultiplier = 1.0f;
 	AntiGlitchHarness_StaminaOnEnemiesPresence();
 	if (Apply)
 	{
+		AntiGlitchHarness_EffectsChanceMultiplier = 0.5f;
 		if (!bAntiGlitchHarnessHasUsedRollDice)
 		{
 			bAntiGlitchHarnessHasUsedRollDice = true;
@@ -2711,11 +2748,15 @@ void AAlsCharacterExample::KnuthsOvercoat_Effect(bool Apply)
 void AAlsCharacterExample::VcarSweatShirt_Effect(bool Apply)
 {
 	bVcarSweatShirtIsOn = Apply;
+	VcarSweatShirt_NegatesStunAndKnockdown = 1.0f;
+	VcarSweatShirt_EffectsChanceMultiplier = 1.0f;
 	VcarSweatShirt_StaminaRateMultiplier = 1.0f;
 	VcarSweatShirt_RecoilMultiplier = 1.0f;
 	VcarSweatShirt_UsesLessStamina();
 	if (Apply)
 	{
+		VcarSweatShirt_NegatesStunAndKnockdown = 0.0f;
+		VcarSweatShirt_EffectsChanceMultiplier = 0.6f;
 		VcarSweatShirt_StaminaRateMultiplier = 1.2f;
 		VcarSweatShirt_RecoilMultiplier = 0.6f;
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("Apply VcarSweatShirt"));

@@ -1055,12 +1055,15 @@ public:
 	void KnockdownEffect(FVector InstigatorLocation, float InfluenceRadius);
 
 	//Shock effect
-public:
-	UPROPERTY(BlueprintReadWrite, Category = "ShockEffect")
+private:
 	uint8 bIsShocked : 1{false};
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|ShockEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float ShockEffectPower_01Range = 0.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "ShockEffect")
+	void SetShockEffect(bool IsSet);
 
 private:
 	FTimerHandle LaunchTimerHandle;
@@ -1080,7 +1083,7 @@ private:
 
 	//Slowed effect
 protected:
-	float Slowdown_01Range = 1.0f;
+	float SlowdownEffectSpeedMultiplier = 1.0f;
 
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "SlowedEffect")
@@ -1089,13 +1092,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SlowedEffect")
 	void SetSlowedEffect(float SlowdownValue);
 
+
 	//Discombobulate effect
-public:
-	UPROPERTY(BlueprintReadWrite, Category = "DiscombobulateEffect")
+private:
 	uint8 bIsDiscombobulated : 1{false};
 
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings|Als Character|Effects|DiscombobulateEffect", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float DiscombobulateEffectPower_01Range = 0.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "DiscombobulateEffect")
+	void SetDiscombobulateEffect(bool IsSet);
+
+	bool GetDiscombobulateEffect();
 
 protected:
 	float DiscombobulateTimeDelay = 0.0001f;
@@ -1106,6 +1115,7 @@ private:
 
 	float TargetDiscombobulateCameraPitchOffset = 0.0f;
 	float TargetDiscombobulateCameraYawOffset = 0.0f;
+
 
 	void DiscombobulateEffect();
 
@@ -1120,8 +1130,8 @@ private:
 	FTimerHandle BlindnessEffectTimerHandle;
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "BlindnessEffect")
-	void SetRemoveBlindness(bool IsSet);
+	UFUNCTION(BlueprintCallable, Category = "BlindEffect")
+	void SetBlindEffect(bool IsSet);
 
 	//reversed input
 protected:
@@ -1134,7 +1144,7 @@ public:
 	//wire effect
 public:
 	UFUNCTION(BlueprintCallable, Category = "WireEffect")
-	void SetRemoveWireEffect(bool bIsSet, UPARAM(meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0")) float EffectPower = 0.0f);
+	void SetWireEffect(bool bIsSet, UPARAM(meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0")) float EffectPower = 0.0f);
 
 protected:
 	uint8 bIsWired : 1{false};
@@ -1167,11 +1177,12 @@ public:
 	//grappling effect
 protected:
 	uint8 bIsGrappled : 1{false};
+	uint8 Counter = 0;
 	float GrappleEffectSpeedMultiplier = 1.0f;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "WireEffect")
-	void SetRemoveGrappleEffect(bool bIsSet);
+	void SetGrappleEffect(bool bIsSet);
 
 protected:
 	void PressTwoKeysRemoveGrappleEffect(bool bIsHold);
@@ -1222,7 +1233,7 @@ private:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Ink effect")
-	void SetRemoveInkEffect(bool bIsSet, UPARAM(meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0")) float EffectPower = 0.0f);
+	void SetInkEffect(bool bIsSet, UPARAM(meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0")) float EffectPower = 0.0f);
 
 private:
 	void CalculateInkEffect();
@@ -1652,6 +1663,8 @@ public:
 	uint8 bJanitorOverallsIsOn : 1{false};
 
 protected:
+	float JanitorOveralls_EffectsChanceMultiplier = 1.0f;
+
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
 	float JanitorOverallsSuctionMultiplier = 1.0f;
 
@@ -1701,6 +1714,10 @@ protected:
 
 	float GladiatorOutfitSpeedMultiplier = 1.0f;
 
+	float GladiatorOutfit_EffectsChanceMultiplier_25 = 1.0f;
+
+	float GladiatorOutfit_EffectsChanceMultiplier_30 = 1.0f;
+
 	FTimerHandle GladiatorOutfitSpeedTimerHandle;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
@@ -1721,6 +1738,12 @@ protected:
 	uint8 bPorcupineCoatNoRoll : 1{false};
 
 	uint8 bPorcupineCoatShouldIncreaseStaminaUsing : 1{false};
+
+	float PorcupineCoat_EffectsChanceMultiplier_40 = 1.0f;
+
+	float PorcupineCoat_EffectsChanceMultiplier_25 = 1.0f;
+
+	float PorcupineCoat_EffectsChanceMultiplier_20 = 1.0f;
 
 	float PorcupineCoatSpeedMultiplier = 1.0f;
 
@@ -1751,6 +1774,8 @@ protected:
 	uint8 bBugZapperCoatIsOn : 1{false};
 
 	uint8 bBugZapperCoatShouldIncreaseStaminaUsing : 1{false};
+
+	float BugZapperCoat_EffectsChanceMultiplier = 1.0f;
 
 	float BugZapperCoatSpeedMultiplier = 1.0f;
 
@@ -1867,6 +1892,8 @@ protected:
 
 	uint8 bMasterMinMooMooShouldDecreaseStaminaUsing : 1{false};
 
+	float MasterMinMooMooSlippers_EffectsChanceMultiplier = 1.0f;
+
 	float MasterMinMooMooSlippersSpeedMultiplier = 1.0f;
 
 	float MasterMinMooMooSlippersStrafeSpeedMultiplier = 1.0f;
@@ -1885,6 +1912,8 @@ protected:
 	uint8 bBounceHouseSuitShouldDecreaseStaminaUsing : 1{false};
 
 	uint8 bBounceHouseSuitShouldIncreaseJumpHigh : 1{false};
+
+	float BounceHouseSuit_EffectsChanceMultiplier = 1.0f;
 
 	void BounceHouseSuit_UsesLessStaminaBy_50();
 
@@ -1973,6 +2002,8 @@ protected:
 
 	float SniperFocusOnLongRangeSpeedMultiplier = 1.0f;
 
+	float SniperFocusOnLongRange_EffectsChanceMultiplier = 1.0f;
+
 	float SniperFocusOnLongRangeRecoilOnChargingShotMultiplier = 1.0f;
 
 	float SniperFocusOnLongRangeRecoilOnMovingMultiplier = 1.0f;
@@ -2006,6 +2037,9 @@ protected:
 	// AdminPolo
 public:
 	uint8 bAdminPoloIsOn : 1{false};
+
+	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
+	float AdminPolo_EffectsChanceMultiplier = 1.0f;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "ClothesEffect")
@@ -2223,6 +2257,12 @@ protected:
 
 	float DeliverySpandexDamagePenaltyMultiplier = 1.0f;
 
+	float DeliverySpandex_EffectsChanceMultiplier_40 = 1.0f;
+
+	float DeliverySpandex_EffectsChanceMultiplier_30 = 1.0f;
+
+	float DeliverySpandex_EffectsDurationMultiplier = 1.0f;
+
 	float DeliverySpandex_AccuracyMultiplier = 1.0f;
 
 	float DeliverySpandex_RecoilMultiplier = 1.0f;
@@ -2349,6 +2389,8 @@ protected:
 
 	float TroubleshooterJacketSpeedMultiplier = 1.0f;
 
+	float TroubleshooterJacket_EffectsChanceMultiplier = 1.0f;
+
 	float TroubleshooterJacket_AccuracyMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
@@ -2411,6 +2453,10 @@ protected:
 
 	uint8 bMiddleAgedCyborgSamuraiTortoiseShellShouldIncreaseStaminaUsing : 1{false};
 
+	float MiddleAgedCyborgSamuraiTortoiseShell_NegatesKnockdown = 1.0f;
+
+	float MiddleAgedCyborgSamuraiTortoiseShell_EffectsChanceMultiplier = 1.0f;
+
 	float MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
@@ -2452,6 +2498,8 @@ protected:
 protected:
 	uint8 bTranquilBlouseIsOn : 1{false};
 
+	float TranquilBlouse_EffectsChanceMultiplier = 1.0f;
+
 	float TranquilBlouse_StaminaRateMultiplier = 1.0f;
 
 	float TranquilBlouseSpeedMultiplier = 1.0f;
@@ -2468,6 +2516,8 @@ protected:
 	uint8 bAntiGlitchHarnessHasIncreasedStamina : 1{false};
 
 	uint8 bAntiGlitchHarnessHasUsedRollDice : 1{false};
+
+	float AntiGlitchHarness_EffectsChanceMultiplier = 1.0f;
 
 	float AntiGlitchHarnessPlayerDamageMultiplier = 1.0f;
 
@@ -2503,6 +2553,10 @@ protected:
 
 	uint8 bVcarSweatShirtShouldDecreaseStaminaUsing : 1{false};
 
+	float VcarSweatShirt_NegatesStunAndKnockdown = 1.0f;
+
+	float VcarSweatShirt_EffectsChanceMultiplier = 1.0f;
+
 	float VcarSweatShirt_StaminaRateMultiplier = 1.0f;
 
 	float VcarSweatShirt_RecoilMultiplier = 1.0f;
@@ -2528,7 +2582,7 @@ protected:
 
 	float GamerGear_NextShotDamageAdition = 0.0f;
 
-	float GamerGear_MinDamageForLast30c = INT_MAX;
+	float GamerGear_MinDamageForLast30c = static_cast<float>(INT_MAX);
 
 	FTimerHandle GamerGear_MinDamageTimerHandle;
 
