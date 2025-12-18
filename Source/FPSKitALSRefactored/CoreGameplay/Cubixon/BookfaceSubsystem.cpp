@@ -433,6 +433,51 @@ void UBookfaceSubsystem::ClearAllMessageNotices(const FString& ProfileId)
 	}
 }
 
+bool UBookfaceSubsystem::IsVisibleMessage(const FString& TimelineHolderUserId, const FString& ViewerUserId, UBookfaceMessageObject* Message) const
+{
+    if (!Message)
+    {
+        return false;
+	}
+
+	if (TimelineHolderUserId == ViewerUserId)
+    {
+        return true;
+	}
+
+	FString MessageOwnerId = Message->FromUserId;
+
+    if (MessageOwnerId == ViewerUserId)
+    {
+		return true;
+    }
+
+    switch (Message->PrivacyVisibility)
+    {
+        case EPrivacyVisibility::VisibleToEveryone:
+            return true;
+        case EPrivacyVisibility::VisibleToFriends:
+        {
+            const FBookfaceProfileStructure* TimelineHolderProfile = UserProfiles.FindByPredicate(
+                [&](const FBookfaceProfileStructure& P) { return P.UserId == TimelineHolderUserId; });
+            if (TimelineHolderProfile && TimelineHolderProfile->FriendsList.Contains(ViewerUserId))
+            {
+                return true;
+            }
+            break;
+        }
+        case EPrivacyVisibility::VisibleToMe:
+        {
+            if (MessageOwnerId == ViewerUserId)
+            {
+                return true;
+            }
+            break;
+        }
+    }
+    return false;
+}
+
 void UBookfaceSubsystem::OnBookfaceAppOpened()
 {
     if (bHasLoadedSave)
