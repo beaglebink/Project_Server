@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "BookfaceDataTypes.h"
 #include "BookfaceMessageObject.generated.h"
 
 UCLASS(BlueprintType)
@@ -22,9 +21,6 @@ public:
     // Получатель (профиль, к которому относится сообщение)
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString ToUserId;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    EPrivacyVisibility PrivacyVisibility;
 
     // Текст сообщения
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
