@@ -113,9 +113,6 @@ public:
 
     UFUNCTION(BlueprintCallable)
 	void ClearAllMessageNotices(const FString& ProfileId);
-
-    UFUNCTION(BlueprintCallable)
-	bool IsVisibleMessage(const FString& TimelineHolderUserId, const FString& ViewerUserId, UBookfaceMessageObject* Message) const;
     
 private:
     UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
