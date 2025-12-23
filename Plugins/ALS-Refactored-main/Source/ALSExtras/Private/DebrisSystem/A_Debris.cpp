@@ -8,11 +8,10 @@ AA_Debris::AA_Debris()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	DebrisMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DebrisMeshComponent"));
 	DebrisFlowFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("DebrisFlowFXComponent"));
 
-	DebrisMeshComponent->SetupAttachment(RootComponent);
+	RootComponent = DebrisMeshComponent;
 	DebrisFlowFXComponent->SetupAttachment(DebrisMeshComponent);
 
 	DebrisFlowFXComponent->SetAutoActivate(false);
