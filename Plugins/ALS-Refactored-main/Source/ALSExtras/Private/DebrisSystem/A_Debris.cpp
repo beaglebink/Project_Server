@@ -27,6 +27,8 @@ void AA_Debris::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//DebrisMeshComponent->SetSimulatePhysics(true);
+
 	if (!IsValid(MeshMaterialInstanceDynamic))
 	{
 		MeshMaterialInstanceDynamic = DebrisMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
