@@ -53,6 +53,16 @@ const TArray<FContactsStructure>& UInstantMessengerSubsystem::GetContacts()
     return Contacts; 
 }
 
+//const TArray<FContactsStructure>& UInstantMessengerSubsystem::GetContacts() 
+//{
+//    Contacts.Sort([](const FContactsStructure& A, const FContactsStructure& B)
+//        {
+//            return A.ContactName.ToString() < B.ContactName.ToString();
+//        });
+//
+//    return Contacts; 
+//}
+
 void UInstantMessengerSubsystem::AddMessage(const FMessageStructure& NewMessage)
 {
     Messages.Add(NewMessage);
