@@ -821,3 +821,81 @@ TArray<FBF_MessageStructure> UBookfaceSubsystem::GetMessagesForUser(const FStrin
     }
 	return UserMessages;
 }
+
+TArray<FBF_MessageStructure> UBookfaceSubsystem::GetMessagesFromUser(const FString& UserId) const
+{
+    TArray<FBF_MessageStructure> UserMessages;
+    for (const auto& Msg : Messages)
+    {
+        if (Msg.FromContact == UserId)
+        {
+            UserMessages.Add(Msg);
+        }
+    }
+    return UserMessages;
+}
+
+void UBookfaceSubsystem::EditMessage(int32 Index, const FBF_MessageStructure& NewData)
+{
+    if (Messages.IsValidIndex(Index))
+    {
+        Messages[Index] = NewData;
+        UE_LOG(LogTemp, Log, TEXT("Message at index %d updated."), Index);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Invalid message index: %d"), Index);
+    }
+}
+
+void UBookfaceSubsystem::SaveMessagesOnly()
+{
+    UBookfaceSaveGame* SaveGameInstance = nullptr;
+
+    // Загружаем существующий слот
+    if (USaveGame* Loaded = UGameplayStatics::LoadGameFromSlot(TEXT("BookfaceSlot"), 0))
+    {
+        SaveGameInstance = Cast<UBookfaceSaveGame>(Loaded);
+    }
+    else
+    {
+        SaveGameInstance = Cast<UBookfaceSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
+    }
+
+    if (SaveGameInstance)
+    {
+        SaveGameInstance->SavedMessages = Messages;
+
+        // Важно: профили и заявки остаются нетронутыми
+        UGameplayStatics::SaveGameToSlot(SaveGameInstance, TEXT("BookfaceSlot"), 0);
+    }
+}
+
+void UBookfaceSubsystem::LoadMessagesOnly()
+{
+    if (USaveGame* Loaded = UGameplayStatics::LoadGameFromSlot(TEXT("BookfaceSlot"), 0))
+    {
+        if (UBookfaceSaveGame* SaveGameInstance = Cast<UBookfaceSaveGame>(Loaded))
+        {
+            Messages = SaveGameInstance->SavedMessages;
+            bHasLoadedSave = true;
+        }
+    }
+}
+
+int32 UBookfaceSubsystem::GetUnreadMessageCountForUser(const FString& FromUserId, const FString& ToUserId) const
+{
+    int32 UnreadCount = 0;
+
+    const TArray<FBF_MessageStructure> UserMessages = GetMessagesForUser(FromUserId);
+    for (const FBF_MessageStructure& Message : UserMessages)
+    {
+        if (!Message.bIsRead && Message.FromContact == FromUserId && Message.ToContact == ToUserId)
+        {
+            ++UnreadCount;
+        }
+    }
+
+    return UnreadCount;
+}

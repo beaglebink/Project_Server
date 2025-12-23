@@ -183,3 +183,26 @@ struct FBookfaceProfileStructure
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     TArray<FBookfaceMessageNoticeStructure> MessageNotices;
 };
+
+USTRUCT(BlueprintType)
+struct FBF_MessageStructure
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString FromContact;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString ToContact;
+
+    //UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    //EBF_DirectType Direct = EBF_DirectType::Incoming;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FText Message;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    bool bIsRead = false;
+
+};

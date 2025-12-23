@@ -15,28 +15,7 @@ enum class EBF_DirectType : uint8
     Outgoing UMETA(DisplayName = "Outgoing")
 };
 */
-USTRUCT(BlueprintType)
-struct FBF_MessageStructure
-{
-    GENERATED_BODY()
 
-public:
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString FromContact;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString ToContact;
-
-    //UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    //EBF_DirectType Direct = EBF_DirectType::Incoming;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FText Message;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    bool bIsRead = false;
-
-};
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, UserId, const FString&, UserFriend);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
@@ -145,7 +124,22 @@ public:
 
     UFUNCTION(BlueprintCallable)
 	TArray<FBF_MessageStructure> GetMessagesForUser(const FString& UserId) const;
-    
+
+    UFUNCTION(BlueprintCallable)
+    TArray<FBF_MessageStructure> GetMessagesFromUser(const FString& UserId) const;
+
+    UFUNCTION(BlueprintCallable)
+    void EditMessage(int32 Index, const FBF_MessageStructure& NewData);
+
+    UFUNCTION(BlueprintCallable)
+    void SaveMessagesOnly();
+
+    UFUNCTION(BlueprintCallable)
+    void LoadMessagesOnly();
+
+    UFUNCTION(BlueprintCallable)
+    int32 GetUnreadMessageCountForUser(const FString& FromUserId, const FString& ToUserId) const;
+
 private:
     UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
 
