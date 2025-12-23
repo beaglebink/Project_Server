@@ -7,15 +7,44 @@
 #include "BookfaceDataTypes.h"
 #include "BookfaceSaveGame.h"
 #include "BookfaceSubsystem.generated.h"
+/*
+UENUM(BlueprintType)
+enum class EBF_DirectType : uint8
+{
+    Incoming UMETA(DisplayName = "Incoming"),
+    Outgoing UMETA(DisplayName = "Outgoing")
+};
+*/
+USTRUCT(BlueprintType)
+struct FBF_MessageStructure
+{
+    GENERATED_BODY()
 
+public:
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString FromContact;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FString ToContact;
+
+    //UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    //EBF_DirectType Direct = EBF_DirectType::Incoming;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    FText Message;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    bool bIsRead = false;
+
+};
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, UserId, const FString&, UserFriend);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAcceptFriendRequest, const FString&, FromUserId, const FString&, ToUserId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBookfaceMessageAdded, UBookfaceMessageObject*, Message);
-//DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBookfaceNoticesLoaded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBookfaceMessageNotice, FBookfaceMessageNoticeStructure, MessageNotice);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBFMessageAdded, const FBF_MessageStructure&, Message);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
@@ -53,13 +82,7 @@ public:
 
     UFUNCTION(BlueprintCallable)
     void UpdateUserProfile(const FBookfaceProfileStructure& UpdatedProfile);
-    /*
-    UFUNCTION(BlueprintCallable)
-    void SaveMessageNoticesAsync();
 
-	UFUNCTION(BlueprintCallable)
-    void LoadMessageNoticesAsync();
-    */
     UFUNCTION(BlueprintCallable)
     bool SetOnlineStatus(const FString& UserId, const bool bOnline);
 
@@ -87,7 +110,6 @@ public:
     UFUNCTION(BlueprintCallable)
     void AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
-    // Работа с сообщениями
     UFUNCTION(BlueprintCallable)
     UBookfaceMessageObject* AddMessageToProfile(
         const FString& FromUserId,
@@ -113,6 +135,16 @@ public:
 
     UFUNCTION(BlueprintCallable)
 	void ClearAllMessageNotices(const FString& ProfileId);
+
+    // Сообщения
+    UFUNCTION(BlueprintCallable)
+    void AddMessage(const FBF_MessageStructure& NewMessage);
+
+    UFUNCTION(BlueprintCallable)
+    const TArray<FBF_MessageStructure>& GetMessages() const;
+
+    UFUNCTION(BlueprintCallable)
+	TArray<FBF_MessageStructure> GetMessagesForUser(const FString& UserId) const;
     
 private:
     UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
@@ -141,15 +173,18 @@ public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnBookfaceMessageNotice OnMessageNotice;
 
+    UPROPERTY(BlueprintAssignable, Category = "Messenger|Events")
+    FOnBFMessageAdded OnChangeMessages;
+
 private:
     UPROPERTY()
     TArray<FBookfaceProfileStructure> UserProfiles;
 
     UPROPERTY()
     TArray<FBookfaceFriendRequestStructure> FriendRequests;
-/*
-    UPROPERTY()
-	TArray<FBookfaceMessageNoticeStructure> MessageNotices;
-*/
+
     bool bHasLoadedSave = false;
+
+    UPROPERTY()
+    TArray<FBF_MessageStructure> Messages;
 };

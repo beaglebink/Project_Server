@@ -793,3 +793,31 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
             })
     );
 }
+
+void UBookfaceSubsystem::AddMessage(const FBF_MessageStructure& NewMessage)
+{
+    Messages.Add(NewMessage);
+    UE_LOG(LogTemp, Log, TEXT("Bookface Message added: [From %s, To %s] %s"),
+		*NewMessage.FromContact,
+		*NewMessage.ToContact,
+        *NewMessage.Message.ToString());
+    OnChangeMessages.Broadcast(NewMessage);
+}
+
+const TArray<FBF_MessageStructure>& UBookfaceSubsystem::GetMessages() const
+{
+    return Messages;
+}
+
+TArray<FBF_MessageStructure> UBookfaceSubsystem::GetMessagesForUser(const FString& UserId) const
+{
+    TArray<FBF_MessageStructure> UserMessages;
+    for (const auto& Msg : Messages)
+    {
+        if (Msg.ToContact == UserId || Msg.FromContact == UserId)
+        {
+            UserMessages.Add(Msg);
+        }
+    }
+	return UserMessages;
+}
