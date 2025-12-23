@@ -21,6 +21,11 @@ AA_Debris::AA_Debris()
 void AA_Debris::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+}
+
+void AA_Debris::BeginPlay()
+{
+	Super::BeginPlay();
 
 	if (!IsValid(MeshMaterialInstanceDynamic))
 	{
@@ -34,11 +39,6 @@ void AA_Debris::OnConstruction(const FTransform& Transform)
 	MeshRenderTarget->InitAutoFormat(1024, 1024);
 	MeshRenderTarget->ClearColor = FLinearColor::Black;
 	MeshRenderTarget->UpdateResourceImmediate(true);
-}
-
-void AA_Debris::BeginPlay()
-{
-	Super::BeginPlay();
 
 	UKismetRenderingLibrary::DrawMaterialToRenderTarget(GetWorld(), MeshRenderTarget, MeshMaterialInstanceDynamic);
 	if (ParticlesMaterial)

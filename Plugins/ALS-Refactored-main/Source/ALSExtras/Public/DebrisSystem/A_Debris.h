@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "A_Debris.generated.h"
 
-class UNiagaraSystem;
+class UNiagaraComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_Debris : public AActor
