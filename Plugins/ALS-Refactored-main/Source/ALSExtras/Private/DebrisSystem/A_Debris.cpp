@@ -26,7 +26,10 @@ void AA_Debris::BeginPlay()
 {
 	Super::BeginPlay();
 
-	DebrisMeshComponent->SetSimulatePhysics(true);
+	if (bShouldMeshSimulatePhysics)
+	{
+		DebrisMeshComponent->SetSimulatePhysics(true);
+	}
 
 	if (!IsValid(MeshMaterialInstanceDynamic))
 	{
@@ -49,6 +52,34 @@ void AA_Debris::BeginPlay()
 		FXDynMat = UMaterialInstanceDynamic::Create(ParticlesMaterial, this);
 		FXDynMat->SetTextureParameterValue(TEXT("MeshRenderTarget"), MeshRenderTarget);
 		DebrisFlowFXComponent->SetVariableMaterial(TEXT("User.RenderMaterial"), FXDynMat);
+	}
+}
+
+void AA_Debris::Destroyed()
+{
+	Super::Destroyed();
+
+	if (ReplenishTime > 0.0f)
+	{
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+			{
+				if (DebrisClass)
+				{
+					FTransform SpawnTransform = GetActorTransform();
+					SpawnTransform.SetScale3D(FVector(1.0f, 1.0f, 1.0f));
+					AA_Debris* SpawnedDebris = GetWorld()->SpawnActorDeferred<AA_Debris>(DebrisClass, SpawnTransform, nullptr, nullptr);
+					if (SpawnedDebris)
+					{
+						SpawnedDebris->GetComponentByClass<UStaticMeshComponent>()->SetStaticMesh(DebrisMeshComponent->GetStaticMesh());
+
+						SpawnedDebris->bShouldMeshSimulatePhysics = bShouldMeshSimulatePhysics;
+						SpawnedDebris->ReplenishTime = ReplenishTime;
+
+						SpawnedDebris->FinishSpawning(SpawnTransform);
+					}
+				}
+			}, ReplenishTime, false);
 	}
 }
 

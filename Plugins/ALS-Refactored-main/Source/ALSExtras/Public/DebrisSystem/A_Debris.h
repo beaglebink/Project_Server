@@ -19,6 +19,8 @@ protected:
 
 	virtual void BeginPlay() override;
 
+	virtual void Destroyed() override;
+
 public:
 	virtual void Tick(float DeltaTime) override;
 
@@ -37,4 +39,12 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|VFX", meta = (AllowPrivateAccess = true))
 	UMaterialInterface* ParticlesMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
+	TSubclassOf<AA_Debris> DebrisClass;
+
+public:
+	uint8 bShouldMeshSimulatePhysics : 1{false};
+
+	float ReplenishTime = 0.0f;
 };
