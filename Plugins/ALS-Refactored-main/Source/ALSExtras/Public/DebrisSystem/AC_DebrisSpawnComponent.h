@@ -16,15 +16,6 @@ enum class EDebrisSpawnShape : uint8
 	Box
 };
 
-UENUM(BlueprintType)
-enum class EReplenishmentRate : uint8
-{
-	None,
-	Slow,
-	Moderate,
-	Fast
-};
-
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_DebrisSpawnComponent : public UActorComponent
 {
@@ -34,7 +25,9 @@ public:
 	UAC_DebrisSpawnComponent();
 
 protected:
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)override;
+#endif
 
 	virtual void BeginPlay() override;
 
