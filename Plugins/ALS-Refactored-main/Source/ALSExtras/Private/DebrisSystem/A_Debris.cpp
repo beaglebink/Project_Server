@@ -55,36 +55,43 @@ void AA_Debris::BeginPlay()
 	}
 }
 
-void AA_Debris::Destroyed()
-{
-	Super::Destroyed();
-
-	if (ReplenishTime > 0.0f)
-	{
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-			{
-				if (DebrisClass)
-				{
-					FTransform SpawnTransform = GetActorTransform();
-					SpawnTransform.SetScale3D(FVector(1.0f, 1.0f, 1.0f));
-					AA_Debris* SpawnedDebris = GetWorld()->SpawnActorDeferred<AA_Debris>(DebrisClass, SpawnTransform, nullptr, nullptr);
-					if (SpawnedDebris)
-					{
-						SpawnedDebris->GetComponentByClass<UStaticMeshComponent>()->SetStaticMesh(DebrisMeshComponent->GetStaticMesh());
-
-						SpawnedDebris->bShouldMeshSimulatePhysics = bShouldMeshSimulatePhysics;
-						SpawnedDebris->ReplenishTime = ReplenishTime;
-
-						SpawnedDebris->FinishSpawning(SpawnTransform);
-					}
-				}
-			}, ReplenishTime, false);
-	}
-}
-
 void AA_Debris::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+void AA_Debris::DestroyOrRespawnDebris()
+{
+	if (ReplenishTime > 0.0f)
+	{
+		if (!GetWorldTimerManager().IsTimerActive(RespawnTimerHandle))
+		{
+			DebrisMeshComponent->SetVisibility(false);
+			DebrisMeshComponent->SetSimulatePhysics(false);
+			DebrisMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Alpha = 0.0f;
+
+			GetWorldTimerManager().SetTimer(RespawnTimerHandle, [this]()
+				{
+					DebrisMeshComponent->SetVisibility(true);
+					DebrisMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+					if (bShouldMeshSimulatePhysics)
+					{
+						DebrisMeshComponent->SetSimulatePhysics(true);
+					}
+					DebrisMeshComponent->SetWorldScale3D(FVector(1.0f));
+				}, ReplenishTime, false);
+		}
+	}
+	else
+	{
+		Destroy();
+	}
+}
+
+float AA_Debris::DebrisMassInfluence() const
+{
+	FVector DebrisMeshBoxExtent = DebrisMeshComponent->Bounds.BoxExtent;
+	return FMath::Clamp(DebrisMeshBoxExtent.X * DebrisMeshBoxExtent.Y * DebrisMeshBoxExtent.Z / 1000.0f, 1.0f, 1000.0f) * SuctionDifficultyMultiplier;
 }
 

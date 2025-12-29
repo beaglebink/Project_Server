@@ -131,6 +131,7 @@ void UAC_DebrisSpawnComponent::SpawnDebris()
 
 			SpawnedDebris->bShouldMeshSimulatePhysics = bShouldMeshSimulatePhysics;
 			SpawnedDebris->ReplenishTime = ReplenishTime;
+			SpawnedDebris->SuctionDifficultyMultiplier = SuctionDifficultyMultiplier;
 
 			SpawnedDebris->FinishSpawning(SpawnTransform);
 		}

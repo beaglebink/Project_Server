@@ -69,6 +69,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
 	float ReplenishTime = 0.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.01f))
+	float SuctionDifficultyMultiplier = 1.0f;
+
 	FVector GetRandomPointInVolume() const;
 
 public:
