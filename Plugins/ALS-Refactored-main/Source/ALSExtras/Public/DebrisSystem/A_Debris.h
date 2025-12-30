@@ -16,6 +16,15 @@ enum class EDebrisFloatPattern : uint8
 	Erratic
 };
 
+UENUM(BlueprintType)
+enum class EDebrisReactToPlayer : uint8
+{
+	Passive,
+	Evasive,
+	Attracted,
+	Neutral
+};
+
 UCLASS()
 class ALSEXTRAS_API AA_Debris : public AActor
 {
@@ -73,6 +82,8 @@ public:
 
 	float DebrisMovementSpeed;
 
+	EDebrisReactToPlayer PlayerReaction = EDebrisReactToPlayer::Passive;
+
 protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Properties")
 	float Alpha = 0.0f;
@@ -85,15 +96,22 @@ protected:
 
 	void DebrisFloatBehavior(float DeltaTime);
 
+	void DebrisReactToPlayer(float DeltaTime);
+
 private:
+	//floating pattern
 	FVector BaseLocation;
 	FVector InitialDirection;
 
 	float TimeAccumulator = 0.0f;
-
-	float WonderInterval;
 	float NoiseSeed = 0.0f;
 
 	float OrbitRadius;
 	FVector OrbitStartOffset;
+
+public:
+	//player reaction
+	float PlayerInfluenceStrength;
+	float PlayerInfluenceRadius;
+	float TurbulenceStrength;
 };
