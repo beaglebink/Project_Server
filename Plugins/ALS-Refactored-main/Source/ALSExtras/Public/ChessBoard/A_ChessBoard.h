@@ -40,7 +40,9 @@ public:
 	AA_ChessBoard();
 
 private:
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)override;
+#endif
 
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;

@@ -37,4 +37,25 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|VFX", meta = (AllowPrivateAccess = true))
 	UMaterialInterface* ParticlesMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
+	TSubclassOf<AA_Debris> DebrisClass;
+
+	FTimerHandle RespawnTimerHandle;
+
+public:
+	uint8 bShouldMeshSimulatePhysics : 1{false};
+
+	float ReplenishTime = 0.0f;
+
+	float SuctionDifficultyMultiplier = 1.0f;
+protected:
+	UPROPERTY(BlueprintReadWrite, Category = "Properties")
+	float Alpha = 0.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "Suction")
+	void DestroyOrRespawnDebris();
+
+	UFUNCTION(BlueprintCallable, Category = "Suction")
+	float DebrisMassInfluence() const;
 };

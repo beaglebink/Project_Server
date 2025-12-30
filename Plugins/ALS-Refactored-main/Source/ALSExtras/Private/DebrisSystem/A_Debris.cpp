@@ -26,7 +26,10 @@ void AA_Debris::BeginPlay()
 {
 	Super::BeginPlay();
 
-	DebrisMeshComponent->SetSimulatePhysics(true);
+	if (bShouldMeshSimulatePhysics)
+	{
+		DebrisMeshComponent->SetSimulatePhysics(true);
+	}
 
 	if (!IsValid(MeshMaterialInstanceDynamic))
 	{
@@ -55,5 +58,40 @@ void AA_Debris::BeginPlay()
 void AA_Debris::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+void AA_Debris::DestroyOrRespawnDebris()
+{
+	if (ReplenishTime > 0.0f)
+	{
+		if (!GetWorldTimerManager().IsTimerActive(RespawnTimerHandle))
+		{
+			DebrisMeshComponent->SetVisibility(false);
+			DebrisMeshComponent->SetSimulatePhysics(false);
+			DebrisMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Alpha = 0.0f;
+
+			GetWorldTimerManager().SetTimer(RespawnTimerHandle, [this]()
+				{
+					DebrisMeshComponent->SetVisibility(true);
+					DebrisMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+					if (bShouldMeshSimulatePhysics)
+					{
+						DebrisMeshComponent->SetSimulatePhysics(true);
+					}
+					DebrisMeshComponent->SetWorldScale3D(FVector(1.0f));
+				}, ReplenishTime, false);
+		}
+	}
+	else
+	{
+		Destroy();
+	}
+}
+
+float AA_Debris::DebrisMassInfluence() const
+{
+	FVector DebrisMeshBoxExtent = DebrisMeshComponent->Bounds.BoxExtent;
+	return FMath::Clamp(DebrisMeshBoxExtent.X * DebrisMeshBoxExtent.Y * DebrisMeshBoxExtent.Z / 1000.0f, 1.0f, 1000.0f) * SuctionDifficultyMultiplier;
 }
 
