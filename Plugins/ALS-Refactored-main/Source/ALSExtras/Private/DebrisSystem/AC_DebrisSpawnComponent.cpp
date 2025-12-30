@@ -1,5 +1,4 @@
 #include "DebrisSystem/AC_DebrisSpawnComponent.h"
-#include "DebrisSystem/A_Debris.h"
 #include "Kismet/KismetMathLibrary.h"
 
 UAC_DebrisSpawnComponent::UAC_DebrisSpawnComponent()
@@ -134,6 +133,9 @@ void UAC_DebrisSpawnComponent::SpawnDebris()
 			SpawnedDebris->SuctionDifficultyMultiplier = SuctionDifficultyMultiplier;
 			SpawnedDebris->Slipperiness = Slipperiness;
 			SpawnedDebris->SlipperinessImpulsePower = SlipperinessImpulsePower;
+			SpawnedDebris->GarbagePercentage = GarbagePercentage;
+			SpawnedDebris->DebrisBehavior = DebrisBehavior;
+			SpawnedDebris->DebrisMovementSpeed = DebrisMovementSpeed;
 
 			SpawnedDebris->FinishSpawning(SpawnTransform);
 		}

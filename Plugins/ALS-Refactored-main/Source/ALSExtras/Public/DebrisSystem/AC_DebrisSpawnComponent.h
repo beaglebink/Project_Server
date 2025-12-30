@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "DebrisSystem/A_Debris.h"
 #include "AC_DebrisSpawnComponent.generated.h"
 
 class AA_Debris;
@@ -77,6 +78,15 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
 	float SlipperinessImpulsePower = 500.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f, ClampMax = 100.0f))
+	float GarbagePercentage = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
+	EDebrisFloatPattern DebrisBehavior = EDebrisFloatPattern::Stationary;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "DebrisBehavior != EDebrisFloatPattern::Stationary", EditConditionHides))
+	float DebrisMovementSpeed = 10.0f;
 
 	FVector GetRandomPointInVolume() const;
 

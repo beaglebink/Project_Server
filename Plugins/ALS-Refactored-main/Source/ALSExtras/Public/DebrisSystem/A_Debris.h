@@ -6,6 +6,16 @@
 
 class UNiagaraComponent;
 
+UENUM(BlueprintType)
+enum class EDebrisFloatPattern : uint8
+{
+	Stationary,
+	Drift,
+	Wander,
+	Orbit,
+	Erratic
+};
+
 UCLASS()
 class ALSEXTRAS_API AA_Debris : public AActor
 {
@@ -55,6 +65,14 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	float SlipperinessImpulsePower = 500.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float GarbagePercentage = 0.0f;
+
+	EDebrisFloatPattern DebrisBehavior = EDebrisFloatPattern::Stationary;
+
+	float DebrisMovementSpeed;
+
 protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Properties")
 	float Alpha = 0.0f;
@@ -64,4 +82,18 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Suction")
 	float DebrisMassInfluence() const;
+
+	void DebrisFloatBehavior(float DeltaTime);
+
+private:
+	FVector BaseLocation;
+	FVector InitialDirection;
+
+	float TimeAccumulator = 0.0f;
+
+	float WonderInterval;
+	float NoiseSeed = 0.0f;
+
+	float OrbitRadius;
+	FVector OrbitStartOffset;
 };
