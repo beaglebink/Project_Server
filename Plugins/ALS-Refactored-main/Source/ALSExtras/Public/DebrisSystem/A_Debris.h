@@ -49,6 +49,12 @@ public:
 	float ReplenishTime = 0.0f;
 
 	float SuctionDifficultyMultiplier = 1.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float Slipperiness = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float SlipperinessImpulsePower = 500.0f;
 protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Properties")
 	float Alpha = 0.0f;
