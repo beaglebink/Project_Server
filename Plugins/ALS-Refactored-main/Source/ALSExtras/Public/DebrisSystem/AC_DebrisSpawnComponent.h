@@ -88,6 +88,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "DebrisBehavior != EDebrisFloatPattern::Stationary", EditConditionHides))
 	float DebrisMovementSpeed = 10.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "DebrisBehavior == EDebrisFloatPattern::Erratic", EditConditionHides))
+	float ErraticRadius = 5.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisReactToPlayer PlayerReaction = EDebrisReactToPlayer::Passive;
 
@@ -96,9 +99,6 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "PlayerReaction != EDebrisReactToPlayer::Passive", EditConditionHides))
 	float PlayerInfluenceRadius;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "PlayerReaction != EDebrisReactToPlayer::Passive", EditConditionHides))
-	float TurbulenceStrength;
 
 	FVector GetRandomPointInVolume() const;
 

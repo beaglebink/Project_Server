@@ -109,9 +109,19 @@ private:
 	float OrbitRadius;
 	FVector OrbitStartOffset;
 
+	FVector ErraticOffset = FVector::ZeroVector;
+public:
+	float ErraticRadius = 5.0f;
+
 public:
 	//player reaction
 	float PlayerInfluenceStrength;
 	float PlayerInfluenceRadius;
-	float TurbulenceStrength;
+
+private:
+	float SpeedInfluenceAlpha = 0.0f;
+	float CurrentVelocitySize = 0.0f;
+	FVector Evasion = FVector::ZeroVector;
+	FVector Attraction = FVector::ZeroVector;
+	FVector Turbulence = FVector::ZeroVector;
 };

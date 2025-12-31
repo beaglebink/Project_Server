@@ -149,12 +149,16 @@ void AA_Debris::DebrisFloatBehavior(float DeltaTime)
 	}
 	case EDebrisFloatPattern::Erratic:
 	{
-		FVector Chaos;
-		Chaos.X = FMath::PerlinNoise1D(TimeAccumulator * 3.0f + NoiseSeed);
-		Chaos.Y = FMath::PerlinNoise1D(TimeAccumulator * 4.0f + NoiseSeed * 2);
-		Chaos.Z = FMath::PerlinNoise1D(TimeAccumulator * 5.0f);
+		FVector Noise;
+		Noise.X = FMath::PerlinNoise1D(TimeAccumulator * 3.0f + NoiseSeed);
+		Noise.Y = FMath::PerlinNoise1D(TimeAccumulator * 4.0f + NoiseSeed * 2);
+		Noise.Z = FMath::PerlinNoise1D(TimeAccumulator * 5.0f + NoiseSeed * 3);
 
-		SetActorLocation(GetActorLocation() + Chaos * DebrisMovementSpeed * DeltaTime * 30.0f);
+		FVector TargetOffset = Noise * DebrisMovementSpeed * ErraticRadius;
+
+		ErraticOffset = FMath::VInterpTo(ErraticOffset, TargetOffset, DeltaTime, 5.0f);
+
+		SetActorLocation(BaseLocation + ErraticOffset);
 		break;
 	}
 	default:
@@ -175,29 +179,29 @@ void AA_Debris::DebrisReactToPlayer(float DeltaTime)
 	UCharacterMovementComponent* MoveComp = PlayerPawn->FindComponentByClass<UCharacterMovementComponent>();
 	FVector PlayerVelocity = MoveComp ? MoveComp->Velocity : FVector::ZeroVector;
 
-	FVector SwirlAxis = FVector::CrossProduct(PlayerVelocity.GetSafeNormal(), FVector::UpVector);
-	FVector Swirl = SwirlAxis.GetSafeNormal() * TurbulenceStrength * InfluenceAlpha * FMath::Sin(GetWorld()->TimeSeconds * 3.0f);
-
 	switch (PlayerReaction)
 	{
 	case EDebrisReactToPlayer::Passive:
 		break;
 	case EDebrisReactToPlayer::Evasive:
 	{
-		FVector Evasion = -DirToPlayer * PlayerInfluenceStrength * InfluenceAlpha;
+		Evasion = FMath::VInterpTo(Evasion, -DirToPlayer * PlayerInfluenceStrength * 100.0f * InfluenceAlpha, DeltaTime, 1.0f);
 		SetActorLocation(GetActorLocation() + Evasion);
 		break;
 	}
 	case EDebrisReactToPlayer::Attracted:
 	{
-		FVector Attracion = DirToPlayer * PlayerInfluenceStrength * InfluenceAlpha;
-		SetActorLocation(GetActorLocation() + Attracion);
+		Attraction = FMath::VInterpTo(Attraction, DirToPlayer * PlayerInfluenceStrength * 100.0f * InfluenceAlpha, DeltaTime, 1.0f);
+		SetActorLocation(GetActorLocation() + Attraction);
 		break;
 	}
 	case EDebrisReactToPlayer::Neutral:
 	{
-		FVector FlowInfluence = (PlayerVelocity / 100.0f + DirToPlayer) * PlayerInfluenceStrength * InfluenceAlpha;
-		SetActorLocation(FMath::VInterpTo(GetActorLocation(), GetActorLocation() + FlowInfluence + Swirl, GetWorld()->DeltaTimeSeconds, 10.0f));
+		SpeedInfluenceAlpha = FMath::FInterpTo(SpeedInfluenceAlpha, FMath::Clamp(PlayerVelocity.Size() / MoveComp->GetMaxSpeed(), 0.0f, 1.0f), DeltaTime, 1.0f);
+		CurrentVelocitySize = FMath::FInterpTo(CurrentVelocitySize, PlayerVelocity.Size(), DeltaTime, 1.0f);
+		Turbulence = FMath::VInterpTo(Turbulence, DirToPlayer * FVector::DotProduct(PlayerVelocity.GetSafeNormal(), DirToPlayer) * PlayerInfluenceStrength
+			* InfluenceAlpha * FMath::Pow(SpeedInfluenceAlpha, 2) * CurrentVelocitySize, DeltaTime, 1.0f);
+		SetActorLocation(GetActorLocation() + Turbulence);
 		break;
 	}
 	default:

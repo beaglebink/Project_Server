@@ -136,10 +136,10 @@ void UAC_DebrisSpawnComponent::SpawnDebris()
 			SpawnedDebris->GarbagePercentage = GarbagePercentage;
 			SpawnedDebris->DebrisBehavior = DebrisBehavior;
 			SpawnedDebris->DebrisMovementSpeed = DebrisMovementSpeed;
+			SpawnedDebris->ErraticRadius = ErraticRadius;
 			SpawnedDebris->PlayerReaction = PlayerReaction;
 			SpawnedDebris->PlayerInfluenceStrength = PlayerInfluenceStrength;
 			SpawnedDebris->PlayerInfluenceRadius = PlayerInfluenceRadius;
-			SpawnedDebris->TurbulenceStrength = TurbulenceStrength;
 
 			SpawnedDebris->FinishSpawning(SpawnTransform);
 		}
