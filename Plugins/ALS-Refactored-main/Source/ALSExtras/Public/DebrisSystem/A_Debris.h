@@ -25,6 +25,15 @@ enum class EDebrisReactToPlayer : uint8
 	Neutral
 };
 
+UENUM(BlueprintType)
+enum class EBuoyancyType : uint8
+{
+	Fixed,
+	Floating,
+	Rising,
+	Sinking
+};
+
 UCLASS()
 class ALSEXTRAS_API AA_Debris : public AActor
 {
@@ -106,8 +115,8 @@ protected:
 
 	void DebrisReactToPlayer(float DeltaTime);
 
-private:
 	//floating pattern
+private:
 	FVector BaseLocation;
 	FVector TargetLocation;
 	FVector InitialDirection;
@@ -122,8 +131,8 @@ private:
 public:
 	float ErraticRadius = 5.0f;
 
-public:
 	//player reaction
+public:
 	float PlayerInfluenceStrength;
 	float PlayerInfluenceRadius;
 
@@ -133,4 +142,16 @@ private:
 	FVector Evasion = FVector::ZeroVector;
 	FVector Attraction = FVector::ZeroVector;
 	FVector Turbulence = FVector::ZeroVector;
+
+	//buoyancy
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	EBuoyancyType BuoyancyType = EBuoyancyType::Fixed;
+	float BuoyancySpeed = 0.0f;
+	float BuoyancyRange = 0.0f;
+	float BuoyancyDistanceAccumulator = 0.0f;
+	float BuoyancyDirection = 1.0f;
+
+private:
+	void DebrisBuoyancyBehavior(float DeltaTime);
 };

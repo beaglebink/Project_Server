@@ -141,6 +141,9 @@ void UAC_DebrisSpawnComponent::SpawnDebris()
 			SpawnedDebris->PlayerReaction = PlayerReaction;
 			SpawnedDebris->PlayerInfluenceStrength = PlayerInfluenceStrength;
 			SpawnedDebris->PlayerInfluenceRadius = PlayerInfluenceRadius;
+			SpawnedDebris->BuoyancyType = BuoyancyType;
+			SpawnedDebris->BuoyancySpeed = BuoyancySpeed;
+			SpawnedDebris->BuoyancyRange = BuoyancyRange;
 
 			SpawnedDebris->FinishSpawning(SpawnTransform);
 		}

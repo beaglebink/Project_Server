@@ -103,6 +103,15 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "PlayerReaction != EDebrisReactToPlayer::Passive", EditConditionHides))
 	float PlayerInfluenceRadius;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
+	EBuoyancyType BuoyancyType = EBuoyancyType::Fixed;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "BuoyancyType != EBuoyancyType::Fixed", EditConditionHides, ClampMin = 0.0f))
+	float BuoyancySpeed = 0.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "BuoyancyType == EBuoyancyType::Floating", EditConditionHides, ClampMin = 0.0f))
+	float BuoyancyRange = 0.0f;
+
 	FVector GetRandomPointInVolume() const;
 
 public:

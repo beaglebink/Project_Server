@@ -81,6 +81,8 @@ void AA_Debris::Tick(float DeltaTime)
 	DebrisFloatBehavior(DeltaTime);
 
 	DebrisReactToPlayer(DeltaTime);
+
+	DebrisBuoyancyBehavior(DeltaTime);
 }
 
 void AA_Debris::DestroyOrRespawnDebris()
@@ -222,6 +224,43 @@ void AA_Debris::DebrisReactToPlayer(float DeltaTime)
 		Turbulence = FMath::VInterpTo(Turbulence, DirToPlayer * FVector::DotProduct(PlayerVelocity.GetSafeNormal(), DirToPlayer) * PlayerInfluenceStrength
 			* InfluenceAlpha * FMath::Pow(SpeedInfluenceAlpha, 2) * CurrentVelocitySize, DeltaTime, 1.0f);
 		SetActorLocation(GetActorLocation() + Turbulence);
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+void AA_Debris::DebrisBuoyancyBehavior(float DeltaTime)
+{
+	switch (BuoyancyType)
+	{
+	case EBuoyancyType::Fixed:
+		break;
+	case EBuoyancyType::Floating:
+	{
+		BuoyancyDistanceAccumulator += DeltaTime * BuoyancySpeed * BuoyancyDirection;
+		if (BuoyancyDistanceAccumulator >= BuoyancyRange)
+		{
+			BuoyancyDistanceAccumulator = BuoyancyRange;
+			BuoyancyDirection = -1.0f;
+		}
+		if (BuoyancyDistanceAccumulator <= 0.0f)
+		{
+			BuoyancyDistanceAccumulator = 0.0f;
+			BuoyancyDirection = 1.0f;
+		}
+		TargetLocation += FVector(0, 0, DeltaTime * BuoyancySpeed * BuoyancyDirection);
+		break;
+	}
+	case EBuoyancyType::Rising:
+	{
+		TargetLocation += FVector(0, 0, BuoyancySpeed * DeltaTime);
+		break;
+	}
+	case EBuoyancyType::Sinking:
+	{
+		TargetLocation -= FVector(0, 0, BuoyancySpeed * DeltaTime);
 		break;
 	}
 	default:
