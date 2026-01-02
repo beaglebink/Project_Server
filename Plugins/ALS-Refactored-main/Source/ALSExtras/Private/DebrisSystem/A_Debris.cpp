@@ -57,18 +57,26 @@ void AA_Debris::BeginPlay()
 
 	//Initialize floating behavior variables
 	BaseLocation = GetActorLocation();
+	TargetLocation = BaseLocation;
 	InitialDirection = FMath::VRand();
 	NoiseSeed = FMath::FRandRange(0.0f, 10.0f);
 	OrbitRadius = FMath::FRandRange(20.0f, 100.0f);
 	OrbitStartOffset = FMath::VRand() * OrbitRadius;
 
-	//Initialize player reaction variables
+	//Initialize attachment direction
+	UStaticMeshComponent* MeshComp = GetOwner()->FindComponentByClass<UStaticMeshComponent>();
+	if (MeshComp)
+	{
+		AttachmentDirection = (DebrisMeshComponent->GetComponentLocation() - MeshComp->GetComponentLocation()).GetSafeNormal();
+	}
 
 }
 
 void AA_Debris::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	BaseLocation = FMath::VInterpTo(BaseLocation, TargetLocation, DeltaTime, 5.0f);
 
 	DebrisFloatBehavior(DeltaTime);
 
@@ -110,6 +118,18 @@ float AA_Debris::DebrisMassInfluence() const
 {
 	FVector DebrisMeshBoxExtent = DebrisMeshComponent->Bounds.BoxExtent;
 	return FMath::Clamp(DebrisMeshBoxExtent.X * DebrisMeshBoxExtent.Y * DebrisMeshBoxExtent.Z / 1000.0f, 1.0f, 1000.0f) * SuctionDifficultyMultiplier;
+}
+
+void AA_Debris::CheckIfDebrisDetached(FVector DeltaForDetachment, float Effectiveness)
+{
+	if (AttachmentPower == 0.0f) return;
+
+	float DetachmentPower = DeltaForDetachment.Size() * FVector::DotProduct(AttachmentDirection, DeltaForDetachment.GetSafeNormal()) * Effectiveness;
+	if (AttachmentPower <= DetachmentPower)
+	{
+		TargetLocation += DeltaForDetachment;
+		AttachmentPower = 0.0f;
+	}
 }
 
 void AA_Debris::DebrisFloatBehavior(float DeltaTime)

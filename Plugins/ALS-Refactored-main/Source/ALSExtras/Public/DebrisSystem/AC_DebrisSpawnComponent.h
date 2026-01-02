@@ -79,6 +79,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
 	float SlipperinessImpulsePower = 500.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
+	float AttachmentPower = 0.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f, ClampMax = 100.0f))
 	float GarbagePercentage = 0.0f;
 

@@ -76,6 +76,11 @@ public:
 	float SlipperinessImpulsePower = 500.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float AttachmentPower = 0.0f;
+
+	FVector AttachmentDirection = FVector::ZeroVector;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	float GarbagePercentage = 0.0f;
 
 	EDebrisFloatPattern DebrisBehavior = EDebrisFloatPattern::Stationary;
@@ -94,6 +99,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Suction")
 	float DebrisMassInfluence() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Suction")
+	void CheckIfDebrisDetached(FVector DeltaForDetachment, float Effectiveness);
+
 	void DebrisFloatBehavior(float DeltaTime);
 
 	void DebrisReactToPlayer(float DeltaTime);
@@ -101,6 +109,7 @@ protected:
 private:
 	//floating pattern
 	FVector BaseLocation;
+	FVector TargetLocation;
 	FVector InitialDirection;
 
 	float TimeAccumulator = 0.0f;

@@ -133,6 +133,7 @@ void UAC_DebrisSpawnComponent::SpawnDebris()
 			SpawnedDebris->SuctionDifficultyMultiplier = SuctionDifficultyMultiplier;
 			SpawnedDebris->Slipperiness = Slipperiness;
 			SpawnedDebris->SlipperinessImpulsePower = SlipperinessImpulsePower;
+			SpawnedDebris->AttachmentPower = AttachmentPower;
 			SpawnedDebris->GarbagePercentage = GarbagePercentage;
 			SpawnedDebris->DebrisBehavior = DebrisBehavior;
 			SpawnedDebris->DebrisMovementSpeed = DebrisMovementSpeed;
