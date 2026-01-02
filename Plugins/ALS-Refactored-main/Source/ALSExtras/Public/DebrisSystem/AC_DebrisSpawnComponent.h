@@ -112,6 +112,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "BuoyancyType == EBuoyancyType::Floating", EditConditionHides, ClampMin = 0.0f))
 	float BuoyancyRange = 0.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
+	EDebrisCollisionReact CollisionReaction = EDebrisCollisionReact::PhaseThrough;
+
 	FVector GetRandomPointInVolume() const;
 
 public:

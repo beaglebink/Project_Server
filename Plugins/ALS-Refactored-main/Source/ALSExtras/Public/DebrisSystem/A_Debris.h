@@ -34,6 +34,15 @@ enum class EBuoyancyType : uint8
 	Sinking
 };
 
+UENUM(BlueprintType)
+enum class EDebrisCollisionReact : uint8
+{
+	PhaseThrough,
+	Bounce,
+	Stick,
+	Stop
+};
+
 UCLASS()
 class ALSEXTRAS_API AA_Debris : public AActor
 {
@@ -154,4 +163,13 @@ public:
 
 private:
 	void DebrisBuoyancyBehavior(float DeltaTime);
+
+	//collision
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	EDebrisCollisionReact CollisionReaction = EDebrisCollisionReact::PhaseThrough;
+
+	private:
+		UFUNCTION()
+		void OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 };

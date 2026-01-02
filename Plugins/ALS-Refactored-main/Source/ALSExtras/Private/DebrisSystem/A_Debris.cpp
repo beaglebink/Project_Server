@@ -16,6 +16,8 @@ AA_Debris::AA_Debris()
 	DebrisFlowFXComponent->SetupAttachment(DebrisMeshComponent);
 
 	DebrisFlowFXComponent->SetAutoActivate(false);
+
+	DebrisMeshComponent->SetNotifyRigidBodyCollision(true);
 }
 
 void AA_Debris::OnConstruction(const FTransform& Transform)
@@ -70,6 +72,7 @@ void AA_Debris::BeginPlay()
 		AttachmentDirection = (DebrisMeshComponent->GetComponentLocation() - MeshComp->GetComponentLocation()).GetSafeNormal();
 	}
 
+	DebrisMeshComponent->OnComponentHit.AddDynamic(this, &AA_Debris::OnDebrisHit);
 }
 
 void AA_Debris::Tick(float DeltaTime)
@@ -142,7 +145,7 @@ void AA_Debris::DebrisFloatBehavior(float DeltaTime)
 	case EDebrisFloatPattern::Stationary:
 	{
 		float Offset = FMath::Sin(TimeAccumulator * 1.5f + NoiseSeed) * 2.0f;
-		SetActorLocation(BaseLocation + FVector(0, 0, Offset));
+		SetActorLocation(BaseLocation + FVector(0, 0, Offset), true);
 		break;
 	}
 	case EDebrisFloatPattern::Drift:
@@ -266,5 +269,32 @@ void AA_Debris::DebrisBuoyancyBehavior(float DeltaTime)
 	default:
 		break;
 	}
+}
+
+void AA_Debris::OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	switch (CollisionReaction)
+	{
+	case EDebrisCollisionReact::PhaseThrough:
+		break;
+	case EDebrisCollisionReact::Bounce:
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Bounce"));
+		break;
+	}
+	case EDebrisCollisionReact::Stick:
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Stick"));
+		break;
+	}
+	case EDebrisCollisionReact::Stop:
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Stop"));
+		break;
+	}
+	default:
+		break;
+	}
+
 }
 
