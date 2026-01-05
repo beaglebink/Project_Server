@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "A_Debris.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDebrisDestroyed, FTransform, DebrisTransform, FVector, DebrisBoxExtent, int8, DestructionLevel);
+
 class UNiagaraComponent;
 
 UENUM(BlueprintType)
@@ -205,6 +207,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
+
+	FOnDebrisDestroyed OnDebrisDestroyed;
+
+	int8 DestructionLevel;
 
 private:
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

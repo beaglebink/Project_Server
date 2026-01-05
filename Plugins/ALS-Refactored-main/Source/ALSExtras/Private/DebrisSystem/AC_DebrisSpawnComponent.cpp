@@ -62,7 +62,7 @@ void UAC_DebrisSpawnComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SpawnDebris();
+	SpawnDebris(GetOwner()->GetActorTransform(), BoxExtent, 0);
 }
 
 void UAC_DebrisSpawnComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -70,13 +70,13 @@ void UAC_DebrisSpawnComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
-FVector UAC_DebrisSpawnComponent::GetRandomPointInVolume() const
+FVector UAC_DebrisSpawnComponent::GetRandomPointInVolume(FTransform SpawnTransform, EDebrisSpawnShape SpawnShapeVolume) const
 {
 	if (!GetOwner()) return FVector::ZeroVector;
 
 	FVector LocalPoint = FVector::ZeroVector;
 
-	switch (SpawnShape)
+	switch (SpawnShapeVolume)
 	{
 	case EDebrisSpawnShape::Sphere:
 	{
@@ -112,22 +112,59 @@ FVector UAC_DebrisSpawnComponent::GetRandomPointInVolume() const
 
 	LocalPoint *= SpawnDensity;
 
-	return GetOwner()->GetActorTransform().TransformPosition(LocalPoint);
+	return SpawnTransform.TransformPosition(LocalPoint);
 }
 
-void UAC_DebrisSpawnComponent::SpawnDebris()
+void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVector VolumeBoundsExtent, int8 DestructionLevel)
 {
-	if (!GetOwner() || !DebrisClass || DebrisMeshes.Num() == 0) return;
+	if (!GetOwner() || !DebrisClass || DebrisMeshesByLevel.Num() == 0) return;
+
+	if (DestructionLevel > 0)
+	{
+		SpawnShape = EDebrisSpawnShape::Box;
+		BoxExtent = VolumeBoundsExtent * 2.0f;
+		switch (DestructionYield)
+		{
+		case EDebrisDestructionYield::None:
+			break;
+		case EDebrisDestructionYield::Light:
+		{
+			DebrisCount = FMath::CeilToInt(FMath::FRandRange(0.0f, 5.0f));
+			break;
+		}
+		case EDebrisDestructionYield::Medium:
+		{
+			DebrisCount = FMath::CeilToInt(FMath::FRandRange(5.0f, 15.0f));
+			break;
+		}
+		case EDebrisDestructionYield::Heavy:
+		{
+			DebrisCount = FMath::CeilToInt(FMath::FRandRange(15.0f, 45.0f));
+			break;
+		}
+		case EDebrisDestructionYield::Chain:
+		{
+			break;
+		}
+		default:
+			break;
+		}
+	}
 
 	for (size_t i = 0; i < DebrisCount; ++i)
 	{
-		const FTransform SpawnTransform(UKismetMathLibrary::RandomRotator(true), GetRandomPointInVolume());
+		const FTransform SpawnTransform(UKismetMathLibrary::RandomRotator(true), GetRandomPointInVolume(SpawnShapeTransform, SpawnShape));
 		AA_Debris* SpawnedDebris = GetWorld()->SpawnActorDeferred<AA_Debris>(DebrisClass, SpawnTransform, GetOwner(), GetOwner()->GetInstigator());
 		if (SpawnedDebris)
 		{
-			const int32 RandomMeshIndex = FMath::RandRange(0, DebrisMeshes.Num() - 1);
-			SpawnedDebris->FindComponentByClass<UStaticMeshComponent>()->SetStaticMesh(DebrisMeshes[RandomMeshIndex]);
+			if (!DebrisMeshesByLevel.IsValidIndex(DestructionLevel))
+			{
+				return;
+			}
+			const int32 RandomMeshIndex = FMath::RandRange(0, DebrisMeshesByLevel[DestructionLevel].DebrisMeshes.Num() - 1);
+			SpawnedDebris->OnDebrisDestroyed.AddDynamic(this, &UAC_DebrisSpawnComponent::SpawnDebris);
 
+			SpawnedDebris->FindComponentByClass<UStaticMeshComponent>()->SetStaticMesh(DebrisMeshesByLevel[DestructionLevel].DebrisMeshes[RandomMeshIndex]);
 			SpawnedDebris->bShouldMeshSimulatePhysics = bShouldMeshSimulatePhysics;
 			SpawnedDebris->ReplenishTime = ReplenishTime;
 			SpawnedDebris->SuctionDifficultyMultiplier = SuctionDifficultyMultiplier;
@@ -147,6 +184,7 @@ void UAC_DebrisSpawnComponent::SpawnDebris()
 			SpawnedDebris->CollisionReaction = CollisionReaction;
 			SpawnedDebris->DebrisHealth = DebrisHealth;
 			SpawnedDebris->DestructionYield = DestructionYield;
+			SpawnedDebris->DestructionLevel = DestructionLevel;
 
 			SpawnedDebris->FinishSpawning(SpawnTransform);
 		}
