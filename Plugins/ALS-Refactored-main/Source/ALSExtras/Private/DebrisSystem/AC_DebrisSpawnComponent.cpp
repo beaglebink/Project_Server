@@ -145,6 +145,8 @@ void UAC_DebrisSpawnComponent::SpawnDebris()
 			SpawnedDebris->BuoyancySpeed = BuoyancySpeed;
 			SpawnedDebris->BuoyancyRange = BuoyancyRange;
 			SpawnedDebris->CollisionReaction = CollisionReaction;
+			SpawnedDebris->DebrisHealth = DebrisHealth;
+			SpawnedDebris->DestructionYield = DestructionYield;
 
 			SpawnedDebris->FinishSpawning(SpawnTransform);
 		}

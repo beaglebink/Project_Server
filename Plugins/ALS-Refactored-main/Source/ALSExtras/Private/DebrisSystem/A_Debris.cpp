@@ -80,6 +80,35 @@ void AA_Debris::BeginPlay()
 	bHasCollision = CollisionReaction != EDebrisCollisionReact::PhaseThrough;
 }
 
+void AA_Debris::Destroyed()
+{
+	switch (DestructionYield)
+	{
+	case EDebrisDestructionYield::None:
+		break;
+	case EDebrisDestructionYield::Light:
+	{
+		break;
+	}
+	case EDebrisDestructionYield::Medium:
+	{
+		break;
+	}
+	case EDebrisDestructionYield::Heavy:
+	{
+		break;
+	}
+	case EDebrisDestructionYield::Chain:
+	{
+		break;
+	}
+	default:
+		break;
+	}
+
+	Super::Destroyed();
+}
+
 void AA_Debris::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -327,4 +356,15 @@ void AA_Debris::OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UP
 	default:
 		break;
 	}
+}
+
+float AA_Debris::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	DebrisHealth -= DamageAmount;
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Debris Health: %f"), DebrisHealth));
+	if (DebrisHealth <= 0.0f)
+	{
+		Destroy();
+	}
+	return 0.0f;
 }
