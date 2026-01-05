@@ -66,13 +66,47 @@ void AA_Debris::BeginPlay()
 	OrbitStartOffset = FMath::VRand() * OrbitRadius;
 
 	//Initialize attachment direction
-	UStaticMeshComponent* MeshComp = GetOwner()->FindComponentByClass<UStaticMeshComponent>();
-	if (MeshComp)
+	if (GetOwner())
 	{
-		AttachmentDirection = (DebrisMeshComponent->GetComponentLocation() - MeshComp->GetComponentLocation()).GetSafeNormal();
+		UStaticMeshComponent* MeshComp = GetOwner()->FindComponentByClass<UStaticMeshComponent>();
+		if (MeshComp)
+		{
+			AttachmentDirection = (DebrisMeshComponent->GetComponentLocation() - MeshComp->GetComponentLocation()).GetSafeNormal();
+		}
 	}
 
 	DebrisMeshComponent->OnComponentHit.AddDynamic(this, &AA_Debris::OnDebrisHit);
+
+	bHasCollision = CollisionReaction != EDebrisCollisionReact::PhaseThrough;
+}
+
+void AA_Debris::Destroyed()
+{
+	switch (DestructionYield)
+	{
+	case EDebrisDestructionYield::None:
+		break;
+	case EDebrisDestructionYield::Light:
+	{
+		break;
+	}
+	case EDebrisDestructionYield::Medium:
+	{
+		break;
+	}
+	case EDebrisDestructionYield::Heavy:
+	{
+		break;
+	}
+	case EDebrisDestructionYield::Chain:
+	{
+		break;
+	}
+	default:
+		break;
+	}
+
+	Super::Destroyed();
 }
 
 void AA_Debris::Tick(float DeltaTime)
@@ -81,11 +115,18 @@ void AA_Debris::Tick(float DeltaTime)
 
 	BaseLocation = FMath::VInterpTo(BaseLocation, TargetLocation, DeltaTime, 5.0f);
 
-	DebrisFloatBehavior(DeltaTime);
+	PreviousLocation = CurrentLocation;
+	CurrentLocation = GetActorLocation();
+	CurrentVelocity = (CurrentLocation - PreviousLocation) / DeltaTime;
 
-	DebrisReactToPlayer(DeltaTime);
+	if (!bIsStopped && !bHasStuckToSurface)
+	{
+		DebrisFloatBehavior(DeltaTime);
+		DebrisReactToPlayer(DeltaTime);
+		DebrisBuoyancyBehavior(DeltaTime);
+	}
 
-	DebrisBuoyancyBehavior(DeltaTime);
+	FollowStuckActor();
 }
 
 void AA_Debris::DestroyOrRespawnDebris()
@@ -145,12 +186,12 @@ void AA_Debris::DebrisFloatBehavior(float DeltaTime)
 	case EDebrisFloatPattern::Stationary:
 	{
 		float Offset = FMath::Sin(TimeAccumulator * 1.5f + NoiseSeed) * 2.0f;
-		SetActorLocation(BaseLocation + FVector(0, 0, Offset), true);
+		SetActorLocation(BaseLocation + FVector(0, 0, Offset), bHasCollision);
 		break;
 	}
 	case EDebrisFloatPattern::Drift:
 	{
-		SetActorLocation(GetActorLocation() + InitialDirection * DebrisMovementSpeed * DeltaTime);
+		SetActorLocation(GetActorLocation() + InitialDirection * DebrisMovementSpeed * DeltaTime, bHasCollision);
 		break;
 	}
 	case EDebrisFloatPattern::Wander:
@@ -160,7 +201,7 @@ void AA_Debris::DebrisFloatBehavior(float DeltaTime)
 		WanderOffset.Y = FMath::Cos(TimeAccumulator * 0.9f + NoiseSeed * 2.0f);
 		WanderOffset.Z = FMath::Sin(TimeAccumulator * 0.5f);
 
-		SetActorLocation(BaseLocation + WanderOffset * DebrisMovementSpeed);
+		SetActorLocation(BaseLocation + WanderOffset * DebrisMovementSpeed, bHasCollision);
 		break;
 	}
 	case EDebrisFloatPattern::Orbit:
@@ -169,7 +210,7 @@ void AA_Debris::DebrisFloatBehavior(float DeltaTime)
 
 		const FVector RotatedOffset = RotationQuat.RotateVector(OrbitStartOffset);
 
-		SetActorLocation(BaseLocation + RotatedOffset);
+		SetActorLocation(BaseLocation + RotatedOffset, bHasCollision);
 		break;
 	}
 	case EDebrisFloatPattern::Erratic:
@@ -183,7 +224,7 @@ void AA_Debris::DebrisFloatBehavior(float DeltaTime)
 
 		ErraticOffset = FMath::VInterpTo(ErraticOffset, TargetOffset, DeltaTime, 5.0f);
 
-		SetActorLocation(BaseLocation + ErraticOffset);
+		SetActorLocation(BaseLocation + ErraticOffset, bHasCollision);
 		break;
 	}
 	default:
@@ -211,13 +252,13 @@ void AA_Debris::DebrisReactToPlayer(float DeltaTime)
 	case EDebrisReactToPlayer::Evasive:
 	{
 		Evasion = FMath::VInterpTo(Evasion, -DirToPlayer * PlayerInfluenceStrength * 100.0f * InfluenceAlpha, DeltaTime, 1.0f);
-		SetActorLocation(GetActorLocation() + Evasion);
+		SetActorLocation(GetActorLocation() + Evasion, bHasCollision);
 		break;
 	}
 	case EDebrisReactToPlayer::Attracted:
 	{
 		Attraction = FMath::VInterpTo(Attraction, DirToPlayer * PlayerInfluenceStrength * 100.0f * InfluenceAlpha, DeltaTime, 1.0f);
-		SetActorLocation(GetActorLocation() + Attraction);
+		SetActorLocation(GetActorLocation() + Attraction, bHasCollision);
 		break;
 	}
 	case EDebrisReactToPlayer::Neutral:
@@ -226,7 +267,7 @@ void AA_Debris::DebrisReactToPlayer(float DeltaTime)
 		CurrentVelocitySize = FMath::FInterpTo(CurrentVelocitySize, PlayerVelocity.Size(), DeltaTime, 1.0f);
 		Turbulence = FMath::VInterpTo(Turbulence, DirToPlayer * FVector::DotProduct(PlayerVelocity.GetSafeNormal(), DirToPlayer) * PlayerInfluenceStrength
 			* InfluenceAlpha * FMath::Pow(SpeedInfluenceAlpha, 2) * CurrentVelocitySize, DeltaTime, 1.0f);
-		SetActorLocation(GetActorLocation() + Turbulence);
+		SetActorLocation(GetActorLocation() + Turbulence, bHasCollision);
 		break;
 	}
 	default:
@@ -271,30 +312,59 @@ void AA_Debris::DebrisBuoyancyBehavior(float DeltaTime)
 	}
 }
 
+void AA_Debris::FollowStuckActor()
+{
+	if (IsValid(StuckActor) && bHasStuckToSurface)
+	{
+		SetActorRelativeTransform(StuckTransformOffset * StuckActor->GetActorTransform(), bHasCollision);
+	}
+}
+
 void AA_Debris::OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
+	AA_Debris* DebrisActor = Cast<AA_Debris>(OtherActor);
 	switch (CollisionReaction)
 	{
 	case EDebrisCollisionReact::PhaseThrough:
+	{
 		break;
+	}
 	case EDebrisCollisionReact::Bounce:
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Bounce"));
+		if (!DebrisActor)
+		{
+			FVector Reflection = CurrentVelocity.MirrorByVector(Hit.Normal);
+			TargetLocation += Reflection;
+		}
 		break;
 	}
 	case EDebrisCollisionReact::Stick:
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Stick"));
+		if (!DebrisActor)
+		{
+			bHasStuckToSurface = true;
+			StuckActor = OtherActor;
+			StuckTransformOffset = GetActorTransform().GetRelativeTransform(OtherActor->GetActorTransform());
+		}
 		break;
 	}
 	case EDebrisCollisionReact::Stop:
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Stop"));
+		bIsStopped = true;
 		break;
 	}
 	default:
 		break;
 	}
-
 }
 
+float AA_Debris::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	DebrisHealth -= DamageAmount;
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Debris Health: %f"), DebrisHealth));
+	if (DebrisHealth <= 0.0f)
+	{
+		Destroy();
+	}
+	return 0.0f;
+}

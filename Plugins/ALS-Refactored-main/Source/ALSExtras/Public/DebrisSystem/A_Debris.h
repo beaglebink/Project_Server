@@ -43,6 +43,16 @@ enum class EDebrisCollisionReact : uint8
 	Stop
 };
 
+UENUM(BlueprintType)
+enum class EDebrisDestructionYield : uint8
+{
+	None,
+	Light,
+	Medium,
+	Heavy,
+	Chain
+};
+
 UCLASS()
 class ALSEXTRAS_API AA_Debris : public AActor
 {
@@ -55,6 +65,8 @@ protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	virtual void BeginPlay() override;
+
+	virtual void Destroyed() override;
 
 public:
 	virtual void Tick(float DeltaTime) override;
@@ -169,7 +181,32 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	EDebrisCollisionReact CollisionReaction = EDebrisCollisionReact::PhaseThrough;
 
-	private:
-		UFUNCTION()
-		void OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+private:
+	uint8 bHasCollision : 1{false};
+	uint8 bHasStuckToSurface : 1{false};
+	uint8 bIsStopped : 1{false};
+
+	FVector PreviousLocation = FVector::ZeroVector;
+	FVector CurrentLocation = FVector::ZeroVector;
+	FVector CurrentVelocity = FVector::ZeroVector;
+
+	AActor* StuckActor = nullptr;
+	FTransform StuckTransformOffset = FTransform::Identity;
+
+	void FollowStuckActor();
+
+	UFUNCTION()
+	void OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	//destruction
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float DebrisHealth = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
+
+private:
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
 };

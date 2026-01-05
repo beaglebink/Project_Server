@@ -105,15 +105,21 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EBuoyancyType BuoyancyType = EBuoyancyType::Fixed;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "BuoyancyType != EBuoyancyType::Fixed", EditConditionHides, ClampMin = 0.0f))
 	float BuoyancySpeed = 0.0f;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "BuoyancyType == EBuoyancyType::Floating", EditConditionHides, ClampMin = 0.0f))
 	float BuoyancyRange = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisCollisionReact CollisionReaction = EDebrisCollisionReact::PhaseThrough;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
+	float DebrisHealth = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
+	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
 
 	FVector GetRandomPointInVolume() const;
 
