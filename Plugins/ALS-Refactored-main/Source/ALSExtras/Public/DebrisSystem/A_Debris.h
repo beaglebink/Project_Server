@@ -169,7 +169,20 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	EDebrisCollisionReact CollisionReaction = EDebrisCollisionReact::PhaseThrough;
 
-	private:
-		UFUNCTION()
-		void OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+private:
+	uint8 bHasCollision : 1{false};
+	uint8 bHasStuckToSurface : 1{false};
+	uint8 bIsStopped : 1{false};
+
+	FVector PreviousLocation = FVector::ZeroVector;
+	FVector CurrentLocation = FVector::ZeroVector;
+	FVector CurrentVelocity = FVector::ZeroVector;
+
+	AActor* StuckActor = nullptr;
+	FTransform StuckTransformOffset = FTransform::Identity;
+
+	void FollowStuckActor();
+
+	UFUNCTION()
+	void OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 };
