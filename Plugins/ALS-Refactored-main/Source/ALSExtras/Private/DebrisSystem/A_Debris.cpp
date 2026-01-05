@@ -82,28 +82,10 @@ void AA_Debris::BeginPlay()
 
 void AA_Debris::Destroyed()
 {
-	switch (DestructionYield)
+	// spawn debris only once on destruction
+	if (DestructionLevel == 0)
 	{
-	case EDebrisDestructionYield::None:
-		break;
-	case EDebrisDestructionYield::Light:
-	{
-		break;
-	}
-	case EDebrisDestructionYield::Medium:
-	{
-		break;
-	}
-	case EDebrisDestructionYield::Heavy:
-	{
-		break;
-	}
-	case EDebrisDestructionYield::Chain:
-	{
-		break;
-	}
-	default:
-		break;
+		OnDebrisDestroyed.Broadcast(GetActorTransform(), DebrisMeshComponent->GetStaticMesh()->GetBounds().BoxExtent, ++DestructionLevel);
 	}
 
 	Super::Destroyed();

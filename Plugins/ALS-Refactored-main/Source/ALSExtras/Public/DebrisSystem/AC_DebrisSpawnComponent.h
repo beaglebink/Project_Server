@@ -17,6 +17,15 @@ enum class EDebrisSpawnShape : uint8
 	Box
 };
 
+USTRUCT(BlueprintType)
+struct FDebrisLevel
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TArray<UStaticMesh*> DebrisMeshes;
+};
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_DebrisSpawnComponent : public UActorComponent
 {
@@ -40,7 +49,7 @@ private:
 	TSubclassOf<AA_Debris> DebrisClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
-	TArray<UStaticMesh*> DebrisMeshes;
+	TArray<FDebrisLevel> DebrisMeshesByLevel;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisSpawnShape SpawnShape;
@@ -121,9 +130,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
 
-	FVector GetRandomPointInVolume() const;
+	FVector GetRandomPointInVolume(FTransform SpawnTransform, EDebrisSpawnShape SpawnShapeVolume) const;
 
 public:
-	UFUNCTION(BlueprintCallable)
-	void SpawnDebris();
+	UFUNCTION()
+	void SpawnDebris(FTransform SpawnShapeTransform, FVector VolumeBoundsExtent, int8 DestructionLevel);
 };
