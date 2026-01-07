@@ -49,7 +49,6 @@ public:
     UFUNCTION(BlueprintCallable)
     bool HasLoadedSave() const { return bHasLoadedSave; }
 
-    // Работа с профилями
     UFUNCTION(BlueprintCallable)
     void AddUserProfile(const FBookfaceProfileStructure& NewProfile);
 
@@ -115,7 +114,6 @@ public:
     UFUNCTION(BlueprintCallable)
 	void ClearAllMessageNotices(const FString& ProfileId);
 
-    // Сообщения
     UFUNCTION(BlueprintCallable)
     void AddMessage(const FBF_MessageStructure& NewMessage);
 
