@@ -1,31 +1,11 @@
-#pragma once
+﻿#pragma once
+
 #include "CoreMinimal.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
+#include "SaveDataStructures.h"
 #include "SaveGameHelper.generated.h"
 
-USTRUCT()
-struct FComponentSaveData
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    FString UniqueID;
-
-    UPROPERTY()
-    FString ClassName;
-
-    UPROPERTY()
-    FTransform Transform;
-
-    UPROPERTY()
-    FString ParentID;
-
-    UPROPERTY()
-    FString SerializedData;
-};
-
 UCLASS()
-class USaveGameHelper : public UBlueprintFunctionLibrary
+class FPSKITALSREFACTORED_API USaveGameHelper : public UObject
 {
     GENERATED_BODY()
 
@@ -38,4 +18,12 @@ public:
 
     static TArray<FComponentSaveData> SerializeComponents(AActor* Actor);
     static void DeserializeComponents(AActor* Actor, const TArray<FComponentSaveData>& SavedComponents);
+
+    static bool IsActorEligibleForSave(const AActor* Actor);
+    static bool IsComponentEligibleForSave(const UActorComponent* Comp);
+
+    static TArray<FActorSaveData> SerializeWorld(UWorld* World);
+    static void DeserializeWorld(UWorld* World, const TArray<FActorSaveData>& SavedActors);
+
 };
+

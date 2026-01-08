@@ -1,11 +1,124 @@
-#include "SaveGameHelper.h"
+﻿#include "SaveGameHelper.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "SaveInterface.h"
+#include "GameFramework/Actor.h"
+#include "Components/SceneComponent.h"
+#include "Components/BrushComponent.h"
+#include "Components/LightComponent.h"
+#include "Components/ReflectionCaptureComponent.h"
+#include "Components/PostProcessComponent.h"
+#include "Components/StaticMeshComponent.h"
 
+bool USaveGameHelper::IsActorEligibleForSave(const AActor* Actor)
+{
+    if (!Actor) return false;
+    const FString ClassName = Actor->GetClass()->GetName();
+
+    if (ClassName.Contains("Brush") ||
+        ClassName.Contains("TriggerVolume") ||
+        ClassName.Contains("DefaultPhysicsVolume") ||
+        ClassName.Contains("NavMesh") ||
+        ClassName.Contains("AbstractNavData") ||
+        ClassName.Contains("RecastNavMesh") ||
+        ClassName.Contains("ReflectionCapture") ||
+        ClassName.Contains("SkyLight") ||
+        ClassName.Contains("DirectionalLight") ||
+        ClassName.Contains("SpotLight") ||
+        ClassName.Contains("Atmosphere") ||
+        ClassName.Contains("Fog") ||
+        ClassName.Contains("Cloud") ||
+        ClassName.Contains("PlayerStart") ||
+        ClassName.Contains("CameraActor") ||
+        ClassName.Contains("StaticMeshActor"))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool USaveGameHelper::IsComponentEligibleForSave(const UActorComponent* Comp)
+{
+    if (!Comp) return false;
+
+    if (Comp->IsA(UBrushComponent::StaticClass())) return false;
+
+    const USceneComponent* SceneComp = Cast<USceneComponent>(Comp);
+    if (!SceneComp) return false;
+
+    if (SceneComp->Mobility != EComponentMobility::Movable)
+        return false;
+
+    const FString ClassName = Comp->GetClass()->GetName();
+    if (ClassName.Contains("Light") ||
+        ClassName.Contains("ReflectionCapture") ||
+        ClassName.Contains("PostProcess") ||
+        ClassName.Contains("Atmosphere") ||
+        ClassName.Contains("Fog") ||
+        ClassName.Contains("Cloud"))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+// Сериализация мира
+TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
+{
+    TArray<FActorSaveData> Result;
+
+    if (!World) return Result;
+
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!Actor) continue;
+        if (!IsActorEligibleForSave(Actor)) continue;
+
+        FActorSaveData Data;
+        Data.ClassName = Actor->GetClass()->GetPathName();
+        Data.Transform = Actor->GetActorTransform();
+
+        if (Actor->Implements<USaveInterface>())
+        {
+            ISaveInterface* Saveable = Cast<ISaveInterface>(Actor);
+            Saveable->OnPreSave();
+            Data.UniqueID = Saveable->GetSaveID();
+            Data.SerializedData = Saveable->SaveToJson();
+        }
+        else
+        {
+            Data.UniqueID = Actor->GetName();
+            Data.SerializedData = SerializeActor(Actor);
+        }
+
+        Data.SavedComponents = SerializeComponents(Actor);
+
+        if (AActor* Parent = Actor->GetAttachParentActor())
+        {
+            Data.AttachParentID = Parent->GetName();
+            if (USceneComponent* RootComp = Actor->GetRootComponent())
+            {
+                Data.AttachSocketName = RootComp->GetAttachSocketName();
+            }
+        }
+
+        Result.Add(Data);
+    }
+
+    return Result;
+}
+
+// Сериализация актора
 FString USaveGameHelper::SerializeActor(AActor* Actor)
 {
     if (!Actor) return "";
+    if (!IsActorEligibleForSave(Actor)) return "";
 
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 
@@ -14,13 +127,19 @@ FString USaveGameHelper::SerializeActor(AActor* Actor)
         FProperty* Property = *PropIt;
         if (Property->HasMetaData(TEXT("SaveGame")))
         {
+            // Игнорируем трансформы для неподвижных акторов
+            if (Property->GetName() == TEXT("RelativeLocation") ||
+                Property->GetName() == TEXT("RelativeRotation") ||
+                Property->GetName() == TEXT("RelativeScale3D"))
+            {
+                continue;
+            }
+
             FString ValueStr;
             Property->ExportTextItem_Direct(
                 ValueStr,
                 Property->ContainerPtrToValuePtr<void>(Actor),
-                Actor,
-                Actor,
-                PPF_None
+                Actor, Actor, PPF_None
             );
             JsonObject->SetStringField(Property->GetName(), ValueStr);
         }
@@ -32,9 +151,11 @@ FString USaveGameHelper::SerializeActor(AActor* Actor)
     return Output;
 }
 
+// Десериализация актора
 void USaveGameHelper::DeserializeActor(AActor* Actor, const FString& JsonString)
 {
     if (!Actor || JsonString.IsEmpty()) return;
+    if (!IsActorEligibleForSave(Actor)) return;
 
     TSharedPtr<FJsonObject> JsonObject;
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
@@ -46,6 +167,14 @@ void USaveGameHelper::DeserializeActor(AActor* Actor, const FString& JsonString)
             FProperty* Property = *PropIt;
             if (Property->HasMetaData(TEXT("SaveGame")))
             {
+                // Игнорируем трансформы для неподвижных акторов
+                if (Property->GetName() == TEXT("RelativeLocation") ||
+                    Property->GetName() == TEXT("RelativeRotation") ||
+                    Property->GetName() == TEXT("RelativeScale3D"))
+                {
+                    continue;
+                }
+
                 if (JsonObject->HasField(Property->GetName()))
                 {
                     FString ValueStr = JsonObject->GetStringField(Property->GetName());
@@ -62,9 +191,81 @@ void USaveGameHelper::DeserializeActor(AActor* Actor, const FString& JsonString)
     }
 }
 
+// Десериализация мира
+void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveData>& SavedActors)
+{
+    if (!World) return;
+
+    for (const FActorSaveData& Data : SavedActors)
+    {
+        AActor* Actor = nullptr;
+
+        // ищем существующий актор по UniqueID
+        for (TActorIterator<AActor> It(World); It; ++It)
+        {
+            if (It->GetName() == Data.UniqueID)
+            {
+                Actor = *It;
+                break;
+            }
+        }
+
+        // если не нашли — создаём новый
+        if (!Actor)
+        {
+            UClass* ActorClass = LoadObject<UClass>(nullptr, *Data.ClassName);
+            if (ActorClass && IsActorEligibleForSave(ActorClass->GetDefaultObject<AActor>()))
+            {
+                FActorSpawnParameters Params;
+                Actor = World->SpawnActor<AActor>(ActorClass, Data.Transform, Params);
+            }
+        }
+
+        if (Actor)
+        {
+            // восстановление данных
+            if (Actor->Implements<USaveInterface>())
+            {
+                ISaveInterface* Saveable = Cast<ISaveInterface>(Actor);
+                Saveable->LoadFromJson(Data.SerializedData);
+                Saveable->OnPostLoad();
+            }
+            else
+            {
+                DeserializeActor(Actor, Data.SerializedData);
+            }
+
+            Actor->SetActorTransform(Data.Transform);
+            DeserializeComponents(Actor, Data.SavedComponents);
+
+            // восстановление attach‑связи
+            if (!Data.AttachParentID.IsEmpty())
+            {
+                for (TActorIterator<AActor> It(World); It; ++It)
+                {
+                    if (It->GetName() == Data.AttachParentID)
+                    {
+                        AActor* Parent = *It;
+                        if (USceneComponent* ParentComp = Parent->GetRootComponent())
+                        {
+                            Actor->AttachToComponent(
+                                ParentComp,
+                                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+                                Data.AttachSocketName
+                            );
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
 FString USaveGameHelper::SerializeComponent(UActorComponent* Component)
 {
     if (!Component) return "";
+    if (!IsComponentEligibleForSave(Component)) return "";
 
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 
@@ -73,13 +274,19 @@ FString USaveGameHelper::SerializeComponent(UActorComponent* Component)
         FProperty* Property = *PropIt;
         if (Property->HasMetaData(TEXT("SaveGame")))
         {
+            // Игнорируем трансформы для неподвижных компонентов
+            if (Property->GetName() == TEXT("RelativeLocation") ||
+                Property->GetName() == TEXT("RelativeRotation") ||
+                Property->GetName() == TEXT("RelativeScale3D"))
+            {
+                continue;
+            }
+
             FString ValueStr;
             Property->ExportTextItem_Direct(
                 ValueStr,
                 Property->ContainerPtrToValuePtr<void>(Component),
-                Component,
-                Component,
-                PPF_None
+                Component, Component, PPF_None
             );
             JsonObject->SetStringField(Property->GetName(), ValueStr);
         }
@@ -94,6 +301,7 @@ FString USaveGameHelper::SerializeComponent(UActorComponent* Component)
 void USaveGameHelper::DeserializeComponent(UActorComponent* Component, const FString& JsonString)
 {
     if (!Component || JsonString.IsEmpty()) return;
+    if (!IsComponentEligibleForSave(Component)) return;
 
     TSharedPtr<FJsonObject> JsonObject;
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
@@ -105,6 +313,14 @@ void USaveGameHelper::DeserializeComponent(UActorComponent* Component, const FSt
             FProperty* Property = *PropIt;
             if (Property->HasMetaData(TEXT("SaveGame")))
             {
+                // Игнорируем трансформы для неподвижных компонентов
+                if (Property->GetName() == TEXT("RelativeLocation") ||
+                    Property->GetName() == TEXT("RelativeRotation") ||
+                    Property->GetName() == TEXT("RelativeScale3D"))
+                {
+                    continue;
+                }
+
                 if (JsonObject->HasField(Property->GetName()))
                 {
                     FString ValueStr = JsonObject->GetStringField(Property->GetName());
@@ -123,74 +339,44 @@ void USaveGameHelper::DeserializeComponent(UActorComponent* Component, const FSt
 
 TArray<FComponentSaveData> USaveGameHelper::SerializeComponents(AActor* Actor)
 {
-    TArray<FComponentSaveData> SavedComponents;
-    if (!Actor) return SavedComponents;
+    TArray<FComponentSaveData> Result;
+
+    if (!Actor) return Result;
 
     for (UActorComponent* Comp : Actor->GetComponents())
     {
-        if (USceneComponent* SceneComp = Cast<USceneComponent>(Comp))
-        {
-            FComponentSaveData Data;
-            Data.UniqueID = SceneComp->GetName();
-            Data.ClassName = SceneComp->GetClass()->GetPathName();
-            Data.Transform = SceneComp->GetRelativeTransform();
+        if (!IsComponentEligibleForSave(Comp)) continue;
 
-            if (SceneComp->GetAttachParent())
-            {
-                Data.ParentID = SceneComp->GetAttachParent()->GetName();
-            }
+        FComponentSaveData CompData;
+        CompData.ComponentName = Comp->GetName();
+        CompData.SerializedData = SerializeComponent(Comp);
 
-            Data.SerializedData = SerializeComponent(SceneComp);
-            SavedComponents.Add(Data);
-        }
+        Result.Add(CompData);
     }
 
-    return SavedComponents;
+    return Result;
 }
 
 void USaveGameHelper::DeserializeComponents(AActor* Actor, const TArray<FComponentSaveData>& SavedComponents)
 {
     if (!Actor) return;
 
-    for (UActorComponent* Comp : Actor->GetComponents())
+    for (const FComponentSaveData& CompData : SavedComponents)
     {
-        if (Comp != Actor->GetRootComponent())
+        UActorComponent* FoundComp = nullptr;
+
+        for (UActorComponent* Comp : Actor->GetComponents())
         {
-            Comp->DestroyComponent();
-        }
-    }
-
-    for (const FComponentSaveData& Data : SavedComponents)
-    {
-        UClass* CompClass = LoadObject<UClass>(nullptr, *Data.ClassName);
-        if (!CompClass) continue;
-
-        USceneComponent* SceneComp = NewObject<USceneComponent>(Actor, CompClass, FName(*Data.UniqueID));
-        SceneComp->RegisterComponent();
-        SceneComp->SetRelativeTransform(Data.Transform);
-
-        DeserializeComponent(SceneComp, Data.SerializedData);
-
-        if (!Data.ParentID.IsEmpty())
-        {
-            USceneComponent* Parent = nullptr;
-            for (UActorComponent* Comp : Actor->GetComponents())
+            if (Comp && Comp->GetName() == CompData.ComponentName)
             {
-                if (Comp && Comp->GetName() == Data.ParentID)
-                {
-                    Parent = Cast<USceneComponent>(Comp);
-                    break;
-                }
-            }
-
-            if (Parent)
-            {
-                SceneComp->AttachToComponent(Parent, FAttachmentTransformRules::KeepRelativeTransform);
+                FoundComp = Comp;
+                break;
             }
         }
-        else
-        {
-            SceneComp->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-        }
+
+        if (!FoundComp) continue;
+        if (!IsComponentEligibleForSave(FoundComp)) continue;
+
+        DeserializeComponent(FoundComp, CompData.SerializedData);
     }
 }

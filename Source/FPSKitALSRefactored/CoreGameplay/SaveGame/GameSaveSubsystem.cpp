@@ -6,7 +6,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "EngineUtils.h"
-
+#include "Engine/ReflectionCapture.h"
 #include "BookfaceSubsystem.h"
 #include "InstantMessengerSubsystem.h"
 
@@ -64,11 +64,11 @@ void UGameSaveSubsystem::SaveGame()
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // Сохраняем акторы
     for (TActorIterator<AActor> It(World); It; ++It)
     {
         AActor* Actor = *It;
         if (!Actor) continue;
+        if (!USaveGameHelper::IsActorEligibleForSave(Actor)) continue;
 
         FActorSaveData Data;
         Data.ClassName = Actor->GetClass()->GetPathName();
@@ -88,29 +88,40 @@ void UGameSaveSubsystem::SaveGame()
         }
 
         Data.SavedComponents = USaveGameHelper::SerializeComponents(Actor);
+
+        if (AActor* Parent = Actor->GetAttachParentActor())
+        {
+            Data.AttachParentID = Parent->GetName();
+            if (USceneComponent* RootComp = Actor->GetRootComponent())
+            {
+                Data.AttachSocketName = RootComp->GetAttachSocketName();
+            }
+        }
+
         SaveGameObject->SavedActors.Add(Data);
     }
 
-    if (auto* BookfaceSubsystem = GetGameInstance()->GetSubsystem<UBookfaceSubsystem>())
+    FString TimeStamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
+    FString BaseSlotName = FString::Printf(TEXT("Save_%s"), *TimeStamp);
+
+    FString SaveDir = FPaths::ProjectSavedDir() / TEXT("SaveGames");
+    FString FullPath = SaveDir / (BaseSlotName + TEXT(".sav"));
+
+    int32 Counter = 1;
+    FString FinalSlotName = BaseSlotName;
+
+    while (IFileManager::Get().FileExists(*FullPath))
     {
-        FSubsystemSaveData Data;
-        Data.SubsystemName = BookfaceSubsystem->GetClass()->GetName();
-        // stub
-        Data.SerializedData = TEXT("{}");
-        SaveGameObject->SavedSubsystems.Add(Data);
+        FinalSlotName = FString::Printf(TEXT("%s_%d"), *BaseSlotName, Counter);
+        FullPath = SaveDir / (FinalSlotName + TEXT(".sav"));
+        Counter++;
     }
 
-    // Сохраняем InstantMessengerSubsystem
-    if (auto* MessengerSubsystem = GetGameInstance()->GetSubsystem<UInstantMessengerSubsystem>())
-    {
-        FSubsystemSaveData Data;
-        Data.SubsystemName = MessengerSubsystem->GetClass()->GetName();
-        // stub
-        Data.SerializedData = TEXT("{}");
-        SaveGameObject->SavedSubsystems.Add(Data);
-    }
+    CurrentSlot = FinalSlotName;
 
     UGameplayStatics::SaveGameToSlot(SaveGameObject, CurrentSlot, 0);
+
+    UE_LOG(LogTemp, Log, TEXT("Сохранение выполнено в слот: %s"), *CurrentSlot);
 }
 
 void UGameSaveSubsystem::LoadGame()
@@ -122,7 +133,6 @@ void UGameSaveSubsystem::LoadGame()
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // Восстанавливаем акторы
     for (const FActorSaveData& Data : SaveGameObject->SavedActors)
     {
         AActor* Actor = nullptr;
@@ -139,7 +149,7 @@ void UGameSaveSubsystem::LoadGame()
         if (!Actor)
         {
             UClass* ActorClass = LoadObject<UClass>(nullptr, *Data.ClassName);
-            if (ActorClass)
+            if (ActorClass && USaveGameHelper::IsActorEligibleForSave(ActorClass->GetDefaultObject<AActor>()))
             {
                 FActorSpawnParameters Params;
                 Actor = World->SpawnActor<AActor>(ActorClass, Data.Transform, Params);
@@ -161,32 +171,51 @@ void UGameSaveSubsystem::LoadGame()
 
             Actor->SetActorTransform(Data.Transform);
             USaveGameHelper::DeserializeComponents(Actor, Data.SavedComponents);
-        }
-    }
 
-    // restore BookfaceSubsystem
-    if (auto* BookfaceSubsystem = GetGameInstance()->GetSubsystem<UBookfaceSubsystem>())
-    {
-        for (const FSubsystemSaveData& Data : SaveGameObject->SavedSubsystems)
-        {
-            if (Data.SubsystemName == BookfaceSubsystem->GetClass()->GetName())
+            if (!Data.AttachParentID.IsEmpty())
             {
-                // stub
-                // BookfaceSubsystem->LoadFromJson(Data.SerializedData);
+                for (TActorIterator<AActor> It(World); It; ++It)
+                {
+                    if (It->GetName() == Data.AttachParentID)
+                    {
+                        AActor* Parent = *It;
+                        if (USceneComponent* ParentComp = Parent->GetRootComponent())
+                        {
+                            Actor->AttachToComponent(
+                                ParentComp,
+                                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+                                Data.AttachSocketName
+                            );
+                        }
+                        break;
+                    }
+                }
             }
         }
     }
+}
 
-    // restore InstantMessengerSubsystem
-    if (auto* MessengerSubsystem = GetGameInstance()->GetSubsystem<UInstantMessengerSubsystem>())
+void UGameSaveSubsystem::DeleteSaveSlot(const FString& SlotName)
+{
+    // Путь к файлу сохранения
+    FString SaveDir = FPaths::ProjectSavedDir() / TEXT("SaveGames");
+    FString FullPath = SaveDir / (SlotName + TEXT(".sav"));
+
+    // Проверяем, существует ли файл
+    if (IFileManager::Get().FileExists(*FullPath))
     {
-        for (const FSubsystemSaveData& Data : SaveGameObject->SavedSubsystems)
+        bool bDeleted = IFileManager::Get().Delete(*FullPath);
+        if (bDeleted)
         {
-            if (Data.SubsystemName == MessengerSubsystem->GetClass()->GetName())
-            {
-                // stub
-                // MessengerSubsystem->LoadFromJson(Data.SerializedData);
-            }
+            UE_LOG(LogTemp, Log, TEXT("Слот %s успешно удалён."), *SlotName);
         }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Не удалось удалить слот %s."), *SlotName);
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Слот %s не найден."), *SlotName);
     }
 }

@@ -25,17 +25,30 @@ class FPSKITALSREFACTORED_API UGameSaveSubsystem : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
-    UPROPERTY()
-    FString CurrentSlot;
-
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
+    UFUNCTION(BlueprintCallable)
     void SaveGame();
+
+    UFUNCTION(BlueprintCallable)
     void LoadGame();
 
+    UFUNCTION(BlueprintCallable)
+    void DeleteSaveSlot(const FString& SlotName);
+
+    UFUNCTION(BlueprintCallable)
     void SetActiveSlot(const FString& SlotName);
+
+    UFUNCTION(BlueprintCallable)
     FString GetActiveSlot() const { return CurrentSlot; }
 
+    UFUNCTION(BlueprintCallable)
     TArray<FString> GetAvailableSlots() const;
+
+    UFUNCTION(BlueprintCallable)
     TArray<FSaveSlotInfo> GetSaveSlotsForUI() const;
+
+public:
+    UPROPERTY()
+    FString CurrentSlot;
 };
