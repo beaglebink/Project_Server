@@ -209,10 +209,28 @@ private:
 	void OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	//destruction
-public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+private:
+	float DebrisMaxHealth = 0.0f;
+
 	float DebrisHealth = 0.0f;
 
+public:
+	UFUNCTION(BlueprintCallable)
+	void SetDebrisMaxHealth(float NewMaxHealth);
+
+	UFUNCTION(BlueprintCallable)
+	void SetDebrisHealth(float NewHealth);
+
+	UFUNCTION(BlueprintCallable)
+	float GetDebrisMaxHealth() const;
+
+	UFUNCTION(BlueprintCallable)
+	float GetDebrisHealth() const;
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void OnHealthChanged(float Health, float MaxHealth);
+
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
 

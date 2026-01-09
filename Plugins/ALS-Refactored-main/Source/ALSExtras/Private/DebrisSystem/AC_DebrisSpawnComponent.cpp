@@ -158,7 +158,7 @@ void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVect
 
 	for (size_t i = 0; i < DebrisCount; ++i)
 	{
-		const FTransform SpawnTransform(UKismetMathLibrary::RandomRotator(true), GetRandomPointInVolume(SpawnShapeTransform, SpawnShape));
+		const FTransform SpawnTransform(FRotator::ZeroRotator, GetRandomPointInVolume(SpawnShapeTransform, SpawnShape));
 		AA_Debris* SpawnedDebris = GetWorld()->SpawnActorDeferred<AA_Debris>(DebrisClass, SpawnTransform, GetOwner(), GetOwner()->GetInstigator());
 		if (SpawnedDebris)
 		{
@@ -187,7 +187,8 @@ void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVect
 			SpawnedDebris->BuoyancySpeed = BuoyancySpeed;
 			SpawnedDebris->BuoyancyRange = BuoyancyRange;
 			SpawnedDebris->CollisionReaction = CollisionReaction;
-			SpawnedDebris->DebrisHealth = DebrisHealth;
+			SpawnedDebris->SetDebrisMaxHealth(DebrisMaxHealth);
+			SpawnedDebris->SetDebrisHealth(DebrisHealth);
 			SpawnedDebris->DestructionYield = DestructionYield;
 			SpawnedDebris->DestructionLevel = DestructionLevel;
 			SpawnedDebris->ChainReactionSphereRadius = ChainReactionSphereRadius;

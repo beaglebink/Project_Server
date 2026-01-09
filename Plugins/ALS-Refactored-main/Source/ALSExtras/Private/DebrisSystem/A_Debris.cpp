@@ -362,12 +362,40 @@ void AA_Debris::OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UP
 	}
 }
 
-float AA_Debris::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+void AA_Debris::SetDebrisMaxHealth(float NewMaxHealth)
 {
-	DebrisHealth -= DamageAmount;
+	DebrisMaxHealth = FMath::Clamp(NewMaxHealth, 0.0f, 1000.0f);
+	OnHealthChanged(DebrisHealth, DebrisMaxHealth);
+}
+
+void AA_Debris::SetDebrisHealth(float NewHealth)
+{
+	DebrisHealth = FMath::Clamp(NewHealth, 0.0f, DebrisMaxHealth);
+	OnHealthChanged(DebrisHealth, DebrisMaxHealth);
+
 	if (DebrisHealth <= 0.0f)
 	{
 		Destroy();
 	}
+}
+
+float AA_Debris::GetDebrisMaxHealth() const
+{
+	return DebrisMaxHealth;
+}
+
+float AA_Debris::GetDebrisHealth() const
+{
+	return DebrisHealth;
+}
+
+void AA_Debris::OnHealthChanged_Implementation(float Health, float MaxHealth)
+{
+}
+
+float AA_Debris::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	SetDebrisHealth(GetDebrisHealth() - DamageAmount);
+
 	return 0.0f;
 }
