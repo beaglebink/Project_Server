@@ -212,6 +212,12 @@ public:
 
 	int8 DestructionLevel;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float ChainReactionSphereRadius = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float ChainReactionDamageAmount = 0.0f;
+
 private:
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 

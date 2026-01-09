@@ -4,6 +4,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 AA_Debris::AA_Debris()
 {
@@ -82,6 +83,21 @@ void AA_Debris::BeginPlay()
 
 void AA_Debris::Destroyed()
 {
+	// chain reaction
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_WorldDynamic, FCollisionShape::MakeSphere(ChainReactionSphereRadius), Params);
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		if (AA_Debris* Debris = Cast<AA_Debris>(Result.GetActor()))
+		{
+			UGameplayStatics::ApplyDamage(Debris, ChainReactionDamageAmount, nullptr, this, nullptr);
+		}
+	}
+
 	// spawn debris only once on destruction
 	if (DestructionLevel == 0)
 	{
@@ -343,7 +359,6 @@ void AA_Debris::OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UP
 float AA_Debris::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	DebrisHealth -= DamageAmount;
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Debris Health: %f"), DebrisHealth));
 	if (DebrisHealth <= 0.0f)
 	{
 		Destroy();

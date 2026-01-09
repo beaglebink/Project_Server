@@ -130,6 +130,12 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
+	float ChainReactionSphereRadius = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
+	float ChainReactionDamageAmount = 0.0f;
+
 	FVector GetRandomPointInVolume(FTransform SpawnTransform, EDebrisSpawnShape SpawnShapeVolume) const;
 
 public:
