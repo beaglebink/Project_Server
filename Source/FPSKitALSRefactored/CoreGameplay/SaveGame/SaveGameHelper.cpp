@@ -1,22 +1,25 @@
 ﻿#include "SaveGameHelper.h"
+#include "SaveInterface.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
+#include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "SaveInterface.h"
-#include "GameFramework/Actor.h"
-#include "Components/SceneComponent.h"
 #include "Components/BrushComponent.h"
-#include "Components/LightComponent.h"
-#include "Components/ReflectionCaptureComponent.h"
-#include "Components/PostProcessComponent.h"
-#include "Components/StaticMeshComponent.h"
+#include "Components/SceneComponent.h"
+
 
 bool USaveGameHelper::IsActorEligibleForSave(const AActor* Actor)
 {
     if (!Actor) return false;
     const FString ClassName = Actor->GetClass()->GetName();
+
+
+    if (ClassName.Contains(TEXT("LightmassImportanceVolume"))) return false;
+    if (ClassName.Contains(TEXT("NavMeshBoundsVolume"))) return false;
+    if (ClassName.Contains(TEXT("PostProcessVolume"))) return false;
+    if (Actor->IsA(APostProcessVolume::StaticClass())) return false;
 
     if (ClassName.Contains("Brush") ||
         ClassName.Contains("TriggerVolume") ||
@@ -71,7 +74,6 @@ bool USaveGameHelper::IsComponentEligibleForSave(const UActorComponent* Comp)
 TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
 {
     TArray<FActorSaveData> Result;
-
     if (!World) return Result;
 
     for (TActorIterator<AActor> It(World); It; ++It)
@@ -113,7 +115,6 @@ TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
 
     return Result;
 }
-
 // Сериализация актора
 FString USaveGameHelper::SerializeActor(AActor* Actor)
 {
@@ -200,7 +201,7 @@ void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveDat
     {
         AActor* Actor = nullptr;
 
-        // ищем существующий актор по UniqueID
+        // ищем существующий актор
         for (TActorIterator<AActor> It(World); It; ++It)
         {
             if (It->GetName() == Data.UniqueID)
@@ -223,7 +224,6 @@ void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveDat
 
         if (Actor)
         {
-            // восстановление данных
             if (Actor->Implements<USaveInterface>())
             {
                 ISaveInterface* Saveable = Cast<ISaveInterface>(Actor);
@@ -235,10 +235,14 @@ void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveDat
                 DeserializeActor(Actor, Data.SerializedData);
             }
 
-            Actor->SetActorTransform(Data.Transform);
+            // не трогаем статические акторы
+            if (Actor->GetRootComponent() && Actor->GetRootComponent()->Mobility == EComponentMobility::Movable)
+            {
+                Actor->SetActorTransform(Data.Transform);
+            }
+
             DeserializeComponents(Actor, Data.SavedComponents);
 
-            // восстановление attach‑связи
             if (!Data.AttachParentID.IsEmpty())
             {
                 for (TActorIterator<AActor> It(World); It; ++It)
@@ -340,7 +344,6 @@ void USaveGameHelper::DeserializeComponent(UActorComponent* Component, const FSt
 TArray<FComponentSaveData> USaveGameHelper::SerializeComponents(AActor* Actor)
 {
     TArray<FComponentSaveData> Result;
-
     if (!Actor) return Result;
 
     for (UActorComponent* Comp : Actor->GetComponents())
