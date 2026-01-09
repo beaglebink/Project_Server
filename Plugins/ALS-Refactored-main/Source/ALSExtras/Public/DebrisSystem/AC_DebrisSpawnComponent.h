@@ -71,7 +71,7 @@ private:
 	uint8 bShouldMeshSimulatePhysics : 1{false};
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0))
-	int32 DebrisCount = 5;
+	int32 DebrisCount = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f, ClampMax = 1.0f))
 	float SpawnDensity = 1.0f;
@@ -125,10 +125,22 @@ private:
 	EDebrisCollisionReact CollisionReaction = EDebrisCollisionReact::PhaseThrough;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
-	float DebrisHealth = 0.0f;
+	float DebrisMaxHealth = 0.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
+	float DebrisHealth = 0.0f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "DestructionYield == EDebrisDestructionYield::Chain", EditConditionHides, ClampMin = 0.0f))
+	float ChainReactionSphereRadius = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "DestructionYield == EDebrisDestructionYield::Chain", EditConditionHides, ClampMin = 0.0f))
+	float ChainReactionDamageAmount = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
+	EDebrisDirectVacuumCapture DirectVacuumCapture = EDebrisDirectVacuumCapture::Yes;
 
 	FVector GetRandomPointInVolume(FTransform SpawnTransform, EDebrisSpawnShape SpawnShapeVolume) const;
 

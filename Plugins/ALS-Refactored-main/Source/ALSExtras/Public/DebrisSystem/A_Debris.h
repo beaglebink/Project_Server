@@ -55,6 +55,14 @@ enum class EDebrisDestructionYield : uint8
 	Chain
 };
 
+UENUM(BlueprintType)
+enum class EDebrisDirectVacuumCapture : uint8
+{
+	Yes,
+	No,
+	Conditional
+};
+
 UCLASS()
 class ALSEXTRAS_API AA_Debris : public AActor
 {
@@ -201,16 +209,44 @@ private:
 	void OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	//destruction
-public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+private:
+	float DebrisMaxHealth = 0.0f;
+
 	float DebrisHealth = 0.0f;
 
+public:
+	UFUNCTION(BlueprintCallable)
+	void SetDebrisMaxHealth(float NewMaxHealth);
+
+	UFUNCTION(BlueprintCallable)
+	void SetDebrisHealth(float NewHealth);
+
+	UFUNCTION(BlueprintCallable)
+	float GetDebrisMaxHealth() const;
+
+	UFUNCTION(BlueprintCallable)
+	float GetDebrisHealth() const;
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void OnHealthChanged(float Health, float MaxHealth);
+
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
 
 	FOnDebrisDestroyed OnDebrisDestroyed;
 
 	int8 DestructionLevel;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float ChainReactionSphereRadius = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float ChainReactionDamageAmount = 0.0f;
+
+	// direct vacuum capture 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	EDebrisDirectVacuumCapture DirectVacuumCapture = EDebrisDirectVacuumCapture::Yes;
 
 private:
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

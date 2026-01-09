@@ -123,10 +123,14 @@ void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVect
 	{
 		SpawnShape = EDebrisSpawnShape::Box;
 		BoxExtent = VolumeBoundsExtent * 2.0f;
+		DirectVacuumCapture = DirectVacuumCapture == EDebrisDirectVacuumCapture::No ? EDebrisDirectVacuumCapture::Yes : DirectVacuumCapture;
 		switch (DestructionYield)
 		{
 		case EDebrisDestructionYield::None:
+		{
+			DebrisCount = 0;
 			break;
+		}
 		case EDebrisDestructionYield::Light:
 		{
 			DebrisCount = FMath::CeilToInt(FMath::FRandRange(0.0f, 5.0f));
@@ -144,6 +148,7 @@ void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVect
 		}
 		case EDebrisDestructionYield::Chain:
 		{
+			DebrisCount = 0;
 			break;
 		}
 		default:
@@ -153,7 +158,7 @@ void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVect
 
 	for (size_t i = 0; i < DebrisCount; ++i)
 	{
-		const FTransform SpawnTransform(UKismetMathLibrary::RandomRotator(true), GetRandomPointInVolume(SpawnShapeTransform, SpawnShape));
+		const FTransform SpawnTransform(FRotator::ZeroRotator, GetRandomPointInVolume(SpawnShapeTransform, SpawnShape));
 		AA_Debris* SpawnedDebris = GetWorld()->SpawnActorDeferred<AA_Debris>(DebrisClass, SpawnTransform, GetOwner(), GetOwner()->GetInstigator());
 		if (SpawnedDebris)
 		{
@@ -182,9 +187,13 @@ void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVect
 			SpawnedDebris->BuoyancySpeed = BuoyancySpeed;
 			SpawnedDebris->BuoyancyRange = BuoyancyRange;
 			SpawnedDebris->CollisionReaction = CollisionReaction;
-			SpawnedDebris->DebrisHealth = DebrisHealth;
+			SpawnedDebris->SetDebrisMaxHealth(DebrisMaxHealth);
+			SpawnedDebris->SetDebrisHealth(DebrisHealth);
 			SpawnedDebris->DestructionYield = DestructionYield;
 			SpawnedDebris->DestructionLevel = DestructionLevel;
+			SpawnedDebris->ChainReactionSphereRadius = ChainReactionSphereRadius;
+			SpawnedDebris->ChainReactionDamageAmount = ChainReactionDamageAmount;
+			SpawnedDebris->DirectVacuumCapture = DirectVacuumCapture;
 
 			SpawnedDebris->FinishSpawning(SpawnTransform);
 		}

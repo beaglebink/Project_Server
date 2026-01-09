@@ -4,6 +4,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 AA_Debris::AA_Debris()
 {
@@ -82,6 +83,21 @@ void AA_Debris::BeginPlay()
 
 void AA_Debris::Destroyed()
 {
+	// chain reaction
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_WorldDynamic, FCollisionShape::MakeSphere(ChainReactionSphereRadius), Params);
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		if (AA_Debris* Debris = Cast<AA_Debris>(Result.GetActor()))
+		{
+			UGameplayStatics::ApplyDamage(Debris, ChainReactionDamageAmount, nullptr, this, nullptr);
+		}
+	}
+
 	// spawn debris only once on destruction
 	if (DestructionLevel == 0)
 	{
@@ -145,7 +161,8 @@ void AA_Debris::DestroyOrRespawnDebris()
 float AA_Debris::DebrisMassInfluence() const
 {
 	FVector DebrisMeshBoxExtent = DebrisMeshComponent->Bounds.BoxExtent;
-	return FMath::Clamp(DebrisMeshBoxExtent.X * DebrisMeshBoxExtent.Y * DebrisMeshBoxExtent.Z / 1000.0f, 1.0f, 1000.0f) * SuctionDifficultyMultiplier;
+	return FMath::Clamp(DebrisMeshBoxExtent.X * DebrisMeshBoxExtent.Y * DebrisMeshBoxExtent.Z / 1000.0f, 1.0f, 1000.0f) * SuctionDifficultyMultiplier *
+		(DirectVacuumCapture == EDebrisDirectVacuumCapture::Conditional ? DebrisHealth / 10.0f : 1.0f);
 }
 
 void AA_Debris::CheckIfDebrisDetached(FVector DeltaForDetachment, float Effectiveness)
@@ -162,6 +179,11 @@ void AA_Debris::CheckIfDebrisDetached(FVector DeltaForDetachment, float Effectiv
 
 void AA_Debris::DebrisFloatBehavior(float DeltaTime)
 {
+	if (bShouldMeshSimulatePhysics)
+	{
+		return;
+	}
+
 	TimeAccumulator += DeltaTime;
 	switch (DebrisBehavior)
 	{
@@ -340,13 +362,40 @@ void AA_Debris::OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UP
 	}
 }
 
-float AA_Debris::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+void AA_Debris::SetDebrisMaxHealth(float NewMaxHealth)
 {
-	DebrisHealth -= DamageAmount;
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Debris Health: %f"), DebrisHealth));
+	DebrisMaxHealth = FMath::Clamp(NewMaxHealth, 0.0f, 1000.0f);
+	OnHealthChanged(DebrisHealth, DebrisMaxHealth);
+}
+
+void AA_Debris::SetDebrisHealth(float NewHealth)
+{
+	DebrisHealth = FMath::Clamp(NewHealth, 0.0f, DebrisMaxHealth);
+	OnHealthChanged(DebrisHealth, DebrisMaxHealth);
+
 	if (DebrisHealth <= 0.0f)
 	{
 		Destroy();
 	}
+}
+
+float AA_Debris::GetDebrisMaxHealth() const
+{
+	return DebrisMaxHealth;
+}
+
+float AA_Debris::GetDebrisHealth() const
+{
+	return DebrisHealth;
+}
+
+void AA_Debris::OnHealthChanged_Implementation(float Health, float MaxHealth)
+{
+}
+
+float AA_Debris::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	SetDebrisHealth(GetDebrisHealth() - DamageAmount);
+
 	return 0.0f;
 }
