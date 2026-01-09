@@ -55,6 +55,14 @@ enum class EDebrisDestructionYield : uint8
 	Chain
 };
 
+UENUM(BlueprintType)
+enum class EDebrisDirectVacuumCapture : uint8
+{
+	Yes,
+	No,
+	Conditional
+};
+
 UCLASS()
 class ALSEXTRAS_API AA_Debris : public AActor
 {
@@ -217,6 +225,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	float ChainReactionDamageAmount = 0.0f;
+
+	// direct vacuum capture 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	EDebrisDirectVacuumCapture DirectVacuumCapture = EDebrisDirectVacuumCapture::Yes;
 
 private:
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

@@ -161,7 +161,8 @@ void AA_Debris::DestroyOrRespawnDebris()
 float AA_Debris::DebrisMassInfluence() const
 {
 	FVector DebrisMeshBoxExtent = DebrisMeshComponent->Bounds.BoxExtent;
-	return FMath::Clamp(DebrisMeshBoxExtent.X * DebrisMeshBoxExtent.Y * DebrisMeshBoxExtent.Z / 1000.0f, 1.0f, 1000.0f) * SuctionDifficultyMultiplier;
+	return FMath::Clamp(DebrisMeshBoxExtent.X * DebrisMeshBoxExtent.Y * DebrisMeshBoxExtent.Z / 1000.0f, 1.0f, 1000.0f) * SuctionDifficultyMultiplier *
+		(DirectVacuumCapture == EDebrisDirectVacuumCapture::Conditional ? DebrisHealth / 10.0f : 1.0f);
 }
 
 void AA_Debris::CheckIfDebrisDetached(FVector DeltaForDetachment, float Effectiveness)
