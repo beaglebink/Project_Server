@@ -178,6 +178,11 @@ void AA_Debris::CheckIfDebrisDetached(FVector DeltaForDetachment, float Effectiv
 
 void AA_Debris::DebrisFloatBehavior(float DeltaTime)
 {
+	if (bShouldMeshSimulatePhysics)
+	{
+		return;
+	}
+
 	TimeAccumulator += DeltaTime;
 	switch (DebrisBehavior)
 	{
