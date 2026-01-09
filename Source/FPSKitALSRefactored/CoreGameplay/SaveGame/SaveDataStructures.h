@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "SaveDataStructures.generated.h"
@@ -13,6 +13,15 @@ struct FComponentSaveData
 
     UPROPERTY()
     FString SerializedData;
+
+    UPROPERTY()
+    FString AttachParentName;   // имя родительского компонента
+
+    UPROPERTY()
+    FName AttachSocketName;     // сокет
+
+    UPROPERTY()
+    FTransform RelativeTransform; // локальный трансформ
 };
 
 USTRUCT()
@@ -36,10 +45,13 @@ struct FActorSaveData
     TArray<FComponentSaveData> SavedComponents;
 
     UPROPERTY()
-    FString AttachParentID;
+    FString AttachParentID;             // имя родительского актора
 
     UPROPERTY()
-    FName AttachSocketName;
+    FString AttachParentComponentPath;  // путь к компоненту‑родителю
+
+    UPROPERTY()
+    FName AttachSocketName;             // сокет
 };
 
 USTRUCT()

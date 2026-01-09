@@ -79,42 +79,48 @@ TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
     for (TActorIterator<AActor> It(World); It; ++It)
     {
         AActor* Actor = *It;
-        if (!Actor) continue;
-        if (!IsActorEligibleForSave(Actor)) continue;
+        if (!Actor || !IsActorEligibleForSave(Actor)) continue;
 
         FActorSaveData Data;
         Data.ClassName = Actor->GetClass()->GetPathName();
-        Data.Transform = Actor->GetActorTransform();
+        Data.UniqueID = Actor->GetName();
+
+        if (USceneComponent* Root = Actor->GetRootComponent())
+        {
+            if (USceneComponent* AttachParent = Root->GetAttachParent())
+            {
+                Data.Transform = Root->GetRelativeTransform();
+                if (AActor* ParentActor = AttachParent->GetOwner())
+                {
+                    Data.AttachParentID = ParentActor->GetName();
+                }
+                Data.AttachParentComponentPath = AttachParent->GetPathName();
+                Data.AttachSocketName = Root->GetAttachSocketName();
+            }
+            else
+            {
+                Data.Transform = Actor->GetActorTransform();
+            }
+        }
 
         if (Actor->Implements<USaveInterface>())
         {
             ISaveInterface* Saveable = Cast<ISaveInterface>(Actor);
             Saveable->OnPreSave();
-            Data.UniqueID = Saveable->GetSaveID();
             Data.SerializedData = Saveable->SaveToJson();
         }
         else
         {
-            Data.UniqueID = Actor->GetName();
             Data.SerializedData = SerializeActor(Actor);
         }
 
         Data.SavedComponents = SerializeComponents(Actor);
-
-        if (AActor* Parent = Actor->GetAttachParentActor())
-        {
-            Data.AttachParentID = Parent->GetName();
-            if (USceneComponent* RootComp = Actor->GetRootComponent())
-            {
-                Data.AttachSocketName = RootComp->GetAttachSocketName();
-            }
-        }
-
         Result.Add(Data);
     }
 
     return Result;
 }
+
 // Сериализация актора
 FString USaveGameHelper::SerializeActor(AActor* Actor)
 {
@@ -193,25 +199,37 @@ void USaveGameHelper::DeserializeActor(AActor* Actor, const FString& JsonString)
 }
 
 // Десериализация мира
+USceneComponent* ResolveParentComponent(const FString& ComponentPath)
+{
+    UObject* Obj = StaticFindObject(UObject::StaticClass(), nullptr, *ComponentPath);
+    return Cast<USceneComponent>(Obj);
+}
+
 void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveData>& SavedActors)
 {
     if (!World) return;
 
+    struct FPendingAttach
+    {
+        AActor* Child;
+        FString ParentID;
+        FString ParentComponentPath;
+        FName SocketName;
+        FTransform RelativeTransform;
+    };
+
+    TArray<FPendingAttach> PendingAttaches;
+
+    // Первый проход: создаём акторы и восстанавливаем данные
     for (const FActorSaveData& Data : SavedActors)
     {
         AActor* Actor = nullptr;
 
-        // ищем существующий актор
         for (TActorIterator<AActor> It(World); It; ++It)
         {
-            if (It->GetName() == Data.UniqueID)
-            {
-                Actor = *It;
-                break;
-            }
+            if (It->GetName() == Data.UniqueID) { Actor = *It; break; }
         }
 
-        // если не нашли — создаём новый
         if (!Actor)
         {
             UClass* ActorClass = LoadObject<UClass>(nullptr, *Data.ClassName);
@@ -235,34 +253,53 @@ void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveDat
                 DeserializeActor(Actor, Data.SerializedData);
             }
 
-            // не трогаем статические акторы
-            if (Actor->GetRootComponent() && Actor->GetRootComponent()->Mobility == EComponentMobility::Movable)
-            {
-                Actor->SetActorTransform(Data.Transform);
-            }
-
             DeserializeComponents(Actor, Data.SavedComponents);
 
             if (!Data.AttachParentID.IsEmpty())
             {
-                for (TActorIterator<AActor> It(World); It; ++It)
+                FPendingAttach AttachInfo;
+                AttachInfo.Child = Actor;
+                AttachInfo.ParentID = Data.AttachParentID;
+                AttachInfo.ParentComponentPath = Data.AttachParentComponentPath;
+                AttachInfo.SocketName = Data.AttachSocketName;
+                AttachInfo.RelativeTransform = Data.Transform;
+                PendingAttaches.Add(AttachInfo);
+            }
+            else
+            {
+                if (Actor->GetRootComponent() && Actor->GetRootComponent()->Mobility == EComponentMobility::Movable)
                 {
-                    if (It->GetName() == Data.AttachParentID)
-                    {
-                        AActor* Parent = *It;
-                        if (USceneComponent* ParentComp = Parent->GetRootComponent())
-                        {
-                            Actor->AttachToComponent(
-                                ParentComp,
-                                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-                                Data.AttachSocketName
-                            );
-                        }
-                        break;
-                    }
+                    Actor->SetActorTransform(Data.Transform);
                 }
             }
         }
+    }
+
+    // Второй проход: attach
+    for (const FPendingAttach& Info : PendingAttaches)
+    {
+        USceneComponent* ParentComp = ResolveParentComponent(Info.ParentComponentPath);
+
+        if (!ParentComp)
+        {
+            AActor* Parent = nullptr;
+            for (TActorIterator<AActor> It(World); It; ++It)
+                if (It->GetName() == Info.ParentID) { Parent = *It; break; }
+            ParentComp = Parent ? Parent->GetRootComponent() : nullptr;
+        }
+
+        if (!ParentComp) continue;
+
+        if (USceneComponent* ChildRoot = Info.Child->GetRootComponent())
+            ChildRoot->SetMobility(EComponentMobility::Movable);
+
+        Info.Child->AttachToComponent(
+            ParentComp,
+            FAttachmentTransformRules::KeepRelativeTransform,
+            Info.SocketName.IsNone() ? NAME_None : Info.SocketName
+        );
+
+        Info.Child->SetActorRelativeTransform(Info.RelativeTransform);
     }
 }
 
@@ -354,6 +391,16 @@ TArray<FComponentSaveData> USaveGameHelper::SerializeComponents(AActor* Actor)
         CompData.ComponentName = Comp->GetName();
         CompData.SerializedData = SerializeComponent(Comp);
 
+        if (USceneComponent* SceneComp = Cast<USceneComponent>(Comp))
+        {
+            if (USceneComponent* Parent = SceneComp->GetAttachParent())
+            {
+                CompData.AttachParentName = Parent->GetName();
+                CompData.AttachSocketName = SceneComp->GetAttachSocketName();
+                CompData.RelativeTransform = SceneComp->GetRelativeTransform();
+            }
+        }
+
         Result.Add(CompData);
     }
 
@@ -368,6 +415,7 @@ void USaveGameHelper::DeserializeComponents(AActor* Actor, const TArray<FCompone
     {
         UActorComponent* FoundComp = nullptr;
 
+        // ищем компонент по имени
         for (UActorComponent* Comp : Actor->GetComponents())
         {
             if (Comp && Comp->GetName() == CompData.ComponentName)
@@ -377,9 +425,60 @@ void USaveGameHelper::DeserializeComponents(AActor* Actor, const TArray<FCompone
             }
         }
 
-        if (!FoundComp) continue;
-        if (!IsComponentEligibleForSave(FoundComp)) continue;
+        if (!FoundComp || !IsComponentEligibleForSave(FoundComp)) continue;
 
+        // восстановление сериализованных данных
         DeserializeComponent(FoundComp, CompData.SerializedData);
+
+        // если это SceneComponent — восстанавливаем attach
+        if (USceneComponent* SceneComp = Cast<USceneComponent>(FoundComp))
+        {
+            if (!CompData.AttachParentName.IsEmpty())
+            {
+                UActorComponent* ParentComp = nullptr;
+                for (UActorComponent* Comp : Actor->GetComponents())
+                {
+                    if (Comp && Comp->GetName() == CompData.AttachParentName)
+                    {
+                        ParentComp = Comp;
+                        break;
+                    }
+                }
+
+                if (USceneComponent* ParentScene = Cast<USceneComponent>(ParentComp))
+                {
+                    SceneComp->AttachToComponent(
+                        ParentScene,
+                        FAttachmentTransformRules::KeepRelativeTransform,
+                        CompData.AttachSocketName
+                    );
+
+                    SceneComp->SetRelativeTransform(CompData.RelativeTransform);
+                }
+            }
+        }
+    }
+}
+
+void USaveGameHelper::ClearWorld(UWorld* World, const TArray<FActorSaveData>& SavedActors)
+{
+    if (!World) return;
+
+    TSet<FString> SavedIDs;
+    for (const FActorSaveData& Data : SavedActors)
+    {
+        SavedIDs.Add(Data.UniqueID);
+    }
+
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!Actor || !IsActorEligibleForSave(Actor)) continue;
+
+        FString ID = Actor->GetName();
+        if (!SavedIDs.Contains(ID))
+        {
+            Actor->Destroy();
+        }
     }
 }

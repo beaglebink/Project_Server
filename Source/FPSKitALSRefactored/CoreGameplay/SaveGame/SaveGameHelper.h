@@ -16,6 +16,8 @@ public:
     static TArray<FComponentSaveData> SerializeComponents(AActor* Actor);
     static void DeserializeComponents(AActor* Actor, const TArray<FComponentSaveData>& SavedComponents);
 
+    static void ClearWorld(UWorld* World, const TArray<FActorSaveData>& SavedActors);
+
     static bool IsActorEligibleForSave(const AActor* Actor);
     static bool IsComponentEligibleForSave(const UActorComponent* Comp);
 

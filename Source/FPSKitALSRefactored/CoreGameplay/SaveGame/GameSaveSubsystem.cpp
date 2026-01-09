@@ -58,49 +58,18 @@ TArray<FSaveSlotInfo> UGameSaveSubsystem::GetSaveSlotsForUI() const
 
 void UGameSaveSubsystem::SaveGame()
 {
-    UThisSaveGame* SaveGameObject = Cast<UThisSaveGame>(
-        UGameplayStatics::CreateSaveGameObject(UThisSaveGame::StaticClass()));
-
     UWorld* World = GetWorld();
     if (!World) return;
 
-    for (TActorIterator<AActor> It(World); It; ++It)
-    {
-        AActor* Actor = *It;
-        if (!Actor) continue;
-        if (!USaveGameHelper::IsActorEligibleForSave(Actor)) continue;
+    // 1. Создаём объект сохранения
+    UThisSaveGame* SaveGameObject = Cast<UThisSaveGame>(
+        UGameplayStatics::CreateSaveGameObject(UThisSaveGame::StaticClass()));
+    if (!SaveGameObject) return;
 
-        FActorSaveData Data;
-        Data.ClassName = Actor->GetClass()->GetPathName();
-        Data.Transform = Actor->GetActorTransform();
+    // 2. Собираем данные из мира через хелпер
+    SaveGameObject->SavedActors = USaveGameHelper::SerializeWorld(World);
 
-        if (Actor->Implements<USaveInterface>())
-        {
-            ISaveInterface* Saveable = Cast<ISaveInterface>(Actor);
-            Saveable->OnPreSave();
-            Data.UniqueID = Saveable->GetSaveID();
-            Data.SerializedData = Saveable->SaveToJson();
-        }
-        else
-        {
-            Data.UniqueID = Actor->GetName();
-            Data.SerializedData = USaveGameHelper::SerializeActor(Actor);
-        }
-
-        Data.SavedComponents = USaveGameHelper::SerializeComponents(Actor);
-
-        if (AActor* Parent = Actor->GetAttachParentActor())
-        {
-            Data.AttachParentID = Parent->GetName();
-            if (USceneComponent* RootComp = Actor->GetRootComponent())
-            {
-                Data.AttachSocketName = RootComp->GetAttachSocketName();
-            }
-        }
-
-        SaveGameObject->SavedActors.Add(Data);
-    }
-
+    // 3. Генерируем имя слота
     FString TimeStamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
     FString BaseSlotName = FString::Printf(TEXT("Save_%s"), *TimeStamp);
 
@@ -119,6 +88,7 @@ void UGameSaveSubsystem::SaveGame()
 
     CurrentSlot = FinalSlotName;
 
+    // 4. Сохраняем в слот
     UGameplayStatics::SaveGameToSlot(SaveGameObject, CurrentSlot, 0);
 
     UE_LOG(LogTemp, Log, TEXT("Сохранение выполнено в слот: %s"), *CurrentSlot);
@@ -126,73 +96,21 @@ void UGameSaveSubsystem::SaveGame()
 
 void UGameSaveSubsystem::LoadGame()
 {
+    // 1. Загружаем объект сохранения из текущего слота
     UThisSaveGame* SaveGameObject = Cast<UThisSaveGame>(
         UGameplayStatics::LoadGameFromSlot(CurrentSlot, 0));
     if (!SaveGameObject) return;
 
+    // 2. Получаем мир
     UWorld* World = GetWorld();
     if (!World) return;
 
-    for (const FActorSaveData& Data : SaveGameObject->SavedActors)
-    {
-        AActor* Actor = nullptr;
+    USaveGameHelper::ClearWorld(World, SaveGameObject->SavedActors);
 
-        for (TActorIterator<AActor> It(World); It; ++It)
-        {
-            if (It->GetName() == Data.UniqueID)
-            {
-                Actor = *It;
-                break;
-            }
-        }
+    // 3. Восстанавливаем акторы и их компоненты через хелпер
+    USaveGameHelper::DeserializeWorld(World, SaveGameObject->SavedActors);
 
-        if (!Actor)
-        {
-            UClass* ActorClass = LoadObject<UClass>(nullptr, *Data.ClassName);
-            if (ActorClass && USaveGameHelper::IsActorEligibleForSave(ActorClass->GetDefaultObject<AActor>()))
-            {
-                FActorSpawnParameters Params;
-                Actor = World->SpawnActor<AActor>(ActorClass, Data.Transform, Params);
-            }
-        }
-
-        if (Actor)
-        {
-            if (Actor->Implements<USaveInterface>())
-            {
-                ISaveInterface* Saveable = Cast<ISaveInterface>(Actor);
-                Saveable->LoadFromJson(Data.SerializedData);
-                Saveable->OnPostLoad();
-            }
-            else
-            {
-                USaveGameHelper::DeserializeActor(Actor, Data.SerializedData);
-            }
-
-            Actor->SetActorTransform(Data.Transform);
-            USaveGameHelper::DeserializeComponents(Actor, Data.SavedComponents);
-
-            if (!Data.AttachParentID.IsEmpty())
-            {
-                for (TActorIterator<AActor> It(World); It; ++It)
-                {
-                    if (It->GetName() == Data.AttachParentID)
-                    {
-                        AActor* Parent = *It;
-                        if (USceneComponent* ParentComp = Parent->GetRootComponent())
-                        {
-                            Actor->AttachToComponent(
-                                ParentComp,
-                                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-                                Data.AttachSocketName
-                            );
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    UE_LOG(LogTemp, Log, TEXT("Загрузка выполнена из слота: %s"), *CurrentSlot);
 }
 
 void UGameSaveSubsystem::DeleteSaveSlot(const FString& SlotName)
