@@ -61,11 +61,12 @@ void UGameSaveSubsystem::SaveGame()
     UWorld* World = GetWorld();
     if (!World) return;
 
+    // 1. Создаём объект сохранения
     UThisSaveGame* SaveGameObject = Cast<UThisSaveGame>(
         UGameplayStatics::CreateSaveGameObject(UThisSaveGame::StaticClass()));
     if (!SaveGameObject) return;
 
-    // Теперь SerializeWorld сам выставляет bSkipTransformRestore для особых акторов
+    // 2. Собираем данные из мира через хелпер
     SaveGameObject->SavedActors = USaveGameHelper::SerializeWorld(World);
 
     // 3. Генерируем имя слота
@@ -95,17 +96,18 @@ void UGameSaveSubsystem::SaveGame()
 
 void UGameSaveSubsystem::LoadGame()
 {
+    // 1. Загружаем объект сохранения из текущего слота
     UThisSaveGame* SaveGameObject = Cast<UThisSaveGame>(
         UGameplayStatics::LoadGameFromSlot(CurrentSlot, 0));
     if (!SaveGameObject) return;
 
+    // 2. Получаем мир
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // Очистка мира остаётся прежней
     USaveGameHelper::ClearWorld(World, SaveGameObject->SavedActors);
 
-    // Восстановление: DeserializeWorld теперь учитывает bSkipTransformRestore
+    // 3. Восстанавливаем акторы и их компоненты через хелпер
     USaveGameHelper::DeserializeWorld(World, SaveGameObject->SavedActors);
 
     UE_LOG(LogTemp, Log, TEXT("Загрузка выполнена из слота: %s"), *CurrentSlot);
