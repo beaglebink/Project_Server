@@ -45,13 +45,18 @@ struct FActorSaveData
     TArray<FComponentSaveData> SavedComponents;
 
     UPROPERTY()
-    FString AttachParentID;             // имя родительского актора
+    FString AttachParentID;
+    UPROPERTY()
+    FString AttachParentComponentPath;
+    UPROPERTY()
+    FName AttachSocketName;
+
+    // Новые поля для движения
+    UPROPERTY()
+    FVector LinearVelocity;
 
     UPROPERTY()
-    FString AttachParentComponentPath;  // путь к компоненту‑родителю
-
-    UPROPERTY()
-    FName AttachSocketName;             // сокет
+    FVector AngularVelocity;
 };
 
 USTRUCT()

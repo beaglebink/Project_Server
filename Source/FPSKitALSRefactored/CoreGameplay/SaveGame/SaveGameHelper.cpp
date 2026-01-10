@@ -8,6 +8,7 @@
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
 #include "Components/SceneComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 
 bool USaveGameHelper::IsActorEligibleForSave(const AActor* Actor)
@@ -85,6 +86,7 @@ TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
         Data.ClassName = Actor->GetClass()->GetPathName();
         Data.UniqueID = Actor->GetName();
 
+        // Трансформ
         if (USceneComponent* Root = Actor->GetRootComponent())
         {
             if (USceneComponent* AttachParent = Root->GetAttachParent())
@@ -103,6 +105,7 @@ TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
             }
         }
 
+        // Сериализация данных актора
         if (Actor->Implements<USaveInterface>())
         {
             ISaveInterface* Saveable = Cast<ISaveInterface>(Actor);
@@ -114,7 +117,24 @@ TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
             Data.SerializedData = SerializeActor(Actor);
         }
 
+        // Сериализация компонентов
         Data.SavedComponents = SerializeComponents(Actor);
+
+        // Сохранение движения
+        if (UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(Actor->GetRootComponent()))
+        {
+            if (RootComp->IsSimulatingPhysics())
+            {
+                Data.LinearVelocity = RootComp->GetPhysicsLinearVelocity();
+                Data.AngularVelocity = RootComp->GetPhysicsAngularVelocityInDegrees();
+            }
+        }
+        else if (UCharacterMovementComponent* MoveComp = Actor->FindComponentByClass<UCharacterMovementComponent>())
+        {
+            Data.LinearVelocity = MoveComp->Velocity;
+            Data.AngularVelocity = FVector::ZeroVector;
+        }
+
         Result.Add(Data);
     }
 
@@ -225,11 +245,13 @@ void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveDat
     {
         AActor* Actor = nullptr;
 
+        // ищем существующий актор
         for (TActorIterator<AActor> It(World); It; ++It)
         {
             if (It->GetName() == Data.UniqueID) { Actor = *It; break; }
         }
 
+        // если нет — спавним
         if (!Actor)
         {
             UClass* ActorClass = LoadObject<UClass>(nullptr, *Data.ClassName);
@@ -242,6 +264,7 @@ void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveDat
 
         if (Actor)
         {
+            // восстановление сериализованных данных
             if (Actor->Implements<USaveInterface>())
             {
                 ISaveInterface* Saveable = Cast<ISaveInterface>(Actor);
@@ -253,8 +276,24 @@ void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveDat
                 DeserializeActor(Actor, Data.SerializedData);
             }
 
+            // восстановление компонентов
             DeserializeComponents(Actor, Data.SavedComponents);
 
+            // движение
+            if (UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(Actor->GetRootComponent()))
+            {
+                if (RootComp->IsSimulatingPhysics())
+                {
+                    RootComp->SetPhysicsLinearVelocity(Data.LinearVelocity);
+                    RootComp->SetPhysicsAngularVelocityInDegrees(Data.AngularVelocity);
+                }
+            }
+            else if (UCharacterMovementComponent* MoveComp = Actor->FindComponentByClass<UCharacterMovementComponent>())
+            {
+                MoveComp->Velocity = Data.LinearVelocity;
+            }
+
+            // attach
             if (!Data.AttachParentID.IsEmpty())
             {
                 FPendingAttach AttachInfo;
