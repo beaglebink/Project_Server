@@ -22,6 +22,10 @@ struct FComponentSaveData
 
     UPROPERTY()
     FTransform RelativeTransform; // локальный трансформ
+
+    // Новый флаг: для особых компонентов трансформ не восстанавливаем
+    UPROPERTY()
+    bool bSkipTransformRestore = false;
 };
 
 USTRUCT()
@@ -35,6 +39,7 @@ struct FActorSaveData
     UPROPERTY()
     FString ClassName;
 
+    // Трансформ сохраняем только для обычных акторов
     UPROPERTY()
     FTransform Transform;
 
@@ -45,18 +50,24 @@ struct FActorSaveData
     TArray<FComponentSaveData> SavedComponents;
 
     UPROPERTY()
-    FString AttachParentID;
-    UPROPERTY()
-    FString AttachParentComponentPath;
-    UPROPERTY()
-    FName AttachSocketName;
+    FString AttachParentID;             // имя родительского актора
 
-    // Новые поля для движения
+    UPROPERTY()
+    FString AttachParentComponentPath;  // путь к компоненту‑родителю
+
+    UPROPERTY()
+    FName AttachSocketName;             // сокет
+
+    // Новый флаг: если true — трансформ и скорости не восстанавливаем
+    UPROPERTY()
+    bool bSkipTransformRestore = false;
+
     UPROPERTY()
     FVector LinearVelocity;
 
     UPROPERTY()
     FVector AngularVelocity;
+
 };
 
 USTRUCT()
