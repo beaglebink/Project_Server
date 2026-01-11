@@ -79,7 +79,7 @@ FString USaveGameHelper::SerializeActor(AActor* Actor)
     for (TFieldIterator<FProperty> PropIt(Actor->GetClass()); PropIt; ++PropIt)
     {
         FProperty* Property = *PropIt;
-        if (Property->HasMetaData(TEXT("SaveGame")))
+        if (Property->HasAnyPropertyFlags(CPF_SaveGame))
         {
             FString ValueStr;
             Property->ExportTextItem_Direct(
@@ -110,7 +110,7 @@ void USaveGameHelper::DeserializeActor(AActor* Actor, const FString& JsonString)
         for (TFieldIterator<FProperty> PropIt(Actor->GetClass()); PropIt; ++PropIt)
         {
             FProperty* Property = *PropIt;
-            if (Property->HasMetaData(TEXT("SaveGame")))
+            if (Property->HasAnyPropertyFlags(CPF_SaveGame))
             {
                 if (JsonObject->HasField(Property->GetName()))
                 {
@@ -463,7 +463,7 @@ FString USaveGameHelper::SerializeComponent(UActorComponent* Component)
     for (TFieldIterator<FProperty> PropIt(Component->GetClass()); PropIt; ++PropIt)
     {
         FProperty* Property = *PropIt;
-        if (Property->HasMetaData(TEXT("SaveGame")))
+        if (Property->HasAnyPropertyFlags(CPF_SaveGame))
         {
             FString ValueStr;
             Property->ExportTextItem_Direct(
@@ -497,7 +497,7 @@ void USaveGameHelper::DeserializeComponent(UActorComponent* Component, const FSt
         for (TFieldIterator<FProperty> PropIt(Component->GetClass()); PropIt; ++PropIt)
         {
             FProperty* Property = *PropIt;
-            if (Property->HasMetaData(TEXT("SaveGame")))
+            if (Property->HasAnyPropertyFlags(CPF_SaveGame))
             {
                 if (JsonObject->HasField(Property->GetName()))
                 {
