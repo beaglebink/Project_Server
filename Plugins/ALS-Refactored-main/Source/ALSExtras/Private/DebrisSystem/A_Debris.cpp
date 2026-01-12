@@ -79,6 +79,11 @@ void AA_Debris::BeginPlay()
 	DebrisMeshComponent->OnComponentHit.AddDynamic(this, &AA_Debris::OnDebrisHit);
 
 	bHasCollision = CollisionReaction != EDebrisCollisionReact::PhaseThrough;
+
+	if (DebrisLifetime > 0.0f)
+	{
+		GetWorldTimerManager().SetTimer(LifeTimeTimerHandle, this, &AA_Debris::DestroyOrRespawnDebris, DebrisLifetime, false);
+	}
 }
 
 void AA_Debris::Destroyed()
@@ -129,6 +134,8 @@ void AA_Debris::Tick(float DeltaTime)
 
 void AA_Debris::DestroyOrRespawnDebris()
 {
+	GetWorldTimerManager().ClearTimer(LifeTimeTimerHandle);
+
 	if (ReplenishTime > 0.0f)
 	{
 		if (!GetWorldTimerManager().IsTimerActive(RespawnTimerHandle))
@@ -149,6 +156,11 @@ void AA_Debris::DestroyOrRespawnDebris()
 					}
 					DebrisMeshComponent->SetWorldScale3D(FVector(1.0f));
 					SetActorTickEnabled(true);
+
+					if (DebrisLifetime > 0.0f)
+					{
+						GetWorldTimerManager().SetTimer(LifeTimeTimerHandle, this, &AA_Debris::DestroyOrRespawnDebris, DebrisLifetime, false);
+					}
 				}, ReplenishTime, false);
 		}
 	}

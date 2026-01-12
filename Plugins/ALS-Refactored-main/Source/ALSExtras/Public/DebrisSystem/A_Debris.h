@@ -248,6 +248,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
 	EDebrisDirectVacuumCapture DirectVacuumCapture = EDebrisDirectVacuumCapture::Yes;
 
+	//lifetime
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Properties")
+	float DebrisLifetime = 0.0f;
+
+	FTimerHandle LifeTimeTimerHandle;
+
 private:
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 

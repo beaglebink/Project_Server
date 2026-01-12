@@ -194,6 +194,7 @@ void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVect
 			SpawnedDebris->ChainReactionSphereRadius = ChainReactionSphereRadius;
 			SpawnedDebris->ChainReactionDamageAmount = ChainReactionDamageAmount;
 			SpawnedDebris->DirectVacuumCapture = DirectVacuumCapture;
+			SpawnedDebris->DebrisLifetime = DebrisLifeTime;
 
 			SpawnedDebris->FinishSpawning(SpawnTransform);
 		}
