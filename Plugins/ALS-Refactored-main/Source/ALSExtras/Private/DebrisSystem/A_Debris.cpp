@@ -407,6 +407,8 @@ void AA_Debris::OnHealthChanged_Implementation(float Health, float MaxHealth)
 
 float AA_Debris::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	if (!bIsDamageable) return 0.0f;
+
 	SetDebrisHealth(GetDebrisHealth() - DamageAmount);
 
 	return 0.0f;

@@ -187,6 +187,7 @@ void UAC_DebrisSpawnComponent::SpawnDebris(FTransform SpawnShapeTransform, FVect
 			SpawnedDebris->BuoyancySpeed = BuoyancySpeed;
 			SpawnedDebris->BuoyancyRange = BuoyancyRange;
 			SpawnedDebris->CollisionReaction = CollisionReaction;
+			SpawnedDebris->bIsDamageable = bIsDamageable;
 			SpawnedDebris->SetDebrisMaxHealth(DebrisMaxHealth);
 			SpawnedDebris->SetDebrisHealth(DebrisHealth);
 			SpawnedDebris->DestructionYield = DestructionYield;

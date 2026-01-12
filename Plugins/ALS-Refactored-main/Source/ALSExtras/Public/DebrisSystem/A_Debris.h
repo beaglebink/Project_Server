@@ -209,6 +209,9 @@ private:
 	void OnDebrisHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	//destruction
+public:
+	uint8 bIsDamageable : 1{false};
+
 private:
 	float DebrisMaxHealth = 0.0f;
 
