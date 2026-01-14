@@ -33,33 +33,36 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
+	UPROPERTY(SaveGame)
 	UEnhancedInputLocalPlayerSubsystem* Subsystem;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, SaveGame, Category = "Inputs")
 	TObjectPtr<UInputMappingContext> Inventory_IMContext;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inputs")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, SaveGame, Category = "Inputs")
 	TObjectPtr<UInputAction> InventoryAction;
 
 public:
-	UPROPERTY(EditDefaultsOnly, Category = "IU")
+	UPROPERTY(EditDefaultsOnly, SaveGame, Category = "IU")
 	TSubclassOf<UW_InventoryHUD> InventoryClass;
 
-	UPROPERTY(BlueprintReadOnly, Category = "IU")
+	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "IU")
 	UW_InventoryHUD* Inventory;
 
-	UPROPERTY(EditDefaultsOnly, Category = "IU")
+	UPROPERTY(EditDefaultsOnly, SaveGame, Category = "IU")
 	TSubclassOf<UW_CharacterUI> CharacterWidgetClass;
 	
-	UPROPERTY(BlueprintReadOnly, Category = "IU")
+	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "IU")
 	UW_CharacterUI* CharacterWidget;
 
 	void BindInput(UEnhancedInputComponent* InputComponent);
 
+	UPROPERTY(SaveGame)
 	uint8 bIsOpen : 1{false};
 
 private:
+	UPROPERTY(SaveGame)
 	TObjectPtr<UInteractiveItemComponent> CurrentInteractiveObject;
 
 	void ToggleInventory();

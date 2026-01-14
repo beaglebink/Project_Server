@@ -18,19 +18,19 @@ class ALSEXTRAS_API UAC_Container : public UActorComponent
 public:
 	UAC_Container();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category = "Items")
 	TArray<FS_Item> Items;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Items")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Items")
 	UDataTable* ItemDataTable;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Item")
 	USoundBase* SpawnSound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Item")
 	USoundBase* PickUpSound;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Trading")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category = "Trading")
 	float TradeCoefficient = 1.0f;
 
 	UPROPERTY(BlueprintAssignable)
@@ -58,14 +58,16 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
-	UPROPERTY(VisibleDefaultsOnly, Category = "Summary")
+	UPROPERTY(VisibleDefaultsOnly, SaveGame, Category = "Summary")
 	float TotalWeight;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Summary")
+	UPROPERTY(EditDefaultsOnly, SaveGame, Category = "Summary")
 	float TotalMoney;
 
+	UPROPERTY(SaveGame)
 	TMap<FName, int32> ItemsToSpawn;
 
+	UPROPERTY(SaveGame)
 	FTimerHandle RemoveItemsHandle;
 
 public:

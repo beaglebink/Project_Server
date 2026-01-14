@@ -12,10 +12,13 @@ private:
 	using Super = FCharacterNetworkMoveData;
 
 public:
+	UPROPERTY(SaveGame)
 	FGameplayTag RotationMode{AlsRotationModeTags::ViewDirection};
 
+	UPROPERTY(SaveGame)
 	FGameplayTag Stance{AlsStanceTags::Standing};
 
+	UPROPERTY(SaveGame)
 	FGameplayTag MaxAllowedGait{AlsGaitTags::Walking};
 
 public:
@@ -36,13 +39,17 @@ public:
 class ALS_API FAlsSavedMove : public FSavedMove_Character
 {
 private:
+	UPROPERTY(SaveGame)
 	using Super = FSavedMove_Character;
 
 public:
+	UPROPERTY(SaveGame)
 	FGameplayTag RotationMode{AlsRotationModeTags::ViewDirection};
 
+	UPROPERTY(SaveGame)
 	FGameplayTag Stance{AlsStanceTags::Standing};
 
+	UPROPERTY(SaveGame)
 	FGameplayTag MaxAllowedGait{AlsGaitTags::Walking};
 
 public:
@@ -80,39 +87,39 @@ class ALS_API UAlsCharacterMovementComponent : public UCharacterMovementComponen
 protected:
 	FAlsCharacterNetworkMoveDataContainer MoveDataContainer;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	TObjectPtr<UAlsMovementSettings> MovementSettings;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	FAlsMovementGaitSettings GaitSettings;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	FGameplayTag RotationMode{AlsRotationModeTags::ViewDirection};
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	FGameplayTag Stance{AlsStanceTags::Standing};
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	FGameplayTag MaxAllowedGait{AlsGaitTags::Walking};
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	uint8 bMovementModeLocked : 1;
 
 	// Used to temporarily prohibit the player from moving the character. Also works for AI-controlled characters.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame,	Category = "State", Transient)
 	uint8 bInputBlocked : 1;
 
 	// Valid only on locally controlled characters.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	FRotator PreviousControlRotation;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	FVector PendingPenetrationAdjustment;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	FVector PrePenetrationAdjustmentVelocity;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "State", Transient)
 	uint8 bPrePenetrationAdjustmentVelocityValid : 1;
 
 public:

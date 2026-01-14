@@ -47,20 +47,25 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FInteractivePicker OnInteractionPressKeyEvent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "InteractiveItem")
 	FText InteractiveTooltipText;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "InteractiveItem")
 	EInteractDuration InteractDuration;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "InteractiveItem")
 	FVector DraggingLocation;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "InteractiveItem")
 	FRotator DraggingRotator;
 
 private:
+	UPROPERTY(SaveGame)
 	ACharacter* ReleasedUser;
+
+	UPROPERTY(SaveGame)
 	bool IsRelease;
+
+	UPROPERTY(SaveGame)
 	bool IsInteractiveNow;
 };

@@ -48,28 +48,28 @@ private:
 	void FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent);
 
 public:
-	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
+	UPROPERTY(BlueprintAssignable, SaveGame, Category = "InteractiveItem")
 	FOnInteractiveFocusEvent OnInteractiveReceiveFocusEvent;
 
-	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
+	UPROPERTY(BlueprintAssignable, SaveGame, Category = "InteractiveItem")
 	FOnInteractiveLostFocusEvent OnInteractiveLostFocusEvent;
 
-	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
+	UPROPERTY(BlueprintAssignable, SaveGame, Category = "InteractiveItem")
 	FPickerStartUsePressKeyEvent OnInteractionPressKeyEvent;
 
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	UInteractiveItemComponent* DoInteractiveUse();
 
-	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, SaveGame, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	bool DebugDraw = false;
 
-	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, SaveGame, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float PickTickInterval = 0.3f;
 
-	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, SaveGame, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Depth = 300.f;
 
-	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, SaveGame, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Width = 35.f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "InteractiveComponent")
@@ -77,6 +77,8 @@ public:
 
 private:
 	FTimerDelegate TimerDel;
+
+	UPROPERTY(SaveGame)
 	FTimerHandle TimerHandle;
 
 	UPROPERTY()
@@ -88,5 +90,6 @@ private:
 	UPROPERTY()
 	TArray<AActor*> ActorsToIgnoreCache;
 
+	UPROPERTY(SaveGame)
 	bool CurrentIItemIsValid = false;
 };
