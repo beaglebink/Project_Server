@@ -124,12 +124,15 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisCollisionReact CollisionReaction = EDebrisCollisionReact::PhaseThrough;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
+	uint8 bIsDamageable : 1{false};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "bIsDamageable", EditConditionHides, ClampMin = 0.0f))
 	float DebrisMaxHealth = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, EditCondition = "bIsDamageable", EditConditionHides, ClampMin = 0.0f))
 	float DebrisHealth = 0.0f;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisDestructionYield DestructionYield = EDebrisDestructionYield::None;
 
@@ -141,6 +144,9 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true))
 	EDebrisDirectVacuumCapture DirectVacuumCapture = EDebrisDirectVacuumCapture::Yes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties", meta = (AllowPrivateAccess = true, ClampMin = 0.0f))
+	float DebrisLifeTime = 0.0f;
 
 	FVector GetRandomPointInVolume(FTransform SpawnTransform, EDebrisSpawnShape SpawnShapeVolume) const;
 
