@@ -1,8 +1,25 @@
-#include "CubixonUtilsBlueprintLibrary.h"
+﻿#include "CubixonUtilsBlueprintLibrary.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Fonts/FontMeasure.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
-#include <Blueprint/WidgetLayoutLibrary.h>
+#include "Blueprint/UserWidget.h"
+
+
+#include "Blueprint/WidgetLayoutLibrary.h"
+
+#include "Components/Widget.h"
+#include "Components/PanelWidget.h"
+#include "Components/ContentWidget.h"
+
+
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Engine/World.h"
+#include "Slate/WidgetTransform.h"
+
+
+
+
+
 
 FString UCubixonUtilsBlueprintLibrary::TruncateTextWithEllipsis(const FString& InputText, const FSlateFontInfo& FontInfo, float MaxWidth, float FontScale)
 {
@@ -156,7 +173,7 @@ void UCubixonUtilsBlueprintLibrary::SetCursorAtClickForEditableText(UMultiLineEd
             VisualLines.Add({ CurrentLine, RealLineIndex, CharOffsetInRealLine });
         }
 
-        GlobalOffset += RealLine.Len() + 1; // +1 �� \n
+        GlobalOffset += RealLine.Len() + 1; // +1 за \n
     }
 
     float Y = 0.0f;
@@ -234,20 +251,20 @@ void UCubixonUtilsBlueprintLibrary::InsertWidgetAt(UVerticalBox* Box, UWidget* W
     TArray<UWidget*> ExistingChildren;
     const int32 Count = Box->GetChildrenCount();
 
-    // ��������� ������� �����
+    // Сохраняем текущих детей
     for (int32 i = 0; i < Count; ++i)
     {
         ExistingChildren.Add(Box->GetChildAt(i));
     }
 
-    // �������
+    // Очищаем
     Box->ClearChildren();
 
-    // ��������� � ������ �������
+    // Вставляем в нужную позицию
     Index = FMath::Clamp(Index, 0, ExistingChildren.Num());
     ExistingChildren.Insert(WidgetToAdd, Index);
 
-    // ��������� ���� �������
+    // Добавляем всех обратно
     for (UWidget* Child : ExistingChildren)
     {
         Box->AddChild(Child);
@@ -268,5 +285,79 @@ void UCubixonUtilsBlueprintLibrary::InsertWidgetAt(UVerticalBox* Box, UWidget* W
 
     Box->InvalidateLayoutAndVolatility();
 
+}
+
+bool UCubixonUtilsBlueprintLibrary::IsScreenPositionOverWidget(UWidget* Widget, const FVector2D& ScreenPosition)
+{
+    if (!Widget || !Widget->IsVisible())
+    {
+        return false;
+    }
+
+    FGeometry WidgetGeometry = Widget->GetCachedGeometry();
+
+    return WidgetGeometry.IsUnderLocation(ScreenPosition);
+}
+
+bool UCubixonUtilsBlueprintLibrary::IsPointInsideWidget(UWidget* Widget, const FVector2D& ScreenPosition)
+{
+    if (!Widget) return false;
+
+    const FGeometry& Geometry = Widget->GetCachedGeometry();
+    const FVector2D AbsPos = Geometry.GetAbsolutePosition();
+    const FVector2D Size = Geometry.GetAbsoluteSize();
+
+    FSlateRect Rect(AbsPos.X, AbsPos.Y, AbsPos.X + Size.X, AbsPos.Y + Size.Y);
+    return Rect.ContainsPoint(ScreenPosition);
+}
+
+// Рекурсивный обход дерева виджетов
+void UCubixonUtilsBlueprintLibrary::CollectWidgetsAtPoint(UWidget* Widget, const FVector2D& ScreenPosition, TArray<UWidget*>& OutWidgets)
+{
+    if (!Widget) return;
+
+    if (IsPointInsideWidget(Widget, ScreenPosition))
+    {
+        OutWidgets.Add(Widget);
+    }
+
+    if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
+    {
+        const int32 Count = Panel->GetChildrenCount();
+        for (int32 i = 0; i < Count; ++i)
+        {
+            CollectWidgetsAtPoint(Panel->GetChildAt(i), ScreenPosition, OutWidgets);
+        }
+    }
+    else if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+    {
+        if (UWidget* Child = ContentWidget->GetContent())
+        {
+            CollectWidgetsAtPoint(Child, ScreenPosition, OutWidgets);
+        }
+    }
+    else if (UUserWidget* UserWidget = Cast<UUserWidget>(Widget))
+    {
+        if (UWidget* ChildRoot = UserWidget->GetRootWidget())
+        {
+            CollectWidgetsAtPoint(ChildRoot, ScreenPosition, OutWidgets);
+        }
+    }
+}
+
+// Главная функция: получить список виджетов под экранной точкой
+TArray<UWidget*> UCubixonUtilsBlueprintLibrary::GetWidgetsAtScreenPosition(UUserWidget* RootUserWidget, const FVector2D& ScreenPosition)
+{
+    TArray<UWidget*> Result;
+
+    if (RootUserWidget)
+    {
+        if (UWidget* Root = RootUserWidget->GetRootWidget())
+        {
+            CollectWidgetsAtPoint(Root, ScreenPosition, Result);
+        }
+    }
+
+    return Result;
 }
 

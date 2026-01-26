@@ -35,6 +35,18 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "UI")
     static void InsertWidgetAt(UVerticalBox* Box, UWidget* WidgetToAdd, int32 Index);
+
+    UFUNCTION(BlueprintCallable, Category = "Widgets")
+    static bool IsScreenPositionOverWidget(UWidget* Widget, const FVector2D& ScreenPosition);
+
+public:
+    UFUNCTION(BlueprintCallable, Category = "Widgets")
+    static TArray<UWidget*> GetWidgetsAtScreenPosition(UUserWidget* RootUserWidget, const FVector2D& ScreenPosition);
+
+private:
+    static bool IsPointInsideWidget(UWidget* Widget, const FVector2D& ScreenPosition);
+    static void CollectWidgetsAtPoint(UWidget* Widget, const FVector2D& ScreenPosition, TArray<UWidget*>& OutWidgets);
+
 };
 
 
