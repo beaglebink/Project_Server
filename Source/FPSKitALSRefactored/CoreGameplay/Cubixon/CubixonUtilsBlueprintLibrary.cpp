@@ -15,6 +15,7 @@
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Engine/World.h"
 #include "Slate/WidgetTransform.h"
+#include <Components/WidgetSwitcher.h>
 
 
 
@@ -316,12 +317,27 @@ void UCubixonUtilsBlueprintLibrary::CollectWidgetsAtPoint(UWidget* Widget, const
 {
     if (!Widget) return;
 
+    // Проверяем реальную видимость (учитывает родителей)
+    if (!Widget->IsVisible())
+    {
+        return;
+    }
+
     if (IsPointInsideWidget(Widget, ScreenPosition))
     {
         OutWidgets.Add(Widget);
     }
 
-    if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
+    // Обход детей
+    if (UWidgetSwitcher* Switcher = Cast<UWidgetSwitcher>(Widget))
+    {
+        // Берём только активный виджет
+        if (UWidget* Active = Switcher->GetActiveWidget())
+        {
+            CollectWidgetsAtPoint(Active, ScreenPosition, OutWidgets);
+        }
+    }
+    else if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
     {
         const int32 Count = Panel->GetChildrenCount();
         for (int32 i = 0; i < Count; ++i)
@@ -344,7 +360,6 @@ void UCubixonUtilsBlueprintLibrary::CollectWidgetsAtPoint(UWidget* Widget, const
         }
     }
 }
-
 // Главная функция: получить список виджетов под экранной точкой
 TArray<UWidget*> UCubixonUtilsBlueprintLibrary::GetWidgetsAtScreenPosition(UUserWidget* RootUserWidget, const FVector2D& ScreenPosition)
 {
@@ -360,4 +375,5 @@ TArray<UWidget*> UCubixonUtilsBlueprintLibrary::GetWidgetsAtScreenPosition(UUser
 
     return Result;
 }
+
 

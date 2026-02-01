@@ -46,7 +46,6 @@ public:
 private:
     static bool IsPointInsideWidget(UWidget* Widget, const FVector2D& ScreenPosition);
     static void CollectWidgetsAtPoint(UWidget* Widget, const FVector2D& ScreenPosition, TArray<UWidget*>& OutWidgets);
-
 };
 
 
