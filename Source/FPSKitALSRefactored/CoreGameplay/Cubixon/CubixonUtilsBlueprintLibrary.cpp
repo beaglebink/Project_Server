@@ -17,9 +17,7 @@
 #include "Slate/WidgetTransform.h"
 #include <Components/WidgetSwitcher.h>
 
-
-
-
+#include "Math/UnrealMathUtility.h"
 
 
 FString UCubixonUtilsBlueprintLibrary::TruncateTextWithEllipsis(const FString& InputText, const FSlateFontInfo& FontInfo, float MaxWidth, float FontScale)
@@ -300,6 +298,19 @@ bool UCubixonUtilsBlueprintLibrary::IsScreenPositionOverWidget(UWidget* Widget, 
     return WidgetGeometry.IsUnderLocation(ScreenPosition);
 }
 
+FString UCubixonUtilsBlueprintLibrary::GenerateRandomHex64(int32 HighMin, int32 HighMax, int32 LowMin, int32 LowMax)
+{
+    // Генерация случайных чисел в заданных диапазонах
+    uint64 High = static_cast<uint64>(FMath::RandRange(HighMin, HighMax)) << 32;
+    uint64 Low = static_cast<uint64>(FMath::RandRange(LowMin, LowMax));
+
+    // Объединение в одно 64-битное число
+    uint64 Random64 = High | Low;
+
+    // Форматирование в строку с ведущими нулями
+    return FString::Printf(TEXT("0x%016llX"), Random64);
+}
+
 bool UCubixonUtilsBlueprintLibrary::IsPointInsideWidget(UWidget* Widget, const FVector2D& ScreenPosition)
 {
     if (!Widget) return false;
@@ -375,5 +386,6 @@ TArray<UWidget*> UCubixonUtilsBlueprintLibrary::GetWidgetsAtScreenPosition(UUser
 
     return Result;
 }
+
 
 

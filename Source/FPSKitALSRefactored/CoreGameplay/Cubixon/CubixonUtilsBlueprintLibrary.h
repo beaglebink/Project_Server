@@ -39,6 +39,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Widgets")
     static bool IsScreenPositionOverWidget(UWidget* Widget, const FVector2D& ScreenPosition);
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Random")
+    static FString GenerateRandomHex64(int32 HighMin, int32 HighMax, int32 LowMin, int32 LowMax);
+
 public:
     UFUNCTION(BlueprintCallable, Category = "Widgets")
     static TArray<UWidget*> GetWidgetsAtScreenPosition(UUserWidget* RootUserWidget, const FVector2D& ScreenPosition);
