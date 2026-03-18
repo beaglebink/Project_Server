@@ -63,10 +63,10 @@ struct FActorSaveData
     bool bSkipTransformRestore = false;
 
     UPROPERTY()
-    FVector LinearVelocity;
+    FVector LinearVelocity = FVector::ZeroVector;
 
     UPROPERTY()
-    FVector AngularVelocity;
+    FVector AngularVelocity = FVector::ZeroVector;
 
 };
 

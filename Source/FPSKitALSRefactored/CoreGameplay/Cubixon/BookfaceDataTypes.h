@@ -21,7 +21,6 @@ enum class ENotifyType : uint8
     MessageLikeNotify       UMETA(DisplayName = "Message like"),
 };
 
-// 🔹 Сериализуемая структура сообщения
 USTRUCT(BlueprintType)
 struct FBookfaceMessageData
 {
@@ -55,15 +54,13 @@ struct FBookfaceMessageData
     TArray<FString> UnSubscribedUserIDs;
 };
 
-// 🔹 Уведомления
 USTRUCT(BlueprintType)
 struct FBookfaceMessageNoticeStructure
 {
     GENERATED_BODY()
 
-    // 🔹 Сериализуемые поля
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    ENotifyType MessageType;
+    ENotifyType MessageType = ENotifyType::MessageActivityNotify; 
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString LikeUserId;
@@ -80,7 +77,6 @@ struct FBookfaceMessageNoticeStructure
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString MessageId;
 
-    // 🔹 Рабочие ссылки (не сериализуются)
     UPROPERTY(BlueprintReadOnly, Transient)
     UBookfaceMessageObject* RootMessage = nullptr;
 
@@ -99,9 +95,8 @@ struct FBookfaceMessageNoticeStructure
             MessageType == Other.MessageType &&
             LikeUserId == Other.LikeUserId;
     }
-
 };
-// 🔹 Заявка в друзья
+
 USTRUCT(BlueprintType)
 struct FBookfaceFriendRequestStructure
 {
@@ -119,7 +114,6 @@ struct FBookfaceFriendRequestStructure
     }
 };
 
-// 🔹 Доп. инфо
 USTRUCT(BlueprintType)
 struct FAboutInfoStructure
 {
@@ -132,10 +126,9 @@ struct FAboutInfoStructure
     FText InfoDescription;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    EPrivacyVisibility PrivacyVisibility;
+    EPrivacyVisibility PrivacyVisibility = EPrivacyVisibility::VisibleToEveryone;
 };
 
-// 🔹 Профиль
 USTRUCT(BlueprintType)
 struct FBookfaceProfileStructure
 {
@@ -166,20 +159,17 @@ struct FBookfaceProfileStructure
     int32 ReputationScore = 0;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    EPrivacyVisibility BIO_Privacy;
+    EPrivacyVisibility BIO_Privacy = EPrivacyVisibility::VisibleToEveryone;
 
     UPROPERTY(Transient)
     bool IsOnline = false;
 
-    // 🔹 Сериализуемые сообщения
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     TArray<FBookfaceMessageData> SavedMessages;
 
-    // 🔹 Рабочие объекты сообщений (не сериализуются)
     UPROPERTY(BlueprintReadWrite, Transient)
     TArray<UBookfaceMessageObject*> UserMessages;
 
-    // 🔹 Уведомления (сохраняются по ID)
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     TArray<FBookfaceMessageNoticeStructure> MessageNotices;
 };
@@ -196,13 +186,9 @@ public:
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FString ToContact;
 
-    //UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    //EBF_DirectType Direct = EBF_DirectType::Incoming;
-
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     FText Message;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     bool bIsRead = false;
-
 };

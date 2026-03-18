@@ -24,22 +24,22 @@ struct FLetter
 	TObjectPtr<UMaterialInstanceDynamic> LetterMaterialInstanceDynamic;
 
 	UPROPERTY()
-	FVector InitialLocation;
+	FVector InitialLocation = FVector::ZeroVector;
 
 	UPROPERTY()
-	FVector TargetLocation;
+	FVector TargetLocation = FVector::ZeroVector;
 
 	UPROPERTY()
 	FName LetterChar;
 
 	UPROPERTY()
-	float FloatAmplitude;
+	float FloatAmplitude = 0.0f;
 
 	UPROPERTY()
-	float FloatSpeed;
+	float FloatSpeed = 0.0f;
 
 	UPROPERTY()
-	float FloatPhase;
+	float FloatPhase = 0.0f;
 };
 
 UCLASS()

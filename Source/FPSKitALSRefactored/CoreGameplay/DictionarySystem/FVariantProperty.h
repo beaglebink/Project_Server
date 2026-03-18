@@ -26,7 +26,7 @@ struct FVariantProperty
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EPropertyValueType Type;
+    EPropertyValueType Type = EPropertyValueType::Object;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FString VariableTypeName;
@@ -35,22 +35,22 @@ struct FVariantProperty
     FString ValueName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    bool BoolValue;
+    bool BoolValue = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 IntValue;
+    int32 IntValue = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float FloatValue;
+    float FloatValue = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FString StringValue;
+    FString StringValue = "";
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FVector VectorValue;
+    FVector VectorValue = FVector::ZeroVector;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FLinearColor ColorValue;
+    FLinearColor ColorValue = FLinearColor(0, 0, 0, 0);
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TSubclassOf<AActor> ObjectValue;

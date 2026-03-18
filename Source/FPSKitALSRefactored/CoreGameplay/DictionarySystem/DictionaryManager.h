@@ -19,11 +19,11 @@ struct FDictionaryLinkStruct
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 
-	FVector StartLocation;
+	FVector StartLocation = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 
-	FVector EndLocation;
+	FVector EndLocation = FVector::ZeroVector;
 };
 
 USTRUCT(BlueprintType)
@@ -32,13 +32,13 @@ struct FEffectsStruct
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	AActor* KeyActor;
+	AActor* KeyActor = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString KeyName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	AActor* PropertyActor;
+	AActor* PropertyActor = nullptr;
 
 	bool operator==(const FEffectsStruct& Other) const
 	{

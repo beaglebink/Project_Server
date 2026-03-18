@@ -15,16 +15,16 @@ struct FNodeLink
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 NeighborIndex;
+    int32 NeighborIndex = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float RestLength;
+    float RestLength = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float CriticalLength;
+    float CriticalLength = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Stiffness;
+    float Stiffness = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float InfluenceFactor = 1.0f;
@@ -36,16 +36,16 @@ struct FNode
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 PositionIndex;
+    int32 PositionIndex = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FVector PendingPosition;
+    FVector PendingPosition = FVector::ZeroVector;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FVector Velocity;
+    FVector Velocity = FVector::ZeroVector;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FVector AccumulatedForce;
+    FVector AccumulatedForce = FVector::ZeroVector;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bFixed = false;

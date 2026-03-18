@@ -71,13 +71,13 @@ struct ALSEXTRAS_API FS_ItemData :public FTableRowBase
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
-	EnumInventory Type;
+	EnumInventory Type = EnumInventory::All;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
-	UTexture2D* Icon;
+	UTexture2D* Icon = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
-	UStaticMesh* StaticMesh;
+	UStaticMesh* StaticMesh = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	FText Description;
@@ -104,7 +104,7 @@ struct ALSEXTRAS_API FS_ItemData :public FTableRowBase
 	FGameplayTag SpecialTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
-	UTexture2D* ImageDescription;
+	UTexture2D* ImageDescription = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	FText FullDescription;

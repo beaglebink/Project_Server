@@ -16,7 +16,7 @@ struct FSaveSlotInfo
     FDateTime SaveTime;
 
     UPROPERTY(BlueprintReadOnly)
-    int32 FileSize;
+    int32 FileSize = 0;
 };
 
 UCLASS()

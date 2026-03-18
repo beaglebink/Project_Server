@@ -44,4 +44,8 @@ struct FLoopEffectFrame
 
 	UPROPERTY(BlueprintReadWrite, Category = "LoopEffect")
 	FGameplayTag LoopEffectStanceTag;
+
+	FLoopEffectFrame() : FrameState(EnumLoopStates::None)
+	{
+	}
 };
