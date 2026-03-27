@@ -5,10 +5,10 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-    {
-        EventBus->OnOutcomeEvent.AddDynamic(this, &UInteriorSubsystem::HandleOutcome);
-    }
+    //if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+    //{
+    //    EventBus->OnOutcomeEvent.AddDynamic(this, &UInteriorSubsystem::HandleOutcome);
+    //}
 }
 
 void UInteriorSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)

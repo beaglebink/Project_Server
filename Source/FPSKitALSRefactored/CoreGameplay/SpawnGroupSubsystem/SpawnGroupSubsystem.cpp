@@ -5,10 +5,10 @@ void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-    {
-        EventBus->OnOutcomeEvent.AddDynamic(this, &USpawnGroupSubsystem::HandleOutcome);
-    }
+    //if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+    //{
+    //    EventBus->OnOutcomeEvent.AddDynamic(this, &USpawnGroupSubsystem::HandleOutcome);
+    //}
 }
 
 void USpawnGroupSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)

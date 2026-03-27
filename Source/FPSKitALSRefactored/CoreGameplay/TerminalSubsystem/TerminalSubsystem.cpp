@@ -5,10 +5,10 @@ void UTerminalSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-    {
-        EventBus->OnOutcomeEvent.AddDynamic(this, &UTerminalSubsystem::HandleOutcome);
-    }
+    //if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+    //{
+    //    EventBus->OnOutcomeEvent.AddDynamic(this, &UTerminalSubsystem::HandleOutcome);
+    //}
 }
 
 void UTerminalSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
