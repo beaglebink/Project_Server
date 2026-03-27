@@ -1,9 +1,9 @@
 #pragma once
 #include "OutcomeEventBase.h"
-#include "GhostClearedOutcome.generated.h"
+#include "MissionCompletedOutcome.generated.h"
 
 USTRUCT(BlueprintType)
-struct FGhostClearedOutcome : public FOutcomeEventBase
+struct FMissionCompletedOutcome : public FOutcomeEventBase
 {
     GENERATED_BODY()
 
@@ -11,8 +11,5 @@ struct FGhostClearedOutcome : public FOutcomeEventBase
     FGuid MissionId;
 
     UPROPERTY(BlueprintReadWrite)
-    FGuid InteriorSetId;
-
-    UPROPERTY(BlueprintReadWrite)
-    FGuid SpawnGroupId;
+    FString GlobalFactKey;
 };

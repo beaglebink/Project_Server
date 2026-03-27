@@ -1,4 +1,5 @@
 #include "MissionSubsystem.h"
+#include "GhostClearedOutcome.h"
 #include "EventBusSubsystem.h"
 
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -15,6 +16,11 @@ void UMissionSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
     if (Outcome.OutcomeType == "GhostCleared")
     {
-        UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Ghost encounter cleared, advancing mission step."));
+        const FGhostClearedOutcome* GhostOutcome = static_cast<const FGhostClearedOutcome*>(&Outcome);
+        if (GhostOutcome)
+        {
+
+            UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Ghost encounter cleared, advancing mission step."));
+        }
     }
 }

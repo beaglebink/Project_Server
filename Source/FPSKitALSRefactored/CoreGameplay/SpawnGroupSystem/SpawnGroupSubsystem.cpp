@@ -4,8 +4,13 @@
 void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
+}
 
-    if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+void USpawnGroupSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+    Super::OnWorldBeginPlay(InWorld);
+
+    if (UEventBusSubsystem* EventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
     {
         EventBus->OnOutcomeEvent.AddDynamic(this, &USpawnGroupSubsystem::HandleOutcome);
     }

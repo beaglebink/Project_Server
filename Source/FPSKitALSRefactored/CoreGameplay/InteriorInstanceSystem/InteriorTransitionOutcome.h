@@ -1,18 +1,15 @@
 #pragma once
 #include "OutcomeEventBase.h"
-#include "GhostClearedOutcome.generated.h"
+#include "InteriorTransitionOutcome.generated.h"
 
 USTRUCT(BlueprintType)
-struct FGhostClearedOutcome : public FOutcomeEventBase
+struct FInteriorTransitionOutcome : public FOutcomeEventBase
 {
     GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadWrite)
-    FGuid MissionId;
 
     UPROPERTY(BlueprintReadWrite)
     FGuid InteriorSetId;
 
     UPROPERTY(BlueprintReadWrite)
-    FGuid SpawnGroupId;
+    int32 FloorIndex;
 };
