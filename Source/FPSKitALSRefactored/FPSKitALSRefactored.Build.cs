@@ -17,6 +17,8 @@ public class FPSKitALSRefactored : ModuleRules
             PublicDependencyModuleNames.Add("UnrealEd");
         }
 
+		PublicIncludePaths.AddRange(new string[] {"FPSKitALSRefactored/CoreGameplay/EventBusSystem", "FPSKitALSRefactored/CoreGameplay/ActorStateSystem" });
+
         PublicIncludePaths.AddRange(new string[] {
             Path.Combine(ModuleDirectory, "Public"),
             Path.Combine(ModuleDirectory, "CoreGameplay", "Cubixon")
