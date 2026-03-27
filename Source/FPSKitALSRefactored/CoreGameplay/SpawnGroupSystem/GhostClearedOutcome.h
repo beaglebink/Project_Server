@@ -11,6 +11,9 @@ struct FGhostClearedOutcome : public FOutcomeEventBase
     FGuid MissionId;
 
     UPROPERTY(BlueprintReadWrite)
+	FString GhostType;
+
+    UPROPERTY(BlueprintReadWrite)
     FGuid InteriorSetId;
 
     UPROPERTY(BlueprintReadWrite)

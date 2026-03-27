@@ -23,7 +23,7 @@ void UInteriorSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
         const FInteriorTransitionOutcome* ItemAcquiredOutcome = static_cast<const FInteriorTransitionOutcome*>(&Outcome);
         if (ItemAcquiredOutcome)
         {
-            UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Item transitioned, updating interior state."));
+            UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Item transitioned, updating interior state. FloorIndex %i"), ItemAcquiredOutcome->FloorIndex);
         }
     }
 }

@@ -1,4 +1,5 @@
 #include "ActorStateSubsystem.h"
+#include "ActorStateOutcome.h"
 #include "EventBusSubsystem.h"
 
 void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -15,6 +16,10 @@ void UActorStateSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
     if (Outcome.OutcomeType == "DialogueStarted")
     {
-        UE_LOG(LogTemp, Log, TEXT("ActorStateSubsystem: Dialogue started, updating NPC state."));
+        const FActorStateOutcome* ActorStateOutcome = static_cast<const FActorStateOutcome*>(&Outcome);
+        if (ActorStateOutcome)
+        {
+            UE_LOG(LogTemp, Log, TEXT("ActorStateSubsystem: Dialogue started, updating NPC state. StateChangeType: %s"), *ActorStateOutcome->StateChangeType);
+        }
     }
 }

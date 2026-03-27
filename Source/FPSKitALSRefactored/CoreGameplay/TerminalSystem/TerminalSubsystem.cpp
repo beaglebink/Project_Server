@@ -1,4 +1,5 @@
 #include "TerminalSubsystem.h"
+#include "TerminalTaskOutcome.h"
 #include "EventBusSubsystem.h"
 
 void UTerminalSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -20,6 +21,10 @@ void UTerminalSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
     if (Outcome.OutcomeType == "TerminalTaskCompleted")
     {
-        UE_LOG(LogTemp, Log, TEXT("TerminalSubsystem: Terminal task completed, updating terminal data."));
+		const FTerminalTaskOutcome* TerminalTaskOutcome = static_cast<const FTerminalTaskOutcome*>(&Outcome);
+        if (TerminalTaskOutcome)
+        {
+            UE_LOG(LogTemp, Log, TEXT("TerminalSubsystem: Terminal task completed. TerminalId: %s, TaskId: %s, Success: %s"), *TerminalTaskOutcome->TerminalId.ToString(), *TerminalTaskOutcome->TaskId, TerminalTaskOutcome->bSuccess ? TEXT("True") : TEXT("False"));
+		}
     }
 }

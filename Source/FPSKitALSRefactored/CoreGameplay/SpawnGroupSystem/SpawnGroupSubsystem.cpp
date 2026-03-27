@@ -1,4 +1,5 @@
 #include "SpawnGroupSubsystem.h"
+#include "GhostClearedOutcome.h"
 #include "EventBusSubsystem.h"
 
 void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -20,6 +21,10 @@ void USpawnGroupSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
     if (Outcome.OutcomeType == "GhostCleared")
     {
-        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: Ghost encounter cleared, resetting spawn group."));
+        const FGhostClearedOutcome* GhostCleared = static_cast<const FGhostClearedOutcome*>(&Outcome);
+        if (GhostCleared)
+        {
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: Ghost encounter cleared, resetting spawn group. GhostType: %s"), *GhostCleared->GhostType);
+        }
     }
 }

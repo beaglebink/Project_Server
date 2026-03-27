@@ -11,5 +11,8 @@ struct FMissionProgressOutcome : public FOutcomeEventBase
     FGuid MissionId;
 
     UPROPERTY(BlueprintReadWrite)
+	FString MissionName;
+
+    UPROPERTY(BlueprintReadWrite)
     int32 StepIndex;
 };
