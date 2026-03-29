@@ -14,12 +14,18 @@ void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UWorldStateSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == "MissionCompleted")
+    switch (Outcome.OutcomeType)
     {
-		const FMissionCompletedOutcome* MissionCompletedOutcome = static_cast<const FMissionCompletedOutcome*>(&Outcome);
-        if (MissionCompletedOutcome)
+        case EOutcomeType::MissionCompleted:
         {
-			UE_LOG(LogTemp, Log, TEXT("WorldStateSubsystem: Mission completed. MissionId: %s, GlobalFactKey: %s"), *MissionCompletedOutcome->MissionId.ToString(), *MissionCompletedOutcome->GlobalFactKey);
+            const FMissionCompletedOutcome* MissionCompletedOutcome = static_cast<const FMissionCompletedOutcome*>(&Outcome);
+            if (MissionCompletedOutcome)
+            {
+                UE_LOG(LogTemp, Log, TEXT("WorldStateSubsystem: Mission completed. MissionId: %s, GlobalFactKey: %s"), *MissionCompletedOutcome->MissionId.ToString(), *MissionCompletedOutcome->GlobalFactKey);
+            }
+            break;
         }
+        default:
+            break;
     }
 }

@@ -14,12 +14,18 @@ void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UMissionSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == "GhostCleared")
+    switch (Outcome.OutcomeType)
     {
-        const FMissionProgressOutcome* MissionProgress = static_cast<const FMissionProgressOutcome*>(&Outcome);
-        if (MissionProgress)
+        case EOutcomeType::GhostCleared:
         {
-            UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Ghost encounter cleared, advancing mission step. MissionName: %s"), *MissionProgress->MissionName);
+            const FMissionProgressOutcome* MissionProgress = static_cast<const FMissionProgressOutcome*>(&Outcome);
+            if (MissionProgress)
+            {
+                UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Ghost encounter cleared, advancing mission step. MissionName: %s"), *MissionProgress->MissionName);
+            }
+            break;
         }
+        default:
+            break;
     }
 }

@@ -19,12 +19,18 @@ void USpawnGroupSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 void USpawnGroupSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == "GhostCleared")
+    switch (Outcome.OutcomeType)
     {
-        const FGhostClearedOutcome* GhostCleared = static_cast<const FGhostClearedOutcome*>(&Outcome);
-        if (GhostCleared)
+        case EOutcomeType::GhostCleared:
         {
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: Ghost encounter cleared, resetting spawn group. GhostType: %s"), *GhostCleared->GhostType);
+            const FGhostClearedOutcome* GhostCleared = static_cast<const FGhostClearedOutcome*>(&Outcome);
+            if (GhostCleared)
+            {
+                UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: Ghost encounter cleared, resetting spawn group. GhostType: %s"), *GhostCleared->GhostType);
+            }
+            break;
         }
+        default:
+            break;
     }
 }

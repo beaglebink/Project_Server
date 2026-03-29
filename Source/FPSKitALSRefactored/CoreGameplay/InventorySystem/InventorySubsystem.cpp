@@ -1,6 +1,7 @@
 #include "InventorySubsystem.h"
 #include "EventBusSubsystem.h"
 #include "ItemAcquiredOutcome.h"
+#include "Outcome.h"
 
 void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -14,12 +15,18 @@ void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UInventorySubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == "ItemAcquired")
+    switch (Outcome.OutcomeType)
     {
-        const FItemAcquiredOutcome* ItemOutcome = static_cast<const FItemAcquiredOutcome*>(&Outcome);
-        if (ItemOutcome)
+        case EOutcomeType::ItemAcquired:
         {
-            UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Item acquired with ObjectId %s"), *ItemOutcome->ObjectId.ToString());
+            const FItemAcquiredOutcome* ItemOutcome = static_cast<const FItemAcquiredOutcome*>(&Outcome);
+            if (ItemOutcome)
+            {
+                UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Item acquired with ObjectId %s"), *ItemOutcome->ObjectId.ToString());
+            }
+            break;
         }
+        default:
+            break;
     }
 }

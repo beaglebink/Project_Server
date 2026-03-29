@@ -14,12 +14,18 @@ void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UActorStateSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == "DialogueStarted")
+    switch (Outcome.OutcomeType)
     {
-        const FActorStateOutcome* ActorStateOutcome = static_cast<const FActorStateOutcome*>(&Outcome);
-        if (ActorStateOutcome)
+        case EOutcomeType::DialogueStarted:
         {
-            UE_LOG(LogTemp, Log, TEXT("ActorStateSubsystem: Dialogue started, updating NPC state. StateChangeType: %s"), *ActorStateOutcome->StateChangeType);
+            const FActorStateOutcome* ActorStateOutcome = static_cast<const FActorStateOutcome*>(&Outcome);
+            if (ActorStateOutcome)
+            {
+                UE_LOG(LogTemp, Log, TEXT("ActorStateSubsystem: Dialogue started, updating NPC state. StateChangeType: %s"), *ActorStateOutcome->StateChangeType);
+            }
+            break;
         }
+        default:
+            break;
     }
 }

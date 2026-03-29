@@ -1,6 +1,7 @@
 #include "InteriorSubsystem.h"
 #include "EventBusSubsystem.h"
 #include "InteriorTransitionOutcome.h"
+#include "Outcome.h"
 
 void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -18,12 +19,18 @@ void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 void UInteriorSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == "GhostCleared")
+    switch (Outcome.OutcomeType)
     {
-        const FInteriorTransitionOutcome* ItemAcquiredOutcome = static_cast<const FInteriorTransitionOutcome*>(&Outcome);
-        if (ItemAcquiredOutcome)
+        case EOutcomeType::GhostCleared:
         {
-            UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Item transitioned, updating interior state. FloorIndex %i"), ItemAcquiredOutcome->FloorIndex);
+            const FInteriorTransitionOutcome* ItemAcquiredOutcome = static_cast<const FInteriorTransitionOutcome*>(&Outcome);
+            if (ItemAcquiredOutcome)
+            {
+                UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Item transitioned, updating interior state. FloorIndex %i"), ItemAcquiredOutcome->FloorIndex);
+            }
+            break;
         }
+        default:
+            break;
     }
 }
