@@ -7,13 +7,18 @@
 UCLASS()
 class FPSKITALSREFACTORED_API UInteriorSubsystem : public UWorldSubsystem
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	// Called when world begins play (Вызывается когда мир начинает игру)
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
-    virtual void OnWorldBeginPlay(UWorld &InWorld) override;
+private:
+	// Handler for GhostCleared events in interior (Обработчик для GhostCleared событий в интерьере)
+	UFUNCTION()
+	void OnGhostClearedWithInterior(const FOutcomeEventBase& Outcome);
 
-    UFUNCTION()
-    void HandleOutcome(const FOutcomeEventBase& Outcome);
+	// Handler for ItemAcquired events in interior (Обработчик для ItemAcquired событий в интерьере)
+	UFUNCTION()
+	void OnItemAcquiredWithObject(const FOutcomeEventBase& Outcome);
 };

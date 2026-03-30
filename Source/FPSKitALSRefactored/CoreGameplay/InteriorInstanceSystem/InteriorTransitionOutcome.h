@@ -2,14 +2,17 @@
 #include "OutcomeEventBase.h"
 #include "InteriorTransitionOutcome.generated.h"
 
+// Outcome structure for interior transitions (Структура результата для переходов интерьера)
 USTRUCT(BlueprintType)
 struct FInteriorTransitionOutcome : public FOutcomeEventBase
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadWrite)
-    FGuid InteriorSetId;
+	// Interior set identifier (Идентификатор набора интерьера)
+	UPROPERTY(BlueprintReadWrite)
+	FGuid InteriorSetId;
 
-    UPROPERTY(BlueprintReadWrite)
-    int32 FloorIndex;
+	// Floor index for multi-floor interiors (Индекс этажа для многоэтажных интерьеров)
+	UPROPERTY(BlueprintReadWrite)
+	int32 FloorIndex;
 };

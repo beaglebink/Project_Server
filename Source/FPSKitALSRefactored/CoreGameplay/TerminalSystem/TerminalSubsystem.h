@@ -7,13 +7,14 @@
 UCLASS()
 class FPSKITALSREFACTORED_API UTerminalSubsystem : public UWorldSubsystem
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	// Called when world begins play (Вызывается когда мир начинает игру)
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
-    virtual void OnWorldBeginPlay(UWorld& InWorld) override;
-
-    UFUNCTION()
-    void HandleOutcome(const FOutcomeEventBase& Outcome);
+private:
+	// Handler for TerminalTaskCompleted events (Обработчик для TerminalTaskCompleted событий)
+	UFUNCTION()
+	void OnTerminalTaskCompleted(const FOutcomeEventBase& Outcome);
 };

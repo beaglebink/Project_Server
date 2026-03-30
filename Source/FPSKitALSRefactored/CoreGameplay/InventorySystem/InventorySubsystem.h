@@ -7,11 +7,14 @@
 UCLASS()
 class FPSKITALSREFACTORED_API UInventorySubsystem : public UGameInstanceSubsystem
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	// Initialize subsystem and register event handlers (Инициализация подсистемы и регистрация обработчиков событий)
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-    UFUNCTION()
-    void HandleOutcome(const FOutcomeEventBase& Outcome);
+private:
+	// Handler for ItemAcquired events (Обработчик для ItemAcquired событий)
+	UFUNCTION()
+	void OnItemAcquired(const FOutcomeEventBase& Outcome);
 };

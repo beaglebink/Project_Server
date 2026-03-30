@@ -1,10 +1,10 @@
 #pragma once
 #include "OutcomeEventBase.h"
-#include "GhostClearedOutcome.generated.h"
+#include "MissionCompleteGhostOutcome.generated.h"
 
-// Outcome structure when ghost is cleared (Структура результата при очищении привидения)
+// Combined outcome structure for mission completion and ghost clearing (Объединённая структура результата для завершения миссии и очищения привидения)
 USTRUCT(BlueprintType)
-struct FGhostClearedOutcome : public FOutcomeEventBase
+struct FMissionCompleteGhostOutcome : public FOutcomeEventBase
 {
 	GENERATED_BODY()
 
@@ -23,4 +23,12 @@ struct FGhostClearedOutcome : public FOutcomeEventBase
 	// Spawn group identifier (Идентификатор группы спауна)
 	UPROPERTY(BlueprintReadWrite)
 	FGuid SpawnGroupId;
+
+	// Additional data field 1 (Дополнительное поле данных 1)
+	UPROPERTY(BlueprintReadWrite)
+	FString SomeData1;
+
+	// Additional data field 2 (Дополнительное поле данных 2)
+	UPROPERTY(BlueprintReadWrite)
+	float SomeData2;
 };

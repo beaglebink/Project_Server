@@ -2,17 +2,21 @@
 #include "OutcomeEventBase.h"
 #include "TerminalTaskOutcome.generated.h"
 
+// Outcome structure for terminal task completion (Структура результата для завершения терминального задания)
 USTRUCT(BlueprintType)
 struct FTerminalTaskOutcome : public FOutcomeEventBase
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadWrite)
-    FGuid TerminalId;
+	// Terminal identifier (Идентификатор терминала)
+	UPROPERTY(BlueprintReadWrite)
+	FGuid TerminalId;
 
-    UPROPERTY(BlueprintReadWrite)
-    FString TaskId;
+	// Task identifier string (Строка идентификатора задания)
+	UPROPERTY(BlueprintReadWrite)
+	FString TaskId;
 
-    UPROPERTY(BlueprintReadWrite)
-    bool bSuccess;
+	// Success flag for task completion (Флаг успеха для завершения задания)
+	UPROPERTY(BlueprintReadWrite)
+	bool bSuccess;
 };

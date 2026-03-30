@@ -1,36 +1,42 @@
 #include "TerminalSubsystem.h"
 #include "TerminalTaskOutcome.h"
 #include "EventBusSubsystem.h"
-
-void UTerminalSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-    Super::Initialize(Collection);
-}
+#include "../EventBusSystem/OutcomeQuery.h"
 
 void UTerminalSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
 
-    if (UEventBusSubsystem* EventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-    {
-        EventBus->OnOutcomeEvent.AddDynamic(this, &UTerminalSubsystem::HandleOutcome);
-    }
+	if (UEventBusSubsystem* EventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		// Handler: TerminalTaskCompleted AND Object != Default (Обработчик: TerminalTaskCompleted И объект не Default)
+		auto TerminalQuery = FOutcomeQueryBuilder::And();
+		TerminalQuery->Add(FOutcomeQueryBuilder::Type(EOutcomeType::TerminalTaskCompleted));
+		TerminalQuery->Add(FOutcomeQueryBuilder::Not(FOutcomeQueryBuilder::Object(EOutcomeObject::Default)));
+
+		EventBus->RegisterHandler(
+			FOutcomeHandlerDelegate::CreateUObject(this, &UTerminalSubsystem::OnTerminalTaskCompleted),
+			TerminalQuery
+		);
+
+		UE_LOG(LogTemp, Warning, TEXT("TerminalSubsystem: Registered event handler"));
+	}
 }
 
-void UTerminalSubsystem::HandleOutcome(const FOutcomeEventBase& Outcome)
+void UTerminalSubsystem::OnTerminalTaskCompleted(const FOutcomeEventBase& Outcome)
 {
-    switch (Outcome.OutcomeType)
-    {
-        case EOutcomeType::TerminalTaskCompleted:
-        {
-            const FTerminalTaskOutcome* TerminalTaskOutcome = static_cast<const FTerminalTaskOutcome*>(&Outcome);
-            if (TerminalTaskOutcome)
-            {
-                UE_LOG(LogTemp, Log, TEXT("TerminalSubsystem: Terminal task completed. TerminalId: %s, TaskId: %s, Success: %s"), *TerminalTaskOutcome->TerminalId.ToString(), *TerminalTaskOutcome->TaskId, TerminalTaskOutcome->bSuccess ? TEXT("True") : TEXT("False"));
-            }
-            break;
-        }
-        default:
-            break;
-    }
+	// Cast to specialized type (Кастируем в специализированный тип)
+	const FTerminalTaskOutcome* TerminalTaskOutcome = static_cast<const FTerminalTaskOutcome*>(&Outcome);
+	
+	if (TerminalTaskOutcome)
+	{
+		// Handle terminal task-specific data (Обработка специфичных данных терминального задания)
+		UE_LOG(LogTemp, Log,
+			TEXT("TerminalSubsystem: Task %s completed - Success: %s")
+			TEXT(" | Object: %d"),
+			*TerminalTaskOutcome->TaskId,
+			TerminalTaskOutcome->bSuccess ? TEXT("True") : TEXT("False"),
+			static_cast<int32>(TerminalTaskOutcome->OutcomeObject)
+		);
+	}
 }

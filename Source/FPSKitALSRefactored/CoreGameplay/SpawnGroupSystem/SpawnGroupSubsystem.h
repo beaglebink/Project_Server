@@ -7,13 +7,14 @@
 UCLASS()
 class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UWorldSubsystem
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	// Called when world begins play (Вызывается когда мир начинает игру)
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
-    virtual void OnWorldBeginPlay(UWorld& InWorld) override;
-
-    UFUNCTION()
-    void HandleOutcome(const FOutcomeEventBase& Outcome);
+private:
+	// Handler for GhostCleared events with spawn conditions (Обработчик для GhostCleared событий с условиями спауна)
+	UFUNCTION()
+	void OnGhostClearedWithSpawn(const FOutcomeEventBase& Outcome);
 };
