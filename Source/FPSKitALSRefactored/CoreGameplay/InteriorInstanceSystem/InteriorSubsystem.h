@@ -2,7 +2,13 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "OutcomeEventBase.h"
+#include "OutcomeConditionAsset.h"
+#include "../SpawnGroupSystem/GhostClearedOutcome.h"
+#include "../InventorySystem/ItemAcquiredOutcome.h"
 #include "InteriorSubsystem.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorGhostClearedEvent, const FGhostClearedOutcome&,  Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorItemAcquiredEvent,  const FItemAcquiredOutcome&,  Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UInteriorSubsystem : public UWorldSubsystem
@@ -10,15 +16,21 @@ class FPSKITALSREFACTORED_API UInteriorSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
-	// Called when world begins play (Вызывается когда мир начинает игру)
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
-private:
-	// Handler for GhostCleared events in interior (Обработчик для GhostCleared событий в интерьере)
-	UFUNCTION()
-	void OnGhostClearedWithInterior(const FOutcomeEventBase& Outcome);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+	TObjectPtr<UOutcomeConditionAsset> GhostClearedCondition;
 
-	// Handler for ItemAcquired events in interior (Обработчик для ItemAcquired событий в интерьере)
-	UFUNCTION()
-	void OnItemAcquiredWithObject(const FOutcomeEventBase& Outcome);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+	TObjectPtr<UOutcomeConditionAsset> ItemAcquiredCondition;
+
+	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
+	FOnInteriorGhostClearedEvent OnGhostCleared;
+
+	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
+	FOnInteriorItemAcquiredEvent OnItemAcquired;
+
+private:
+	void HandleGhostCleared(const FOutcomeEventBase& Outcome);
+	void HandleItemAcquired(const FOutcomeEventBase& Outcome);
 };

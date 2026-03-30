@@ -1,69 +1,47 @@
 #include "InteriorSubsystem.h"
-#include "EventBusSubsystem.h"
-#include "InteriorTransitionOutcome.h"
-#include "Outcome.h"
-#include "../EventBusSystem/OutcomeQuery.h"
+#include "../EventBusSystem/EventBusSubsystem.h"
 
 void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
-	
-	if (UEventBusSubsystem* EventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-	{
-		// Handler 1: GhostCleared AND Interior != Default (Обработчик 1: GhostCleared И интерьер не Default)
-		auto GhostWithInterior = FOutcomeQueryBuilder::And();
-		GhostWithInterior->Add(FOutcomeQueryBuilder::Type(EOutcomeType::GhostCleared));
-		GhostWithInterior->Add(FOutcomeQueryBuilder::Not(FOutcomeQueryBuilder::Interior(EOutcomeInterior::Default)));
 
+	UEventBusSubsystem* EventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
+
+	if (GhostClearedCondition)
+	{
 		EventBus->RegisterHandler(
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::OnGhostClearedWithInterior),
-			GhostWithInterior
+			GhostClearedCondition,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleGhostCleared)
 		);
+	}
 
-		// Handler 2: ItemAcquired AND Object != Default (Обработчик 2: ItemAcquired И объект не Default)
-		auto ItemWithObject = FOutcomeQueryBuilder::And();
-		ItemWithObject->Add(FOutcomeQueryBuilder::Type(EOutcomeType::ItemAcquired));
-		ItemWithObject->Add(FOutcomeQueryBuilder::Not(FOutcomeQueryBuilder::Object(EOutcomeObject::Default)));
-
+	if (ItemAcquiredCondition)
+	{
 		EventBus->RegisterHandler(
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::OnItemAcquiredWithObject),
-			ItemWithObject
+			ItemAcquiredCondition,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleItemAcquired)
 		);
-
-		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem: Registered 2 event handlers"));
 	}
 }
 
-void UInteriorSubsystem::OnGhostClearedWithInterior(const FOutcomeEventBase& Outcome)
+void UInteriorSubsystem::HandleGhostCleared(const FOutcomeEventBase& Outcome)
 {
-	// Cast to specialized type (Кастируем в специализированный тип)
-	const FInteriorTransitionOutcome* TransitionOutcome = static_cast<const FInteriorTransitionOutcome*>(&Outcome);
-	
-	if (TransitionOutcome)
-	{
-		// Handle ghost-specific data when cleared in interior (Обработка специфичных данных при очищении привидения в интерьере)
-		UE_LOG(LogTemp, Log,
-			TEXT("InteriorSubsystem: Ghost cleared - updating floor %d")
-			TEXT(" | Interior: %d"),
-			TransitionOutcome->FloorIndex,
-			static_cast<int32>(TransitionOutcome->OutcomeInterior)
-		);
-	}
+	const FGhostClearedOutcome& Ghost = static_cast<const FGhostClearedOutcome&>(Outcome);
+
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Ghost cleared - Interior: %d"),
+		static_cast<int32>(Ghost.OutcomeInterior));
+
+	OnGhostCleared.Broadcast(Ghost);
 }
 
-void UInteriorSubsystem::OnItemAcquiredWithObject(const FOutcomeEventBase& Outcome)
+void UInteriorSubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
 {
-	// Cast to specialized type (Кастируем в специализированный тип)
-	const FInteriorTransitionOutcome* ItemOutcome = static_cast<const FInteriorTransitionOutcome*>(&Outcome);
-	
-	if (ItemOutcome)
-	{
-		// Handle item-specific data when acquired in interior (Обработка специфичных данных при получении предмета в интерьере)
-		UE_LOG(LogTemp, Log,
-			TEXT("InteriorSubsystem: Item acquired - updating interior state at floor %d")
-			TEXT(" | Object: %d"),
-			ItemOutcome->FloorIndex,
-			static_cast<int32>(ItemOutcome->OutcomeObject)
-		);
-	}
+	const FItemAcquiredOutcome& Item = static_cast<const FItemAcquiredOutcome&>(Outcome);
+
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Item acquired - Object: %s"),
+		*Item.ObjectId.ToString());
+
+	OnItemAcquired.Broadcast(Item);
 }
+

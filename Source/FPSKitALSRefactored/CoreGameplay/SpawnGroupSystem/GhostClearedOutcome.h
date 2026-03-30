@@ -1,26 +1,22 @@
-#pragma once
+п»ї#pragma once
+#include "CoreMinimal.h"
 #include "OutcomeEventBase.h"
 #include "GhostClearedOutcome.generated.h"
 
-// Outcome structure when ghost is cleared (Структура результата при очищении привидения)
 USTRUCT(BlueprintType)
 struct FGhostClearedOutcome : public FOutcomeEventBase
 {
 	GENERATED_BODY()
 
-	// Mission identifier (Идентификатор миссии)
 	UPROPERTY(BlueprintReadWrite)
 	FGuid MissionId;
 
-	// Ghost type identifier (Идентификатор типа привидения)
 	UPROPERTY(BlueprintReadWrite)
 	FString GhostType;
 
-	// Interior set identifier (Идентификатор набора интерьера)
 	UPROPERTY(BlueprintReadWrite)
 	FGuid InteriorSetId;
 
-	// Spawn group identifier (Идентификатор группы спауна)
 	UPROPERTY(BlueprintReadWrite)
 	FGuid SpawnGroupId;
 };

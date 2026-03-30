@@ -2,7 +2,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "OutcomeEventBase.h"
+#include "OutcomeConditionAsset.h"
+#include "GhostClearedOutcome.h"
 #include "SpawnGroupSubsystem.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGhostClearedEvent, const FGhostClearedOutcome&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UWorldSubsystem
@@ -10,11 +14,14 @@ class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
-	// Called when world begins play (Вызывается когда мир начинает игру)
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+	TObjectPtr<UOutcomeConditionAsset> GhostClearedCondition;
+
+	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
+	FOnSpawnGhostClearedEvent OnGhostCleared;
+
 private:
-	// Handler for GhostCleared events with spawn conditions (Обработчик для GhostCleared событий с условиями спауна)
-	UFUNCTION()
-	void OnGhostClearedWithSpawn(const FOutcomeEventBase& Outcome);
+	void HandleGhostCleared(const FOutcomeEventBase& Outcome);
 };

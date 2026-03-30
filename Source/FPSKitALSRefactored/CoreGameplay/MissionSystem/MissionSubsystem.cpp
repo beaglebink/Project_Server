@@ -1,80 +1,52 @@
-#include "MissionSubsystem.h"
-#include "MissionProgressOutcome.h"
+п»ї#include "MissionSubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "../EventBusSystem/OutcomeQuery.h"
 
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-    Super::Initialize(Collection);
+	Super::Initialize(Collection);
 
-    if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-    {
-        // Handler 1: GhostCleared AND (SpawnGroup != Default OR Actor != Default) AND (Object != Default OR Interior != Default) (Обработчик 1: GhostCleared И (спауна не Default ИЛИ актёра не Default) И (объект не Default ИЛИ интерьер не Default))
-        auto GhostClearedQuery = FOutcomeQueryBuilder::And();
-        GhostClearedQuery->Add(FOutcomeQueryBuilder::Type(EOutcomeType::GhostCleared));
-        
-        auto SpawnOrActor = FOutcomeQueryBuilder::Or();
-        SpawnOrActor->Add(FOutcomeQueryBuilder::Not(FOutcomeQueryBuilder::SpawnGroup(EOutcomeSpawnGroup::Default)));
-        SpawnOrActor->Add(FOutcomeQueryBuilder::Not(FOutcomeQueryBuilder::Actor(EOutcomeActor::Default)));
-        GhostClearedQuery->Add(SpawnOrActor);
-        
-        auto ObjectOrInterior = FOutcomeQueryBuilder::Or();
-        ObjectOrInterior->Add(FOutcomeQueryBuilder::Not(FOutcomeQueryBuilder::Object(EOutcomeObject::Default)));
-        ObjectOrInterior->Add(FOutcomeQueryBuilder::Not(FOutcomeQueryBuilder::Interior(EOutcomeInterior::Default)));
-        GhostClearedQuery->Add(ObjectOrInterior);
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
 
-        EventBus->RegisterHandler(
-            FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::OnGhostClearedWithConditions),
-            GhostClearedQuery
-        );
+	if (GhostClearedCondition)
+	{
+		EventBus->RegisterHandler(
+			GhostClearedCondition,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleGhostCleared)
+		);
+	}
 
-        // Handler 2: ItemAcquired AND Mission != Default (Обработчик 2: ItemAcquired И миссия не Default)
-        auto ItemQuery = FOutcomeQueryBuilder::And();
-        ItemQuery->Add(FOutcomeQueryBuilder::Type(EOutcomeType::ItemAcquired));
-        ItemQuery->Add(FOutcomeQueryBuilder::Not(FOutcomeQueryBuilder::Mission(EOutcomeMission::Default)));
-
-        EventBus->RegisterHandler(
-            FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::OnItemAcquiredWithMission),
-            ItemQuery
-        );
-
-        UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: Registered 2 event handlers"));
-    }
+	if (MissionProgressCondition)
+	{
+		EventBus->RegisterHandler(
+			MissionProgressCondition,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleMissionProgress)
+		);
+	}
 }
 
-void UMissionSubsystem::OnGhostClearedWithConditions(const FOutcomeEventBase& Outcome)
+void UMissionSubsystem::HandleGhostCleared(const FOutcomeEventBase& Outcome)
 {
-    // Cast to specialized type (Кастируем в специализированный тип)
-    const FMissionProgressOutcome* MissionProgress = static_cast<const FMissionProgressOutcome*>(&Outcome);
-    
-    if (MissionProgress)
-    {
-        // Handle mission-specific data when ghost is cleared (Обработка специфичных данных миссии при очищении привидения)
-        UE_LOG(LogTemp, Log, 
-            TEXT("MissionSubsystem: Mission %s advanced - Ghost cleared")
-            TEXT(" | SpawnGroup: %d, Actor: %d, Object: %d, Interior: %d"),
-            *MissionProgress->MissionName,
-            static_cast<int32>(MissionProgress->OutcomeSpawnGroup),
-            static_cast<int32>(MissionProgress->OutcomeActor),
-            static_cast<int32>(MissionProgress->OutcomeObject),
-            static_cast<int32>(MissionProgress->OutcomeInterior)
-        );
-    }
+	const FGhostClearedOutcome& Ghost = static_cast<const FGhostClearedOutcome&>(Outcome);
+
+	// C++ logic here (C++ Р»РѕРіРёРєР° Р·РґРµСЃСЊ)
+	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Ghost %s cleared"), *Ghost.GhostType);
+
+	// Broadcast typed struct directly - Blueprint gets FGhostClearedOutcome
+	// (Р Р°СЃСЃС‹Р»Р°РµРј С‚РёРїРёР·РёСЂРѕРІР°РЅРЅСѓСЋ СЃС‚СЂСѓРєС‚СѓСЂСѓ РЅР°РїСЂСЏРјСѓСЋ - Blueprint РїРѕР»СѓС‡Р°РµС‚ FGhostClearedOutcome)
+	OnGhostCleared.Broadcast(Ghost);
 }
 
-void UMissionSubsystem::OnItemAcquiredWithMission(const FOutcomeEventBase& Outcome)
+void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 {
-    // Cast to specialized type (Кастируем в специализированный тип)
-    const FMissionProgressOutcome* ItemProgress = static_cast<const FMissionProgressOutcome*>(&Outcome);
-    
-    if (ItemProgress)
-    {
-        // Handle mission-specific data when item is acquired (Обработка специфичных данных миссии при получении предмета)
-        UE_LOG(LogTemp, Log,
-            TEXT("MissionSubsystem: Item acquired - mission %s progress tracked")
-            TEXT(" | Mission: %d"),
-            *ItemProgress->MissionName,
-            static_cast<int32>(ItemProgress->OutcomeMission)
-        );
-    }
+	const FMissionProgressOutcome& Progress = static_cast<const FMissionProgressOutcome&>(Outcome);
+
+	// C++ logic here (C++ Р»РѕРіРёРєР° Р·РґРµСЃСЊ)
+	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission %s step %d"),
+		*Progress.MissionName, Progress.StepIndex);
+
+	// Broadcast typed struct directly - Blueprint gets FMissionProgressOutcome
+	// (Р Р°СЃСЃС‹Р»Р°РµРј С‚РёРїРёР·РёСЂРѕРІР°РЅРЅСѓСЋ СЃС‚СЂСѓРєС‚СѓСЂСѓ РЅР°РїСЂСЏРјСѓСЋ - Blueprint РїРѕР»СѓС‡Р°РµС‚ FMissionProgressOutcome)
+	OnMissionProgress.Broadcast(Progress);
 }
+

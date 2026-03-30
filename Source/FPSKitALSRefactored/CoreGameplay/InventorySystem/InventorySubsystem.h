@@ -2,7 +2,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
+#include "OutcomeConditionAsset.h"
+#include "ItemAcquiredOutcome.h"
 #include "InventorySubsystem.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemAcquiredEvent, const FItemAcquiredOutcome&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UInventorySubsystem : public UGameInstanceSubsystem
@@ -10,11 +14,14 @@ class FPSKITALSREFACTORED_API UInventorySubsystem : public UGameInstanceSubsyste
 	GENERATED_BODY()
 
 public:
-	// Initialize subsystem and register event handlers (Инициализация подсистемы и регистрация обработчиков событий)
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+	TObjectPtr<UOutcomeConditionAsset> ItemAcquiredCondition;
+
+	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
+	FOnItemAcquiredEvent OnItemAcquired;
+
 private:
-	// Handler for ItemAcquired events (Обработчик для ItemAcquired событий)
-	UFUNCTION()
-	void OnItemAcquired(const FOutcomeEventBase& Outcome);
+	void HandleItemAcquired(const FOutcomeEventBase& Outcome);
 };

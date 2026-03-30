@@ -2,7 +2,12 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
+#include "OutcomeConditionAsset.h"
+#include "ActorStateOutcome.h"
 #include "ActorStateSubsystem.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueStartedEvent,      const FActorStateOutcome&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionOrGhostWithSpawnEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UActorStateSubsystem : public UGameInstanceSubsystem
@@ -10,15 +15,25 @@ class FPSKITALSREFACTORED_API UActorStateSubsystem : public UGameInstanceSubsyst
 	GENERATED_BODY()
 
 public:
-	// Initialize subsystem and register event handlers (Инициализация подсистемы и регистрация обработчиков событий)
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-private:
-	// Handler for DialogueStarted events (Обработчик для DialogueStarted событий)
-	UFUNCTION()
-	void OnDialogueStarted(const FOutcomeEventBase& Outcome);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+	TObjectPtr<UOutcomeConditionAsset> DialogueStartedCondition;
 
-	// Single handler for (MissionCompleted OR GhostCleared) AND SpawnGroup != Default (Один обработчик для (MissionCompleted ИЛИ GhostCleared) И не Default спауна)
-	UFUNCTION()
-	void OnMissionOrGhostWithSpawn(const FOutcomeEventBase& Outcome);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+	TObjectPtr<UOutcomeConditionAsset> MissionOrGhostCondition;
+
+	// Typed delegate for dialogue - Blueprint gets FActorStateOutcome directly
+	// (Типизированный делегат для диалога - Blueprint получает FActorStateOutcome напрямую)
+	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
+	FOnDialogueStartedEvent OnDialogueStarted;
+
+	// Base type delegate - event can be MissionCompleted or GhostCleared
+	// (Делегат базового типа - событие может быть MissionCompleted или GhostCleared)
+	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
+	FOnMissionOrGhostWithSpawnEvent OnMissionOrGhostWithSpawn;
+
+private:
+	void HandleDialogueStarted(const FOutcomeEventBase& Outcome);
+	void HandleMissionOrGhost(const FOutcomeEventBase& Outcome);
 };

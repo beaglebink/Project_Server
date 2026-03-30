@@ -1,17 +1,34 @@
 #include "EventBusSubsystem.h"
+#include "OutcomeConditionAsset.h"
 
 void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 {
-	// Call all handlers whose conditions are met (Вызываем все обработчики, чьи условия выполнены)
 	for (const FOutcomeHandlerEntry& Entry : Handlers)
 	{
-		// If condition is not set or condition is met - call the handler (Если условие не задано или условие выполнено - вызываем обработчик)
 		if (!Entry.Query.IsValid() || Entry.Query->Evaluate(Outcome))
 		{
 			Entry.Handler.ExecuteIfBound(Outcome);
 		}
 	}
+}
 
-	// Also broadcast through delegate for Blueprint compatibility (Также отправляем через делегат для Blueprint)
-	OnOutcomeEvent.Broadcast(Outcome);
+void UEventBusSubsystem::RegisterHandler(UOutcomeConditionAsset* ConditionAsset, FOutcomeHandlerDelegate Handler)
+{
+	if (!ConditionAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - ConditionAsset is null"));
+		return;
+	}
+
+	if (!Handler.IsBound())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - Handler is not bound"));
+		return;
+	}
+
+	ConditionAsset->CompileCondition();
+	Handlers.Add(FOutcomeHandlerEntry(MoveTemp(Handler), ConditionAsset->GetCondition()));
+
+	UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered handler - condition: %s"),
+		*ConditionAsset->GetConditionDescription());
 }

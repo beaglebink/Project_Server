@@ -1,47 +1,49 @@
 #pragma once
 
-// Event type enumeration (Перечисление типов событий)
-UENUM()
+// Event type enumeration
+UENUM(BlueprintType)
 enum class EOutcomeType : uint8
 {
-	Default UMETA(DisplayName = "Default"),
-	GhostCleared UMETA(DisplayName = "Ghost Cleared"),
-	DialogueStarted UMETA(DisplayName = "Dialogue Started"),
+	Default               UMETA(DisplayName = "Default"),
+	GhostCleared          UMETA(DisplayName = "Ghost Cleared"),
+	DialogueStarted       UMETA(DisplayName = "Dialogue Started"),
 	TerminalTaskCompleted UMETA(DisplayName = "Terminal Task Completed"),
-	MissionCompleted UMETA(DisplayName = "Mission Completed"),
-	ItemAcquired UMETA(DisplayName = "Item Acquired")
+	MissionCompleted      UMETA(DisplayName = "Mission Completed"),
+	ItemAcquired          UMETA(DisplayName = "Item Acquired"),
+	MissionProgress       UMETA(DisplayName = "Mission Progress"),
+	InteriorTransition    UMETA(DisplayName = "Interior Transition")
 };
 
-// Mission category enumeration (Перечисление категории миссии)
-UENUM()
+// Mission category enumeration
+UENUM(BlueprintType)
 enum class EOutcomeMission : uint8
 {
 	Default UMETA(DisplayName = "Default")
 };
 
-// Actor category enumeration (Перечисление категории актера)
-UENUM()
+// Actor category enumeration
+UENUM(BlueprintType)
 enum class EOutcomeActor : uint8
 {
 	Default UMETA(DisplayName = "Default")
 };
 
-// Object category enumeration (Перечисление категории объекта)
-UENUM()
+// Object category enumeration
+UENUM(BlueprintType)
 enum class EOutcomeObject : uint8
 {
 	Default UMETA(DisplayName = "Default")
 };
 
-// Interior category enumeration (Перечисление категории интерьера)
-UENUM()
+// Interior category enumeration
+UENUM(BlueprintType)
 enum class EOutcomeInterior : uint8
 {
 	Default UMETA(DisplayName = "Default")
 };
 
-// Spawn group category enumeration (Перечисление категории группы спауна)
-UENUM()
+// Spawn group category enumeration
+UENUM(BlueprintType)
 enum class EOutcomeSpawnGroup : uint8
 {
 	Default UMETA(DisplayName = "Default")
