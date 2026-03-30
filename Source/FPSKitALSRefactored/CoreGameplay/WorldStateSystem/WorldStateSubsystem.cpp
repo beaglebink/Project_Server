@@ -4,14 +4,41 @@
 void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	SubscribeMissionCompleted();
+}
 
-	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-	if (!EventBus || !MissionCompletedCondition) return;
+void UWorldStateSubsystem::Deinitialize()
+{
+	UnsubscribeAll();
+	Super::Deinitialize();
+}
 
-	EventBus->RegisterHandler(
-		MissionCompletedCondition,
-		FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleMissionCompleted)
-	);
+void UWorldStateSubsystem::SubscribeMissionCompleted()
+{
+	if (MissionCompletedHandle.IsValid() || !MissionCompletedCondition) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		MissionCompletedHandle = EventBus->RegisterHandler(
+			MissionCompletedCondition,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleMissionCompleted)
+		);
+	}
+}
+
+void UWorldStateSubsystem::UnsubscribeMissionCompleted()
+{
+	if (!MissionCompletedHandle.IsValid()) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		EventBus->UnregisterHandler(MissionCompletedHandle);
+	}
+}
+
+void UWorldStateSubsystem::UnsubscribeAll()
+{
+	UnsubscribeMissionCompleted();
 }
 
 void UWorldStateSubsystem::HandleMissionCompleted(const FOutcomeEventBase& Outcome)

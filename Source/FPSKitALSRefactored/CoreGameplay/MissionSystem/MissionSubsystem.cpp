@@ -5,35 +5,78 @@ void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-	if (!EventBus) return;
+	// Subscribe all handlers on startup
+	// (Подписываем все обработчики при старте)
+	SubscribeGhostCleared();
+	SubscribeMissionProgress();
+}
 
-	if (GhostClearedCondition)
+void UMissionSubsystem::Deinitialize()
+{
+	UnsubscribeAll();
+	Super::Deinitialize();
+}
+
+void UMissionSubsystem::SubscribeGhostCleared()
+{
+	// Skip if already subscribed or no condition assigned
+	// (Пропускаем если уже подписан или нет Asset условия)
+	if (GhostClearedHandle.IsValid() || !GhostClearedCondition) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
-		EventBus->RegisterHandler(
+		GhostClearedHandle = EventBus->RegisterHandler(
 			GhostClearedCondition,
 			FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleGhostCleared)
 		);
 	}
+}
 
-	if (MissionProgressCondition)
+void UMissionSubsystem::SubscribeMissionProgress()
+{
+	if (MissionProgressHandle.IsValid() || !MissionProgressCondition) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
-		EventBus->RegisterHandler(
+		MissionProgressHandle = EventBus->RegisterHandler(
 			MissionProgressCondition,
 			FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleMissionProgress)
 		);
 	}
 }
 
+void UMissionSubsystem::UnsubscribeGhostCleared()
+{
+	if (!GhostClearedHandle.IsValid()) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		EventBus->UnregisterHandler(GhostClearedHandle);
+	}
+}
+
+void UMissionSubsystem::UnsubscribeMissionProgress()
+{
+	if (!MissionProgressHandle.IsValid()) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		EventBus->UnregisterHandler(MissionProgressHandle);
+	}
+}
+
+void UMissionSubsystem::UnsubscribeAll()
+{
+	UnsubscribeGhostCleared();
+	UnsubscribeMissionProgress();
+}
+
 void UMissionSubsystem::HandleGhostCleared(const FOutcomeEventBase& Outcome)
 {
 	const FGhostClearedOutcome& Ghost = static_cast<const FGhostClearedOutcome&>(Outcome);
 
-	// C++ logic here (C++ логика здесь)
 	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Ghost %s cleared"), *Ghost.GhostType);
 
-	// Broadcast typed struct directly - Blueprint gets FGhostClearedOutcome
-	// (Рассылаем типизированную структуру напрямую - Blueprint получает FGhostClearedOutcome)
 	OnGhostCleared.Broadcast(Ghost);
 }
 
@@ -41,12 +84,9 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 {
 	const FMissionProgressOutcome& Progress = static_cast<const FMissionProgressOutcome&>(Outcome);
 
-	// C++ logic here (C++ логика здесь)
 	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission %s step %d"),
 		*Progress.MissionName, Progress.StepIndex);
 
-	// Broadcast typed struct directly - Blueprint gets FMissionProgressOutcome
-	// (Рассылаем типизированную структуру напрямую - Blueprint получает FMissionProgressOutcome)
 	OnMissionProgress.Broadcast(Progress);
 }
 

@@ -3,11 +3,12 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
+#include "../EventBusSystem/EventBusSubsystem.h"
 #include "ActorStateOutcome.h"
 #include "ActorStateSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueStartedEvent,      const FActorStateOutcome&, Outcome);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionOrGhostWithSpawnEvent, const FOutcomeEventBase&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueStartedEvent,          const FActorStateOutcome&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionOrGhostWithSpawnEvent,  const FOutcomeEventBase&,  Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UActorStateSubsystem : public UGameInstanceSubsystem
@@ -16,6 +17,7 @@ class FPSKITALSREFACTORED_API UActorStateSubsystem : public UGameInstanceSubsyst
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> DialogueStartedCondition;
@@ -23,17 +25,37 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> MissionOrGhostCondition;
 
-	// Typed delegate for dialogue - Blueprint gets FActorStateOutcome directly
-	// (“ипизированный делегат дл€ диалога - Blueprint получает FActorStateOutcome напр€мую)
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
 	FOnDialogueStartedEvent OnDialogueStarted;
 
-	// Base type delegate - event can be MissionCompleted or GhostCleared
-	// (ƒелегат базового типа - событие может быть MissionCompleted или GhostCleared)
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
 	FOnMissionOrGhostWithSpawnEvent OnMissionOrGhostWithSpawn;
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void SubscribeDialogueStarted();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void SubscribeMissionOrGhost();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void UnsubscribeDialogueStarted();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void UnsubscribeMissionOrGhost();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void UnsubscribeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	bool IsDialogueStartedSubscribed() const { return DialogueStartedHandle.IsValid(); }
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	bool IsMissionOrGhostSubscribed() const { return MissionOrGhostHandle.IsValid(); }
 
 private:
 	void HandleDialogueStarted(const FOutcomeEventBase& Outcome);
 	void HandleMissionOrGhost(const FOutcomeEventBase& Outcome);
+
+	FOutcomeHandlerHandle DialogueStartedHandle;
+	FOutcomeHandlerHandle MissionOrGhostHandle;
 };

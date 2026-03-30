@@ -4,14 +4,41 @@
 void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	SubscribeItemAcquired();
+}
 
-	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-	if (!EventBus || !ItemAcquiredCondition) return;
+void UInventorySubsystem::Deinitialize()
+{
+	UnsubscribeAll();
+	Super::Deinitialize();
+}
 
-	EventBus->RegisterHandler(
-		ItemAcquiredCondition,
-		FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleItemAcquired)
-	);
+void UInventorySubsystem::SubscribeItemAcquired()
+{
+	if (ItemAcquiredHandle.IsValid() || !ItemAcquiredCondition) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		ItemAcquiredHandle = EventBus->RegisterHandler(
+			ItemAcquiredCondition,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleItemAcquired)
+		);
+	}
+}
+
+void UInventorySubsystem::UnsubscribeItemAcquired()
+{
+	if (!ItemAcquiredHandle.IsValid()) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		EventBus->UnregisterHandler(ItemAcquiredHandle);
+	}
+}
+
+void UInventorySubsystem::UnsubscribeAll()
+{
+	UnsubscribeItemAcquired();
 }
 
 void UInventorySubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
@@ -20,6 +47,10 @@ void UInventorySubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
 
 	UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Item acquired - Object: %s"),
 		*Item.ObjectId.ToString());
+
+	// One-shot pattern example: unsubscribe after first event
+	// (Пример одноразового обработчика: отписка после первого события)
+	// UnsubscribeItemAcquired();
 
 	OnItemAcquired.Broadcast(Item);
 }

@@ -3,6 +3,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
+#include "../EventBusSystem/EventBusSubsystem.h"
 #include "GhostClearedOutcome.h"
 #include "SpawnGroupSubsystem.generated.h"
 
@@ -15,6 +16,7 @@ class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UWorldSubsystem
 
 public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+	virtual void Deinitialize() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> GhostClearedCondition;
@@ -22,6 +24,21 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
 	FOnSpawnGhostClearedEvent OnGhostCleared;
 
+	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
+	void SubscribeGhostCleared();
+
+	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
+	void UnsubscribeGhostCleared();
+
+	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
+	void UnsubscribeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
+	bool IsGhostClearedSubscribed() const { return GhostClearedHandle.IsValid(); }
+
 private:
 	void HandleGhostCleared(const FOutcomeEventBase& Outcome);
+
+	FOutcomeHandlerHandle GhostClearedHandle;
+	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
 };

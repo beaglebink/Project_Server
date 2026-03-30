@@ -3,6 +3,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
+#include "../EventBusSystem/EventBusSubsystem.h"
 #include "TerminalTaskOutcome.h"
 #include "TerminalSubsystem.generated.h"
 
@@ -15,6 +16,7 @@ class FPSKITALSREFACTORED_API UTerminalSubsystem : public UWorldSubsystem
 
 public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+	virtual void Deinitialize() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> TerminalTaskCondition;
@@ -22,6 +24,21 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
 	FOnTerminalTaskEvent OnTerminalTaskCompleted;
 
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void SubscribeTerminalTask();
+
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void UnsubscribeTerminalTask();
+
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void UnsubscribeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	bool IsTerminalTaskSubscribed() const { return TerminalTaskHandle.IsValid(); }
+
 private:
 	void HandleTerminalTask(const FOutcomeEventBase& Outcome);
+
+	FOutcomeHandlerHandle TerminalTaskHandle;
+	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
 };
