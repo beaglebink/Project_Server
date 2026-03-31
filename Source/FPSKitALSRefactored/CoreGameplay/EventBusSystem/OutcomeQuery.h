@@ -4,7 +4,8 @@
 #include "Outcome.h"
 #include "OutcomeEventBase.h"
 
-// Base condition interface (Базовый интерфейс условия)
+// Base condition interface
+// (Базовый интерфейс условия)
 class IOutcomeCondition
 {
 public:
@@ -13,7 +14,7 @@ public:
 	virtual FString Describe() const = 0;
 };
 
-// Template for simple enum field conditions with Equals/NotEquals
+// Template for simple enum field conditions with Equals/NotEquals support
 // (Шаблон для простых условий по полям enum с поддержкой Equals/NotEquals)
 template<typename TEnumType>
 class TFieldCondition : public IOutcomeCondition
@@ -41,15 +42,16 @@ public:
 	}
 
 private:
-	FieldSelector Selector;
-	TEnumType Value;
-	bool bNegate;
-	const TCHAR* FieldName;
+		FieldSelector Selector;
+	TEnumType     Value;
+	bool          bNegate;
+	const TCHAR*  FieldName;
 };
 
 // ===== LOGICAL CONDITIONS =====
 
-// AND condition (Условие И)
+// AND condition - all children must pass
+// (AND условие - все дочерние условия должны выполниться)
 class FAndCondition : public IOutcomeCondition, public TSharedFromThis<FAndCondition>
 {
 public:
@@ -79,7 +81,8 @@ private:
 	TArray<TSharedPtr<IOutcomeCondition>> Conditions;
 };
 
-// OR condition (Условие ИЛИ)
+// OR condition - at least one child must pass
+// (OR условие - хотя бы одно дочернее условие должно выполниться)
 class FOrCondition : public IOutcomeCondition, public TSharedFromThis<FOrCondition>
 {
 public:
@@ -109,7 +112,8 @@ private:
 	TArray<TSharedPtr<IOutcomeCondition>> Conditions;
 };
 
-// NOT condition (Условие НЕ)
+// NOT condition - inverts a single child condition
+// (NOT условие - инвертирует дочернее условие)
 class FNotCondition : public IOutcomeCondition
 {
 public:
@@ -131,9 +135,21 @@ private:
 };
 
 // ===== BUILDER =====
-
+// Factory methods for building conditions from enum values
+// (Фабричные методы для построения условий из значений enum)
 struct FOutcomeQueryBuilder
 {
+	// Event type filter
+	// (Фильтр по типу события)
+	static TSharedPtr<IOutcomeCondition> Type(EOutcomeType Value, bool bNegate = false)
+	{
+		return MakeShared<TFieldCondition<EOutcomeType>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeType; },
+			Value, bNegate, TEXT("OutcomeType"));
+	}
+
+	// Mission category filter
+	// (Фильтр по категории миссии)
 	static TSharedPtr<IOutcomeCondition> Mission(EOutcomeMission Value, bool bNegate = false)
 	{
 		return MakeShared<TFieldCondition<EOutcomeMission>>(
@@ -141,6 +157,8 @@ struct FOutcomeQueryBuilder
 			Value, bNegate, TEXT("Mission"));
 	}
 
+	// Actor category filter
+	// (Фильтр по категории актёра)
 	static TSharedPtr<IOutcomeCondition> Actor(EOutcomeActor Value, bool bNegate = false)
 	{
 		return MakeShared<TFieldCondition<EOutcomeActor>>(
@@ -148,6 +166,8 @@ struct FOutcomeQueryBuilder
 			Value, bNegate, TEXT("Actor"));
 	}
 
+	// Object category filter
+	// (Фильтр по категории объекта)
 	static TSharedPtr<IOutcomeCondition> Object(EOutcomeObject Value, bool bNegate = false)
 	{
 		return MakeShared<TFieldCondition<EOutcomeObject>>(
@@ -155,7 +175,8 @@ struct FOutcomeQueryBuilder
 			Value, bNegate, TEXT("Object"));
 	}
 
-	// Terminal events (Терминальные события)
+	// Terminal category filter
+	// (Фильтр по категории терминала)
 	static TSharedPtr<IOutcomeCondition> Terminal(EOutcomeTerminal Value, bool bNegate = false)
 	{
 		return MakeShared<TFieldCondition<EOutcomeTerminal>>(
@@ -163,6 +184,8 @@ struct FOutcomeQueryBuilder
 			Value, bNegate, TEXT("Terminal"));
 	}
 
+	// Interior category filter
+	// (Фильтр по категории интерьера)
 	static TSharedPtr<IOutcomeCondition> Interior(EOutcomeInterior Value, bool bNegate = false)
 	{
 		return MakeShared<TFieldCondition<EOutcomeInterior>>(
@@ -170,6 +193,8 @@ struct FOutcomeQueryBuilder
 			Value, bNegate, TEXT("Interior"));
 	}
 
+	// Spawn group category filter
+	// (Фильтр по категории группы спавна)
 	static TSharedPtr<IOutcomeCondition> SpawnGroup(EOutcomeSpawnGroup Value, bool bNegate = false)
 	{
 		return MakeShared<TFieldCondition<EOutcomeSpawnGroup>>(
@@ -177,7 +202,8 @@ struct FOutcomeQueryBuilder
 			Value, bNegate, TEXT("SpawnGroup"));
 	}
 
-	// World state changes (Изменения мирового состояния)
+	// World state category filter
+	// (Фильтр по категории состояния мира)
 	static TSharedPtr<IOutcomeCondition> WorldState(EWorldState Value, bool bNegate = false)
 	{
 		return MakeShared<TFieldCondition<EWorldState>>(
@@ -185,8 +211,8 @@ struct FOutcomeQueryBuilder
 			Value, bNegate, TEXT("WorldState"));
 	}
 
-	static TSharedPtr<FAndCondition> And()  { return MakeShared<FAndCondition>(); }
-	static TSharedPtr<FOrCondition>  Or()   { return MakeShared<FOrCondition>(); }
+	static TSharedPtr<FAndCondition> And() { return MakeShared<FAndCondition>(); }
+	static TSharedPtr<FOrCondition>  Or()  { return MakeShared<FOrCondition>(); }
 
 	static TSharedPtr<IOutcomeCondition> Not(TSharedPtr<IOutcomeCondition> Condition)
 	{

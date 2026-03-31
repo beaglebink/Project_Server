@@ -6,6 +6,8 @@
 #include "OutcomeQuery.h"
 #include "OutcomeConditionAsset.generated.h"
 
+// Comparison operator for simple conditions
+// (Оператор сравнения для простых условий)
 UENUM(BlueprintType)
 enum class EConditionComparison : uint8
 {
@@ -14,8 +16,7 @@ enum class EConditionComparison : uint8
 };
 
 // Row of conditions for Composite operator
-// All non-Default fields are joined by AND automatically
-// Leave field as Default to skip it
+// All non-Default fields are joined by AND automatically - leave field as Default to skip it
 // (Строка условий для Composite - все поля != Default объединяются AND)
 // (Оставьте Default чтобы пропустить поле)
 USTRUCT(BlueprintType)
@@ -23,11 +24,23 @@ struct FOutcomeFilterRow
 {
 	GENERATED_BODY()
 
+	// ===== TYPE =====
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EOutcomeType OutcomeType = EOutcomeType::Default;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EConditionComparison OutcomeTypeComparison = EConditionComparison::Equals;
+
+	// ===== MISSION =====
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EOutcomeMission MissionType = EOutcomeMission::Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison MissionComparison = EConditionComparison::Equals;
+
+	// ===== ACTOR =====
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EOutcomeActor ActorType = EOutcomeActor::Default;
@@ -35,11 +48,15 @@ struct FOutcomeFilterRow
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison ActorComparison = EConditionComparison::Equals;
 
+	// ===== OBJECT =====
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EOutcomeObject ObjectType = EOutcomeObject::Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison ObjectComparison = EConditionComparison::Equals;
+
+	// ===== TERMINAL =====
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EOutcomeTerminal TerminalType = EOutcomeTerminal::Default;
@@ -47,17 +64,23 @@ struct FOutcomeFilterRow
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison TerminalComparison = EConditionComparison::Equals;
 
+	// ===== INTERIOR =====
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EOutcomeInterior InteriorType = EOutcomeInterior::Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison InteriorComparison = EConditionComparison::Equals;
 
+	// ===== SPAWN GROUP =====
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EOutcomeSpawnGroup SpawnGroupType = EOutcomeSpawnGroup::Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison SpawnGroupComparison = EConditionComparison::Equals;
+
+	// ===== WORLD STATE =====
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EWorldState WorldStateType = EWorldState::Default;
@@ -66,14 +89,19 @@ struct FOutcomeFilterRow
 	EConditionComparison WorldStateComparison = EConditionComparison::Equals;
 };
 
+// Operator type for the condition asset
+// (Тип оператора ассета условия)
 UENUM(BlueprintType)
 enum class EConditionOperator : uint8
 {
 	// Composite: multiple fields in one asset, all non-Default joined by AND
+	// Most common case - no extra assets needed
 	// (Составной: несколько полей в одном ассете, все != Default объединяются AND)
+	// (Самый частый случай - не нужны дополнительные ассеты)
 	Composite   UMETA(DisplayName = "Composite  (AND row)"),
 
 	// Simple single-field conditions (Простые условия по одному полю)
+	Type        UMETA(DisplayName = "Type"),
 	Mission     UMETA(DisplayName = "Mission"),
 	Actor       UMETA(DisplayName = "Actor"),
 	Object      UMETA(DisplayName = "Object"),
@@ -82,7 +110,7 @@ enum class EConditionOperator : uint8
 	SpawnGroup  UMETA(DisplayName = "Spawn Group"),
 	WorldState  UMETA(DisplayName = "World State"),
 
-	// Logical combinators (Логические комбинаторы)
+	// Logical combinators over other assets (Логические комбинаторы над другими ассетами)
 	And         UMETA(DisplayName = "AND  (First + Second)"),
 	Or          UMETA(DisplayName = "OR   (First + Second)"),
 	Not         UMETA(DisplayName = "NOT  (First only)")
@@ -118,6 +146,16 @@ public:
 		meta = (EditCondition = "OperatorType == EConditionOperator::And || OperatorType == EConditionOperator::Or",
 				EditConditionHides, DisplayName = "Second Condition"))
 	TObjectPtr<UOutcomeConditionAsset> SecondCondition = nullptr;
+
+	// ===== SIMPLE CONDITION: TYPE =====
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "3 - Simple Condition",
+		meta = (EditCondition = "OperatorType == EConditionOperator::Type", EditConditionHides))
+	EOutcomeType OutcomeType = EOutcomeType::Default;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "3 - Simple Condition",
+		meta = (EditCondition = "OperatorType == EConditionOperator::Type", EditConditionHides))
+	EConditionComparison OutcomeTypeComparison = EConditionComparison::Equals;
 
 	// ===== SIMPLE CONDITION: MISSION =====
 

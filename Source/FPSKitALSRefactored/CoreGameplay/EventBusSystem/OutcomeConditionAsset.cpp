@@ -8,6 +8,14 @@ static TSharedPtr<IOutcomeCondition> BuildFromFilterRow(const FOutcomeFilterRow&
 	TSharedPtr<FAndCondition> AndChain = FOutcomeQueryBuilder::And();
 	TArray<FString> Parts;
 
+	if (Row.OutcomeType != EOutcomeType::Default)
+	{
+		const bool bNegate = (Row.OutcomeTypeComparison == EConditionComparison::NotEquals);
+		TSharedPtr<IOutcomeCondition> C = FOutcomeQueryBuilder::Type(Row.OutcomeType, bNegate);
+		AndChain->Add(C);
+		Parts.Add(C->Describe());
+	}
+
 	if (Row.MissionType != EOutcomeMission::Default)
 	{
 		const bool bNegate = (Row.MissionComparison == EConditionComparison::NotEquals);
@@ -81,6 +89,14 @@ void UOutcomeConditionAsset::CompileCondition()
 		case EConditionOperator::Composite:
 		{
 			CompiledCondition = BuildFromFilterRow(FilterRow, ConditionDescription);
+			break;
+		}
+
+		case EConditionOperator::Type:
+		{
+			const bool bNegate = (OutcomeTypeComparison == EConditionComparison::NotEquals);
+			CompiledCondition = FOutcomeQueryBuilder::Type(OutcomeType, bNegate);
+			ConditionDescription = CompiledCondition->Describe();
 			break;
 		}
 
@@ -215,25 +231,27 @@ void UOutcomeConditionAsset::CompileCondition()
 
 void UOutcomeConditionAsset::ResetCondition()
 {
-	OperatorType = EConditionOperator::Composite;
-	FilterRow = FOutcomeFilterRow();
-	MissionType = EOutcomeMission::Default;
-	MissionComparison = EConditionComparison::Equals;
-	ActorType = EOutcomeActor::Default;
-	ActorComparison = EConditionComparison::Equals;
-	ObjectType = EOutcomeObject::Default;
-	ObjectComparison = EConditionComparison::Equals;
-	TerminalType = EOutcomeTerminal::Default;
-	TerminalComparison = EConditionComparison::Equals;
-	InteriorType = EOutcomeInterior::Default;
-	InteriorComparison = EConditionComparison::Equals;
-	SpawnGroupType = EOutcomeSpawnGroup::Default;
-	SpawnGroupComparison = EConditionComparison::Equals;
-	WorldStateType = EWorldState::Default;
-	WorldStateComparison = EConditionComparison::Equals;
-	FirstCondition = nullptr;
-	SecondCondition = nullptr;
-	ConditionDescription = TEXT("Reset");
+	OperatorType          = EConditionOperator::Composite;
+	FilterRow             = FOutcomeFilterRow();
+	OutcomeType           = EOutcomeType::Default;
+	OutcomeTypeComparison = EConditionComparison::Equals;
+	MissionType           = EOutcomeMission::Default;
+	MissionComparison     = EConditionComparison::Equals;
+	ActorType             = EOutcomeActor::Default;
+	ActorComparison       = EConditionComparison::Equals;
+	ObjectType            = EOutcomeObject::Default;
+	ObjectComparison      = EConditionComparison::Equals;
+	TerminalType          = EOutcomeTerminal::Default;
+	TerminalComparison    = EConditionComparison::Equals;
+	InteriorType          = EOutcomeInterior::Default;
+	InteriorComparison    = EConditionComparison::Equals;
+	SpawnGroupType        = EOutcomeSpawnGroup::Default;
+	SpawnGroupComparison  = EConditionComparison::Equals;
+	WorldStateType        = EWorldState::Default;
+	WorldStateComparison  = EConditionComparison::Equals;
+	FirstCondition        = nullptr;
+	SecondCondition       = nullptr;
+	ConditionDescription  = TEXT("Reset");
 	CompiledCondition.Reset();
 
 	UE_LOG(LogTemp, Log, TEXT("OutcomeConditionAsset [%s]: Reset complete"), *GetName());
