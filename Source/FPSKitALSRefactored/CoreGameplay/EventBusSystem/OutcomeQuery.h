@@ -4,192 +4,112 @@
 #include "Outcome.h"
 #include "OutcomeEventBase.h"
 
-/**
- * Система условных фильтров для событий
- * Позволяет создавать сложные логические условия И/ИЛИ для комбинаций перечислений
- */
-
-// Базовый интерфейс условия
+// Base condition interface (Базовый интерфейс условия)
 class IOutcomeCondition
 {
 public:
 	virtual ~IOutcomeCondition() = default;
 	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const = 0;
+	virtual FString Describe() const = 0;
 };
 
-// Объявление базового шаблона (без определения)
-template<typename EnumType>
-class TOutcomeCondition;
-
-// Специализация для EOutcomeType
-template<>
-class TOutcomeCondition<EOutcomeType> : public IOutcomeCondition
+// Template for simple enum field conditions with Equals/NotEquals
+// (Шаблон для простых условий по полям enum с поддержкой Equals/NotEquals)
+template<typename TEnumType>
+class TFieldCondition : public IOutcomeCondition
 {
 public:
-	TOutcomeCondition(EOutcomeType Value) : TargetValue(Value) {}
+	using FieldSelector = TEnumType(*)(const FOutcomeEventBase&);
+
+	TFieldCondition(FieldSelector InSelector, TEnumType InValue, bool bInNegate, const TCHAR* InFieldName)
+		: Selector(InSelector), Value(InValue), bNegate(bInNegate), FieldName(InFieldName)
+	{
+	}
 
 	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
 	{
-		return Outcome.OutcomeType == TargetValue;
+		const bool bMatch = Selector(Outcome) == Value;
+		return bNegate ? !bMatch : bMatch;
 	}
 
-private:
-	EOutcomeType TargetValue;
-};
-
-// Специализация для EOutcomeMission
-template<>
-class TOutcomeCondition<EOutcomeMission> : public IOutcomeCondition
-{
-public:
-	TOutcomeCondition(EOutcomeMission Value) : TargetValue(Value) {}
-
-	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
+	virtual FString Describe() const override
 	{
-		return Outcome.OutcomeMission == TargetValue;
+		return FString::Printf(TEXT("%s %s %s"),
+			FieldName,
+			bNegate ? TEXT("!=") : TEXT("=="),
+			*UEnum::GetValueAsString(Value));
 	}
 
 private:
-	EOutcomeMission TargetValue;
+	FieldSelector Selector;
+	TEnumType Value;
+	bool bNegate;
+	const TCHAR* FieldName;
 };
 
-// Специализация для EOutcomeActor
-template<>
-class TOutcomeCondition<EOutcomeActor> : public IOutcomeCondition
-{
-public:
-	TOutcomeCondition(EOutcomeActor Value) : TargetValue(Value) {}
+// ===== LOGICAL CONDITIONS =====
 
-	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
-	{
-		return Outcome.OutcomeActor == TargetValue;
-	}
-
-private:
-	EOutcomeActor TargetValue;
-};
-
-// Специализация для EOutcomeObject
-template<>
-class TOutcomeCondition<EOutcomeObject> : public IOutcomeCondition
-{
-public:
-	TOutcomeCondition(EOutcomeObject Value) : TargetValue(Value) {}
-
-	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
-	{
-		return Outcome.OutcomeObject == TargetValue;
-	}
-
-private:
-	EOutcomeObject TargetValue;
-};
-
-// Specialization for EOutcomeInterior (Специализация для EOutcomeInterior)
-template<>
-class TOutcomeCondition<EOutcomeInterior> : public IOutcomeCondition
-{
-public:
-	TOutcomeCondition(EOutcomeInterior Value) : TargetValue(Value) {}
-
-	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
-	{
-		return Outcome.OutcomeInterior == TargetValue;
-	}
-
-private:
-	EOutcomeInterior TargetValue;
-};
-
-// Specialization for EOutcomeSpawnGroup (Специализация для EOutcomeSpawnGroup)
-template<>
-class TOutcomeCondition<EOutcomeSpawnGroup> : public IOutcomeCondition
-{
-public:
-	TOutcomeCondition(EOutcomeSpawnGroup Value) : TargetValue(Value) {}
-
-	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
-	{
-		return Outcome.OutcomeSpawnGroup == TargetValue;
-	}
-
-private:
-	EOutcomeSpawnGroup TargetValue;
-};
-
-// Логическое И (все условия должны быть истинны)
+// AND condition (Условие И)
 class FAndCondition : public IOutcomeCondition, public TSharedFromThis<FAndCondition>
 {
 public:
-	FAndCondition() {}
-
-	TSharedPtr<FAndCondition> Add(TSharedPtr<IOutcomeCondition> Condition)
+	TSharedRef<FAndCondition> Add(TSharedPtr<IOutcomeCondition> Condition)
 	{
-		if (Condition)
-		{
-			Conditions.Add(Condition);
-		}
+		if (Condition.IsValid()) { Conditions.Add(Condition); }
 		return SharedThis(this);
 	}
 
 	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
 	{
-		if (Conditions.IsEmpty())
+		for (const auto& C : Conditions)
 		{
-			return true;
-		}
-
-		for (const auto& Condition : Conditions)
-		{
-			if (!Condition->Evaluate(Outcome))
-			{
-				return false;
-			}
+			if (!C->Evaluate(Outcome)) { return false; }
 		}
 		return true;
 	}
 
+	virtual FString Describe() const override
+	{
+		TArray<FString> Parts;
+		for (const auto& C : Conditions) { Parts.Add(C->Describe()); }
+		return FString::Printf(TEXT("(%s)"), *FString::Join(Parts, TEXT(" AND ")));
+	}
+
 private:
 	TArray<TSharedPtr<IOutcomeCondition>> Conditions;
 };
 
-// Логическое ИЛИ (хотя бы одно условие должно быть истинно)
+// OR condition (Условие ИЛИ)
 class FOrCondition : public IOutcomeCondition, public TSharedFromThis<FOrCondition>
 {
 public:
-	FOrCondition() {}
-
-	TSharedPtr<FOrCondition> Add(TSharedPtr<IOutcomeCondition> Condition)
+	TSharedRef<FOrCondition> Add(TSharedPtr<IOutcomeCondition> Condition)
 	{
-		if (Condition)
-		{
-			Conditions.Add(Condition);
-		}
+		if (Condition.IsValid()) { Conditions.Add(Condition); }
 		return SharedThis(this);
 	}
 
 	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
 	{
-		if (Conditions.IsEmpty())
+		for (const auto& C : Conditions)
 		{
-			return false;
-		}
-
-		for (const auto& Condition : Conditions)
-		{
-			if (Condition->Evaluate(Outcome))
-			{
-				return true;
-			}
+			if (C->Evaluate(Outcome)) { return true; }
 		}
 		return false;
+	}
+
+	virtual FString Describe() const override
+	{
+		TArray<FString> Parts;
+		for (const auto& C : Conditions) { Parts.Add(C->Describe()); }
+		return FString::Printf(TEXT("(%s)"), *FString::Join(Parts, TEXT(" OR ")));
 	}
 
 private:
 	TArray<TSharedPtr<IOutcomeCondition>> Conditions;
 };
 
-// Логическое НЕ (инверсия условия)
+// NOT condition (Условие НЕ)
 class FNotCondition : public IOutcomeCondition
 {
 public:
@@ -197,67 +117,78 @@ public:
 
 	virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
 	{
-		return Condition ? !Condition->Evaluate(Outcome) : true;
+		return Condition.IsValid() ? !Condition->Evaluate(Outcome) : true;
+	}
+
+	virtual FString Describe() const override
+	{
+		return FString::Printf(TEXT("NOT(%s)"),
+			Condition.IsValid() ? *Condition->Describe() : TEXT("?"));
 	}
 
 private:
 	TSharedPtr<IOutcomeCondition> Condition;
 };
 
-// Построитель запросов (Fluent API)
-class FOutcomeQueryBuilder
+// ===== BUILDER =====
+
+struct FOutcomeQueryBuilder
 {
-public:
-	// Начать новый запрос с И-условия
-	static TSharedPtr<FAndCondition> And()
+	static TSharedPtr<IOutcomeCondition> Mission(EOutcomeMission Value, bool bNegate = false)
 	{
-		return MakeShared<FAndCondition>();
+		return MakeShared<TFieldCondition<EOutcomeMission>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeMission; },
+			Value, bNegate, TEXT("Mission"));
 	}
 
-	// Начать новый запрос с ИЛИ-условия
-	static TSharedPtr<FOrCondition> Or()
+	static TSharedPtr<IOutcomeCondition> Actor(EOutcomeActor Value, bool bNegate = false)
 	{
-		return MakeShared<FOrCondition>();
+		return MakeShared<TFieldCondition<EOutcomeActor>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeActor; },
+			Value, bNegate, TEXT("Actor"));
 	}
 
-	// Условие для типа события
-	static TSharedPtr<IOutcomeCondition> Type(EOutcomeType Value)
+	static TSharedPtr<IOutcomeCondition> Object(EOutcomeObject Value, bool bNegate = false)
 	{
-		return MakeShared<TOutcomeCondition<EOutcomeType>>(Value);
+		return MakeShared<TFieldCondition<EOutcomeObject>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeObject; },
+			Value, bNegate, TEXT("Object"));
 	}
 
-	// Условие для миссии
-	static TSharedPtr<IOutcomeCondition> Mission(EOutcomeMission Value)
+	// Terminal events (Терминальные события)
+	static TSharedPtr<IOutcomeCondition> Terminal(EOutcomeTerminal Value, bool bNegate = false)
 	{
-		return MakeShared<TOutcomeCondition<EOutcomeMission>>(Value);
+		return MakeShared<TFieldCondition<EOutcomeTerminal>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeTerminal; },
+			Value, bNegate, TEXT("Terminal"));
 	}
 
-	// Условие для актёра
-	static TSharedPtr<IOutcomeCondition> Actor(EOutcomeActor Value)
+	static TSharedPtr<IOutcomeCondition> Interior(EOutcomeInterior Value, bool bNegate = false)
 	{
-		return MakeShared<TOutcomeCondition<EOutcomeActor>>(Value);
+		return MakeShared<TFieldCondition<EOutcomeInterior>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeInterior; },
+			Value, bNegate, TEXT("Interior"));
 	}
 
-	// Условие для объекта
-	static TSharedPtr<IOutcomeCondition> Object(EOutcomeObject Value)
+	static TSharedPtr<IOutcomeCondition> SpawnGroup(EOutcomeSpawnGroup Value, bool bNegate = false)
 	{
-		return MakeShared<TOutcomeCondition<EOutcomeObject>>(Value);
+		return MakeShared<TFieldCondition<EOutcomeSpawnGroup>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeSpawnGroup; },
+			Value, bNegate, TEXT("SpawnGroup"));
 	}
 
-	// Условие для интерьера
-	static TSharedPtr<IOutcomeCondition> Interior(EOutcomeInterior Value)
+	// World state changes (Изменения мирового состояния)
+	static TSharedPtr<IOutcomeCondition> WorldState(EWorldState Value, bool bNegate = false)
 	{
-		return MakeShared<TOutcomeCondition<EOutcomeInterior>>(Value);
+		return MakeShared<TFieldCondition<EWorldState>>(
+			[](const FOutcomeEventBase& O) { return O.WorldState; },
+			Value, bNegate, TEXT("WorldState"));
 	}
 
-	// Условие для группы спауна
-	static TSharedPtr<IOutcomeCondition> SpawnGroup(EOutcomeSpawnGroup Value)
-	{
-		return MakeShared<TOutcomeCondition<EOutcomeSpawnGroup>>(Value);
-	}
+	static TSharedPtr<FAndCondition> And()  { return MakeShared<FAndCondition>(); }
+	static TSharedPtr<FOrCondition>  Or()   { return MakeShared<FOrCondition>(); }
 
-	// Логическое НЕ
-	static TSharedPtr<FNotCondition> Not(TSharedPtr<IOutcomeCondition> Condition)
+	static TSharedPtr<IOutcomeCondition> Not(TSharedPtr<IOutcomeCondition> Condition)
 	{
 		return MakeShared<FNotCondition>(Condition);
 	}

@@ -30,10 +30,8 @@ enum class EOutcomeActor : uint8
 {
 	Default					UMETA(DisplayName = "Default"),
 	ActorSpawned			UMETA(DisplayName = "On Actor Spawned"),
-	ActorDespawned		UMETA(DisplayName = "On Actor Despawned"),
-	GhostCleared			UMETA(DisplayName = "Ghost Cleared"),
-	GhostEncounterCleared	UMETA(DisplayName = "Ghost Encounter Cleared"),
-	GhostPresenceCleared	UMETA(DisplayName = "Ghost Presence Cleared"),
+	ActorDespawned			UMETA(DisplayName = "On Actor Despawned"),
+	ChangeAttitude			UMETA(DisplayName = "Change Attitude"),
 	DialogueStarted			UMETA(DisplayName = "Dialogue Started"),
 	DialogueOptionSelected	UMETA(DisplayName = "Dialogue Option Selected"),
 	DialogueEnded			UMETA(DisplayName = "Dialogue Ended")
@@ -54,7 +52,16 @@ enum class EOutcomeObject : uint8
 	ObjectUsed				UMETA(DisplayName = "Object Used"),
 	ObjectDestroyed			UMETA(DisplayName = "Object Destroyed"),
 	ItemAcquired			UMETA(DisplayName = "Item Acquired"),
-	ItemDelivered			UMETA(DisplayName = "Item Delivered"),
+	ItemDelivered			UMETA(DisplayName = "Item Delivered")
+};
+
+// Terminal category enumeration
+// Added BlueprintType and uint8 for use in conditions and Blueprint
+// (ƒобавлен BlueprintType и uint8 дл€ использовани€ в услови€х и Blueprint)
+UENUM(BlueprintType)
+enum class EOutcomeTerminal : uint8
+{
+	Default					UMETA(DisplayName = "Default"),
 	TerminalOpened			UMETA(DisplayName = "Terminal Opened"),
 	TerminalTaskCompleted	UMETA(DisplayName = "Terminal Task Completed"),
 	TerminalTaskFailed		UMETA(DisplayName = "Terminal Task Failed"),
@@ -87,4 +94,15 @@ enum class EOutcomeSpawnGroup : uint8
 	SpawnGroupCleared		UMETA(DisplayName = "Spawn Group Cleared"),
 	SpawnGroupEnabled		UMETA(DisplayName = "Spawn Group Enabled"),
 	SpawnGroupDisabled		UMETA(DisplayName = "Spawn Group Disabled")
+};
+
+// World state category enumeration
+// Added BlueprintType and uint8 for use in conditions and Blueprint
+// (ƒобавлен BlueprintType и uint8 дл€ использовани€ в услови€х и Blueprint)
+UENUM(BlueprintType)
+enum class EWorldState : uint8
+{
+	Default								UMETA(DisplayName = "Default"),
+	ChangingLocationAvailability		UMETA(DisplayName = "Changing Location Availability"),
+	ChangingExteriorDoorAvailability	UMETA(DisplayName = "Changing Exterior Door Availability")
 };
