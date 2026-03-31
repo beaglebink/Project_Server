@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Character.h"
 #include "NiagaraFunctionLibrary.h"
-#include "AlsCharacterExample.h"
 #include "NodeGridActor.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnParalysisNPCEvent, ACharacter*, NPC);
@@ -54,7 +54,7 @@ struct FNode
     AActor* AttachedActor = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UPrimitiveComponent* AttachedComponent = nullptr;
+    UPrimitiveComponent* AttachedComponent = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     USkeletalMeshComponent* AttachedMesh = nullptr;
@@ -105,6 +105,10 @@ private:
     void ProcessInfluenceCascade();
     void ApplyMotionAndFixation(float DeltaTime);
     FName FindClosestBoneToPoint(USkeletalMeshComponent* SkeletalMesh, const FVector& Point) const;
+
+    // Use ACharacter instead of AAlsCharacterExample to avoid circular module dependency
+    // Cast to AAlsCharacterExample in .cpp if needed
+    // (Используем ACharacter вместо AAlsCharacterExample чтобы избежать цикла модулей)
     void ParalyzeCharacter(ACharacter* Char);
     void ApplyRigidConstraints(float DeltaTime);
     void DrawState();
@@ -162,7 +166,7 @@ public:
     float StopTresholdPart = 0.95f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
-	float DesrtoyTime = 5.0f;
+    float DesrtoyTime = 5.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = "true"))
     bool bEnableDebugDraw = true;
@@ -180,17 +184,17 @@ public:
     float RCorrect = 1.0f;
 
     UPROPERTY(BlueprintAssignable)
-	FOnParalysisNPCEvent OnParalysisNPC;
+    FOnParalysisNPCEvent OnParalysisNPC;
 
-	UPROPERTY(BlueprintAssignable)
-	FOnRevivalNPCEvent OnRevivalNPC;
+    UPROPERTY(BlueprintAssignable)
+    FOnRevivalNPCEvent OnRevivalNPC;
 
 protected:
     UPROPERTY()
     UNiagaraComponent* NiagaraComp;
 
     UPROPERTY()
-	TArray< UNiagaraComponent*> NiagaraComponents;
+    TArray<UNiagaraComponent*> NiagaraComponents;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<int32> RibbonStartIndices;
@@ -210,8 +214,12 @@ private:
     UPROPERTY()
     TArray<FVector> Ribbons;
 
+    // Replaced TArray<AAlsCharacterExample*> with TArray<ACharacter*>
+    // Include AlsCharacterExample.h only in .cpp where cast is needed
+    // (Заменён TArray<AAlsCharacterExample*> на TArray<ACharacter*>)
+    // (AlsCharacterExample.h включать только в .cpp где нужен каст)
     UPROPERTY()
-    TArray <AAlsCharacterExample*> ParalysedCharacters;
+    TArray<ACharacter*> ParalysedCharacters;
 
     UPROPERTY()
     UNiagaraComponent* Niagara;

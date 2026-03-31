@@ -3,11 +3,12 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
-#include <Kismet/KismetMathLibrary.h>
-#include <NiagaraDataInterfaceArrayFunctionLibrary.h>
-#include "AlsCharacterExample_I.h"
-//#include "NiagaraComponent.h"
-
+#include "Kismet/KismetMathLibrary.h"
+#include "NiagaraDataInterfaceArrayFunctionLibrary.h"
+// AAlsCharacterExample - from ALSExtras module
+#include "AlsCharacterExample.h"
+// AAlsCharacter - from ALS module (needed for GetHealth, IsRagdollingAllowedToStop)
+#include "AlsCharacter.h"
 
 ANodeGridActor::ANodeGridActor()
 {
