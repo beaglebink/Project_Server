@@ -6,13 +6,13 @@ static FString GetOutcomeTypeName(EOutcomeType Value)
 {
 	switch (Value)
 	{
-		case EOutcomeType::Default:               return TEXT("Default");
-		case EOutcomeType::GhostCleared:          return TEXT("GhostCleared");
-		case EOutcomeType::DialogueStarted:       return TEXT("DialogueStarted");
-		case EOutcomeType::TerminalTaskCompleted: return TEXT("TerminalTaskCompleted");
-		case EOutcomeType::MissionCompleted:      return TEXT("MissionCompleted");
-		case EOutcomeType::ItemAcquired:          return TEXT("ItemAcquired");
-		default:                                  return TEXT("Unknown");
+		case EOutcomeType::Default:			return TEXT("Default");
+		case EOutcomeType::Mission:			return TEXT("Mission");
+		case EOutcomeType::Actor:			return TEXT("Actor");
+		case EOutcomeType::Object:			return TEXT("Object");
+		case EOutcomeType::Interior:		return TEXT("Interior");
+		case EOutcomeType::SpawnGroup:		return TEXT("SpawnGroup");
+		default:							return TEXT("Unknown");
 	}
 }
 
@@ -29,7 +29,7 @@ void UOutcomeConditionAsset::CompileCondition()
 	ConditionDescription = TEXT("Empty");
 
 	// Build condition based on OperatorType (Построить условие на основе OperatorType)
-	switch (OperatorType)
+	switch (ConditionOperator)
 	{
 		case EConditionOperator::Type:
 		{
@@ -191,7 +191,7 @@ void UOutcomeConditionAsset::ResetCondition()
 	CompiledCondition.Reset();
 	ConditionDescription = TEXT("Empty");
 	CurrentState = EConditionState::Empty;
-	OperatorType = EConditionOperator::Type;
+	ConditionOperator = EConditionOperator::Type;
 	EventType = EOutcomeType::Default;
 	MissionType = EOutcomeMission::Default;
 	MissionComparison = EConditionComparison::Equals;

@@ -37,7 +37,7 @@ public:
 	// ===== CONFIGURATION PROPERTIES =====
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Condition|Setup")
-	EConditionOperator OperatorType = EConditionOperator::Type;
+	EConditionOperator ConditionOperator = EConditionOperator::Type;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Condition|EventType")
 	EOutcomeType EventType = EOutcomeType::Default;
