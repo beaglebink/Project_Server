@@ -4,10 +4,9 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "MissionCompletedOutcome.h"
 #include "WorldStateSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionCompletedEvent, const FMissionCompletedOutcome&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChangingLocationAvailabilityEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UWorldStateSubsystem : public UGameInstanceSubsystem
@@ -18,25 +17,32 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	// Condition set in Editor or Blueprint (можно присвоить в BP)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-	TObjectPtr<UOutcomeConditionAsset> MissionCompletedCondition;
+	TObjectPtr<UOutcomeConditionAsset> ChangingLocationAvailabilityCondition;
 
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
-	FOnMissionCompletedEvent OnMissionCompleted;
+	FOnChangingLocationAvailabilityEvent OnChangingLocationAvailability;
+
+	// ===== HANDLER MANAGEMENT =====
+	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
+	void SubscribeChangingLocationAvailability();
 
 	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-	void SubscribeMissionCompleted();
-
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-	void UnsubscribeMissionCompleted();
+	void UnsubscribeChangingLocationAvailability();
 
 	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
 	void UnsubscribeAll();
 
+	// Blueprint должен вызвать этот метод после присвоения Condition (например, в BeginPlay)
 	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-	bool IsMissionCompletedSubscribed() const { return MissionCompletedHandle.IsValid(); }
+	void SetChangingLocationAvailabilityCondition(UOutcomeConditionAsset* NewCondition);
+
+	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
+	bool IsChangingLocationAvailabilitySubscribed() const { return ChangingLocationAvailabilityHandle.IsValid(); }
 
 private:
-	void HandleMissionCompleted(const FOutcomeEventBase& Outcome);
-	FOutcomeHandlerHandle MissionCompletedHandle;
+	void HandleChangingLocationAvailability(const FOutcomeEventBase& Outcome);
+
+	FOutcomeHandlerHandle ChangingLocationAvailabilityHandle;
 };

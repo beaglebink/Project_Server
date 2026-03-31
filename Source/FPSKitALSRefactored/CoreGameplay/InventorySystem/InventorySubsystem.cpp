@@ -1,10 +1,15 @@
 #include "InventorySubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
+#include "ItemAcquiredPayload.h"
 
 void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	SubscribeItemAcquired();
+
+	if (ItemAcquiredCondition)
+	{
+		SubscribeItemAcquired();
+	}
 }
 
 void UInventorySubsystem::Deinitialize()
@@ -13,9 +18,30 @@ void UInventorySubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+void UInventorySubsystem::SetItemAcquiredCondition(UOutcomeConditionAsset* NewCondition)
+{
+	if (ItemAcquiredCondition == NewCondition) return;
+	ItemAcquiredCondition = NewCondition;
+	if (ItemAcquiredHandle.IsValid())
+	{
+		UnsubscribeItemAcquired();
+	}
+	SubscribeItemAcquired();
+}
+
 void UInventorySubsystem::SubscribeItemAcquired()
 {
-	if (ItemAcquiredHandle.IsValid() || !ItemAcquiredCondition) return;
+	if (ItemAcquiredHandle.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InventorySubsystem: Already subscribed to ItemAcquired"));
+		return;
+	}
+
+	if (!ItemAcquiredCondition)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InventorySubsystem: ItemAcquiredCondition is null, cannot subscribe"));
+		return;
+	}
 
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
@@ -23,6 +49,8 @@ void UInventorySubsystem::SubscribeItemAcquired()
 			ItemAcquiredCondition,
 			FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleItemAcquired)
 		);
+
+		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to ItemAcquired (handle=%u)"), ItemAcquiredHandle.GetId());
 	}
 }
 
@@ -33,7 +61,9 @@ void UInventorySubsystem::UnsubscribeItemAcquired()
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
 		EventBus->UnregisterHandler(ItemAcquiredHandle);
+		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Unsubscribed ItemAcquired (handle=%u)"), ItemAcquiredHandle.GetId());
 	}
+	ItemAcquiredHandle.Invalidate();
 }
 
 void UInventorySubsystem::UnsubscribeAll()
@@ -43,14 +73,25 @@ void UInventorySubsystem::UnsubscribeAll()
 
 void UInventorySubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
 {
-	const FItemAcquiredOutcome& Item = static_cast<const FItemAcquiredOutcome&>(Outcome);
+	if (ItemAcquiredCondition)
+	{
+		auto Query = ItemAcquiredCondition->GetCondition();
+		if (Query.IsValid() && !Query->Evaluate(Outcome))
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("InventorySubsystem: Incoming outcome does not satisfy ItemAcquiredCondition -> ignoring"));
+			return;
+		}
+	}
 
-	UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Item acquired - Object: %s"),
-		*Item.ObjectId.ToString());
+	if (UItemAcquiredPayload* P = Cast<UItemAcquiredPayload>(Outcome.Payload))
+	{
+		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Item acquired - Object: %s"),
+			*P->ObjectId.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("InventorySubsystem: HandleItemAcquired called with no payload or unexpected payload type"));
+	}
 
-	// One-shot pattern example: unsubscribe after first event
-	// (Пример одноразового обработчика: отписка после первого события)
-	// UnsubscribeItemAcquired();
-
-	OnItemAcquired.Broadcast(Item);
+	OnItemAcquired.Broadcast(Outcome);
 }

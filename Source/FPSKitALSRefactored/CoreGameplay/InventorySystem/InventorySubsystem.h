@@ -4,10 +4,9 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "ItemAcquiredOutcome.h"
 #include "InventorySubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemAcquiredEvent, const FItemAcquiredOutcome&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemAcquiredEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UInventorySubsystem : public UGameInstanceSubsystem
@@ -32,6 +31,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void UnsubscribeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void SetItemAcquiredCondition(UOutcomeConditionAsset* NewCondition);
 
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	bool IsItemAcquiredSubscribed() const { return ItemAcquiredHandle.IsValid(); }

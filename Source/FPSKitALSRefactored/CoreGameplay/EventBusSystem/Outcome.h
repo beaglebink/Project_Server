@@ -1,18 +1,22 @@
 #pragma once
 
 // Event type enumeration
+// (Перечисление типов событий)
 UENUM(BlueprintType)
 enum class EOutcomeType : uint8
 {
-	Default					UMETA(DisplayName = "Default", Hidden),
+	Default					UMETA(DisplayName = "Default"),
 	Mission					UMETA(DisplayName = "Mission"),
 	Actor					UMETA(DisplayName = "Actor"),
 	Object					UMETA(DisplayName = "Object"),
+	Terninal				UMETA(DisplayName = "Terminal"),
 	Interior				UMETA(DisplayName = "Interior"),
-	SpawnGroup				UMETA(DisplayName = "Spawn Group")
+	SpawnGroup				UMETA(DisplayName = "Spawn Group"),
+	WorldState				UMETA(DisplayName = "World state")
 };
 
 // Mission category enumeration
+// (Перечисление категорий миссий)
 UENUM(BlueprintType)
 enum class EOutcomeMission : uint8
 {
@@ -25,6 +29,7 @@ enum class EOutcomeMission : uint8
 };
 
 // Actor category enumeration
+// (Перечисление категорий актёров)
 UENUM(BlueprintType)
 enum class EOutcomeActor : uint8
 {
@@ -38,6 +43,7 @@ enum class EOutcomeActor : uint8
 };
 
 // Object category enumeration
+// (Перечисление категорий объектов)
 UENUM(BlueprintType)
 enum class EOutcomeObject : uint8
 {
@@ -56,8 +62,7 @@ enum class EOutcomeObject : uint8
 };
 
 // Terminal category enumeration
-// Added BlueprintType and uint8 for use in conditions and Blueprint
-// (Добавлен BlueprintType и uint8 для использования в условиях и Blueprint)
+// (Перечисление категорий терминалов)
 UENUM(BlueprintType)
 enum class EOutcomeTerminal : uint8
 {
@@ -69,6 +74,7 @@ enum class EOutcomeTerminal : uint8
 };
 
 // Interior category enumeration
+// (Перечисление категорий интерьеров)
 UENUM(BlueprintType)
 enum class EOutcomeInterior : uint8
 {
@@ -85,6 +91,7 @@ enum class EOutcomeInterior : uint8
 };
 
 // Spawn group category enumeration
+// (Перечисление категорий групп спавна)
 UENUM(BlueprintType)
 enum class EOutcomeSpawnGroup : uint8
 {
@@ -97,8 +104,7 @@ enum class EOutcomeSpawnGroup : uint8
 };
 
 // World state category enumeration
-// Added BlueprintType and uint8 for use in conditions and Blueprint
-// (Добавлен BlueprintType и uint8 для использования в условиях и Blueprint)
+// (Перечисление категорий состояния мира)
 UENUM(BlueprintType)
 enum class EWorldState : uint8
 {

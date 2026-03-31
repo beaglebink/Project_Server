@@ -4,10 +4,9 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "TerminalTaskOutcome.h"
 #include "TerminalSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTerminalTaskEvent, const FTerminalTaskOutcome&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTerminalTaskEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UTerminalSubsystem : public UWorldSubsystem
@@ -32,6 +31,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
 	void UnsubscribeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void SetTerminalTaskCondition(UOutcomeConditionAsset* NewCondition);
 
 	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
 	bool IsTerminalTaskSubscribed() const { return TerminalTaskHandle.IsValid(); }

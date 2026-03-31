@@ -12,6 +12,18 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 	}
 }
 
+UOutcomePayload* UEventBusSubsystem::CreatePayload(TSubclassOf<UOutcomePayload> PayloadClass)
+{
+	if (!PayloadClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem::CreatePayload - PayloadClass is null"));
+		return nullptr;
+	}
+	// GameInstance as Outer - object lives for the session, no GC risk during event dispatch
+	// (GameInstance как Outer - объект живёт всю сессию, нет риска GC при доставке события)
+	return NewObject<UOutcomePayload>(GetGameInstance(), PayloadClass);
+}
+
 FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 	UOutcomeConditionAsset* ConditionAsset,
 	FOutcomeHandlerDelegate Handler)
@@ -41,10 +53,7 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 
 void UEventBusSubsystem::UnregisterHandler(FOutcomeHandlerHandle& Handle)
 {
-	if (!Handle.IsValid())
-	{
-		return;
-	}
+	if (!Handle.IsValid()) return;
 
 	const uint32 IdToRemove = Handle.GetId();
 	const int32 Removed = Handlers.RemoveAll([IdToRemove](const FOutcomeHandlerEntry& Entry)

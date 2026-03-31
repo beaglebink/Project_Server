@@ -1,20 +1,19 @@
-#pragma once
+п»ї#pragma once
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
+#include "OutcomePayload.h"
 #include "OutcomeQuery.h"
 #include "EventBusSubsystem.generated.h"
 
 class UOutcomeConditionAsset;
 
-// C++ handler delegate (only C++ - not accessible from Blueprint)
-// (Делегат C++ обработчика - только C++, недоступен из Blueprint)
+// C++ handler delegate
+// (Р”РµР»РµРіР°С‚ C++ РѕР±СЂР°Р±РѕС‚С‡РёРєР°)
 using FOutcomeHandlerDelegate = TDelegate<void(const FOutcomeEventBase&)>;
 
-// Handle returned by RegisterHandler - used to unregister later
-// Store in subsystem, pass to UnregisterHandler in Deinitialize
-// (Дескриптор возвращаемый RegisterHandler - используется для отписки)
-// (Хранить в подсистеме, передавать в UnregisterHandler в Deinitialize)
+// Handle returned by RegisterHandler
+// (Р”РµСЃРєСЂРёРїС‚РѕСЂ РІРѕР·РІСЂР°С‰Р°РµРјС‹Р№ RegisterHandler)
 struct FOutcomeHandlerHandle
 {
 	static const uint32 Invalid = 0;
@@ -33,8 +32,8 @@ private:
 	uint32 Id;
 };
 
-// Internal storage entry for each registered handler
-// (Внутренняя запись хранилища для каждого зарегистрированного обработчика)
+// Internal handler entry
+// (Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ Р·Р°РїРёСЃСЊ РѕР±СЂР°Р±РѕС‚С‡РёРєР°)
 struct FOutcomeHandlerEntry
 {
 	uint32 HandleId;
@@ -56,25 +55,41 @@ class FPSKITALSREFACTORED_API UEventBusSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	// Publish event to all handlers whose conditions are met
-	// (Опубликовать событие всем обработчикам чьи условия выполнены)
+	// Publish event - filter fields in Outcome, extra data in Outcome.Payload
+	// C++:  EventBus->PublishOutcome(Event)  where Event.Payload = MyPayload
+	// BP:   PublishOutcome node, set Payload field before calling
+	// (РџСѓР±Р»РёРєСѓРµС‚ СЃРѕР±С‹С‚РёРµ - РїРѕР»СЏ С„РёР»СЊС‚СЂР°С†РёРё РІ Outcome, РґРѕРї. РґР°РЅРЅС‹Рµ РІ Outcome.Payload)
 	UFUNCTION(BlueprintCallable, Category = "EventBus")
 	void PublishOutcome(const FOutcomeEventBase& Outcome);
 
-	// Register C++ handler with condition asset
-	// Returns handle - store it to unregister later
-	// (Зарегистрировать C++ обработчик с Asset условия)
-	// (Возвращает дескриптор - сохранить для последующей отписки)
+	// Create a typed Payload object owned by GameInstance (no GC risk)
+	// Use this to create payload before PublishOutcome
+	// C++:  UMyPayload* P = EventBus->CreatePayload<UMyPayload>()
+	// BP:   CreatePayload node в†’ Cast To <BP_MyPayload>
+	// (РЎРѕР·РґР°С‘С‚ С‚РёРїРёР·РёСЂРѕРІР°РЅРЅС‹Р№ Payload СЃ GameInstance РєР°Рє РІР»Р°РґРµР»СЊС†РµРј - РЅРµС‚ СЂРёСЃРєР° GC)
+	UFUNCTION(BlueprintCallable, Category = "EventBus", meta = (DeterminesOutputType = "PayloadClass"))
+	UOutcomePayload* CreatePayload(TSubclassOf<UOutcomePayload> PayloadClass);
+
+	// C++-only typed version of CreatePayload
+	// (C++-only С‚РёРїРёР·РёСЂРѕРІР°РЅРЅР°СЏ РІРµСЂСЃРёСЏ CreatePayload)
+	template<typename T>
+	T* CreatePayload()
+	{
+		static_assert(TIsDerivedFrom<T, UOutcomePayload>::IsDerived,
+			"T must derive from UOutcomePayload");
+		return NewObject<T>(GetGameInstance());
+	}
+
+	// Register C++ handler
+	// (Р РµРіРёСЃС‚СЂРёСЂСѓРµС‚ C++ РѕР±СЂР°Р±РѕС‚С‡РёРє)
 	FOutcomeHandlerHandle RegisterHandler(
 		UOutcomeConditionAsset* ConditionAsset,
 		FOutcomeHandlerDelegate Handler);
 
-	// Unregister handler by handle - invalidates handle after removal
-	// (Отписать обработчик по дескриптору - инвалидирует дескриптор после удаления)
+	// Unregister handler by handle
+	// (РЎРЅРёРјР°РµС‚ РѕР±СЂР°Р±РѕС‚С‡РёРє РїРѕ РґРµСЃРєСЂРёРїС‚РѕСЂСѓ)
 	void UnregisterHandler(FOutcomeHandlerHandle& Handle);
 
-	// Get count of registered handlers for debugging
-	// (Получить количество обработчиков для отладки)
 	UFUNCTION(BlueprintCallable, Category = "EventBus")
 	int32 GetHandlerCount() const { return Handlers.Num(); }
 

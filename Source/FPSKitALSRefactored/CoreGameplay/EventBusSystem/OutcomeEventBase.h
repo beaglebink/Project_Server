@@ -1,14 +1,22 @@
-#pragma once
+п»ї#pragma once
 #include "CoreMinimal.h"
 #include "Outcome.h"
+#include "OutcomePayload.h"
 #include "OutcomeEventBase.generated.h"
 
-// Base outcome event structure with all category fields
-// (Базовая структура события со всеми полями категорий)
+// Base outcome event structure
+// Filter fields: enum categories (used by OutcomeConditionAsset)
+// Extra data: Payload UObject - cast to concrete type in handler
+// (Р‘Р°Р·РѕРІР°СЏ СЃС‚СЂСѓРєС‚СѓСЂР° СЃРѕР±С‹С‚РёСЏ)
+// (РџРѕР»СЏ С„РёР»СЊС‚СЂР°С†РёРё: enum РєР°С‚РµРіРѕСЂРёРё - РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ OutcomeConditionAsset)
+// (Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ: Payload UObject - РєР°СЃС‚РѕРІР°С‚СЊ Рє РєРѕРЅРєСЂРµС‚РЅРѕРјСѓ С‚РёРїСѓ РІ РѕР±СЂР°Р±РѕС‚С‡РёРєРµ)
 USTRUCT(BlueprintType)
 struct FOutcomeEventBase
 {
 	GENERATED_BODY()
+
+	// ===== FILTER FIELDS - used by OutcomeConditionAsset =====
+	// (РџРѕР»СЏ С„РёР»СЊС‚СЂР°С†РёРё - РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ OutcomeConditionAsset)
 
 	UPROPERTY(BlueprintReadWrite)
 	EOutcomeType OutcomeType = EOutcomeType::Default;
@@ -22,8 +30,6 @@ struct FOutcomeEventBase
 	UPROPERTY(BlueprintReadWrite)
 	EOutcomeObject OutcomeObject = EOutcomeObject::Default;
 
-	// Terminal events - separate from Object to keep categories clean
-	// (Терминальные события - отдельно от Object для чистоты категорий)
 	UPROPERTY(BlueprintReadWrite)
 	EOutcomeTerminal OutcomeTerminal = EOutcomeTerminal::Default;
 
@@ -33,8 +39,15 @@ struct FOutcomeEventBase
 	UPROPERTY(BlueprintReadWrite)
 	EOutcomeSpawnGroup OutcomeSpawnGroup = EOutcomeSpawnGroup::Default;
 
-	// World state changes triggered by this event
-	// (Изменения мирового состояния вызванные этим событием)
 	UPROPERTY(BlueprintReadWrite)
 	EWorldState WorldState = EWorldState::Default;
+
+	// ===== PAYLOAD - extra data for handlers =====
+	// C++:       Cast<UMyPayload>(Outcome.Payload)
+	// Blueprint: Cast To <BP_MyPayload> node on Outcome.Payload
+	// nullptr if no extra data needed
+	// (Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ РґР»СЏ РѕР±СЂР°Р±РѕС‚С‡РёРєРѕРІ)
+	// (nullptr РµСЃР»Рё РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ РЅРµ РЅСѓР¶РЅС‹)
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<UOutcomePayload> Payload = nullptr;
 };

@@ -4,11 +4,10 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "ActorStateOutcome.h"
 #include "ActorStateSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueStartedEvent,          const FActorStateOutcome&, Outcome);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionOrGhostWithSpawnEvent,  const FOutcomeEventBase&,  Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueStartedEvent,         const FOutcomeEventBase&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionOrGhostWithSpawnEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UActorStateSubsystem : public UGameInstanceSubsystem
@@ -45,6 +44,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void UnsubscribeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void SetDialogueStartedCondition(UOutcomeConditionAsset* NewCondition);
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void SetMissionOrGhostCondition(UOutcomeConditionAsset* NewCondition);
 
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	bool IsDialogueStartedSubscribed() const { return DialogueStartedHandle.IsValid(); }

@@ -4,12 +4,12 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "../SpawnGroupSystem/GhostClearedOutcome.h"
-#include "MissionProgressOutcome.h"
 #include "MissionSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGhostClearedEvent,    const FGhostClearedOutcome&,    Outcome);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionProgressEvent, const FMissionProgressOutcome&,  Outcome);
+// All handlers receive FOutcomeEventBase - cast Payload to concrete type inside handler
+// (Все обработчики получают FOutcomeEventBase - кастуй Payload к конкретному типу внутри)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGhostClearedEvent,    const FOutcomeEventBase&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionProgressEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UMissionSubsystem : public UGameInstanceSubsystem
@@ -20,14 +20,14 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	// Condition assets assigned in Editor Details panel
+	// Condition assets assigned in Editor Details panel or at runtime via Set*
+	// (Ассеты условий можно присвоить в редакторе или в рантайме через Set*)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> GhostClearedCondition;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> MissionProgressCondition;
 
-	// Blueprint delegates - fired after C++ logic
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
 	FOnGhostClearedEvent OnGhostCleared;
 
@@ -35,29 +35,29 @@ public:
 	FOnMissionProgressEvent OnMissionProgress;
 
 	// ===== HANDLER MANAGEMENT =====
-
-	// Subscribe handler - can be called multiple times to re-subscribe
-	// (Подписать обработчик - можно вызывать повторно для переподписки)
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void SubscribeGhostCleared();
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void SubscribeMissionProgress();
 
-	// Unsubscribe specific handler - useful for one-shot or toggleable handlers
-	// (Отписать конкретный обработчик - для одноразовых или отключаемых обработчиков)
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void UnsubscribeGhostCleared();
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void UnsubscribeMissionProgress();
 
-	// Unsubscribe all handlers of this subsystem
-	// (Отписать все обработчики этой подсистемы)
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void UnsubscribeAll();
 
-	// Check subscription state (Проверить состояние подписки)
+	// Set condition at runtime and (re)subscribe automatically
+	// (Присвоить условие в рантайме и автоматически (пере)подписаться)
+	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
+	void SetGhostClearedCondition(UOutcomeConditionAsset* NewCondition);
+
+	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
+	void SetMissionProgressCondition(UOutcomeConditionAsset* NewCondition);
+
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	bool IsGhostClearedSubscribed() const { return GhostClearedHandle.IsValid(); }
 

@@ -4,12 +4,10 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "../SpawnGroupSystem/GhostClearedOutcome.h"
-#include "../InventorySystem/ItemAcquiredOutcome.h"
 #include "InteriorSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorGhostClearedEvent, const FGhostClearedOutcome&, Outcome);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorItemAcquiredEvent,  const FItemAcquiredOutcome&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorGhostClearedEvent, const FOutcomeEventBase&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorItemAcquiredEvent,  const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UInteriorSubsystem : public UWorldSubsystem
@@ -46,6 +44,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Handlers")
 	void UnsubscribeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Handlers")
+	void SetGhostClearedCondition(UOutcomeConditionAsset* NewCondition);
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Handlers")
+	void SetItemAcquiredCondition(UOutcomeConditionAsset* NewCondition);
 
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Handlers")
 	bool IsGhostClearedSubscribed() const { return GhostClearedHandle.IsValid(); }

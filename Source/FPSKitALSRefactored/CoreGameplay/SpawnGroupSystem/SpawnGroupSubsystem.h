@@ -4,10 +4,9 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "GhostClearedOutcome.h"
 #include "SpawnGroupSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGhostClearedEvent, const FGhostClearedOutcome&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGhostClearedEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UWorldSubsystem
@@ -32,6 +31,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
 	void UnsubscribeAll();
+
+	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
+	void SetGhostClearedCondition(UOutcomeConditionAsset* NewCondition);
 
 	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
 	bool IsGhostClearedSubscribed() const { return GhostClearedHandle.IsValid(); }
