@@ -39,7 +39,8 @@ enum class EOutcomeActor : uint8
 	ChangeAttitude			UMETA(DisplayName = "Change Attitude"),
 	DialogueStarted			UMETA(DisplayName = "Dialogue Started"),
 	DialogueOptionSelected	UMETA(DisplayName = "Dialogue Option Selected"),
-	DialogueEnded			UMETA(DisplayName = "Dialogue Ended")
+	DialogueEnded			UMETA(DisplayName = "Dialogue Ended"),
+	InteractEnabled			UMETA(DisplayName = "Interact enabled")
 };
 
 // Object category enumeration
@@ -58,7 +59,8 @@ enum class EOutcomeObject : uint8
 	ObjectUsed				UMETA(DisplayName = "Object Used"),
 	ObjectDestroyed			UMETA(DisplayName = "Object Destroyed"),
 	ItemAcquired			UMETA(DisplayName = "Item Acquired"),
-	ItemDelivered			UMETA(DisplayName = "Item Delivered")
+	ItemDelivered			UMETA(DisplayName = "Item Delivered"),
+	InteractEnabled			UMETA(DisplayName = "Interact enabled")
 };
 
 // Terminal category enumeration
@@ -70,7 +72,8 @@ enum class EOutcomeTerminal : uint8
 	TerminalOpened			UMETA(DisplayName = "Terminal Opened"),
 	TerminalTaskCompleted	UMETA(DisplayName = "Terminal Task Completed"),
 	TerminalTaskFailed		UMETA(DisplayName = "Terminal Task Failed"),
-	TerminalClosed			UMETA(DisplayName = "Terminal Closed")
+	TerminalClosed			UMETA(DisplayName = "Terminal Closed"),
+	InteractEnabled			UMETA(DisplayName = "Interact enabled")
 };
 
 // Interior category enumeration
@@ -87,7 +90,8 @@ enum class EOutcomeInterior : uint8
 	LocationLeaving			UMETA(DisplayName = "Location Leaving"),
 	FloorEntered			UMETA(DisplayName = "Floor Entered"),
 	FloorTransition			UMETA(DisplayName = "Floor Transition"),
-	FloorLeaving			UMETA(DisplayName = "Floor Leaving")
+	FloorLeaving			UMETA(DisplayName = "Floor Leaving"),
+	InteractEnabled			UMETA(DisplayName = "Interact enabled")
 };
 
 // Spawn group category enumeration
