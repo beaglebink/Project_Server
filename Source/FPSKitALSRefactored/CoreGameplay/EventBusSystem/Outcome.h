@@ -9,7 +9,7 @@ enum class EOutcomeType : uint8
 	Mission					UMETA(DisplayName = "Mission"),
 	Actor					UMETA(DisplayName = "Actor"),
 	Object					UMETA(DisplayName = "Object"),
-	Terninal				UMETA(DisplayName = "Terminal"),
+	Terminal				UMETA(DisplayName = "Terminal"),
 	Interior				UMETA(DisplayName = "Interior"),
 	SpawnGroup				UMETA(DisplayName = "Spawn Group"),
 	WorldState				UMETA(DisplayName = "World state")

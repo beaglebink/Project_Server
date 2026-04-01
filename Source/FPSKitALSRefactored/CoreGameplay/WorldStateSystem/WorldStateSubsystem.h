@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
@@ -17,8 +17,8 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	// Condition set in Editor or Blueprint (можно присвоить в BP)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+	// Condition set in Editor or Blueprint (РјРѕР¶РЅРѕ РїСЂРёСЃРІРѕРёС‚СЊ РІ BP)
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> ChangingLocationAvailabilityCondition;
 
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
@@ -34,7 +34,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
 	void UnsubscribeAll();
 
-	// Blueprint должен вызвать этот метод после присвоения Condition (например, в BeginPlay)
+	// Blueprint РґРѕР»Р¶РµРЅ РІС‹Р·РІР°С‚СЊ СЌС‚РѕС‚ РјРµС‚РѕРґ РїРѕСЃР»Рµ РїСЂРёСЃРІРѕРµРЅРёСЏ Condition (РЅР°РїСЂРёРјРµСЂ, РІ BeginPlay)
+	// Blueprint must call this method after assigning Condition (for example, in BeginPlay)
 	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
 	void SetChangingLocationAvailabilityCondition(UOutcomeConditionAsset* NewCondition);
 

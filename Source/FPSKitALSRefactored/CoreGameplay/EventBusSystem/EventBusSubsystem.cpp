@@ -5,8 +5,26 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 {
 	for (const FOutcomeHandlerEntry& Entry : Handlers)
 	{
-		if (!Entry.Query.IsValid() || Entry.Query->Evaluate(Outcome))
+		// Debug: log condition description and evaluation result at Verbose level
+		if (Entry.Query.IsValid())
 		{
+			const bool bResult = Entry.Query->Evaluate(Outcome);
+			UE_LOG(LogTemp, Verbose, TEXT("EventBus: Handler[%u] Condition: %s -> Evaluate() = %s"),
+				Entry.HandleId,
+				*Entry.Query->Describe(),
+				bResult ? TEXT("true") : TEXT("false"));
+
+			if (bResult)
+			{
+				Entry.Handler.ExecuteIfBound(Outcome);
+			}
+		}
+		else
+		{
+			// If Query is invalid we consider it as "match everything" historically.
+			// Log Warning so we can find unexpected registrations.
+			UE_LOG(LogTemp, Warning, TEXT("EventBus: Handler[%u] has invalid Query -> invoking handler (consider preventing registration with invalid condition)"),
+				Entry.HandleId);
 			Entry.Handler.ExecuteIfBound(Outcome);
 		}
 	}
@@ -40,10 +58,18 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 		return FOutcomeHandlerHandle();
 	}
 
+	// Compile condition and check that it produced a valid Query.
 	ConditionAsset->CompileCondition();
+	TSharedPtr<IOutcomeCondition> Compiled = ConditionAsset->GetCondition();
+	if (!Compiled.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - ConditionAsset [%s] compiled to invalid Query -> registration rejected"),
+			*ConditionAsset->GetName());
+		return FOutcomeHandlerHandle();
+	}
 
 	const uint32 NewId = NextHandleId++;
-	Handlers.Add(FOutcomeHandlerEntry(NewId, MoveTemp(Handler), ConditionAsset->GetCondition()));
+	Handlers.Add(FOutcomeHandlerEntry(NewId, MoveTemp(Handler), Compiled));
 
 	UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered handler [%u] - condition: %s"),
 		NewId, *ConditionAsset->GetConditionDescription());
