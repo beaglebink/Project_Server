@@ -1,14 +1,14 @@
 ﻿#include "OutcomeConditionAsset.h"
 
-// Macro: include field in AND chain if value is non-Default OR comparison is NotEquals (i.e. != Default is meaningful)
-// Skip only when: value == Default AND comparison == Equals (condition would match all Default events - useless)
-// (Включить поле если значение != Default ИЛИ сравнение == NotEquals (т.е. != Default осмысленно))
+// Macro: include field when value != Default OR comparison is NotEquals (i.e. "!= Default" is meaningful)
+// Skip only when: value == Default AND comparison == Equals (would match all Default events - useless)
+// (Включить поле если значение != Default ИЛИ сравнение == NotEquals)
 // (Пропустить только если: значение == Default И сравнение == Equals)
 #define FILTER_SHOULD_INCLUDE(Value, DefaultValue, Comparison) \
 	((Value) != (DefaultValue) || (Comparison) == EConditionComparison::NotEquals)
 
-// Build AND chain from a FilterRow
-// (Строит цепочку AND из FilterRow)
+// Build AND chain from a FilterRow - skips fields where value == Default AND comparison == Equals
+// (Строит цепочку AND из FilterRow - пропускает поля где значение == Default И сравнение == Equals)
 static TSharedPtr<IOutcomeCondition> BuildFromFilterRow(const FOutcomeFilterRow& Row,
 	FString& OutDescription)
 {
@@ -104,8 +104,8 @@ static TSharedPtr<IOutcomeCondition> BuildCategoryCondition(
 	// (Всегда сначала проверяем OutcomeType)
 	Chain->Add(FOutcomeQueryBuilder::Type(ExpectedType));
 
-	// Include subcategory when value != Default OR comparison is NotEquals (i.e. "!= Default" is explicit)
-	// (Включаем подкатегорию если значение != Default ИЛИ сравнение NotEquals (т.е. "!= Default" явное))
+	// Include subcategory when value != Default OR comparison is NotEquals
+	// (Включаем подкатегорию если значение != Default ИЛИ сравнение NotEquals)
 	if (FILTER_SHOULD_INCLUDE(SubValue, SubDefault, SubComparison))
 	{
 		Chain->Add(SubCondition);
@@ -127,26 +127,8 @@ void UOutcomeConditionAsset::CompileCondition()
 			break;
 		}
 
-		case EConditionOperator::Type:
-		{
-			// Guard: OutcomeType must not be Default for Type operator
-			// (Защита: OutcomeType не должен быть Default для оператора Type)
-			if (OutcomeType == EOutcomeType::Default)
-			{
-				ConditionDescription = TEXT("Type: value is Default - set a specific value!");
-				UE_LOG(LogTemp, Warning, TEXT("OutcomeConditionAsset [%s]: Type operator requires non-Default OutcomeType"), *GetName());
-				return;
-			}
-			const bool bNegate = (OutcomeTypeComparison == EConditionComparison::NotEquals);
-			CompiledCondition    = FOutcomeQueryBuilder::Type(OutcomeType, bNegate);
-			ConditionDescription = CompiledCondition->Describe();
-			break;
-		}
-
-		// Category operators: AND(OutcomeType == X [, Subcategory op Y])
-		// Subcategory included when value != Default OR comparison == NotEquals
-		// (Операторы категорий: AND(OutcomeType == X [, Subcategory op Y]))
-		// (Подкатегория включается если значение != Default ИЛИ сравнение == NotEquals)
+		// Simple operators: automatically AND(OutcomeType == X [, Subcategory op Y])
+		// (Простые операторы: автоматически AND(OutcomeType == X [, Subcategory op Y]))
 
 		case EConditionOperator::Mission:
 		{
@@ -300,27 +282,25 @@ void UOutcomeConditionAsset::CompileCondition()
 
 void UOutcomeConditionAsset::ResetCondition()
 {
-	OperatorType          = EConditionOperator::Composite;
-	FilterRow             = FOutcomeFilterRow();
-	OutcomeType           = EOutcomeType::Default;
-	OutcomeTypeComparison = EConditionComparison::Equals;
-	MissionType           = EOutcomeMission::Default;
-	MissionComparison     = EConditionComparison::Equals;
-	ActorType             = EOutcomeActor::Default;
-	ActorComparison       = EConditionComparison::Equals;
-	ObjectType            = EOutcomeObject::Default;
-	ObjectComparison      = EConditionComparison::Equals;
-	TerminalType          = EOutcomeTerminal::Default;
-	TerminalComparison    = EConditionComparison::Equals;
-	InteriorType          = EOutcomeInterior::Default;
-	InteriorComparison    = EConditionComparison::Equals;
-	SpawnGroupType        = EOutcomeSpawnGroup::Default;
-	SpawnGroupComparison  = EConditionComparison::Equals;
-	WorldStateType        = EWorldState::Default;
-	WorldStateComparison  = EConditionComparison::Equals;
-	FirstCondition        = nullptr;
-	SecondCondition       = nullptr;
-	ConditionDescription  = TEXT("Reset");
+	OperatorType         = EConditionOperator::Composite;
+	FilterRow            = FOutcomeFilterRow();
+	MissionType          = EOutcomeMission::Default;
+	MissionComparison    = EConditionComparison::Equals;
+	ActorType            = EOutcomeActor::Default;
+	ActorComparison      = EConditionComparison::Equals;
+	ObjectType           = EOutcomeObject::Default;
+	ObjectComparison     = EConditionComparison::Equals;
+	TerminalType         = EOutcomeTerminal::Default;
+	TerminalComparison   = EConditionComparison::Equals;
+	InteriorType         = EOutcomeInterior::Default;
+	InteriorComparison   = EConditionComparison::Equals;
+	SpawnGroupType       = EOutcomeSpawnGroup::Default;
+	SpawnGroupComparison = EConditionComparison::Equals;
+	WorldStateType       = EWorldState::Default;
+	WorldStateComparison = EConditionComparison::Equals;
+	FirstCondition       = nullptr;
+	SecondCondition      = nullptr;
+	ConditionDescription = TEXT("Reset");
 	CompiledCondition.Reset();
 
 	UE_LOG(LogTemp, Log, TEXT("OutcomeConditionAsset [%s]: Reset complete"), *GetName());

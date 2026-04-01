@@ -25,6 +25,8 @@ struct FOutcomeFilterRow
 	GENERATED_BODY()
 
 	// ===== TYPE =====
+	// Use OutcomeType in Composite to pre-filter by event category before checking subcategory
+	// (Используйте OutcomeType в Composite для фильтрации по категории события перед проверкой подкатегории)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EOutcomeType OutcomeType = EOutcomeType::Default;
@@ -90,18 +92,18 @@ struct FOutcomeFilterRow
 };
 
 // Operator type for the condition asset
+// Simple operators automatically include OutcomeType check - no need to configure it manually
 // (Тип оператора ассета условия)
+// (Простые операторы автоматически включают проверку OutcomeType - не нужно настраивать вручную)
 UENUM(BlueprintType)
 enum class EConditionOperator : uint8
 {
-	// Composite: multiple fields in one asset, all non-Default joined by AND
-	// Most common case - no extra assets needed
-	// (Составной: несколько полей в одном ассете, все != Default объединяются AND)
-	// (Самый частый случай - не нужны дополнительные ассеты)
+	// Composite: configure any combination of fields manually, all non-Default joined by AND
+	// (Составной: задай любую комбинацию полей вручную, все != Default объединяются AND)
 	Composite   UMETA(DisplayName = "Composite  (AND row)"),
 
-	// Simple single-field conditions (Простые условия по одному полю)
-	Type        UMETA(DisplayName = "Type"),
+	// Simple operators: automatically check OutcomeType == X AND subcategory (if not Default)
+	// (Простые операторы: автоматически проверяют OutcomeType == X И подкатегорию (если не Default))
 	Mission     UMETA(DisplayName = "Mission"),
 	Actor       UMETA(DisplayName = "Actor"),
 	Object      UMETA(DisplayName = "Object"),
@@ -146,16 +148,6 @@ public:
 		meta = (EditCondition = "OperatorType == EConditionOperator::And || OperatorType == EConditionOperator::Or",
 				EditConditionHides, DisplayName = "Second Condition"))
 	TObjectPtr<UOutcomeConditionAsset> SecondCondition = nullptr;
-
-	// ===== SIMPLE CONDITION: TYPE =====
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "3 - Simple Condition",
-		meta = (EditCondition = "OperatorType == EConditionOperator::Type", EditConditionHides))
-	EOutcomeType OutcomeType = EOutcomeType::Default;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "3 - Simple Condition",
-		meta = (EditCondition = "OperatorType == EConditionOperator::Type", EditConditionHides))
-	EConditionComparison OutcomeTypeComparison = EConditionComparison::Equals;
 
 	// ===== SIMPLE CONDITION: MISSION =====
 
