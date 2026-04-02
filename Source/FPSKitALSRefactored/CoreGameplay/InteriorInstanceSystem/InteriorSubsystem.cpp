@@ -4,6 +4,7 @@
 #include "../InventorySystem/ItemAcquiredPayload.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
 #include "../InteractionSystem/InteractItemStatePayload.h"
+#include "../InteractionSystem/InteractiveItemComponent.h"
 
 void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -16,14 +17,8 @@ void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	// Subscribe other logical events if conditions are provided
 	if (CachedEventBus.IsValid())
 	{
-		if (GhostClearedCondition)
-		{
-			SubscribeGhostCleared();
-		}
-		if (ItemAcquiredCondition)
-		{
-			SubscribeItemAcquired();
-		}
+		if (GhostClearedCondition) SubscribeGhostCleared();
+		if (ItemAcquiredCondition) SubscribeItemAcquired();
 	}
 }
 
@@ -37,14 +32,11 @@ void UInteriorSubsystem::Deinitialize()
 
 void UInteriorSubsystem::SubscribeGhostCleared()
 {
-	if (!CachedEventBus.IsValid() || !GhostClearedCondition) return;
-	if (GhostClearedHandle.IsValid()) return;
-
+	if (!CachedEventBus.IsValid() || !GhostClearedCondition || GhostClearedHandle.IsValid()) return;
 	GhostClearedHandle = CachedEventBus->RegisterHandler(
 		GhostClearedCondition,
 		FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleGhostCleared)
 	);
-
 	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to GhostCleared (handle=%u)"), GhostClearedHandle.GetId());
 }
 
@@ -58,14 +50,11 @@ void UInteriorSubsystem::UnsubscribeGhostCleared()
 
 void UInteriorSubsystem::SubscribeItemAcquired()
 {
-	if (!CachedEventBus.IsValid() || !ItemAcquiredCondition) return;
-	if (ItemAcquiredHandle.IsValid()) return;
-
+	if (!CachedEventBus.IsValid() || !ItemAcquiredCondition || ItemAcquiredHandle.IsValid()) return;
 	ItemAcquiredHandle = CachedEventBus->RegisterHandler(
 		ItemAcquiredCondition,
 		FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleItemAcquired)
 	);
-
 	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to ItemAcquired (handle=%u)"), ItemAcquiredHandle.GetId());
 }
 
@@ -82,31 +71,31 @@ void UInteriorSubsystem::SubscribeInteractionRegistration()
 	if (!CachedEventBus.IsValid()) return;
 	if (SpawnRegisterHandle.IsValid() || DespawnRegisterHandle.IsValid()) return;
 
-	// Create runtime condition asset for ObjectSpawned
+	// Create runtime condition asset for InteractRegistered (Interior-specific)
 	SpawnConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	SpawnConditionAsset->OperatorType = EConditionOperator::Composite;
-	SpawnConditionAsset->FilterRow.OutcomeType = EOutcomeType::Object;
+	SpawnConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
 	SpawnConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	SpawnConditionAsset->FilterRow.ObjectType = EOutcomeObject::ObjectSpawned;
-	SpawnConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
+	SpawnConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractRegistered;
+	SpawnConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
 	SpawnConditionAsset->CompileCondition();
 
-	// Create runtime condition asset for ObjectDespawned
+	// Create runtime condition asset for InteractUnregistered (Interior-specific)
 	DespawnConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	DespawnConditionAsset->OperatorType = EConditionOperator::Composite;
-	DespawnConditionAsset->FilterRow.OutcomeType = EOutcomeType::Object;
+	DespawnConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
 	DespawnConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	DespawnConditionAsset->FilterRow.ObjectType = EOutcomeObject::ObjectDespawned;
-	DespawnConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
+	DespawnConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractUnregistered;
+	DespawnConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
 	DespawnConditionAsset->CompileCondition();
 
-	// Register handlers
 	if (SpawnConditionAsset->GetCondition().IsValid())
 	{
 		SpawnRegisterHandle = CachedEventBus->RegisterHandler(
 			SpawnConditionAsset,
 			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractRegistration)
 		);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractRegistered (handle=%u)"), SpawnRegisterHandle.GetId());
 	}
 
 	if (DespawnConditionAsset->GetCondition().IsValid())
@@ -115,6 +104,7 @@ void UInteriorSubsystem::SubscribeInteractionRegistration()
 			DespawnConditionAsset,
 			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractRegistration)
 		);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractUnregistered (handle=%u)"), DespawnRegisterHandle.GetId());
 	}
 }
 
@@ -133,47 +123,104 @@ void UInteriorSubsystem::UnsubscribeInteractionRegistration()
 		DespawnRegisterHandle.Invalidate();
 	}
 
-	SpawnConditionAsset = nullptr;
+	SpawnConditionAsset  = nullptr;
 	DespawnConditionAsset = nullptr;
+}
+
+void UInteriorSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
+{
+	if (!Listener) return;
+	TArray<TWeakObjectPtr<UInteractiveItemComponent>>& Arr = RegistrationListeners.FindOrAdd(ItemId);
+	for (auto& W : Arr)
+	{
+		if (W.Get() == Listener) return; // prevent duplicates
+	}
+	Arr.Add(Listener);
+}
+
+void UInteriorSubsystem::RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
+{
+	if (!Listener) return;
+	if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* Arr = RegistrationListeners.Find(ItemId))
+	{
+		for (int32 i = Arr->Num() - 1; i >= 0; --i)
+		{
+			if ((*Arr)[i].Get() == Listener || !(*Arr)[i].IsValid())
+			{
+				Arr->RemoveAtSwap(i);
+			}
+		}
+		if (Arr->Num() == 0)
+		{
+			RegistrationListeners.Remove(ItemId);
+		}
+	}
 }
 
 void UInteriorSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Outcome)
 {
 	if (!CachedEventBus.IsValid()) return;
 
-	// Expect registration payload
 	if (UInteractItemRegistrationPayload* P = Cast<UInteractItemRegistrationPayload>(Outcome.Payload))
 	{
 		const FGuid Id = P->ItemId;
-		if (Outcome.OutcomeObject == EOutcomeObject::ObjectSpawned)
+		AActor* Owner   = P->GetOwnerActor();
+		FString OwnerName = Owner ? Owner->GetName() : FString(TEXT("Unknown"));
+
+		if (Outcome.OutcomeInterior == EOutcomeInterior::InteractRegistered)
 		{
 			FInteractItemRecord R;
-			R.ItemId = Id;
-			R.SubsystemType = P->SubsystemType;
+			R.ItemId           = Id;
+			R.SubsystemType    = P->SubsystemType;
 			R.InteractionRange = P->InteractionRange;
-			R.DefaultTooltip = P->DefaultTooltip;
-			R.OwnerActor = P->OwnerActor;
+			R.DefaultTooltip   = P->DefaultTooltip;
+			R.OwnerActor       = Owner;
 
 			RegisteredItems.Add(Id, R);
 
-			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Registered interactive item %s (range=%.1f)"),
-				*Id.ToString(), R.InteractionRange);
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Registered interactive item owned by '%s' (range=%.1f)"),
+				*OwnerName, R.InteractionRange);
 
-			// Publish initial state for this item (enabled by default)
-			UInteractItemStatePayload* State = CachedEventBus->CreatePayload<UInteractItemStatePayload>();
-			State->Setup(Id, true, R.DefaultTooltip, R.InteractionRange);
-
-			FOutcomeEventBase StateEvent;
-			StateEvent.OutcomeType = EOutcomeType::Object;
-			StateEvent.OutcomeObject = EOutcomeObject::InteractEnabled;
-			StateEvent.Payload = State;
-
-			CachedEventBus->PublishOutcome(StateEvent);
+			// Notify only the listener for this ItemId
+			if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* List = RegistrationListeners.Find(Id))
+			{
+				for (auto It = List->CreateIterator(); It; ++It)
+				{
+					if (UInteractiveItemComponent* Comp = It->Get())
+					{
+						Comp->OnRegisteredBySubsystem(P);
+					}
+				}
+				RegistrationListeners.Remove(Id);
+			}
 		}
-		else if (Outcome.OutcomeObject == EOutcomeObject::ObjectDespawned)
+		else if (Outcome.OutcomeInterior == EOutcomeInterior::InteractUnregistered)
 		{
-			RegisteredItems.Remove(Id);
-			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Unregistered interactive item %s"), *Id.ToString());
+			FString NameToLog = OwnerName;
+			if (RegisteredItems.Contains(Id))
+			{
+				AActor* RegOwner = RegisteredItems[Id].OwnerActor.Get();
+				if (RegOwner) NameToLog = RegOwner->GetName();
+				RegisteredItems.Remove(Id);
+			}
+			else if (NameToLog == "Unknown")
+			{
+				NameToLog = Id.ToString();
+			}
+
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Unregistered interactive item owned by '%s'"), *NameToLog);
+
+			if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* List = RegistrationListeners.Find(Id))
+			{
+				for (auto It = List->CreateIterator(); It; ++It)
+				{
+					if (UInteractiveItemComponent* Comp = It->Get())
+					{
+						Comp->OnUnregisteredBySubsystem(P);
+					}
+				}
+				RegistrationListeners.Remove(Id);
+			}
 		}
 	}
 }
@@ -183,23 +230,13 @@ void UInteriorSubsystem::HandleGhostCleared(const FOutcomeEventBase& Outcome)
 	if (GhostClearedCondition)
 	{
 		auto Query = GhostClearedCondition->GetCondition();
-		if (Query.IsValid() && !Query->Evaluate(Outcome))
-		{
-			UE_LOG(LogTemp, Verbose, TEXT("InteriorSubsystem: Incoming outcome does not satisfy GhostClearedCondition -> ignoring"));
-			return;
-		}
+		if (Query.IsValid() && !Query->Evaluate(Outcome)) return;
 	}
-
 	if (UGhostClearedPayload* P = Cast<UGhostClearedPayload>(Outcome.Payload))
 	{
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Ghost cleared - Interior: %d"),
 			static_cast<int32>(Outcome.OutcomeInterior));
 	}
-	else
-	{
-		UE_LOG(LogTemp, Verbose, TEXT("InteriorSubsystem: HandleGhostCleared called with no payload or unexpected payload type"));
-	}
-
 	OnGhostCleared.Broadcast(Outcome);
 }
 
@@ -208,27 +245,16 @@ void UInteriorSubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
 	if (ItemAcquiredCondition)
 	{
 		auto Query = ItemAcquiredCondition->GetCondition();
-		if (Query.IsValid() && !Query->Evaluate(Outcome))
-		{
-			UE_LOG(LogTemp, Verbose, TEXT("InteriorSubsystem: Incoming outcome does not satisfy ItemAcquiredCondition -> ignoring"));
-			return;
-		}
+		if (Query.IsValid() && !Query->Evaluate(Outcome)) return;
 	}
-
 	if (UItemAcquiredPayload* P = Cast<UItemAcquiredPayload>(Outcome.Payload))
 	{
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Item acquired - Object: %s"),
 			*P->ObjectId.ToString());
 	}
-	else
-	{
-		UE_LOG(LogTemp, Verbose, TEXT("InteriorSubsystem: HandleItemAcquired called with no payload or unexpected payload type"));
-	}
-
 	OnItemAcquired.Broadcast(Outcome);
 }
 
-// Helpers - currently simple wrappers (kept to satisfy header declarations)
 void UInteriorSubsystem::SubscribeAll()
 {
 	SubscribeGhostCleared();
@@ -240,11 +266,7 @@ void UInteriorSubsystem::UnsubscribeAll()
 {
 	UnsubscribeGhostCleared();
 	UnsubscribeItemAcquired();
-	UnsubscribeInteractionRegistration();
 }
 
-void UInteriorSubsystem::EvaluateConditions()
-{
-	// Optional debug helper - implement later if needed.
-}
+void UInteriorSubsystem::EvaluateConditions() {}
 

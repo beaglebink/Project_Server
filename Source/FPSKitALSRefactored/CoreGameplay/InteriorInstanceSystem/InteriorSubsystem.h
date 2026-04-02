@@ -9,7 +9,10 @@
 #include "InteriorSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorGhostClearedEvent, const FOutcomeEventBase&, Outcome);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorItemAcquiredEvent,  const FOutcomeEventBase&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorItemAcquiredEvent, const FOutcomeEventBase&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
+
+class UInteractiveItemComponent;
 
 // Record stored for each registered interactive item
 struct FInteractItemRecord
@@ -59,12 +62,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
 	void UnsubscribeInteractionRegistration();
 
+	// Per-item listener API (interior): only the matching component gets notified
+	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
+	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
+
 	// Events
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
 	FOnInteriorGhostClearedEvent OnGhostCleared;
 
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
 	FOnInteriorItemAcquiredEvent OnItemAcquired;
+
+	// Legacy monitoring broadcast (kept for tools/debug)
+	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
+	FOnInteriorInteractItemRegistrationEvent OnInteractItemRegistered;
+
+	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
+	FOnInteriorInteractItemRegistrationEvent OnInteractItemUnregistered;
 
 private:
 	// Handler for spawn/despawn interactive objects
@@ -87,6 +101,9 @@ private:
 
 	// Registry of interactive items
 	TMap<FGuid, FInteractItemRecord> RegisteredItems;
+
+	// Per-item listeners: only invoked for matching ItemId
+	TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
 	// Cached EventBus subsystem for outcome publishing
 	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
