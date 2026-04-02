@@ -1,71 +1,122 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "InteractItemRegistrationPayload.h"
+#include "InteractItemStatePayload.h"
+#include "EventBusSubsystem.h"
 
 #include "InteractiveItemComponent.generated.h"
 
+class UOutcomeConditionAsset;
+class UInteractivePickerComponent;
+
+// How long the interaction button must be held
 UENUM(BlueprintType)
 enum class EInteractDuration : uint8
 {
-	Instant = 0,
-	Continue
+	Instant  = 0 UMETA(DisplayName = "Instant"),
+	Continue UMETA(DisplayName = "Hold")
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInteractivePicker, UInteractivePickerComponent*, Picker);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveUseEvent, ACharacter*, User);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveNow, AActor*, WhoInteract);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInteractStateChanged, bool, bEnabled, const FText&, NewTooltip);
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UInteractiveItemComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	UInteractiveItemComponent();
 
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	// Called by Picker when this item comes into trace range
+	void SetIsInteractiveNow(AActor* WhoInteract);
+
+	// Called by Picker when this item leaves trace range
 	UFUNCTION()
 	void FinishInteractiveUse(ACharacter* IIUser, const bool IsReleaseButton = true);
 
-	void SetIsInteractiveNow(AActor* WhoInteract);
-
+	// Called by Picker on interaction button press
 	void DoInteractiveUse(ACharacter* IIUser);
 
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	void SetIsActive(bool Active);
 
+	// Returns unique ID of this item - used in all EventBus messages
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteractiveItem")
+	FGuid GetItemId() const { return ItemId; }
+
+	// Apply state update received from subsystem via EventBus
+	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
+	void ApplyStateFromPayload(const UInteractItemStatePayload* Payload);
+
+	// Called by subsystem after it processed registration (notification)
+	UFUNCTION()
+	void OnRegisteredBySubsystem(UInteractItemRegistrationPayload* Payload);
+
+	// Called by subsystem after it processed unregistration (notification)
+	UFUNCTION()
+	void OnUnregisteredBySubsystem(UInteractItemRegistrationPayload* Payload);
+
+protected:
+	// Legacy: handler when subsystem publishes InteractEnabled via EventBus (kept)
+	void OnInteractEnabledOutcome(const FOutcomeEventBase& Outcome);
+
 public:
-	UPROPERTY(BlueprintAssignable)
+	// Events
+	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem|Events")
 	FOnInteractiveNow OnInteractiveReceiveFocusEvent;
 
-	UPROPERTY(BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem|Events")
 	FOnInteractiveUseEvent OnInteractiveLostFocusEvent;
 
-	UPROPERTY(BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem|Events")
 	FInteractivePicker OnInteractionPressKeyEvent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "InteractiveItem")
+	// Fired when subsystem updates enabled state or tooltip
+	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem|Events")
+	FOnInteractStateChanged OnInteractStateChanged;
+
+	// Config
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
+	EInteractiveSubsystem SubsystemType = EInteractiveSubsystem::Interior;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
+	float InteractionRange = 200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
 	FText InteractiveTooltipText;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "InteractiveItem")
-	EInteractDuration InteractDuration;
+	// Hold or instant interaction
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
+	EInteractDuration InteractDuration = EInteractDuration::Instant;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "InteractiveItem")
-	FVector DraggingLocation;
+	// Dragging transform offsets (restored)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
+	FVector DraggingLocation = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "InteractiveItem")
-	FRotator DraggingRotator;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
+	FRotator DraggingRotator = FRotator::ZeroRotator;
 
 private:
-	UPROPERTY(SaveGame)
-	ACharacter* ReleasedUser;
+	// Auto-generated unique ID at BeginPlay
+	FGuid ItemId;
 
-	UPROPERTY(SaveGame)
-	bool IsRelease;
+	// Current state - maintained by subsystem updates via EventBus
+	bool bInteractionEnabled = true;
+	FText CurrentTooltip;
 
-	UPROPERTY(SaveGame)
-	bool IsInteractiveNow;
+	UPROPERTY()
+	ACharacter* ReleasedUser = nullptr;
+
+	bool IsRelease = false;
+	bool IsInteractiveNow = false;
 };

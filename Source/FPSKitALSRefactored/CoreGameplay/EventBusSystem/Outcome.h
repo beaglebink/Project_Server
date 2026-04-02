@@ -40,7 +40,9 @@ enum class EOutcomeActor : uint8
 	DialogueStarted			UMETA(DisplayName = "Dialogue Started"),
 	DialogueOptionSelected	UMETA(DisplayName = "Dialogue Option Selected"),
 	DialogueEnded			UMETA(DisplayName = "Dialogue Ended"),
-	InteractEnabled			UMETA(DisplayName = "Interact enabled")
+	InteractEnabled			UMETA(DisplayName = "Interact enabled"),
+	InteractRegistered		UMETA(DisplayName = "Interact Registered"),    // NEW
+	InteractUnregistered	UMETA(DisplayName = "Interact Unregistered") // NEW
 };
 
 // Object category enumeration
@@ -60,7 +62,9 @@ enum class EOutcomeObject : uint8
 	ObjectDestroyed			UMETA(DisplayName = "Object Destroyed"),
 	ItemAcquired			UMETA(DisplayName = "Item Acquired"),
 	ItemDelivered			UMETA(DisplayName = "Item Delivered"),
-	InteractEnabled			UMETA(DisplayName = "Interact enabled")
+	InteractEnabled			UMETA(DisplayName = "Interact enabled"),
+	InteractRegistered		UMETA(DisplayName = "Interact Registered"),    // NEW: registration message for object/Inventory
+	InteractUnregistered	UMETA(DisplayName = "Interact Unregistered") // NEW: deregistration
 };
 
 // Terminal category enumeration
@@ -73,7 +77,9 @@ enum class EOutcomeTerminal : uint8
 	TerminalTaskCompleted	UMETA(DisplayName = "Terminal Task Completed"),
 	TerminalTaskFailed		UMETA(DisplayName = "Terminal Task Failed"),
 	TerminalClosed			UMETA(DisplayName = "Terminal Closed"),
-	InteractEnabled			UMETA(DisplayName = "Interact enabled")
+	InteractEnabled			UMETA(DisplayName = "Interact enabled"),
+	InteractRegistered		UMETA(DisplayName = "Interact Registered"),    // NEW
+	InteractUnregistered	UMETA(DisplayName = "Interact Unregistered") // NEW
 };
 
 // Interior category enumeration
@@ -91,7 +97,9 @@ enum class EOutcomeInterior : uint8
 	FloorEntered			UMETA(DisplayName = "Floor Entered"),
 	FloorTransition			UMETA(DisplayName = "Floor Transition"),
 	FloorLeaving			UMETA(DisplayName = "Floor Leaving"),
-	InteractEnabled			UMETA(DisplayName = "Interact enabled")
+	InteractEnabled			UMETA(DisplayName = "Interact enabled"),
+	InteractRegistered		UMETA(DisplayName = "Interact Registered"),    // NEW
+	InteractUnregistered	UMETA(DisplayName = "Interact Unregistered") // NEW
 };
 
 // Spawn group category enumeration
