@@ -3,6 +3,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include <AlsCharacterExample.h>
 
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
@@ -118,7 +119,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 	const auto BoxQuaternion = Direction.ToOrientationQuat();
 	if (DebugDraw)
 	{
-		DrawDebugBox(World, BoxCenter, BoxExtent, BoxQuaternion, FColor::Red, false, 4.f);
+		DrawDebugBox(World, BoxCenter, BoxExtent, BoxQuaternion, FColor::Red, false, 0.5f);
 	}
 
 	FCollisionShape CollisionShape;
@@ -133,6 +134,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 
 	float NearestDistance = TNumericLimits<float>::Max();
 	UInteractiveItemComponent* NearestItem = nullptr;
+	UInteractiveItemComponent* SelectedItem = nullptr;
 
 	TInlineComponentArray<UInteractiveItemComponent*> InteractiveItems;
 	TInlineComponentArray<UInteractiveItemComponent*> AllInteractiveItems;
@@ -149,6 +151,8 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		AllInteractiveItems.Append(InteractiveItems);
 	}
 
+	TInlineComponentArray<UInteractiveItemComponent*> SelectedInteractiveItems;
+
 	for (UInteractiveItemComponent* InteractiveItem : AllInteractiveItems)
 	{
 		if (!InteractiveItem->IsActive())
@@ -156,25 +160,119 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 			continue;
 		}
 
-		float Distance = FVector::DistSquared(Location, InteractiveItem->GetOwner()->GetActorLocation());
-		if (InteractiveItem && DebugDraw)
+		float SquareDistance = FVector::DistSquared(Location, InteractiveItem->GetOwner()->GetActorLocation());
+		float Radius = InteractiveItem->InteractionRange;
+
+		if(SquareDistance > Radius * Radius)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Item: %s %f"), *InteractiveItem->GetOwner()->GetName(), Distance);
+			continue;
 		}
 
-		if (Distance < NearestDistance)
+		if (InteractiveItem && DebugDraw)
 		{
-			NearestDistance = Distance;
+			UE_LOG(LogTemp, Warning, TEXT("Item: %s %f"), *InteractiveItem->GetOwner()->GetName(), SquareDistance);
+		}
+
+		SelectedInteractiveItems.Add(InteractiveItem);
+		
+		if (SquareDistance < NearestDistance)
+		{
+			NearestDistance = SquareDistance;
 			NearestItem = InteractiveItem;
 		}
 	}
 
-	if (NearestItem && DebugDraw)
+	auto CharacterOwner = Cast<AAlsCharacterExample>(GetOwner());
+	FVector2D CrosshairPosition = CharacterOwner ? CharacterOwner->GetCrosshairPosition() : FVector2D::ZeroVector;
+
+	FVector CrosshairDirection = Direction;
+	FVector CrosshairWorldOrigin = Location;
+
+	if (CharacterOwner)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("NearestItem: %s %f"), *NearestItem->GetOwner()->GetName(), NearestDistance);
+		if (const auto PlayerController = Cast<APlayerController>(CharacterOwner->GetController()))
+		{
+			FVector DeprojOrigin;
+			FVector DeprojDir;
+
+			if (PlayerController->DeprojectScreenPositionToWorld(CrosshairPosition.X, CrosshairPosition.Y, DeprojOrigin, DeprojDir))
+			{
+				CrosshairDirection = DeprojDir.GetSafeNormal();
+				CrosshairWorldOrigin = DeprojOrigin;
+			}
+		}
 	}
-;
-	return NearestItem;
+
+	FHitResult OutHit;
+	const FVector LineStart = Location;
+	const FVector LineEnd = CrosshairWorldOrigin + CrosshairDirection * Depth;
+
+	bool bLineTraceHit = false;
+
+	if (SelectedInteractiveItems.Num() == 1)
+	{
+		SelectedItem = SelectedInteractiveItems[0];
+	}
+	else
+	{
+		bLineTraceHit = World->LineTraceSingleByChannel(OutHit, LineStart, LineEnd, ECollisionChannel::ECC_Camera);
+		if (bLineTraceHit)
+		{
+			if (OutHit.GetActor())
+			{
+				SelectedItem = OutHit.GetActor()->FindComponentByClass<UInteractiveItemComponent>();
+			}
+		}
+		else
+		{
+			SelectedItem = NearestItem;
+		}
+
+		if(!SelectedItem)
+		{
+			SelectedItem = NearestItem;
+		}
+	}
+
+	if (SelectedItem)
+	{
+		float InteractionSquareDistance = FVector::DistSquared(Location, SelectedItem->GetOwner()->GetActorLocation());
+		float InteractionRadius = SelectedItem->InteractionRange;
+
+		if (DebugDraw)
+		{
+			DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), InteractionRadius, 32, InteractionSquareDistance > FMath::Square(InteractionRadius) ? FColor::Cyan : FColor::Yellow, false, 0.5f);
+		}
+
+		if (InteractionSquareDistance > InteractionRadius * InteractionRadius)
+		{
+			SelectedItem = nullptr;
+		}
+	}
+
+	if (SelectedItem && DebugDraw)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NearestItem: %s %f"), *SelectedItem->GetOwner()->GetName(), NearestDistance);
+
+		if (SelectedInteractiveItems.Num() > 1)
+		{ 
+			DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, SelectedItem->GetOwner()->GetActorLocation(), FColor::Blue, false, 1.f, 0, .5f);
+			if (bLineTraceHit)
+			{
+				DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), 6.f, 8, FColor::Yellow, false, .5f);
+			}
+			else
+			{
+				DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), 6.f, 8, FColor::Yellow, false, .5f);
+			}
+		}
+		else
+		{
+			DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, SelectedItem->GetOwner()->GetActorLocation(), FColor::Blue, false, 1.f, 0, .5f);
+		}
+	}
+
+	return SelectedItem;
 }
 
 void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* FoundItem)

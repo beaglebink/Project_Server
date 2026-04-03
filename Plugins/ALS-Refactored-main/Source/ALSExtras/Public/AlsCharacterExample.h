@@ -186,6 +186,9 @@ public:
 
 	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& ViewInfo) override;
 
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
+	FVector2D GetCrosshairPosition();
+
 	// Input
 
 protected:
