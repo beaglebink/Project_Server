@@ -74,6 +74,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
 	void SetTerminalTaskCondition(UOutcomeConditionAsset* NewCondition);
 
+	// Subscribe/unsubscribe interact command handling
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void SubscribeInteractCommand();
+
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void UnsubscribeInteractCommand();
+
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void SubscribeSetEnabled();
+
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void UnsubscribeSetEnabled();
+
 	// Per-item listener API: components register a listener for their ItemId.
 	// The subsystem will call the listener only for that specific item (prevents notifying all components).
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
@@ -85,6 +98,11 @@ private:
 
 	// Handler for registration/unregistration of interactive items for terminal subsystem
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
+
+	// Handler for interact command
+	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
+
+	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
 
 	// Handler descriptor for task condition
 	FOutcomeHandlerHandle TerminalTaskHandle;
@@ -99,6 +117,16 @@ private:
 
 	UPROPERTY()
 	UOutcomeConditionAsset* UnregisteredConditionAsset = nullptr;
+
+	// For interact command
+	UPROPERTY()
+	UOutcomeConditionAsset* InteractCommandConditionAsset = nullptr;
+	FOutcomeHandlerHandle InteractCommandHandle;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle SetEnabledHandle;
 
 	// Registry of interactive items (key = ItemId)
 	UPROPERTY()

@@ -5,16 +5,18 @@
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
 #include "../InteractionSystem/InteractItemStatePayload.h"
 #include "../InteractionSystem/InteractiveItemComponent.h"
+#include "../InteractionSystem/InteractCommandPayload.h"
+#include "../InteractionSystem/InteractSetEnabledPayload.h"
 
 void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
 	CachedEventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 
-	// Subscribe interaction registration events first (so items registering during BeginPlay are handled)
 	SubscribeInteractionRegistration();
+	SubscribeInteractCommand();
+	SubscribeSetEnabled();
 
-	// Subscribe other logical events if conditions are provided
 	if (CachedEventBus.IsValid())
 	{
 		if (GhostClearedCondition) SubscribeGhostCleared();
@@ -129,13 +131,7 @@ void UInteriorSubsystem::UnsubscribeInteractionRegistration()
 
 void UInteriorSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 {
-	if (!Listener) return;
-	TArray<TWeakObjectPtr<UInteractiveItemComponent>>& Arr = RegistrationListeners.FindOrAdd(ItemId);
-	for (auto& W : Arr)
-	{
-		if (W.Get() == Listener) return; // prevent duplicates
-	}
-	Arr.Add(Listener);
+	FInteractiveSubsystemMethods::AddRegistrationListener(ItemId, Listener);
 }
 
 void UInteriorSubsystem::RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
@@ -255,17 +251,112 @@ void UInteriorSubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
 	OnItemAcquired.Broadcast(Outcome);
 }
 
+void UInteriorSubsystem::SubscribeInteractCommand()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (InteractCommandHandle.IsValid()) return;
+
+	InteractCommandConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	InteractCommandConditionAsset->OperatorType = EConditionOperator::Composite;
+	// Фильтруем только по типу Outcome, чтобы получать команды только для Interior
+	InteractCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+	InteractCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	InteractCommandConditionAsset->CompileCondition();
+
+	if (InteractCommandConditionAsset->GetCondition().IsValid())
+	{
+		InteractCommandHandle = CachedEventBus->RegisterHandler(
+			InteractCommandConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractCommand)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractCommand (handle=%u)"), InteractCommandHandle.GetId());
+	}
+}
+
+void UInteriorSubsystem::UnsubscribeInteractCommand()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (InteractCommandHandle.IsValid())
+	{
+		CachedEventBus->UnregisterHandler(InteractCommandHandle);
+		InteractCommandHandle.Invalidate();
+	}
+	InteractCommandConditionAsset = nullptr;
+}
+
+void UInteriorSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractCommandPayload* P = Cast<UInteractCommandPayload>(Outcome.Payload))
+	{
+		const FGuid Id = P->ItemId;
+		// Сначала подсистема находит зарегистрированного владельца по ItemId
+		if (const FInteractItemRecord* Rec = RegisteredItems.Find(Id))
+		{
+			AActor* Owner = Rec->OwnerActor.Get();
+			if (Owner)
+			{
+				// Затем вызывает хелпер, передавая Owner и Picker
+				ExecuteInteractCommandOnOwner(Id, Owner, P->Picker);
+			}
+		}
+	}
+}
+
 void UInteriorSubsystem::SubscribeAll()
 {
 	SubscribeGhostCleared();
 	SubscribeItemAcquired();
 	SubscribeInteractionRegistration();
+	SubscribeInteractCommand();
 }
 
 void UInteriorSubsystem::UnsubscribeAll()
 {
 	UnsubscribeGhostCleared();
 	UnsubscribeItemAcquired();
+	UnsubscribeInteractCommand();
+	UnsubscribeSetEnabled();
+}
+
+void UInteriorSubsystem::SubscribeSetEnabled()
+{
+	if (!CachedEventBus.IsValid() || SetEnabledHandle.IsValid()) return;
+
+	SetEnabledConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetEnabledConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetEnabledConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+	SetEnabledConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetEnabledConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetEnabled;
+	SetEnabledConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+	SetEnabledConditionAsset->CompileCondition();
+
+	if (SetEnabledConditionAsset->GetCondition().IsValid())
+	{
+		SetEnabledHandle = CachedEventBus->RegisterHandler(
+			SetEnabledConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetEnabled)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetEnabled (handle=%u)"), SetEnabledHandle.GetId());
+	}
+}
+
+void UInteriorSubsystem::UnsubscribeSetEnabled()
+{
+	if (!CachedEventBus.IsValid() || !SetEnabledHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetEnabledHandle);
+	SetEnabledHandle.Invalidate();
+	SetEnabledConditionAsset = nullptr;
+}
+
+void UInteriorSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload))
+	{
+		if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+		}
+	}
 }
 
 void UInteriorSubsystem::EvaluateConditions() {}

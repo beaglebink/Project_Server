@@ -95,11 +95,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void SetMissionOrGhostCondition(UOutcomeConditionAsset* NewCondition);
 
+	// Подписка на команды интеракции
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void SubscribeInteractCommand();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void UnsubscribeInteractCommand();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void SubscribeSetEnabled();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void UnsubscribeSetEnabled();
+
 private:
 	// Handlers
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
 	void HandleDialogueStarted(const FOutcomeEventBase& Outcome);
 	void HandleMissionOrGhost(const FOutcomeEventBase& Outcome);
+	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
+	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
 
 	// Runtime condition assets to keep alive
 	UPROPERTY()
@@ -108,11 +123,19 @@ private:
 	UPROPERTY()
 	UOutcomeConditionAsset* UnregisteredConditionAsset = nullptr;
 
+	UPROPERTY()
+	UOutcomeConditionAsset* InteractCommandConditionAsset = nullptr;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
+
 	// Handler handles
 	FOutcomeHandlerHandle DialogueStartedHandle;
 	FOutcomeHandlerHandle MissionOrGhostHandle;
 	FOutcomeHandlerHandle RegisteredRegisterHandle;
 	FOutcomeHandlerHandle UnregisteredRegisterHandle;
+	FOutcomeHandlerHandle InteractCommandHandle;
+	FOutcomeHandlerHandle SetEnabledHandle;
 
 	// Registry of interactive items
 	UPROPERTY()

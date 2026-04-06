@@ -3,15 +3,32 @@
 #include "ItemAcquiredPayload.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
 #include "../InteractionSystem/InteractiveItemComponent.h"
+#include "../InteractionSystem/InteractCommandPayload.h"
+#include "../InteractionSystem/InteractSetEnabledPayload.h"
 
 void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	// Гарантируем что EventBusSubsystem будет инициализирован ДО InventorySubsystem
+	Collection.InitializeDependency(UEventBusSubsystem::StaticClass());
+
 	Super::Initialize(Collection);
 
 	CachedEventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("InventorySubsystem: CachedEventBus is NULL after Initialize - all subscriptions skipped!"));
+		return;
+	}
+
 	// Subscribe interaction registration early
 	SubscribeRegistration();
+
+	// Subscribe interact command handler явно — не зависит от статуса SubscribeRegistration
+	SubscribeInteractCommand();
+
+	// Subscribe set-enabled handler explicitly
+	SubscribeSetEnabled();
 
 	if (ItemAcquiredCondition) SubscribeItemAcquired();
 }
@@ -91,6 +108,77 @@ void UInventorySubsystem::SubscribeRegistration()
 		);
 		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to InteractUnregistered (handle=%u)"), UnregisteredRegisterHandle.GetId());
 	}
+
+	// Рекомендуется вызвать SubscribeInteractCommand() при инициализации
+	//SubscribeInteractCommand();
+}
+
+void UInventorySubsystem::SubscribeInteractCommand()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (InteractCommandHandle.IsValid()) return;
+
+	InteractCommandConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	InteractCommandConditionAsset->OperatorType = EConditionOperator::Composite;
+	// Подписка на Object/Inventory-тип команд
+	InteractCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Object;
+	InteractCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	InteractCommandConditionAsset->CompileCondition();
+
+	if (InteractCommandConditionAsset->GetCondition().IsValid())
+	{
+		InteractCommandHandle = CachedEventBus->RegisterHandler(
+			InteractCommandConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleInteractCommand)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to InteractCommand (handle=%u)"), InteractCommandHandle.GetId());
+	}
+}
+
+void UInventorySubsystem::SubscribeSetEnabled()
+{
+	// Диагностическое логирование — чтобы точно видеть, почему обработчик может не зарегистрироваться.
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InventorySubsystem::SubscribeSetEnabled - CachedEventBus is NULL, will skip subscription"));
+		return;
+	}
+	if (SetEnabledHandle.IsValid())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("InventorySubsystem::SubscribeSetEnabled - already subscribed (handle=%u)"), SetEnabledHandle.GetId());
+		return;
+	}
+
+	SetEnabledConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetEnabledConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetEnabledConditionAsset->FilterRow.OutcomeType = EOutcomeType::Object;
+	SetEnabledConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetEnabledConditionAsset->FilterRow.ObjectType = EOutcomeObject::InteractSetEnabled;
+	SetEnabledConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
+	SetEnabledConditionAsset->CompileCondition();
+
+	// Логируем описание условия для отладки
+	UE_LOG(LogTemp, Verbose, TEXT("InventorySubsystem: SetEnabled condition description: %s"), *SetEnabledConditionAsset->GetConditionDescription());
+
+	if (SetEnabledConditionAsset->GetCondition().IsValid())
+	{
+		SetEnabledHandle = CachedEventBus->RegisterHandler(
+			SetEnabledConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleSetEnabled)
+		);
+		if (SetEnabledHandle.IsValid())
+		{
+			UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to SetEnabled (handle=%u)"), SetEnabledHandle.GetId());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("InventorySubsystem: RegisterHandler returned invalid handle for SetEnabled!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("InventorySubsystem: SetEnabledCondition compiled to INVALID -> handler NOT registered"));
+	}
 }
 
 void UInventorySubsystem::UnsubscribeRegistration()
@@ -112,9 +200,30 @@ void UInventorySubsystem::UnsubscribeRegistration()
 	UnregisteredConditionAsset = nullptr;
 }
 
+void UInventorySubsystem::UnsubscribeInteractCommand()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (InteractCommandHandle.IsValid())
+	{
+		CachedEventBus->UnregisterHandler(InteractCommandHandle);
+		InteractCommandHandle.Invalidate();
+	}
+	InteractCommandConditionAsset = nullptr;
+}
+
+void UInventorySubsystem::UnsubscribeSetEnabled()
+{
+	if (!CachedEventBus.IsValid() || !SetEnabledHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetEnabledHandle);
+	SetEnabledHandle.Invalidate();
+	SetEnabledConditionAsset = nullptr;
+}
+
 void UInventorySubsystem::UnsubscribeAll()
 {
 	UnsubscribeItemAcquired();
+	UnsubscribeInteractCommand();
+	UnsubscribeSetEnabled();
 	UnsubscribeRegistration();
 }
 
@@ -203,4 +312,31 @@ void UInventorySubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
 			*P->ObjectId.ToString());
 	}
 	OnItemAcquired.Broadcast(Outcome);
+}
+
+void UInventorySubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractCommandPayload* P = Cast<UInteractCommandPayload>(Outcome.Payload))
+	{
+		const FGuid Id = P->ItemId;
+		if (const FInventoryInteractItemRecord* Rec = RegisteredItems.Find(Id))
+		{
+			AActor* Owner = Rec->OwnerActor.Get();
+			if (Owner)
+			{
+				ExecuteInteractCommandOnOwner(Id, Owner, P->Picker);
+			}
+		}
+	}
+}
+
+void UInventorySubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload))
+	{
+		if (const FInventoryInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+		}
+	}
 }

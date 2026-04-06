@@ -73,19 +73,41 @@ public:
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void SubscribeInteractCommand();
+
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void UnsubscribeInteractCommand();
+
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void SubscribeSetEnabled();
+
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void UnsubscribeSetEnabled();
+
 private:
 	void HandleItemAcquired(const FOutcomeEventBase& Outcome);
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
+	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
+	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
 
 	FOutcomeHandlerHandle ItemAcquiredHandle;
 	FOutcomeHandlerHandle RegisteredRegisterHandle;
 	FOutcomeHandlerHandle UnregisteredRegisterHandle;
+	FOutcomeHandlerHandle InteractCommandHandle;
+	FOutcomeHandlerHandle SetEnabledHandle;
 
 	UPROPERTY()
 	UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
 
 	UPROPERTY()
 	UOutcomeConditionAsset* UnregisteredConditionAsset = nullptr;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* InteractCommandConditionAsset = nullptr;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
 
 	UPROPERTY()
 	TMap<FGuid, FInventoryInteractItemRecord> RegisteredItems;

@@ -7,7 +7,6 @@
 #include "InteractItemRegistrationPayload.h"
 #include "InteractItemStatePayload.h"
 #include "EventBusSubsystem.h"
-
 #include "InteractiveItemComponent.generated.h"
 
 class UOutcomeConditionAsset;
@@ -47,8 +46,10 @@ public:
 	// Called by Picker on interaction button press
 	void DoInteractiveUse(ACharacter* IIUser);
 
+	// Убираем проблему линковки — делаем реализацию inline в заголовке.
+	// Можно вызывать и из C++ и из BP.
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
-	void SetIsActive(bool Active);
+	void SetIsActive(bool Active) { SetActive(Active); }
 
 	// Returns unique ID of this item - used in all EventBus messages
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteractiveItem")

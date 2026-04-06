@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 #include "InteractiveActorInterface.h" // added for EnableHighlight calls
+#include "../EventBusSystem/EventBusSubsystem.h"
+#include "InteractCommandPayload.h"
 
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
@@ -232,6 +234,10 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 			if (OutHit.GetActor())
 			{
 				SelectedItem = OutHit.GetActor()->FindComponentByClass<UInteractiveItemComponent>();
+				if (SelectedItem && !SelectedItem->IsActive())
+				{
+					SelectedItem = nullptr;
+				}
 			}
 		}
 		else
@@ -347,14 +353,49 @@ void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveI
 	OnInteractiveReceiveFocusEvent.Broadcast(InteractiveComponent);
 }
 
+// В методе DoInteractiveUse заменяем прямой вызов компонента на публикацию команды в EventBus
 UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 {
-	if (CurrentItem)
+	if (!CurrentItem)
 	{
-		auto PickerOwner = Cast<ACharacter>(GetOwner());
-		CurrentItem->DoInteractiveUse(PickerOwner);
+		return nullptr;
+	}
 
-		OnInteractionPressKeyEvent.Broadcast();
+	if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		if (UInteractCommandPayload* P = EventBus->CreatePayload<UInteractCommandPayload>())
+		{
+			P->ItemId = CurrentItem->GetItemId();
+
+			// Передаём указатель на Picker, чтобы подсистема могла передать его в Broadcast
+			P->Picker = this;
+
+			FOutcomeEventBase Outcome;
+			Outcome.Payload = P;
+
+			// Маппинг EInteractiveSubsystem -> EOutcomeType
+			// EInteractiveSubsystem: Terminal, ActorNPC, Inventory, Interior
+			switch (CurrentItem->SubsystemType)
+			{
+				case EInteractiveSubsystem::Interior:
+					Outcome.OutcomeType = EOutcomeType::Interior;
+					break;
+				case EInteractiveSubsystem::ActorNPC:
+					Outcome.OutcomeType = EOutcomeType::Actor;
+					break;
+				case EInteractiveSubsystem::Inventory:
+					Outcome.OutcomeType = EOutcomeType::Object;
+					break;
+				case EInteractiveSubsystem::Terminal:
+					Outcome.OutcomeType = EOutcomeType::Terminal;
+					break;
+				default:
+					Outcome.OutcomeType = EOutcomeType::Default;
+					break;
+			}
+
+			EventBus->PublishOutcome(Outcome);
+		}
 	}
 
 	return CurrentItem;

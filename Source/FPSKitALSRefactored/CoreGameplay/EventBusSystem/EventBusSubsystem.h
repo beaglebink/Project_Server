@@ -93,7 +93,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "EventBus")
 	int32 GetHandlerCount() const { return Handlers.Num(); }
 
+	// Override BeginDestroy to perform cleanup if needed (implementation in .cpp)
+	virtual void BeginDestroy() override;
+
 private:
 	TArray<FOutcomeHandlerEntry> Handlers;
 	uint32 NextHandleId = 1;
+
+	// Защита от reentrant Register/Unregister во время PublishOutcome
+	bool bDispatching = false;
+
+	struct FPendingOperation
+	{
+		enum class EType : uint8 { Register, Unregister } Type = EType::Unregister;
+		uint32 HandleId = 0;
+		FOutcomeHandlerEntry Entry{ 0, FOutcomeHandlerDelegate{}, nullptr };
+	};
+	TArray<FPendingOperation> PendingOperations;
 };

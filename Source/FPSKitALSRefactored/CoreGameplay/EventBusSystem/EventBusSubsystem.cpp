@@ -3,31 +3,50 @@
 
 void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 {
-	for (const FOutcomeHandlerEntry& Entry : Handlers)
-	{
-		// Debug: log condition description and evaluation result at Verbose level
-		if (Entry.Query.IsValid())
-		{
-			const bool bResult = Entry.Query->Evaluate(Outcome);
-			UE_LOG(LogTemp, Verbose, TEXT("EventBus: Handler[%u] Condition: %s -> Evaluate() = %s"),
-				Entry.HandleId,
-				*Entry.Query->Describe(),
-				bResult ? TEXT("true") : TEXT("false"));
+	bDispatching = true;
 
-			if (bResult)
-			{
-				Entry.Handler.ExecuteIfBound(Outcome);
-			}
-		}
-		else
+	for (int32 i = 0; i < Handlers.Num(); ++i)
+	{
+		const FOutcomeHandlerEntry& Entry = Handlers[i];
+
+		if (!Entry.Query.IsValid())
 		{
-			// If Query is invalid we consider it as "match everything" historically.
-			// Log Warning so we can find unexpected registrations.
-			UE_LOG(LogTemp, Warning, TEXT("EventBus: Handler[%u] has invalid Query -> invoking handler (consider preventing registration with invalid condition)"),
-				Entry.HandleId);
+			UE_LOG(LogTemp, Warning, TEXT("EventBus: Handler[%u] has invalid Query -> skipping"), Entry.HandleId);
+			continue;
+		}
+
+		const bool bResult = Entry.Query->Evaluate(Outcome);
+		UE_LOG(LogTemp, Verbose, TEXT("EventBus: Handler[%u] Condition: %s -> Evaluate() = %s"),
+			Entry.HandleId,
+			*Entry.Query->Describe(),
+			bResult ? TEXT("true") : TEXT("false"));
+
+		if (bResult)
+		{
 			Entry.Handler.ExecuteIfBound(Outcome);
 		}
 	}
+
+	bDispatching = false;
+
+	// Выполняем отложенные операции Register/Unregister накопленные во время dispatch
+	for (const FPendingOperation& Op : PendingOperations)
+	{
+		if (Op.Type == FPendingOperation::EType::Unregister)
+		{
+			Handlers.RemoveAll([&Op](const FOutcomeHandlerEntry& E)
+			{
+				return E.HandleId == Op.HandleId;
+			});
+			UE_LOG(LogTemp, Log, TEXT("EventBus: Deferred Unregistered handler [%u]"), Op.HandleId);
+		}
+		else if (Op.Type == FPendingOperation::EType::Register)
+		{
+			Handlers.Add(Op.Entry);
+			UE_LOG(LogTemp, Log, TEXT("EventBus: Deferred Registered handler [%u]"), Op.Entry.HandleId);
+		}
+	}
+	PendingOperations.Empty();
 }
 
 UOutcomePayload* UEventBusSubsystem::CreatePayload(TSubclassOf<UOutcomePayload> PayloadClass)
@@ -37,8 +56,6 @@ UOutcomePayload* UEventBusSubsystem::CreatePayload(TSubclassOf<UOutcomePayload> 
 		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem::CreatePayload - PayloadClass is null"));
 		return nullptr;
 	}
-	// GameInstance as Outer - object lives for the session, no GC risk during event dispatch
-	// (GameInstance как Outer - объект живёт всю сессию, нет риска GC при доставке события)
 	return NewObject<UOutcomePayload>(GetGameInstance(), PayloadClass);
 }
 
@@ -58,7 +75,6 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 		return FOutcomeHandlerHandle();
 	}
 
-	// Compile condition and check that it produced a valid Query.
 	ConditionAsset->CompileCondition();
 	TSharedPtr<IOutcomeCondition> Compiled = ConditionAsset->GetCondition();
 	if (!Compiled.IsValid())
@@ -69,10 +85,24 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 	}
 
 	const uint32 NewId = NextHandleId++;
-	Handlers.Add(FOutcomeHandlerEntry(NewId, MoveTemp(Handler), Compiled));
+	FOutcomeHandlerEntry NewEntry(NewId, MoveTemp(Handler), Compiled);
 
-	UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered handler [%u] - condition: %s"),
-		NewId, *ConditionAsset->GetConditionDescription());
+	if (bDispatching)
+	{
+		// Откладываем регистрацию до завершения текущего dispatch
+		FPendingOperation Op;
+		Op.Type  = FPendingOperation::EType::Register;
+		Op.Entry = MoveTemp(NewEntry);
+		PendingOperations.Add(MoveTemp(Op));
+		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred RegisterHandler [%u] - condition: %s"),
+			NewId, *ConditionAsset->GetConditionDescription());
+	}
+	else
+	{
+		Handlers.Add(MoveTemp(NewEntry));
+		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered handler [%u] - condition: %s"),
+			NewId, *ConditionAsset->GetConditionDescription());
+	}
 
 	return FOutcomeHandlerHandle(NewId);
 }
@@ -82,6 +112,19 @@ void UEventBusSubsystem::UnregisterHandler(FOutcomeHandlerHandle& Handle)
 	if (!Handle.IsValid()) return;
 
 	const uint32 IdToRemove = Handle.GetId();
+
+	if (bDispatching)
+	{
+		// Откладываем удаление до завершения текущего dispatch
+		FPendingOperation Op;
+		Op.Type     = FPendingOperation::EType::Unregister;
+		Op.HandleId = IdToRemove;
+		PendingOperations.Add(Op);
+		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred UnregisterHandler [%u]"), IdToRemove);
+		Handle.Invalidate();
+		return;
+	}
+
 	const int32 Removed = Handlers.RemoveAll([IdToRemove](const FOutcomeHandlerEntry& Entry)
 	{
 		return Entry.HandleId == IdToRemove;
@@ -97,4 +140,16 @@ void UEventBusSubsystem::UnregisterHandler(FOutcomeHandlerHandle& Handle)
 	}
 
 	Handle.Invalidate();
+}
+
+void UEventBusSubsystem::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	// Явно разрегистрируем все обработчики при уничтожении сабсистемы
+	for (FOutcomeHandlerEntry& Entry : Handlers)
+	{
+		Entry.Handler.Unbind();
+	}
+	Handlers.Empty();
 }

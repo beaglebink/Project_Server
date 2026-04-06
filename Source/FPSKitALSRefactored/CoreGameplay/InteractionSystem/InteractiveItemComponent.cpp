@@ -214,12 +214,7 @@ void UInteractiveItemComponent::SetIsInteractiveNow(AActor* WhoInteract)
 
 void UInteractiveItemComponent::DoInteractiveUse(ACharacter* IIUser)
 {
-	if (!IsValid(this) || !IsActive()) return;
+	if (!IsValid(this) || !IsActive() || !IsValid(IIUser)) return;
 	auto Picker = Cast<UInteractivePickerComponent>(IIUser->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
 	OnInteractionPressKeyEvent.Broadcast(Picker);
-}
-
-void UInteractiveItemComponent::SetIsActive(bool Active)
-{
-	SetActive(Active);
 }

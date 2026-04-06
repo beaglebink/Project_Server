@@ -4,6 +4,8 @@
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
 #include "../EventBusSystem/OutcomeConditionAsset.h"
 #include "../InteractionSystem/InteractiveItemComponent.h"
+#include "../InteractionSystem/InteractCommandPayload.h"
+#include "../InteractionSystem/InteractSetEnabledPayload.h"
 
 void UTerminalSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -11,15 +13,16 @@ void UTerminalSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 	CachedEventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 
-	// Ensure registration listeners are active early so components publishing registration in BeginPlay are caught
 	SubscribeRegistration();
 
-	// Subscribe task handler only if condition is provided
 	if (TerminalTaskCondition)
 	{
 		TerminalTaskCondition->CompileCondition();
 		SubscribeTerminalTask();
 	}
+
+	SubscribeInteractCommand();
+	SubscribeSetEnabled();
 }
 
 void UTerminalSubsystem::Deinitialize()
@@ -139,6 +142,8 @@ void UTerminalSubsystem::UnsubscribeRegistration()
 void UTerminalSubsystem::UnsubscribeAll()
 {
 	UnsubscribeTerminalTask();
+	UnsubscribeInteractCommand();
+	UnsubscribeSetEnabled();
 	UnsubscribeRegistration();
 }
 
@@ -271,4 +276,94 @@ void UTerminalSubsystem::HandleTerminalTask(const FOutcomeEventBase& Outcome)
 	}
 
 	OnTerminalTaskCompleted.Broadcast(Outcome);
+}
+
+void UTerminalSubsystem::SubscribeInteractCommand()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (InteractCommandHandle.IsValid()) return;
+
+	InteractCommandConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	InteractCommandConditionAsset->OperatorType = EConditionOperator::Composite;
+	// Подписка на Terminal-тип команд
+	InteractCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Terminal;
+	InteractCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	InteractCommandConditionAsset->CompileCondition();
+
+	if (InteractCommandConditionAsset->GetCondition().IsValid())
+	{
+		InteractCommandHandle = CachedEventBus->RegisterHandler(
+			InteractCommandConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UTerminalSubsystem::HandleInteractCommand)
+		);
+		UE_LOG(LogTemp, Log, TEXT("TerminalSubsystem: Subscribed to InteractCommand (handle=%u)"), InteractCommandHandle.GetId());
+	}
+}
+
+void UTerminalSubsystem::UnsubscribeInteractCommand()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (InteractCommandHandle.IsValid())
+	{
+		CachedEventBus->UnregisterHandler(InteractCommandHandle);
+		InteractCommandHandle.Invalidate();
+	}
+	InteractCommandConditionAsset = nullptr;
+}
+
+void UTerminalSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractCommandPayload* P = Cast<UInteractCommandPayload>(Outcome.Payload))
+	{
+		const FGuid Id = P->ItemId;
+		if (const FTerminalInteractItemRecord* Rec = RegisteredItems.Find(Id))
+		{
+			AActor* Owner = Rec->OwnerActor.Get();
+			if (Owner)
+			{
+				ExecuteInteractCommandOnOwner(Id, Owner, P->Picker);
+			}
+		}
+	}
+}
+
+void UTerminalSubsystem::SubscribeSetEnabled()
+{
+	if (!CachedEventBus.IsValid() || SetEnabledHandle.IsValid()) return;
+
+	SetEnabledConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetEnabledConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetEnabledConditionAsset->FilterRow.OutcomeType = EOutcomeType::Terminal;
+	SetEnabledConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetEnabledConditionAsset->FilterRow.TerminalType = EOutcomeTerminal::InteractSetEnabled;
+	SetEnabledConditionAsset->FilterRow.TerminalComparison = EConditionComparison::Equals;
+	SetEnabledConditionAsset->CompileCondition();
+
+	if (SetEnabledConditionAsset->GetCondition().IsValid())
+	{
+		SetEnabledHandle = CachedEventBus->RegisterHandler(
+			SetEnabledConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UTerminalSubsystem::HandleSetEnabled)
+		);
+		UE_LOG(LogTemp, Log, TEXT("TerminalSubsystem: Subscribed to SetEnabled (handle=%u)"), SetEnabledHandle.GetId());
+	}
+}
+
+void UTerminalSubsystem::UnsubscribeSetEnabled()
+{
+	if (!CachedEventBus.IsValid() || !SetEnabledHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetEnabledHandle);
+	SetEnabledHandle.Invalidate();
+	SetEnabledConditionAsset = nullptr;
+}
+
+void UTerminalSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload))
+	{
+		if (const FTerminalInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+		}
+	}
 }

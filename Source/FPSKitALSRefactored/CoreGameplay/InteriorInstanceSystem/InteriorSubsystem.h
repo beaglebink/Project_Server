@@ -64,6 +64,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
 	void UnsubscribeInteractionRegistration();
 
+	// ===== Interact command handling (EventBus) =====
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
+	void SubscribeInteractCommand();
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
+	void UnsubscribeInteractCommand();
+
+	// ===== SetEnabled command (вкл/выкл интерактивного компонента) =====
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
+	void SubscribeSetEnabled();
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
+	void UnsubscribeSetEnabled();
+
 	// Per-item listener API (interior): only the matching component gets notified
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
@@ -122,6 +136,22 @@ private:
 	void EvaluateConditions();
 
 private:
+	// Interact command handler and runtime condition/handle
+	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
+
+	UPROPERTY()
+	UOutcomeConditionAsset* InteractCommandConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle InteractCommandHandle;
+
+	// SetEnabled command handler and runtime condition/handle
+	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle SetEnabledHandle;
+
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
 	{
