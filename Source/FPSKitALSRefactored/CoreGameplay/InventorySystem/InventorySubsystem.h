@@ -5,6 +5,7 @@
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
+#include "../InteractionSystem/InteractiveSubsystemMethods.h"
 #include "InventorySubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemAcquiredEvent,                   const FOutcomeEventBase&,        Outcome);
@@ -26,7 +27,7 @@ struct FInventoryInteractItemRecord
 };
 
 UCLASS()
-class FPSKITALSREFACTORED_API UInventorySubsystem : public UGameInstanceSubsystem
+class FPSKITALSREFACTORED_API UInventorySubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods
 {
 	GENERATED_BODY()
 
@@ -89,7 +90,15 @@ private:
 	UPROPERTY()
 	TMap<FGuid, FInventoryInteractItemRecord> RegisteredItems;
 
+	// Per-item listeners
 	TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
 	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
+
+private:
+	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
+	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
+	{
+		return RegistrationListeners;
+	}
 };

@@ -4,6 +4,7 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
+#include "../InteractionSystem/InteractiveSubsystemMethods.h"
 #include "TerminalSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTerminalTaskEvent, const FOutcomeEventBase&, Outcome);
@@ -28,7 +29,7 @@ struct FTerminalInteractItemRecord
 };
 
 UCLASS()
-class FPSKITALSREFACTORED_API UTerminalSubsystem : public UWorldSubsystem
+class FPSKITALSREFACTORED_API UTerminalSubsystem : public UWorldSubsystem, public FInteractiveSubsystemMethods
 {
 	GENERATED_BODY()
 
@@ -109,4 +110,11 @@ private:
 
 	// Cached EventBus subsystem pointer
 	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
+
+private:
+	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
+	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
+	{
+		return RegistrationListeners;
+	}
 };

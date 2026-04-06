@@ -149,29 +149,14 @@ void UActorStateSubsystem::UnsubscribeAll()
 
 void UActorStateSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 {
-	if (!Listener) return;
-	TArray<TWeakObjectPtr<UInteractiveItemComponent>>& Arr = RegistrationListeners.FindOrAdd(ItemId);
-	for (auto& W : Arr)
-	{
-		if (W.Get() == Listener) return;
-	}
-	Arr.Add(Listener);
+	// Делегирование в базовый класс
+	FInteractiveSubsystemMethods::AddRegistrationListener(ItemId, Listener);
 }
 
 void UActorStateSubsystem::RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 {
-	if (!Listener) return;
-	if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* Arr = RegistrationListeners.Find(ItemId))
-	{
-		for (int32 i = Arr->Num() - 1; i >= 0; --i)
-		{
-			if ((*Arr)[i].Get() == Listener || !(*Arr)[i].IsValid())
-			{
-				Arr->RemoveAtSwap(i);
-			}
-		}
-		if (Arr->Num() == 0) RegistrationListeners.Remove(ItemId);
-	}
+	// Делегирование в базовый класс
+	FInteractiveSubsystemMethods::RemoveRegistrationListener(ItemId, Listener);
 }
 
 void UActorStateSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Outcome)

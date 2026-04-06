@@ -6,6 +6,8 @@
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
+#include "../InteractionSystem/InteractiveSubsystemMethods.h" // <-- обязательно: определение миксина должно быть видимо до generated.h
+
 #include "InteriorSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorGhostClearedEvent, const FOutcomeEventBase&, Outcome);
@@ -25,7 +27,7 @@ struct FInteractItemRecord
 };
 
 UCLASS()
-class FPSKITALSREFACTORED_API UInteriorSubsystem : public UWorldSubsystem
+class FPSKITALSREFACTORED_API UInteriorSubsystem : public UWorldSubsystem, public FInteractiveSubsystemMethods
 {
 	GENERATED_BODY()
 
@@ -118,4 +120,11 @@ private:
 
 	// Optional debug helper
 	void EvaluateConditions();
+
+private:
+	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
+	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
+	{
+		return RegistrationListeners;
+	}
 };
