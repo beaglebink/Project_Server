@@ -3,7 +3,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
-#include <AlsCharacterExample.h>
+#include "InteractiveActorInterface.h" // added for EnableHighlight calls
 
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
@@ -182,19 +182,30 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		}
 	}
 
-	auto CharacterOwner = Cast<AAlsCharacterExample>(GetOwner());
-	FVector2D CrosshairPosition = CharacterOwner ? CharacterOwner->GetCrosshairPosition() : FVector2D::ZeroVector;
-
+	// Determine crosshair world ray using player controller (use screen center if no custom crosshair)
+	FVector2D CrosshairPosition = FVector2D::ZeroVector;
 	FVector CrosshairDirection = Direction;
 	FVector CrosshairWorldOrigin = Location;
 
-	if (CharacterOwner)
+	APlayerController* PlayerController = nullptr;
+	if (const APawn* OwnerPawn = Cast<APawn>(GetOwner()))
 	{
-		if (const auto PlayerController = Cast<APlayerController>(CharacterOwner->GetController()))
+		PlayerController = Cast<APlayerController>(OwnerPawn->GetController());
+	}
+	if (!PlayerController)
+	{
+		PlayerController = World->GetFirstPlayerController();
+	}
+
+	if (PlayerController)
+	{
+		int32 ViewX = 0, ViewY = 0;
+		PlayerController->GetViewportSize(ViewX, ViewY);
+		if (ViewX > 0 && ViewY > 0)
 		{
+			CrosshairPosition = FVector2D(ViewX * 0.5f, ViewY * 0.5f);
 			FVector DeprojOrigin;
 			FVector DeprojDir;
-
 			if (PlayerController->DeprojectScreenPositionToWorld(CrosshairPosition.X, CrosshairPosition.Y, DeprojOrigin, DeprojDir))
 			{
 				CrosshairDirection = DeprojDir.GetSafeNormal();
@@ -303,6 +314,16 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 
 	OnInteractiveLostFocusEvent.Broadcast();
 
+	// Отключаем визуальную подсветку у потерянного компонента (если он реализует интерфейс)
+	if (InteractiveComponent)
+	{
+		AActor* ItemActor = InteractiveComponent->GetOwner();
+		if (ItemActor && ItemActor->GetClass()->ImplementsInterface(UInteractiveActorInterface::StaticClass()))
+		{
+			IInteractiveActorInterface::Execute_EnableHighlight(ItemActor, false);
+		}
+	}
+
 	if (InteractiveComponent && Parent)
 	{
 		InteractiveComponent->FinishInteractiveUse(Parent, false);
@@ -314,6 +335,13 @@ void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveI
 	if (InteractiveComponent)
 	{
 		InteractiveComponent->SetIsInteractiveNow(Owner);
+
+		// Включаем визуальную подсветку у найденного компонента (если актёр поддерживает интерфейс)
+		AActor* ItemActor = InteractiveComponent->GetOwner();
+		if (ItemActor && ItemActor->GetClass()->ImplementsInterface(UInteractiveActorInterface::StaticClass()))
+		{
+			IInteractiveActorInterface::Execute_EnableHighlight(ItemActor, true);
+		}
 	}
 
 	OnInteractiveReceiveFocusEvent.Broadcast(InteractiveComponent);
