@@ -53,7 +53,7 @@ struct FOutcomeFilterRow
 	// ===== OBJECT =====
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EOutcomeObject ObjectType = EOutcomeObject::Default;
+	EOutcomeInventory ObjectType = EOutcomeInventory::Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison ObjectComparison = EConditionComparison::Equals;
@@ -173,7 +173,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "3 - Simple Condition",
 		meta = (EditCondition = "OperatorType == EConditionOperator::Object", EditConditionHides))
-	EOutcomeObject ObjectType = EOutcomeObject::Default;
+	EOutcomeInventory ObjectType = EOutcomeInventory::Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "3 - Simple Condition",
 		meta = (EditCondition = "OperatorType == EConditionOperator::Object", EditConditionHides))

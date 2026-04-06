@@ -168,10 +168,10 @@ struct FOutcomeQueryBuilder
 
 	// Object category filter
 	// (Фильтр по категории объекта)
-	static TSharedPtr<IOutcomeCondition> Object(EOutcomeObject Value, bool bNegate = false)
+	static TSharedPtr<IOutcomeCondition> Object(EOutcomeInventory Value, bool bNegate = false)
 	{
-		return MakeShared<TFieldCondition<EOutcomeObject>>(
-			[](const FOutcomeEventBase& O) { return O.OutcomeObject; },
+		return MakeShared<TFieldCondition<EOutcomeInventory>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeInventory; },
 			Value, bNegate, TEXT("Object"));
 	}
 

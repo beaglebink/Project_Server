@@ -76,18 +76,18 @@ void UInventorySubsystem::SubscribeRegistration()
 	// InteractRegistered — Object category
 	RegisteredConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	RegisteredConditionAsset->OperatorType = EConditionOperator::Composite;
-	RegisteredConditionAsset->FilterRow.OutcomeType = EOutcomeType::Object;
+	RegisteredConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
 	RegisteredConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	RegisteredConditionAsset->FilterRow.ObjectType = EOutcomeObject::InteractRegistered;
+	RegisteredConditionAsset->FilterRow.ObjectType = EOutcomeInventory::InteractRegistered;
 	RegisteredConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
 	RegisteredConditionAsset->CompileCondition();
 
 	// InteractUnregistered — Object category
 	UnregisteredConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	UnregisteredConditionAsset->OperatorType = EConditionOperator::Composite;
-	UnregisteredConditionAsset->FilterRow.OutcomeType = EOutcomeType::Object;
+	UnregisteredConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
 	UnregisteredConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	UnregisteredConditionAsset->FilterRow.ObjectType = EOutcomeObject::InteractUnregistered;
+	UnregisteredConditionAsset->FilterRow.ObjectType = EOutcomeInventory::InteractUnregistered;
 	UnregisteredConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
 	UnregisteredConditionAsset->CompileCondition();
 
@@ -121,7 +121,7 @@ void UInventorySubsystem::SubscribeInteractCommand()
 	InteractCommandConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	InteractCommandConditionAsset->OperatorType = EConditionOperator::Composite;
 	// Подписка на Object/Inventory-тип команд
-	InteractCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Object;
+	InteractCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
 	InteractCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
 	InteractCommandConditionAsset->CompileCondition();
 
@@ -151,9 +151,9 @@ void UInventorySubsystem::SubscribeSetEnabled()
 
 	SetEnabledConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	SetEnabledConditionAsset->OperatorType = EConditionOperator::Composite;
-	SetEnabledConditionAsset->FilterRow.OutcomeType = EOutcomeType::Object;
+	SetEnabledConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
 	SetEnabledConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	SetEnabledConditionAsset->FilterRow.ObjectType = EOutcomeObject::InteractSetEnabled;
+	SetEnabledConditionAsset->FilterRow.ObjectType = EOutcomeInventory::InteractSetEnabled;
 	SetEnabledConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
 	SetEnabledConditionAsset->CompileCondition();
 
@@ -245,7 +245,7 @@ void UInventorySubsystem::HandleInteractRegistration(const FOutcomeEventBase& Ou
 		AActor* Owner  = P->GetOwnerActor();
 		FString OwnerName = Owner ? Owner->GetName() : FString(TEXT("Unknown"));
 
-		if (Outcome.OutcomeObject == EOutcomeObject::InteractRegistered)
+		if (Outcome.OutcomeInventory == EOutcomeInventory::InteractRegistered)
 		{
 			FInventoryInteractItemRecord R;
 			R.ItemId = Id;
@@ -268,7 +268,7 @@ void UInventorySubsystem::HandleInteractRegistration(const FOutcomeEventBase& Ou
 				RegistrationListeners.Remove(Id);
 			}
 		}
-		else if (Outcome.OutcomeObject == EOutcomeObject::InteractUnregistered)
+		else if (Outcome.OutcomeInventory == EOutcomeInventory::InteractUnregistered)
 		{
 			FString NameToLog = OwnerName;
 			if (RegisteredItems.Contains(Id))

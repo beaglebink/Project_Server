@@ -39,7 +39,7 @@ static TSharedPtr<IOutcomeCondition> BuildFromFilterRow(const FOutcomeFilterRow&
 		Parts.Add(C->Describe());
 	}
 
-	if (FILTER_SHOULD_INCLUDE(Row.ObjectType, EOutcomeObject::Default, Row.ObjectComparison))
+	if (FILTER_SHOULD_INCLUDE(Row.ObjectType, EOutcomeInventory::Default, Row.ObjectComparison))
 	{
 		const bool bNegate = (Row.ObjectComparison == EConditionComparison::NotEquals);
 		TSharedPtr<IOutcomeCondition> C = FOutcomeQueryBuilder::Object(Row.ObjectType, bNegate);
@@ -156,8 +156,8 @@ void UOutcomeConditionAsset::CompileCondition()
 		{
 			const bool bNegate = (ObjectComparison == EConditionComparison::NotEquals);
 			CompiledCondition    = BuildCategoryCondition(
-				EOutcomeType::Object,
-				ObjectType, EOutcomeObject::Default, ObjectComparison,
+				EOutcomeType::Inventory,
+				ObjectType, EOutcomeInventory::Default, ObjectComparison,
 				FOutcomeQueryBuilder::Object(ObjectType, bNegate));
 			ConditionDescription = CompiledCondition->Describe();
 			break;
@@ -288,7 +288,7 @@ void UOutcomeConditionAsset::ResetCondition()
 	MissionComparison    = EConditionComparison::Equals;
 	ActorType            = EOutcomeActor::Default;
 	ActorComparison      = EConditionComparison::Equals;
-	ObjectType           = EOutcomeObject::Default;
+	ObjectType           = EOutcomeInventory::Default;
 	ObjectComparison     = EConditionComparison::Equals;
 	TerminalType         = EOutcomeTerminal::Default;
 	TerminalComparison   = EConditionComparison::Equals;

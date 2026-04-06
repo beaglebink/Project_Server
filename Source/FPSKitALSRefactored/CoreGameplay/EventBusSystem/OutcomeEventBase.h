@@ -1,53 +1,44 @@
 ﻿#pragma once
+
 #include "CoreMinimal.h"
 #include "Outcome.h"
 #include "OutcomePayload.h"
 #include "OutcomeEventBase.generated.h"
 
-// Base outcome event structure
-// Filter fields: enum categories (used by OutcomeConditionAsset)
-// Extra data: Payload UObject - cast to concrete type in handler
-// (Базовая структура события)
-// (Поля фильтрации: enum категории - используются OutcomeConditionAsset)
-// (Дополнительные данные: Payload UObject - кастовать к конкретному типу в обработчике)
+// Lightweight event struct carrying filter fields and optional payload
 USTRUCT(BlueprintType)
 struct FOutcomeEventBase
 {
 	GENERATED_BODY()
 
 	// ===== FILTER FIELDS - used by OutcomeConditionAsset =====
-	// (Поля фильтрации - используются OutcomeConditionAsset)
-
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EOutcomeType OutcomeType = EOutcomeType::Default;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EOutcomeMission OutcomeMission = EOutcomeMission::Default;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EOutcomeActor OutcomeActor = EOutcomeActor::Default;
 
-	UPROPERTY(BlueprintReadWrite)
-	EOutcomeObject OutcomeObject = EOutcomeObject::Default;
+	// renamed: OutcomeInventory replaces former OutcomeObject
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
+	EOutcomeInventory OutcomeInventory = EOutcomeInventory::Default;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EOutcomeTerminal OutcomeTerminal = EOutcomeTerminal::Default;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EOutcomeInterior OutcomeInterior = EOutcomeInterior::Default;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EOutcomeSpawnGroup OutcomeSpawnGroup = EOutcomeSpawnGroup::Default;
 
-	UPROPERTY(BlueprintReadWrite)
+	// ------- ВОССТАНОВЛЕНО: поле состояния мира, ожидаемое OutcomeQuery и другими частями кода
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EWorldState WorldState = EWorldState::Default;
 
-	// ===== PAYLOAD - extra data for handlers =====
-	// C++:       Cast<UMyPayload>(Outcome.Payload)
-	// Blueprint: Cast To <BP_MyPayload> node on Outcome.Payload
-	// nullptr if no extra data needed
-	// (Дополнительные данные для обработчиков)
-	// (nullptr если дополнительные данные не нужны)
-	UPROPERTY(BlueprintReadWrite)
+	// ===== optional payload =====
+	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	TObjectPtr<UOutcomePayload> Payload = nullptr;
 };

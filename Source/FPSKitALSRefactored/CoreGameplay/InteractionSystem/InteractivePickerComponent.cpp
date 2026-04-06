@@ -384,7 +384,8 @@ UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 					Outcome.OutcomeType = EOutcomeType::Actor;
 					break;
 				case EInteractiveSubsystem::Inventory:
-					Outcome.OutcomeType = EOutcomeType::Object;
+					// Áûכמ: EOutcomeType::Object
+					Outcome.OutcomeType = EOutcomeType::Inventory;
 					break;
 				case EInteractiveSubsystem::Terminal:
 					Outcome.OutcomeType = EOutcomeType::Terminal;

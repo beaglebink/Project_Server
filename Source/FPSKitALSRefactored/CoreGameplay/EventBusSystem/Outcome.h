@@ -1,16 +1,19 @@
 #pragma once
 
+// Event type enumeration
+// (Типы событий)
 UENUM(BlueprintType)
 enum class EOutcomeType : uint8
 {
-	Default     UMETA(DisplayName = "Default"),
-	Mission     UMETA(DisplayName = "Mission"),
-	Actor       UMETA(DisplayName = "Actor"),
-	Object      UMETA(DisplayName = "Object"),
-	Terminal    UMETA(DisplayName = "Terminal"),
-	Interior    UMETA(DisplayName = "Interior"),
-	SpawnGroup  UMETA(DisplayName = "Spawn Group"),
-	WorldState  UMETA(DisplayName = "World state")
+	Default					UMETA(DisplayName = "Default"),
+	Mission					UMETA(DisplayName = "Mission"),
+	Actor					UMETA(DisplayName = "Actor"),
+	Inventory				UMETA(DisplayName = "Inventory"),
+	//Object = Inventory		UMETA(Hidden),
+	Terminal				UMETA(DisplayName = "Terminal"),
+	Interior				UMETA(DisplayName = "Interior"),
+	SpawnGroup				UMETA(DisplayName = "Spawn Group"),
+	WorldState				UMETA(DisplayName = "World state")
 };
 
 UENUM(BlueprintType)
@@ -34,14 +37,13 @@ enum class EOutcomeActor : uint8
 	DialogueStarted        UMETA(DisplayName = "Dialogue Started"),
 	DialogueOptionSelected UMETA(DisplayName = "Dialogue Option Selected"),
 	DialogueEnded          UMETA(DisplayName = "Dialogue Ended"),
-	InteractEnabled        UMETA(DisplayName = "Interact Enabled"),
 	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),   // команда вкл/выкл
-	InteractRegistered     UMETA(DisplayName = "Interact Registered"),
-	InteractUnregistered   UMETA(DisplayName = "Interact Unregistered")
+	InteractRegistered     UMETA(Hidden, DisplayName = "Interact Registered"),
+	InteractUnregistered   UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
 
 UENUM(BlueprintType)
-enum class EOutcomeObject : uint8
+enum class EOutcomeInventory : uint8
 {
 	Default                UMETA(DisplayName = "Default"),
 	InteractionRequest     UMETA(DisplayName = "Interaction Request"),
@@ -55,10 +57,9 @@ enum class EOutcomeObject : uint8
 	ObjectDestroyed        UMETA(DisplayName = "Object Destroyed"),
 	ItemAcquired           UMETA(DisplayName = "Item Acquired"),
 	ItemDelivered          UMETA(DisplayName = "Item Delivered"),
-	InteractEnabled        UMETA(DisplayName = "Interact Enabled"),
 	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),   // команда вкл/выкл
-	InteractRegistered     UMETA(DisplayName = "Interact Registered"),
-	InteractUnregistered   UMETA(DisplayName = "Interact Unregistered")
+	InteractRegistered     UMETA(Hidden, DisplayName = "Interact Registered"),
+	InteractUnregistered   UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
 
 UENUM(BlueprintType)
@@ -69,10 +70,9 @@ enum class EOutcomeTerminal : uint8
 	TerminalTaskCompleted  UMETA(DisplayName = "Terminal Task Completed"),
 	TerminalTaskFailed     UMETA(DisplayName = "Terminal Task Failed"),
 	TerminalClosed         UMETA(DisplayName = "Terminal Closed"),
-	InteractEnabled        UMETA(DisplayName = "Interact Enabled"),
 	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),   // команда вкл/выкл
-	InteractRegistered     UMETA(DisplayName = "Interact Registered"),
-	InteractUnregistered   UMETA(DisplayName = "Interact Unregistered")
+	InteractRegistered     UMETA(Hidden, DisplayName = "Interact Registered"),
+	InteractUnregistered   UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
 
 UENUM(BlueprintType)
@@ -88,10 +88,9 @@ enum class EOutcomeInterior : uint8
 	FloorEntered           UMETA(DisplayName = "Floor Entered"),
 	FloorTransition        UMETA(DisplayName = "Floor Transition"),
 	FloorLeaving           UMETA(DisplayName = "Floor Leaving"),
-	InteractEnabled        UMETA(DisplayName = "Interact Enabled"),
 	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),   // команда вкл/выкл
-	InteractRegistered     UMETA(DisplayName = "Interact Registered"),
-	InteractUnregistered   UMETA(DisplayName = "Interact Unregistered")
+	InteractRegistered     UMETA(Hidden, DisplayName = "Interact Registered"),
+	InteractUnregistered   UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
 
 UENUM(BlueprintType)

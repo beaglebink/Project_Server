@@ -98,8 +98,8 @@ void UInteractiveItemComponent::BeginPlay()
 		SpawnEvent.OutcomeActor = EOutcomeActor::InteractRegistered;
 		break;
 	case EInteractiveSubsystem::Inventory:
-		SpawnEvent.OutcomeType = EOutcomeType::Object;
-		SpawnEvent.OutcomeObject = EOutcomeObject::InteractRegistered;
+		SpawnEvent.OutcomeType = EOutcomeType::Inventory;
+		SpawnEvent.OutcomeInventory = EOutcomeInventory::InteractRegistered;
 		break;
 	default:
 		SpawnEvent.OutcomeType = EOutcomeType::Interior;
@@ -139,8 +139,8 @@ void UInteractiveItemComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 			Event.OutcomeActor = EOutcomeActor::InteractUnregistered;
 			break;
 		case EInteractiveSubsystem::Inventory:
-			Event.OutcomeType = EOutcomeType::Object;
-			Event.OutcomeObject = EOutcomeObject::InteractUnregistered;
+			Event.OutcomeType = EOutcomeType::Inventory;
+			Event.OutcomeInventory = EOutcomeInventory::InteractUnregistered;
 			break;
 		default:
 			Event.OutcomeType = EOutcomeType::Interior;
