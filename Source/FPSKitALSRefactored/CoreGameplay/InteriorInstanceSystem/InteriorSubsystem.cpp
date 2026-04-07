@@ -7,6 +7,7 @@
 #include "../InteractionSystem/InteractiveItemComponent.h"
 #include "../InteractionSystem/InteractCommandPayload.h"
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
+#include "../InteractionSystem/InteractSetRangePayload.h"
 
 void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -16,6 +17,7 @@ void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	SubscribeInteractionRegistration();
 	SubscribeInteractCommand();
 	SubscribeSetEnabled();
+	SubscribeSetRange();
 
 	if (CachedEventBus.IsValid())
 	{
@@ -316,6 +318,7 @@ void UInteriorSubsystem::UnsubscribeAll()
 	UnsubscribeItemAcquired();
 	UnsubscribeInteractCommand();
 	UnsubscribeSetEnabled();
+	UnsubscribeSetRange();
 }
 
 void UInteriorSubsystem::SubscribeSetEnabled()
@@ -348,6 +351,36 @@ void UInteriorSubsystem::UnsubscribeSetEnabled()
 	SetEnabledConditionAsset = nullptr;
 }
 
+void UInteriorSubsystem::SubscribeSetRange()
+{
+	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;
+
+	SetRangeConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetRangeConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetRangeConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+	SetRangeConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetRangeConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetRange;
+	SetRangeConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+	SetRangeConditionAsset->CompileCondition();
+
+	if (SetRangeConditionAsset->GetCondition().IsValid())
+	{
+		SetRangeHandle = CachedEventBus->RegisterHandler(
+			SetRangeConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetRange)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetRange (handle=%u)"), SetRangeHandle.GetId());
+	}
+}
+
+void UInteriorSubsystem::UnsubscribeSetRange()
+{
+	if (!CachedEventBus.IsValid() || !SetRangeHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetRangeHandle);
+	SetRangeHandle.Invalidate();
+	SetRangeConditionAsset = nullptr;
+}
+
 void UInteriorSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 {
 	if (const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload))
@@ -355,6 +388,17 @@ void UInteriorSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 		if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		{
 			ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+		}
+	}
+}
+
+void UInteriorSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetRangePayload* P = Cast<UInteractSetRangePayload>(Outcome.Payload))
+	{
+		if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
 		}
 	}
 }

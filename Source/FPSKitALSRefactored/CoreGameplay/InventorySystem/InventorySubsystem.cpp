@@ -5,6 +5,7 @@
 #include "../InteractionSystem/InteractiveItemComponent.h"
 #include "../InteractionSystem/InteractCommandPayload.h"
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
+#include "../InteractionSystem/InteractSetRangePayload.h"
 
 void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -29,6 +30,9 @@ void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Subscribe set-enabled handler explicitly
 	SubscribeSetEnabled();
+
+	// Subscribe set-range handler explicitly
+	SubscribeSetRange();
 
 	if (ItemAcquiredCondition) SubscribeItemAcquired();
 }
@@ -181,6 +185,28 @@ void UInventorySubsystem::SubscribeSetEnabled()
 	}
 }
 
+void UInventorySubsystem::SubscribeSetRange()
+{
+	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;
+
+	SetRangeConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetRangeConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetRangeConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
+	SetRangeConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetRangeConditionAsset->FilterRow.ObjectType = EOutcomeInventory::InteractSetRange;
+	SetRangeConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
+	SetRangeConditionAsset->CompileCondition();
+
+	if (SetRangeConditionAsset->GetCondition().IsValid())
+	{
+		SetRangeHandle = CachedEventBus->RegisterHandler(
+			SetRangeConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleSetRange)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to SetRange (handle=%u)"), SetRangeHandle.GetId());
+	}
+}
+
 void UInventorySubsystem::UnsubscribeRegistration()
 {
 	if (!CachedEventBus.IsValid()) return;
@@ -219,11 +245,20 @@ void UInventorySubsystem::UnsubscribeSetEnabled()
 	SetEnabledConditionAsset = nullptr;
 }
 
+void UInventorySubsystem::UnsubscribeSetRange()
+{
+	if (!CachedEventBus.IsValid() || !SetRangeHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetRangeHandle);
+	SetRangeHandle.Invalidate();
+	SetRangeConditionAsset = nullptr;
+}
+
 void UInventorySubsystem::UnsubscribeAll()
 {
 	UnsubscribeItemAcquired();
 	UnsubscribeInteractCommand();
 	UnsubscribeSetEnabled();
+	UnsubscribeSetRange();
 	UnsubscribeRegistration();
 }
 
@@ -337,6 +372,17 @@ void UInventorySubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 		if (const FInventoryInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		{
 			ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+		}
+	}
+}
+
+void UInventorySubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetRangePayload* P = Cast<UInteractSetRangePayload>(Outcome.Payload))
+	{
+		if (const FInventoryInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
 		}
 	}
 }

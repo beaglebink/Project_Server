@@ -79,23 +79,37 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void UnsubscribeInteractCommand();
 
+	// ----- SetEnabled (вкл/выкл интеракции) -----
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void SubscribeSetEnabled();
 
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void UnsubscribeSetEnabled();
 
+	// ----- SetRange (изменение радиуса) -----
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void SubscribeSetRange();
+
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void UnsubscribeSetRange();
+
 private:
 	void HandleItemAcquired(const FOutcomeEventBase& Outcome);
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
 	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
+
+	// Handlers for new commands
 	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
+	void HandleSetRange(const FOutcomeEventBase& Outcome);
 
 	FOutcomeHandlerHandle ItemAcquiredHandle;
 	FOutcomeHandlerHandle RegisteredRegisterHandle;
 	FOutcomeHandlerHandle UnregisteredRegisterHandle;
 	FOutcomeHandlerHandle InteractCommandHandle;
+
+	// For SetEnabled / SetRange
 	FOutcomeHandlerHandle SetEnabledHandle;
+	FOutcomeHandlerHandle SetRangeHandle;
 
 	UPROPERTY()
 	UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
@@ -106,8 +120,12 @@ private:
 	UPROPERTY()
 	UOutcomeConditionAsset* InteractCommandConditionAsset = nullptr;
 
+	// Condition assets for SetEnabled / SetRange
 	UPROPERTY()
 	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
 
 	UPROPERTY()
 	TMap<FGuid, FInventoryInteractItemRecord> RegisteredItems;

@@ -108,6 +108,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void UnsubscribeSetEnabled();
 
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void SubscribeSetRange();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void UnsubscribeSetRange();
+
 private:
 	// Handlers
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -115,6 +121,7 @@ private:
 	void HandleMissionOrGhost(const FOutcomeEventBase& Outcome);
 	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
 	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
+	void HandleSetRange(const FOutcomeEventBase& Outcome);
 
 	// Runtime condition assets to keep alive
 	UPROPERTY()
@@ -129,6 +136,9 @@ private:
 	UPROPERTY()
 	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
 
+	UPROPERTY()
+	UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
+
 	// Handler handles
 	FOutcomeHandlerHandle DialogueStartedHandle;
 	FOutcomeHandlerHandle MissionOrGhostHandle;
@@ -136,6 +146,7 @@ private:
 	FOutcomeHandlerHandle UnregisteredRegisterHandle;
 	FOutcomeHandlerHandle InteractCommandHandle;
 	FOutcomeHandlerHandle SetEnabledHandle;
+	FOutcomeHandlerHandle SetRangeHandle;
 
 	// Registry of interactive items
 	UPROPERTY()

@@ -14,8 +14,7 @@ class FInteractiveSubsystemMethods
 public:
 	virtual ~FInteractiveSubsystemMethods() = default;
 
-	// Добавляет слушателя для конкретного ItemId (устраняются дубликаты).
-	// Улучшение: перед добавлением очищаем невалидные weak-референсы, чтобы не накапливать "мёртвые" записи.
+	// Добавляет слушателя для конкретного ItemId (устраняются дубликаты, чистятся невалидные)
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 	{
 		if (!Listener) return;
@@ -23,16 +22,11 @@ public:
 		TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& Map = GetRegistrationListeners();
 		TArray<TWeakObjectPtr<UInteractiveItemComponent>>& Arr = Map.FindOrAdd(ItemId);
 
-		// Очистка невалидных weak-указателей в массиве
 		for (int32 i = Arr.Num() - 1; i >= 0; --i)
 		{
-			if (!Arr[i].IsValid())
-			{
-				Arr.RemoveAtSwap(i);
-			}
+			if (!Arr[i].IsValid()) Arr.RemoveAtSwap(i);
 		}
 
-		// Проверка на дубликат
 		for (const TWeakObjectPtr<UInteractiveItemComponent>& W : Arr)
 		{
 			if (W.IsValid() && W.Get() == Listener) return;
@@ -51,7 +45,6 @@ public:
 		{
 			for (int32 i = Arr->Num() - 1; i >= 0; --i)
 			{
-				// Удаляем либо невалидные weak, либо совпадающий слушатель
 				if (!(*Arr)[i].IsValid() || (*Arr)[i].Get() == Listener)
 				{
 					Arr->RemoveAtSwap(i);
@@ -64,9 +57,7 @@ public:
 		}
 	}
 
-	// ----- Интеракция -----
-	// Выполнить интеракцию на уже найденном актёре-владельце (Owner) — ищет активный компонент с ItemId и вызывает Broadcast
-	// Возвращает true если интеракция была выполнена
+	// ----- Интеракция: выполнить нажатие -----
 	bool ExecuteInteractCommandOnOwner(const FGuid& ItemId, AActor* Owner, UInteractivePickerComponent* Picker)
 	{
 		if (!Owner) return false;
@@ -85,11 +76,10 @@ public:
 		return false;
 	}
 
-	// Включить/выключить интерактивный компонент — ищет компонент по ItemId и вызывает SetIsActive
+	// ----- Включение/выключение интеракции -----
 	bool ExecuteSetEnabledOnOwner(const FGuid& ItemId, AActor* Owner, bool bEnabled)
 	{
 		if (!Owner) return false;
-
 		TInlineComponentArray<UInteractiveItemComponent*> Components;
 		Owner->GetComponents<UInteractiveItemComponent>(Components);
 
@@ -102,6 +92,29 @@ public:
 					*ItemId.ToString(),
 					bEnabled ? TEXT("true") : TEXT("false"),
 					*Owner->GetName());
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// ----- Изменение радиуса интеракции -----
+	bool ExecuteSetRangeOnOwner(const FGuid& ItemId, AActor* Owner, float NewRange)
+	{
+		if (!Owner) return false;
+		TInlineComponentArray<UInteractiveItemComponent*> Components;
+		Owner->GetComponents<UInteractiveItemComponent>(Components);
+
+		for (UInteractiveItemComponent* Comp : Components)
+		{
+			if (Comp && Comp->GetItemId() == ItemId)
+			{
+				Comp->InteractionRange = NewRange;
+				UE_LOG(LogTemp, Log, TEXT("FInteractiveSubsystemMethods: SetRange ItemId=%s NewRange=%.2f Owner=%s"),
+					*ItemId.ToString(),
+					NewRange,
+					*Owner->GetName());
+				// Optionally notify component about change (component may broadcast itself when appropriate)
 				return true;
 			}
 		}

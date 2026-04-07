@@ -6,6 +6,7 @@
 #include "../InteractionSystem/InteractiveItemComponent.h"
 #include "../InteractionSystem/InteractCommandPayload.h"
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
+#include "../InteractionSystem/InteractSetRangePayload.h"
 
 void UTerminalSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -23,6 +24,7 @@ void UTerminalSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 	SubscribeInteractCommand();
 	SubscribeSetEnabled();
+	SubscribeSetRange();
 }
 
 void UTerminalSubsystem::Deinitialize()
@@ -145,6 +147,7 @@ void UTerminalSubsystem::UnsubscribeAll()
 	UnsubscribeInteractCommand();
 	UnsubscribeSetEnabled();
 	UnsubscribeRegistration();
+	UnsubscribeSetRange();
 }
 
 void UTerminalSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
@@ -364,6 +367,47 @@ void UTerminalSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 		if (const FTerminalInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		{
 			ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+		}
+	}
+}
+
+void UTerminalSubsystem::SubscribeSetRange()
+{
+	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;
+
+	SetRangeConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetRangeConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetRangeConditionAsset->FilterRow.OutcomeType = EOutcomeType::Terminal;
+	SetRangeConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetRangeConditionAsset->FilterRow.TerminalType = EOutcomeTerminal::InteractSetRange;
+	SetRangeConditionAsset->FilterRow.TerminalComparison = EConditionComparison::Equals;
+	SetRangeConditionAsset->CompileCondition();
+
+	if (SetRangeConditionAsset->GetCondition().IsValid())
+	{
+		SetRangeHandle = CachedEventBus->RegisterHandler(
+			SetRangeConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UTerminalSubsystem::HandleSetRange)
+		);
+		UE_LOG(LogTemp, Log, TEXT("TerminalSubsystem: Subscribed to SetRange (handle=%u)"), SetRangeHandle.GetId());
+	}
+}
+
+void UTerminalSubsystem::UnsubscribeSetRange()
+{
+	if (!CachedEventBus.IsValid() || !SetRangeHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetRangeHandle);
+	SetRangeHandle.Invalidate();
+	SetRangeConditionAsset = nullptr;
+}
+
+void UTerminalSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetRangePayload* P = Cast<UInteractSetRangePayload>(Outcome.Payload))
+	{
+		if (const FTerminalInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
 		}
 	}
 }

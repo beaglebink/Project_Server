@@ -78,6 +78,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
 	void UnsubscribeSetEnabled();
 
+	// ===== SetRange command (установка диапазона взаимодействия) =====
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
+	void SubscribeSetRange();
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
+	void UnsubscribeSetRange();
+
 	// Per-item listener API (interior): only the matching component gets notified
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
@@ -151,6 +158,14 @@ private:
 	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
 
 	FOutcomeHandlerHandle SetEnabledHandle;
+
+	// SetRange command handler and runtime condition/handle
+	void HandleSetRange(const FOutcomeEventBase& Outcome);
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle SetRangeHandle;
 
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override

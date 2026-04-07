@@ -87,6 +87,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
 	void UnsubscribeSetEnabled();
 
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void SubscribeSetRange();
+
+	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
+	void UnsubscribeSetRange();
+
 	// Per-item listener API: components register a listener for their ItemId.
 	// The subsystem will call the listener only for that specific item (prevents notifying all components).
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
@@ -103,6 +109,7 @@ private:
 	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
 
 	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
+	void HandleSetRange(const FOutcomeEventBase& Outcome);
 
 	// Handler descriptor for task condition
 	FOutcomeHandlerHandle TerminalTaskHandle;
@@ -127,6 +134,11 @@ private:
 	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
 
 	FOutcomeHandlerHandle SetEnabledHandle;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle SetRangeHandle;
 
 	// Registry of interactive items (key = ItemId)
 	UPROPERTY()

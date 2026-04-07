@@ -9,7 +9,6 @@ enum class EOutcomeType : uint8
 	Mission					UMETA(DisplayName = "Mission"),
 	Actor					UMETA(DisplayName = "Actor"),
 	Inventory				UMETA(DisplayName = "Inventory"),
-	//Object = Inventory		UMETA(Hidden),
 	Terminal				UMETA(DisplayName = "Terminal"),
 	Interior				UMETA(DisplayName = "Interior"),
 	SpawnGroup				UMETA(DisplayName = "Spawn Group"),
@@ -37,7 +36,8 @@ enum class EOutcomeActor : uint8
 	DialogueStarted        UMETA(DisplayName = "Dialogue Started"),
 	DialogueOptionSelected UMETA(DisplayName = "Dialogue Option Selected"),
 	DialogueEnded          UMETA(DisplayName = "Dialogue Ended"),
-	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),   // команда вкл/выкл
+	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),
+	InteractSetRange       UMETA(DisplayName = "Interact Set Range"),   // NEW
 	InteractRegistered     UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered   UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
@@ -57,7 +57,8 @@ enum class EOutcomeInventory : uint8
 	ObjectDestroyed        UMETA(DisplayName = "Object Destroyed"),
 	ItemAcquired           UMETA(DisplayName = "Item Acquired"),
 	ItemDelivered          UMETA(DisplayName = "Item Delivered"),
-	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),   // команда вкл/выкл
+	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),
+	InteractSetRange       UMETA(DisplayName = "Interact Set Range"),   // NEW
 	InteractRegistered     UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered   UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
@@ -70,7 +71,8 @@ enum class EOutcomeTerminal : uint8
 	TerminalTaskCompleted  UMETA(DisplayName = "Terminal Task Completed"),
 	TerminalTaskFailed     UMETA(DisplayName = "Terminal Task Failed"),
 	TerminalClosed         UMETA(DisplayName = "Terminal Closed"),
-	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),   // команда вкл/выкл
+	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),
+	InteractSetRange       UMETA(DisplayName = "Interact Set Range"),   // NEW
 	InteractRegistered     UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered   UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
@@ -88,7 +90,8 @@ enum class EOutcomeInterior : uint8
 	FloorEntered           UMETA(DisplayName = "Floor Entered"),
 	FloorTransition        UMETA(DisplayName = "Floor Transition"),
 	FloorLeaving           UMETA(DisplayName = "Floor Leaving"),
-	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),   // команда вкл/выкл
+	InteractSetEnabled     UMETA(DisplayName = "Interact Set Enabled"),
+	InteractSetRange       UMETA(DisplayName = "Interact Set Range"),   // NEW
 	InteractRegistered     UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered   UMETA(Hidden, DisplayName = "Interact Unregistered")
 };

@@ -5,6 +5,7 @@
 #include "../InteractionSystem/InteractiveItemComponent.h"
 #include "../InteractionSystem/InteractCommandPayload.h"
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
+#include "../InteractionSystem/InteractSetRangePayload.h"
 
 void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -29,6 +30,9 @@ void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Subscribe set enabled €вно Ч не зависит от статуса SubscribeRegistration
 	SubscribeSetEnabled();
+
+	// Subscribe set range €вно Ч не зависит от статуса SubscribeRegistration
+	SubscribeSetRange();
 
 	// Lazy subscribe when condition already assigned
 	if (DialogueStartedCondition) SubscribeDialogueStarted();
@@ -165,6 +169,7 @@ void UActorStateSubsystem::UnsubscribeAll()
 	UnsubscribeMissionOrGhost();
 	UnsubscribeInteractCommand();
 	UnsubscribeSetEnabled();
+	UnsubscribeSetRange();
 	UnsubscribeRegistration();
 }
 
@@ -375,6 +380,47 @@ void UActorStateSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 		if (const FActorInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		{
 			ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+		}
+	}
+}
+
+void UActorStateSubsystem::SubscribeSetRange()
+{
+	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;
+
+	SetRangeConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetRangeConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetRangeConditionAsset->FilterRow.OutcomeType = EOutcomeType::Actor;
+	SetRangeConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetRangeConditionAsset->FilterRow.ActorType = EOutcomeActor::InteractSetRange;
+	SetRangeConditionAsset->FilterRow.ActorComparison = EConditionComparison::Equals;
+	SetRangeConditionAsset->CompileCondition();
+
+	if (SetRangeConditionAsset->GetCondition().IsValid())
+	{
+		SetRangeHandle = CachedEventBus->RegisterHandler(
+			SetRangeConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UActorStateSubsystem::HandleSetRange)
+		);
+		UE_LOG(LogTemp, Log, TEXT("ActorStateSubsystem: Subscribed to SetRange (handle=%u)"), SetRangeHandle.GetId());
+	}
+}
+
+void UActorStateSubsystem::UnsubscribeSetRange()
+{
+	if (!CachedEventBus.IsValid() || !SetRangeHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetRangeHandle);
+	SetRangeHandle.Invalidate();
+	SetRangeConditionAsset = nullptr;
+}
+
+void UActorStateSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetRangePayload* P = Cast<UInteractSetRangePayload>(Outcome.Payload))
+	{
+		if (const FActorInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
 		}
 	}
 }
