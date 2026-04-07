@@ -114,6 +114,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void UnsubscribeSetRange();
 
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void SubscribeSetTooltip();
+
+	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	void UnsubscribeSetTooltip();
+
 private:
 	// Handlers
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -122,6 +128,7 @@ private:
 	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
 	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
 	void HandleSetRange(const FOutcomeEventBase& Outcome);
+	void HandleSetTooltip(const FOutcomeEventBase& Outcome);
 
 	// Runtime condition assets to keep alive
 	UPROPERTY()
@@ -139,6 +146,9 @@ private:
 	UPROPERTY()
 	UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
 
+	UPROPERTY()
+	UOutcomeConditionAsset* SetTooltipConditionAsset = nullptr;
+
 	// Handler handles
 	FOutcomeHandlerHandle DialogueStartedHandle;
 	FOutcomeHandlerHandle MissionOrGhostHandle;
@@ -147,6 +157,7 @@ private:
 	FOutcomeHandlerHandle InteractCommandHandle;
 	FOutcomeHandlerHandle SetEnabledHandle;
 	FOutcomeHandlerHandle SetRangeHandle;
+	FOutcomeHandlerHandle SetTooltipHandle;
 
 	// Registry of interactive items
 	UPROPERTY()

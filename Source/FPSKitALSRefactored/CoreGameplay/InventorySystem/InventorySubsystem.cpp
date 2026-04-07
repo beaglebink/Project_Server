@@ -6,6 +6,7 @@
 #include "../InteractionSystem/InteractCommandPayload.h"
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
 #include "../InteractionSystem/InteractSetRangePayload.h"
+#include "../InteractionSystem/InteractSetTooltipPayload.h"
 
 void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -33,6 +34,9 @@ void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Subscribe set-range handler explicitly
 	SubscribeSetRange();
+
+	// Subscribe set-tooltip handler explicitly
+	SubscribeSetTooltip();
 
 	if (ItemAcquiredCondition) SubscribeItemAcquired();
 }
@@ -207,6 +211,28 @@ void UInventorySubsystem::SubscribeSetRange()
 	}
 }
 
+void UInventorySubsystem::SubscribeSetTooltip()
+{
+	if (!CachedEventBus.IsValid() || SetTooltipHandle.IsValid()) return;
+
+	SetTooltipConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetTooltipConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetTooltipConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
+	SetTooltipConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetTooltipConditionAsset->FilterRow.ObjectType = EOutcomeInventory::InteractSetTooltip;
+	SetTooltipConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
+	SetTooltipConditionAsset->CompileCondition();
+
+	if (SetTooltipConditionAsset->GetCondition().IsValid())
+	{
+		SetTooltipHandle = CachedEventBus->RegisterHandler(
+			SetTooltipConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleSetTooltip)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to SetTooltip (handle=%u)"), SetTooltipHandle.GetId());
+	}
+}
+
 void UInventorySubsystem::UnsubscribeRegistration()
 {
 	if (!CachedEventBus.IsValid()) return;
@@ -253,12 +279,21 @@ void UInventorySubsystem::UnsubscribeSetRange()
 	SetRangeConditionAsset = nullptr;
 }
 
+void UInventorySubsystem::UnsubscribeSetTooltip()
+{
+	if (!CachedEventBus.IsValid() || !SetTooltipHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetTooltipHandle);
+	SetTooltipHandle.Invalidate();
+	SetTooltipConditionAsset = nullptr;
+}
+
 void UInventorySubsystem::UnsubscribeAll()
 {
 	UnsubscribeItemAcquired();
 	UnsubscribeInteractCommand();
 	UnsubscribeSetEnabled();
 	UnsubscribeSetRange();
+	UnsubscribeSetTooltip();
 	UnsubscribeRegistration();
 }
 
@@ -383,6 +418,17 @@ void UInventorySubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
 		if (const FInventoryInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		{
 			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
+		}
+	}
+}
+
+void UInventorySubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetTooltipPayload* P = Cast<UInteractSetTooltipPayload>(Outcome.Payload))
+	{
+		if (const FInventoryInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetTooltipOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewTooltip);
 		}
 	}
 }

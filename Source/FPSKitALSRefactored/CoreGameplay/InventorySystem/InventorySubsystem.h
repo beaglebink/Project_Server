@@ -93,6 +93,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void UnsubscribeSetRange();
 
+	// ----- SetTooltip (изменение текста подсказки) -----
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void SubscribeSetTooltip();
+
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void UnsubscribeSetTooltip();
+
 private:
 	void HandleItemAcquired(const FOutcomeEventBase& Outcome);
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -101,6 +108,7 @@ private:
 	// Handlers for new commands
 	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
 	void HandleSetRange(const FOutcomeEventBase& Outcome);
+	void HandleSetTooltip(const FOutcomeEventBase& Outcome);
 
 	FOutcomeHandlerHandle ItemAcquiredHandle;
 	FOutcomeHandlerHandle RegisteredRegisterHandle;
@@ -110,6 +118,7 @@ private:
 	// For SetEnabled / SetRange
 	FOutcomeHandlerHandle SetEnabledHandle;
 	FOutcomeHandlerHandle SetRangeHandle;
+	FOutcomeHandlerHandle SetTooltipHandle;
 
 	UPROPERTY()
 	UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
@@ -126,6 +135,9 @@ private:
 
 	UPROPERTY()
 	UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetTooltipConditionAsset = nullptr;
 
 	UPROPERTY()
 	TMap<FGuid, FInventoryInteractItemRecord> RegisteredItems;

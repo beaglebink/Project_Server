@@ -8,6 +8,7 @@
 #include "../InteractionSystem/InteractCommandPayload.h"
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
 #include "../InteractionSystem/InteractSetRangePayload.h"
+#include "../InteractionSystem/InteractSetTooltipPayload.h"
 
 void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -18,6 +19,7 @@ void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	SubscribeInteractCommand();
 	SubscribeSetEnabled();
 	SubscribeSetRange();
+	SubscribeSetTooltip();
 
 	if (CachedEventBus.IsValid())
 	{
@@ -319,6 +321,7 @@ void UInteriorSubsystem::UnsubscribeAll()
 	UnsubscribeInteractCommand();
 	UnsubscribeSetEnabled();
 	UnsubscribeSetRange();
+	UnsubscribeSetTooltip();
 }
 
 void UInteriorSubsystem::SubscribeSetEnabled()
@@ -381,6 +384,36 @@ void UInteriorSubsystem::UnsubscribeSetRange()
 	SetRangeConditionAsset = nullptr;
 }
 
+void UInteriorSubsystem::SubscribeSetTooltip()
+{
+	if (!CachedEventBus.IsValid() || SetTooltipHandle.IsValid()) return;
+
+	SetTooltipConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetTooltipConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetTooltipConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+	SetTooltipConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetTooltipConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetTooltip;
+	SetTooltipConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+	SetTooltipConditionAsset->CompileCondition();
+
+	if (SetTooltipConditionAsset->GetCondition().IsValid())
+	{
+		SetTooltipHandle = CachedEventBus->RegisterHandler(
+			SetTooltipConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetTooltip)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetTooltip (handle=%u)"), SetTooltipHandle.GetId());
+	}
+}
+
+void UInteriorSubsystem::UnsubscribeSetTooltip()
+{
+	if (!CachedEventBus.IsValid() || !SetTooltipHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetTooltipHandle);
+	SetTooltipHandle.Invalidate();
+	SetTooltipConditionAsset = nullptr;
+}
+
 void UInteriorSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 {
 	if (const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload))
@@ -399,6 +432,17 @@ void UInteriorSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
 		if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		{
 			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
+		}
+	}
+}
+
+void UInteriorSubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetTooltipPayload* P = Cast<UInteractSetTooltipPayload>(Outcome.Payload))
+	{
+		if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetTooltipOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewTooltip);
 		}
 	}
 }

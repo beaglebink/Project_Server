@@ -11,6 +11,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveFocusEvent, UInteractiveItemComponent*, FocusedItem);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInteractiveLostFocusEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPickerStartUsePressKeyEvent);
+// »спользуем объ€вление делегата OnInteractTooltipChange из InteractiveItemComponent.h
+// DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractTooltipChange, const FText&, NewTooltip);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UInteractivePickerComponent : public UActorComponent
@@ -47,6 +49,11 @@ private:
 	UFUNCTION()
 	void FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent);
 
+	// ќбработчик изменени€ тултипа интерактивного компонента.
+	// ƒолжен быть объ€влен как UFUNCTION дл€ AddDynamic
+	UFUNCTION()
+	void HandleInteractTooltipChange(const FText& NewTooltip);
+
 public:
 	UPROPERTY(BlueprintAssignable, SaveGame, Category = "InteractiveItem")
 	FOnInteractiveFocusEvent OnInteractiveReceiveFocusEvent;
@@ -56,6 +63,15 @@ public:
 
 	UPROPERTY(BlueprintAssignable, SaveGame, Category = "InteractiveItem")
 	FPickerStartUsePressKeyEvent OnInteractionPressKeyEvent;
+
+	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
+	// »спользует делегат, объ€вленный в InteractiveItemComponent.h
+	FOnInteractTooltipChange OnInteractTooltipChange;
+
+	// Fired when subsystem updates enabled state or tooltip
+	// »спользует объ€вление делегата из InteractiveItemComponent.h
+	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
+	FOnInteractStateChanged OnInteractStateChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	UInteractiveItemComponent* DoInteractiveUse();

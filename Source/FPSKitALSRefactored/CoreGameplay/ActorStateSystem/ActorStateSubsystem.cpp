@@ -6,6 +6,7 @@
 #include "../InteractionSystem/InteractCommandPayload.h"
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
 #include "../InteractionSystem/InteractSetRangePayload.h"
+#include "../InteractionSystem/InteractSetTooltipPayload.h"
 
 void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -33,6 +34,9 @@ void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Subscribe set range €вно Ч не зависит от статуса SubscribeRegistration
 	SubscribeSetRange();
+
+	// Subscribe set tooltip €вно Ч не зависит от статуса SubscribeRegistration
+	SubscribeSetTooltip();
 
 	// Lazy subscribe when condition already assigned
 	if (DialogueStartedCondition) SubscribeDialogueStarted();
@@ -170,6 +174,7 @@ void UActorStateSubsystem::UnsubscribeAll()
 	UnsubscribeInteractCommand();
 	UnsubscribeSetEnabled();
 	UnsubscribeSetRange();
+	UnsubscribeSetTooltip();
 	UnsubscribeRegistration();
 }
 
@@ -421,6 +426,47 @@ void UActorStateSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
 		if (const FActorInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		{
 			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
+		}
+	}
+}
+
+void UActorStateSubsystem::SubscribeSetTooltip()
+{
+	if (!CachedEventBus.IsValid() || SetTooltipHandle.IsValid()) return;
+
+	SetTooltipConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetTooltipConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetTooltipConditionAsset->FilterRow.OutcomeType = EOutcomeType::Actor;
+	SetTooltipConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetTooltipConditionAsset->FilterRow.ActorType = EOutcomeActor::InteractSetTooltip;
+	SetTooltipConditionAsset->FilterRow.ActorComparison = EConditionComparison::Equals;
+	SetTooltipConditionAsset->CompileCondition();
+
+	if (SetTooltipConditionAsset->GetCondition().IsValid())
+	{
+		SetTooltipHandle = CachedEventBus->RegisterHandler(
+			SetTooltipConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UActorStateSubsystem::HandleSetTooltip)
+		);
+		UE_LOG(LogTemp, Log, TEXT("ActorStateSubsystem: Subscribed to SetTooltip (handle=%u)"), SetTooltipHandle.GetId());
+	}
+}
+
+void UActorStateSubsystem::UnsubscribeSetTooltip()
+{
+	if (!CachedEventBus.IsValid() || !SetTooltipHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetTooltipHandle);
+	SetTooltipHandle.Invalidate();
+	SetTooltipConditionAsset = nullptr;
+}
+
+void UActorStateSubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetTooltipPayload* P = Cast<UInteractSetTooltipPayload>(Outcome.Payload))
+	{
+		if (const FActorInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetTooltipOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewTooltip);
 		}
 	}
 }

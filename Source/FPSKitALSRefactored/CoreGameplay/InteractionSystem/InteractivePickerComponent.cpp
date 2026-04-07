@@ -323,6 +323,12 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 	// Отключаем визуальную подсветку у потерянного компонента (если он реализует интерфейс)
 	if (InteractiveComponent)
 	{
+		// Убираем подписку на событие, чтобы не держать ссылку
+		InteractiveComponent->OnInteractStateChanged.RemoveAll(this);
+
+		// Убираем подписку на изменение тултипа
+		InteractiveComponent->OnInteractTooltipChange.RemoveAll(this);
+
 		AActor* ItemActor = InteractiveComponent->GetOwner();
 		if (ItemActor && ItemActor->GetClass()->ImplementsInterface(UInteractiveActorInterface::StaticClass()))
 		{
@@ -342,12 +348,17 @@ void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveI
 	{
 		InteractiveComponent->SetIsInteractiveNow(Owner);
 
+		// Подписываемся на изменение тултипа интерактивного компонента и ретранслируем его через свой делегат
+		InteractiveComponent->OnInteractTooltipChange.AddDynamic(this, &UInteractivePickerComponent::HandleInteractTooltipChange);
+
 		// Включаем визуальную подсветку у найденного компонента (если актёр поддерживает интерфейс)
 		AActor* ItemActor = InteractiveComponent->GetOwner();
 		if (ItemActor && ItemActor->GetClass()->ImplementsInterface(UInteractiveActorInterface::StaticClass()))
 		{
 			IInteractiveActorInterface::Execute_EnableHighlight(ItemActor, true);
 		}
+
+
 	}
 
 	OnInteractiveReceiveFocusEvent.Broadcast(InteractiveComponent);
@@ -400,4 +411,11 @@ UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 	}
 
 	return CurrentItem;
+}
+
+// Обработчик изменения тултипа интерактивного компонента.
+// Просто ретранслирует событие через делегат самого Picker'а.
+void UInteractivePickerComponent::HandleInteractTooltipChange(const FText& NewTooltip)
+{
+	OnInteractTooltipChange.Broadcast(NewTooltip);
 }

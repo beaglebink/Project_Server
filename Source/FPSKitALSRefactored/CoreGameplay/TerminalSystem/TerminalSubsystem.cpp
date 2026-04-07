@@ -7,6 +7,7 @@
 #include "../InteractionSystem/InteractCommandPayload.h"
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
 #include "../InteractionSystem/InteractSetRangePayload.h"
+#include "../InteractionSystem/InteractSetTooltipPayload.h"
 
 void UTerminalSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -25,6 +26,7 @@ void UTerminalSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	SubscribeInteractCommand();
 	SubscribeSetEnabled();
 	SubscribeSetRange();
+	SubscribeSetTooltip();
 }
 
 void UTerminalSubsystem::Deinitialize()
@@ -148,6 +150,7 @@ void UTerminalSubsystem::UnsubscribeAll()
 	UnsubscribeSetEnabled();
 	UnsubscribeRegistration();
 	UnsubscribeSetRange();
+	UnsubscribeSetTooltip();
 }
 
 void UTerminalSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
@@ -408,6 +411,47 @@ void UTerminalSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
 		if (const FTerminalInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		{
 			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
+		}
+	}
+}
+
+void UTerminalSubsystem::SubscribeSetTooltip()
+{
+	if (!CachedEventBus.IsValid() || SetTooltipHandle.IsValid()) return;
+
+	SetTooltipConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SetTooltipConditionAsset->OperatorType = EConditionOperator::Composite;
+	SetTooltipConditionAsset->FilterRow.OutcomeType = EOutcomeType::Terminal;
+	SetTooltipConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SetTooltipConditionAsset->FilterRow.TerminalType = EOutcomeTerminal::InteractSetTooltip;
+	SetTooltipConditionAsset->FilterRow.TerminalComparison = EConditionComparison::Equals;
+	SetTooltipConditionAsset->CompileCondition();
+
+	if (SetTooltipConditionAsset->GetCondition().IsValid())
+	{
+		SetTooltipHandle = CachedEventBus->RegisterHandler(
+			SetTooltipConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UTerminalSubsystem::HandleSetTooltip)
+		);
+		UE_LOG(LogTemp, Log, TEXT("TerminalSubsystem: Subscribed to SetTooltip (handle=%u)"), SetTooltipHandle.GetId());
+	}
+}
+
+void UTerminalSubsystem::UnsubscribeSetTooltip()
+{
+	if (!CachedEventBus.IsValid() || !SetTooltipHandle.IsValid()) return;
+	CachedEventBus->UnregisterHandler(SetTooltipHandle);
+	SetTooltipHandle.Invalidate();
+	SetTooltipConditionAsset = nullptr;
+}
+
+void UTerminalSubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
+{
+	if (const UInteractSetTooltipPayload* P = Cast<UInteractSetTooltipPayload>(Outcome.Payload))
+	{
+		if (const FTerminalInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		{
+			ExecuteSetTooltipOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewTooltip);
 		}
 	}
 }

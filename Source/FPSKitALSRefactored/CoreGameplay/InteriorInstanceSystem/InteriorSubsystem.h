@@ -85,6 +85,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
 	void UnsubscribeSetRange();
 
+	// ===== SetTooltip command (установка подсказки взаимодействия) =====
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
+	void SubscribeSetTooltip();
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
+	void UnsubscribeSetTooltip();
+
 	// Per-item listener API (interior): only the matching component gets notified
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
@@ -166,6 +173,14 @@ private:
 	UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
 
 	FOutcomeHandlerHandle SetRangeHandle;
+
+	// SetTooltip command handler and runtime condition/handle
+	void HandleSetTooltip(const FOutcomeEventBase& Outcome);
+
+	UPROPERTY()
+	UOutcomeConditionAsset* SetTooltipConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle SetTooltipHandle;
 
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override

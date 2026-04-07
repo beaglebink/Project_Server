@@ -218,3 +218,18 @@ void UInteractiveItemComponent::DoInteractiveUse(ACharacter* IIUser)
 	auto Picker = Cast<UInteractivePickerComponent>(IIUser->GetComponentByClass(UInteractivePickerComponent::StaticClass()));
 	OnInteractionPressKeyEvent.Broadcast(Picker);
 }
+
+void UInteractiveItemComponent::SetTooltip(const FText& NewTooltip)
+{
+	CurrentTooltip = NewTooltip;
+	InteractiveTooltipText = NewTooltip;
+
+	// 3) Уведомляем подписчиков о том, что тултип изменился
+	if (OnInteractTooltipChange.IsBound())
+	{
+		OnInteractTooltipChange.Broadcast(CurrentTooltip);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("InteractiveItemComponent: Tooltip set ItemId=%s Tooltip=%s"),
+		*ItemId.ToString(), *CurrentTooltip.ToString());
+}

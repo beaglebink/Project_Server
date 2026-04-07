@@ -24,6 +24,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInteractivePicker, UInteractivePick
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveUseEvent, ACharacter*, User);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveNow, AActor*, WhoInteract);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInteractStateChanged, bool, bEnabled, const FText&, NewTooltip);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractTooltipChange, const FText&, NewTooltip);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UInteractiveItemComponent : public UActorComponent
@@ -38,7 +39,7 @@ public:
 
 	// Called by Picker when this item comes into trace range
 	void SetIsInteractiveNow(AActor* WhoInteract);
-
+	
 	// Called by Picker when this item leaves trace range
 	UFUNCTION()
 	void FinishInteractiveUse(ACharacter* IIUser, const bool IsReleaseButton = true);
@@ -86,6 +87,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem|Events")
 	FOnInteractStateChanged OnInteractStateChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem|Events")
+	FOnInteractTooltipChange OnInteractTooltipChange;
+
 	// Config
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
 	EInteractiveSubsystem SubsystemType = EInteractiveSubsystem::Interior;
@@ -120,4 +124,10 @@ private:
 
 	bool IsRelease = false;
 	bool IsInteractiveNow = false;
+
+public:
+	// Adds a public setter for the tooltip
+	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
+	void SetTooltip(const FText& NewTooltip);
 };
+

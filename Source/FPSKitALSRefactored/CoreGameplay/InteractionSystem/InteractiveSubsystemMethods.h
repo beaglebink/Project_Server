@@ -121,6 +121,26 @@ public:
 		return false;
 	}
 
+	// ----- Изменение подсказки интеракции -----
+	bool ExecuteSetTooltipOnOwner(const FGuid& ItemId, AActor* Owner, const FText& NewTooltip)
+	{
+		if (!Owner) return false;
+		TInlineComponentArray<UInteractiveItemComponent*> Components;
+		Owner->GetComponents<UInteractiveItemComponent>(Components);
+
+		for (UInteractiveItemComponent* Comp : Components)
+		{
+			if (Comp && Comp->GetItemId() == ItemId)
+			{
+				Comp->SetTooltip(NewTooltip);
+				UE_LOG(LogTemp, Log, TEXT("FInteractiveSubsystemMethods: SetTooltip ItemId=%s Owner=%s Tooltip=%s"),
+					*ItemId.ToString(), *Owner->GetName(), *NewTooltip.ToString());
+				return true;
+			}
+		}
+		return false;
+	}
+
 protected:
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() = 0;
 };
