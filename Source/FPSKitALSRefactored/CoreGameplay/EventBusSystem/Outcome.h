@@ -36,13 +36,10 @@ enum class EOutcomeActor : uint8
 	DialogueStarted			UMETA(DisplayName = "Dialogue Started"),
 	DialogueOptionSelected	UMETA(DisplayName = "Dialogue Option Selected"),
 	DialogueEnded			UMETA(DisplayName = "Dialogue Ended"),
-
-	// Команды для интеракции
 	InteractSetEnabled		UMETA(DisplayName = "Interact Set Enabled"),
 	InteractSetRange		UMETA(DisplayName = "Interact Set Range"),
 	InteractSetTooltip		UMETA(DisplayName = "Interact Set Tooltip"),
 
-	// Скрытые для BP (регистрация/отмена регистрации оставляем для совместимости)
 	InteractRegistered		UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
@@ -62,13 +59,10 @@ enum class EOutcomeInventory : uint8
 	ObjectDestroyed			UMETA(DisplayName = "Object Destroyed"),
 	ItemAcquired			UMETA(DisplayName = "Item Acquired"),
 	ItemDelivered			UMETA(DisplayName = "Item Delivered"),
-
-	// Команды для интеракции
 	InteractSetEnabled		UMETA(DisplayName = "Interact Set Enabled"),
 	InteractSetRange		UMETA(DisplayName = "Interact Set Range"),
 	InteractSetTooltip		UMETA(DisplayName = "Interact Set Tooltip"),
 
-	// Скрытые для BP
 	InteractRegistered		UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
@@ -81,13 +75,10 @@ enum class EOutcomeTerminal : uint8
 	TerminalTaskCompleted	UMETA(DisplayName = "Terminal Task Completed"),
 	TerminalTaskFailed		UMETA(DisplayName = "Terminal Task Failed"),
 	TerminalClosed			UMETA(DisplayName = "Terminal Closed"),
-
-	// Команды для интеракции
 	InteractSetEnabled		UMETA(DisplayName = "Interact Set Enabled"),
 	InteractSetRange		UMETA(DisplayName = "Interact Set Range"),
 	InteractSetTooltip		UMETA(DisplayName = "Interact Set Tooltip"),
 
-	// Скрытые
 	InteractRegistered		UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
@@ -99,19 +90,16 @@ enum class EOutcomeInterior : uint8
 	InteriorEntered			UMETA(DisplayName = "Interior Entered"),
 	InteriorTransition		UMETA(DisplayName = "Interior Transition"),
 	InteriorLeaving			UMETA(DisplayName = "Interior Leaving"),
-	LocationEntered			UMETA(DisplayName = "Location Entered"),
-	LocationTransition		UMETA(DisplayName = "Location Transition"),
-	LocationLeaving			UMETA(DisplayName = "Location Leaving"),
 	FloorEntered			UMETA(DisplayName = "Floor Entered"),
 	FloorTransition			UMETA(DisplayName = "Floor Transition"),
 	FloorLeaving			UMETA(DisplayName = "Floor Leaving"),
-
-	// Команды для интеракции
+	BuildingEntered			UMETA(DisplayName = "Location Entered"),
+	BuildingTransition		UMETA(DisplayName = "Location Transition"),
+	BuildingLeaving			UMETA(DisplayName = "Location Leaving"),
 	InteractSetEnabled		UMETA(DisplayName = "Interact Set Enabled"),
 	InteractSetRange		UMETA(DisplayName = "Interact Set Range"),
 	InteractSetTooltip		UMETA(DisplayName = "Interact Set Tooltip"),
 
-	// Скрытые
 	InteractRegistered		UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered")
 };

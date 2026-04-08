@@ -1,7 +1,5 @@
 ﻿#include "InteriorSubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include "../SpawnGroupSystem/GhostClearedPayload.h"
-#include "../InventorySystem/ItemAcquiredPayload.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
 #include "../InteractionSystem/InteractItemStatePayload.h"
 #include "../InteractionSystem/InteractiveItemComponent.h"
@@ -20,12 +18,6 @@ void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	SubscribeSetEnabled();
 	SubscribeSetRange();
 	SubscribeSetTooltip();
-
-	if (CachedEventBus.IsValid())
-	{
-		if (GhostClearedCondition) SubscribeGhostCleared();
-		if (ItemAcquiredCondition) SubscribeItemAcquired();
-	}
 }
 
 void UInteriorSubsystem::Deinitialize()
@@ -34,42 +26,6 @@ void UInteriorSubsystem::Deinitialize()
 	UnsubscribeAll();
 	CachedEventBus.Reset();
 	Super::Deinitialize();
-}
-
-void UInteriorSubsystem::SubscribeGhostCleared()
-{
-	if (!CachedEventBus.IsValid() || !GhostClearedCondition || GhostClearedHandle.IsValid()) return;
-	GhostClearedHandle = CachedEventBus->RegisterHandler(
-		GhostClearedCondition,
-		FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleGhostCleared)
-	);
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to GhostCleared (handle=%u)"), GhostClearedHandle.GetId());
-}
-
-void UInteriorSubsystem::UnsubscribeGhostCleared()
-{
-	if (!GhostClearedHandle.IsValid() || !CachedEventBus.IsValid()) return;
-	CachedEventBus->UnregisterHandler(GhostClearedHandle);
-	GhostClearedHandle.Invalidate();
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Unsubscribed GhostCleared"));
-}
-
-void UInteriorSubsystem::SubscribeItemAcquired()
-{
-	if (!CachedEventBus.IsValid() || !ItemAcquiredCondition || ItemAcquiredHandle.IsValid()) return;
-	ItemAcquiredHandle = CachedEventBus->RegisterHandler(
-		ItemAcquiredCondition,
-		FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleItemAcquired)
-	);
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to ItemAcquired (handle=%u)"), ItemAcquiredHandle.GetId());
-}
-
-void UInteriorSubsystem::UnsubscribeItemAcquired()
-{
-	if (!ItemAcquiredHandle.IsValid() || !CachedEventBus.IsValid()) return;
-	CachedEventBus->UnregisterHandler(ItemAcquiredHandle);
-	ItemAcquiredHandle.Invalidate();
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Unsubscribed ItemAcquired"));
 }
 
 void UInteriorSubsystem::SubscribeInteractionRegistration()
@@ -225,36 +181,6 @@ void UInteriorSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Out
 	}
 }
 
-void UInteriorSubsystem::HandleGhostCleared(const FOutcomeEventBase& Outcome)
-{
-	if (GhostClearedCondition)
-	{
-		auto Query = GhostClearedCondition->GetCondition();
-		if (Query.IsValid() && !Query->Evaluate(Outcome)) return;
-	}
-	if (UGhostClearedPayload* P = Cast<UGhostClearedPayload>(Outcome.Payload))
-	{
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Ghost cleared - Interior: %d"),
-			static_cast<int32>(Outcome.OutcomeInterior));
-	}
-	OnGhostCleared.Broadcast(Outcome);
-}
-
-void UInteriorSubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
-{
-	if (ItemAcquiredCondition)
-	{
-		auto Query = ItemAcquiredCondition->GetCondition();
-		if (Query.IsValid() && !Query->Evaluate(Outcome)) return;
-	}
-	if (UItemAcquiredPayload* P = Cast<UItemAcquiredPayload>(Outcome.Payload))
-	{
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Item acquired - Object: %s"),
-			*P->ObjectId.ToString());
-	}
-	OnItemAcquired.Broadcast(Outcome);
-}
-
 void UInteriorSubsystem::SubscribeInteractCommand()
 {
 	if (!CachedEventBus.IsValid()) return;
@@ -308,16 +234,14 @@ void UInteriorSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
 
 void UInteriorSubsystem::SubscribeAll()
 {
-	SubscribeGhostCleared();
-	SubscribeItemAcquired();
+	// GhostCleared / ItemAcquired handlers были удалены — больше не подписываемся на них.
 	SubscribeInteractionRegistration();
 	SubscribeInteractCommand();
 }
 
 void UInteriorSubsystem::UnsubscribeAll()
 {
-	UnsubscribeGhostCleared();
-	UnsubscribeItemAcquired();
+	// GhostCleared / ItemAcquired handlers были удалены — больше не отписываемся от них.
 	UnsubscribeInteractCommand();
 	UnsubscribeSetEnabled();
 	UnsubscribeSetRange();

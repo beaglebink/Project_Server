@@ -10,8 +10,6 @@
 
 #include "InteriorSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorGhostClearedEvent, const FOutcomeEventBase&, Outcome);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorItemAcquiredEvent, const FOutcomeEventBase&, Outcome);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
 
 class UInteractiveItemComponent;
@@ -34,28 +32,6 @@ class FPSKITALSREFACTORED_API UInteriorSubsystem : public UWorldSubsystem, publi
 public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
-
-	// Ghost cleared condition to control subsystem state
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "InteriorSubsystem|Conditions")
-	UOutcomeConditionAsset* GhostClearedCondition = nullptr;
-
-	// Item acquired condition to control subsystem state
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "InteriorSubsystem|Conditions")
-	UOutcomeConditionAsset* ItemAcquiredCondition = nullptr;
-
-	// ===== Ghost cleared handling =====
-	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|GhostCleared")
-	void SubscribeGhostCleared();
-
-	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|GhostCleared")
-	void UnsubscribeGhostCleared();
-
-	// ===== Item acquired handling =====
-	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|ItemAcquired")
-	void SubscribeItemAcquired();
-
-	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|ItemAcquired")
-	void UnsubscribeItemAcquired();
 
 	// ===== Interaction registration =====
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
@@ -96,13 +72,6 @@ public:
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 
-	// Events
-	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
-	FOnInteriorGhostClearedEvent OnGhostCleared;
-
-	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
-	FOnInteriorItemAcquiredEvent OnItemAcquired;
-
 	// Legacy monitoring broadcast (kept for tools/debug)
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
 	FOnInteriorInteractItemRegistrationEvent OnInteractItemRegistered;
@@ -125,10 +94,6 @@ private:
 	FOutcomeHandlerHandle SpawnRegisterHandle;
 	FOutcomeHandlerHandle DespawnRegisterHandle;
 
-	// Handles for logical event listeners
-	FOutcomeHandlerHandle GhostClearedHandle;
-	FOutcomeHandlerHandle ItemAcquiredHandle;
-
 	// Registry of interactive items
 	TMap<FGuid, FInteractItemRecord> RegisteredItems;
 
@@ -141,10 +106,6 @@ private:
 	// Helpers to subscribe/unsubscribe groups
 	void SubscribeAll();
 	void UnsubscribeAll();
-
-	// Condition evaluation for incoming outcomes
-	void HandleGhostCleared(const FOutcomeEventBase& Outcome);
-	void HandleItemAcquired(const FOutcomeEventBase& Outcome);
 
 	// Optional debug helper
 	void EvaluateConditions();
