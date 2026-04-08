@@ -10,15 +10,12 @@ public class FPSKitALSRefactored : ModuleRules
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         PublicDependencyModuleNames.AddRange(new string[] {
-            "Core", "CoreUObject", "Engine", "InputCore", "AssetRegistry",
-            "ALS", "ALSCamera", "EnhancedInput", "UMG",
-            "Niagara", "NiagaraCore", "NiagaraShader",
-            "Json", "JsonUtilities"
+            "Core", "CoreUObject", "Engine", "InputCore",
+            "GameplayTags", "UMG", "Niagara", "Json", "JsonUtilities", "EnhancedInput", "ALS", "ALSExtras"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] {
-            "Slate", "SlateCore", "ApplicationCore",
-            "ALSExtras"
+            "Slate", "SlateCore", "ApplicationCore"
         });
 
         if (Target.Type == TargetType.Editor)
