@@ -6,8 +6,9 @@
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
-#include "../InteractionSystem/InteractiveSubsystemMethods.h" // <-- обязательно: определение миксина должно быть видимо до generated.h
-
+#include "../InteractionSystem/InteractiveSubsystemMethods.h" 
+#include "FloorPopulationTypes.h"
+#include "FloorPlacementPayload.h"
 #include "InteriorSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
@@ -79,9 +80,17 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
 	FOnInteriorInteractItemRegistrationEvent OnInteractItemUnregistered;
 
+	// Получить список размещённых объектов для конкретного InteriorSet+Floor (runtime)
+	// Возвращается копия массива — безопасно для Blueprint/UFunction
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Population")
+	TArray<FFloorPopulationRecord> GetPlacedActorsForInteriorFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const;
+
 private:
 	// Handler for spawn/despawn interactive objects
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
+
+	// Handler for floor placement registration (separate from interactive registration)
+	void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
 
 	// Runtime condition assets to keep alive
 	UPROPERTY()
@@ -89,10 +98,19 @@ private:
 
 	UPROPERTY()
 	UOutcomeConditionAsset* DespawnConditionAsset = nullptr;
+	// Condition assets/handles for floor placement registration
+	UPROPERTY()
+	UOutcomeConditionAsset* PlacementRegisterConditionAsset = nullptr;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* PlacementUnregisterConditionAsset = nullptr;
 
 	// Handles for interaction registration
 	FOutcomeHandlerHandle SpawnRegisterHandle;
 	FOutcomeHandlerHandle DespawnRegisterHandle;
+	// Handles for placement registration
+	FOutcomeHandlerHandle PlacementRegisterHandle;
+	FOutcomeHandlerHandle PlacementUnregisterHandle;
 
 	// Registry of interactive items
 	TMap<FGuid, FInteractItemRecord> RegisteredItems;
@@ -142,6 +160,25 @@ private:
 	UOutcomeConditionAsset* SetTooltipConditionAsset = nullptr;
 
 	FOutcomeHandlerHandle SetTooltipHandle;
+
+	// Runtime map: (InteriorSetId, FloorId) -> placed actors (collected from level instances)
+	TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloor;
+
+	// Access helpers: получить buckets для ключа (копия)
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Population")
+	FFloorPopulationBuckets GetPopulationBucketsForFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const;
+
+	// Собрать размещённые на уровне акторы и индексировать по InteriorSet+Floor
+	// Реализация отложена — заменена на stub (будет реализовано позже)
+	void CollectPlacedActorsByInteriorFloor();
+
+	// Зарегистрировать собранные объекты в подсистеме (создаёт записи RegisteredItems и уведомления)
+	// Вызывается после CollectPlacedActorsByInteriorFloor()
+	void RegisterPlacedActorsInSubsystem();
+
+	// Subscribe/unsubscribe placement-specific handlers
+	void SubscribePlacementRegistration();
+	void UnsubscribePlacementRegistration();
 
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override

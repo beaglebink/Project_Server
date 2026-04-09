@@ -7,11 +7,26 @@
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
 #include "../InteractionSystem/InteractSetRangePayload.h"
 #include "../InteractionSystem/InteractSetTooltipPayload.h"
+#include "FloorAssignmentComponent.h"
+#include "FloorPopulationTypes.h"
+#include "EngineUtils.h"
+#include "../InteractionSystem/InteractItemRegistrationPayload.h"
+#include "../EventBusSystem/EventBusSubsystem.h"
+#include "FloorPlacementPayload.h"
 
 void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
 	CachedEventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+
+	// Сбор размещённых акторов отложен: stub вызывает очистку карты.
+	CollectPlacedActorsByInteriorFloor();
+
+	// Подписка на размещение (отдельно от интерактивной регистрации)
+	SubscribePlacementRegistration();
+
+	// Зарегистрировать собранные объекты в подсистеме (создаст RegisteredItems и уведомления)
+	RegisterPlacedActorsInSubsystem();
 
 	SubscribeInteractionRegistration();
 	SubscribeInteractCommand();
@@ -24,6 +39,7 @@ void UInteriorSubsystem::Deinitialize()
 {
 	UnsubscribeInteractionRegistration();
 	UnsubscribeAll();
+	SpawnedActorsByInteriorFloor.Empty();
 	CachedEventBus.Reset();
 	Super::Deinitialize();
 }
@@ -87,6 +103,171 @@ void UInteriorSubsystem::UnsubscribeInteractionRegistration()
 
 	SpawnConditionAsset  = nullptr;
 	DespawnConditionAsset = nullptr;
+
+	// also cleanup placement handlers if any
+	UnsubscribePlacementRegistration();
+}
+
+void UInteriorSubsystem::SubscribePlacementRegistration()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (PlacementRegisterHandle.IsValid() || PlacementUnregisterHandle.IsValid()) return;
+
+	PlacementRegisterConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	PlacementRegisterConditionAsset->OperatorType = EConditionOperator::Composite;
+	PlacementRegisterConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+	PlacementRegisterConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	PlacementRegisterConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+	PlacementRegisterConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorPlacementRegistered;
+	PlacementRegisterConditionAsset->CompileCondition();
+
+	PlacementUnregisterConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	PlacementUnregisterConditionAsset->OperatorType = EConditionOperator::Composite;
+	PlacementUnregisterConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+	PlacementUnregisterConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	PlacementUnregisterConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+	PlacementUnregisterConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorPlacementUnregistered;
+	PlacementUnregisterConditionAsset->CompileCondition();
+
+	if (PlacementRegisterConditionAsset->GetCondition().IsValid())
+	{
+		PlacementRegisterHandle = CachedEventBus->RegisterHandler(
+			PlacementRegisterConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandlePlacementRegistration)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to FloorPlacementRegistered (handle=%u)"), PlacementRegisterHandle.GetId());
+	}
+
+	if (PlacementUnregisterConditionAsset->GetCondition().IsValid())
+	{
+		PlacementUnregisterHandle = CachedEventBus->RegisterHandler(
+			PlacementUnregisterConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandlePlacementRegistration)
+		);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to FloorPlacementUnregistered (handle=%u)"), PlacementUnregisterHandle.GetId());
+	}
+}
+
+void UInteriorSubsystem::UnsubscribePlacementRegistration()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (PlacementRegisterHandle.IsValid())
+	{
+		CachedEventBus->UnregisterHandler(PlacementRegisterHandle);
+		PlacementRegisterHandle.Invalidate();
+	}
+	if (PlacementUnregisterHandle.IsValid())
+	{
+		CachedEventBus->UnregisterHandler(PlacementUnregisterHandle);
+		PlacementUnregisterHandle.Invalidate();
+	}
+	PlacementRegisterConditionAsset = nullptr;
+	PlacementUnregisterConditionAsset = nullptr;
+}
+
+// Separate handler: only processes UFloorPlacementPayload (placed actors). Does NOT touch RegisteredItems.
+void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Outcome)
+{
+	if (!CachedEventBus.IsValid()) return;
+
+	if (UFloorPlacementPayload* FP = Cast<UFloorPlacementPayload>(Outcome.Payload))
+	{
+		AActor* Owner = FP->OwnerActor.Get();
+		FInteriorFloorKey Key(FP->InteriorSetId, FP->FloorId);
+
+		if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
+		{
+			FFloorPopulationBuckets& Buckets = SpawnedActorsByInteriorFloor.FindOrAdd(Key);
+
+			// Build record once (store full transform)
+			FFloorPopulationRecord NewRec;
+			NewRec.ActorType = FP->ActorType;
+			NewRec.SourceClass = Owner ? Owner->GetClass() : nullptr;
+			NewRec.PlacedActor = Owner;
+			NewRec.AnchorId = FP->AnchorId;
+			NewRec.WorldTransform = FP->WorldTransform;
+			NewRec.bHasAnchor = FP->AnchorId.IsValid();
+
+			// Helper lambda: check duplicate in array (owner, anchor, or identical transform if no actor)
+			auto ExistsInArray = [&](const TArray<FFloorPopulationRecord>& Arr)->bool
+			{
+				for (const FFloorPopulationRecord& R : Arr)
+				{
+					if (R.PlacedActor.IsValid() && Owner && R.PlacedActor.Get() == Owner) return true;
+					if (FP->AnchorId.IsValid() && R.AnchorId == FP->AnchorId) return true;
+					// legacy check: if there's no placed actor, compare transforms
+					if (!R.PlacedActor.IsValid() && R.WorldTransform.Equals(FP->WorldTransform)) return true;
+				}
+				return false;
+			};
+
+			bool bAdded = false;
+			switch (FP->ActorType)
+			{
+			case EFloorActorType::HeavyFurniture:
+				if (!ExistsInArray(Buckets.HeavyFurniture)) { Buckets.HeavyFurniture.Add(NewRec); bAdded = true; }
+				break;
+			case EFloorActorType::LightItem:
+				if (!ExistsInArray(Buckets.LightItems)) { Buckets.LightItems.Add(NewRec); bAdded = true; }
+				break;
+			case EFloorActorType::Terminal:
+				if (!ExistsInArray(Buckets.Terminals)) { Buckets.Terminals.Add(NewRec); bAdded = true; }
+				break;
+			case EFloorActorType::NPC_Spawner:
+				if (!ExistsInArray(Buckets.NPCSpawners)) { Buckets.NPCSpawners.Add(NewRec); bAdded = true; }
+				break;
+			case EFloorActorType::Debris:
+				if (!ExistsInArray(Buckets.Debris)) { Buckets.Debris.Add(NewRec); bAdded = true; }
+				break;
+			default:
+				if (!ExistsInArray(Buckets.LightItems)) { Buckets.LightItems.Add(NewRec); bAdded = true; }
+				break;
+			}
+
+			if (bAdded)
+			{
+				UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placed actor registered Owner=%s Interior=%s Floor=%s Type=%d"),
+					Owner ? *Owner->GetName() : TEXT("None"),
+					*FP->InteriorSetId.ToString(), *FP->FloorId.ToString(), static_cast<int32>(FP->ActorType));
+			}
+		}
+		else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
+		{
+			if (FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
+			{
+				auto RemoveMatches = [&](TArray<FFloorPopulationRecord>& Arr)
+				{
+					for (int32 i = Arr.Num() - 1; i >= 0; --i)
+					{
+						const FFloorPopulationRecord& R = Arr[i];
+						if ((R.PlacedActor.IsValid() && Owner && R.PlacedActor.Get() == Owner) ||
+							(R.AnchorId.IsValid() && R.AnchorId == FP->AnchorId) ||
+							(!R.PlacedActor.IsValid() && R.WorldTransform.Equals(FP->WorldTransform)))
+						{
+							Arr.RemoveAtSwap(i);
+						}
+					}
+				};
+
+				RemoveMatches(Buckets->HeavyFurniture);
+				RemoveMatches(Buckets->LightItems);
+				RemoveMatches(Buckets->Terminals);
+				RemoveMatches(Buckets->NPCSpawners);
+				RemoveMatches(Buckets->Debris);
+
+				// remove entire key if all buckets empty
+				if (Buckets->HeavyFurniture.Num() == 0 &&
+					Buckets->LightItems.Num() == 0 &&
+					Buckets->Terminals.Num() == 0 &&
+					Buckets->NPCSpawners.Num() == 0 &&
+					Buckets->Debris.Num() == 0)
+				{
+					SpawnedActorsByInteriorFloor.Remove(Key);
+				}
+			}
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placed actor unregistered Owner=%s"), Owner ? *Owner->GetName() : TEXT("None"));
+		}
+	}
 }
 
 void UInteriorSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
@@ -117,6 +298,8 @@ void UInteriorSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Out
 {
 	if (!CachedEventBus.IsValid()) return;
 
+	// Only handle interactive registration payloads here (UInteractItemRegistrationPayload).
+	// Floor placement payloads are handled by separate handler HandlePlacementRegistration.
 	if (UInteractItemRegistrationPayload* P = Cast<UInteractItemRegistrationPayload>(Outcome.Payload))
 	{
 		const FGuid Id = P->ItemId;
@@ -373,3 +556,249 @@ void UInteriorSubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
 
 void UInteriorSubsystem::EvaluateConditions() {}
 
+// -----------------------------------------------------------------------------
+// Stub: сбор размещённых акторов отложен — пока простой очиститель карты.
+// -----------------------------------------------------------------------------
+// TODO: implement detailed collection logic later (mapping placed actors to InteriorSet+Floor)
+void UInteriorSubsystem::CollectPlacedActorsByInteriorFloor()
+{
+	// TODO: implement detailed collection logic later (mapping placed actors to InteriorSet+Floor)
+	SpawnedActorsByInteriorFloor.Empty();
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: CollectPlacedActorsByInteriorFloor() is stubbed — implementation deferred."));
+}
+
+// Map floor actor type -> interactive subsystem used for payload/registration
+static EInteractiveSubsystem MapFloorActorTypeToInteractiveSubsystem(EFloorActorType T)
+{
+	switch (T)
+	{
+	case EFloorActorType::Terminal:
+		return EInteractiveSubsystem::Terminal;
+	case EFloorActorType::NPC_Spawner:
+		return EInteractiveSubsystem::ActorNPC;
+	case EFloorActorType::Debris:
+		// Debris is passive interior item — handled by Interior subsystem
+		return EInteractiveSubsystem::Interior;
+	case EFloorActorType::HeavyFurniture:
+	case EFloorActorType::LightItem:
+	default:
+		return EInteractiveSubsystem::Interior;
+	}
+}
+
+void UInteriorSubsystem::RegisterPlacedActorsInSubsystem()
+{
+	if (SpawnedActorsByInteriorFloor.Num() == 0)
+	{
+		return;
+	}
+
+	int32 RegisteredCountBefore = RegisteredItems.Num();
+
+	// Helper to process one array of population records
+	auto ProcessArray = [&](const TArray<FFloorPopulationRecord>& Arr)
+	{
+		for (const FFloorPopulationRecord& Rec : Arr)
+		{
+			AActor* Owner = Rec.PlacedActor.Get();
+			if (!IsValid(Owner))
+			{
+				continue;
+			}
+
+			// Avoid duplicate registration by owner pointer
+			bool bOwnerAlreadyRegistered = false;
+			for (const auto& KV : RegisteredItems)
+			{
+				const FInteractItemRecord& Existing = KV.Value;
+				if (Existing.OwnerActor.IsValid() && Existing.OwnerActor.Get() == Owner)
+				{
+					bOwnerAlreadyRegistered = true;
+					break;
+				}
+			}
+			if (bOwnerAlreadyRegistered)
+			{
+				continue;
+			}
+
+			// Prefer interactive component if present
+			UInteractiveItemComponent* InterComp = Owner->FindComponentByClass<UInteractiveItemComponent>();
+
+			FGuid ItemId;
+			EInteractiveSubsystem Subsystem = EInteractiveSubsystem::Interior;
+			float InteractionRange = 200.f;
+			FText DefaultTooltip = FText::GetEmpty();
+
+			if (InterComp)
+			{
+				// Use component-provided stable id and settings
+				ItemId = InterComp->GetItemId();
+				Subsystem = InterComp->SubsystemType;
+				InteractionRange = InterComp->InteractionRange;
+				DefaultTooltip = InterComp->InteractiveTooltipText;
+
+				// If component has no ItemId (unlikely) — fallback to assignment component or new GUID
+				if (!ItemId.IsValid())
+				{
+					if (UFloorAssignmentComponent* Assign = Owner->FindComponentByClass<UFloorAssignmentComponent>())
+					{
+						if (Assign->ItemId.IsValid())
+						{
+							ItemId = Assign->ItemId;
+						}
+						else
+						{
+							ItemId = FGuid::NewGuid();
+							Assign->Modify();
+							Assign->ItemId = ItemId;
+							if (UPackage* Pkg = Assign->GetOwner()->GetOutermost())
+							{
+								Pkg->MarkPackageDirty();
+							}
+						}
+					}
+					else
+					{
+						ItemId = FGuid::NewGuid();
+					}
+				}
+			}
+			else
+			{
+				// No interactive component — use ActorType from Rec to decide if we should register
+				Subsystem = MapFloorActorTypeToInteractiveSubsystem(Rec.ActorType);
+				// Treat Interior mapping as non-explicit interactive (skip)
+				if (Subsystem == EInteractiveSubsystem::Interior)
+				{
+					continue; // do not register passive interior-only population items
+				}
+
+				// Get stable id from FloorAssignmentComponent if possible
+				if (UFloorAssignmentComponent* Assign = Owner->FindComponentByClass<UFloorAssignmentComponent>())
+				{
+					if (Assign->ItemId.IsValid())
+					{
+						ItemId = Assign->ItemId;
+					}
+					else
+					{
+						ItemId = FGuid::NewGuid();
+						Assign->Modify();
+						Assign->ItemId = ItemId;
+						if (UPackage* Pkg = Assign->GetOwner()->GetOutermost())
+						{
+							Pkg->MarkPackageDirty();
+						}
+					}
+				}
+				else
+				{
+					ItemId = FGuid::NewGuid();
+				}
+			}
+
+			// Prevent duplicate registration by ItemId
+			if (RegisteredItems.Contains(ItemId))
+			{
+				continue;
+			}
+
+			// Build internal record
+			FInteractItemRecord R;
+			R.ItemId = ItemId;
+			R.SubsystemType = Subsystem;
+			R.InteractionRange = InteractionRange;
+			R.DefaultTooltip = DefaultTooltip;
+			R.OwnerActor = Owner;
+
+			RegisteredItems.Add(ItemId, R);
+
+			// Publish Outcome via EventBus
+			if (CachedEventBus.IsValid())
+			{
+				UInteractItemRegistrationPayload* P = CachedEventBus->CreatePayload<UInteractItemRegistrationPayload>();
+				if (P)
+				{
+					P->Setup(ItemId, R.SubsystemType, R.InteractionRange, R.DefaultTooltip, Owner);
+
+					FOutcomeEventBase Out;
+					Out.OutcomeType = EOutcomeType::Interior;
+					Out.OutcomeInterior = EOutcomeInterior::InteractRegistered;
+					Out.Payload = P;
+
+					CachedEventBus->PublishOutcome(Out);
+				}
+			}
+			else
+			{
+				// Fallback for tools/legacy: broadcast delegate
+				UInteractItemRegistrationPayload* P = NewObject<UInteractItemRegistrationPayload>(this);
+				if (P)
+				{
+					P->Setup(ItemId, R.SubsystemType, R.InteractionRange, R.DefaultTooltip, Owner);
+					OnInteractItemRegistered.Broadcast(P);
+				}
+			}
+
+			// Notify any listeners waiting for this item (by ItemId)
+			if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* List = RegistrationListeners.Find(ItemId))
+			{
+				for (auto It = List->CreateIterator(); It; ++It)
+				{
+					if (UInteractiveItemComponent* Comp = It->Get())
+					{
+						UInteractItemRegistrationPayload* TmpP = NewObject<UInteractItemRegistrationPayload>(this);
+						if (TmpP)
+						{
+							TmpP->Setup(ItemId, R.SubsystemType, R.InteractionRange, R.DefaultTooltip, Owner);
+							Comp->OnRegisteredBySubsystem(TmpP);
+						}
+					}
+				}
+				RegistrationListeners.Remove(ItemId);
+			}
+		}
+	};
+
+	// Iterate all buckets and process each semantic array separately
+	for (const auto& Pair : SpawnedActorsByInteriorFloor)
+	{
+		const FFloorPopulationBuckets& Buckets = Pair.Value;
+		ProcessArray(Buckets.HeavyFurniture);
+		ProcessArray(Buckets.LightItems);
+		ProcessArray(Buckets.Terminals);
+		ProcessArray(Buckets.NPCSpawners);
+		ProcessArray(Buckets.Debris);
+	}
+
+	int32 RegisteredCountAfter = RegisteredItems.Num() - RegisteredCountBefore;
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Registered %d new placed actors into RegisteredItems."), RegisteredCountAfter);
+}
+
+TArray<FFloorPopulationRecord> UInteriorSubsystem::GetPlacedActorsForInteriorFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const
+{
+	FInteriorFloorKey Key(InteriorSetId, FloorId);
+	if (const FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
+	{
+		// Return aggregated array (caller can inspect buckets separately via new getter if needed)
+		TArray<FFloorPopulationRecord> Combined;
+		Combined.Append(Buckets->HeavyFurniture);
+		Combined.Append(Buckets->LightItems);
+		Combined.Append(Buckets->Terminals);
+		Combined.Append(Buckets->NPCSpawners);
+		Combined.Append(Buckets->Debris);
+		return Combined;
+	}
+	return TArray<FFloorPopulationRecord>();
+}
+
+FFloorPopulationBuckets UInteriorSubsystem::GetPopulationBucketsForFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const
+{
+	FInteriorFloorKey Key(InteriorSetId, FloorId);
+	if (const FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
+	{
+		return *Buckets;
+	}
+	return FFloorPopulationBuckets();
+}

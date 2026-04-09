@@ -101,7 +101,10 @@ enum class EOutcomeInterior : uint8
 	InteractSetTooltip		UMETA(DisplayName = "Interact Set Tooltip"),
 
 	InteractRegistered		UMETA(Hidden, DisplayName = "Interact Registered"),
-	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered")
+	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered"),
+
+	FloorPlacementRegistered	UMETA(Hidden, DisplayName = "Floor Placement Registered"),
+	FloorPlacementUnregistered	UMETA(Hidden, DisplayName = "Floor Placement Unregistered")
 };
 
 UENUM(BlueprintType)

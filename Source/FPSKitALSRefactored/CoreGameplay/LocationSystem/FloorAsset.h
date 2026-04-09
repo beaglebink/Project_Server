@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "UObject/SoftObjectPtr.h"
 #include "LocationSpatialTypes.h"
 #include "FloorAsset.generated.h"
 
@@ -39,6 +40,18 @@ public:
     // Переходы: лестницы, лифты, двери между этажами и на улицу
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<FLocationTransitionPoint> TransitionPoints;
+
+    // Тяжелая мебель (soft ссылки — безопаснее в DataAsset)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
+    TArray<TSoftObjectPtr<AActor>> LargeFurniture;
+
+    // Легкие предметы
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
+    TArray<TSoftObjectPtr<AActor>> SmallFurniture;
+
+    // Терминалы (soft ссылки на Pawn)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
+    TArray<TSoftObjectPtr<APawn>> Terminals;
 
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
