@@ -13,10 +13,16 @@ class FPSKITALSREFACTORED_API UFloorAssignmentComponent : public UActorComponent
 public:
 	UFloorAssignmentComponent();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FloorAssignment")
+	FText InteriorSetName;
+
+	UPROPERTY(VisibleAnywhere, Category = "FloorAssignment")
 	FGuid InteriorSetId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FloorAssignment")
+	FText FloorName;
+
+	UPROPERTY(VisibleAnywhere, Category = "FloorAssignment")
 	FGuid FloorId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
@@ -25,9 +31,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
 	FGuid AnchorId;
 
-	// Stable ItemId — генерируется автоматически; скрыт от Blueprint и от деталей (дизайнеры GUID обычно не используют)
-	//UPROPERTY(EditAnywhere, Category = "FloorAssignment", meta = (HideInInspector))
 	FGuid ItemId;
+
+	UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
+	FGuid GetInteriorSetId() const { return InteriorSetId; }
+
+	UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
+	FGuid GetFloorId() const { return FloorId; }
 
 protected:
 	virtual void BeginPlay() override;
