@@ -104,7 +104,11 @@ enum class EOutcomeInterior : uint8
 	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered"),
 
 	FloorPlacementRegistered	UMETA(Hidden, DisplayName = "Floor Placement Registered"),
-	FloorPlacementUnregistered	UMETA(Hidden, DisplayName = "Floor Placement Unregistered")
+	FloorPlacementUnregistered	UMETA(Hidden, DisplayName = "Floor Placement Unregistered"),
+
+	// --- Snapshot commands ---
+	FloorStateSave			UMETA(DisplayName = "Floor State Save"),
+	FloorStateRestore		UMETA(DisplayName = "Floor State Restore")
 };
 
 UENUM(BlueprintType)

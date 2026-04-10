@@ -7,269 +7,641 @@
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
 #include "../InteractionSystem/InteractSetRangePayload.h"
 #include "../InteractionSystem/InteractSetTooltipPayload.h"
+#include "FloorStatePayload.h"
 #include "FloorAssignmentComponent.h"
-#include "FloorPopulationTypes.h"
+#include "UObject/UnrealType.h"
 #include "EngineUtils.h"
-#include "../InteractionSystem/InteractItemRegistrationPayload.h"
-#include "../EventBusSystem/EventBusSubsystem.h"
-#include "FloorPlacementPayload.h"
+// AssetRegistry + module manager for runtime asset indexing
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
+#include "../LocationSystem/InteriorSetAsset.h"
+#include "../LocationSystem/FloorAsset.h"
 
-void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+// -----------------------------------------------------------------------------
+// Snapshot helpers
+// -----------------------------------------------------------------------------
+namespace
 {
-	Super::OnWorldBeginPlay(InWorld);
-	CachedEventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	// Собрать SaveGame-свойства любого UObject в массив
+	static void CollectSaveGameProperties(UObject* Obj, TArray<FFloorSavedPropertyEntry>& OutProps)
+	{
+		if (!IsValid(Obj)) return;
+		for (TFieldIterator<FProperty> It(Obj->GetClass()); It; ++It)
+		{
+			FProperty* Prop = *It;
+			if (!Prop->HasAllPropertyFlags(CPF_SaveGame)) continue;
 
-	// Сбор размещённых акторов отложен: stub вызывает очистку карты.
-	CollectPlacedActorsByInteriorFloor();
+			FString Exported;
+			Prop->ExportText_InContainer(0, Exported, Obj, nullptr, Obj, PPF_None);
+			OutProps.Add({ Prop->GetFName(), MoveTemp(Exported) });
+		}
+	}
 
-	// Подписка на размещение (отдельно от интерактивной регистрации)
+	// Применить сохранённые SaveGame-свойства обратно к UObject
+	static void ApplySaveGameProperties(UObject* Obj, const TArray<FFloorSavedPropertyEntry>& Props)
+	{
+		if (!IsValid(Obj)) return;
+		for (const FFloorSavedPropertyEntry& Entry : Props)
+		{
+			FProperty* Prop = FindFProperty<FProperty>(Obj->GetClass(), Entry.PropertyName);
+			if (!Prop) continue;
+			void* Container = Prop->ContainerPtrToValuePtr<void>(Obj);
+			Prop->ImportText_InContainer(*Entry.ValueText, Obj, Obj, PPF_None);
+		}
+	}
+}
+
+// -----------------------------------------------------------------------------
+// SaveFloorActorsState
+// -----------------------------------------------------------------------------
+
+void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId)
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	FInteriorFloorKey Key(InteriorSetId, FloorId);
+	TArray<FFloorSavedActorState>& Bucket = FloorStateSnapshots.FindOrAdd(Key);
+
+	// Собираем множество уже сохранённых ItemId, чтобы не дублировать
+	TSet<FGuid> AlreadySaved;
+	for (const FFloorSavedActorState& S : Bucket)
+	{
+		AlreadySaved.Add(S.ItemId);
+	}
+
+	int32 NewCount = 0;
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!IsValid(Actor)) continue;
+
+		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+		if (!Comp) continue;
+		if (Comp->GetInteriorSetId() != InteriorSetId || Comp->GetFloorId() != FloorId) continue;
+
+		// Не добавляем дублирующую запись для того же ItemId
+		if (AlreadySaved.Contains(Comp->ItemId)) continue;
+
+		FFloorSavedActorState Snapshot;
+		Snapshot.ItemId = Comp->ItemId;
+		Snapshot.ActorTransform = Actor->GetActorTransform();
+
+		// Actor SaveGame properties
+		CollectSaveGameProperties(Actor, Snapshot.ActorProperties);
+
+		// Component SaveGame properties
+		TArray<UActorComponent*> Components;
+		Actor->GetComponents(Components);
+		for (UActorComponent* C : Components)
+		{
+			if (!IsValid(C)) continue;
+			TArray<FFloorSavedPropertyEntry> Props;
+			CollectSaveGameProperties(C, Props);
+			if (Props.Num() > 0)
+			{
+				FFloorSavedComponentState CState;
+				CState.ComponentName      = C->GetFName();
+				CState.ComponentClassName = C->GetClass()->GetFName();
+				CState.Properties         = MoveTemp(Props);
+				Snapshot.ComponentStates.Add(MoveTemp(CState));
+			}
+		}
+
+		Bucket.Add(MoveTemp(Snapshot));
+		++NewCount;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: SaveFloorActorsState — added %d new snapshots for floor %s/%s (total: %d)"),
+		NewCount, *InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
+}
+
+// -----------------------------------------------------------------------------
+// RestoreFloorActorsState
+// -----------------------------------------------------------------------------
+
+int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId)
+{
+	UWorld* W = GetWorld();
+	if (!W) return 0;
+
+	FInteriorFloorKey Key(InteriorSetId, FloorId);
+	const TArray<FFloorSavedActorState>* Found = FloorStateSnapshots.Find(Key);
+	if (!Found || Found->IsEmpty()) return 0;
+
+	// Индексируем акторы в мире по ItemId для быстрого поиска
+	TMap<FGuid, AActor*> ActorByItemId;
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!IsValid(Actor)) continue;
+		if (UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+		{
+			ActorByItemId.Add(Comp->ItemId, Actor);
+		}
+	}
+
+	int32 Restored = 0;
+	for (const FFloorSavedActorState& Snapshot : *Found)
+	{
+		AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
+		if (!ActorPtr || !IsValid(*ActorPtr)) continue;
+		AActor* Actor = *ActorPtr;
+
+		// Восстановить Transform
+		Actor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+
+		// Восстановить SaveGame-свойства актора
+		ApplySaveGameProperties(Actor, Snapshot.ActorProperties);
+
+		// Восстановить SaveGame-свойства компонентов
+		for (const FFloorSavedComponentState& CState : Snapshot.ComponentStates)
+		{
+			UActorComponent* Target = nullptr;
+			for (UActorComponent* C : Actor->GetComponents())
+			{
+				if (!IsValid(C)) continue;
+				if (C->GetFName() == CState.ComponentName ||
+				    C->GetClass()->GetFName() == CState.ComponentClassName)
+				{
+					Target = C;
+					break;
+				}
+			}
+			if (Target)
+			{
+				ApplySaveGameProperties(Target, CState.Properties);
+			}
+		}
+
+		++Restored;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: RestoreFloorActorsState — restored %d actors for floor %s/%s"),
+		Restored, *InteriorSetId.ToString(), *FloorId.ToString());
+
+	return Restored;
+}
+
+// -----------------------------------------------------------------------------
+// EventBus handlers — Registration
+// -----------------------------------------------------------------------------
+
+void UInteriorSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Outcome)
+{
+	UInteractItemRegistrationPayload* P = Cast<UInteractItemRegistrationPayload>(Outcome.Payload);
+	if (!P) return;
+
+	AActor* Owner = P->GetOwnerActor();
+	const FString OwnerName = Owner ? Owner->GetName() : FString(TEXT("Unknown"));
+
+	if (Outcome.OutcomeInterior == EOutcomeInterior::InteractRegistered)
+	{
+		FInteractItemRecord R;
+		R.ItemId           = P->ItemId;
+		R.OwnerActor       = Owner;
+		R.InteractionRange = P->InteractionRange;
+		R.SubsystemType    = P->SubsystemType;
+		RegisteredItems.Add(P->ItemId, R);
+
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Registered item '%s' (range=%.1f)"), *OwnerName, P->InteractionRange);
+
+		if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* List = RegistrationListeners.Find(P->ItemId))
+		{
+			for (auto It = List->CreateIterator(); It; ++It)
+			{
+				if (UInteractiveItemComponent* Comp = It->Get())
+				{
+					Comp->OnRegisteredBySubsystem(P);
+				}
+			}
+			RegistrationListeners.Remove(P->ItemId);
+		}
+
+		OnInteractItemRegistered.Broadcast(P);
+	}
+	else if (Outcome.OutcomeInterior == EOutcomeInterior::InteractUnregistered)
+	{
+		RegisteredItems.Remove(P->ItemId);
+
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Unregistered item '%s'"), *OwnerName);
+
+		if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* List = RegistrationListeners.Find(P->ItemId))
+		{
+			for (auto It = List->CreateIterator(); It; ++It)
+			{
+				if (UInteractiveItemComponent* Comp = It->Get())
+				{
+					Comp->OnUnregisteredBySubsystem(P);
+				}
+			}
+			RegistrationListeners.Remove(P->ItemId);
+		}
+
+		OnInteractItemUnregistered.Broadcast(P);
+	}
+}
+
+void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Outcome)
+{
+	UFloorPlacementPayload* P = Cast<UFloorPlacementPayload>(Outcome.Payload);
+	if (!P) return;
+
+	FInteriorFloorKey Key(P->InteriorSetId, P->FloorId);
+
+	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
+	{
+		// Собираем запись из полей payload
+		FFloorPopulationRecord NewRecord;
+		NewRecord.ActorType      = P->ActorType;
+		NewRecord.AnchorId       = P->AnchorId;
+		NewRecord.WorldTransform = P->WorldTransform;
+		NewRecord.PlacedActor    = P->OwnerActor.Get();
+		NewRecord.bHasAnchor     = P->AnchorId.IsValid();
+
+		FFloorPopulationBuckets& Buckets = SpawnedActorsByInteriorFloor.FindOrAdd(Key);
+
+		// Раскладываем по нужному бакету согласно типу
+		switch (P->ActorType)
+		{
+		case EFloorActorType::HeavyFurniture: Buckets.HeavyFurniture.Add(MoveTemp(NewRecord)); break;
+		case EFloorActorType::LightItem:      Buckets.LightItems.Add(MoveTemp(NewRecord));      break;
+		case EFloorActorType::Terminal:       Buckets.Terminals.Add(MoveTemp(NewRecord));       break;
+		case EFloorActorType::NPC_Spawner:    Buckets.NPCSpawners.Add(MoveTemp(NewRecord));     break;
+		case EFloorActorType::Debris:         Buckets.Debris.Add(MoveTemp(NewRecord));          break;
+		default:                              Buckets.LightItems.Add(MoveTemp(NewRecord));      break;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement registered for floor %s/%s (AnchorId=%s)"),
+			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
+	}
+	else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
+	{
+		if (FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
+		{
+			// Удаляем по AnchorId — единственный стабильный идентификатор в FFloorPopulationRecord
+			const FGuid AnchorToRemove = P->AnchorId;
+			auto RemoveByAnchor = [&AnchorToRemove](TArray<FFloorPopulationRecord>& Arr)
+			{
+				Arr.RemoveAll([&AnchorToRemove](const FFloorPopulationRecord& R)
+				{
+					return R.AnchorId == AnchorToRemove;
+				});
+			};
+
+			RemoveByAnchor(Buckets->HeavyFurniture);
+			RemoveByAnchor(Buckets->LightItems);
+			RemoveByAnchor(Buckets->Terminals);
+			RemoveByAnchor(Buckets->NPCSpawners);
+			RemoveByAnchor(Buckets->Debris);
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement unregistered for floor %s/%s (AnchorId=%s)"),
+			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
+	}
+}
+
+// -----------------------------------------------------------------------------
+// EventBus handlers — Interact commands
+// -----------------------------------------------------------------------------
+
+void UInteriorSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
+{
+	const UInteractCommandPayload* P = Cast<UInteractCommandPayload>(Outcome.Payload);
+	if (!P) return;
+
+	if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+	{
+		AActor* Owner = Rec->OwnerActor.Get();
+		if (Owner)
+		{
+			ExecuteInteractCommandOnOwner(P->ItemId, Owner, P->Picker);
+		}
+	}
+}
+
+void UInteriorSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
+{
+	const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload);
+	if (!P) return;
+
+	if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+	{
+		ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+	}
+}
+
+void UInteriorSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
+{
+	const UInteractSetRangePayload* P = Cast<UInteractSetRangePayload>(Outcome.Payload);
+	if (!P) return;
+
+	if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+	{
+		ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
+	}
+}
+
+void UInteriorSubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
+{
+	const UInteractSetTooltipPayload* P = Cast<UInteractSetTooltipPayload>(Outcome.Payload);
+	if (!P) return;
+
+	if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+	{
+		ExecuteSetTooltipOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewTooltip);
+	}
+}
+
+// -----------------------------------------------------------------------------
+// EventBus handlers — Floor snapshot
+// -----------------------------------------------------------------------------
+
+void UInteriorSubsystem::HandleFloorStateSave(const FOutcomeEventBase& Outcome)
+{
+	if (UFloorStatePayload* P = Cast<UFloorStatePayload>(Outcome.Payload))
+	{
+		SaveFloorActorsState(P->InteriorSetId, P->FloorId);
+	}
+}
+
+void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcome)
+{
+	if (UFloorStatePayload* P = Cast<UFloorStatePayload>(Outcome.Payload))
+	{
+		RestoreFloorActorsState(P->InteriorSetId, P->FloorId);
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Subscribe / Unsubscribe — полная реализация
+// -----------------------------------------------------------------------------
+
+void UInteriorSubsystem::SubscribeAll()
+{
+	// NOTE: Do not call Super::SubscribeAll() - UWorldSubsystem doesn't implement it.
+	UEventBusSubsystem* EventBus = CachedEventBus.Get();
+	if (!EventBus) return;
+
+	// ── Registration ──────────────────────────────────────────────────────────
+	if (!SpawnRegisterHandle.IsValid())
+	{
+		SpawnConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		SpawnConditionAsset->OperatorType = EConditionOperator::Composite;
+		SpawnConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		SpawnConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		SpawnConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractRegistered;
+		SpawnConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		SpawnConditionAsset->CompileCondition();
+
+		if (SpawnConditionAsset->GetCondition().IsValid())
+		{
+			SpawnRegisterHandle = EventBus->RegisterHandler(
+				SpawnConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractRegistration));
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractRegistered (handle=%u)"), SpawnRegisterHandle.GetId());
+		}
+	}
+
+	if (!DespawnRegisterHandle.IsValid())
+	{
+		DespawnConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		DespawnConditionAsset->OperatorType = EConditionOperator::Composite;
+		DespawnConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		DespawnConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		DespawnConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractUnregistered;
+		DespawnConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		DespawnConditionAsset->CompileCondition();
+
+		if (DespawnConditionAsset->GetCondition().IsValid())
+		{
+			DespawnRegisterHandle = EventBus->RegisterHandler(
+				DespawnConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractRegistration));
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractUnregistered (handle=%u)"), DespawnRegisterHandle.GetId());
+		}
+	}
+
+	// ── Placement registration ─────────────────────────────────────────────
 	SubscribePlacementRegistration();
 
-	// Зарегистрировать собранные объекты в подсистеме (создаст RegisteredItems и уведомления)
-	RegisterPlacedActorsInSubsystem();
-
-	SubscribeInteractionRegistration();
-	SubscribeInteractCommand();
-	SubscribeSetEnabled();
-	SubscribeSetRange();
-	SubscribeSetTooltip();
-}
-
-void UInteriorSubsystem::Deinitialize()
-{
-	UnsubscribeInteractionRegistration();
-	UnsubscribeAll();
-	SpawnedActorsByInteriorFloor.Empty();
-	CachedEventBus.Reset();
-	Super::Deinitialize();
-}
-
-void UInteriorSubsystem::SubscribeInteractionRegistration()
-{
-	if (!CachedEventBus.IsValid()) return;
-	if (SpawnRegisterHandle.IsValid() || DespawnRegisterHandle.IsValid()) return;
-
-	// Create runtime condition asset for InteractRegistered (Interior-specific)
-	SpawnConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	SpawnConditionAsset->OperatorType = EConditionOperator::Composite;
-	SpawnConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
-	SpawnConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	SpawnConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractRegistered;
-	SpawnConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
-	SpawnConditionAsset->CompileCondition();
-
-	// Create runtime condition asset for InteractUnregistered (Interior-specific)
-	DespawnConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	DespawnConditionAsset->OperatorType = EConditionOperator::Composite;
-	DespawnConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
-	DespawnConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	DespawnConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractUnregistered;
-	DespawnConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
-	DespawnConditionAsset->CompileCondition();
-
-	if (SpawnConditionAsset->GetCondition().IsValid())
+	// ── InteractCommand ───────────────────────────────────────────────────
+	if (!InteractCommandHandle.IsValid())
 	{
-		SpawnRegisterHandle = CachedEventBus->RegisterHandler(
-			SpawnConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractRegistration)
-		);
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractRegistered (handle=%u)"), SpawnRegisterHandle.GetId());
+		InteractCommandConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		InteractCommandConditionAsset->OperatorType = EConditionOperator::Composite;
+		InteractCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		InteractCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		InteractCommandConditionAsset->CompileCondition();
+
+		if (InteractCommandConditionAsset->GetCondition().IsValid())
+		{
+			InteractCommandHandle = EventBus->RegisterHandler(
+				InteractCommandConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractCommand));
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractCommand (handle=%u)"), InteractCommandHandle.GetId());
+		}
 	}
 
-	if (DespawnConditionAsset->GetCondition().IsValid())
+	// ── SetEnabled ────────────────────────────────────────────────────────
+	if (!SetEnabledHandle.IsValid())
 	{
-		DespawnRegisterHandle = CachedEventBus->RegisterHandler(
-			DespawnConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractRegistration)
-		);
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractUnregistered (handle=%u)"), DespawnRegisterHandle.GetId());
-	}
-}
+		SetEnabledConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		SetEnabledConditionAsset->OperatorType = EConditionOperator::Composite;
+		SetEnabledConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		SetEnabledConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		SetEnabledConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetEnabled;
+		SetEnabledConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		SetEnabledConditionAsset->CompileCondition();
 
-void UInteriorSubsystem::UnsubscribeInteractionRegistration()
-{
-	if (!CachedEventBus.IsValid()) return;
-
-	if (SpawnRegisterHandle.IsValid())
-	{
-		CachedEventBus->UnregisterHandler(SpawnRegisterHandle);
-		SpawnRegisterHandle.Invalidate();
-	}
-	if (DespawnRegisterHandle.IsValid())
-	{
-		CachedEventBus->UnregisterHandler(DespawnRegisterHandle);
-		DespawnRegisterHandle.Invalidate();
+		if (SetEnabledConditionAsset->GetCondition().IsValid())
+		{
+			SetEnabledHandle = EventBus->RegisterHandler(
+				SetEnabledConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetEnabled));
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetEnabled (handle=%u)"), SetEnabledHandle.GetId());
+		}
 	}
 
-	SpawnConditionAsset  = nullptr;
-	DespawnConditionAsset = nullptr;
+	// ── SetRange ──────────────────────────────────────────────────────────
+	if (!SetRangeHandle.IsValid())
+	{
+		SetRangeConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		SetRangeConditionAsset->OperatorType = EConditionOperator::Composite;
+		SetRangeConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		SetRangeConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		SetRangeConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetRange;
+		SetRangeConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		SetRangeConditionAsset->CompileCondition();
 
-	// also cleanup placement handlers if any
-	UnsubscribePlacementRegistration();
+		if (SetRangeConditionAsset->GetCondition().IsValid())
+		{
+			SetRangeHandle = EventBus->RegisterHandler(
+				SetRangeConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetRange));
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetRange (handle=%u)"), SetRangeHandle.GetId());
+		}
+	}
+
+	// ── SetTooltip ────────────────────────────────────────────────────────
+	if (!SetTooltipHandle.IsValid())
+	{
+		SetTooltipConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		SetTooltipConditionAsset->OperatorType = EConditionOperator::Composite;
+		SetTooltipConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		SetTooltipConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		SetTooltipConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetTooltip;
+		SetTooltipConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		SetTooltipConditionAsset->CompileCondition();
+
+		if (SetTooltipConditionAsset->GetCondition().IsValid())
+		{
+			SetTooltipHandle = EventBus->RegisterHandler(
+				SetTooltipConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetTooltip));
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetTooltip (handle=%u)"), SetTooltipHandle.GetId());
+		}
+	}
+
+	// ── FloorStateSave / FloorStateRestore ────────────────────────────────
+	if (!FloorStateSaveHandle.IsValid())
+	{
+		FloorStateSaveConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		FloorStateSaveConditionAsset->OperatorType = EConditionOperator::Composite;
+		FloorStateSaveConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		FloorStateSaveConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		FloorStateSaveConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorStateSave;
+		FloorStateSaveConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		FloorStateSaveConditionAsset->CompileCondition();
+
+		if (FloorStateSaveConditionAsset->GetCondition().IsValid())
+		{
+			FloorStateSaveHandle = EventBus->RegisterHandler(
+				FloorStateSaveConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleFloorStateSave));
+		}
+	}
+
+	if (!FloorStateRestoreHandle.IsValid())
+	{
+		FloorStateRestoreConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		FloorStateRestoreConditionAsset->OperatorType = EConditionOperator::Composite;
+		FloorStateRestoreConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		FloorStateRestoreConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		FloorStateRestoreConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorStateRestore;
+		FloorStateRestoreConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		FloorStateRestoreConditionAsset->CompileCondition();
+
+		if (FloorStateRestoreConditionAsset->GetCondition().IsValid())
+		{
+			FloorStateRestoreHandle = EventBus->RegisterHandler(
+				FloorStateRestoreConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleFloorStateRestore));
+		}
+	}
 }
 
 void UInteriorSubsystem::SubscribePlacementRegistration()
 {
-	if (!CachedEventBus.IsValid()) return;
-	if (PlacementRegisterHandle.IsValid() || PlacementUnregisterHandle.IsValid()) return;
+	UEventBusSubsystem* EventBus = CachedEventBus.Get();
+	if (!EventBus) return;
 
-	PlacementRegisterConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	PlacementRegisterConditionAsset->OperatorType = EConditionOperator::Composite;
-	PlacementRegisterConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
-	PlacementRegisterConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	PlacementRegisterConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
-	PlacementRegisterConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorPlacementRegistered;
-	PlacementRegisterConditionAsset->CompileCondition();
-
-	PlacementUnregisterConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	PlacementUnregisterConditionAsset->OperatorType = EConditionOperator::Composite;
-	PlacementUnregisterConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
-	PlacementUnregisterConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	PlacementUnregisterConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
-	PlacementUnregisterConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorPlacementUnregistered;
-	PlacementUnregisterConditionAsset->CompileCondition();
-
-	if (PlacementRegisterConditionAsset->GetCondition().IsValid())
+	if (!PlacementRegisterHandle.IsValid())
 	{
-		PlacementRegisterHandle = CachedEventBus->RegisterHandler(
-			PlacementRegisterConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandlePlacementRegistration)
-		);
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to FloorPlacementRegistered (handle=%u)"), PlacementRegisterHandle.GetId());
+		PlacementRegisterConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		PlacementRegisterConditionAsset->OperatorType = EConditionOperator::Composite;
+		PlacementRegisterConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		PlacementRegisterConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		PlacementRegisterConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorPlacementRegistered;
+		PlacementRegisterConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		PlacementRegisterConditionAsset->CompileCondition();
+
+		if (PlacementRegisterConditionAsset->GetCondition().IsValid())
+		{
+			PlacementRegisterHandle = EventBus->RegisterHandler(
+				PlacementRegisterConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandlePlacementRegistration));
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to FloorPlacementRegistered (handle=%u)"), PlacementRegisterHandle.GetId());
+		}
 	}
 
-	if (PlacementUnregisterConditionAsset->GetCondition().IsValid())
+	if (!PlacementUnregisterHandle.IsValid())
 	{
-		PlacementUnregisterHandle = CachedEventBus->RegisterHandler(
-			PlacementUnregisterConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandlePlacementRegistration)
-		);
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to FloorPlacementUnregistered (handle=%u)"), PlacementUnregisterHandle.GetId());
+		PlacementUnregisterConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		PlacementUnregisterConditionAsset->OperatorType = EConditionOperator::Composite;
+		PlacementUnregisterConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		PlacementUnregisterConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		PlacementUnregisterConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorPlacementUnregistered;
+		PlacementUnregisterConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		PlacementUnregisterConditionAsset->CompileCondition();
+
+		if (PlacementUnregisterConditionAsset->GetCondition().IsValid())
+		{
+			PlacementUnregisterHandle = EventBus->RegisterHandler(
+				PlacementUnregisterConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandlePlacementRegistration));
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to FloorPlacementUnregistered (handle=%u)"), PlacementUnregisterHandle.GetId());
+		}
 	}
 }
 
 void UInteriorSubsystem::UnsubscribePlacementRegistration()
 {
-	if (!CachedEventBus.IsValid()) return;
-	if (PlacementRegisterHandle.IsValid())
+	if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
 	{
-		CachedEventBus->UnregisterHandler(PlacementRegisterHandle);
-		PlacementRegisterHandle.Invalidate();
+		auto Unreg = [&](FOutcomeHandlerHandle& Handle, UOutcomeConditionAsset*& Asset)
+		{
+			if (Handle.IsValid()) { EventBus->UnregisterHandler(Handle); Handle.Invalidate(); }
+			Asset = nullptr;
+		};
+		Unreg(PlacementRegisterHandle,   PlacementRegisterConditionAsset);
+		Unreg(PlacementUnregisterHandle, PlacementUnregisterConditionAsset);
 	}
-	if (PlacementUnregisterHandle.IsValid())
-	{
-		CachedEventBus->UnregisterHandler(PlacementUnregisterHandle);
-		PlacementUnregisterHandle.Invalidate();
-	}
-	PlacementRegisterConditionAsset = nullptr;
-	PlacementUnregisterConditionAsset = nullptr;
 }
 
-// Separate handler: only processes UFloorPlacementPayload (placed actors). Does NOT touch RegisteredItems.
-void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Outcome)
+// ===== missing method implementations (stubs with minimal correct behavior) =====
+
+void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
-	if (!CachedEventBus.IsValid()) return;
-
-	if (UFloorPlacementPayload* FP = Cast<UFloorPlacementPayload>(Outcome.Payload))
+	// Cache EventBus and subscribe handlers
+	if (UGameInstance* GI = InWorld.GetGameInstance())
 	{
-		AActor* Owner = FP->OwnerActor.Get();
-		FInteriorFloorKey Key(FP->InteriorSetId, FP->FloorId);
-
-		if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
-		{
-			FFloorPopulationBuckets& Buckets = SpawnedActorsByInteriorFloor.FindOrAdd(Key);
-
-			// Build record once (store full transform)
-			FFloorPopulationRecord NewRec;
-			NewRec.ActorType = FP->ActorType;
-			NewRec.SourceClass = Owner ? Owner->GetClass() : nullptr;
-			NewRec.PlacedActor = Owner;
-			NewRec.AnchorId = FP->AnchorId;
-			NewRec.WorldTransform = FP->WorldTransform;
-			NewRec.bHasAnchor = FP->AnchorId.IsValid();
-
-			// Helper lambda: check duplicate in array (owner, anchor, or identical transform if no actor)
-			auto ExistsInArray = [&](const TArray<FFloorPopulationRecord>& Arr)->bool
-			{
-				for (const FFloorPopulationRecord& R : Arr)
-				{
-					if (R.PlacedActor.IsValid() && Owner && R.PlacedActor.Get() == Owner) return true;
-					if (FP->AnchorId.IsValid() && R.AnchorId == FP->AnchorId) return true;
-					// legacy check: if there's no placed actor, compare transforms
-					if (!R.PlacedActor.IsValid() && R.WorldTransform.Equals(FP->WorldTransform)) return true;
-				}
-				return false;
-			};
-
-			bool bAdded = false;
-			switch (FP->ActorType)
-			{
-			case EFloorActorType::HeavyFurniture:
-				if (!ExistsInArray(Buckets.HeavyFurniture)) { Buckets.HeavyFurniture.Add(NewRec); bAdded = true; }
-				break;
-			case EFloorActorType::LightItem:
-				if (!ExistsInArray(Buckets.LightItems)) { Buckets.LightItems.Add(NewRec); bAdded = true; }
-				break;
-			case EFloorActorType::Terminal:
-				if (!ExistsInArray(Buckets.Terminals)) { Buckets.Terminals.Add(NewRec); bAdded = true; }
-				break;
-			case EFloorActorType::NPC_Spawner:
-				if (!ExistsInArray(Buckets.NPCSpawners)) { Buckets.NPCSpawners.Add(NewRec); bAdded = true; }
-				break;
-			case EFloorActorType::Debris:
-				if (!ExistsInArray(Buckets.Debris)) { Buckets.Debris.Add(NewRec); bAdded = true; }
-				break;
-			default:
-				if (!ExistsInArray(Buckets.LightItems)) { Buckets.LightItems.Add(NewRec); bAdded = true; }
-				break;
-			}
-
-			if (bAdded)
-			{
-				UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placed actor registered Owner=%s Interior=%s Floor=%s Type=%d"),
-					Owner ? *Owner->GetName() : TEXT("None"),
-					*FP->InteriorSetId.ToString(), *FP->FloorId.ToString(), static_cast<int32>(FP->ActorType));
-			}
-		}
-		else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
-		{
-			if (FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
-			{
-				auto RemoveMatches = [&](TArray<FFloorPopulationRecord>& Arr)
-				{
-					for (int32 i = Arr.Num() - 1; i >= 0; --i)
-					{
-						const FFloorPopulationRecord& R = Arr[i];
-						if ((R.PlacedActor.IsValid() && Owner && R.PlacedActor.Get() == Owner) ||
-							(R.AnchorId.IsValid() && R.AnchorId == FP->AnchorId) ||
-							(!R.PlacedActor.IsValid() && R.WorldTransform.Equals(FP->WorldTransform)))
-						{
-							Arr.RemoveAtSwap(i);
-						}
-					}
-				};
-
-				RemoveMatches(Buckets->HeavyFurniture);
-				RemoveMatches(Buckets->LightItems);
-				RemoveMatches(Buckets->Terminals);
-				RemoveMatches(Buckets->NPCSpawners);
-				RemoveMatches(Buckets->Debris);
-
-				// remove entire key if all buckets empty
-				if (Buckets->HeavyFurniture.Num() == 0 &&
-					Buckets->LightItems.Num() == 0 &&
-					Buckets->Terminals.Num() == 0 &&
-					Buckets->NPCSpawners.Num() == 0 &&
-					Buckets->Debris.Num() == 0)
-				{
-					SpawnedActorsByInteriorFloor.Remove(Key);
-				}
-			}
-			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placed actor unregistered Owner=%s"), Owner ? *Owner->GetName() : TEXT("None"));
-		}
+		CachedEventBus = GI->GetSubsystem<UEventBusSubsystem>();
 	}
+	// Build runtime asset index (friendly keys) once and subscribe handlers
+	BuildAssetIndex();
+	SubscribeAll();
 }
 
+void UInteriorSubsystem::Deinitialize()
+{
+	// Unsubscribe everything and clear caches
+	UnsubscribeAll();
+
+	// Clear runtime registries
+	RegisteredItems.Empty();
+	RegistrationListeners.Empty();
+	SpawnedActorsByInteriorFloor.Empty();
+	FloorStateSnapshots.Empty();
+
+	CachedEventBus = nullptr;
+
+	Super::Deinitialize();
+}
+
+// Simple wrappers — delegate to SubscribeAll/UnsubscribeAll
+void UInteriorSubsystem::SubscribeInteractionRegistration() { SubscribeAll(); }
+void UInteriorSubsystem::UnsubscribeInteractionRegistration() { UnsubscribeAll(); }
+void UInteriorSubsystem::SubscribeInteractCommand() { SubscribeAll(); }
+void UInteriorSubsystem::UnsubscribeInteractCommand() { UnsubscribeAll(); }
+void UInteriorSubsystem::SubscribeSetEnabled() { SubscribeAll(); }
+void UInteriorSubsystem::UnsubscribeSetEnabled() { UnsubscribeAll(); }
+void UInteriorSubsystem::SubscribeSetRange() { SubscribeAll(); }
+void UInteriorSubsystem::UnsubscribeSetRange() { UnsubscribeAll(); }
+void UInteriorSubsystem::SubscribeSetTooltip() { SubscribeAll(); }
+void UInteriorSubsystem::UnsubscribeSetTooltip() { UnsubscribeAll(); }
+
+// Add/remove per-item registration listeners
 void UInteriorSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 {
 	FInteractiveSubsystemMethods::AddRegistrationListener(ItemId, Listener);
@@ -277,528 +649,138 @@ void UInteriorSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteracti
 
 void UInteriorSubsystem::RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 {
-	if (!Listener) return;
-	if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* Arr = RegistrationListeners.Find(ItemId))
-	{
-		for (int32 i = Arr->Num() - 1; i >= 0; --i)
-		{
-			if ((*Arr)[i].Get() == Listener || !(*Arr)[i].IsValid())
-			{
-				Arr->RemoveAtSwap(i);
-			}
-		}
-		if (Arr->Num() == 0)
-		{
-			RegistrationListeners.Remove(ItemId);
-		}
-	}
+	FInteractiveSubsystemMethods::RemoveRegistrationListener(ItemId, Listener);
 }
 
-void UInteriorSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Outcome)
+// Возвращает объединённый список всех записей в buckets для ключа
+TArray<FFloorPopulationRecord> UInteriorSubsystem::GetPlacedActorsForInteriorFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const
 {
-	if (!CachedEventBus.IsValid()) return;
-
-	// Only handle interactive registration payloads here (UInteractItemRegistrationPayload).
-	// Floor placement payloads are handled by separate handler HandlePlacementRegistration.
-	if (UInteractItemRegistrationPayload* P = Cast<UInteractItemRegistrationPayload>(Outcome.Payload))
+	TArray<FFloorPopulationRecord> Result;
+	const FInteriorFloorKey Key(InteriorSetId, FloorId);
+	if (const FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
 	{
-		const FGuid Id = P->ItemId;
-		AActor* Owner   = P->GetOwnerActor();
-		FString OwnerName = Owner ? Owner->GetName() : FString(TEXT("Unknown"));
-
-		if (Outcome.OutcomeInterior == EOutcomeInterior::InteractRegistered)
-		{
-			FInteractItemRecord R;
-			R.ItemId           = Id;
-			R.SubsystemType    = P->SubsystemType;
-			R.InteractionRange = P->InteractionRange;
-			R.DefaultTooltip   = P->DefaultTooltip;
-			R.OwnerActor       = Owner;
-
-			RegisteredItems.Add(Id, R);
-
-			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Registered interactive item owned by '%s' (range=%.1f)"),
-				*OwnerName, R.InteractionRange);
-
-			// Notify only the listener for this ItemId
-			if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* List = RegistrationListeners.Find(Id))
-			{
-				for (auto It = List->CreateIterator(); It; ++It)
-				{
-					if (UInteractiveItemComponent* Comp = It->Get())
-					{
-						Comp->OnRegisteredBySubsystem(P);
-					}
-				}
-				RegistrationListeners.Remove(Id);
-			}
-		}
-		else if (Outcome.OutcomeInterior == EOutcomeInterior::InteractUnregistered)
-		{
-			FString NameToLog = OwnerName;
-			if (RegisteredItems.Contains(Id))
-			{
-				AActor* RegOwner = RegisteredItems[Id].OwnerActor.Get();
-				if (RegOwner) NameToLog = RegOwner->GetName();
-				RegisteredItems.Remove(Id);
-			}
-			else if (NameToLog == "Unknown")
-			{
-				NameToLog = Id.ToString();
-			}
-
-			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Unregistered interactive item owned by '%s'"), *NameToLog);
-
-			if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* List = RegistrationListeners.Find(Id))
-			{
-				for (auto It = List->CreateIterator(); It; ++It)
-				{
-					if (UInteractiveItemComponent* Comp = It->Get())
-					{
-						Comp->OnUnregisteredBySubsystem(P);
-					}
-				}
-				RegistrationListeners.Remove(Id);
-			}
-		}
+		Result.Append(Buckets->HeavyFurniture);
+		Result.Append(Buckets->LightItems);
+		Result.Append(Buckets->Terminals);
+		Result.Append(Buckets->NPCSpawners);
+		Result.Append(Buckets->Debris);
 	}
-}
-
-void UInteriorSubsystem::SubscribeInteractCommand()
-{
-	if (!CachedEventBus.IsValid()) return;
-	if (InteractCommandHandle.IsValid()) return;
-
-	InteractCommandConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	InteractCommandConditionAsset->OperatorType = EConditionOperator::Composite;
-	// Фильтруем только по типу Outcome, чтобы получать команды только для Interior
-	InteractCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
-	InteractCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	InteractCommandConditionAsset->CompileCondition();
-
-	if (InteractCommandConditionAsset->GetCondition().IsValid())
-	{
-		InteractCommandHandle = CachedEventBus->RegisterHandler(
-			InteractCommandConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractCommand)
-		);
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to InteractCommand (handle=%u)"), InteractCommandHandle.GetId());
-	}
-}
-
-void UInteriorSubsystem::UnsubscribeInteractCommand()
-{
-	if (!CachedEventBus.IsValid()) return;
-	if (InteractCommandHandle.IsValid())
-	{
-		CachedEventBus->UnregisterHandler(InteractCommandHandle);
-		InteractCommandHandle.Invalidate();
-	}
-	InteractCommandConditionAsset = nullptr;
-}
-
-void UInteriorSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
-{
-	if (const UInteractCommandPayload* P = Cast<UInteractCommandPayload>(Outcome.Payload))
-	{
-		const FGuid Id = P->ItemId;
-		// Сначала подсистема находит зарегистрированного владельца по ItemId
-		if (const FInteractItemRecord* Rec = RegisteredItems.Find(Id))
-		{
-			AActor* Owner = Rec->OwnerActor.Get();
-			if (Owner)
-			{
-				// Затем вызывает хелпер, передавая Owner и Picker
-				ExecuteInteractCommandOnOwner(Id, Owner, P->Picker);
-			}
-		}
-	}
-}
-
-void UInteriorSubsystem::SubscribeAll()
-{
-	// GhostCleared / ItemAcquired handlers были удалены — больше не подписываемся на них.
-	SubscribeInteractionRegistration();
-	SubscribeInteractCommand();
+	return Result;
 }
 
 void UInteriorSubsystem::UnsubscribeAll()
 {
-	// GhostCleared / ItemAcquired handlers были удалены — больше не отписываемся от них.
-	UnsubscribeInteractCommand();
-	UnsubscribeSetEnabled();
-	UnsubscribeSetRange();
-	UnsubscribeSetTooltip();
-}
-
-void UInteriorSubsystem::SubscribeSetEnabled()
-{
-	if (!CachedEventBus.IsValid() || SetEnabledHandle.IsValid()) return;
-
-	SetEnabledConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	SetEnabledConditionAsset->OperatorType = EConditionOperator::Composite;
-	SetEnabledConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
-	SetEnabledConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	SetEnabledConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetEnabled;
-	SetEnabledConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
-	SetEnabledConditionAsset->CompileCondition();
-
-	if (SetEnabledConditionAsset->GetCondition().IsValid())
+	if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
 	{
-		SetEnabledHandle = CachedEventBus->RegisterHandler(
-			SetEnabledConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetEnabled)
-		);
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetEnabled (handle=%u)"), SetEnabledHandle.GetId());
-	}
-}
-
-void UInteriorSubsystem::UnsubscribeSetEnabled()
-{
-	if (!CachedEventBus.IsValid() || !SetEnabledHandle.IsValid()) return;
-	CachedEventBus->UnregisterHandler(SetEnabledHandle);
-	SetEnabledHandle.Invalidate();
-	SetEnabledConditionAsset = nullptr;
-}
-
-void UInteriorSubsystem::SubscribeSetRange()
-{
-	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;
-
-	SetRangeConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	SetRangeConditionAsset->OperatorType = EConditionOperator::Composite;
-	SetRangeConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
-	SetRangeConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	SetRangeConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetRange;
-	SetRangeConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
-	SetRangeConditionAsset->CompileCondition();
-
-	if (SetRangeConditionAsset->GetCondition().IsValid())
-	{
-		SetRangeHandle = CachedEventBus->RegisterHandler(
-			SetRangeConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetRange)
-		);
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetRange (handle=%u)"), SetRangeHandle.GetId());
-	}
-}
-
-void UInteriorSubsystem::UnsubscribeSetRange()
-{
-	if (!CachedEventBus.IsValid() || !SetRangeHandle.IsValid()) return;
-	CachedEventBus->UnregisterHandler(SetRangeHandle);
-	SetRangeHandle.Invalidate();
-	SetRangeConditionAsset = nullptr;
-}
-
-void UInteriorSubsystem::SubscribeSetTooltip()
-{
-	if (!CachedEventBus.IsValid() || SetTooltipHandle.IsValid()) return;
-
-	SetTooltipConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	SetTooltipConditionAsset->OperatorType = EConditionOperator::Composite;
-	SetTooltipConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
-	SetTooltipConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	SetTooltipConditionAsset->FilterRow.InteriorType = EOutcomeInterior::InteractSetTooltip;
-	SetTooltipConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
-	SetTooltipConditionAsset->CompileCondition();
-
-	if (SetTooltipConditionAsset->GetCondition().IsValid())
-	{
-		SetTooltipHandle = CachedEventBus->RegisterHandler(
-			SetTooltipConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetTooltip)
-		);
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Subscribed to SetTooltip (handle=%u)"), SetTooltipHandle.GetId());
-	}
-}
-
-void UInteriorSubsystem::UnsubscribeSetTooltip()
-{
-	if (!CachedEventBus.IsValid() || !SetTooltipHandle.IsValid()) return;
-	CachedEventBus->UnregisterHandler(SetTooltipHandle);
-	SetTooltipHandle.Invalidate();
-	SetTooltipConditionAsset = nullptr;
-}
-
-void UInteriorSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
-{
-	if (const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload))
-	{
-		if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		auto UnregisterHandle = [&](FOutcomeHandlerHandle& Handle, UOutcomeConditionAsset*& Asset)
 		{
-			ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
+			if (Handle.IsValid())
+			{
+				EventBus->UnregisterHandler(Handle);
+				Handle.Invalidate();
+			}
+			Asset = nullptr;
+		};
+
+		UnregisterHandle(SpawnRegisterHandle,   SpawnConditionAsset);
+		UnregisterHandle(DespawnRegisterHandle, DespawnConditionAsset);
+
+		UnregisterHandle(PlacementRegisterHandle,   PlacementRegisterConditionAsset);
+		UnregisterHandle(PlacementUnregisterHandle, PlacementUnregisterConditionAsset);
+
+		UnregisterHandle(InteractCommandHandle, InteractCommandConditionAsset);
+		UnregisterHandle(SetEnabledHandle,      SetEnabledConditionAsset);
+		UnregisterHandle(SetRangeHandle,        SetRangeConditionAsset);
+		UnregisterHandle(SetTooltipHandle,      SetTooltipConditionAsset);
+
+		UnregisterHandle(FloorStateSaveHandle,    FloorStateSaveConditionAsset);
+		UnregisterHandle(FloorStateRestoreHandle, FloorStateRestoreConditionAsset);
+	}
+
+	RegisteredItems.Empty();
+	RegistrationListeners.Empty();
+	// Не трогаем FloorStateSnapshots (это хранилище снимков)
+}
+
+void UInteriorSubsystem::BuildAssetIndex()
+{
+	// Use AssetRegistry to find all InteriorSet assets and build friendly index
+	TArray<FAssetData> Ads;
+	FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	ARM.Get().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/FPSKitALSRefactored"), TEXT("InteriorSetAsset")), Ads, true);
+
+	for (const FAssetData& AD : Ads)
+	{
+		UInteriorSetAsset* IS = Cast<UInteriorSetAsset>(AD.GetAsset());
+		if (!IS)
+		{
+			const FSoftObjectPath SoftPath = AD.ToSoftObjectPath();
+			IS = Cast<UInteriorSetAsset>(SoftPath.TryLoad());
+		}
+		if (!IS) continue;
+
+		const FString SoftPathStr = AD.ToSoftObjectPath().ToString();
+
+		for (const TSoftObjectPtr<UFloorAsset>& Ref : IS->Floors)
+		{
+			UFloorAsset* Floor = Ref.LoadSynchronous();
+			if (!Floor) continue;
+			const FString Key = FString::Printf(TEXT("%s:floor_%d"), *SoftPathStr, Floor->FloorIndex);
+			FInteriorFloorKey K(IS->InteriorSetID, Floor->FloorID);
+			FriendlyFloorIndex.Add(Key, K);
 		}
 	}
 }
 
-void UInteriorSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
+bool UInteriorSubsystem::TryResolveFloorKeyByAssetName(const FString& AssetName, int32 FloorIndex, FInteriorFloorKey& OutKey) const
 {
-	if (const UInteractSetRangePayload* P = Cast<UInteractSetRangePayload>(Outcome.Payload))
+	if (AssetName.IsEmpty()) return false;
+
+	FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> AssetDataList;
+	ARM.Get().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/FPSKitALSRefactored"), TEXT("InteriorSetAsset")), AssetDataList, true);
+
+	TArray<FAssetData> Matches;
+	for (const FAssetData& AD : AssetDataList)
 	{
-		if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		if (AD.AssetName.ToString().Equals(AssetName, ESearchCase::IgnoreCase))
 		{
-			ExecuteSetRangeOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewRange);
+			Matches.Add(AD);
 		}
 	}
-}
 
-void UInteriorSubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
-{
-	if (const UInteractSetTooltipPayload* P = Cast<UInteractSetTooltipPayload>(Outcome.Payload))
+	if (Matches.Num() == 0)
 	{
-		if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
+		UE_LOG(LogTemp, Warning, TEXT("TryResolveFloorKeyByAssetName: no InteriorSet asset named '%s'"), *AssetName);
+		return false;
+	}
+
+	if (Matches.Num() > 1)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TryResolveFloorKeyByAssetName: multiple InteriorSet assets named '%s', using first match."), *AssetName);
+	}
+
+	const FAssetData& AD = Matches[0];
+	UInteriorSetAsset* IS = Cast<UInteriorSetAsset>(AD.GetAsset());
+	if (!IS) IS = Cast<UInteriorSetAsset>(AD.ToSoftObjectPath().TryLoad());
+	if (!IS)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TryResolveFloorKeyByAssetName: failed to load InteriorSet '%s'"), *AD.ToSoftObjectPath().ToString());
+		return false;
+	}
+
+	for (const TSoftObjectPtr<UFloorAsset>& FloorRef : IS->Floors)
+	{
+		if (UFloorAsset* Floor = FloorRef.LoadSynchronous())
 		{
-			ExecuteSetTooltipOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewTooltip);
+			if (Floor->FloorIndex == FloorIndex)
+			{
+				OutKey = FInteriorFloorKey(IS->InteriorSetID, Floor->FloorID);
+				return true;
+			}
 		}
 	}
-}
 
-void UInteriorSubsystem::EvaluateConditions() {}
-
-// -----------------------------------------------------------------------------
-// Stub: сбор размещённых акторов отложен — пока простой очиститель карты.
-// -----------------------------------------------------------------------------
-// TODO: implement detailed collection logic later (mapping placed actors to InteriorSet+Floor)
-void UInteriorSubsystem::CollectPlacedActorsByInteriorFloor()
-{
-	// TODO: implement detailed collection logic later (mapping placed actors to InteriorSet+Floor)
-	SpawnedActorsByInteriorFloor.Empty();
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: CollectPlacedActorsByInteriorFloor() is stubbed — implementation deferred."));
-}
-
-// Map floor actor type -> interactive subsystem used for payload/registration
-static EInteractiveSubsystem MapFloorActorTypeToInteractiveSubsystem(EFloorActorType T)
-{
-	switch (T)
-	{
-	case EFloorActorType::Terminal:
-		return EInteractiveSubsystem::Terminal;
-	case EFloorActorType::NPC_Spawner:
-		return EInteractiveSubsystem::ActorNPC;
-	case EFloorActorType::Debris:
-		// Debris is passive interior item — handled by Interior subsystem
-		return EInteractiveSubsystem::Interior;
-	case EFloorActorType::HeavyFurniture:
-	case EFloorActorType::LightItem:
-	default:
-		return EInteractiveSubsystem::Interior;
-	}
-}
-
-void UInteriorSubsystem::RegisterPlacedActorsInSubsystem()
-{
-	if (SpawnedActorsByInteriorFloor.Num() == 0)
-	{
-		return;
-	}
-
-	int32 RegisteredCountBefore = RegisteredItems.Num();
-
-	// Helper to process one array of population records
-	auto ProcessArray = [&](const TArray<FFloorPopulationRecord>& Arr)
-	{
-		for (const FFloorPopulationRecord& Rec : Arr)
-		{
-			AActor* Owner = Rec.PlacedActor.Get();
-			if (!IsValid(Owner))
-			{
-				continue;
-			}
-
-			// Avoid duplicate registration by owner pointer
-			bool bOwnerAlreadyRegistered = false;
-			for (const auto& KV : RegisteredItems)
-			{
-				const FInteractItemRecord& Existing = KV.Value;
-				if (Existing.OwnerActor.IsValid() && Existing.OwnerActor.Get() == Owner)
-				{
-					bOwnerAlreadyRegistered = true;
-					break;
-				}
-			}
-			if (bOwnerAlreadyRegistered)
-			{
-				continue;
-			}
-
-			// Prefer interactive component if present
-			UInteractiveItemComponent* InterComp = Owner->FindComponentByClass<UInteractiveItemComponent>();
-
-			FGuid ItemId;
-			EInteractiveSubsystem Subsystem = EInteractiveSubsystem::Interior;
-			float InteractionRange = 200.f;
-			FText DefaultTooltip = FText::GetEmpty();
-
-			if (InterComp)
-			{
-				// Use component-provided stable id and settings
-				ItemId = InterComp->GetItemId();
-				Subsystem = InterComp->SubsystemType;
-				InteractionRange = InterComp->InteractionRange;
-				DefaultTooltip = InterComp->InteractiveTooltipText;
-
-				// If component has no ItemId (unlikely) — fallback to assignment component or new GUID
-				if (!ItemId.IsValid())
-				{
-					if (UFloorAssignmentComponent* Assign = Owner->FindComponentByClass<UFloorAssignmentComponent>())
-					{
-						if (Assign->ItemId.IsValid())
-						{
-							ItemId = Assign->ItemId;
-						}
-						else
-						{
-							ItemId = FGuid::NewGuid();
-							Assign->Modify();
-							Assign->ItemId = ItemId;
-							if (UPackage* Pkg = Assign->GetOwner()->GetOutermost())
-							{
-								Pkg->MarkPackageDirty();
-							}
-						}
-					}
-					else
-					{
-						ItemId = FGuid::NewGuid();
-					}
-				}
-			}
-			else
-			{
-				// No interactive component — use ActorType from Rec to decide if we should register
-				Subsystem = MapFloorActorTypeToInteractiveSubsystem(Rec.ActorType);
-				// Treat Interior mapping as non-explicit interactive (skip)
-				if (Subsystem == EInteractiveSubsystem::Interior)
-				{
-					continue; // do not register passive interior-only population items
-				}
-
-				// Get stable id from FloorAssignmentComponent if possible
-				if (UFloorAssignmentComponent* Assign = Owner->FindComponentByClass<UFloorAssignmentComponent>())
-				{
-					if (Assign->ItemId.IsValid())
-					{
-						ItemId = Assign->ItemId;
-					}
-					else
-					{
-						ItemId = FGuid::NewGuid();
-						Assign->Modify();
-						Assign->ItemId = ItemId;
-						if (UPackage* Pkg = Assign->GetOwner()->GetOutermost())
-						{
-							Pkg->MarkPackageDirty();
-						}
-					}
-				}
-				else
-				{
-					ItemId = FGuid::NewGuid();
-				}
-			}
-
-			// Prevent duplicate registration by ItemId
-			if (RegisteredItems.Contains(ItemId))
-			{
-				continue;
-			}
-
-			// Build internal record
-			FInteractItemRecord R;
-			R.ItemId = ItemId;
-			R.SubsystemType = Subsystem;
-			R.InteractionRange = InteractionRange;
-			R.DefaultTooltip = DefaultTooltip;
-			R.OwnerActor = Owner;
-
-			RegisteredItems.Add(ItemId, R);
-
-			// Publish Outcome via EventBus
-			if (CachedEventBus.IsValid())
-			{
-				UInteractItemRegistrationPayload* P = CachedEventBus->CreatePayload<UInteractItemRegistrationPayload>();
-				if (P)
-				{
-					P->Setup(ItemId, R.SubsystemType, R.InteractionRange, R.DefaultTooltip, Owner);
-
-					FOutcomeEventBase Out;
-					Out.OutcomeType = EOutcomeType::Interior;
-					Out.OutcomeInterior = EOutcomeInterior::InteractRegistered;
-					Out.Payload = P;
-
-					CachedEventBus->PublishOutcome(Out);
-				}
-			}
-			else
-			{
-				// Fallback for tools/legacy: broadcast delegate
-				UInteractItemRegistrationPayload* P = NewObject<UInteractItemRegistrationPayload>(this);
-				if (P)
-				{
-					P->Setup(ItemId, R.SubsystemType, R.InteractionRange, R.DefaultTooltip, Owner);
-					OnInteractItemRegistered.Broadcast(P);
-				}
-			}
-
-			// Notify any listeners waiting for this item (by ItemId)
-			if (TArray<TWeakObjectPtr<UInteractiveItemComponent>>* List = RegistrationListeners.Find(ItemId))
-			{
-				for (auto It = List->CreateIterator(); It; ++It)
-				{
-					if (UInteractiveItemComponent* Comp = It->Get())
-					{
-						UInteractItemRegistrationPayload* TmpP = NewObject<UInteractItemRegistrationPayload>(this);
-						if (TmpP)
-						{
-							TmpP->Setup(ItemId, R.SubsystemType, R.InteractionRange, R.DefaultTooltip, Owner);
-							Comp->OnRegisteredBySubsystem(TmpP);
-						}
-					}
-				}
-				RegistrationListeners.Remove(ItemId);
-			}
-		}
-	};
-
-	// Iterate all buckets and process each semantic array separately
-	for (const auto& Pair : SpawnedActorsByInteriorFloor)
-	{
-		const FFloorPopulationBuckets& Buckets = Pair.Value;
-		ProcessArray(Buckets.HeavyFurniture);
-		ProcessArray(Buckets.LightItems);
-		ProcessArray(Buckets.Terminals);
-		ProcessArray(Buckets.NPCSpawners);
-		ProcessArray(Buckets.Debris);
-	}
-
-	int32 RegisteredCountAfter = RegisteredItems.Num() - RegisteredCountBefore;
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Registered %d new placed actors into RegisteredItems."), RegisteredCountAfter);
-}
-
-TArray<FFloorPopulationRecord> UInteriorSubsystem::GetPlacedActorsForInteriorFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const
-{
-	FInteriorFloorKey Key(InteriorSetId, FloorId);
-	if (const FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
-	{
-		// Return aggregated array (caller can inspect buckets separately via new getter if needed)
-		TArray<FFloorPopulationRecord> Combined;
-		Combined.Append(Buckets->HeavyFurniture);
-		Combined.Append(Buckets->LightItems);
-		Combined.Append(Buckets->Terminals);
-		Combined.Append(Buckets->NPCSpawners);
-		Combined.Append(Buckets->Debris);
-		return Combined;
-	}
-	return TArray<FFloorPopulationRecord>();
-}
-
-FFloorPopulationBuckets UInteriorSubsystem::GetPopulationBucketsForFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const
-{
-	FInteriorFloorKey Key(InteriorSetId, FloorId);
-	if (const FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
-	{
-		return *Buckets;
-	}
-	return FFloorPopulationBuckets();
+	UE_LOG(LogTemp, Warning, TEXT("TryResolveFloorKeyByAssetName: InteriorSet '%s' does not contain floor index %d"), *AssetName, FloorIndex);
+	return false;
 }

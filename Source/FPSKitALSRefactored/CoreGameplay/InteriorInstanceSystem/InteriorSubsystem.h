@@ -25,6 +25,31 @@ struct FInteractItemRecord
 	TWeakObjectPtr<AActor> OwnerActor;
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// In-memory snapshot structs (no UPROPERTY needed — not serialized to disk)
+// ─────────────────────────────────────────────────────────────────────────
+
+struct FFloorSavedPropertyEntry
+{
+	FName  PropertyName;
+	FString ValueText;   // ExportText result
+};
+
+struct FFloorSavedComponentState
+{
+	FName ComponentName;       // component FName for matching
+	FName ComponentClassName;  // fallback class match
+	TArray<FFloorSavedPropertyEntry> Properties;
+};
+
+struct FFloorSavedActorState
+{
+	FGuid   ItemId;            // from UFloorAssignmentComponent::ItemId
+	FTransform ActorTransform;
+	TArray<FFloorSavedPropertyEntry>  ActorProperties;
+	TArray<FFloorSavedComponentState> ComponentStates;
+};
+
 UCLASS()
 class FPSKITALSREFACTORED_API UInteriorSubsystem : public UWorldSubsystem, public FInteractiveSubsystemMethods
 {
@@ -84,6 +109,21 @@ public:
 	// Возвращается копия массива — безопасно для Blueprint/UFunction
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Population")
 	TArray<FFloorPopulationRecord> GetPlacedActorsForInteriorFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const;
+
+	// ── Snapshot API (BlueprintCallable, EventBus-driven) ─────────────────
+
+	/** Добавляет снимок состояния акторов этажа в память подсистемы. Не перезаписывает уже сохранённые. */
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
+	void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId);
+
+	/** Восстанавливает состояние акторов этажа из памяти. Возвращает количество восстановленных акторов. */
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
+	int32 RestoreFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId);
+
+	// Build runtime cache of interior assets (friendly keys -> GUID key)
+	// Friendly key format: "<SoftObjectPath>:floor_<FloorIndex>"
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
+	void BuildAssetIndex();
 
 private:
 	// Handler for spawn/despawn interactive objects
@@ -161,20 +201,31 @@ private:
 
 	FOutcomeHandlerHandle SetTooltipHandle;
 
-	// Runtime map: (InteriorSetId, FloorId) -> placed actors (collected from level instances)
+	// Runtime map: (InteriorSetId, FloorId) -> placed actors
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloor;
 
-	// Access helpers: получить buckets для ключа (копия)
-	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Population")
-	FFloorPopulationBuckets GetPopulationBucketsForFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const;
+	// ── In-memory snapshot storage (appended per floor, never overwritten) ─
+	// Key = FInteriorFloorKey; value = list of actor snapshots for that floor.
+	TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> FloorStateSnapshots;
 
-	// Собрать размещённые на уровне акторы и индексировать по InteriorSet+Floor
-	// Реализация отложена — заменена на stub (будет реализовано позже)
-	void CollectPlacedActorsByInteriorFloor();
+	// EventBus handlers for snapshot commands
+	void HandleFloorStateSave   (const FOutcomeEventBase& Outcome);
+	void HandleFloorStateRestore(const FOutcomeEventBase& Outcome);
 
-	// Зарегистрировать собранные объекты в подсистеме (создаёт записи RegisteredItems и уведомления)
-	// Вызывается после CollectPlacedActorsByInteriorFloor()
-	void RegisterPlacedActorsInSubsystem();
+	UPROPERTY()
+	UOutcomeConditionAsset* FloorStateSaveConditionAsset    = nullptr;
+	UPROPERTY()
+	UOutcomeConditionAsset* FloorStateRestoreConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle FloorStateSaveHandle;
+	FOutcomeHandlerHandle FloorStateRestoreHandle;
+
+	// Friendly (designer) index: FriendlyKey -> (InteriorSetId, FloorId)
+	// FriendlyKey example: "/Game/Props/House1.House1:floor_2"
+	TMap<FString, FInteriorFloorKey> FriendlyFloorIndex;
+
+	// Resolve by asset name + floor index
+	bool TryResolveFloorKeyByAssetName(const FString& AssetName, int32 FloorIndex, FInteriorFloorKey& OutKey) const;
 
 	// Subscribe/unsubscribe placement-specific handlers
 	void SubscribePlacementRegistration();
