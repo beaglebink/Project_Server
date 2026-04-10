@@ -40,15 +40,12 @@ class FPSKITALSREFACTORED_API ULocationSystemUtils : public UBlueprintFunctionLi
 public:
     // ── Построение читаемого адреса ────────────────────────────────────────
 
-    // Строит адрес для InteriorSet (до здания включительно)
     UFUNCTION(BlueprintCallable, Category = "LocationSystem|Address")
     static FLocationAddress BuildAddressForInteriorSet(UInteriorSetAsset* InteriorSet);
 
-    // Строит адрес для Floor внутри здания
     UFUNCTION(BlueprintCallable, Category = "LocationSystem|Address")
     static FLocationAddress BuildAddressForFloor(UFloorAsset* Floor);
 
-    // Строит адрес для Zone (на улице или на этаже)
     UFUNCTION(BlueprintCallable, Category = "LocationSystem|Address")
     static FLocationAddress BuildAddressForZone(
         const FLocationZone& Zone,
@@ -57,21 +54,17 @@ public:
 
     // ── Поиск по адресу (по ID) ────────────────────────────────────────────
 
-    // Ищет Street по ID в заданном регионе
     UFUNCTION(BlueprintCallable, Category = "LocationSystem|Lookup")
     static UStreetAsset* FindStreetByID(UWorldRegionAsset* Region, const FGuid& StreetID);
 
-    // Ищет InteriorSet по ID на заданной улице
     UFUNCTION(BlueprintCallable, Category = "LocationSystem|Lookup")
     static UInteriorSetAsset* FindInteriorSetByID(UStreetAsset* Street, const FGuid& InteriorSetID);
 
-    // Ищет Floor по ID в InteriorSet
     UFUNCTION(BlueprintCallable, Category = "LocationSystem|Lookup")
     static UFloorAsset* FindFloorByID(UInteriorSetAsset* InteriorSet, const FGuid& FloorID);
 
     // ── Валидация структуры ────────────────────────────────────────────────
 
-    // Проверяет всю иерархию начиная с WorldMap (выявляет висячие ссылки)
     UFUNCTION(BlueprintCallable, Category = "LocationSystem|Validation")
     static FLocationValidationResult ValidateWorldMap(UWorldMapAsset* WorldMap);
 
@@ -84,8 +77,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "LocationSystem|Validation")
     static FLocationValidationResult ValidateFloor(UFloorAsset* Floor);
 
+#if WITH_EDITOR
+    UFUNCTION(CallInEditor, Category="Location|Editor")
+    static void OpenFloorAssignerWindow();
+#endif
+
 private:
-    // Проверка TransitionPoint: обе стороны должны быть валидными GUID
     static void ValidateTransitionPoints(
         const TArray<FLocationTransitionPoint>& Points,
         const FString& OwnerContext,

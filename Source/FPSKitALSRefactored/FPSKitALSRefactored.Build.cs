@@ -20,7 +20,7 @@ public class FPSKitALSRefactored : ModuleRules
 
         if (Target.Type == TargetType.Editor)
         {
-            PublicDependencyModuleNames.Add("UnrealEd");
+            PublicDependencyModuleNames.AddRange(new string[] { "UnrealEd", "Blutility", "AssetRegistry" });
         }
 
         PublicIncludePaths.AddRange(new string[] {

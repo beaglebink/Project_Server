@@ -26,7 +26,7 @@ public:
 	FGuid AnchorId;
 
 	// Stable ItemId — генерируется автоматически; скрыт от Blueprint и от деталей (дизайнеры GUID обычно не используют)
-	UPROPERTY(EditAnywhere, Category = "FloorAssignment", meta = (HideInInspector))
+	//UPROPERTY(EditAnywhere, Category = "FloorAssignment", meta = (HideInInspector))
 	FGuid ItemId;
 
 protected:

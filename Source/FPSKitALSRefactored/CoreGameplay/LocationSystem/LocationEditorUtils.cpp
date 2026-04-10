@@ -609,3 +609,38 @@ int32 ULocationEditorUtils::AutoFillParentsForInteriorSet(UInteriorSetAsset* Int
     return 0;
 #endif
 }
+
+// Editor-only helper: получить все UWorldMapAsset в проекте
+TArray<UWorldMapAsset*> GetAllWorldMapAssets()
+{
+    TArray<UWorldMapAsset*> Result;
+
+#if WITH_EDITOR
+    FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+    TArray<FAssetData> AssetDataList;
+
+    // UE5: использовать FTopLevelAssetPath с модулем/классом ассета
+    ARM.Get().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/FPSKitALSRefactored"), TEXT("WorldMapAsset")), AssetDataList, true);
+
+    for (const FAssetData& AD : AssetDataList)
+    {
+        // Синхронно получить UObject (загрузит ассет в память, если ещё не загружен)
+        UObject* Obj = AD.GetAsset();
+        if (UWorldMapAsset* Map = Cast<UWorldMapAsset>(Obj))
+        {
+            Result.Add(Map);
+        }
+        else
+        {
+            // безопасная альтернатива через SoftObjectPath (явная загрузка)
+            FSoftObjectPath SoftPath = AD.ToSoftObjectPath();
+            if (UWorldMapAsset* Map2 = Cast<UWorldMapAsset>(SoftPath.TryLoad()))
+            {
+                Result.Add(Map2);
+            }
+        }
+    }
+#endif
+
+    return Result;
+}

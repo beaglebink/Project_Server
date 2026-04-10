@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
@@ -16,16 +16,22 @@ class FPSKITALSREFACTORED_API ULocationEditorUtils : public UBlueprintFunctionLi
     GENERATED_BODY()
 
 public:
-    // Авто-установка parent-ссылок и ParentLocationID/ParentContext для всей иерархии WorldMap.
-    // Возвращает количество изменённых ассетов.
+    // РђРІС‚Рѕ-СѓСЃС‚Р°РЅРѕРІРєР° parent-СЃСЃС‹Р»РѕРє Рё ParentLocationID/ParentContext РґР»СЏ РІСЃРµР№ РёРµСЂР°СЂС…РёРё WorldMap.
+    // Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕР»РёС‡РµСЃС‚РІРѕ РёР·РјРµРЅС‘РЅРЅС‹С… Р°СЃСЃРµС‚РѕРІ.
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
     static int32 AutoFillParentsForWorldMap(UWorldMapAsset* WorldMap);
 
-    // Вспомогательная: проходит одну улицу и ставит parent у InteriorSet'ов и spatial-элементов.
+    // Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ: РїСЂРѕС…РѕРґРёС‚ РѕРґРЅСѓ СѓР»РёС†Сѓ Рё СЃС‚Р°РІРёС‚ parent Сѓ InteriorSet'РѕРІ Рё spatial-СЌР»РµРјРµРЅС‚РѕРІ.
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
     static int32 AutoFillParentsForStreet(UStreetAsset* Street);
 
-    // Вспомогательная: проход по InteriorSet
+    // Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ: РїСЂРѕС…РѕРґ РїРѕ InteriorSet
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
     static int32 AutoFillParentsForInteriorSet(UInteriorSetAsset* InteriorSet);
+
+#if WITH_EDITOR
+	/** Р’РѕР·РІСЂР°С‰Р°РµС‚ РІСЃРµ Р°СЃСЃРµС‚С‹ С‚РёРїР° UWorldMapAsset РІ РїСЂРѕРµРєС‚Рµ (editor-only). */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Query")
+	static TArray<UWorldMapAsset*> GetAllWorldMapAssets();
+#endif
 };

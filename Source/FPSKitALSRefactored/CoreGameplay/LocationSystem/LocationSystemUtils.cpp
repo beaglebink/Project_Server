@@ -5,6 +5,13 @@
 #include "InteriorSetAsset.h"
 #include "FloorAsset.h"
 
+#if WITH_EDITOR
+#include "LocationEditorUtils.h"
+#include "Misc/MessageDialog.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "UObject/SoftObjectPath.h"
+#endif
+
 // ──────────────────────────────────────────────────────────────────────────────
 // FLocationAddress::ToDisplayString
 // ──────────────────────────────────────────────────────────────────────────────
@@ -327,3 +334,51 @@ FLocationValidationResult ULocationSystemUtils::ValidateWorldMap(UWorldMapAsset*
 
     return Result;
 }
+
+#if WITH_EDITOR
+void ULocationSystemUtils::OpenFloorAssignerWindow()
+{
+	FText Msg = FText::FromString(
+		TEXT("Floor Assigner helper:\n\n")
+		TEXT("Open the Editor Utility Widget named 'FloorAssignerEditorWidget' via:\n")
+		TEXT("  Window -> Developer Tools -> Editor Utility Widgets\n\n")
+		TEXT("Create/open the widget instance and use provided Blueprint-callable functions:\n")
+		TEXT("GetWorldMaps -> GetRegions -> GetStreets -> GetInteriorSets -> GetFloors\n")
+		TEXT("Then call ApplyFloorToSelectedActors to write GUIDs to selected actors."));
+	FMessageDialog::Open(EAppMsgType::Ok, Msg);
+}
+
+TArray<UWorldMapAsset*> ULocationEditorUtils::GetAllWorldMapAssets()
+{
+	TArray<UWorldMapAsset*> Result;
+
+	FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> AssetDataList;
+
+	// Получаем все FAssetData класса WorldMapAsset
+	ARM.Get().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/FPSKitALSRefactored"), TEXT("WorldMapAsset")), AssetDataList, true);
+
+	for (const FAssetData& AD : AssetDataList)
+	{
+		// Попытка получить уже загруженный объект
+		if (UObject* Obj = AD.GetAsset())
+		{
+			if (UWorldMapAsset* Map = Cast<UWorldMapAsset>(Obj))
+			{
+				Result.Add(Map);
+				continue;
+			}
+		}
+
+		// Если не загружен — загрузим через SoftObjectPath
+		FSoftObjectPath SoftPath = AD.ToSoftObjectPath();
+		if (UWorldMapAsset* Map = Cast<UWorldMapAsset>(SoftPath.TryLoad()))
+		{
+			Result.Add(Map);
+		}
+	}
+
+	return Result;
+}
+#endif
+
