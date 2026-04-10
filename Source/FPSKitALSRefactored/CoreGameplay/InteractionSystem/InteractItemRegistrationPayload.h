@@ -1,10 +1,10 @@
-#pragma once
+п»ї#pragma once
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
 #include "InteractItemRegistrationPayload.generated.h"
 
 // Which subsystem manages this interactive item
-// (Какая подсистема управляет этим интерактивным объектом)
+// (РљР°РєР°СЏ РїРѕРґСЃРёСЃС‚РµРјР° СѓРїСЂР°РІР»СЏРµС‚ СЌС‚РёРј РёРЅС‚РµСЂР°РєС‚РёРІРЅС‹Рј РѕР±СЉРµРєС‚РѕРј)
 UENUM(BlueprintType)
 enum class EInteractiveSubsystem : uint8
 {
@@ -16,8 +16,8 @@ enum class EInteractiveSubsystem : uint8
 
 // Payload sent when an interactive item spawns or despawns
 // Carries all data the player needs - no direct component reference required
-// (Payload при спавне/деспавне интерактивного объекта)
-// (Несёт все данные которые нужны плейеру - прямая ссылка на компонент не требуется)
+// (Payload РїСЂРё СЃРїР°РІРЅРµ/РґРµСЃРїР°РІРЅРµ РёРЅС‚РµСЂР°РєС‚РёРІРЅРѕРіРѕ РѕР±СЉРµРєС‚Р°)
+// (РќРµСЃС‘С‚ РІСЃРµ РґР°РЅРЅС‹Рµ РєРѕС‚РѕСЂС‹Рµ РЅСѓР¶РЅС‹ РїР»РµР№РµСЂСѓ - РїСЂСЏРјР°СЏ СЃСЃС‹Р»РєР° РЅР° РєРѕРјРїРѕРЅРµРЅС‚ РЅРµ С‚СЂРµР±СѓРµС‚СЃСЏ)
 UCLASS(BlueprintType, Blueprintable)
 class FPSKITALSREFACTORED_API UInteractItemRegistrationPayload : public UOutcomePayload
 {
@@ -25,31 +25,31 @@ class FPSKITALSREFACTORED_API UInteractItemRegistrationPayload : public UOutcome
 
 public:
 	// Unique item ID generated at BeginPlay by the component
-	// (Уникальный ID объекта генерируется компонентом в BeginPlay)
+	// (РЈРЅРёРєР°Р»СЊРЅС‹Р№ ID РѕР±СЉРµРєС‚Р° РіРµРЅРµСЂРёСЂСѓРµС‚СЃСЏ РєРѕРјРїРѕРЅРµРЅС‚РѕРј РІ BeginPlay)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItem")
 	FGuid ItemId;
 
 	// Which subsystem handles this item
-	// (Какая подсистема управляет этим объектом)
-	// По умолчанию считаем Interior — большинство интерактивных объектов сейчас относятся к интерьеру
-	// (Default is Interior — most interactive items are interior)
+	// (РљР°РєР°СЏ РїРѕРґСЃРёСЃС‚РµРјР° СѓРїСЂР°РІР»СЏРµС‚ СЌС‚РёРј РѕР±СЉРµРєС‚РѕРј)
+	// РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ СЃС‡РёС‚Р°РµРј Interior вЂ” Р±РѕР»СЊС€РёРЅСЃС‚РІРѕ РёРЅС‚РµСЂР°РєС‚РёРІРЅС‹С… РѕР±СЉРµРєС‚РѕРІ СЃРµР№С‡Р°СЃ РѕС‚РЅРѕСЃСЏС‚СЃСЏ Рє РёРЅС‚РµСЂСЊРµСЂСѓ
+	// (Default is Interior вЂ” most interactive items are interior)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItem")
 	EInteractiveSubsystem SubsystemType = EInteractiveSubsystem::Interior;
 
 	// Interaction range in cm - player checks distance against this value
-	// (Дистанция интеракции в см - плейер сравнивает расстояние с этим значением)
+	// (Р”РёСЃС‚Р°РЅС†РёСЏ РёРЅС‚РµСЂР°РєС†РёРё РІ СЃРј - РїР»РµР№РµСЂ СЃСЂР°РІРЅРёРІР°РµС‚ СЂР°СЃСЃС‚РѕСЏРЅРёРµ СЃ СЌС‚РёРј Р·РЅР°С‡РµРЅРёРµРј)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItem")
 	float InteractionRange = 200.f;
 
 	// Default tooltip text set in Editor
-	// (Подсказка по умолчанию заданная в редакторе)
+	// (РџРѕРґСЃРєР°Р·РєР° РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ Р·Р°РґР°РЅРЅР°СЏ РІ СЂРµРґР°РєС‚РѕСЂРµ)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItem")
 	FText DefaultTooltip;
 
 	// Actor owning this component (weak ref - do NOT store long-term)
 	// Player uses it only during the same tick for distance check or highlight
-	// (Актор-владелец компонента - слабая ссылка - НЕ хранить долгосрочно)
-	// (Плейер использует только в тот же тик для проверки расстояния или хайлайта)
+	// (РђРєС‚РѕСЂ-РІР»Р°РґРµР»РµС† РєРѕРјРїРѕРЅРµРЅС‚Р° - СЃР»Р°Р±Р°СЏ СЃСЃС‹Р»РєР° - РќР• С…СЂР°РЅРёС‚СЊ РґРѕР»РіРѕСЃСЂРѕС‡РЅРѕ)
+	// (РџР»РµР№РµСЂ РёСЃРїРѕР»СЊР·СѓРµС‚ С‚РѕР»СЊРєРѕ РІ С‚РѕС‚ Р¶Рµ С‚РёРє РґР»СЏ РїСЂРѕРІРµСЂРєРё СЂР°СЃСЃС‚РѕСЏРЅРёСЏ РёР»Рё С…Р°Р№Р»Р°Р№С‚Р°)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItem")
 	TWeakObjectPtr<AActor> OwnerActor;
 

@@ -11,6 +11,8 @@
 #include "FloorAssignmentComponent.h"
 #include "UObject/UnrealType.h"
 #include "EngineUtils.h"
+#include "Components/ChildActorComponent.h"
+#include "Components/PrimitiveComponent.h"
 // AssetRegistry + module manager for runtime asset indexing
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
@@ -45,12 +47,170 @@ namespace
 		{
 			FProperty* Prop = FindFProperty<FProperty>(Obj->GetClass(), Entry.PropertyName);
 			if (!Prop) continue;
-			void* Container = Prop->ContainerPtrToValuePtr<void>(Obj);
 			Prop->ImportText_InContainer(*Entry.ValueText, Obj, Obj, PPF_None);
 		}
 	}
-}
 
+	// Восстановить трансформ/attachment и состояние физики для любого SceneComponent
+	// Объявлена ДО RestoreActorSnapshot, которая её вызывает
+	static void RestoreSceneComponentTransform(USceneComponent* Comp, const FFloorSavedComponentState& CState)
+	{
+		if (!IsValid(Comp)) return;
+
+		// 1) Воссоздаём привязку по имени родительского компонента (если была)
+		if (CState.bWasAttached)
+		{
+			AActor* Owner = Comp->GetOwner();
+			if (IsValid(Owner))
+			{
+				for (UActorComponent* AC : Owner->GetComponents())
+				{
+					USceneComponent* ParentSC = Cast<USceneComponent>(AC);
+					if (ParentSC && ParentSC->GetFName() == CState.AttachParentName)
+					{
+						Comp->AttachToComponent(ParentSC, FAttachmentTransformRules::KeepRelativeTransform, CState.AttachSocketName);
+						break;
+					}
+				}
+			}
+		}
+
+		// 2) Применяем трансформ с учётом физики
+		if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Comp))
+		{
+			const bool bWasSim = CState.bWasSimulatingPhysics;
+			if (bWasSim)
+			{
+				Prim->SetSimulatePhysics(false);
+
+				if (CState.bHasRelativeTransform)
+					Comp->SetRelativeTransform(CState.RelativeTransform, false, nullptr, ETeleportType::TeleportPhysics);
+				else if (CState.bHasWorldTransform && !CState.bWasAttached)
+					Comp->SetWorldTransform(CState.WorldTransform, false, nullptr, ETeleportType::TeleportPhysics);
+
+				Prim->SetSimulatePhysics(true);
+				Prim->SetPhysicsLinearVelocity(CState.SavedLinearVelocity);
+				Prim->SetPhysicsAngularVelocityInDegrees(CState.SavedAngularVelocityDeg);
+			}
+			else
+			{
+				if (CState.bHasRelativeTransform)
+					Comp->SetRelativeTransform(CState.RelativeTransform, false, nullptr, ETeleportType::None);
+				else if (CState.bHasWorldTransform && !CState.bWasAttached)
+					Comp->SetWorldTransform(CState.WorldTransform, false, nullptr, ETeleportType::TeleportPhysics);
+			}
+		}
+		else
+		{
+			// Обычный SceneComponent — только трансформ
+			if (CState.bHasRelativeTransform)
+				Comp->SetRelativeTransform(CState.RelativeTransform, false, nullptr, ETeleportType::None);
+			else if (CState.bHasWorldTransform && !CState.bWasAttached)
+				Comp->SetWorldTransform(CState.WorldTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
+	}
+
+	// Сделать снимок актора: Transform + SaveGame свойства актора и всех компонентов
+	static void SnapshotActor(AActor* Actor, FFloorSavedActorState& OutSnapshot)
+	{
+		if (!IsValid(Actor)) return;
+
+		OutSnapshot.ActorTransform = Actor->GetActorTransform();
+		CollectSaveGameProperties(Actor, OutSnapshot.ActorProperties);
+
+		TArray<UActorComponent*> Components;
+		Actor->GetComponents(Components);
+		for (UActorComponent* C : Components)
+		{
+			if (!IsValid(C)) continue;
+			TArray<FFloorSavedPropertyEntry> Props;
+			CollectSaveGameProperties(C, Props);
+
+			FFloorSavedComponentState CState;
+			CState.ComponentName      = C->GetFName();
+			CState.ComponentClassName = C->GetClass()->GetFName();
+			CState.bWasActive         = C->IsActive();
+			CState.Properties         = MoveTemp(Props);
+
+			if (USceneComponent* SC = Cast<USceneComponent>(C))
+			{
+				if (USceneComponent* ParentSC = SC->GetAttachParent())
+				{
+					CState.bWasAttached      = true;
+					CState.AttachParentName  = ParentSC->GetFName();
+					CState.AttachSocketName  = SC->GetAttachSocketName();
+					CState.RelativeTransform = SC->GetRelativeTransform();
+					CState.bHasRelativeTransform = true;
+				}
+				CState.WorldTransform    = SC->GetComponentTransform();
+				CState.bHasWorldTransform = true;
+			}
+
+			if (UPrimitiveComponent* PC = Cast<UPrimitiveComponent>(C))
+			{
+				CState.bWasSimulatingPhysics = PC->IsSimulatingPhysics();
+				if (CState.bWasSimulatingPhysics)
+				{
+					CState.SavedLinearVelocity    = PC->GetPhysicsLinearVelocity();
+					CState.SavedAngularVelocityDeg = PC->GetPhysicsAngularVelocityInDegrees();
+				}
+			}
+
+			OutSnapshot.ComponentStates.Add(MoveTemp(CState));
+		}
+	}
+
+	// Восстановить снимок актора: Transform + SaveGame свойства актора и всех компонентов
+	// bApplyWorldTransform = false используется для дочерних акторов (ChildActorComponent)
+	static void RestoreActorSnapshot(AActor* Actor, const FFloorSavedActorState& Snapshot, bool bApplyWorldTransform = true)
+	{
+		if (!IsValid(Actor)) return;
+
+		if (bApplyWorldTransform)
+			Actor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+
+		ApplySaveGameProperties(Actor, Snapshot.ActorProperties);
+
+		TMap<FName, UActorComponent*> ComponentsByName;
+		for (UActorComponent* C : Actor->GetComponents())
+		{
+			if (!IsValid(C)) continue;
+			ComponentsByName.Add(C->GetFName(), C);
+		}
+
+		// 1) Сначала восстанавливаем attachment-иерархию
+		for (const FFloorSavedComponentState& CState : Snapshot.ComponentStates)
+		{
+			if (!CState.bWasAttached) continue;
+			UActorComponent** Found = ComponentsByName.Find(CState.ComponentName);
+			if (!Found || !IsValid(*Found)) continue;
+			USceneComponent* TargetSC = Cast<USceneComponent>(*Found);
+			if (!TargetSC) continue;
+			UActorComponent** ParentFound = ComponentsByName.Find(CState.AttachParentName);
+			if (ParentFound && IsValid(*ParentFound))
+			{
+				if (USceneComponent* ParentSC = Cast<USceneComponent>(*ParentFound))
+					TargetSC->AttachToComponent(ParentSC, FAttachmentTransformRules::KeepRelativeTransform, CState.AttachSocketName);
+			}
+		}
+
+		// 2) Восстанавливаем трансформы, физику и свойства
+		for (const FFloorSavedComponentState& CState : Snapshot.ComponentStates)
+		{
+			UActorComponent** Found = ComponentsByName.Find(CState.ComponentName);
+			if (!Found || !IsValid(*Found)) continue;
+			UActorComponent* Target = *Found;
+
+			ApplySaveGameProperties(Target, CState.Properties);
+
+			if (Target->IsActive() != CState.bWasActive)
+				CState.bWasActive ? Target->Activate(true) : Target->Deactivate();
+
+			if (USceneComponent* SC = Cast<USceneComponent>(Target))
+				RestoreSceneComponentTransform(SC, CState);
+		}
+	}
+} // namespace
 // -----------------------------------------------------------------------------
 // SaveFloorActorsState
 // -----------------------------------------------------------------------------
@@ -83,32 +243,39 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 		// Не добавляем дублирующую запись для того же ItemId
 		if (AlreadySaved.Contains(Comp->ItemId)) continue;
 
+		// Snapshot основного актора
 		FFloorSavedActorState Snapshot;
 		Snapshot.ItemId = Comp->ItemId;
-		Snapshot.ActorTransform = Actor->GetActorTransform();
+		// SnapshotActor сохраняет трансформ, SaveGame-свойства, attachment и физику компонентов
+		SnapshotActor(Actor, Snapshot);
 
-		// Actor SaveGame properties
-		CollectSaveGameProperties(Actor, Snapshot.ActorProperties);
-
-		// Component SaveGame properties
-		TArray<UActorComponent*> Components;
-		Actor->GetComponents(Components);
-		for (UActorComponent* C : Components)
+		// Snapshot дочерних акторов (ChildActorComponent с FloorAssignmentComponent)
+		TArray<UChildActorComponent*> ChildComps;
+		Actor->GetComponents<UChildActorComponent>(ChildComps);
+		for (UChildActorComponent* ChildComp : ChildComps)
 		{
-			if (!IsValid(C)) continue;
-			TArray<FFloorSavedPropertyEntry> Props;
-			CollectSaveGameProperties(C, Props);
-			if (Props.Num() > 0)
-			{
-				FFloorSavedComponentState CState;
-				CState.ComponentName      = C->GetFName();
-				CState.ComponentClassName = C->GetClass()->GetFName();
-				CState.Properties         = MoveTemp(Props);
-				Snapshot.ComponentStates.Add(MoveTemp(CState));
-			}
+			if (!IsValid(ChildComp)) continue;
+			AActor* ChildActor = ChildComp->GetChildActor();
+			if (!IsValid(ChildActor)) continue;
+
+			UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
+			if (!ChildFloorComp) continue;
+			if (AlreadySaved.Contains(ChildFloorComp->ItemId)) continue;
+
+			FFloorSavedActorState ChildSnapshot;
+			ChildSnapshot.ItemId = ChildFloorComp->ItemId;
+			// Сохраняем относительный Transform компонента — устойчиво при движении родителя
+			ChildSnapshot.RelativeTransform    = ChildComp->GetRelativeTransform();
+			ChildSnapshot.bHasRelativeTransform = true;
+			// Мировой тоже сохраняем как fallback
+			SnapshotActor(ChildActor, ChildSnapshot);
+			Bucket.Add(MoveTemp(ChildSnapshot));
+			AlreadySaved.Add(ChildFloorComp->ItemId);
+			++NewCount;
 		}
 
 		Bucket.Add(MoveTemp(Snapshot));
+		AlreadySaved.Add(Comp->ItemId);
 		++NewCount;
 	}
 
@@ -129,51 +296,84 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, co
 	const TArray<FFloorSavedActorState>* Found = FloorStateSnapshots.Find(Key);
 	if (!Found || Found->IsEmpty()) return 0;
 
-	// Индексируем акторы в мире по ItemId для быстрого поиска
+	// Индексируем акторы в мире по ItemId — включая дочерние акторы (ChildActorComponent)
 	TMap<FGuid, AActor*> ActorByItemId;
 	for (TActorIterator<AActor> It(W); It; ++It)
 	{
 		AActor* Actor = *It;
 		if (!IsValid(Actor)) continue;
-		if (UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
 		{
-			ActorByItemId.Add(Comp->ItemId, Actor);
+			ActorByItemId.Add(C->ItemId, Actor);
+		}
+
+		// Также индексируем дочерние акторы
+		TArray<UChildActorComponent*> ChildComps;
+		Actor->GetComponents<UChildActorComponent>(ChildComps);
+		for (UChildActorComponent* ChildComp : ChildComps)
+		{
+			if (!IsValid(ChildComp)) continue;
+			AActor* ChildActor = ChildComp->GetChildActor();
+			if (!IsValid(ChildActor)) continue;
+			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
+			{
+				ActorByItemId.Add(CC->ItemId, ChildActor);
+			}
 		}
 	}
 
 	int32 Restored = 0;
+
+	// 1) Сначала восстанавливаем все "корневые" записи (те, где нет относительного трансформа).
 	for (const FFloorSavedActorState& Snapshot : *Found)
 	{
+		if (Snapshot.bHasRelativeTransform) continue; // дочерние отложим на следующий проход
+
 		AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
 		if (!ActorPtr || !IsValid(*ActorPtr)) continue;
-		AActor* Actor = *ActorPtr;
 
-		// Восстановить Transform
-		Actor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		// Восстановление с применением мирового трансформа
+		RestoreActorSnapshot(*ActorPtr, Snapshot, true);
+		++Restored;
+	}
 
-		// Восстановить SaveGame-свойства актора
-		ApplySaveGameProperties(Actor, Snapshot.ActorProperties);
+	// 2) Теперь восстанавливаем дочерние записи: сначала применяем относительный трансформ на компоненте, затем восстанавливаем свойства компонентов дочернего актора
+	for (const FFloorSavedActorState& Snapshot : *Found)
+	{
+		if (!Snapshot.bHasRelativeTransform) continue;
 
-		// Восстановить SaveGame-свойства компонентов
-		for (const FFloorSavedComponentState& CState : Snapshot.ComponentStates)
+		AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
+		if (!ActorPtr || !IsValid(*ActorPtr)) continue;
+		AActor* ChildActor = *ActorPtr;
+
+		// Ищем родителя и соответствующий ChildActorComponent
+		AActor* ParentActor = ChildActor->GetAttachParentActor();
+		bool bAppliedRelative = false;
+		if (IsValid(ParentActor))
 		{
-			UActorComponent* Target = nullptr;
-			for (UActorComponent* C : Actor->GetComponents())
+			TArray<UChildActorComponent*> ParentChildComps;
+			ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
+			for (UChildActorComponent* ParentChildComp : ParentChildComps)
 			{
-				if (!IsValid(C)) continue;
-				if (C->GetFName() == CState.ComponentName ||
-				    C->GetClass()->GetFName() == CState.ComponentClassName)
+				if (!IsValid(ParentChildComp)) continue;
+				if (ParentChildComp->GetChildActor() == ChildActor)
 				{
-					Target = C;
+					// Применяем относительный трансформ к компоненту (это правильный способ сохранять позицию дочернего актора относительно родителя)
+					ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
+					bAppliedRelative = true;
 					break;
 				}
 			}
-			if (Target)
-			{
-				ApplySaveGameProperties(Target, CState.Properties);
-			}
 		}
 
+		if (!bAppliedRelative)
+		{
+			// Fallback: применяем мировой трансформ дочернему актора
+			ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
+
+		// Применяем свойства и состояние компонентов дочернего актора (не меняем мировой трансформ снова)
+		RestoreActorSnapshot(ChildActor, Snapshot, false);
 		++Restored;
 	}
 
@@ -695,7 +895,7 @@ void UInteriorSubsystem::UnsubscribeAll()
 
 		UnregisterHandle(FloorStateSaveHandle,    FloorStateSaveConditionAsset);
 		UnregisterHandle(FloorStateRestoreHandle, FloorStateRestoreConditionAsset);
-	}
+	} // if (UEventBusSubsystem* EventBus ...)
 
 	RegisteredItems.Empty();
 	RegistrationListeners.Empty();
@@ -704,7 +904,11 @@ void UInteriorSubsystem::UnsubscribeAll()
 
 void UInteriorSubsystem::BuildAssetIndex()
 {
-	// Use AssetRegistry to find all InteriorSet assets and build friendly index
+	// Очистить предыдущий индекс
+	FriendlyFloorIndex.Empty();
+
+#if WITH_EDITOR || WITH_ENGINE || WITH_SERVER_CODE
+	// Используем AssetRegistry для индексации InteriorSetAsset -> (InteriorSetId, FloorId)
 	TArray<FAssetData> Ads;
 	FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	ARM.Get().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/FPSKitALSRefactored"), TEXT("InteriorSetAsset")), Ads, true);
@@ -730,57 +934,7 @@ void UInteriorSubsystem::BuildAssetIndex()
 			FriendlyFloorIndex.Add(Key, K);
 		}
 	}
-}
-
-bool UInteriorSubsystem::TryResolveFloorKeyByAssetName(const FString& AssetName, int32 FloorIndex, FInteriorFloorKey& OutKey) const
-{
-	if (AssetName.IsEmpty()) return false;
-
-	FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	TArray<FAssetData> AssetDataList;
-	ARM.Get().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/FPSKitALSRefactored"), TEXT("InteriorSetAsset")), AssetDataList, true);
-
-	TArray<FAssetData> Matches;
-	for (const FAssetData& AD : AssetDataList)
-	{
-		if (AD.AssetName.ToString().Equals(AssetName, ESearchCase::IgnoreCase))
-		{
-			Matches.Add(AD);
-		}
-	}
-
-	if (Matches.Num() == 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("TryResolveFloorKeyByAssetName: no InteriorSet asset named '%s'"), *AssetName);
-		return false;
-	}
-
-	if (Matches.Num() > 1)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("TryResolveFloorKeyByAssetName: multiple InteriorSet assets named '%s', using first match."), *AssetName);
-	}
-
-	const FAssetData& AD = Matches[0];
-	UInteriorSetAsset* IS = Cast<UInteriorSetAsset>(AD.GetAsset());
-	if (!IS) IS = Cast<UInteriorSetAsset>(AD.ToSoftObjectPath().TryLoad());
-	if (!IS)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("TryResolveFloorKeyByAssetName: failed to load InteriorSet '%s'"), *AD.ToSoftObjectPath().ToString());
-		return false;
-	}
-
-	for (const TSoftObjectPtr<UFloorAsset>& FloorRef : IS->Floors)
-	{
-		if (UFloorAsset* Floor = FloorRef.LoadSynchronous())
-		{
-			if (Floor->FloorIndex == FloorIndex)
-			{
-				OutKey = FInteriorFloorKey(IS->InteriorSetID, Floor->FloorID);
-				return true;
-			}
-		}
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("TryResolveFloorKeyByAssetName: InteriorSet '%s' does not contain floor index %d"), *AssetName, FloorIndex);
-	return false;
+#else
+	UE_LOG(LogTemp, Verbose, TEXT("UInteriorSubsystem::BuildAssetIndex: AssetRegistry not available in this build configuration"));
+#endif
 }

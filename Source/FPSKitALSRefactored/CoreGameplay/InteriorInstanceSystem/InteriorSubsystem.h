@@ -39,13 +39,31 @@ struct FFloorSavedComponentState
 {
 	FName ComponentName;       // component FName for matching
 	FName ComponentClassName;  // fallback class match
+	bool  bWasActive = true;   // UActorComponent::IsActive() at snapshot time
+	// Attachment info (for SceneComponent descendants)
+	bool  bWasAttached = false;
+	FName AttachParentName;    // parent component FName (if attached to a component on same actor)
+	FName AttachSocketName;    // socket name used for AttachToComponent
+
+	// Transforms for component
+	FTransform RelativeTransform; // component relative transform (preferred for attached children)
+	FTransform WorldTransform;    // world transform (fallback)
+	bool      bHasRelativeTransform = false;
+	bool      bHasWorldTransform = true;
+
+	// Physics backup (valid for UPrimitiveComponent)
+	bool    bWasSimulatingPhysics = false;
+	FVector SavedLinearVelocity = FVector::ZeroVector;
+	FVector SavedAngularVelocityDeg = FVector::ZeroVector;
 	TArray<FFloorSavedPropertyEntry> Properties;
 };
 
 struct FFloorSavedActorState
 {
-	FGuid   ItemId;            // from UFloorAssignmentComponent::ItemId
-	FTransform ActorTransform;
+	FGuid      ItemId;
+	FTransform ActorTransform;        // World transform (для независимых акторов)
+	FTransform RelativeTransform;     // Relative transform компонента (для Child Actor, если есть)
+	bool       bHasRelativeTransform = false; // true — это дочерний актор, восстанавливать через компонент
 	TArray<FFloorSavedPropertyEntry>  ActorProperties;
 	TArray<FFloorSavedComponentState> ComponentStates;
 };

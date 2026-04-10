@@ -20,6 +20,7 @@
 #include "Editor/EditorEngine.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../InteriorInstanceSystem/FloorPlacementPayload.h"
+#include "Components/ChildActorComponent.h"
 
 static TArray<FAssetData> GetAssetDataByClassName(const FString& ClassName)
 {
@@ -190,6 +191,30 @@ TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetFloors(const FGuid& InteriorS
 	return Out;
 }
 
+// Helper: apply floor assignment to a single component + its owner actor
+static void ApplyFloorToComponent(
+	UFloorAssignmentComponent* Comp,
+	AActor* Owner,
+	const FGuid& FloorGuid,
+	const FGuid& InteriorSetGuid,
+	const FText& ResFloorName,
+	const FText& ResInteriorSetName)
+{
+	if (!Comp || !IsValid(Owner)) return;
+
+	Owner->Modify();
+	Comp->Modify();
+	Comp->FloorId         = FloorGuid;
+	Comp->InteriorSetId   = InteriorSetGuid;
+	Comp->FloorName       = ResFloorName;
+	Comp->InteriorSetName = ResInteriorSetName;
+
+	if (UPackage* Pkg = Owner->GetOutermost())
+	{
+		Pkg->MarkPackageDirty();
+	}
+}
+
 int32 UFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid)
 {
 	int32 ModifiedCount = 0;
@@ -199,7 +224,7 @@ int32 UFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& Floor
 
 	// Resolve display names for InteriorSet and Floor to write into components
 	FText ResInteriorSetName = FText::GetEmpty();
-	FText ResFloorName = FText::GetEmpty();
+	FText ResFloorName       = FText::GetEmpty();
 
 	for (const FAssetData& AD : GetAssetDataByClassName(TEXT("InteriorSetAsset")))
 	{
@@ -211,7 +236,6 @@ int32 UFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& Floor
 
 		ResInteriorSetName = IS->DisplayName.IsEmpty() ? FText::FromName(IS->GetFName()) : IS->DisplayName;
 
-		// find floor inside this interior set
 		for (const TSoftObjectPtr<UFloorAsset>& Ref : IS->Floors)
 		{
 			UFloorAsset* Floor = Ref.LoadSynchronous();
@@ -232,24 +256,31 @@ int32 UFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& Floor
 	for (AActor* A : Actors)
 	{
 		if (!IsValid(A)) continue;
+
+		// Применяем к самому актору
 		if (UFloorAssignmentComponent* Comp = A->FindComponentByClass<UFloorAssignmentComponent>())
 		{
-			A->Modify();
-			Comp->Modify();
-			Comp->FloorId = FloorGuid;
-			Comp->InteriorSetId = InteriorSetGuid;
-			// записываем имена (если найдены)
-			Comp->InteriorSetName = ResInteriorSetName;
-			Comp->FloorName = ResFloorName;
-
-			if (UPackage* Pkg = A->GetOutermost())
-			{
-				Pkg->MarkPackageDirty();
-			}
+			ApplyFloorToComponent(Comp, A, FloorGuid, InteriorSetGuid, ResFloorName, ResInteriorSetName);
 			++ModifiedCount;
 		}
+
+		// Применяем к дочерним акторам (ChildActorComponent) если у них есть FloorAssignmentComponent
+		TArray<UChildActorComponent*> ChildActorComps;
+		A->GetComponents<UChildActorComponent>(ChildActorComps);
+		for (UChildActorComponent* ChildComp : ChildActorComps)
+		{
+			if (!IsValid(ChildComp)) continue;
+			AActor* ChildActor = ChildComp->GetChildActor();
+			if (!IsValid(ChildActor)) continue;
+
+			if (UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
+			{
+				ApplyFloorToComponent(ChildFloorComp, ChildActor, FloorGuid, InteriorSetGuid, ResFloorName, ResInteriorSetName);
+				++ModifiedCount;
+			}
+		}
 	}
-	// Use floor display name for the message (fallback to GUID string inside ResolveFloorDisplayName)
+
 	FText Display = ResolveFloorDisplayName(FloorGuid);
 	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(FText::FromString(TEXT("Assigned '{0}' to {1} actors.")), Display, FText::AsNumber(ModifiedCount)));
 	return ModifiedCount;

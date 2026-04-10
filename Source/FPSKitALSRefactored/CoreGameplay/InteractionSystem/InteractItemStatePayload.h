@@ -1,12 +1,12 @@
-#pragma once
+п»ї#pragma once
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
 #include "InteractItemStatePayload.generated.h"
 
 // Payload sent by subsystem to update interaction availability and tooltip for a specific item
 // Player receives this and does NOT need a direct reference to the component
-// (Payload от подсистемы для обновления доступности интеракции и подсказки конкретного объекта)
-// (Плейер получает это и НЕ нуждается в прямой ссылке на компонент)
+// (Payload РѕС‚ РїРѕРґСЃРёСЃС‚РµРјС‹ РґР»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ РґРѕСЃС‚СѓРїРЅРѕСЃС‚Рё РёРЅС‚РµСЂР°РєС†РёРё Рё РїРѕРґСЃРєР°Р·РєРё РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ РѕР±СЉРµРєС‚Р°)
+// (РџР»РµР№РµСЂ РїРѕР»СѓС‡Р°РµС‚ СЌС‚Рѕ Рё РќР• РЅСѓР¶РґР°РµС‚СЃСЏ РІ РїСЂСЏРјРѕР№ СЃСЃС‹Р»РєРµ РЅР° РєРѕРјРїРѕРЅРµРЅС‚)
 UCLASS(BlueprintType, Blueprintable)
 class FPSKITALSREFACTORED_API UInteractItemStatePayload : public UOutcomePayload
 {
@@ -14,22 +14,22 @@ class FPSKITALSREFACTORED_API UInteractItemStatePayload : public UOutcomePayload
 
 public:
 	// Which item this state update applies to
-	// (К какому объекту применяется это обновление состояния)
+	// (Рљ РєР°РєРѕРјСѓ РѕР±СЉРµРєС‚Сѓ РїСЂРёРјРµРЅСЏРµС‚СЃСЏ СЌС‚Рѕ РѕР±РЅРѕРІР»РµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItemState")
 	FGuid ItemId;
 
 	// Whether interaction is currently available
-	// (Доступна ли интеракция в данный момент)
+	// (Р”РѕСЃС‚СѓРїРЅР° Р»Рё РёРЅС‚РµСЂР°РєС†РёСЏ РІ РґР°РЅРЅС‹Р№ РјРѕРјРµРЅС‚)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItemState")
 	bool bInteractionEnabled = true;
 
 	// Current tooltip text (may differ from default)
-	// (Актуальная подсказка - может отличаться от дефолтной)
+	// (РђРєС‚СѓР°Р»СЊРЅР°СЏ РїРѕРґСЃРєР°Р·РєР° - РјРѕР¶РµС‚ РѕС‚Р»РёС‡Р°С‚СЊСЃСЏ РѕС‚ РґРµС„РѕР»С‚РЅРѕР№)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItemState")
 	FText CurrentTooltip;
 
 	// Current interaction range (subsystem may modify it at runtime)
-	// (Актуальная дистанция интеракции - подсистема может изменить в рантайме)
+	// (РђРєС‚СѓР°Р»СЊРЅР°СЏ РґРёСЃС‚Р°РЅС†РёСЏ РёРЅС‚РµСЂР°РєС†РёРё - РїРѕРґСЃРёСЃС‚РµРјР° РјРѕР¶РµС‚ РёР·РјРµРЅРёС‚СЊ РІ СЂР°РЅС‚Р°Р№РјРµ)
 	UPROPERTY(BlueprintReadWrite, Category = "InteractItemState")
 	float InteractionRange = 200.f;
 
