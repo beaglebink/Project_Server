@@ -223,14 +223,17 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 	FInteriorFloorKey Key(InteriorSetId, FloorId);
 	TArray<FFloorSavedActorState>& Bucket = FloorStateSnapshots.FindOrAdd(Key);
 
-	// Собираем множество уже сохранённых ItemId, чтобы не дублировать
-	TSet<FGuid> AlreadySaved;
-	for (const FFloorSavedActorState& S : Bucket)
+	// Build index of existing snapshots so we can update (replace) them on subsequent saves
+	TMap<FGuid, int32> ExistingIndex;
+	for (int32 i = 0; i < Bucket.Num(); ++i)
 	{
-		AlreadySaved.Add(S.ItemId);
+		ExistingIndex.Add(Bucket[i].ItemId, i);
 	}
 
-	int32 NewCount = 0;
+	int32 AddedCount = 0;
+	int32 UpdatedCount = 0;
+
+	// Iterate world actors and capture snapshots (replace existing by ItemId or append)
 	for (TActorIterator<AActor> It(W); It; ++It)
 	{
 		AActor* Actor = *It;
@@ -240,14 +243,24 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 		if (!Comp) continue;
 		if (Comp->GetInteriorSetId() != InteriorSetId || Comp->GetFloorId() != FloorId) continue;
 
-		// Не добавляем дублирующую запись для того же ItemId
-		if (AlreadySaved.Contains(Comp->ItemId)) continue;
-
 		// Snapshot основного актора
 		FFloorSavedActorState Snapshot;
 		Snapshot.ItemId = Comp->ItemId;
 		// SnapshotActor сохраняет трансформ, SaveGame-свойства, attachment и физику компонентов
 		SnapshotActor(Actor, Snapshot);
+
+		// Replace existing or add new
+		if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
+		{
+			Bucket[*FoundIdx] = MoveTemp(Snapshot);
+			++UpdatedCount;
+		}
+		else
+		{
+			Bucket.Add(MoveTemp(Snapshot));
+			ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
+			++AddedCount;
+		}
 
 		// Snapshot дочерних акторов (ChildActorComponent с FloorAssignmentComponent)
 		TArray<UChildActorComponent*> ChildComps;
@@ -260,27 +273,31 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 			UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
 			if (!ChildFloorComp) continue;
-			if (AlreadySaved.Contains(ChildFloorComp->ItemId)) continue;
 
 			FFloorSavedActorState ChildSnapshot;
 			ChildSnapshot.ItemId = ChildFloorComp->ItemId;
 			// Сохраняем относительный Transform компонента — устойчиво при движении родителя
-			ChildSnapshot.RelativeTransform    = ChildComp->GetRelativeTransform();
+			ChildSnapshot.RelativeTransform = ChildComp->GetRelativeTransform();
 			ChildSnapshot.bHasRelativeTransform = true;
 			// Мировой тоже сохраняем как fallback
 			SnapshotActor(ChildActor, ChildSnapshot);
-			Bucket.Add(MoveTemp(ChildSnapshot));
-			AlreadySaved.Add(ChildFloorComp->ItemId);
-			++NewCount;
-		}
 
-		Bucket.Add(MoveTemp(Snapshot));
-		AlreadySaved.Add(Comp->ItemId);
-		++NewCount;
+			if (int32* ChildIdx = ExistingIndex.Find(ChildSnapshot.ItemId))
+			{
+				Bucket[*ChildIdx] = MoveTemp(ChildSnapshot);
+				++UpdatedCount;
+			}
+			else
+			{
+				Bucket.Add(MoveTemp(ChildSnapshot));
+				ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
+				++AddedCount;
+			}
+		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: SaveFloorActorsState — added %d new snapshots for floor %s/%s (total: %d)"),
-		NewCount, *InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: SaveFloorActorsState — added %d new snapshots, updated %d existing for floor %s/%s (total: %d)"),
+		AddedCount, UpdatedCount, *InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
 }
 
 // -----------------------------------------------------------------------------
