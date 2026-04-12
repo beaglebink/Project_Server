@@ -40,7 +40,7 @@ public:
     // Переходы: лестницы, лифты, двери между этажами и на улицу
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<FLocationTransitionPoint> TransitionPoints;
-
+/*
     // Тяжелая мебель (soft ссылки — безопаснее в DataAsset)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<TSoftObjectPtr<AActor>> LargeFurniture;
@@ -52,7 +52,7 @@ public:
     // Терминалы (soft ссылки на Pawn)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<TSoftObjectPtr<APawn>> Terminals;
-
+*/
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
 #endif
