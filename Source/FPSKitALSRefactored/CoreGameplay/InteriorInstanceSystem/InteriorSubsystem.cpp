@@ -816,15 +816,18 @@ void UInteriorSubsystem::UnsubscribePlacementRegistration()
 	}
 }
 
-// ===== missing method implementations (stubs with minimal correct behavior) =====
+// ===== missing method implementations (now using GameInstanceSubsystem lifecycle) =====
 
-void UInteriorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	// Cache EventBus and subscribe handlers
-	if (UGameInstance* GI = InWorld.GetGameInstance())
+	Super::Initialize(Collection);
+
+	// Cache EventBus from GameInstance and initialize runtime structures
+	if (UGameInstance* GI = GetGameInstance())
 	{
 		CachedEventBus = GI->GetSubsystem<UEventBusSubsystem>();
 	}
+
 	// Build runtime asset index (friendly keys) once and subscribe handlers
 	BuildAssetIndex();
 	SubscribeAll();

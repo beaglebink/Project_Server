@@ -1,6 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "Subsystems/WorldSubsystem.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
@@ -29,12 +29,12 @@ struct FTerminalInteractItemRecord
 };
 
 UCLASS()
-class FPSKITALSREFACTORED_API UTerminalSubsystem : public UWorldSubsystem, public FInteractiveSubsystemMethods
+class FPSKITALSREFACTORED_API UTerminalSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods
 {
 	GENERATED_BODY()
 
 public:
-	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
 	// Condition used to filter terminal task events (set in editor or runtime)

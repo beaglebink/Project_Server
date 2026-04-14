@@ -2,10 +2,10 @@
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "GhostClearedPayload.h"
 
-void USpawnGroupSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	Super::OnWorldBeginPlay(InWorld);
-	CachedEventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	Super::Initialize(Collection);
+	CachedEventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 
 	if (GhostClearedCondition)
 	{

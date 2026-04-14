@@ -22,12 +22,14 @@ static void AddListenerToSubsystem(UWorld* World, EInteractiveSubsystem Type, co
 	switch (Type)
 	{
 	case EInteractiveSubsystem::Terminal:
-		if (UTerminalSubsystem* S = World->GetSubsystem<UTerminalSubsystem>())
-			S->AddRegistrationListener(ItemId, Comp);
+		if (UGameInstance* GI = World->GetGameInstance())
+			if (UTerminalSubsystem* S = GI->GetSubsystem<UTerminalSubsystem>())
+				S->AddRegistrationListener(ItemId, Comp);
 		break;
 	case EInteractiveSubsystem::Interior:
-		if (UInteriorSubsystem* S = World->GetSubsystem<UInteriorSubsystem>())
-			S->AddRegistrationListener(ItemId, Comp);
+		if (UGameInstance* GI = World->GetGameInstance())
+			if (UInteriorSubsystem* S = GI->GetSubsystem<UInteriorSubsystem>())
+				S->AddRegistrationListener(ItemId, Comp);
 		break;
 	case EInteractiveSubsystem::ActorNPC:
 		if (UGameInstance* GI = World->GetGameInstance())
@@ -48,12 +50,14 @@ static void RemoveListenerFromSubsystem(UWorld* World, EInteractiveSubsystem Typ
 	switch (Type)
 	{
 	case EInteractiveSubsystem::Terminal:
-		if (UTerminalSubsystem* S = World->GetSubsystem<UTerminalSubsystem>())
-			S->RemoveRegistrationListener(ItemId, Comp);
+		if (UGameInstance* GI = World->GetGameInstance())
+			if (UTerminalSubsystem* S = GI->GetSubsystem<UTerminalSubsystem>())
+				S->RemoveRegistrationListener(ItemId, Comp);
 		break;
 	case EInteractiveSubsystem::Interior:
-		if (UInteriorSubsystem* S = World->GetSubsystem<UInteriorSubsystem>())
-			S->RemoveRegistrationListener(ItemId, Comp);
+		if (UGameInstance* GI = World->GetGameInstance())
+			if (UInteriorSubsystem* S = GI->GetSubsystem<UInteriorSubsystem>())
+				S->RemoveRegistrationListener(ItemId, Comp);
 		break;
 	case EInteractiveSubsystem::ActorNPC:
 		if (UGameInstance* GI = World->GetGameInstance())
@@ -224,7 +228,7 @@ void UInteractiveItemComponent::SetTooltip(const FText& NewTooltip)
 	CurrentTooltip = NewTooltip;
 	InteractiveTooltipText = NewTooltip;
 
-	// 3) Уведомляем подписчиков о том, что тултип изменился
+	// 3) уведомление подсистемы и UI, которые могут подписываться
 	if (OnInteractTooltipChange.IsBound())
 	{
 		OnInteractTooltipChange.Broadcast(CurrentTooltip);

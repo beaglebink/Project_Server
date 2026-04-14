@@ -1,6 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "Subsystems/WorldSubsystem.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
@@ -9,12 +9,12 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGhostClearedEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
-class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UWorldSubsystem
+class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")

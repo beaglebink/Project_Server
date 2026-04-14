@@ -9,11 +9,11 @@
 #include "../InteractionSystem/InteractSetRangePayload.h"
 #include "../InteractionSystem/InteractSetTooltipPayload.h"
 
-void UTerminalSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+void UTerminalSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	Super::OnWorldBeginPlay(InWorld);
+	Super::Initialize(Collection);
 
-	CachedEventBus = InWorld.GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	CachedEventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 
 	SubscribeRegistration();
 
