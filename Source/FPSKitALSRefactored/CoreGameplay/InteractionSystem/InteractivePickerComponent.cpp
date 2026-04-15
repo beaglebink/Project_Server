@@ -3,9 +3,10 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
-#include "InteractiveActorInterface.h" // added for EnableHighlight calls
+#include "InteractiveActorInterface.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "InteractCommandPayload.h"
+#include "Components/ChildActorComponent.h"
 
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
@@ -149,7 +150,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 			continue;
 		}
 
-		HitActor->GetComponents<UInteractiveItemComponent>(InteractiveItems, true);
+		HitActor->GetComponents<UInteractiveItemComponent>(InteractiveItems, /*bIncludeFromChildActors=*/true);
 		AllInteractiveItems.Append(InteractiveItems);
 	}
 
@@ -205,7 +206,21 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		PlayerController->GetViewportSize(ViewX, ViewY);
 		if (ViewX > 0 && ViewY > 0)
 		{
-			CrosshairPosition = FVector2D(ViewX * 0.5f, ViewY * 0.5f);
+			if (UFunction* Func = PlayerController->FindFunction(FName(TEXT("GetCrosshairPosition"))))
+			{
+				struct FGetCrosshairPosition_Params
+				{
+					FVector2D ReturnValue;
+				} Params;
+
+				PlayerController->ProcessEvent(Func, &Params);
+				CrosshairPosition = Params.ReturnValue;
+			}
+			else
+			{
+				CrosshairPosition = FVector2D(ViewX * 0.5f, ViewY * 0.5f);
+			}
+
 			FVector DeprojOrigin;
 			FVector DeprojDir;
 			if (PlayerController->DeprojectScreenPositionToWorld(CrosshairPosition.X, CrosshairPosition.Y, DeprojOrigin, DeprojDir))
@@ -216,41 +231,29 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		}
 	}
 
-	FHitResult OutHit;
+	TArray<FHitResult> OutHits;
 	const FVector LineStart = Location;
 	const FVector LineEnd = CrosshairWorldOrigin + CrosshairDirection * Depth;
 
 	bool bLineTraceHit = false;
 
-	if (SelectedInteractiveItems.Num() == 1)
+	// Лайнтрейс по лучу прицела, берем компонент на ближайшем экторе
+	bLineTraceHit = World->LineTraceMultiByChannel(OutHits, LineStart, LineEnd, ECollisionChannel::ECC_Camera);
+	if (bLineTraceHit)
 	{
-		SelectedItem = SelectedInteractiveItems[0];
-	}
-	else
-	{
-		bLineTraceHit = World->LineTraceSingleByChannel(OutHit, LineStart, LineEnd, ECollisionChannel::ECC_Camera);
-		if (bLineTraceHit)
+		for(auto& Hit : OutHits)
 		{
-			if (OutHit.GetActor())
+			if (!Hit.GetActor()) continue;
+			AActor* HitActor = Hit.GetActor();
+			
+			UInteractiveItemComponent* ItemFromHit = HitActor ? HitActor->FindComponentByClass<UInteractiveItemComponent>() : nullptr;
+			if (ItemFromHit)
 			{
-				SelectedItem = OutHit.GetActor()->FindComponentByClass<UInteractiveItemComponent>();
-				if (SelectedItem && !SelectedItem->IsActive())
-				{
-					SelectedItem = nullptr;
-				}
+				SelectedItem = ItemFromHit;
+				break;
 			}
 		}
-		else
-		{
-			SelectedItem = NearestItem;
-		}
-
-		if(!SelectedItem)
-		{
-			SelectedItem = NearestItem;
-		}
 	}
-
 	if (SelectedItem)
 	{
 		float InteractionSquareDistance = FVector::DistSquared(Location, SelectedItem->GetOwner()->GetActorLocation());
@@ -271,22 +274,8 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 	{
 		UE_LOG(LogTemp, Warning, TEXT("NearestItem: %s %f"), *SelectedItem->GetOwner()->GetName(), NearestDistance);
 
-		if (SelectedInteractiveItems.Num() > 1)
-		{ 
-			DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, SelectedItem->GetOwner()->GetActorLocation(), FColor::Blue, false, 1.f, 0, .5f);
-			if (bLineTraceHit)
-			{
-				DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), 6.f, 8, FColor::Yellow, false, .5f);
-			}
-			else
-			{
-				DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), 6.f, 8, FColor::Yellow, false, .5f);
-			}
-		}
-		else
-		{
-			DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, SelectedItem->GetOwner()->GetActorLocation(), FColor::Blue, false, 1.f, 0, .5f);
-		}
+		DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, SelectedItem->GetOwner()->GetActorLocation(), FColor::Blue, false, 1.f, 0, .5f);
+		DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), 6.f, 8, FColor::Yellow, false, .5f);
 	}
 
 	return SelectedItem;
@@ -320,15 +309,13 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 
 	OnInteractiveLostFocusEvent.Broadcast();
 
-	// Отключаем визуальную подсветку у потерянного компонента (если он реализует интерфейс)
 	if (InteractiveComponent)
 	{
-		// Убираем подписку на событие, чтобы не держать ссылку
 		InteractiveComponent->OnInteractStateChanged.RemoveAll(this);
-
-		// Убираем подписку на изменение тултипа
 		InteractiveComponent->OnInteractTooltipChange.RemoveAll(this);
 
+		// GetOwner() вернёт ChildActor (если компонент на нём) или обычный актор —
+		// в обоих случаях EnableHighlight вызывается точно на нужном акторе
 		AActor* ItemActor = InteractiveComponent->GetOwner();
 		if (ItemActor && ItemActor->GetClass()->ImplementsInterface(UInteractiveActorInterface::StaticClass()))
 		{
@@ -347,18 +334,15 @@ void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveI
 	if (InteractiveComponent)
 	{
 		InteractiveComponent->SetIsInteractiveNow(Owner);
-
-		// Подписываемся на изменение тултипа интерактивного компонента и ретранслируем его через свой делегат
 		InteractiveComponent->OnInteractTooltipChange.AddDynamic(this, &UInteractivePickerComponent::HandleInteractTooltipChange);
 
-		// Включаем визуальную подсветку у найденного компонента (если актёр поддерживает интерфейс)
+		// GetOwner() вернёт ChildActor (если компонент на нём) или обычный актор —
+		// в обоих случаях EnableHighlight вызывается точно на нужном акторе
 		AActor* ItemActor = InteractiveComponent->GetOwner();
 		if (ItemActor && ItemActor->GetClass()->ImplementsInterface(UInteractiveActorInterface::StaticClass()))
 		{
 			IInteractiveActorInterface::Execute_EnableHighlight(ItemActor, true);
 		}
-
-
 	}
 
 	OnInteractiveReceiveFocusEvent.Broadcast(InteractiveComponent);
@@ -377,15 +361,11 @@ UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 		if (UInteractCommandPayload* P = EventBus->CreatePayload<UInteractCommandPayload>())
 		{
 			P->ItemId = CurrentItem->GetItemId();
-
-			// Передаём указатель на Picker, чтобы подсистема могла передать его в Broadcast
 			P->Picker = this;
 
 			FOutcomeEventBase Outcome;
 			Outcome.Payload = P;
 
-			// Маппинг EInteractiveSubsystem -> EOutcomeType
-			// EInteractiveSubsystem: Terminal, ActorNPC, Inventory, Interior
 			switch (CurrentItem->SubsystemType)
 			{
 				case EInteractiveSubsystem::Interior:
@@ -395,7 +375,6 @@ UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 					Outcome.OutcomeType = EOutcomeType::Actor;
 					break;
 				case EInteractiveSubsystem::Inventory:
-					// Было: EOutcomeType::Object
 					Outcome.OutcomeType = EOutcomeType::Inventory;
 					break;
 				case EInteractiveSubsystem::Terminal:
@@ -413,8 +392,6 @@ UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 	return CurrentItem;
 }
 
-// Обработчик изменения тултипа интерактивного компонента.
-// Просто ретранслирует событие через делегат самого Picker'а.
 void UInteractivePickerComponent::HandleInteractTooltipChange(const FText& NewTooltip)
 {
 	OnInteractTooltipChange.Broadcast(NewTooltip);
