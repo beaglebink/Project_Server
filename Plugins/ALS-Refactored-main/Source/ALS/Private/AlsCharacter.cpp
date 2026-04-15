@@ -166,11 +166,13 @@ void AAlsCharacter::BeginPlay()
 		LevelEnemyManager->RegisterEnemy(EnemyTag);
 	}
 	//MoonDoggies
-	LevelEnemyManager->OnGhostsTypesNumberChange.AddDynamic(this, &AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange);
+	if (IsValid(LevelEnemyManager))
+	{
+		LevelEnemyManager->OnGhostsTypesNumberChange.AddDynamic(this, &AAlsCharacter::MoonDoggies_StaminaAndAccuracyOnGhostsTypesNumChange);
 
-	//AntiGlitchHarness
-	LevelEnemyManager->OnEnemyTypeAddedRemoved.AddDynamic(this, &AAlsCharacter::AntiGlitchHarness_StaminaOnEnemiesPresence);
-
+		//AntiGlitchHarness
+		LevelEnemyManager->OnEnemyTypeAddedRemoved.AddDynamic(this, &AAlsCharacter::AntiGlitchHarness_StaminaOnEnemiesPresence);
+	}
 	if (GetLocalRole() >= ROLE_AutonomousProxy)
 	{
 		// Teleportation of simulated proxies is detected differently, see
@@ -6279,4 +6281,39 @@ float AAlsCharacter::GamerGear_InteractWithDamage(AController* DamageInstigator,
 	}
 
 	return DamageAmount;
+}
+
+void AAlsCharacter::OnPrepareForSeamlessTravel()
+{
+	MagneticVestSlowedEnemies.Empty();
+	CableRepairOutfitSlowedNoneFlyingEnemies.Empty();
+	CableRepairOutfitSlowedGroundedEnemies.Empty();
+	NetworkSpecialist_LinkedEnemies.Empty();
+
+	LevelEnemyManager = nullptr;
+
+	if (UWorld* W = GetWorld())
+	{
+		FTimerManager& TM = W->GetTimerManager();
+		TM.ClearTimer(StunTimerHandle);
+		TM.ClearTimer(BrakingFrictionFactorResetTimer);
+		TM.ClearTimer(LaunchTimerHandle);
+		TM.ClearTimer(CameraTimerHandle);
+		TM.ClearTimer(DiscreteTimerHandle);
+		TM.ClearTimer(RapidTimerHandle);
+		TM.ClearTimer(TapInTimeTimerHandle);
+		TM.ClearTimer(BlindnessEffectTimerHandle);
+	}
+
+	bIsStunned = false;
+	bIsSliding = false;
+	bIsGrappled = false;
+	bIsMagnetic = false;
+	bIsInked = false;
+	bIsDiscombobulated = false;
+	bIsShocked = false;
+	bIsKnockedDown = false;
+	bIsBubbled = false;
+
+	UE_LOG(LogTemp, Log, TEXT("AAlsCharacter::OnPrepareForSeamlessTravel — done"));
 }

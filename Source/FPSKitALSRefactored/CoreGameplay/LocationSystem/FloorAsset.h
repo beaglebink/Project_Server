@@ -22,6 +22,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
     int32 FloorIndex = 0;
 
+    // ── Уровень (сцена) для SeamlessTravel ────────────────────────────────
+    // Путь к карте которая загружается при переходе на этаж
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Level")
+    TSoftObjectPtr<UWorld> FloorLevel;
+
     // ── Иерархия ───────────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Hierarchy")
     TSoftObjectPtr<class UInteriorSetAsset> ParentInteriorSet;
@@ -34,25 +39,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<FLocationZone> Zones;
 
+    // Якоря входа на этаж — используются для позиционирования игрока после загрузки
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<FLocationAnchor> Anchors;
 
     // Переходы: лестницы, лифты, двери между этажами и на улицу
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<FLocationTransitionPoint> TransitionPoints;
-/*
-    // Тяжелая мебель (soft ссылки — безопаснее в DataAsset)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
-    TArray<TSoftObjectPtr<AActor>> LargeFurniture;
 
-    // Легкие предметы
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
-    TArray<TSoftObjectPtr<AActor>> SmallFurniture;
-
-    // Терминалы (soft ссылки на Pawn)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
-    TArray<TSoftObjectPtr<APawn>> Terminals;
-*/
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
 #endif

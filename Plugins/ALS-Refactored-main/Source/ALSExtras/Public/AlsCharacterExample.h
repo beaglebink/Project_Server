@@ -176,6 +176,10 @@ public:
 
 	void BeginPlay() override;
 
+	// Вызвать перед SeamlessTravel — сбрасывает все level-dependent состояния
+	UFUNCTION(BlueprintCallable, Category = "SeamlessTravel")
+	void PrepareForSeamlessTravel();
+
 	virtual void NotifyControllerChanged() override;
 
 	virtual float GetNetGrenadeParalyseTime() const;

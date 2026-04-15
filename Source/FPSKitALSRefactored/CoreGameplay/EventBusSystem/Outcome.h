@@ -108,7 +108,7 @@ enum class EOutcomeInterior : uint8
 
 	// --- Snapshot commands ---
 	FloorStateSave			UMETA(DisplayName = "Floor State Save"),
-	FloorStateRestore		UMETA(DisplayName = "Floor State Restore")
+	FloorStateRestore		UMETA(DisplayName = "Floor State Restore"),
 };
 
 UENUM(BlueprintType)

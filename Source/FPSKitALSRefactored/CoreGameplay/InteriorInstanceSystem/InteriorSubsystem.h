@@ -63,7 +63,7 @@ struct FFloorSavedActorState
 	FGuid      ItemId;
 	FTransform ActorTransform;        // World transform (для независимых акторов)
 	FTransform RelativeTransform;     // Relative transform компонента (для Child Actor, если есть)
-	bool       bHasRelativeTransform = false; // true — это дочерний актор, восстанавливать через компонент
+	bool       bHasRelativeTransform = false; // true — это дочерний актор, восстанавлиать через компонент
 	TArray<FFloorSavedPropertyEntry>  ActorProperties;
 	TArray<FFloorSavedComponentState> ComponentStates;
 };
@@ -143,12 +143,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
 	void BuildAssetIndex();
 
+	// Pending spawn transform API (public для доступа из GameMode)
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Transition")
+	void SetPendingSpawnTransform(const FVector& Location, const FRotator& Rotation);
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Transition")
+	void GetPendingSpawnTransform(FVector& OutLocation, FRotator& OutRotation) const;
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Transition")
+	void ClearPendingSpawnTransform();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorSubsystem|Transition")
+	bool HasPendingSpawnTransform() const;
+
+	// Subscribe/unsubscribe placement-specific handlers (public declarations required by cpp)
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Placement")
+	void SubscribePlacementRegistration();
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Placement")
+	void UnsubscribePlacementRegistration();
+
+	// Handler for floor placement registration (moved to public to avoid access issues in delegate binding)
+	UFUNCTION()
+	void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
+
 private:
 	// Handler for spawn/despawn interactive objects
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
-
-	// Handler for floor placement registration (separate from interactive registration)
-	void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
 
 	// Runtime condition assets to keep alive
 	UPROPERTY()
@@ -238,20 +259,32 @@ private:
 	FOutcomeHandlerHandle FloorStateSaveHandle;
 	FOutcomeHandlerHandle FloorStateRestoreHandle;
 
-	// Friendly (designer) index: FriendlyKey -> (InteriorSetId, FloorId)
-	// FriendlyKey example: "/Game/Props/House1.House1:floor_2"
-	TMap<FString, FInteriorFloorKey> FriendlyFloorIndex;
+	// Floor transition (SeamlessTravel + anchor placement)
+	void HandleFloorTransition(const FOutcomeEventBase& Outcome);
 
+	UPROPERTY()
+	UOutcomeConditionAsset* FloorTransitionConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle FloorTransitionHandle;
+
+private:
 	// Resolve by asset name + floor index
 	bool TryResolveFloorKeyByAssetName(const FString& AssetName, int32 FloorIndex, FInteriorFloorKey& OutKey) const;
 
-	// Subscribe/unsubscribe placement-specific handlers
-	void SubscribePlacementRegistration();
-	void UnsubscribePlacementRegistration();
+	// pending transform storage (GameInstance lifetime)
+	UPROPERTY()
+	bool bHasPendingSpawn = false;
 
+	UPROPERTY()
+	FVector PendingSpawnLocation = FVector::ZeroVector;
+
+	UPROPERTY()
+	FRotator PendingSpawnRotation = FRotator::ZeroRotator;
+protected:
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
-	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
-	{
-		return RegistrationListeners;
-	}
+	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override;
+
+	// Friendly (designer) index: FriendlyKey -> (InteriorSetId, FloorId)
+	UPROPERTY()
+	TMap<FString, FInteriorFloorKey> FriendlyFloorIndex;
 };

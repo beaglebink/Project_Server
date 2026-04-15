@@ -2800,3 +2800,45 @@ void AAlsCharacterExample::GamerGear_Effect(bool Apply)
 		//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Remove GamerGear"));
 	}
 }
+
+void AAlsCharacterExample::PrepareForSeamlessTravel()
+{
+	// 1. Сброс dangling-указателей на объекты текущего уровня
+	FocusActor     = nullptr;
+	Target         = nullptr;
+	ReasonParalyse = nullptr;
+	TestController = nullptr;
+
+	// 2. Очистка таймеров (TimerManager привязан к текущему UWorld)
+	if (UWorld* W = GetWorld())
+	{
+		FTimerManager& TM = W->GetTimerManager();
+		TM.ClearTimer(JumpTimerHandle);
+
+		for (FEffectTimer& ET : EffectTimerHandles)
+		{
+			TM.ClearTimer(ET.EffectTimerHandle);
+		}
+	}
+	EffectTimerHandles.Empty();
+
+	// 3. Сброс loop-эффекта
+	bIsLooped = false;
+	FrameList.Empty();
+	FrameListSize = 0;
+	LoopsCounter  = 0;
+
+	// 4. Сброс ALS состояний — ragdoll/mantling/roll
+	//    (физика привязана к PhysicsScene текущего мира)
+	if (IsRagdollingAllowedToStop())
+	{
+		StopRagdolling();
+	}
+
+	// 5. Сброс TSet указателей на врагов в базовом классе
+	//    (доступны через protected — вызываем метод-очиститель если есть,
+	//     иначе делаем это через friend или добавляем virtual-метод в AAlsCharacter)
+	OnPrepareForSeamlessTravel(); // virtual hook — реализовать в AAlsCharacter
+
+	UE_LOG(LogTemp, Log, TEXT("AAlsCharacterExample::PrepareForSeamlessTravel — done"));
+}

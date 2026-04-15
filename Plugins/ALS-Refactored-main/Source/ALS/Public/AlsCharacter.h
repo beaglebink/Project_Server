@@ -2593,6 +2593,9 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ClothesEffect")
 	float GamerGear_InteractWithDamage(AController* DamageInstigator, FText DamageType, float DamageAmount);
+	
+	UFUNCTION(BlueprintCallable, Category = "transition")
+	void OnPrepareForSeamlessTravel();
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const

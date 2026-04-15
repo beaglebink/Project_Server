@@ -18,6 +18,10 @@
 #include "Modules/ModuleManager.h"
 #include "../LocationSystem/InteriorSetAsset.h"
 #include "../LocationSystem/FloorAsset.h"
+#include "../LocationSystem/LocationSpatialTypes.h"
+#include "InteriorTransitionPayload.h"
+#include "GameFramework/GameModeBase.h"
+#include "Kismet/GameplayStatics.h"
 
 // -----------------------------------------------------------------------------
 // Snapshot helpers
@@ -375,7 +379,7 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, co
 				if (!IsValid(ParentChildComp)) continue;
 				if (ParentChildComp->GetChildActor() == ChildActor)
 				{
-					// Применяем относительный трансформ к компоненту (это правильный способ сохранять позицию дочернего актора относительно родителя)
+					// Применяем относительный транспорту к компоненту (это правильный способ сохранять позицию дочернего актора относительно родителя)
 					ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
 					bAppliedRelative = true;
 					break;
@@ -590,6 +594,146 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 	}
 }
 
+void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
+{
+	const UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
+	if (!P) return;
+
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	// Ассет этажа передаётся напрямую в payload
+	UFloorAsset* TargetFloor = P->GetTargetFloor();
+
+	if (!TargetFloor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: TargetFloor is null"));
+		return;
+	}
+
+	const FString LevelPath = TargetFloor->FloorLevel.GetLongPackageName();
+	if (LevelPath.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: FloorLevel not set in '%s'"),
+			*TargetFloor->GetName());
+		return;
+	}
+
+	// Ищем якорь входа через TransitionPoint.DestinationLocationID
+	FVector SpawnLocation = FVector::ZeroVector;
+	FRotator SpawnRotation = FRotator::ZeroRotator;
+
+	const FGuid TransitionId = P->GetTransitionPointId();
+	const int32  AnchorIdx    = P->GetAnchorIndex();
+	const FName  AnchorName   = P->GetAnchorName();
+
+	bool bFoundAnchor = false;
+
+	// 1) Если задан TransitionPointId — прежняя логика
+	if (TransitionId.IsValid())
+	{
+		for (const FLocationTransitionPoint& TP : TargetFloor->TransitionPoints)
+		{
+			if (TP.TransitionPointID == TransitionId)
+			{
+				for (const FLocationAnchor& Anchor : TargetFloor->Anchors)
+				{
+					if (Anchor.AnchorID == TP.DestinationLocationID)
+					{
+						SpawnLocation = Anchor.WorldPosition;
+						SpawnRotation = Anchor.WorldOrientation;
+						bFoundAnchor = true;
+						break;
+					}
+				}
+				break;
+			}
+		}
+	}
+
+	// 2) Если не нашли — пробуем по индексу якоря (удобно в BP)
+	if (!bFoundAnchor && AnchorIdx >= 0 && AnchorIdx < TargetFloor->Anchors.Num())
+	{
+		const FLocationAnchor& Anchor = TargetFloor->Anchors[AnchorIdx];
+		SpawnLocation = Anchor.WorldPosition;
+		SpawnRotation = Anchor.WorldOrientation;
+		bFoundAnchor = true;
+	}
+
+	// 3) Если не нашли — пробуем по имени/тегу якоря (Blueprint-friendly)
+	if (!bFoundAnchor && AnchorName != NAME_None)
+	{
+		const FString AnchorNameStr = AnchorName.ToString();
+		for (const FLocationAnchor& Anchor : TargetFloor->Anchors)
+		{
+			// сравниваем DisplayName
+			if (Anchor.DisplayName.ToString().Equals(AnchorNameStr, ESearchCase::IgnoreCase))
+			{
+				SpawnLocation = Anchor.WorldPosition;
+				SpawnRotation = Anchor.WorldOrientation;
+				bFoundAnchor = true;
+				break;
+			}
+
+			// сравниваем по GameplayTag (если задан такой тег у якоря)
+			if (!Anchor.Tags.IsEmpty())
+			{
+				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(AnchorName);
+				if (Tag.IsValid() && Anchor.Tags.HasTagExact(Tag))
+				{
+					SpawnLocation = Anchor.WorldPosition;
+					SpawnRotation = Anchor.WorldOrientation;
+					bFoundAnchor = true;
+					break;
+				}
+			}
+		}
+	}
+
+	// 4) Fallback — первый якорь
+	if (!bFoundAnchor && TargetFloor->Anchors.Num() > 0)
+	{
+		SpawnLocation = TargetFloor->Anchors[0].WorldPosition;
+		SpawnRotation = TargetFloor->Anchors[0].WorldOrientation;
+		bFoundAnchor = true;
+	}
+
+	// Сохраняем точку спавна в подсистеме (переживает SeamlessTravel)
+	SetPendingSpawnTransform(SpawnLocation, SpawnRotation);
+
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: SeamlessTravel -> '%s' (anchor: %s)"),
+		*LevelPath, *SpawnLocation.ToString());
+
+	W->SeamlessTravel(LevelPath, true);
+}
+
+// ---------------- Pending spawn transform API ----------------
+void UInteriorSubsystem::SetPendingSpawnTransform(const FVector& Location, const FRotator& Rotation)
+{
+	PendingSpawnLocation = Location;
+	PendingSpawnRotation = Rotation;
+	bHasPendingSpawn = true;
+	UE_LOG(LogTemp, Verbose, TEXT("InteriorSubsystem: Pending spawn set %s / %s"), *Location.ToString(), *Rotation.ToString());
+}
+
+void UInteriorSubsystem::GetPendingSpawnTransform(FVector& OutLocation, FRotator& OutRotation) const
+{
+	OutLocation = PendingSpawnLocation;
+	OutRotation = PendingSpawnRotation;
+}
+
+void UInteriorSubsystem::ClearPendingSpawnTransform()
+{
+	bHasPendingSpawn = false;
+	PendingSpawnLocation = FVector::ZeroVector;
+	PendingSpawnRotation = FRotator::ZeroRotator;
+}
+
+bool UInteriorSubsystem::HasPendingSpawnTransform() const
+{
+	return bHasPendingSpawn;
+}
+
 // -----------------------------------------------------------------------------
 // Subscribe / Unsubscribe — полная реализация
 // -----------------------------------------------------------------------------
@@ -756,6 +900,25 @@ void UInteriorSubsystem::SubscribeAll()
 				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleFloorStateRestore));
 		}
 	}
+
+	// ── FloorTransition ───────────────────────────────────────────────────
+	if (!FloorTransitionHandle.IsValid())
+	{
+		FloorTransitionConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		FloorTransitionConditionAsset->OperatorType = EConditionOperator::Composite;
+		FloorTransitionConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		FloorTransitionConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		FloorTransitionConditionAsset->FilterRow.InteriorType = EOutcomeInterior::FloorTransition;
+		FloorTransitionConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		FloorTransitionConditionAsset->CompileCondition();
+
+		if (FloorTransitionConditionAsset->GetCondition().IsValid())
+		{
+			FloorTransitionHandle = EventBus->RegisterHandler(
+				FloorTransitionConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleFloorTransition));
+		}
+	}
 }
 
 void UInteriorSubsystem::SubscribePlacementRegistration()
@@ -915,6 +1078,7 @@ void UInteriorSubsystem::UnsubscribeAll()
 
 		UnregisterHandle(FloorStateSaveHandle,    FloorStateSaveConditionAsset);
 		UnregisterHandle(FloorStateRestoreHandle, FloorStateRestoreConditionAsset);
+		UnregisterHandle(FloorTransitionHandle,   FloorTransitionConditionAsset);
 	} // if (UEventBusSubsystem* EventBus ...)
 
 	RegisteredItems.Empty();
@@ -957,4 +1121,10 @@ void UInteriorSubsystem::BuildAssetIndex()
 #else
 	UE_LOG(LogTemp, Verbose, TEXT("UInteriorSubsystem::BuildAssetIndex: AssetRegistry not available in this build configuration"));
 #endif
+}
+
+// Реализация абстрактного метода из FInteractiveSubsystemMethods
+TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& UInteriorSubsystem::GetRegistrationListeners()
+{
+	return RegistrationListeners;
 }
