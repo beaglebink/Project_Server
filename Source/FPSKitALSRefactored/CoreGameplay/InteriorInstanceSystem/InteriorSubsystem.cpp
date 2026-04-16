@@ -701,8 +701,12 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	// Сохраняем точку спавна в подсистеме (переживает SeamlessTravel)
 	SetPendingSpawnTransform(SpawnLocation, SpawnRotation);
 
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: SeamlessTravel -> '%s' (anchor: %s)"),
-		*LevelPath, *SpawnLocation.ToString());
+	// перед W->SeamlessTravel(...)
+	APlayerController* PC = W->GetFirstPlayerController();
+	AGameModeBase* GM = W->GetAuthGameMode();
+	ENetMode NetMode = W->GetNetMode();
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: initiating SeamlessTravel. LevelPath=%s, NetMode=%d, AuthGameMode=%s"),
+		*LevelPath, (int)NetMode, GM ? *GM->GetClass()->GetName() : TEXT("null"));
 
 	W->SeamlessTravel(LevelPath, true);
 }

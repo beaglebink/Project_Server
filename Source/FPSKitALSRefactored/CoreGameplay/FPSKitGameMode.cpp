@@ -1,6 +1,5 @@
 #include "FPSKitGameMode.h"
 #include "InteriorInstanceSystem/InteriorSubsystem.h"
-#include "AlsCharacterExample.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
@@ -16,6 +15,8 @@ void AFPSKitGameMode::GetSeamlessTravelActorList(bool bToTransition, TArray<AAct
 {
 	Super::GetSeamlessTravelActorList(bToTransition, ActorList);
 
+	UE_LOG(LogTemp, Log, TEXT("AFPSKitGameMode::GetSeamlessTravelActorList called. bToTransition=%d, CurrentActorListSize=%d"), (int)bToTransition, ActorList.Num());
+
 	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	if (PC)
 	{
@@ -23,6 +24,17 @@ void AFPSKitGameMode::GetSeamlessTravelActorList(bool bToTransition, TArray<AAct
 		{
 			ActorList.AddUnique(Pawn);
 			UE_LOG(LogTemp, Log, TEXT("FPSKitGameMode: Adding pawn '%s' to seamless travel list"), *Pawn->GetName());
+		}
+	}
+
+	TArray<AActor*> AdditionalActors;
+	GetAdditionalSeamlessTravelActors(AdditionalActors);
+	for (AActor* A : AdditionalActors)
+	{
+		if (IsValid(A))
+		{
+			ActorList.AddUnique(A);
+			UE_LOG(LogTemp, Log, TEXT("FPSKitGameMode: Adding additional actor '%s' to seamless travel list"), *A->GetName());
 		}
 	}
 }

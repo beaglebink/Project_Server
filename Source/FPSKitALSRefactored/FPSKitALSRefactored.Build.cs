@@ -1,37 +1,57 @@
-using System.IO;
 using UnrealBuildTool;
+using System.IO;
 
 public class FPSKitALSRefactored : ModuleRules
 {
     public FPSKitALSRefactored(ReadOnlyTargetRules Target) : base(Target)
     {
-        OptimizeCode = CodeOptimization.Never;
-
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(new string[] {
-            "Core", "CoreUObject", "Engine", "InputCore",
-            "GameplayTags", "UMG", "Niagara", "Json", "JsonUtilities", "EnhancedInput", "ALS", "ALSExtras"
-        });
-
-        PrivateDependencyModuleNames.AddRange(new string[] {
-            "Slate", "SlateCore", "ApplicationCore"
-        });
-
-        if (Target.Type == TargetType.Editor)
+        PublicDependencyModuleNames.AddRange(new string[]
         {
-            PublicDependencyModuleNames.AddRange(new string[] { "UnrealEd", "Blutility", "AssetRegistry" });
+            "Core", "CoreUObject", "Engine",
+            "EnhancedInput",
+            "UMG",
+            "Niagara",
+            "GameplayTags",
+            "InputCore",
+            "Slate",
+            "SlateCore",
+            "Json",
+            "JsonUtilities",
+        });
+
+        // ALS и ALSExtras — только как приватные зависимости,
+        // чтобы не создавать циклическую зависимость через ALSEditor
+        PrivateDependencyModuleNames.AddRange(new string[]
+        {
+            "AppFramework",
+            "ALS",       // приватная зависимость — не экспортируется во внешние модули
+            "ALSExtras", // приватная зависимость
+        });
+
+        // Editor-only зависимости — строго только при сборке с редактором
+        if (Target.bBuildEditor)
+        {
+            PrivateDependencyModuleNames.AddRange(new string[]
+            {
+                "EditorStyle",
+                "PropertyEditor",
+                "UnrealEd",
+            });
         }
 
-        PublicIncludePaths.AddRange(new string[] {
-            "FPSKitALSRefactored/CoreGameplay/EventBusSystem",
-            "FPSKitALSRefactored/CoreGameplay/ActorStateSystem",
-            "FPSKitALSRefactored/CoreGameplay/SpawnGroupSystem"
-        });
-
-        PublicIncludePaths.AddRange(new string[] {
-            Path.Combine(ModuleDirectory, "Public"),
-            Path.Combine(ModuleDirectory, "CoreGameplay", "Cubixon")
-        });
+        // Корень модуля — для include "CoreGameplay/..."
+        PublicIncludePaths.Add(ModuleDirectory);
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "EventBusSystem"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "InteractionSystem"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "InteriorInstanceSystem"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "SpawnGroupSystem"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "WorldStateSystem"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "TeleportationSystem"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "Weapon"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "Cubixon"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
     }
 }

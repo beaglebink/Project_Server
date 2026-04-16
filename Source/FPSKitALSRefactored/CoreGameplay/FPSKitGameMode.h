@@ -2,10 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "GM_Base.h" // делегаты берЄм отсюда
 #include "FPSKitGameMode.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLevelLoadingStarted);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLevelLoadingFinished);
+// FOnLevelLoadingStarted и FOnLevelLoadingFinished объ€влены в GM_Base.h Ч не дублируем
 
 UCLASS()
 class FPSKITALSREFACTORED_API AFPSKitGameMode : public AGameModeBase
@@ -17,8 +17,10 @@ public:
 
 	virtual void PostSeamlessTravel() override;
 
-	// ”казываем движку каких акторов Ќ≈ разрушать при SeamlessTravel
 	virtual void GetSeamlessTravelActorList(bool bToTransition, TArray<AActor*>& ActorList) override;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "FPSKit|Loading")
+	void GetAdditionalSeamlessTravelActors(TArray<AActor*>& OutActors);
 
 	UFUNCTION(BlueprintCallable, Category = "FPSKit|Loading")
 	void NotifyLoadingStarted();

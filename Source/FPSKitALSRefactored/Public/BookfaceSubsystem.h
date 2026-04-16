@@ -3,18 +3,10 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/Texture2D.h"
-#include "BookfaceMessageObject.h"
-#include "BookfaceDataTypes.h"
-#include "BookfaceSaveGame.h"
+#include "BookfaceMessageObject.h" // найдён в CoreGameplay/Cubixon/
+#include "BookfaceDataTypes.h"     // должен лежать там же
+#include "BookfaceSaveGame.h"      // должен лежать там же
 #include "BookfaceSubsystem.generated.h"
-/*
-UENUM(BlueprintType)
-enum class EBF_DirectType : uint8
-{
-    Incoming UMETA(DisplayName = "Incoming"),
-    Outgoing UMETA(DisplayName = "Outgoing")
-};
-*/
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRemoveFriend, const FString&, UserId, const FString&, UserFriend);

@@ -1,14 +1,61 @@
-#include "GM_Base.h"
+﻿#include "GM_Base.h"
 #include "A_EnemyManager.h"
 
 AGM_Base::AGM_Base()
 {
+	bUseSeamlessTravel = true;
+}
+
+void AGM_Base::NotifyLoadingStarted()
+{
+	OnLevelLoadingStarted.Broadcast();
+	UE_LOG(LogTemp, Log, TEXT("AGM_Base: OnLevelLoadingStarted broadcast"));
+}
+
+void AGM_Base::NotifyLoadingFinished()
+{
+	OnLevelLoadingFinished.Broadcast();
+	UE_LOG(LogTemp, Log, TEXT("AGM_Base: OnLevelLoadingFinished broadcast"));
+}
+
+void AGM_Base::PostSeamlessTravel()
+{
+	Super::PostSeamlessTravel();
+	NotifyLoadingFinished();
+}
+
+void AGM_Base::GetSeamlessTravelActorList(bool bToTransition, TArray<AActor*>& ActorList)
+{
+	Super::GetSeamlessTravelActorList(bToTransition, ActorList);
+
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (PC)
+	{
+	/*
+		if (APawn* Pawn = PC->GetPawn())
+		{
+			ActorList.AddUnique(Pawn);
+		}
+	*/
+	}
+
+	TArray<AActor*> AdditionalActors;
+	GetAdditionalSeamlessTravelActors(AdditionalActors);
+	for (AActor* A : AdditionalActors)
+	{
+		if (IsValid(A))
+		{
+			ActorList.AddUnique(A);
+		}
+	}
+
+	IsSpawnPlayer = false; // Сбрасываем флаг, чтобы при следующем переходе игрок не сохранялся, если он уже был сохранён
+
 }
 
 void AGM_Base::BeginPlay()
 {
 	Super::BeginPlay();
-
 	GetWorld()->SpawnActor<AA_EnemyManager>();
 }
 
