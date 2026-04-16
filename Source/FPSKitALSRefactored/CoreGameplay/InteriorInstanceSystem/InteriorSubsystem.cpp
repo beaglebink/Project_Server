@@ -22,6 +22,7 @@
 #include "InteriorTransitionPayload.h"
 #include "GameFramework/GameModeBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "PlayerController_I.h"
 
 // -----------------------------------------------------------------------------
 // Snapshot helpers
@@ -704,9 +705,17 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	// перед W->SeamlessTravel(...)
 	APlayerController* PC = W->GetFirstPlayerController();
 	AGameModeBase* GM = W->GetAuthGameMode();
-	ENetMode NetMode = W->GetNetMode();
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: initiating SeamlessTravel. LevelPath=%s, NetMode=%d, AuthGameMode=%s"),
-		*LevelPath, (int)NetMode, GM ? *GM->GetClass()->GetName() : TEXT("null"));
+
+	if (PC)
+	{
+		if (PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
+		{
+			IPlayerController_I::Execute_SetLoadScreen(PC, true);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: initiating SeamlessTravel. LevelPath=%s, AuthGameMode=%s"),
+		*LevelPath, GM ? *GM->GetClass()->GetName() : TEXT("null"));
 
 	W->SeamlessTravel(LevelPath, true);
 }
