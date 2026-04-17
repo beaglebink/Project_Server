@@ -1,5 +1,6 @@
 ﻿#include "GM_Base.h"
 #include "A_EnemyManager.h"
+#include "PlayerController_I.h"
 
 AGM_Base::AGM_Base()
 {
@@ -21,7 +22,19 @@ void AGM_Base::NotifyLoadingFinished()
 void AGM_Base::PostSeamlessTravel()
 {
 	Super::PostSeamlessTravel();
-	NotifyLoadingFinished();
+
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	APlayerController* PC = W->GetFirstPlayerController();
+	if (PC)
+	{
+		if (PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
+		{
+			IPlayerController_I::Execute_RestoreWeaponState(PC);
+		}
+		NotifyLoadingFinished();
+	}
 }
 
 void AGM_Base::GetSeamlessTravelActorList(bool bToTransition, TArray<AActor*>& ActorList)

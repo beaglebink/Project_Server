@@ -711,6 +711,8 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 		if (PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
 		{
 			IPlayerController_I::Execute_SetLoadScreen(PC, true);
+
+			IPlayerController_I::Execute_StoreWeaponState(PC);
 		}
 	}
 
