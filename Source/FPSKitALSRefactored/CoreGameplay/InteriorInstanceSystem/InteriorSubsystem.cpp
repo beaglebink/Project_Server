@@ -716,10 +716,22 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: initiating SeamlessTravel. LevelPath=%s, AuthGameMode=%s"),
-		*LevelPath, GM ? *GM->GetClass()->GetName() : TEXT("null"));
+	//UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: initiating SeamlessTravel. LevelPath=%s, AuthGameMode=%s"),
+	//	*LevelPath, GM ? *GM->GetClass()->GetName() : TEXT("null"));
 
-	W->SeamlessTravel(LevelPath, true);
+	//W->SeamlessTravel(LevelPath, true);
+
+	FTimerDelegate TravelDelegate = FTimerDelegate::CreateLambda([LevelPath, this]()
+		{
+			UWorld* LocalW = GetWorld();
+			if (LocalW)
+			{
+				UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Performing delayed SeamlessTravel to %s"), *LevelPath);
+				LocalW->SeamlessTravel(LevelPath, true);
+			}
+		});
+
+	GetWorld()->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.f, false);
 }
 
 // ---------------- Pending spawn transform API ----------------

@@ -267,6 +267,8 @@ private:
 
 	FOutcomeHandlerHandle FloorTransitionHandle;
 
+	FTimerHandle TravelTimerHandle;
+
 private:
 	// Resolve by asset name + floor index
 	bool TryResolveFloorKeyByAssetName(const FString& AssetName, int32 FloorIndex, FInteriorFloorKey& OutKey) const;
