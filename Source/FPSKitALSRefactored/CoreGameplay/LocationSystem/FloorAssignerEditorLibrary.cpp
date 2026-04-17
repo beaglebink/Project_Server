@@ -63,7 +63,7 @@ static FText ResolveFloorDisplayName(const FGuid& FloorGuid)
 	return FText::FromString(FloorGuid.ToString());
 }
 
-TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetWorldMaps()
+TMap<FGuid, FText> FFloorAssignerEditorLibrary::GetWorldMaps()
 {
 	TMap<FGuid, FText> Out;
 	for (const FAssetData& AD : GetAssetDataByClassName(TEXT("WorldMapAsset")))
@@ -84,7 +84,7 @@ TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetWorldMaps()
 	return Out;
 }
 
-TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetRegions(const FGuid& WorldMapGuid)
+TMap<FGuid, FText> FFloorAssignerEditorLibrary::GetRegions(const FGuid& WorldMapGuid)
 {
 	TMap<FGuid, FText> Out;
 	// find the world map
@@ -121,7 +121,7 @@ TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetRegions(const FGuid& WorldMap
 	return Out;
 }
 
-TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetStreets(const FGuid& WorldRegionGuid)
+TMap<FGuid, FText> FFloorAssignerEditorLibrary::GetStreets(const FGuid& WorldRegionGuid)
 {
 	TMap<FGuid, FText> Out;
 	// find region
@@ -145,7 +145,7 @@ TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetStreets(const FGuid& WorldReg
 	return Out;
 }
 
-TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetInteriorSets(const FGuid& StreetGuid)
+TMap<FGuid, FText> FFloorAssignerEditorLibrary::GetInteriorSets(const FGuid& StreetGuid)
 {
 	TMap<FGuid, FText> Out;
 	for (const FAssetData& AD : GetAssetDataByClassName(TEXT("StreetAsset")))
@@ -168,7 +168,7 @@ TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetInteriorSets(const FGuid& Str
 	return Out;
 }
 
-TMap<FGuid, FText> UFloorAssignerEditorLibrary::GetFloors(const FGuid& InteriorSetGuid)
+TMap<FGuid, FText> FFloorAssignerEditorLibrary::GetFloors(const FGuid& InteriorSetGuid)
 {
 	TMap<FGuid, FText> Out;
 	for (const FAssetData& AD : GetAssetDataByClassName(TEXT("InteriorSetAsset")))
@@ -215,7 +215,7 @@ static void ApplyFloorToComponent(
 	}
 }
 
-int32 UFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid)
+int32 FFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid)
 {
 	int32 ModifiedCount = 0;
 	if (!GEditor) return 0;
@@ -292,7 +292,7 @@ int32 UFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& Floor
 // Select actors by Floor GUID (editor-only)
 // -----------------------------------------------------------------------------
 #if WITH_EDITOR
-int32 UFloorAssignerEditorLibrary::SelectActorsByFloor(const FGuid& FloorGuid)
+int32 FFloorAssignerEditorLibrary::SelectActorsByFloor(const FGuid& FloorGuid)
 {
 	int32 Count = 0;
 	if (!GEditor || !GEngine) return 0;
@@ -335,7 +335,7 @@ int32 UFloorAssignerEditorLibrary::SelectActorsByFloor(const FGuid& FloorGuid)
 // Unregister selected actors (editor-only)
 // -----------------------------------------------------------------------------
 #if WITH_EDITOR
-int32 UFloorAssignerEditorLibrary::UnregisterSelectedActors()
+int32 FFloorAssignerEditorLibrary::UnregisterSelectedActors()
 {
 	int32 Count = 0;
 	if (!GEditor) return 0;

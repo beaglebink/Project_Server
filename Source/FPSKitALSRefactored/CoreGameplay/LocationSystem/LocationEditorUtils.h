@@ -5,33 +5,53 @@
 #include "LocationEditorUtils.generated.h"
 
 class UWorldMapAsset;
-class UWorldRegionAsset;
 class UStreetAsset;
 class UInteriorSetAsset;
-class UFloorAsset;
 
+/**
+ * Editor utility functions — видны в Blueprint через Blutility.
+ * UCLASS не оборачивается в #if WITH_EDITOR (UHT должен видеть класс всегда).
+ * Реализации методов оборачиваются в #if WITH_EDITOR внутри .cpp.
+ */
 UCLASS()
 class FPSKITALSREFACTORED_API ULocationEditorUtils : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
 
 public:
-    // Авто-установка parent-ссылок и ParentLocationID/ParentContext для всей иерархии WorldMap.
-    // Возвращает количество изменённых ассетов.
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
     static int32 AutoFillParentsForWorldMap(UWorldMapAsset* WorldMap);
 
-    // Вспомогательная: проходит одну улицу и ставит parent у InteriorSet'ов и spatial-элементов.
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
     static int32 AutoFillParentsForStreet(UStreetAsset* Street);
 
-    // Вспомогательная: проход по InteriorSet
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
     static int32 AutoFillParentsForInteriorSet(UInteriorSetAsset* InteriorSet);
 
-#if WITH_EDITOR
-	/** Возвращает все ассеты типа UWorldMapAsset в проекте (editor-only). */
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Query")
-	static TArray<UWorldMapAsset*> GetAllWorldMapAssets();
-#endif
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Query")
+    static TArray<UWorldMapAsset*> GetAllWorldMapAssets();
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+    static TMap<FGuid, FText> GetWorldMaps();
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+    static TMap<FGuid, FText> GetRegions(const FGuid& WorldMapGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+    static TMap<FGuid, FText> GetStreets(const FGuid& WorldRegionGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+    static TMap<FGuid, FText> GetInteriorSets(const FGuid& StreetGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+    static TMap<FGuid, FText> GetFloors(const FGuid& InteriorSetGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+    static int32 ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+    static int32 SelectActorsByFloor(const FGuid& FloorGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+    static int32 UnregisterSelectedActors();
 };
