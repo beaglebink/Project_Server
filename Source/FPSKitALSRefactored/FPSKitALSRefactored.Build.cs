@@ -10,27 +10,26 @@ public class FPSKitALSRefactored : ModuleRules
         PublicDependencyModuleNames.AddRange(new string[]
         {
             "Core", "CoreUObject", "Engine",
+            "ALS",
+            "ALSExtras",
             "EnhancedInput",
             "UMG",
             "Niagara",
             "GameplayTags",
             "InputCore",
             "Slate",
-            "SlateCore",
-            "Json",
-            "JsonUtilities",
+            "SlateCore"
         });
 
-        // ALS и ALSExtras — только как приватные зависимости,
-        // чтобы не создавать циклическую зависимость через ALSEditor
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            "AppFramework",
-            "ALS",       // приватная зависимость — не экспортируется во внешние модули
-            "ALSExtras", // приватная зависимость
+            "MoviePlayer",
+            "Slate",
+            "SlateCore",
+            "Json",
+            "JsonUtilities"
         });
 
-        // Editor-only зависимости — строго только при сборке с редактором
         if (Target.bBuildEditor)
         {
             PrivateDependencyModuleNames.AddRange(new string[]
@@ -38,10 +37,10 @@ public class FPSKitALSRefactored : ModuleRules
                 "EditorStyle",
                 "PropertyEditor",
                 "UnrealEd",
+                "MoviePlayer"
             });
         }
 
-        // Корень модуля — для include "CoreGameplay/..."
         PublicIncludePaths.Add(ModuleDirectory);
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "EventBusSystem"));

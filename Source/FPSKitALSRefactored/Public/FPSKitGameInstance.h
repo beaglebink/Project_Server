@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
+#include <LoadingScreen/MyLoadingScreenSettings.h>
 #include "FPSKitGameInstance.generated.h"
 
 UCLASS()
@@ -17,28 +18,19 @@ public:
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Loading")
 	bool bLoadingScreenWanted = false;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Loading Screen")
+	TSubclassOf<ULoadingScreenSettings> LoadingScreenSettingsClass;
+
 	virtual void Init() override;
 	virtual void Shutdown() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Loading")
-	void ShowLoadingScreen();
+	void TravelToLevel(const FString& LevelName);
 
 	UFUNCTION(BlueprintCallable, Category = "Loading")
-	void HideLoadingScreen();
+	void OnLevelReady();
 
 private:
-	// Попытка передать класс виджета в GVC (если он уже создан)
-	void TryUpdateGVC();
-
-	// Попытка показать экран на MoviePlayer или GVC
-	void TryShowOnMoviePlayerOrGVC();
-
-	// Старый обработчик — вызывается адаптером OnPostWorldInit
-	void OnPostLoadMapWithWorld(UWorld* LoadedWorld);
-
-	// Новый обработчик делегата FWorldDelegates::OnPostWorldInitialization
-	void OnPostWorldInit(UWorld* World, const UWorld::InitializationValues IVS);
-
 	UPROPERTY(Transient)
 	UUserWidget* LoadingScreenWidgetInstance = nullptr;
 };

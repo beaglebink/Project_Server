@@ -731,7 +731,7 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 			}
 		});
 
-	GetWorld()->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.f, false);
+	GetWorld()->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 5.f, false);
 }
 
 // ---------------- Pending spawn transform API ----------------
