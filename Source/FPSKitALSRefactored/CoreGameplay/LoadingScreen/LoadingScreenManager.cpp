@@ -10,34 +10,39 @@ void ULoadingScreenManager::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    OnPrepareHandle = GetMoviePlayer()->OnPrepareLoadingScreen().AddWeakLambda(
-        this, [this]()
+    if (IGameMoviePlayer* MP = GetMoviePlayer())
+    {
+        OnPrepareHandle = MP->OnPrepareLoadingScreen().AddWeakLambda(this, [this]()
         {
-            if (bIsVisible)
-            {
-                if (GetMoviePlayer())
-                {
-                    TSharedPtr<SWidget> LoadingWidget = Settings ? Settings->CreateLoadingWidget() : SNullWidget::NullWidget;
+            if (!bIsVisible) return;
 
-                    FLoadingScreenAttributes Attrs;
-                    Attrs.bAutoCompleteWhenLoadingCompletes = Settings ? Settings->bAutoHideOnLoadComplete : false;
-                    Attrs.bWaitForManualStop = !(Settings ? Settings->bAutoHideOnLoadComplete : false);
-                    Attrs.WidgetLoadingScreen = LoadingWidget;
-                    Attrs.MinimumLoadingScreenDisplayTime = Settings ? Settings->MinimumLoadingTime : 0.0f;
-                    GetMoviePlayer()->SetupLoadingScreen(Attrs);
+            IGameMoviePlayer* MoviePlayer = GetMoviePlayer();
+            if (!MoviePlayer) return;
 
-                    UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: re-registered loading attributes on OnPrepareLoadingScreen"));
-                }
-            }
+            TSharedPtr<SWidget> LoadingWidget = Settings ? Settings->CreateLoadingWidget() : SNullWidget::NullWidget;
+
+            FLoadingScreenAttributes Attrs;
+            // КЛЮЧЕВОЕ: AutoComplete=true — MoviePlayer НЕ блокирует game thread
+            // Он сам скроется после загрузки уровня, не ожидая StopMovie()
+            Attrs.bAutoCompleteWhenLoadingCompletes = true;
+            Attrs.bWaitForManualStop = false;
+            Attrs.WidgetLoadingScreen = LoadingWidget;
+            // MinimumLoadingScreenDisplayTime у MoviePlayer не ставим — управляем временем сами через FTicker
+            Attrs.MinimumLoadingScreenDisplayTime = 0.0f;
+            MoviePlayer->SetupLoadingScreen(Attrs);
+
+            UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: OnPrepareLoadingScreen — attrs set (AutoComplete=true, WaitForManualStop=false)"));
         });
+    }
 }
 
 void ULoadingScreenManager::Deinitialize()
 {
-    if (GetMoviePlayer())
-        GetMoviePlayer()->OnPrepareLoadingScreen().Remove(OnPrepareHandle);
+    if (IGameMoviePlayer* MP = GetMoviePlayer())
+    {
+        MP->OnPrepareLoadingScreen().Remove(OnPrepareHandle);
+    }
 
-    // Отменяем отложенное скрытие если оно было
     if (HideTickerHandle.IsValid())
     {
         FTSTicker::GetCoreTicker().RemoveTicker(HideTickerHandle);
@@ -55,61 +60,47 @@ void ULoadingScreenManager::SetLoadingScreenSettings(ULoadingScreenSettings* InS
 
 void ULoadingScreenManager::ShowLoadingScreen()
 {
-    IGameMoviePlayer* MP = GetMoviePlayer();
-    if (!MP)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("ULoadingScreenManager: MoviePlayer == nullptr. Will use viewport fallback."));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: MoviePlayer IsInitialized=%d"), MP->IsInitialized());
-    }
-
     if (!bIsVisible)
     {
         ShowTime = FPlatformTime::Seconds();
     }
-
     bHidePending = false;
 
     TSharedPtr<SWidget> LoadingWidget = Settings ? Settings->CreateLoadingWidget() : SNullWidget::NullWidget;
 
-    FLoadingScreenAttributes Attrs;
-    Attrs.bAutoCompleteWhenLoadingCompletes = Settings ? Settings->bAutoHideOnLoadComplete : false;
-    Attrs.bWaitForManualStop = !(Settings ? Settings->bAutoHideOnLoadComplete : false);
-    Attrs.WidgetLoadingScreen = LoadingWidget;
-    Attrs.MinimumLoadingScreenDisplayTime = Settings ? Settings->MinimumLoadingTime : 0.0f;
-
-    bool bMovieStarted = false;
-    bool bPrepared = false;
-    /*
-    if (MP)
+    // Настраиваем атрибуты MoviePlayer заранее (OnPrepareLoadingScreen подхватит при SeamlessTravel)
+    if (IGameMoviePlayer* MP = GetMoviePlayer())
     {
+        FLoadingScreenAttributes Attrs;
+        Attrs.bAutoCompleteWhenLoadingCompletes = true;
+        Attrs.bWaitForManualStop = false;
+        Attrs.WidgetLoadingScreen = LoadingWidget;
+        Attrs.MinimumLoadingScreenDisplayTime = 0.0f;
         MP->SetupLoadingScreen(Attrs);
-        bMovieStarted = MP->PlayMovie();
-        bPrepared = MP->LoadingScreenIsPrepared();
-        UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: PlayMovie=%d, IsPrepared=%d"), bMovieStarted ? 1 : 0, bPrepared ? 1 : 0);
+        UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: ShowLoadingScreen — MoviePlayer SetupLoadingScreen (AutoComplete=true)"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ULoadingScreenManager: ShowLoadingScreen — MoviePlayer недоступен"));
     }
 
-    if ((!MP || !bMovieStarted || !bPrepared) && LoadingWidget.IsValid())
+    // Viewport fallback показываем ВСЕГДА — он закрывает разрыв до того как MoviePlayer включится
+    // и остаётся до явного вызова HideLoadingScreen() после настройки сцены
+    if (LoadingWidget.IsValid() && GEngine && GEngine->GameViewport)
     {
-    */
-        if (GEngine && GEngine->GameViewport)
-        {
-            RemoveViewportFallbackWidget();
-            GEngine->GameViewport->AddViewportWidgetContent(LoadingWidget.ToSharedRef(), ViewportFallbackZOrder);
-            ViewportFallbackWidget = LoadingWidget;
-            bViewportFallback = true;
-            UE_LOG(LogTemp, Warning, TEXT("ULoadingScreenManager: viewport fallback добавлен (ZOrder=%d)"), ViewportFallbackZOrder);
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("ULoadingScreenManager: GameViewport недоступен для fallback"));
-        }
-    //}
+        RemoveViewportFallbackWidget();
+        GEngine->GameViewport->AddViewportWidgetContent(LoadingWidget.ToSharedRef(), ViewportFallbackZOrder);
+        ViewportFallbackWidget = LoadingWidget;
+        bViewportFallback = true;
+        UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: viewport fallback добавлен (ZOrder=%d)"), ViewportFallbackZOrder);
+    }
+    else if (!GEngine || !GEngine->GameViewport)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ULoadingScreenManager: GameViewport недоступен для fallback"));
+    }
 
     bIsVisible = true;
-    UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: ShowLoadingScreen — done (fallback=%d)"), bViewportFallback ? 1 : 0);
+    UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: ShowLoadingScreen — done"));
 }
 
 void ULoadingScreenManager::HideLoadingScreen()
@@ -122,7 +113,6 @@ void ULoadingScreenManager::HideLoadingScreen()
 
     UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager::HideLoadingScreen вызван"));
 
-    // Отменяем отложенный тикер если был запущен
     if (HideTickerHandle.IsValid())
     {
         FTSTicker::GetCoreTicker().RemoveTicker(HideTickerHandle);
@@ -134,33 +124,39 @@ void ULoadingScreenManager::HideLoadingScreen()
 
 void ULoadingScreenManager::HideLoadingScreenInternal()
 {
-    UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager::HideLoadingScreenInternal — скрываем"));
+    UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager::HideLoadingScreenInternal"));
 
     bHidePending = false;
     bIsVisible = false;
 
-    // Отменяем тикер если ещё активен
     if (HideTickerHandle.IsValid())
     {
         FTSTicker::GetCoreTicker().RemoveTicker(HideTickerHandle);
         HideTickerHandle.Reset();
     }
 
-    IGameMoviePlayer* MP = GetMoviePlayer();
-    if (MP && MP->IsMovieCurrentlyPlaying())
+    // MoviePlayer с AutoComplete=true сам остановился после загрузки — StopMovie не нужен
+    // Но на всякий случай останавливаем если ещё играет
+    if (IGameMoviePlayer* MP = GetMoviePlayer())
     {
-        MP->StopMovie();
-        UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: StopMovie() вызван"));
+        if (MP->IsMovieCurrentlyPlaying())
+        {
+            MP->StopMovie();
+            UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: StopMovie() вызван"));
+        }
     }
 
+    // Viewport fallback убираем здесь — это главный экран поверх настройки сцены
     RemoveViewportFallbackWidget();
+
     UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: лоадскрин скрыт"));
 }
 
 void ULoadingScreenManager::OnMoviePlaybackFinished()
 {
-    if (bIsVisible && !bHidePending)
-        bIsVisible = false;
+    // MoviePlayer завершился сам (AutoComplete) — НЕ скрываем viewport fallback
+    // Fallback убирается только явным вызовом HideLoadingScreen() из Blueprint
+    UE_LOG(LogTemp, Log, TEXT("ULoadingScreenManager: OnMoviePlaybackFinished (fallback остаётся до HideLoadingScreen)"));
 }
 
 void ULoadingScreenManager::RemoveViewportFallbackWidget()
