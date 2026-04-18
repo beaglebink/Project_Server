@@ -4,37 +4,36 @@
 #include "TimerManager.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/World.h"
+#include "LoadingScreen/LoadingScreenManager.h" // <-- ƒќЅј¬»“№
 
 void UFPSKitGameInstance::Init()
 {
 	Super::Init();
 
-    // ѕолучаем менеджер
-    ULoadingScreenManager* Manager = GetSubsystem<ULoadingScreenManager>();
-    if (!Manager) return;
+	ULoadingScreenManager* Manager = GetSubsystem<ULoadingScreenManager>();
+	if (!Manager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UFPSKitGameInstance::Init Ч LoadingScreenManager subsystem NOT found"));
+		return;
+	}
 
-    // —оздаЄм настройки (можно задать класс через Blueprint в редакторе)
-    ULoadingScreenSettings* SettingsObj = nullptr;
+	ULoadingScreenSettings* SettingsObj = nullptr;
+	if (LoadingScreenSettingsClass)
+	{
+		SettingsObj = NewObject<ULoadingScreenSettings>(this, LoadingScreenSettingsClass);
+	}
+	else
+	{
+		UMyLoadingScreenSettings* DefaultSettings = NewObject<UMyLoadingScreenSettings>(this);
+		DefaultSettings->BackgroundColor = FLinearColor::Black;
+		DefaultSettings->LoadingText = NSLOCTEXT("LoadingScreen", "Loading", "«агрузка...");
+		DefaultSettings->MinimumLoadingTime = 1.0f;
+		DefaultSettings->bAutoHideOnLoadComplete = false;
+		SettingsObj = DefaultSettings;
+	}
 
-    if (LoadingScreenSettingsClass)
-    {
-        //  ласс задан через редактор Ч создаЄм экземпл€р
-        SettingsObj = NewObject<ULoadingScreenSettings>(this, LoadingScreenSettingsClass);
-    }
-    else
-    {
-        // ‘оллбэк Ч дефолтный чЄрный экран
-        UMyLoadingScreenSettings* DefaultSettings =
-            NewObject<UMyLoadingScreenSettings>(this);
-        DefaultSettings->BackgroundColor = FLinearColor::Black;
-        DefaultSettings->LoadingText =
-            NSLOCTEXT("LoadingScreen", "Loading", "«агрузка...");
-        DefaultSettings->MinimumLoadingTime = 1.0f; // минимум 1 секунда
-        DefaultSettings->bAutoHideOnLoadComplete = false;
-        SettingsObj = DefaultSettings;
-    }
-
-    Manager->SetLoadingScreenSettings(SettingsObj);
+	Manager->SetLoadingScreenSettings(SettingsObj);
+	UE_LOG(LogTemp, Log, TEXT("UFPSKitGameInstance::Init Ч LoadingScreenManager configured"));
 }
 
 void UFPSKitGameInstance::Shutdown()
@@ -42,38 +41,33 @@ void UFPSKitGameInstance::Shutdown()
 	Super::Shutdown();
 }
 
-// ============================================================
-//  ј  »—ѕќЋ№«ќ¬ј“№ при переходе между уровн€ми
-// ============================================================
-
-// 1. ѕоказать лоадскрин ƒќ вызова ServerTravel/ClientTravel
 void UFPSKitGameInstance::TravelToLevel(const FString& LevelName)
 {
-    ULoadingScreenManager* Manager = GetSubsystem<ULoadingScreenManager>();
-    if (Manager)
-    {
-        Manager->ShowLoadingScreen();
-    }
-
-    // Seamless travel Ч контроллер сохран€етс€
-    if (UWorld* World = GetWorld())
-    {
-        // ƒл€ сервера:
-        //World->ServerTravel(LevelName + "?listen", true /*bAbsolute*/);
-
-        // ƒл€ клиента (если нужно):
-        // APlayerController* PC = World->GetFirstPlayerController();
-        // if (PC) PC->ClientTravel(LevelName, TRAVEL_Absolute);
-    }
+	ULoadingScreenManager* Manager = GetSubsystem<ULoadingScreenManager>();
+	if (Manager)
+	{
+		Manager->ShowLoadingScreen();
+		UE_LOG(LogTemp, Log, TEXT("UFPSKitGameInstance::TravelToLevel Ч ShowLoadingScreen called"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UFPSKitGameInstance::TravelToLevel Ч LoadingScreenManager NOT found"));
+	}
 }
 
-// 2. —крыть лоадскрин когда новый уровень готов
-// ¬ызывай это из BeginPlay нового уровн€ или из GameMode::PostLogin
 void UFPSKitGameInstance::OnLevelReady()
 {
-    ULoadingScreenManager* Manager = GetSubsystem<ULoadingScreenManager>();
-    if (Manager)
-    {
-        Manager->HideLoadingScreen();
-    }
+	UE_LOG(LogTemp, Log, TEXT("UFPSKitGameInstance::OnLevelReady Ч called"));
+
+	ULoadingScreenManager* Manager = GetSubsystem<ULoadingScreenManager>();
+	if (!Manager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UFPSKitGameInstance::OnLevelReady Ч LoadingScreenManager NOT found"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("UFPSKitGameInstance::OnLevelReady Ч IsVisible=%d, calling HideLoadingScreen"),
+		Manager->IsLoadingScreenVisible() ? 1 : 0);
+
+	Manager->HideLoadingScreen();
 }

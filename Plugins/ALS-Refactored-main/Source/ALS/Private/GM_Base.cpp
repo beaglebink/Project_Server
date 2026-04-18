@@ -23,14 +23,19 @@ void AGM_Base::PostSeamlessTravel()
 {
 	Super::PostSeamlessTravel();
 
+	UE_LOG(LogTemp, Log, TEXT("AGM_Base: PostSeamlessTravel()"));
+
 	UWorld* W = GetWorld();
 	if (!W) return;
+
+	UE_LOG(LogTemp, Log, TEXT("AGM_Base: PostSeamlessTravel()2"));
 
 	APlayerController* PC = W->GetFirstPlayerController();
 	if (PC)
 	{
 		if (PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
 		{
+			UE_LOG(LogTemp, Log, TEXT("AGM_Base: calling RestoreWeaponState from PostSeamlessTravel deferred"));
 			IPlayerController_I::Execute_RestoreWeaponState(PC);
 		}
 		NotifyLoadingFinished();

@@ -23,6 +23,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "PlayerController_I.h"
+#include "CoreBlueprintFunctionLibrary.h"
 
 // -----------------------------------------------------------------------------
 // Snapshot helpers
@@ -715,7 +716,7 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 			IPlayerController_I::Execute_StoreWeaponState(PC);
 		}
 	}
-
+	UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem: initiating SeamlessTravel to %s"), *LevelPath);
 	//UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: initiating SeamlessTravel. LevelPath=%s, AuthGameMode=%s"),
 	//	*LevelPath, GM ? *GM->GetClass()->GetName() : TEXT("null"));
 
@@ -730,8 +731,23 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 				LocalW->SeamlessTravel(LevelPath, true);
 			}
 		});
+	//if (UCoreBlueprintFunctionLibrary::IsPIE())
+	//{
+		// В PIE делаем небольшую задержку, чтобы успеть показать загрузочный экран и избежать фризов
 
-	GetWorld()->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 0.1f, false);
+		GetWorld()->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.0f, false);
+	/*
+	}
+	else
+	{
+		UWorld* LocalW = GetWorld();
+		if (LocalW)
+		{
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Performing delayed SeamlessTravel to %s"), *LevelPath);
+			LocalW->SeamlessTravel(LevelPath, true);
+		}
+	}
+	*/
 }
 
 // ---------------- Pending spawn transform API ----------------
