@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
+#include "LocationSpatialTypes.h"
 #include "WorldRegionAsset.generated.h"
 
 UCLASS(BlueprintType)
@@ -25,9 +26,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Classification")
     FGameplayTagContainer ClassificationTags;
 
-    // ── Метаданные навигации ───────────────────────────────────────────────
+    // ── Карта региона ──────────────────────────────────────────────────────
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Level")
+    TSoftObjectPtr<UWorld> RegionLevel;
+
+    // ── Навигация ──────────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Navigation")
     FVector NavigationOrigin = FVector::ZeroVector;
+
+    // ── Якоря на карте региона (точки выхода из зданий, переходы между районами) ──
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Spatial")
+    TArray<FLocationAnchor> Anchors;
 
     // ── Дочерние улицы ─────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Streets")

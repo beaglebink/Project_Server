@@ -8,6 +8,11 @@
 			"Name": "FPSKitALSRefactored",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "FPSKitALSRefactoredEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

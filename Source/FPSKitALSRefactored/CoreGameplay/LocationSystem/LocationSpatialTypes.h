@@ -5,8 +5,44 @@
 #include "GameplayTagContainer.h" 
 #include "LocationSpatialTypes.generated.h"
 
+// ─── Ссылка на целевой якорь (без открытия карты) ──────────────────────────
+// Хранит полный путь по иерархии ассетов до конкретного якоря
+USTRUCT(BlueprintType)
+struct FPSKITALSREFACTORED_API FLocationAnchorLink
+{
+    GENERATED_BODY()
+
+    // Целевой регион (нужен для загрузки карты района)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
+    TSoftObjectPtr<class UWorldRegionAsset> TargetRegion;
+
+    // Целевая улица
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
+    TSoftObjectPtr<class UStreetAsset> TargetStreet;
+
+    // Целевое здание
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
+    TSoftObjectPtr<class UInteriorSetAsset> TargetInteriorSet;
+
+    // Целевой этаж (содержит ссылку на карту)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
+    TSoftObjectPtr<class UFloorAsset> TargetFloor;
+
+    // ID якоря на целевой карте (выбирается из списка якорей TargetFloor/TargetRegion)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
+    FGuid TargetAnchorID;
+
+    // Кэшированное имя якоря (заполняется утилитой, read-only для удобства)
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AnchorLink")
+    FText TargetAnchorDisplayName;
+
+    bool IsValid() const
+    {
+        return TargetAnchorID.IsValid();
+    }
+};
+
 // ─── Zone ──────────────────────────────────────────────────────────────────
-// Представляет область (комната, коридор, тротуар и т.д.)
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FLocationZone
 {
@@ -18,15 +54,12 @@ struct FPSKITALSREFACTORED_API FLocationZone
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Zone|Identity")
     FText DisplayName;
 
-    // Тип родительской локации: Street или Floor
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Zone|Hierarchy")
     ELocationContextType ParentContextType = ELocationContextType::None;
 
-    // ID родителя (Street или Floor — определяется контекстом)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Zone|Hierarchy")
     FGuid ParentLocationID;
 
-    // Ограничивающий объём (центр + экстент в локальных координатах)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Zone|Bounds")
     FVector BoundsOrigin = FVector::ZeroVector;
 
@@ -38,7 +71,6 @@ struct FPSKITALSREFACTORED_API FLocationZone
 };
 
 // ─── Anchor ────────────────────────────────────────────────────────────────
-// Представляет точную точку с позицией и ориентацией
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FLocationAnchor
 {
@@ -56,7 +88,6 @@ struct FPSKITALSREFACTORED_API FLocationAnchor
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Hierarchy")
     FGuid ParentLocationID;
 
-    // Мировые координаты
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Transform")
     FVector WorldPosition = FVector::ZeroVector;
 
@@ -65,10 +96,13 @@ struct FPSKITALSREFACTORED_API FLocationAnchor
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Classification")
     FGameplayTagContainer Tags;
+
+    // ── Обратная связь: куда ведёт этот якорь при интеракции ───────────────
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Link")
+    FLocationAnchorLink ReturnLink;
 };
 
 // ─── TransitionPoint ───────────────────────────────────────────────────────
-// Соединяет два пространственных узла (двери, лифты, лестницы, границы карт)
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FLocationTransitionPoint
 {
@@ -80,32 +114,27 @@ struct FPSKITALSREFACTORED_API FLocationTransitionPoint
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Identity")
     FText DisplayName;
 
-    // ── Источник ──────────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Source")
     ELocationContextType SourceContextType = ELocationContextType::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Source")
     FGuid SourceLocationID;
 
-    // ── Назначение ────────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Destination")
     ELocationContextType DestinationContextType = ELocationContextType::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Destination")
     FGuid DestinationLocationID;
 
-    // ── Позиция в мире ────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Transform")
     FVector WorldPosition = FVector::ZeroVector;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Transform")
     FRotator WorldOrientation = FRotator::ZeroRotator;
 
-    // ── Классификация ─────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Classification")
     ELocationTransitionType TransitionType = ELocationTransitionType::Default;
 
-    // Опциональный адресный тег (например, "Главный вход")
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Metadata")
     FText AddressLabel;
 };
