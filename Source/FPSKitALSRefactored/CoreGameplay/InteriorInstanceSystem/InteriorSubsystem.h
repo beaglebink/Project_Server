@@ -9,12 +9,15 @@
 #include "../InteractionSystem/InteractiveSubsystemMethods.h" 
 #include "FloorPopulationTypes.h"
 #include "FloorPlacementPayload.h"
+#include "../LocationSystem/LocationSpatialTypes.h"
+#include <InteriorTransitionPayload.h>
 #include "InteriorSubsystem.generated.h"
+
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
 
 /** Делегат завершения перехода. bSuccess = true если персонаж телепортирован в позицию якоря. */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTransitionCompleted, bool, bSuccess, const FGuid&, TargetAnchorID);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTransitionCompleted, bool, bSuccess, FLocationAnchorLink, DestinationLink, bool, IsTravel);
 
 class UInteractiveItemComponent;
 
@@ -327,4 +330,6 @@ private:
 	// Обработчик завершения загрузки карты (после SeamlessTravel)
 	void OnPostLoadMap(UWorld* LoadedWorld);
 	FDelegateHandle PostLoadMapHandle;
+
+	UInteriorTransitionPayload* TransitionPayloadCache = nullptr; // Кэш для передачи данных между картами при переходе (можно оптимизировать, если будет ясно, какие именно данные нужны)
 };

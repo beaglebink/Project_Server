@@ -24,6 +24,8 @@
 #include "PlayerController_I.h"
 #include "CoreBlueprintFunctionLibrary.h"
 #include "../LocationSystem/LocationAnchorActor.h"
+#include "Misc/Paths.h"
+#include "Misc/PackageName.h"
 
 // -----------------------------------------------------------------------------
 // Snapshot helpers
@@ -535,40 +537,76 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 
 void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 {
-	const UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
+	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
 	if (!P || !P->IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: payload невалиден"));
-		OnTransitionCompleted.Broadcast(false, FGuid());
+		OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
 		return;
 	}
 
+	TransitionPayloadCache = P;
 	UWorld* W = GetWorld();
 	if (!W)
 	{
-		OnTransitionCompleted.Broadcast(false, P->GetTargetAnchorID());
+		OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
 		return;
 	}
 
+	// Получаем путь целевого уровня из payload
 	const FString TargetLevelPath = P->GetTargetLevelPackageName();
 	if (TargetLevelPath.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: не удалось определить целевой уровень"));
-		OnTransitionCompleted.Broadcast(false, P->GetTargetAnchorID());
+		OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
 		return;
 	}
 
-	const FString CurrentLevelPath = W->GetOutermost()->GetName();
+	// --- ВАЖНО: объявляем TargetAnchorID здесь, чтобы он был виден далее в функции ---
 	const FGuid TargetAnchorID = P->GetTargetAnchorID();
 
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::HandleFloorTransition: текущая='%s', целевая='%s', якорь=[%s]"),
-		*CurrentLevelPath, *TargetLevelPath, *TargetAnchorID.ToString());
+	// Получаем короткое имя текущего уровня через GameplayStatics — параметр true убирает PIE‑префиксы
+	FString CurrentLevelShort = UGameplayStatics::GetCurrentLevelName(W, true);
+	CurrentLevelShort = CurrentLevelShort.ToLower();
 
-	if (CurrentLevelPath == TargetLevelPath)
+	// Функция нормализации имени из package → base filename
+	auto NormalizeNameFromPackage = [](const FString& InPath) -> FString
 	{
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: та же карта — телепортируем на месте"));
+		if (InPath.IsEmpty()) return FString();
+
+		FString PackagePath = InPath;
+		if (PackagePath.Contains(TEXT(".")))
+		{
+			PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
+		}
+
+		const FString Base = FPaths::GetBaseFilename(PackagePath);
+
+		FString Result = Base;
+		int32 PIEPos = Result.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
+		if (PIEPos != INDEX_NONE)
+		{
+			int32 MPos = Result.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
+			if (MPos != INDEX_NONE && MPos + 3 < Result.Len())
+				Result = Result.Mid(MPos + 3);
+			else if (PIEPos + 6 < Result.Len())
+				Result = Result.Mid(PIEPos + 6);
+		}
+
+		return Result.ToLower();
+	};
+
+	const FString NormTarget = NormalizeNameFromPackage(TargetLevelPath);
+
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::HandleFloorTransition: currentShort='%s', targetPackage='%s' (norm='%s'), anchor=[%s]"),
+		*CurrentLevelShort, *TargetLevelPath, *NormTarget, *TargetAnchorID.ToString());
+
+	// Сравниваем короткое имя текущего уровня с нормализованным именем целевого уровня
+	if (!CurrentLevelShort.IsEmpty() && !NormTarget.IsEmpty() && CurrentLevelShort == NormTarget)
+	{
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: та же карта (по имени) — телепортируем на месте"));
 		const bool bOk = TeleportToAnchor(TargetAnchorID);
-		OnTransitionCompleted.Broadcast(bOk, TargetAnchorID);
+		OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache->DestinationLink, false);
 		return;
 	}
 
@@ -978,19 +1016,8 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 	FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, AnchorID]()
 	{
 		const bool bOk = TeleportToAnchor(AnchorID);
-		OnTransitionCompleted.Broadcast(bOk, AnchorID);
+		OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 		ClearPendingAnchorID();
-
-		// Снимаем загрузочный экран
-		UWorld* W = GetWorld();
-		if (W)
-		{
-			APlayerController* PC = W->GetFirstPlayerController();
-			if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
-			{
-				IPlayerController_I::Execute_SetLoadScreen(PC, false);
-			}
-		}
 	});
 
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, false);
