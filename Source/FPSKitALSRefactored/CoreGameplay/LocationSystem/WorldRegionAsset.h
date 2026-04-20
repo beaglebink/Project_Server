@@ -12,7 +12,7 @@ class FPSKITALSREFACTORED_API UWorldRegionAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Identity")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Identity")
     FGuid WorldRegionID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Identity")
@@ -23,7 +23,7 @@ public:
     TSoftObjectPtr<class UWorldMapAsset> ParentWorldMap;
 
     // ── Классификационные теги ─────────────────────────────────────────────
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Classification")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Classification")
     FGameplayTagContainer ClassificationTags;
 
     // ── Карта региона ──────────────────────────────────────────────────────
@@ -31,11 +31,11 @@ public:
     TSoftObjectPtr<UWorld> RegionLevel;
 
     // ── Навигация ──────────────────────────────────────────────────────────
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Navigation")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Navigation")
     FVector NavigationOrigin = FVector::ZeroVector;
 
     // ── Якоря на карте региона (точки выхода из зданий, переходы между районами) ──
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Spatial")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Spatial")
     TArray<FLocationAnchor> Anchors;
 
     // ── Дочерние улицы ─────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ class FPSKITALSREFACTORED_API UInteriorSetAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Identity")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Identity")
     FGuid InteriorSetID;
 
     // Опционально: для общих/безымянных зданий можно оставить пустым
@@ -32,12 +32,12 @@ public:
     int32 AddressNumber = 0;
 
     // ── Классификация ──────────────────────────────────────────────────────
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Classification")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Classification")
     TArray<EInteriorSetFlag> ClassificationFlags;
 
     // ── Входные переходы (двери на улицу) ──────────────────────────────────
     // TransitionPoints, классифицированные как входы в здание
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Entrances")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Entrances")
     TArray<FLocationTransitionPoint> EntranceTransitionPoints;
 
     // ── Этажи ──────────────────────────────────────────────────────────────

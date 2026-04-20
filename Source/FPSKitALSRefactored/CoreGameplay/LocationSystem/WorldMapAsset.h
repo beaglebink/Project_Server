@@ -11,17 +11,17 @@ class FPSKITALSREFACTORED_API UWorldMapAsset : public UPrimaryDataAsset
 
 public:
     // ── Идентификатор ──────────────────────────────────────────────────────
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Identity")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Identity")
     FGuid WorldMapID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Identity")
     FText DisplayName;
 
     // ── Глобальные метаданные навигации ────────────────────────────────────
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Navigation")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Navigation")
     FVector NavigationOrigin = FVector::ZeroVector;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Navigation")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Navigation")
     float NavigationScale = 1.0f;
 
     // ── Дочерние регионы (обратные ссылки, заполняются вручную) ────────────

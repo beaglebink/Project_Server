@@ -12,7 +12,7 @@ class FPSKITALSREFACTORED_API UStreetAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Identity")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Identity")
     FGuid StreetID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Identity")
@@ -23,10 +23,10 @@ public:
     TSoftObjectPtr<class UWorldRegionAsset> ParentWorldRegion;
 
     // Опциональная классификация суб-района (например, "Портовый квартал")
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Classification")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Classification")
     FText SubRegionName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Classification")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Classification")
     FGameplayTagContainer ClassificationTags;
 
     // ── Навигация ──────────────────────────────────────────────────────────
@@ -34,13 +34,13 @@ public:
     FVector NavigationOrigin = FVector::ZeroVector;
 
     // ── Пространственные элементы ──────────────────────────────────────────
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Spatial")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Spatial")
     TArray<FLocationZone> Zones;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Spatial")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Spatial")
     TArray<FLocationAnchor> Anchors;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Spatial")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Spatial")
     TArray<FLocationTransitionPoint> TransitionPoints;
 
     // ── Здания на улице ────────────────────────────────────────────────────
