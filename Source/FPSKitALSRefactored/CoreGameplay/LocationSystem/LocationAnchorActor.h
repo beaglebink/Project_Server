@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "LocationSpatialTypes.h"
+#include "../InteriorInstanceSystem/InteriorTransitionPayload.h"
 #include "LocationAnchorActor.generated.h"
 
 class USceneComponent;
@@ -50,6 +51,19 @@ public:
     // Куда ведёт этот якорь
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Destination")
     FLocationAnchorLink DestinationLink;
+
+    // Возвращает готовую ссылку назначения (Region/Street/InteriorSet/Floor + TargetAnchorID/DisplayName)
+    UFUNCTION(BlueprintCallable, Category = "Anchor|Transition")
+    FLocationAnchorLink GetDestinationLink() const { return DestinationLink; }
+
+    // Возвращает дескриптор перехода, сформированный из полей DestinationLink.
+    // Готовый для передачи в UInteriorTransitionPayload::SetupFromDescriptor
+    UFUNCTION(BlueprintCallable, Category = "Anchor|Transition")
+    FInteriorTransitionDescriptor MakeTransitionDescriptor() const;
+
+    // Создаёт новый UInteriorTransitionPayload и заполняет его данными из этого актора (удобно для Blueprint)
+    UFUNCTION(BlueprintCallable, Category = "Anchor|Transition")
+    UInteriorTransitionPayload* CreateTransitionPayload() const;
 
     // Компоненты
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Anchor|Components")

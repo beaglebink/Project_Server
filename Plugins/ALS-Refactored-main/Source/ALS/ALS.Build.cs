@@ -2,28 +2,42 @@ using UnrealBuildTool;
 
 public class ALS : ModuleRules
 {
-	public ALS(ReadOnlyTargetRules Target) : base(Target)
-	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_3;
+    public ALS(ReadOnlyTargetRules Target) : base(Target)
+    {
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		bEnableNonInlinedGenCppWarnings = true;
+        PublicDependencyModuleNames.AddRange(new string[]
+        {
+            "Core",
+            "CoreUObject",
+            "Engine",
+            "InputCore",
+            "UMG",
+            "EnhancedInput",
+            "Niagara",
+            "PhysicsCore",
+            "NetCore",
+            "EngineSettings"
+        });
 
-		PublicDependencyModuleNames.AddRange(new[]
-		{
-			"Core", "CoreUObject", "Engine", "GameplayTags",
-			"AnimGraphRuntime", "RigVM", "ControlRig", "UMG", "EnhancedInput"
-			// FPSKitALSRefactored ”Ѕ–јЌќ Ч плагин не должен зависеть от игрового модул€
-		});
+        PrivateDependencyModuleNames.AddRange(new string[]
+        {
+            "AIModule",
+            "GameplayTasks",
+            "GameplayTags",
+            "AnimGraphRuntime",
+            "AnimationCore",
+            "ControlRig",
+            "RigVM"
+        });
 
-		PrivateDependencyModuleNames.AddRange(new[]
-		{
-			"EngineSettings", "NetCore", "PhysicsCore", "Niagara"
-		});
-
-		if (Target.Type == TargetRules.TargetType.Editor)
-		{
-			PrivateDependencyModuleNames.AddRange(new[] { "MessageLog" });
-		}
-	}
+        if (Target.bBuildEditor)
+        {
+            PrivateDependencyModuleNames.AddRange(new string[]
+            {
+                "MessageLog",
+                "UnrealEd"
+            });
+        }
+    }
 }

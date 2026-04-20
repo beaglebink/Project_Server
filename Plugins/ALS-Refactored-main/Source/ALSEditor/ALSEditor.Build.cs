@@ -25,6 +25,13 @@ public class ALSEditor : ModuleRules
 			{
 				"BlueprintGraph"
 			});
+
+			PrivateDependencyModuleNames.AddRange(new[]
+			{
+				"Slate",
+				"SlateCore",
+				"UnrealEd"
+			});
 		}
 	}
 }

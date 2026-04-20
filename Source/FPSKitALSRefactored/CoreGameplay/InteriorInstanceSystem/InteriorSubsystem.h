@@ -13,6 +13,9 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
 
+/** Делегат завершения перехода. bSuccess = true если персонаж телепортирован в позицию якоря. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTransitionCompleted, bool, bSuccess, const FGuid&, TargetAnchorID);
+
 class UInteractiveItemComponent;
 
 // Record stored for each registered interactive item
@@ -123,6 +126,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
 	FOnInteriorInteractItemRegistrationEvent OnInteractItemUnregistered;
 
+	// ── Делегат завершения перехода ────────────────────────────────────────
+	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
+	FOnTransitionCompleted OnTransitionCompleted;
+
 	// Получить список размещённых объектов для конкретного InteriorSet+Floor (runtime)
 	// Возвращается копия массива — безопасно для Blueprint/UFunction
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Population")
@@ -155,6 +162,27 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorSubsystem|Transition")
 	bool HasPendingSpawnTransform() const;
+
+	// ── Pending anchor ID (для поиска ALocationAnchorActor после загрузки карты) ──
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Transition")
+	void SetPendingAnchorID(const FGuid& AnchorID);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorSubsystem|Transition")
+	FGuid GetPendingAnchorID() const;
+
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Transition")
+	void ClearPendingAnchorID();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorSubsystem|Transition")
+	bool HasPendingAnchorID() const;
+
+	/**
+	 * Ищет ALocationAnchorActor по AnchorID на текущей карте и телепортирует персонажа.
+	 * Вызывается после загрузки карты (из GameMode или PostSeamlessTravel).
+	 * Возвращает true если якорь найден и персонаж телепортирован.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Transition")
+	bool TeleportToAnchor(const FGuid& AnchorID);
 
 	// Subscribe/unsubscribe placement-specific handlers (public declarations required by cpp)
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Placement")
@@ -282,6 +310,11 @@ private:
 
 	UPROPERTY()
 	FRotator PendingSpawnRotation = FRotator::ZeroRotator;
+
+	// pending anchor ID (для поиска актора после загрузки карты)
+	UPROPERTY()
+	FGuid PendingAnchorID;
+
 protected:
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override;
@@ -289,4 +322,9 @@ protected:
 	// Friendly (designer) index: FriendlyKey -> (InteriorSetId, FloorId)
 	UPROPERTY()
 	TMap<FString, FInteriorFloorKey> FriendlyFloorIndex;
+
+private:
+	// Обработчик завершения загрузки карты (после SeamlessTravel)
+	void OnPostLoadMap(UWorld* LoadedWorld);
+	FDelegateHandle PostLoadMapHandle;
 };

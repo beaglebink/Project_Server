@@ -67,8 +67,7 @@ void AGM_Base::GetSeamlessTravelActorList(bool bToTransition, TArray<AActor*>& A
 		}
 	}
 
-	IsSpawnPlayer = false; // Сбрасываем флаг, чтобы при следующем переходе игрок не сохранялся, если он уже был сохранён
-
+	IsSpawnPlayer = false;
 }
 
 void AGM_Base::BeginPlay()

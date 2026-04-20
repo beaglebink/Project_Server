@@ -6,6 +6,7 @@
 #include "InteriorSetAsset.h"
 #include "UObject/ConstructorHelpers.h"
 #include "LocationEditorUtils.h"
+#include "../InteriorInstanceSystem/InteriorTransitionPayload.h"
 
 #if WITH_EDITOR
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -365,6 +366,38 @@ bool ALocationAnchorActor::TryAutoAssignOwnerFromWorld()
 
     UE_LOG(LogTemp, Verbose, TEXT("TryAutoAssignOwnerFromWorld: no matching owner found for actor %s"), *GetName());
     return false;
+}
+
+FInteriorTransitionDescriptor ALocationAnchorActor::MakeTransitionDescriptor() const
+{
+    FInteriorTransitionDescriptor Desc;
+
+    // Копируем иерархию (Soft ссылки сохраняются как есть)
+    Desc.TargetRegion = DestinationLink.TargetRegion;
+    Desc.TargetStreet = DestinationLink.TargetStreet;
+    Desc.TargetInteriorSet = DestinationLink.TargetInteriorSet;
+    Desc.TargetFloor = DestinationLink.TargetFloor;
+
+    // Основной идентификатор якоря
+    Desc.TargetAnchorID = DestinationLink.TargetAnchorID;
+
+    // TransitionPointId / AnchorIndex / AnchorName оставляем по умолчанию
+    Desc.TransitionPointId.Invalidate();
+    Desc.AnchorIndex = -1;
+    Desc.AnchorName = NAME_None;
+
+    return Desc;
+}
+
+UInteriorTransitionPayload* ALocationAnchorActor::CreateTransitionPayload() const
+{
+    // Создаём payload в transient-пакете и заполняем из DestinationLink
+    UInteriorTransitionPayload* P = NewObject<UInteriorTransitionPayload>(GetTransientPackage(), NAME_None);
+    if (P)
+    {
+        P->Setup(DestinationLink);
+    }
+    return P;
 }
 
 #endif // WITH_EDITOR

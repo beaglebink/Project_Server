@@ -1,79 +1,94 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
-#include "../LocationSystem/FloorAsset.h"
+#include "../LocationSystem/LocationSpatialTypes.h"
 #include "InteriorTransitionPayload.generated.h"
 
-// Payload для событий переходов интерьера (SeamlessTravel + позиционирование в якорь)
+class UFloorAsset;
+class UWorldRegionAsset;
+class ALocationAnchorActor;
+class UStreetAsset;
+class UInteriorSetAsset;
+
+/**
+ * Descriptor — единая структура входных данных для Setup.
+ * Заполняйте нужные поля (TargetFloor или TargetRegion и т.д.) — обработчик разберётся.
+ */
+USTRUCT(BlueprintType)
+struct FPSKITALSREFACTORED_API FInteriorTransitionDescriptor
+{
+	GENERATED_BODY()
+
+	// Иерархия назначения (любые из них — используйте те, что нужны)
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	TSoftObjectPtr<UWorldRegionAsset> TargetRegion;
+
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	TSoftObjectPtr<UStreetAsset> TargetStreet;
+
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	TSoftObjectPtr<UInteriorSetAsset> TargetInteriorSet;
+
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	TSoftObjectPtr<UFloorAsset> TargetFloor;
+
+	// Идентификатор целевого якоря (GUID) — предпочтительный способ
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	FGuid TargetAnchorID;
+
+	// Альтернатива: TransitionPointId (если используется)
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	FGuid TransitionPointId;
+
+	// Альтернативы удобные для Blueprints
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	int32 AnchorIndex = -1;
+
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	FName AnchorName = NAME_None;
+};
+
+/**
+ * Payload для переходов между картами (SeamlessTravel + позиционирование в якорь).
+ * Хранит полную ссылку на точку назначения (FLocationAnchorLink).
+ */
 UCLASS(BlueprintType, Blueprintable)
 class FPSKITALSREFACTORED_API UInteriorTransitionPayload : public UOutcomePayload
 {
 	GENERATED_BODY()
 
 public:
-	// Целевой этаж — передаётся напрямую как ассет
+	// Полная ссылка на точку назначения (заполняется из дескриптора)
 	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
-	TObjectPtr<UFloorAsset> TargetFloor = nullptr;
+	FLocationAnchorLink DestinationLink;
 
-	// ID точки перехода (FLocationTransitionPoint::TransitionPointID) — используется при наличии
-	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
-	FGuid TransitionPointId;
-
-	// Альтернативный способ (удобен в Blueprint): индекс якоря в массиве Anchors целевого FloorAsset
-	// Используется если TransitionPointId не задан
-	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
-	int32 AnchorIndex = -1;
-
-	// Альтернативный способ (удобен в Blueprint): имя/тег якоря (сравнивается с DisplayName или с GameplayTag)
-	// Пример: "NorthEntry" — в Blueprint можно задать как Name
-	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
-	FName AnchorName = NAME_None;
-
-	// Основной Setup: ассет + опциональный TransitionPointId
+	/** Простой Setup из уже собранной FLocationAnchorLink (совместимость) */
 	UFUNCTION(BlueprintCallable, Category = "InteriorTransition")
-	UInteriorTransitionPayload* SetupWithTransitionPoint(
-		UFloorAsset*  InTargetFloor,
-		const FGuid&  InTransitionPointId = FGuid())
-	{
-		TargetFloor       = InTargetFloor;
-		TransitionPointId = InTransitionPointId;
-		AnchorIndex       = -1;
-		AnchorName        = NAME_None;
-		return this;
-	}
+	UInteriorTransitionPayload* Setup(const FLocationAnchorLink& InDestinationLink);
 
-	// Setup по индексу якоря
+	/**
+	 * Универсальный Setup: принимает дескриптор с любыми комбинациями данных.
+	 * Копирует/преобразует поля в DestinationLink и пытается заполнить TargetAnchorDisplayName
+	 * по данным ассетов (Floor/Region).
+	 */
 	UFUNCTION(BlueprintCallable, Category = "InteriorTransition")
-	UInteriorTransitionPayload* SetupWithAnchorIndex(UFloorAsset* InTargetFloor, int32 InAnchorIndex)
-	{
-		TargetFloor       = InTargetFloor;
-		TransitionPointId.Invalidate();
-		AnchorIndex       = InAnchorIndex;
-		AnchorName        = NAME_None;
-		return this;
-	}
+	UInteriorTransitionPayload* SetupFromDescriptor(const FInteriorTransitionDescriptor& Descriptor);
 
-	// Setup по имени/тегу якоря
-	UFUNCTION(BlueprintCallable, Category = "InteriorTransition")
-	UInteriorTransitionPayload* SetupWithAnchorName(UFloorAsset* InTargetFloor, FName InAnchorName)
-	{
-		TargetFloor       = InTargetFloor;
-		TransitionPointId.Invalidate();
-		AnchorIndex       = -1;
-		AnchorName        = InAnchorName;
-		return this;
-	}
-
-	// Getters
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorTransition")
-	UFloorAsset* GetTargetFloor() const { return TargetFloor; }
+	// ── Геттеры ───────────────────────────────────────────────────────────
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorTransition")
-	FGuid GetTransitionPointId() const { return TransitionPointId; }
+	FGuid GetTargetAnchorID() const { return DestinationLink.TargetAnchorID; }
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorTransition")
-	int32 GetAnchorIndex() const { return AnchorIndex; }
+	FText GetTargetAnchorDisplayName() const { return DestinationLink.TargetAnchorDisplayName; }
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorTransition")
-	FName GetAnchorName() const { return AnchorName; }
+	bool IsValid() const { return DestinationLink.IsValid(); }
+
+	/**
+	 * Определяет путь к карте назначения (пакетный путь).
+	 * Приоритет: FloorLevel > RegionLevel. Возвращает пустую строку если не найден.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorTransition")
+	FString GetTargetLevelPackageName() const;
 };

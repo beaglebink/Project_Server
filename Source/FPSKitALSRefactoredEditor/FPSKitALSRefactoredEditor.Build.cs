@@ -10,15 +10,12 @@ public class FPSKitALSRefactoredEditor : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[] {
             "Core", "CoreUObject", "Engine", "InputCore",
-            "UnrealEd", "PropertyEditor", "Slate", "SlateCore", "EditorStyle", "AssetRegistry",
-            // runtime-модуль, где определён ALocationAnchorActor
+            "UnrealEd", "PropertyEditor", "Slate", "SlateCore", "AssetRegistry",
             "FPSKitALSRefactored"
         });
 
-        // Явно добавляем include-пути к заголовкам runtime-модуля
         string RuntimeModuleBase = Path.GetFullPath(Path.Combine(ModuleDirectory, "..", "FPSKitALSRefactored"));
         PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "CoreGameplay", "LocationSystem"));
-        // Так же добавляем Public на случай, если у вас есть публичные заголовки
         PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "Public"));
 
         PrivateIncludePaths.Add("FPSKitALSRefactoredEditor/Private");
