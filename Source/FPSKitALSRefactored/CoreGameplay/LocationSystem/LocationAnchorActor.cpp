@@ -372,11 +372,20 @@ FInteriorTransitionDescriptor ALocationAnchorActor::MakeTransitionDescriptor() c
 {
     FInteriorTransitionDescriptor Desc;
 
-    //  опируем иерархию (Soft ссылки сохран€ютс€ как есть)
-    Desc.TargetRegion = DestinationLink.TargetRegion;
-    Desc.TargetStreet = DestinationLink.TargetStreet;
+    // Ётаж-источник: определ€ем по заполненности OwnerFloor/OwnerRegion,
+    // а не по OwnerContextType Ч так надЄжнее при ручной настройке актора.
+    if (!OwnerFloor.IsNull())
+    {
+        // ”ходим с этажа Ч передаЄм ссылку на FloorAsset
+        Desc.SourceFloor = OwnerFloor;
+    }
+    // ≈сли заполнен OwnerRegion (улица) Ч SourceFloor остаЄтс€ пустым (null), это корректно
+
+    //  опируем иерархию назначени€
+    Desc.TargetRegion      = DestinationLink.TargetRegion;
+    Desc.TargetStreet      = DestinationLink.TargetStreet;
     Desc.TargetInteriorSet = DestinationLink.TargetInteriorSet;
-    Desc.TargetFloor = DestinationLink.TargetFloor;
+    Desc.TargetFloor       = DestinationLink.TargetFloor;
 
     // ќсновной идентификатор €кор€
     Desc.TargetAnchorID = DestinationLink.TargetAnchorID;
@@ -384,7 +393,7 @@ FInteriorTransitionDescriptor ALocationAnchorActor::MakeTransitionDescriptor() c
     // TransitionPointId / AnchorIndex / AnchorName оставл€ем по умолчанию
     Desc.TransitionPointId.Invalidate();
     Desc.AnchorIndex = -1;
-    Desc.AnchorName = NAME_None;
+    Desc.AnchorName  = NAME_None;
 
     return Desc;
 }

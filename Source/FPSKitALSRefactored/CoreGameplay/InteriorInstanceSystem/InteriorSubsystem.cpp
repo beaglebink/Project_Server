@@ -627,6 +627,9 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 			LocalW->SeamlessTravel(TargetLevelPath, true);
 	});
 
+	// Уведомляем подписчиков: сейчас будет уход с исходного этажа
+	OnFloorExiting.Broadcast(P->SourceFloor);
+
 	W->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.0f, false);
 }
 

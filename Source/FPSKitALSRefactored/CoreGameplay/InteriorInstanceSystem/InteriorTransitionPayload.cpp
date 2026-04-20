@@ -36,6 +36,9 @@ UInteriorTransitionPayload* UInteriorTransitionPayload::SetupFromDescriptor(cons
 	// Сбрасываем
 	DestinationLink = FLocationAnchorLink();
 
+	// Запоминаем этаж-источник (с которого уходим)
+	SourceFloor = Descriptor.SourceFloor;
+
 	// Сначала копируем иерархию (если указана)
 	if (!Descriptor.TargetFloor.IsNull())
 	{

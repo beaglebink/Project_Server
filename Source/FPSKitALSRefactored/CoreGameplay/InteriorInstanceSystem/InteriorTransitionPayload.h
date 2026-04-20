@@ -19,6 +19,11 @@ struct FPSKITALSREFACTORED_API FInteriorTransitionDescriptor
 {
 	GENERATED_BODY()
 
+	// ── Этаж источника (с которого уходим) ───────────────────────────────
+	/** Ассет этажа, с которого выполняется переход. Используется для действий перед уходом. */
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	TSoftObjectPtr<UFloorAsset> SourceFloor;
+
 	// Иерархия назначения (любые из них — используйте те, что нужны)
 	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
 	TSoftObjectPtr<UWorldRegionAsset> TargetRegion;
@@ -61,6 +66,10 @@ public:
 	// Полная ссылка на точку назначения (заполняется из дескриптора)
 	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
 	FLocationAnchorLink DestinationLink;
+
+	/** Ассет этажа, с которого выполняется переход (заполняется из дескриптора). */
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	TSoftObjectPtr<UFloorAsset> SourceFloor;
 
 	/** Простой Setup из уже собранной FLocationAnchorLink (совместимость) */
 	UFUNCTION(BlueprintCallable, Category = "InteriorTransition")

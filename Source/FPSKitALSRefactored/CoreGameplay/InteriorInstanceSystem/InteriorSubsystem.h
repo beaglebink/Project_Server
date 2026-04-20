@@ -19,6 +19,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationE
 /** Делегат завершения перехода. bSuccess = true если персонаж телепортирован в позицию якоря. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTransitionCompleted, bool, bSuccess, FLocationAnchorLink, DestinationLink, bool, IsTravel);
 
+/**
+ * Делегат, вызываемый перед уходом с этажа.
+ * SourceFloor — ассет этажа, с которого выполняется переход (может быть null если не задан).
+ */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFloorExiting, TSoftObjectPtr<UFloorAsset>, SourceFloor);
+
 class UInteractiveItemComponent;
 
 // Record stored for each registered interactive item
@@ -132,6 +138,14 @@ public:
 	// ── Делегат завершения перехода ────────────────────────────────────────
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
 	FOnTransitionCompleted OnTransitionCompleted;
+
+	/**
+	 * Вызывается перед уходом с этажа (до SeamlessTravel или телепорта).
+	 * Используйте для выполнения действий на исходном этаже (сохранение состояния, анимации и т.д.).
+	 * SourceFloor — ассет этажа, с которого уходим (null если не был указан в дескрипторе).
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
+	FOnFloorExiting OnFloorExiting;
 
 	// Получить список размещённых объектов для конкретного InteriorSet+Floor (runtime)
 	// Возвращается копия массива — безопасно для Blueprint/UFunction
@@ -331,5 +345,6 @@ private:
 	void OnPostLoadMap(UWorld* LoadedWorld);
 	FDelegateHandle PostLoadMapHandle;
 
-	UInteriorTransitionPayload* TransitionPayloadCache = nullptr; // Кэш для передачи данных между картами при переходе (можно оптимизировать, если будет ясно, какие именно данные нужны)
+	UPROPERTY()
+	UInteriorTransitionPayload* TransitionPayloadCache = nullptr;
 };
