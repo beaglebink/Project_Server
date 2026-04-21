@@ -59,6 +59,11 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 			CurrentIItemIsValid = true;
 		}
 	}
+
+	if (!FoundItem || !CurrentItem)
+	{
+		LostComponentNow(Owner, CurrentItem);
+	}
 }
 
 void UInteractivePickerComponent::ResetCurrentItem()
@@ -295,6 +300,8 @@ void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* 
 
 void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
 {
+	OnInteractiveLostFocusEvent.Broadcast();
+
 	if (!Owner || (!InteractiveComponent && !CurrentIItemIsValid))
 	{
 		return;
@@ -306,8 +313,6 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 	{
 		return;
 	}
-
-	OnInteractiveLostFocusEvent.Broadcast();
 
 	if (InteractiveComponent)
 	{
