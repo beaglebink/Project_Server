@@ -41,6 +41,9 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Random")
     static FString GenerateRandomHex64(int32 HighMin, int32 HighMax, int32 LowMin, int32 LowMax);
+    
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Utility")
+    static FString IntToChar(int32 Value);
 
 public:
     UFUNCTION(BlueprintCallable, Category = "Widgets")
