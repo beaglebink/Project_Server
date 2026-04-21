@@ -341,6 +341,7 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
     ALocationAnchorActor* Actor = TargetActor.Get();
     if (!Actor) return FReply::Handled();
 
+    // Разбираем выбранный якорь
     FGuid SelectedGuid;
     FText SelectedDisplayName;
     if (CurrentAnchorSelection.IsValid())
@@ -359,13 +360,51 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
         return FReply::Handled();
     }
 
-    // Записываем прямую ссылку
+    // Записываем прямую ссылку в текущем якоре
     Actor->Modify();
     Actor->DestinationLink.TargetAnchorID          = SelectedGuid;
     Actor->DestinationLink.TargetAnchorDisplayName = SelectedDisplayName;
     Actor->MarkPackageDirty();
 
-    // Определяем уровень, на котором находится целевой якорь
+    // Собираем "адрес источника" — откуда мы отправляемся
+    // Берём из OwnerFloor -> ParentInteriorSet -> ParentStreet -> ParentWorldRegion
+    TSoftObjectPtr<UWorldRegionAsset> SourceRegion;
+    TSoftObjectPtr<UStreetAsset>      SourceStreet;
+    TSoftObjectPtr<UInteriorSetAsset> SourceInteriorSet;
+    TSoftObjectPtr<UFloorAsset>       SourceFloor;
+
+    if (Actor->OwnerContextType == ELocationContextType::Floor && !Actor->OwnerFloor.IsNull())
+    {
+        SourceFloor = Actor->OwnerFloor;
+
+        if (UFloorAsset* Floor = Actor->OwnerFloor.LoadSynchronous())
+        {
+            if (!Floor->ParentInteriorSet.IsNull())
+            {
+                SourceInteriorSet = Floor->ParentInteriorSet;
+
+                if (UInteriorSetAsset* Interior = Floor->ParentInteriorSet.LoadSynchronous())
+                {
+                    if (!Interior->ParentStreet.IsNull())
+                    {
+                        SourceStreet = Interior->ParentStreet;
+
+                        if (UStreetAsset* Street = Interior->ParentStreet.LoadSynchronous())
+                        {
+                            if (!Street->ParentWorldRegion.IsNull())
+                                SourceRegion = Street->ParentWorldRegion;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else if (Actor->OwnerContextType == ELocationContextType::Street && !Actor->OwnerRegion.IsNull())
+    {
+        SourceRegion = Actor->OwnerRegion;
+    }
+
+    // Определяем уровень целевого якоря
     FSoftObjectPath TargetLevelPath;
     if (!Actor->DestinationLink.TargetFloor.IsNull())
     {
@@ -380,22 +419,7 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
                 TargetLevelPath = Region->RegionLevel.ToSoftObjectPath();
     }
 
-    // Определяем уровень, на котором находится ТЕКУЩИЙ редактируемый актор (для обратной ссылки)
-    FSoftObjectPath SourceLevelPath;
-    if (Actor->OwnerContextType == ELocationContextType::Floor && !Actor->OwnerFloor.IsNull())
-    {
-        if (UFloorAsset* OwnerFloor = Actor->OwnerFloor.LoadSynchronous())
-            if (!OwnerFloor->FloorLevel.IsNull())
-                SourceLevelPath = OwnerFloor->FloorLevel.ToSoftObjectPath();
-    }
-    else if (Actor->OwnerContextType == ELocationContextType::Street && !Actor->OwnerRegion.IsNull())
-    {
-        if (UWorldRegionAsset* OwnerRegion = Actor->OwnerRegion.LoadSynchronous())
-            if (!OwnerRegion->RegionLevel.IsNull())
-                SourceLevelPath = OwnerRegion->RegionLevel.ToSoftObjectPath();
-    }
-
-    // Записываем обратную ссылку в целевом якоре
+    // Записываем обратный "адрес" в целевом якоре
     if (TargetLevelPath.IsValid())
     {
         const FString PackageName = TargetLevelPath.GetLongPackageName();
@@ -415,26 +439,30 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
                     if (!DestAnchor || DestAnchor->AnchorID != SelectedGuid) continue;
 
                     DestAnchor->Modify();
-                    DestAnchor->DestinationLink.TargetAnchorID          = Actor->AnchorID;
+
+                    // Полный адрес источника → пишем в DestinationLink целевого якоря
+                    DestAnchor->DestinationLink.TargetRegion      = SourceRegion;
+                    DestAnchor->DestinationLink.TargetStreet      = SourceStreet;
+                    DestAnchor->DestinationLink.TargetInteriorSet = SourceInteriorSet;
+                    DestAnchor->DestinationLink.TargetFloor       = SourceFloor;
+
+                    // ID и имя исходного якоря
+                    DestAnchor->DestinationLink.TargetAnchorID = Actor->AnchorID;
                     DestAnchor->DestinationLink.TargetAnchorDisplayName = Actor->DisplayName.IsEmpty()
                         ? FText::FromString(Actor->GetName())
                         : Actor->DisplayName;
 
-                    ClearSoft(DestAnchor->DestinationLink.TargetFloor);
-                    ClearSoft(DestAnchor->DestinationLink.TargetRegion);
-                    ClearSoft(DestAnchor->DestinationLink.TargetStreet);
-                    ClearSoft(DestAnchor->DestinationLink.TargetInteriorSet);
-
-                    if (Actor->OwnerContextType == ELocationContextType::Floor)
-                        DestAnchor->DestinationLink.TargetFloor = Actor->OwnerFloor;
-                    else if (Actor->OwnerContextType == ELocationContextType::Street)
-                        DestAnchor->DestinationLink.TargetRegion = Actor->OwnerRegion;
-
                     LevelPackage->MarkPackageDirty();
 
                     UE_LOG(LogTemp, Log,
-                        TEXT("LocationAnchorActorDetails: обратная ссылка → '%s' [%s]"),
-                        *DestAnchor->DisplayName.ToString(), *DestAnchor->AnchorID.ToString());
+                        TEXT("LocationAnchorActorDetails: обратная ссылка записана в '%s' [%s] → Region=%s Street=%s Interior=%s Floor=%s Anchor=%s"),
+                        *DestAnchor->GetName(),
+                        *DestAnchor->AnchorID.ToString(),
+                        *SourceRegion.ToSoftObjectPath().GetAssetName(),
+                        *SourceStreet.ToSoftObjectPath().GetAssetName(),
+                        *SourceInteriorSet.ToSoftObjectPath().GetAssetName(),
+                        *SourceFloor.ToSoftObjectPath().GetAssetName(),
+                        *Actor->AnchorID.ToString());
                     break;
                 }
             }
@@ -443,7 +471,6 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
 
     UE_LOG(LogTemp, Log, TEXT("LocationAnchorActorDetails: Apply '%s'"), *SelectedDisplayName.ToString());
 
-    // Пересобираем детали чтобы отражать изменения после Apply
     if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
     return FReply::Handled();
 }
@@ -452,33 +479,45 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
 
 FString FLocationAnchorActorDetails::GetSelectedRegionPath() const
 {
-    if (ALocationAnchorActor* Actor = TargetActor.Get())
-        if (!Actor->DestinationLink.TargetRegion.IsNull())
-            return Actor->DestinationLink.TargetRegion.ToSoftObjectPath().GetAssetPathString();
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor) return FString();
+
+    if (!Actor->DestinationLink.TargetRegion.IsNull())
+        return Actor->DestinationLink.TargetRegion.ToSoftObjectPath().GetAssetPathString();
+
     return FString();
 }
 
 FString FLocationAnchorActorDetails::GetSelectedStreetPath() const
 {
-    if (ALocationAnchorActor* Actor = TargetActor.Get())
-        if (!Actor->DestinationLink.TargetStreet.IsNull())
-            return Actor->DestinationLink.TargetStreet.ToSoftObjectPath().GetAssetPathString();
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor) return FString();
+
+    if (!Actor->DestinationLink.TargetStreet.IsNull())
+        return Actor->DestinationLink.TargetStreet.ToSoftObjectPath().GetAssetPathString();
+
     return FString();
 }
 
 FString FLocationAnchorActorDetails::GetSelectedInteriorSetPath() const
 {
-    if (ALocationAnchorActor* Actor = TargetActor.Get())
-        if (!Actor->DestinationLink.TargetInteriorSet.IsNull())
-            return Actor->DestinationLink.TargetInteriorSet.ToSoftObjectPath().GetAssetPathString();
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor) return FString();
+
+    if (!Actor->DestinationLink.TargetInteriorSet.IsNull())
+        return Actor->DestinationLink.TargetInteriorSet.ToSoftObjectPath().GetAssetPathString();
+
     return FString();
 }
 
 FString FLocationAnchorActorDetails::GetSelectedFloorPath() const
 {
-    if (ALocationAnchorActor* Actor = TargetActor.Get())
-        if (!Actor->DestinationLink.TargetFloor.IsNull())
-            return Actor->DestinationLink.TargetFloor.ToSoftObjectPath().GetAssetPathString();
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor) return FString();
+
+    if (!Actor->DestinationLink.TargetFloor.IsNull())
+        return Actor->DestinationLink.TargetFloor.ToSoftObjectPath().GetAssetPathString();
+
     return FString();
 }
 
