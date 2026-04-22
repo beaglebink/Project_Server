@@ -86,4 +86,14 @@ public:
     /** Проверяет все Street/InteriorSet/Floor ассеты в проекте и очищает устаревшие записи. */
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
     static int32 ValidateAllTransitionPoints();
+
+    // Blueprint-callable validation wrappers (call from Blutility)
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+    static int32 ValidateStreetTransitionsByGuid(const FGuid& StreetGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+    static int32 ValidateInteriorSetTransitionsByGuid(const FGuid& InteriorSetGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+    static int32 ValidateFloorTransitionsByGuid(const FGuid& FloorGuid);
 };

@@ -22,6 +22,11 @@ public:
     static TMap<FGuid, FText> GetInteriorSets(const FGuid& StreetGuid);
     static TMap<FGuid, FText> GetFloors(const FGuid& InteriorSetGuid);
     static int32 ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid);
+
+    // Validation utilities: remove stale TransitionPoints (no actor present) from specific asset by GUID
+    static int32 ValidateStreetTransitions(const FGuid& StreetGuid);
+    static int32 ValidateInteriorSetTransitions(const FGuid& InteriorSetGuid);
+    static int32 ValidateFloorTransitions(const FGuid& FloorGuid);
 };
 
 #endif // WITH_EDITOR

@@ -1,5 +1,6 @@
 ﻿#include "LocationEditorUtils.h"
-#include "LocationAnchorActor.h" 
+#include "LocationAnchorActor.h"
+#include "FloorAssignerEditorLibrary.h"
 
 // Editor-only includes должны быть ДО использования этих типов
 #if WITH_EDITOR
@@ -267,6 +268,73 @@ namespace FLocationEditorUtilsImpl
         }
         return Result;
     }
+
+    // Обёртка: делегируем глобальной реализации (реализована в LocationEditorUtils_TransitionPoints.cpp)
+    static int32 ValidateAllTransitionPoints()
+    {
+#if WITH_EDITOR
+        int32 TotalRemoved = 0;
+        FAssetRegistryModule& ARModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+        IAssetRegistry& AR = ARModule.Get();
+
+        auto ScanClass = [&](const FTopLevelAssetPath& ClassPath)
+        {
+            FARFilter Filter;
+            Filter.ClassPaths.Add(ClassPath);
+            Filter.bRecursiveClasses = true;
+            TArray<FAssetData> Assets;
+            AR.GetAssets(Filter, Assets);
+            for (const FAssetData& AD : Assets)
+            {
+                // Try to get loaded asset first, otherwise load
+                UObject* Obj = AD.GetAsset();
+                if (!Obj)
+                    Obj = AD.ToSoftObjectPath().TryLoad();
+
+                if (Obj)
+                {
+                    TotalRemoved += ULocationEditorUtils::ValidateAndCleanTransitionPoints(Obj);
+                }
+            }
+        };
+
+        ScanClass(UFloorAsset::StaticClass()->GetClassPathName());
+        ScanClass(UInteriorSetAsset::StaticClass()->GetClassPathName());
+        ScanClass(UStreetAsset::StaticClass()->GetClassPathName());
+
+        UE_LOG(LogTemp, Log, TEXT("ValidateAllTransitionPoints: total removed %d"), TotalRemoved);
+        return TotalRemoved;
+#else
+        return 0;
+#endif
+    }
+
+    int32 ValidateStreetTransitionsByGuid(const FGuid& StreetGuid)
+    {
+#if WITH_EDITOR
+        return FFloorAssignerEditorLibrary::ValidateStreetTransitions(StreetGuid);
+#else
+        return 0;
+#endif
+    }
+
+    int32 ValidateInteriorSetTransitionsByGuid(const FGuid& InteriorSetGuid)
+    {
+#if WITH_EDITOR
+        return FFloorAssignerEditorLibrary::ValidateInteriorSetTransitions(InteriorSetGuid);
+#else
+        return 0;
+#endif
+    }
+
+    int32 ValidateFloorTransitionsByGuid(const FGuid& FloorGuid)
+    {
+#if WITH_EDITOR
+        return FFloorAssignerEditorLibrary::ValidateFloorTransitions(FloorGuid);
+#else
+        return 0;
+#endif
+    }
 } // namespace FLocationEditorUtilsImpl
 
 #endif // WITH_EDITOR
@@ -376,6 +444,42 @@ int32 ULocationEditorUtils::UnregisterSelectedActors()
 {
 #if WITH_EDITOR
     return FFloorAssignerEditorLibrary::UnregisterSelectedActors();
+#else
+    return 0;
+#endif
+}
+
+int32 ULocationEditorUtils::ValidateAllTransitionPoints()
+{
+#if WITH_EDITOR
+    return FLocationEditorUtilsImpl::ValidateAllTransitionPoints();
+#else
+    return 0;
+#endif
+}
+
+int32 ULocationEditorUtils::ValidateStreetTransitionsByGuid(const FGuid& StreetGuid)
+{
+#if WITH_EDITOR
+    return FFloorAssignerEditorLibrary::ValidateStreetTransitions(StreetGuid);
+#else
+    return 0;
+#endif
+}
+
+int32 ULocationEditorUtils::ValidateInteriorSetTransitionsByGuid(const FGuid& InteriorSetGuid)
+{
+#if WITH_EDITOR
+    return FFloorAssignerEditorLibrary::ValidateInteriorSetTransitions(InteriorSetGuid);
+#else
+    return 0;
+#endif
+}
+
+int32 ULocationEditorUtils::ValidateFloorTransitionsByGuid(const FGuid& FloorGuid)
+{
+#if WITH_EDITOR
+    return FFloorAssignerEditorLibrary::ValidateFloorTransitions(FloorGuid);
 #else
     return 0;
 #endif

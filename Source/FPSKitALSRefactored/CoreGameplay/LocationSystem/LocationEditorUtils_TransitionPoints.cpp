@@ -75,18 +75,6 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
         return false;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("RegisterTransitionPoint: actor='%s' AnchorID=%s OwnerContext=%d"),
-        *SourceAnchor->GetName(), *SourceAnchor->AnchorID.ToString(), (int)SourceAnchor->OwnerContextType);
-
-    // Log owner fields (paths)
-    const FString OwnerRegionPath = SourceAnchor->OwnerRegion.IsNull() ? TEXT("null") : SourceAnchor->OwnerRegion.ToSoftObjectPath().GetAssetPathString();
-    const FString OwnerStreetPath = SourceAnchor->OwnerStreet.IsNull() ? TEXT("null") : SourceAnchor->OwnerStreet.ToSoftObjectPath().GetAssetPathString();
-    const FString OwnerInteriorPath = SourceAnchor->OwnerInteriorSet.IsNull() ? TEXT("null") : SourceAnchor->OwnerInteriorSet.ToSoftObjectPath().GetAssetPathString();
-    const FString OwnerFloorPath = SourceAnchor->OwnerFloor.IsNull() ? TEXT("null") : SourceAnchor->OwnerFloor.ToSoftObjectPath().GetAssetPathString();
-
-    UE_LOG(LogTemp, Log, TEXT("  OwnerRegion=%s OwnerStreet=%s OwnerInteriorSet=%s OwnerFloor=%s"),
-        *OwnerRegionPath, *OwnerStreetPath, *OwnerInteriorPath, *OwnerFloorPath);
-
     // Построим запись TP из актора
     FLocationTransitionPoint TP;
     TP.TransitionPointID       = SourceAnchor->AnchorID;
@@ -120,16 +108,11 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
             {
                 TP.DestinationAnchor = TSoftObjectPtr<UObject>(DestA);
                 TP.DestinationLink.TargetAnchorActor = TSoftObjectPtr<UObject>(DestA);
-                UE_LOG(LogTemp, Log, TEXT("  Found destination actor '%s' for TargetAnchorID=%s"), *DestA->GetName(), *TP.DestinationLink.TargetAnchorID.ToString());
-            }
-            else
-            {
-                UE_LOG(LogTemp, Verbose, TEXT("  Destination actor not found on level for TargetAnchorID=%s"), *TP.DestinationLink.TargetAnchorID.ToString());
             }
         }
     }
 
-    // Determine registration asset
+    // Определяем ассет регистрации (Floor / InteriorSet / Street)
     UObject* RegAsset = SourceAnchor->GetOwnerRegistrationAsset();
     if (!RegAsset)
     {
@@ -137,25 +120,13 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
         return false;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("RegisterTransitionPoint: registering into asset '%s' (%s)"),
-        *RegAsset->GetName(), *RegAsset->GetClass()->GetName());
-
     // Floor
     if (UFloorAsset* Floor = Cast<UFloorAsset>(RegAsset))
     {
         Floor->Modify();
         FLocationTransitionPoint* Existing = Floor->TransitionPoints.FindByPredicate(
             [&](const FLocationTransitionPoint& P) { return P.TransitionPointID == TP.TransitionPointID; });
-        if (Existing)
-        {
-            *Existing = TP;
-            UE_LOG(LogTemp, Log, TEXT("  Updated existing TransitionPoint in Floor '%s'"), *Floor->GetName());
-        }
-        else
-        {
-            Floor->TransitionPoints.Add(TP);
-            UE_LOG(LogTemp, Log, TEXT("  Added TransitionPoint to Floor '%s'"), *Floor->GetName());
-        }
+        if (Existing) { *Existing = TP; } else { Floor->TransitionPoints.Add(TP); }
         Floor->MarkPackageDirty();
         return true;
     }
@@ -166,16 +137,7 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
         Interior->Modify();
         FLocationTransitionPoint* Existing = Interior->TransitionPoints.FindByPredicate(
             [&](const FLocationTransitionPoint& P) { return P.TransitionPointID == TP.TransitionPointID; });
-        if (Existing)
-        {
-            *Existing = TP;
-            UE_LOG(LogTemp, Log, TEXT("  Updated existing TransitionPoint in InteriorSet '%s'"), *Interior->GetName());
-        }
-        else
-        {
-            Interior->TransitionPoints.Add(TP);
-            UE_LOG(LogTemp, Log, TEXT("  Added TransitionPoint to InteriorSet '%s'"), *Interior->GetName());
-        }
+        if (Existing) { *Existing = TP; } else { Interior->TransitionPoints.Add(TP); }
         Interior->MarkPackageDirty();
         return true;
     }
@@ -186,16 +148,7 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
         Street->Modify();
         FLocationTransitionPoint* Existing = Street->TransitionPoints.FindByPredicate(
             [&](const FLocationTransitionPoint& P) { return P.TransitionPointID == TP.TransitionPointID; });
-        if (Existing)
-        {
-            *Existing = TP;
-            UE_LOG(LogTemp, Log, TEXT("  Updated existing TransitionPoint in Street '%s'"), *Street->GetName());
-        }
-        else
-        {
-            Street->TransitionPoints.Add(TP);
-            UE_LOG(LogTemp, Log, TEXT("  Added TransitionPoint to Street '%s'"), *Street->GetName());
-        }
+        if (Existing) { *Existing = TP; } else { Street->TransitionPoints.Add(TP); }
         Street->MarkPackageDirty();
         return true;
     }
@@ -318,34 +271,6 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
     }
 
     return RemovedTotal;
-}
-
-int32 ULocationEditorUtils::ValidateAllTransitionPoints()
-{
-    int32 TotalRemoved = 0;
-    FAssetRegistryModule& ARModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-    IAssetRegistry& AR = ARModule.Get();
-
-    auto ScanClass = [&](const FTopLevelAssetPath& ClassPath)
-    {
-        FARFilter Filter;
-        Filter.ClassPaths.Add(ClassPath);
-        Filter.bRecursiveClasses = true;
-        TArray<FAssetData> Assets;
-        AR.GetAssets(Filter, Assets);
-        for (const FAssetData& AD : Assets)
-        {
-            if (UObject* Obj = AD.GetAsset())
-                TotalRemoved += ValidateAndCleanTransitionPoints(Obj);
-        }
-    };
-
-    ScanClass(UFloorAsset::StaticClass()->GetClassPathName());
-    ScanClass(UInteriorSetAsset::StaticClass()->GetClassPathName());
-    ScanClass(UStreetAsset::StaticClass()->GetClassPathName());
-
-    UE_LOG(LogTemp, Log, TEXT("ValidateAllTransitionPoints: total removed %d"), TotalRemoved);
-    return TotalRemoved;
 }
 
 #endif // WITH_EDITOR
