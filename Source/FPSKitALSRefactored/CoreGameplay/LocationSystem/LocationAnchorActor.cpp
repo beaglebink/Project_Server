@@ -69,6 +69,30 @@ void ALocationAnchorActor::PostEditMove(bool bFinished)
 #endif
 }
 
+UObject* ALocationAnchorActor::GetOwnerRegistrationAsset() const
+{
+    // ≈сли актор принадлежит Floor Ч регистрируем в FloorAsset
+    if (OwnerContextType == ELocationContextType::Floor && !OwnerFloor.IsNull())
+    {
+        return OwnerFloor.LoadSynchronous();
+    }
+
+    // ƒл€ карты района (Street) Ч приоритет: InteriorSet -> Street -> Region (fallback)
+    if (OwnerContextType == ELocationContextType::Street)
+    {
+        if (!OwnerInteriorSet.IsNull())
+            return OwnerInteriorSet.LoadSynchronous();
+
+        if (!OwnerStreet.IsNull())
+            return OwnerStreet.LoadSynchronous();
+
+        if (!OwnerRegion.IsNull())
+            return OwnerRegion.LoadSynchronous();
+    }
+
+    return nullptr;
+}
+
 #if WITH_EDITOR
 
 void ALocationAnchorActor::SyncToAsset()

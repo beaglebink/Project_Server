@@ -73,4 +73,17 @@ public:
         const FGuid& SourceAnchorID,
         UFloorAsset* DestFloor,
         const FGuid& DestAnchorID);
+
+    // --- New: transition points management ---
+    /** Регистрирует/обновляет TransitionPoint для указанного актора (Editor only). */
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+    static bool RegisterTransitionPoint(class ALocationAnchorActor* SourceAnchor);
+
+    /** Проверяет и очищает устаревшие TransitionPoints в ассете (Editor only). Возвращает число удалённых записей. */
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+    static int32 ValidateAndCleanTransitionPoints(UObject* Asset);
+
+    /** Проверяет все Street/InteriorSet/Floor ассеты в проекте и очищает устаревшие записи. */
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+    static int32 ValidateAllTransitionPoints();
 };

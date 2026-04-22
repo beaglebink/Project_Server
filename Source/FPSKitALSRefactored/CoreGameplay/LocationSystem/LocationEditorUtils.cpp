@@ -1,4 +1,5 @@
 ﻿#include "LocationEditorUtils.h"
+#include "LocationAnchorActor.h" 
 
 // Editor-only includes должны быть ДО использования этих типов
 #if WITH_EDITOR
@@ -77,13 +78,37 @@ namespace FLocationEditorUtilsImpl
                 Street->MarkPackageDirty(); N++;
             }
         }
+
+        // Ensure TransitionPoints exist and have IDs; try to populate SourceWorldPosition from SourceAnchor if possible
         for (FLocationTransitionPoint& TP : Street->TransitionPoints)
         {
             bool b = false;
-            if (!TP.TransitionPointID.IsValid()) { Street->Modify(); TP.TransitionPointID = FGuid::NewGuid(); b = true; }
-            if (!TP.SourceLocationID.IsValid()) { Street->Modify(); TP.SourceContextType = ELocationContextType::Street; TP.SourceLocationID = Street->StreetID; b = true; }
+            if (!TP.TransitionPointID.IsValid())
+            {
+                Street->Modify();
+                TP.TransitionPointID = FGuid::NewGuid();
+                b = true;
+            }
+            if (TP.SourceAnchor.IsValid())
+            {
+                UObject* Obj = TP.SourceAnchor.Get();
+                if (Obj)
+                {
+                    if (ALocationAnchorActor* SA = Cast<ALocationAnchorActor>(Obj))
+                    {
+                        if (TP.SourceWorldPosition.IsZero())
+                        {
+                            Street->Modify();
+                            TP.SourceWorldPosition = SA->GetActorLocation();
+                            TP.SourceWorldOrientation = SA->GetActorRotation();
+                            b = true;
+                        }
+                    }
+                }
+            }
             if (b) { Street->MarkPackageDirty(); N++; }
         }
+
         for (const TSoftObjectPtr<UInteriorSetAsset>& R : Street->InteriorSets)
         {
             if (R.IsNull()) continue;
@@ -99,28 +124,54 @@ namespace FLocationEditorUtilsImpl
     {
         if (!IsValid(IS)) return 0;
         int32 N = 0;
-        for (FLocationTransitionPoint& TP : IS->EntranceTransitionPoints)
+
+        // Ensure TransitionPoints exist and have IDs; fill DestinationLink.TargetFloor fallback if possible
+        for (FLocationTransitionPoint& TP : IS->TransitionPoints)
         {
             bool b = false;
-            if (!TP.TransitionPointID.IsValid()) { IS->Modify(); TP.TransitionPointID = FGuid::NewGuid(); b = true; }
-            if (!TP.DestinationLocationID.IsValid() && !IS->Floors.IsEmpty())
+            if (!TP.TransitionPointID.IsValid())
+            {
+                IS->Modify();
+                TP.TransitionPointID = FGuid::NewGuid();
+                b = true;
+            }
+
+            if (!TP.DestinationLink.TargetAnchorID.IsValid() && !IS->Floors.IsEmpty())
             {
                 UFloorAsset* FF = IS->Floors[0].LoadSynchronous();
-                if (IsValid(FF)) { IS->Modify(); TP.DestinationContextType = ELocationContextType::Floor; TP.DestinationLocationID = FF->FloorID; b = true; }
+                if (IsValid(FF))
+                {
+                    IS->Modify();
+                    TP.DestinationLink.TargetFloor = FF;
+                    b = true;
+                }
             }
-            if (!TP.SourceLocationID.IsValid())
+
+            if (TP.SourceAnchor.IsNull())
             {
-                UStreetAsset* S = IS->ParentStreet.LoadSynchronous();
-                if (IsValid(S)) { IS->Modify(); TP.SourceContextType = ELocationContextType::Street; TP.SourceLocationID = S->StreetID; b = true; }
+                if (!IS->ParentStreet.IsNull())
+                {
+                    UStreetAsset* S = IS->ParentStreet.LoadSynchronous();
+                    if (IsValid(S))
+                    {
+                        IS->Modify();
+                        if (TP.AddressLabel.IsEmpty())
+                            TP.AddressLabel = S->DisplayName;
+                        b = true;
+                    }
+                }
             }
+
             if (b) { IS->MarkPackageDirty(); N++; }
         }
+
         for (const TSoftObjectPtr<UFloorAsset>& FR : IS->Floors)
         {
             if (FR.IsNull()) continue;
             UFloorAsset* Floor = FR.LoadSynchronous();
             if (!IsValid(Floor)) continue;
             if (SoftPtrNeedsUpdate(Floor->ParentInteriorSet, IS)) { Floor->Modify(); Floor->ParentInteriorSet = IS; Floor->MarkPackageDirty(); N++; }
+
             for (FLocationZone& Z : Floor->Zones)
             {
                 if (Z.ParentContextType == ELocationContextType::None || !Z.ParentLocationID.IsValid())
@@ -141,11 +192,25 @@ namespace FLocationEditorUtilsImpl
                     Floor->MarkPackageDirty(); N++;
                 }
             }
+
             for (FLocationTransitionPoint& TP : Floor->TransitionPoints)
             {
                 bool b = false;
                 if (!TP.TransitionPointID.IsValid()) { Floor->Modify(); TP.TransitionPointID = FGuid::NewGuid(); b = true; }
-                if (!TP.SourceLocationID.IsValid()) { Floor->Modify(); TP.SourceContextType = ELocationContextType::Floor; TP.SourceLocationID = Floor->FloorID; b = true; }
+                if (TP.SourceAnchor.IsValid())
+                {
+                    UObject* Obj = TP.SourceAnchor.Get();
+                    if (Obj)
+                    {
+                        if (ALocationAnchorActor* SA = Cast<ALocationAnchorActor>(Obj))
+                        {
+                            Floor->Modify();
+                            TP.SourceWorldPosition = SA->GetActorLocation();
+                            TP.SourceWorldOrientation = SA->GetActorRotation();
+                            b = true;
+                        }
+                    }
+                }
                 if (b) { Floor->MarkPackageDirty(); N++; }
             }
         }

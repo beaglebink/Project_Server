@@ -169,27 +169,43 @@ void ULocationSystemUtils::ValidateTransitionPoints(
 {
     for (const FLocationTransitionPoint& TP : Points)
     {
+        // TransitionPointID обязателен
         if (!TP.TransitionPointID.IsValid())
         {
             OutResult.AddIssue(FString::Printf(
                 TEXT("[%s] TransitionPoint имеет невалидный TransitionPointID"), *OwnerContext));
+            continue;
         }
-        if (!TP.SourceLocationID.IsValid())
+
+        // Источник: проверяем, что есть SourceAnchor (или по крайней мере позиция задана)
+        if (!TP.SourceAnchor.IsValid() && TP.SourceWorldPosition.IsZero())
         {
             OutResult.AddIssue(FString::Printf(
-                TEXT("[%s] TransitionPoint '%s': SourceLocationID не задан"),
+                TEXT("[%s] TransitionPoint '%s': SourceAnchor и позиция источника не заданы"),
                 *OwnerContext, *TP.DisplayName.ToString()));
         }
-        if (!TP.DestinationLocationID.IsValid())
+
+        // Назначение: проверяем, что DestinationLink заполнен (target anchor id или target floor/region/interior/street)
+        bool bHasDestination = TP.DestinationLink.TargetAnchorID.IsValid()
+            || !TP.DestinationLink.TargetFloor.IsNull()
+            || !TP.DestinationLink.TargetRegion.IsNull()
+            || !TP.DestinationLink.TargetInteriorSet.IsNull()
+            || !TP.DestinationLink.TargetStreet.IsNull();
+
+        if (!bHasDestination)
         {
             OutResult.AddIssue(FString::Printf(
-                TEXT("[%s] TransitionPoint '%s': DestinationLocationID не задан"),
+                TEXT("[%s] TransitionPoint '%s': DestinationLink не задан (нет TargetAnchorID/TargetFloor/TargetRegion etc.)"),
                 *OwnerContext, *TP.DisplayName.ToString()));
         }
-        if (TP.SourceLocationID == TP.DestinationLocationID)
+
+        // Симметричность: источник и назначение не должны указывать на один и тот же AnchorID
+        FGuid SourceId = TP.TransitionPointID;
+        FGuid DestId   = TP.DestinationLink.TargetAnchorID;
+        if (SourceId.IsValid() && DestId.IsValid() && SourceId == DestId)
         {
             OutResult.AddIssue(FString::Printf(
-                TEXT("[%s] TransitionPoint '%s': Source и Destination указывают на одну локацию"),
+                TEXT("[%s] TransitionPoint '%s': Source и Destination указывают на один и тот же AnchorID"),
                 *OwnerContext, *TP.DisplayName.ToString()));
         }
     }
@@ -235,7 +251,8 @@ FLocationValidationResult ULocationSystemUtils::ValidateInteriorSet(UInteriorSet
         Result.AddIssue(FString::Printf(TEXT("InteriorSet '%s': не содержит ни одного Floor"), *InteriorSet->GetName()));
 
     const FString Ctx = InteriorSet->GetName();
-    ValidateTransitionPoints(InteriorSet->EntranceTransitionPoints, Ctx, Result);
+    // Раньше использовалось EntranceTransitionPoints — заменяем на TransitionPoints (новая модель)
+    ValidateTransitionPoints(InteriorSet->TransitionPoints, Ctx, Result);
 
     for (const TSoftObjectPtr<UFloorAsset>& FloorRef : InteriorSet->Floors)
     {

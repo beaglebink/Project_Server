@@ -2,44 +2,40 @@
 
 #include "CoreMinimal.h"
 #include "LocationTypes.h"
-#include "GameplayTagContainer.h" 
+#include "GameplayTagContainer.h"
 #include "LocationSpatialTypes.generated.h"
 
-// ─── Ссылка на целевой якорь (без открытия карты) ──────────────────────────
-// Хранит полный путь по иерархии ассетов до конкретного якоря
+// Убираем forward-декларацию ALocationAnchorActor — больше не нужна в заголовке.
+
+// ─── Ссылка на целевой якорь ───────────────────────────────────────────────
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FLocationAnchorLink
 {
     GENERATED_BODY()
 
-    // Целевой регион (нужен для загрузки карты района)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
     TSoftObjectPtr<class UWorldRegionAsset> TargetRegion;
 
-    // Целевая улица
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
     TSoftObjectPtr<class UStreetAsset> TargetStreet;
 
-    // Целевое здание
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
     TSoftObjectPtr<class UInteriorSetAsset> TargetInteriorSet;
 
-    // Целевой этаж (содержит ссылку на карту)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
     TSoftObjectPtr<class UFloorAsset> TargetFloor;
 
-    // ID якоря на целевой карте (выбирается из списка якорей TargetFloor/TargetRegion)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AnchorLink")
     FGuid TargetAnchorID;
 
-    // Кэшированное имя якоря (заполняется утилитой, read-only для удобства)
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AnchorLink")
     FText TargetAnchorDisplayName;
 
-    bool IsValid() const
-    {
-        return TargetAnchorID.IsValid();
-    }
+    // Soft-ссылка на актор назначения — храним как UObject чтобы не требовать полного типа в заголовке.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AnchorLink")
+    TSoftObjectPtr<UObject> TargetAnchorActor;
+
+    bool IsValid() const { return TargetAnchorID.IsValid(); }
 };
 
 // ─── Zone ──────────────────────────────────────────────────────────────────
@@ -108,33 +104,32 @@ struct FPSKITALSREFACTORED_API FLocationTransitionPoint
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Identity")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Identity")
     FGuid TransitionPointID;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Identity")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Identity")
     FText DisplayName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Source")
-    ELocationContextType SourceContextType = ELocationContextType::None;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Source")
-    FGuid SourceLocationID;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Destination")
-    ELocationContextType DestinationContextType = ELocationContextType::None;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Destination")
-    FGuid DestinationLocationID;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Transform")
-    FVector WorldPosition = FVector::ZeroVector;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Transform")
-    FRotator WorldOrientation = FRotator::ZeroRotator;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Classification")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Classification")
     ELocationTransitionType TransitionType = ELocationTransitionType::Default;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transition|Metadata")
+    // ── Источник: сохраняем soft ptr как UObject (без необходимости полного типа здесь)
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Source")
+    TSoftObjectPtr<UObject> SourceAnchor;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Source")
+    FVector SourceWorldPosition = FVector::ZeroVector;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Source")
+    FRotator SourceWorldOrientation = FRotator::ZeroRotator;
+
+    // ── Назначение: soft ptr к объекту назначения (как UObject), и полный DestinationLink
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Destination")
+    TSoftObjectPtr<UObject> DestinationAnchor;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Destination")
+    FLocationAnchorLink DestinationLink;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transition|Metadata")
     FText AddressLabel;
 };

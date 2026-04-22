@@ -11,6 +11,8 @@
 class USceneComponent;
 class UBillboardComponent;
 class UWorldRegionAsset;
+class UStreetAsset;
+class UInteriorSetAsset;
 class UFloorAsset;
 
 /**
@@ -40,10 +42,22 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Owner")
     ELocationContextType OwnerContextType = ELocationContextType::None;
 
+    // Регион (район) — для карты района/фоллов
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Owner",
         meta = (EditCondition = "OwnerContextType == ELocationContextType::Street"))
     TSoftObjectPtr<UWorldRegionAsset> OwnerRegion;
 
+    // Улица — для карты района: обязательно указывать при регистрации
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Owner",
+        meta = (EditCondition = "OwnerContextType == ELocationContextType::Street"))
+    TSoftObjectPtr<UStreetAsset> OwnerStreet;
+
+    // Здание (InteriorSet) — если задано, Registration идёт в InteriorSet
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Owner",
+        meta = (EditCondition = "OwnerContextType == ELocationContextType::Street"))
+    TSoftObjectPtr<UInteriorSetAsset> OwnerInteriorSet;
+
+    // Этаж — если актор на карте этажа
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Owner",
         meta = (EditCondition = "OwnerContextType == ELocationContextType::Floor"))
     TSoftObjectPtr<UFloorAsset> OwnerFloor;
@@ -57,7 +71,6 @@ public:
     FLocationAnchorLink GetDestinationLink() const { return DestinationLink; }
 
     // Возвращает дескриптор перехода, сформированный из полей DestinationLink.
-    // Готовый для передачи в UInteriorTransitionPayload::SetupFromDescriptor
     UFUNCTION(BlueprintCallable, Category = "Anchor|Transition")
     FInteriorTransitionDescriptor MakeTransitionDescriptor() const;
 
@@ -92,4 +105,9 @@ protected:
     // Editor-only helper: пытается автоматически назначить OwnerRegion/OwnerFloor
     bool TryAutoAssignOwnerFromWorld();
 #endif
+
+public:
+    // Возвращает ассет (Floor / InteriorSet / Street/Region) куда регистрировать TransitionPoint
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Anchor|Editor")
+    UObject* GetOwnerRegistrationAsset() const;
 };

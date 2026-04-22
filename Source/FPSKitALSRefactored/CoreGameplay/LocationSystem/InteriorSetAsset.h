@@ -12,35 +12,26 @@ class FPSKITALSREFACTORED_API UInteriorSetAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Identity")
     FGuid InteriorSetID;
 
-    // Опционально: для общих/безымянных зданий можно оставить пустым
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Identity")
     FText DisplayName;
 
-    // ── Иерархия ───────────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Hierarchy")
     TSoftObjectPtr<class UStreetAsset> ParentStreet;
 
-    // ── Адрес ──────────────────────────────────────────────────────────────
-    // Читаемый адрес (например, "ул. Ленина, 12")
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Address")
     FText AddressLine;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Address")
     int32 AddressNumber = 0;
 
-    // ── Классификация ──────────────────────────────────────────────────────
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Classification")
     TArray<EInteriorSetFlag> ClassificationFlags;
 
-    // ── Входные переходы (двери на улицу) ──────────────────────────────────
-    // TransitionPoints, классифицированные как входы в здание
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Entrances")
-    TArray<FLocationTransitionPoint> EntranceTransitionPoints;
+    // Точки перехода в здании (входы) — видны в Editor, из BP только для чтения.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Transitions")
+    TArray<FLocationTransitionPoint> TransitionPoints;
 
-    // ── Этажи ──────────────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Floors")
     TArray<TSoftObjectPtr<class UFloorAsset>> Floors;
 

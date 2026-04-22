@@ -74,7 +74,8 @@ UInteriorTransitionPayload* UInteriorTransitionPayload::SetupFromDescriptor(cons
 				{
 					if (TP.TransitionPointID == Descriptor.TransitionPointId)
 					{
-						DestinationLink.TargetAnchorID = TP.DestinationLocationID;
+						// Ранее использовалось TP.DestinationLocationID (устарело) — используем новую модель
+						DestinationLink.TargetAnchorID = TP.DestinationLink.TargetAnchorID;
 						break;
 					}
 				}

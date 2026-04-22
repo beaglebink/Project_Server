@@ -12,39 +12,27 @@ class FPSKITALSREFACTORED_API UFloorAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
     FGuid FloorID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
     FText DisplayName;
 
-    // Порядковый номер этажа (0 = первый, отрицательные — подвалы)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
     int32 FloorIndex = 0;
 
-    // ── Уровень (сцена) для SeamlessTravel ────────────────────────────────
-    // Путь к карте которая загружается при переходе на этаж
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Level")
     TSoftObjectPtr<UWorld> FloorLevel;
 
-    // ── Иерархия ───────────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Hierarchy")
     TSoftObjectPtr<class UInteriorSetAsset> ParentInteriorSet;
 
-    // ── Навигация ──────────────────────────────────────────────────────────
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Navigation")
     FVector NavigationOrigin = FVector::ZeroVector;
-
-    // ── Пространственные элементы ──────────────────────────────────────────
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<FLocationZone> Zones;
-
-    // Якоря входа на этаж — используются для позиционирования игрока после загрузки
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
     TArray<FLocationAnchor> Anchors;
 
-    // Переходы: лестницы, лифты, двери между этажами и на улицу
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Spatial")
+    // TransitionPoints for floor (stairs, doors, etc.)
+    // Точки переходов этажа — видимы в Editor, из BP только для чтения.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Transitions")
     TArray<FLocationTransitionPoint> TransitionPoints;
 
 #if WITH_EDITOR
