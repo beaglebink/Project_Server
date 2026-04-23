@@ -12,6 +12,9 @@ class FPSKITALSREFACTORED_API UInteriorSetAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
+    // Стабильный идентификатор здания. UPROPERTY обязателен — сохраняется в .uasset
+    // и остаётся неизменным между сессиями редактора.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "InteriorSet|Identity")
     FGuid InteriorSetID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Identity")

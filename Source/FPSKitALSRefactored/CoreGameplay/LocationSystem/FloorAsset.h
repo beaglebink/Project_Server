@@ -12,6 +12,9 @@ class FPSKITALSREFACTORED_API UFloorAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
+    // Стабильный идентификатор этажа. UPROPERTY обязателен — сохраняется в .uasset
+    // и остаётся неизменным между сессиями редактора.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
     FGuid FloorID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
@@ -30,8 +33,6 @@ public:
     TArray<FLocationZone> Zones;
     TArray<FLocationAnchor> Anchors;
 
-    // TransitionPoints for floor (stairs, doors, etc.)
-    // Точки переходов этажа — видимы в Editor, из BP только для чтения.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Transitions")
     TArray<FLocationTransitionPoint> TransitionPoints;
 

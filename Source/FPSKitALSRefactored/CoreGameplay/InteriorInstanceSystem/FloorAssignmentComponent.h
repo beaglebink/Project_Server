@@ -5,6 +5,14 @@
 #include "FloorPopulationTypes.h"
 #include "FloorAssignmentComponent.generated.h"
 
+// Канал снапшота — расширяемый список, пока достаточен None / Snapshot
+UENUM(BlueprintType)
+enum class ESnapshotChannel : uint8
+{
+	None     UMETA(DisplayName = "None"),
+	Snapshot UMETA(DisplayName = "Snapshot"),
+};
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UFloorAssignmentComponent : public UActorComponent
 {
@@ -13,25 +21,37 @@ class FPSKITALSREFACTORED_API UFloorAssignmentComponent : public UActorComponent
 public:
 	UFloorAssignmentComponent();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FloorAssignment")
+	// Имя интерьера (для визуализации)
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
 	FText InteriorSetName;
 
-	UPROPERTY(VisibleAnywhere, Category = "FloorAssignment")
+	// GUID интерьера (сохраняется в экземпляре уровня)
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
 	FGuid InteriorSetId;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FloorAssignment")
+	// Отображаемое имя этажа
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
 	FText FloorName;
 
-	UPROPERTY(VisibleAnywhere, Category = "FloorAssignment")
+	// GUID этажа (сохраняется в экземпляре уровня)
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
 	FGuid FloorId;
 
+	// Тип актора на этаже
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
 	EFloorActorType ActorType = EFloorActorType::LightItem;
 
+	// Опциональный якорь (GUID)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
 	FGuid AnchorId;
 
+	// Стабильный идентификатор экземпляра для сопоставления с snapshot (сохраняется в .umap)
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
 	FGuid ItemId;
+
+	// Канал снапшота — если != None, актор участвует в сохранении/восстановлении
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+	ESnapshotChannel SnapshotChannel = ESnapshotChannel::None;
 
 	UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
 	FGuid GetInteriorSetId() const { return InteriorSetId; }

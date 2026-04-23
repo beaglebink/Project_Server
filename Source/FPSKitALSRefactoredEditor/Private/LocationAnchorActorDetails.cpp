@@ -24,9 +24,8 @@
 template<typename T>
 static void ClearSoft(TSoftObjectPtr<T>& Ptr) { Ptr = TSoftObjectPtr<T>(); }
 
-static void ScanLevelForAnchors(
-    const FSoftObjectPath& LevelSoftPath,
-    TArray<TPair<FGuid, FText>>& OutAnchors)
+// ── Сканирование уровня на якоря ──────────────────────────────────────────
+static void ScanLevelForAnchors(const FSoftObjectPath& LevelSoftPath, TArray<TPair<FGuid, FText>>& OutAnchors)
 {
     OutAnchors.Empty();
     if (!LevelSoftPath.IsValid()) return;
@@ -52,7 +51,11 @@ static void ScanLevelForAnchors(
             OutAnchors.Add(TPair<FGuid, FText>(Anchor->AnchorID, Label));
         }
     }
+
+    UE_LOG(LogTemp, Log, TEXT("ScanLevelForAnchors: найдено %d якорей"), OutAnchors.Num());
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 TSharedRef<IDetailCustomization> FLocationAnchorActorDetails::MakeInstance()
 {
@@ -74,23 +77,23 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         }
     }
 
-    // Единая категория — ECategoryPriority::Important гарантирует её показ вверху
+    // Use a single visible category
     IDetailCategoryBuilder& Cat = DetailBuilder.EditCategory(
-        "Location Anchor (Editor)",
-        FText::GetEmpty(),
+        "Location Anchor Editor",
+        LOCTEXT("CatLabel", "Location Anchor Editor"),
         ECategoryPriority::Important);
 
-    // ─── Owner (Registration) ─────────────────────────────────────────────
-    Cat.AddCustomRow(LOCTEXT("OwnerSepRow", "Owner"))
+    // Owner
+    Cat.AddCustomRow(LOCTEXT("OwnerSep", "--- Owner (Registration) ---"))
     .WholeRowContent()
     [
         SNew(STextBlock)
-        .Text(LOCTEXT("OwnerSep", "─── Owner (Registration) ───"))
+        .Text(LOCTEXT("OwnerSepLabel", "--- Owner (Registration) ---"))
         .Font(IDetailLayoutBuilder::GetDetailFontBold())
     ];
 
     Cat.AddCustomRow(LOCTEXT("OwnerRegionRow", "Owner Region"))
-    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("OwnerRegionLabel", "Owner Region")).Font(IDetailLayoutBuilder::GetDetailFont()) ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("OwnerRegionLabel", "Owner Region")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SObjectPropertyEntryBox)
@@ -101,7 +104,7 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
     ];
 
     Cat.AddCustomRow(LOCTEXT("OwnerStreetRow", "Owner Street"))
-    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("OwnerStreetLabel", "Owner Street")).Font(IDetailLayoutBuilder::GetDetailFont()) ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("OwnerStreetLabel", "Owner Street")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SObjectPropertyEntryBox)
@@ -112,7 +115,7 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
     ];
 
     Cat.AddCustomRow(LOCTEXT("OwnerInteriorSetRow", "Owner Building"))
-    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("OwnerInteriorSetLabel", "Owner Building")).Font(IDetailLayoutBuilder::GetDetailFont()) ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("OwnerInteriorSetLabel", "Owner Building")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SObjectPropertyEntryBox)
@@ -123,7 +126,7 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
     ];
 
     Cat.AddCustomRow(LOCTEXT("OwnerFloorRow", "Owner Floor"))
-    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("OwnerFloorLabel", "Owner Floor")).Font(IDetailLayoutBuilder::GetDetailFont()) ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("OwnerFloorLabel", "Owner Floor")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SObjectPropertyEntryBox)
@@ -133,17 +136,17 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         .AllowClear(true)
     ];
 
-    // ─── Destination (Link) ───────────────────────────────────────────────
-    Cat.AddCustomRow(LOCTEXT("DestSepRow", "Destination"))
+    // Destination
+    Cat.AddCustomRow(LOCTEXT("DestSep", "--- Destination (Link) ---"))
     .WholeRowContent()
     [
         SNew(STextBlock)
-        .Text(LOCTEXT("DestSep", "─── Destination (Link) ───"))
+        .Text(LOCTEXT("DestSepLabel", "--- Destination (Link) ---"))
         .Font(IDetailLayoutBuilder::GetDetailFontBold())
     ];
 
     Cat.AddCustomRow(LOCTEXT("RegionRow", "Target Region"))
-    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("RegionLabel", "Target Region")).Font(IDetailLayoutBuilder::GetDetailFont()) ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("RegionLabel", "Target Region")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SObjectPropertyEntryBox)
@@ -154,7 +157,7 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
     ];
 
     Cat.AddCustomRow(LOCTEXT("StreetRow", "Target Street"))
-    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("StreetLabel", "Target Street")).Font(IDetailLayoutBuilder::GetDetailFont()) ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("StreetLabel", "Target Street")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SObjectPropertyEntryBox)
@@ -165,7 +168,7 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
     ];
 
     Cat.AddCustomRow(LOCTEXT("InteriorSetRow", "Target Building"))
-    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("InteriorSetLabel", "Target Building")).Font(IDetailLayoutBuilder::GetDetailFont()) ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("InteriorSetLabel", "Target Building")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SObjectPropertyEntryBox)
@@ -176,7 +179,7 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
     ];
 
     Cat.AddCustomRow(LOCTEXT("FloorRow", "Target Floor"))
-    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("FloorLabel", "Target Floor")).Font(IDetailLayoutBuilder::GetDetailFont()) ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("FloorLabel", "Target Floor")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SObjectPropertyEntryBox)
@@ -186,16 +189,11 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         .AllowClear(true)
     ];
 
+    // Anchor combo + Apply
     RebuildAnchorList();
 
-    // Target Anchor combo + Apply button — в одной строке, всегда видны
     Cat.AddCustomRow(LOCTEXT("AnchorRow", "Target Anchor"))
-    .NameContent()
-    [
-        SNew(STextBlock)
-        .Text(LOCTEXT("TargetAnchorLabel", "Target Anchor"))
-        .Font(IDetailLayoutBuilder::GetDetailFont())
-    ]
+    .NameContent()[ SNew(STextBlock).Text(LOCTEXT("TargetAnchorLabel", "Target Anchor")) ]
     .ValueContent().MaxDesiredWidth(600.f)
     [
         SNew(SHorizontalBox)
@@ -237,7 +235,7 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
     ];
 }
 
-// ── Owner pickers ─────────────────────────────────────────────────────────
+// Owner pickers...
 
 void FLocationAnchorActorDetails::OnOwnerRegionPicked(const FAssetData& AssetData)
 {
@@ -314,9 +312,10 @@ void FLocationAnchorActorDetails::OnOwnerFloorPicked(const FAssetData& AssetData
         }
     }
     Actor->MarkPackageDirty();
+    if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
 }
 
-// ── Destination pickers ───────────────────────────────────────────────────
+// Destination pickers implementations...
 
 void FLocationAnchorActorDetails::OnRegionPicked(const FAssetData& AssetData)
 {
@@ -372,7 +371,7 @@ void FLocationAnchorActorDetails::OnFloorPicked(const FAssetData& AssetData)
     if (AnchorComboBox.IsValid()) AnchorComboBox->RefreshOptions();
 }
 
-// ── Anchor list ───────────────────────────────────────────────────────────
+// Anchor list / selection...
 
 void FLocationAnchorActorDetails::RebuildAnchorList()
 {
@@ -409,8 +408,7 @@ void FLocationAnchorActorDetails::RebuildAnchorList()
 
     if (AnchorOptions.Num() == 0)
     {
-        AnchorOptions.Add(MakeShared<FString>(
-            LevelPath.IsValid() ? TEXT("<Якоря не найдены>") : TEXT("<Укажите Floor или Region>")));
+        AnchorOptions.Add(MakeShared<FString>(LevelPath.IsValid() ? TEXT("<Якоря не найдены>") : TEXT("<Укажите Floor или Region>")));
         CurrentAnchorSelection = AnchorOptions[0];
         return;
     }
@@ -442,13 +440,12 @@ void FLocationAnchorActorDetails::OnAnchorSelected(TSharedPtr<FString> NewValue,
     CurrentAnchorSelection = NewValue;
 }
 
-// ── Apply ─────────────────────────────────────────────────────────────────
-
 FReply FLocationAnchorActorDetails::OnApplyClicked()
 {
     ALocationAnchorActor* Actor = TargetActor.Get();
     if (!Actor) return FReply::Handled();
 
+    // Разбираем выбранный якорь
     FGuid SelectedGuid;
     FText SelectedDisplayName;
     if (CurrentAnchorSelection.IsValid())
@@ -467,16 +464,19 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
         return FReply::Handled();
     }
 
+    // Сохраняем прямую ссылку
     Actor->Modify();
     Actor->DestinationLink.TargetAnchorID          = SelectedGuid;
     Actor->DestinationLink.TargetAnchorDisplayName = SelectedDisplayName;
     Actor->MarkPackageDirty();
 
+    // Собираем адрес источника из Owner-полей актора
     TSoftObjectPtr<UWorldRegionAsset> SourceRegion      = Actor->OwnerRegion;
     TSoftObjectPtr<UStreetAsset>      SourceStreet      = Actor->OwnerStreet;
     TSoftObjectPtr<UInteriorSetAsset> SourceInteriorSet = Actor->OwnerInteriorSet;
     TSoftObjectPtr<UFloorAsset>       SourceFloor       = Actor->OwnerFloor;
 
+    // Определяем уровень целевого якоря
     FSoftObjectPath TargetLevelPath;
     if (!Actor->DestinationLink.TargetFloor.IsNull())
     {
@@ -491,6 +491,7 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
                 TargetLevelPath = Region->RegionLevel.ToSoftObjectPath();
     }
 
+    // Записываем обратную ссылку в целевом якоре и обновляем ассеты/TransitionPoints через ULocationEditorUtils
     if (TargetLevelPath.IsValid())
     {
         const FString PackageName = TargetLevelPath.GetLongPackageName();
@@ -510,6 +511,7 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
                     if (!DestAnchor || DestAnchor->AnchorID != SelectedGuid) continue;
 
                     DestAnchor->Modify();
+                    // Полный адрес источника → в DestinationLink целевого якоря
                     DestAnchor->DestinationLink.TargetRegion      = SourceRegion;
                     DestAnchor->DestinationLink.TargetStreet      = SourceStreet;
                     DestAnchor->DestinationLink.TargetInteriorSet = SourceInteriorSet;
@@ -518,9 +520,11 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
                     DestAnchor->DestinationLink.TargetAnchorDisplayName = Actor->DisplayName.IsEmpty()
                         ? FText::FromString(Actor->GetName()) : Actor->DisplayName;
 
-                    ULocationEditorUtils::RegisterTransitionPoint(Actor);
+                    // Зарегистрировать переходной пункт для целевого якоря
+                    ULocationEditorUtils::RegisterTransitionPoint(DestAnchor);
 
                     LevelPackage->MarkPackageDirty();
+
                     UE_LOG(LogTemp, Log, TEXT("LocationAnchorActorDetails: обратная ссылка записана в '%s' [%s]"),
                         *DestAnchor->GetName(), *DestAnchor->AnchorID.ToString());
                     break;
@@ -529,41 +533,14 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
         }
     }
 
-    // RegisterTransitionPoint even if no DestAnchor found on target level
+    // Регистрируем TransitionPoint в ассете источника
     ULocationEditorUtils::RegisterTransitionPoint(Actor);
 
+    if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
     return FReply::Handled();
 }
 
-// ── Path getters ──────────────────────────────────────────────────────────
-
-FString FLocationAnchorActorDetails::GetOwnerRegionPath() const
-{
-    ALocationAnchorActor* Actor = TargetActor.Get();
-    if (!Actor || Actor->OwnerRegion.IsNull()) return FString();
-    return Actor->OwnerRegion.ToSoftObjectPath().GetAssetPathString();
-}
-
-FString FLocationAnchorActorDetails::GetOwnerStreetPath() const
-{
-    ALocationAnchorActor* Actor = TargetActor.Get();
-    if (!Actor || Actor->OwnerStreet.IsNull()) return FString();
-    return Actor->OwnerStreet.ToSoftObjectPath().GetAssetPathString();
-}
-
-FString FLocationAnchorActorDetails::GetOwnerInteriorSetPath() const
-{
-    ALocationAnchorActor* Actor = TargetActor.Get();
-    if (!Actor || Actor->OwnerInteriorSet.IsNull()) return FString();
-    return Actor->OwnerInteriorSet.ToSoftObjectPath().GetAssetPathString();
-}
-
-FString FLocationAnchorActorDetails::GetOwnerFloorPath() const
-{
-    ALocationAnchorActor* Actor = TargetActor.Get();
-    if (!Actor || Actor->OwnerFloor.IsNull()) return FString();
-    return Actor->OwnerFloor.ToSoftObjectPath().GetAssetPathString();
-}
+// Path getters...
 
 FString FLocationAnchorActorDetails::GetSelectedRegionPath() const
 {
@@ -591,6 +568,34 @@ FString FLocationAnchorActorDetails::GetSelectedFloorPath() const
     ALocationAnchorActor* Actor = TargetActor.Get();
     if (!Actor || Actor->DestinationLink.TargetFloor.IsNull()) return FString();
     return Actor->DestinationLink.TargetFloor.ToSoftObjectPath().GetAssetPathString();
+}
+
+FString FLocationAnchorActorDetails::GetOwnerRegionPath() const
+{
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor || Actor->OwnerRegion.IsNull()) return FString();
+    return Actor->OwnerRegion.ToSoftObjectPath().GetAssetPathString();
+}
+
+FString FLocationAnchorActorDetails::GetOwnerStreetPath() const
+{
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor || Actor->OwnerStreet.IsNull()) return FString();
+    return Actor->OwnerStreet.ToSoftObjectPath().GetAssetPathString();
+}
+
+FString FLocationAnchorActorDetails::GetOwnerInteriorSetPath() const
+{
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor || Actor->OwnerInteriorSet.IsNull()) return FString();
+    return Actor->OwnerInteriorSet.ToSoftObjectPath().GetAssetPathString();
+}
+
+FString FLocationAnchorActorDetails::GetOwnerFloorPath() const
+{
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor || Actor->OwnerFloor.IsNull()) return FString();
+    return Actor->OwnerFloor.ToSoftObjectPath().GetAssetPathString();
 }
 
 #undef LOCTEXT_NAMESPACE

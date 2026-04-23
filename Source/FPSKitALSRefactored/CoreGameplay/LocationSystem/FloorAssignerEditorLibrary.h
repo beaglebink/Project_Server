@@ -9,7 +9,6 @@ class UFloorAssignmentComponent;
 /**
  * Editor-only utilities for floor assignment.
  * Plain C++ — не UCLASS, не виден Blueprint-ам в Shipping.
- * Используй напрямую из C++ Editor-кода или Editor Utility Widget через C++-вызов.
  */
 class FPSKITALSREFACTORED_API FFloorAssignerEditorLibrary
 {
@@ -23,7 +22,6 @@ public:
     static TMap<FGuid, FText> GetFloors(const FGuid& InteriorSetGuid);
     static int32 ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid);
 
-    // Validation utilities: remove stale TransitionPoints (no actor present) from specific asset by GUID
     static int32 ValidateStreetTransitions(const FGuid& StreetGuid);
     static int32 ValidateInteriorSetTransitions(const FGuid& InteriorSetGuid);
     static int32 ValidateFloorTransitions(const FGuid& FloorGuid);

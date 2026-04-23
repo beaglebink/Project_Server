@@ -13,30 +13,11 @@ void UFloorAssignmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Ensure ItemId exists for stable identification.
-	// Editor: generate deterministic GUID based on actor path so it's stable between editor sessions/saves.
-	// Runtime (packaged/play): fallback to NewGuid() for transient instances.
+	// Если ItemId отсутствует — генерируем runtime GUID.
+	// В редакторе ItemId ставится инструментом и сохраняется в .umap, поэтому здесь не модифицируем пакеты.
 	if (!ItemId.IsValid())
 	{
-#if WITH_EDITOR
-		// Deterministic GUID derived from actor path — stable and reproducible in editor
-		const FString ObjectPath = GetOwner() ? GetOwner()->GetPathName() : FString();
-		ItemId = FGuid::NewDeterministicGuid(ObjectPath, 0);
-
-		// Persist generated id into the level instance so it's stable in editor sessions.
-		if (!GetOwner()->HasAnyFlags(RF_ClassDefaultObject))
-		{
-			Modify();
-			GetOwner()->Modify();
-			if (UPackage* Pkg = GetOwner()->GetOutermost())
-			{
-				Pkg->MarkPackageDirty();
-			}
-		}
-#else
-		// Runtime: create transient GUID
 		ItemId = FGuid::NewGuid();
-#endif
 	}
 
 	// Publish placement registration via EventBus
@@ -49,7 +30,6 @@ void UFloorAssignmentComponent::BeginPlay()
 				UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
 				if (Payload)
 				{
-					// Передаём полный трансформ владельца
 					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId, GetOwner());
 
 					FOutcomeEventBase Ev;

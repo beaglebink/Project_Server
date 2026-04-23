@@ -234,7 +234,9 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
 		if (!Comp) continue;
-		if (Comp->GetInteriorSetId() != InteriorSetId || Comp->GetFloorId() != FloorId) continue;
+
+		// Учитываем канал: если не помечен — пропустить
+		if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
 
 		FFloorSavedActorState Snapshot;
 		Snapshot.ItemId = Comp->ItemId;
@@ -262,6 +264,10 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 			UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
 			if (!ChildFloorComp) continue;
+			// Пропускаем дочерний actor, если он не помечен
+			if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
+			// Проверяем InteriorSetId для дочернего компонента (не FloorId)
+			if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
 
 			FFloorSavedActorState ChildSnapshot;
 			ChildSnapshot.ItemId = ChildFloorComp->ItemId;
@@ -306,7 +312,13 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, co
 		AActor* Actor = *It;
 		if (!IsValid(Actor)) continue;
 		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
-			ActorByItemId.Add(C->ItemId, Actor);
+		{
+			// Восстанавливаем только актёров, помеченных каналом
+			if (C->SnapshotChannel != ESnapshotChannel::None)
+			{
+				ActorByItemId.Add(C->ItemId, Actor);
+			}
+		}
 
 		TArray<UChildActorComponent*> ChildComps;
 		Actor->GetComponents<UChildActorComponent>(ChildComps);
@@ -316,7 +328,12 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, co
 			AActor* ChildActor = ChildComp->GetChildActor();
 			if (!IsValid(ChildActor)) continue;
 			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
-				ActorByItemId.Add(CC->ItemId, ChildActor);
+			{
+				if (CC->SnapshotChannel != ESnapshotChannel::None)
+				{
+					ActorByItemId.Add(CC->ItemId, ChildActor);
+				}
+			}
 		}
 	}
 
