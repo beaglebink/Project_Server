@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
@@ -17,8 +17,10 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-	TObjectPtr<UOutcomeConditionAsset> GhostClearedCondition;
+    // Subsystem listens for GhostCleared outcomes and broadcasts them via Blueprint events.
+    // (Подсистема слушает исходы GhostCleared и ретранслирует их через Blueprint-события.)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+    TObjectPtr<UOutcomeConditionAsset> GhostClearedCondition;
 
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
 	FOnSpawnGhostClearedEvent OnGhostCleared;

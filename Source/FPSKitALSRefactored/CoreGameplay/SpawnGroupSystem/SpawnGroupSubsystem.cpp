@@ -1,4 +1,4 @@
-#include "SpawnGroupSubsystem.h"
+﻿#include "SpawnGroupSubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "GhostClearedPayload.h"
 
@@ -7,10 +7,12 @@ void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	CachedEventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 
-	if (GhostClearedCondition)
-	{
-		SubscribeGhostCleared();
-	}
+    // Lazy subscribe if the condition is set in editor or at runtime
+    // (Ленивая подписка, если условие задано в редакторе или в рантайме)
+    if (GhostClearedCondition)
+    {
+        SubscribeGhostCleared();
+    }
 }
 
 void USpawnGroupSubsystem::Deinitialize()

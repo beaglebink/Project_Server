@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
@@ -165,9 +165,10 @@ private:
 	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
 
 private:
-	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
-	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
-	{
-		return RegistrationListeners;
-	}
+    // Implementation required by FInteractiveSubsystemMethods
+    // (Р РµР°Р»РёР·Р°С†РёСЏ, РЅРµРѕР±С…РѕРґРёРјР°СЏ РґР»СЏ FInteractiveSubsystemMethods)
+    virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
+    {
+        return RegistrationListeners;
+    }
 };

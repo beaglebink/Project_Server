@@ -18,9 +18,12 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	// Condition set in Editor or Blueprint (можно присвоить в BP)
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-	TObjectPtr<UOutcomeConditionAsset> ChangingLocationAvailabilityCondition;
+    // Condition asset that filters ChangingLocationAvailability outcomes.
+    // Assignable in Editor or at runtime from Blueprints.
+    // (Ассет условия для фильтрации исходов ChangingLocationAvailability.
+    //  Можно присвоить в редакторе или в рантайме из Blueprint.)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+    TObjectPtr<UOutcomeConditionAsset> ChangingLocationAvailabilityCondition;
 
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
 	FOnChangingLocationAvailabilityEvent OnChangingLocationAvailability;
