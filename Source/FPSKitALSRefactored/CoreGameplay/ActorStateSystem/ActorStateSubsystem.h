@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -84,7 +84,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void UnsubscribeAll();
 
-	// Per-item listener API: реализовано в базовом FInteractiveSubsystemMethods
+	// Per-item listener API: СЂРµР°Р»РёР·РѕРІР°РЅРѕ РІ Р±Р°Р·РѕРІРѕРј FInteractiveSubsystemMethods
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 
@@ -95,7 +95,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void SetMissionOrGhostCondition(UOutcomeConditionAsset* NewCondition);
 
-	// Подписка на команды интеракции
+	// РџРѕРґРїРёСЃРєР° РЅР° РєРѕРјР°РЅРґС‹ РёРЅС‚РµСЂР°РєС†РёРё
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void SubscribeInteractCommand();
 
@@ -163,13 +163,13 @@ private:
 	UPROPERTY()
 	TMap<FGuid, FActorInteractItemRecord> RegisteredItems;
 
-	// Per-item listeners: only invoked for matching ItemId (локальный контейнер)
+	// Per-item listeners: only invoked for matching ItemId (Р»РѕРєР°Р»СЊРЅС‹Р№ РєРѕРЅС‚РµР№РЅРµСЂ)
 	TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
 	// Cached EventBus
 	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
 
-	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
+	// Р РµР°Р»РёР·Р°С†РёСЏ Р°Р±СЃС‚СЂР°РєС‚РЅРѕРіРѕ РґРѕСЃС‚СѓРїР° РґР»СЏ FInteractiveSubsystemMethods
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
 	{
 		return RegistrationListeners;

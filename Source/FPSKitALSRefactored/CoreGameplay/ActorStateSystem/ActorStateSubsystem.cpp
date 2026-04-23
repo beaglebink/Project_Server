@@ -1,4 +1,4 @@
-#include "ActorStateSubsystem.h"
+п»ї#include "ActorStateSubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "ActorStatePayload.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
@@ -10,8 +10,9 @@
 
 void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	// Гарантируем что EventBusSubsystem будет инициализирован ДО ActorStateSubsystem
-	Collection.InitializeDependency(UEventBusSubsystem::StaticClass());
+    // Ensure EventBusSubsystem is initialized BEFORE ActorStateSubsystem
+    // (Р“Р°СЂР°РЅС‚РёСЂСѓРµРј С‡С‚Рѕ EventBusSubsystem Р±СѓРґРµС‚ РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅ Р”Рћ ActorStateSubsystem)
+    Collection.InitializeDependency(UEventBusSubsystem::StaticClass());
 
 	Super::Initialize(Collection);
 
@@ -23,20 +24,25 @@ void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		return;
 	}
 
-	// Subscribe interaction registration early (before actors call BeginPlay)
-	SubscribeRegistration();
+    // Subscribe interaction registration early (before actors call BeginPlay)
+    // (РџРѕРґРїРёСЃР°С‚СЊСЃСЏ РЅР° СЂРµРіРёСЃС‚СЂР°С†РёСЋ РёРЅС‚РµСЂР°РєС‚РёРІРЅС‹С… РѕР±СЉРµРєС‚РѕРІ Р·Р°СЂР°РЅРµРµ (РґРѕ РІС‹Р·РѕРІР° BeginPlay Сѓ Р°РєС‚РѕСЂРѕРІ))
+    SubscribeRegistration();
 
-	// Subscribe interact command handler явно — не зависит от статуса SubscribeRegistration
-	SubscribeInteractCommand();
+    // Subscribe interact command handler (explicit вЂ” does not depend on SubscribeRegistration state)
+    // (РџРѕРґРїРёСЃР°С‚СЊ РѕР±СЂР°Р±РѕС‚С‡РёРє РєРѕРјР°РЅРґ РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёСЏ СЏРІРЅРѕ вЂ” РЅРµ Р·Р°РІРёСЃРёС‚ РѕС‚ СЃС‚Р°С‚СѓСЃР° SubscribeRegistration)
+    SubscribeInteractCommand();
 
-	// Subscribe set enabled явно — не зависит от статуса SubscribeRegistration
-	SubscribeSetEnabled();
+    // Subscribe set enabled (explicit вЂ” does not depend on SubscribeRegistration state)
+    // (РџРѕРґРїРёСЃР°С‚СЊ РѕР±СЂР°Р±РѕС‚С‡РёРє СѓСЃС‚Р°РЅРѕРІРєРё enabled СЏРІРЅРѕ вЂ” РЅРµ Р·Р°РІРёСЃРёС‚ РѕС‚ СЃС‚Р°С‚СѓСЃР° SubscribeRegistration)
+    SubscribeSetEnabled();
 
-	// Subscribe set range явно — не зависит от статуса SubscribeRegistration
-	SubscribeSetRange();
+    // Subscribe set range (explicit вЂ” does not depend on SubscribeRegistration state)
+    // (РџРѕРґРїРёСЃР°С‚СЊ РѕР±СЂР°Р±РѕС‚С‡РёРє СѓСЃС‚Р°РЅРѕРІРєРё РґРёР°РїР°Р·РѕРЅР° СЏРІРЅРѕ вЂ” РЅРµ Р·Р°РІРёСЃРёС‚ РѕС‚ СЃС‚Р°С‚СѓСЃР° SubscribeRegistration)
+    SubscribeSetRange();
 
-	// Subscribe set tooltip явно — не зависит от статуса SubscribeRegistration
-	SubscribeSetTooltip();
+    // Subscribe set tooltip (explicit вЂ” does not depend on SubscribeRegistration state)
+    // (РџРѕРґРїРёСЃР°С‚СЊ РѕР±СЂР°Р±РѕС‚С‡РёРє СѓСЃС‚Р°РЅРѕРІРєРё С‚СѓР»С‚РёРїР° СЏРІРЅРѕ вЂ” РЅРµ Р·Р°РІРёСЃРёС‚ РѕС‚ СЃС‚Р°С‚СѓСЃР° SubscribeRegistration)
+    SubscribeSetTooltip();
 
 	// Lazy subscribe when condition already assigned
 	if (DialogueStartedCondition) SubscribeDialogueStarted();
@@ -109,7 +115,7 @@ void UActorStateSubsystem::SubscribeRegistration()
 	if (!CachedEventBus.IsValid()) return;
 	if (RegisteredRegisterHandle.IsValid() || UnregisteredRegisterHandle.IsValid()) return;
 
-	// InteractRegistered — Actor category
+	// InteractRegistered вЂ” Actor category
 	RegisteredConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	RegisteredConditionAsset->OperatorType = EConditionOperator::Composite;
 	RegisteredConditionAsset->FilterRow.OutcomeType = EOutcomeType::Actor;
@@ -118,7 +124,7 @@ void UActorStateSubsystem::SubscribeRegistration()
 	RegisteredConditionAsset->FilterRow.ActorComparison = EConditionComparison::Equals;
 	RegisteredConditionAsset->CompileCondition();
 
-	// InteractUnregistered — Actor category
+	// InteractUnregistered вЂ” Actor category
 	UnregisteredConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	UnregisteredConditionAsset->OperatorType = EConditionOperator::Composite;
 	UnregisteredConditionAsset->FilterRow.OutcomeType = EOutcomeType::Actor;
@@ -145,7 +151,7 @@ void UActorStateSubsystem::SubscribeRegistration()
 		UE_LOG(LogTemp, Log, TEXT("ActorStateSubsystem: Subscribed to InteractUnregistered (handle=%u)"), UnregisteredRegisterHandle.GetId());
 	}
 
-	// SubscribeInteractCommand() теперь вызывается из Initialize() явно — убрано отсюда
+	// SubscribeInteractCommand() С‚РµРїРµСЂСЊ РІС‹Р·С‹РІР°РµС‚СЃСЏ РёР· Initialize() СЏРІРЅРѕ вЂ” СѓР±СЂР°РЅРѕ РѕС‚СЃСЋРґР°
 }
 
 void UActorStateSubsystem::UnsubscribeRegistration()
@@ -180,14 +186,16 @@ void UActorStateSubsystem::UnsubscribeAll()
 
 void UActorStateSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 {
-	// Делегирование в базовый класс
-	FInteractiveSubsystemMethods::AddRegistrationListener(ItemId, Listener);
+    // Delegation to base class
+    // (Р”РµР»РµРіРёСЂРѕРІР°РЅРёРµ РІ Р±Р°Р·РѕРІС‹Р№ РєР»Р°СЃСЃ)
+    FInteractiveSubsystemMethods::AddRegistrationListener(ItemId, Listener);
 }
 
 void UActorStateSubsystem::RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 {
-	// Делегирование в базовый класс
-	FInteractiveSubsystemMethods::RemoveRegistrationListener(ItemId, Listener);
+    // Delegation to base class
+    // (Р”РµР»РµРіРёСЂРѕРІР°РЅРёРµ РІ Р±Р°Р·РѕРІС‹Р№ РєР»Р°СЃСЃ)
+    FInteractiveSubsystemMethods::RemoveRegistrationListener(ItemId, Listener);
 }
 
 void UActorStateSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Outcome)

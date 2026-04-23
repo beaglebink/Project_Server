@@ -34,7 +34,8 @@ struct FOutcomeEventBase
 	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EOutcomeSpawnGroup OutcomeSpawnGroup = EOutcomeSpawnGroup::Default;
 
-	// ------- ВОССТАНОВЛЕНО: поле состояния мира, ожидаемое OutcomeQuery и другими частями кода
+	// ===== restored: world state field used by OutcomeQuery and other code
+	// (ВОССТАНОВЛЕНО: поле состояния мира, ожидаемое OutcomeQuery и другими частями кода)
 	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EWorldState WorldState = EWorldState::Default;
 

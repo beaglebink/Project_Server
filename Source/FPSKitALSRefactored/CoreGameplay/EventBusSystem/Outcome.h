@@ -1,7 +1,7 @@
 #pragma once
 
 // Event type enumeration
-// (Типы событий)
+// (Перечисление типов исходов/событий)
 UENUM(BlueprintType)
 enum class EOutcomeType : uint8
 {
