@@ -335,6 +335,15 @@ namespace FLocationEditorUtilsImpl
         return 0;
 #endif
     }
+
+int32 ValidateRegionTransitionsByGuid(const FGuid& RegionGuid)
+{
+#if WITH_EDITOR
+    return FFloorAssignerEditorLibrary::ValidateRegionTransitions(RegionGuid);
+#else
+    return 0;
+#endif
+}
 } // namespace FLocationEditorUtilsImpl
 
 #endif // WITH_EDITOR
@@ -480,6 +489,15 @@ int32 ULocationEditorUtils::ValidateFloorTransitionsByGuid(const FGuid& FloorGui
 {
 #if WITH_EDITOR
     return FFloorAssignerEditorLibrary::ValidateFloorTransitions(FloorGuid);
+#else
+    return 0;
+#endif
+}
+
+int32 ULocationEditorUtils::ValidateRegionTransitionsByGuid(const FGuid& RegionGuid)
+{
+#if WITH_EDITOR
+    return FFloorAssignerEditorLibrary::ValidateRegionTransitions(RegionGuid);
 #else
     return 0;
 #endif

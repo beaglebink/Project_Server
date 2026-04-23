@@ -41,6 +41,35 @@ static TArray<FAssetData> GetAssetDataByClassName(const FString& ClassName)
     return Result;
 }
 
+// Forward declaration: implemented further below
+static int32 UpdateTransitionPointsForAsset(UObject* Asset, const TArray<FSoftObjectPath>& LevelPaths);
+
+int32 FFloorAssignerEditorLibrary::ValidateRegionTransitions(const FGuid& RegionGuid)
+{
+    if (!RegionGuid.IsValid()) return 0;
+
+    for (const FAssetData& AD : GetAssetDataByClassName(TEXT("WorldRegionAsset")))
+    {
+        FSoftObjectPath Path = AD.ToSoftObjectPath();
+        UWorldRegionAsset* Region = Cast<UWorldRegionAsset>(AD.GetAsset());
+        if (!Region) Region = Cast<UWorldRegionAsset>(Path.TryLoad());
+        if (!Region) continue;
+        if (Region->WorldRegionID != RegionGuid) continue;
+
+        TArray<FSoftObjectPath> LevelPaths;
+        if (!Region->RegionLevel.IsNull()) LevelPaths.Add(Region->RegionLevel.ToSoftObjectPath());
+
+        int32 Removed = ULocationEditorUtils::ValidateAndCleanTransitionPoints(Region);
+        int32 Updated = UpdateTransitionPointsForAsset(Region, LevelPaths);
+
+        UE_LOG(LogTemp, Log, TEXT("ValidateRegionTransitions: Region '%s' removed %d, updated %d transition points"), *Region->GetName(), Removed, Updated);
+        return Removed + Updated;
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("ValidateRegionTransitions: Region with GUID %s not found"), *RegionGuid.ToString());
+    return 0;
+}
+
 static FText ResolveFloorDisplayName(const FGuid& FloorGuid)
 {
     if (!FloorGuid.IsValid())

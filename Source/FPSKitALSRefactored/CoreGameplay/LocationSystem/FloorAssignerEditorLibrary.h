@@ -23,6 +23,7 @@ public:
     static int32 ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid);
 
     static int32 ValidateStreetTransitions(const FGuid& StreetGuid);
+    static int32 ValidateRegionTransitions(const FGuid& RegionGuid);
     static int32 ValidateInteriorSetTransitions(const FGuid& InteriorSetGuid);
     static int32 ValidateFloorTransitions(const FGuid& FloorGuid);
 };

@@ -144,4 +144,9 @@ public:
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
 #endif
     static int32 ValidateFloorTransitionsByGuid(const FGuid& FloorGuid);
+
+#if WITH_EDITOR
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+#endif
+    static int32 ValidateRegionTransitionsByGuid(const FGuid& RegionGuid);
 };
