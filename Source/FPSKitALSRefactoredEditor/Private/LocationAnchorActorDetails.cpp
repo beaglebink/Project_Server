@@ -171,6 +171,16 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         SNew(SObjectPropertyEntryBox)
         .AllowedClass(UStreetAsset::StaticClass())
         .ObjectPath(this, &FLocationAnchorActorDetails::GetOwnerStreetPath)
+        .OnShouldFilterAsset_Lambda([this](const FAssetData& AD) {
+            ALocationAnchorActor* Actor = TargetActor.Get();
+            if (!Actor) return false;
+            if (Actor->OwnerRegion.IsNull()) return false;
+            UStreetAsset* S = Cast<UStreetAsset>(AD.GetAsset());
+            if (!S) S = Cast<UStreetAsset>(AD.ToSoftObjectPath().TryLoad());
+            if (!S) return true;
+            if (S->ParentWorldRegion.IsNull()) return true;
+            return S->ParentWorldRegion.ToSoftObjectPath() != Actor->OwnerRegion.ToSoftObjectPath();
+        })
         .OnObjectChanged(this, &FLocationAnchorActorDetails::OnOwnerStreetPicked)
         .AllowClear(true)
     ];
@@ -182,6 +192,7 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         SNew(SObjectPropertyEntryBox)
         .AllowedClass(UInteriorSetAsset::StaticClass())
         .ObjectPath(this, &FLocationAnchorActorDetails::GetOwnerInteriorSetPath)
+        .OnShouldFilterAsset(this, &FLocationAnchorActorDetails::ShouldFilterInteriorSetAsset)
         .OnObjectChanged(this, &FLocationAnchorActorDetails::OnOwnerInteriorSetPicked)
         .AllowClear(true)
     ];
@@ -193,6 +204,17 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         SNew(SObjectPropertyEntryBox)
         .AllowedClass(UFloorAsset::StaticClass())
         .ObjectPath(this, &FLocationAnchorActorDetails::GetOwnerFloorPath)
+        .OnShouldFilterAsset_Lambda([this](const FAssetData& AD) {
+            ALocationAnchorActor* Actor = TargetActor.Get();
+            if (!Actor) return true; // no target actor -> filter out
+            // If no interior set selected, hide floors
+            if (Actor->OwnerInteriorSet.IsNull()) return true;
+            UFloorAsset* F = Cast<UFloorAsset>(AD.GetAsset());
+            if (!F) F = Cast<UFloorAsset>(AD.ToSoftObjectPath().TryLoad());
+            if (!F) return true;
+            if (F->ParentInteriorSet.IsNull()) return true;
+            return F->ParentInteriorSet.ToSoftObjectPath() != Actor->OwnerInteriorSet.ToSoftObjectPath();
+        })
         .OnObjectChanged(this, &FLocationAnchorActorDetails::OnOwnerFloorPicked)
         .AllowClear(true)
     ];
@@ -304,7 +326,12 @@ void FLocationAnchorActorDetails::OnOwnerRegionPicked(const FAssetData& AssetDat
     if (!Actor) return;
     Actor->Modify();
     Actor->OwnerRegion = TSoftObjectPtr<UWorldRegionAsset>(AssetData.ToSoftObjectPath());
+    // Reset child owner fields when region changed
+    ClearSoft(Actor->OwnerStreet);
+    ClearSoft(Actor->OwnerInteriorSet);
+    ClearSoft(Actor->OwnerFloor);
     Actor->MarkPackageDirty();
+    if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
 }
 
 void FLocationAnchorActorDetails::OnOwnerStreetPicked(const FAssetData& AssetData)
@@ -313,6 +340,10 @@ void FLocationAnchorActorDetails::OnOwnerStreetPicked(const FAssetData& AssetDat
     if (!Actor) return;
     Actor->Modify();
     Actor->OwnerStreet = TSoftObjectPtr<UStreetAsset>(AssetData.ToSoftObjectPath());
+    // Reset child owner fields when street changed
+    ClearSoft(Actor->OwnerInteriorSet);
+    ClearSoft(Actor->OwnerFloor);
+
     if (!Actor->OwnerStreet.IsNull() && Actor->OwnerRegion.IsNull())
     {
         if (UStreetAsset* Street = Actor->OwnerStreet.LoadSynchronous())
@@ -320,6 +351,7 @@ void FLocationAnchorActorDetails::OnOwnerStreetPicked(const FAssetData& AssetDat
                 Actor->OwnerRegion = Street->ParentWorldRegion;
     }
     Actor->MarkPackageDirty();
+    if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
 }
 
 void FLocationAnchorActorDetails::OnOwnerInteriorSetPicked(const FAssetData& AssetData)
@@ -328,6 +360,9 @@ void FLocationAnchorActorDetails::OnOwnerInteriorSetPicked(const FAssetData& Ass
     if (!Actor) return;
     Actor->Modify();
     Actor->OwnerInteriorSet = TSoftObjectPtr<UInteriorSetAsset>(AssetData.ToSoftObjectPath());
+    // Reset child owner fields when interior set changed
+    ClearSoft(Actor->OwnerFloor);
+
     if (!Actor->OwnerInteriorSet.IsNull())
     {
         if (UInteriorSetAsset* Interior = Actor->OwnerInteriorSet.LoadSynchronous())
@@ -343,6 +378,7 @@ void FLocationAnchorActorDetails::OnOwnerInteriorSetPicked(const FAssetData& Ass
         }
     }
     Actor->MarkPackageDirty();
+    if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
 }
 
 void FLocationAnchorActorDetails::OnOwnerFloorPicked(const FAssetData& AssetData)
@@ -757,6 +793,21 @@ FString FLocationAnchorActorDetails::GetOwnerStreetPath() const
     return Actor->OwnerStreet.ToSoftObjectPath().GetAssetPathString();
 }
 
+bool FLocationAnchorActorDetails::ShouldFilterStreetAsset(const FAssetData& AssetData) const
+{
+    // Show only streets that belong to selected region (if any)
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor) return false;
+    if (Actor->OwnerRegion.IsNull()) return false;
+
+    UStreetAsset* S = Cast<UStreetAsset>(AssetData.GetAsset());
+    if (!S) S = Cast<UStreetAsset>(AssetData.ToSoftObjectPath().TryLoad());
+    if (!S) return true; // filter out invalid
+
+    if (S->ParentWorldRegion.IsNull()) return true;
+    return S->ParentWorldRegion.ToSoftObjectPath() != Actor->OwnerRegion.ToSoftObjectPath();
+}
+
 FString FLocationAnchorActorDetails::GetOwnerInteriorSetPath() const
 {
     ALocationAnchorActor* Actor = TargetActor.Get();
@@ -764,11 +815,40 @@ FString FLocationAnchorActorDetails::GetOwnerInteriorSetPath() const
     return Actor->OwnerInteriorSet.ToSoftObjectPath().GetAssetPathString();
 }
 
+bool FLocationAnchorActorDetails::ShouldFilterInteriorSetAsset(const FAssetData& AssetData) const
+{
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    if (!Actor) return false;
+    if (Actor->OwnerStreet.IsNull()) return false;
+
+    UInteriorSetAsset* IS = Cast<UInteriorSetAsset>(AssetData.GetAsset());
+    if (!IS) IS = Cast<UInteriorSetAsset>(AssetData.ToSoftObjectPath().TryLoad());
+    if (!IS) return true;
+
+    if (IS->ParentStreet.IsNull()) return true;
+    return IS->ParentStreet.ToSoftObjectPath() != Actor->OwnerStreet.ToSoftObjectPath();
+}
+
 FString FLocationAnchorActorDetails::GetOwnerFloorPath() const
 {
     ALocationAnchorActor* Actor = TargetActor.Get();
     if (!Actor || Actor->OwnerFloor.IsNull()) return FString();
     return Actor->OwnerFloor.ToSoftObjectPath().GetAssetPathString();
+}
+
+bool FLocationAnchorActorDetails::ShouldFilterFloorAsset(const FAssetData& AssetData) const
+{
+    ALocationAnchorActor* Actor = TargetActor.Get();
+    // If no actor or no interior set selected, hide (filter out) floors
+    if (!Actor) return true;
+    if (Actor->OwnerInteriorSet.IsNull()) return true;
+
+    UFloorAsset* F = Cast<UFloorAsset>(AssetData.GetAsset());
+    if (!F) F = Cast<UFloorAsset>(AssetData.ToSoftObjectPath().TryLoad());
+    if (!F) return true;
+
+    if (F->ParentInteriorSet.IsNull()) return true;
+    return F->ParentInteriorSet.ToSoftObjectPath() != Actor->OwnerInteriorSet.ToSoftObjectPath();
 }
 
 #undef LOCTEXT_NAMESPACE

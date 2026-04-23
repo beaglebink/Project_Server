@@ -341,6 +341,26 @@ bool ALocationAnchorActor::TryAutoAssignOwnerFromWorld()
                 {
                     OwnerContextType = ELocationContextType::Floor;
                     OwnerFloor = FloorAsset;
+                    // Fill parent chain: Floor -> InteriorSet -> Street -> Region
+                    if (!FloorAsset->ParentInteriorSet.IsNull())
+                    {
+                        OwnerInteriorSet = FloorAsset->ParentInteriorSet;
+                        if (UInteriorSetAsset* IS = FloorAsset->ParentInteriorSet.LoadSynchronous())
+                        {
+                            if (!IS->ParentStreet.IsNull())
+                            {
+                                OwnerStreet = IS->ParentStreet;
+                                if (UStreetAsset* S = IS->ParentStreet.LoadSynchronous())
+                                {
+                                    if (!S->ParentWorldRegion.IsNull())
+                                    {
+                                        OwnerRegion = S->ParentWorldRegion;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     return true;
                 }
             }

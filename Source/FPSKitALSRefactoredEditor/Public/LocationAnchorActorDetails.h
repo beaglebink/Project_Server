@@ -45,6 +45,11 @@ private:
     FString GetOwnerInteriorSetPath() const;
     FString GetOwnerFloorPath() const;
 
+    // Asset filter helpers for owner pickers
+    bool ShouldFilterStreetAsset(const FAssetData& AssetData) const;
+    bool ShouldFilterInteriorSetAsset(const FAssetData& AssetData) const;
+    bool ShouldFilterFloorAsset(const FAssetData& AssetData) const;
+
     // Selected actor(s)
     TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
