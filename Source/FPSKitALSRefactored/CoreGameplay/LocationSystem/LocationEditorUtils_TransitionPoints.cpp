@@ -40,8 +40,7 @@ static bool IsAnchorPresentOnLevel(const FGuid& AnchorID, const FSoftObjectPath&
     return false;
 }
 
-/** Локальная реализация: находит актор-янкор по AnchorID на уровне LevelSoftPath (если загружен пакет).
-    Имя функции переименовано, чтобы не дублировать реализацию в другом TU. */
+/** Локальная реализация: находит актор-якорь по AnchorID на уровне LevelSoftPath */
 static ALocationAnchorActor* FindAnchorOnLevel_Local(const FGuid& AnchorID, const FSoftObjectPath& LevelSoftPath)
 {
     if (!AnchorID.IsValid() || !LevelSoftPath.IsValid()) return nullptr;
@@ -86,7 +85,7 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
     TP.SourceWorldOrientation  = SourceAnchor->GetActorRotation();
     TP.DestinationLink         = SourceAnchor->DestinationLink;
 
-    // Попробуем найти актор назначения в Level (и заполнить DestinationAnchor / TargetAnchorActor)
+    // Попробуем найти актор назначения в Level
     if (TP.DestinationLink.TargetAnchorID.IsValid())
     {
         FSoftObjectPath DestLevelPath;
@@ -113,7 +112,8 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
         }
     }
 
-    // Определяем ассет регистрации (Floor / InteriorSet / Street)
+    // Определяем ассет регистрации через GetOwnerRegistrationAsset()
+    // Приоритет: Floor > InteriorSet > Street > Region (без улицы и дома → Region)
     UObject* RegAsset = SourceAnchor->GetOwnerRegistrationAsset();
     if (!RegAsset)
     {
@@ -154,9 +154,125 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
         return true;
     }
 
+    // WorldRegion — актор без улицы и дома
+    if (UWorldRegionAsset* Region = Cast<UWorldRegionAsset>(RegAsset))
+    {
+        Region->Modify();
+        FLocationTransitionPoint* Existing = Region->TransitionPoints.FindByPredicate(
+            [&](const FLocationTransitionPoint& P) { return P.TransitionPointID == TP.TransitionPointID; });
+        if (Existing) { *Existing = TP; } else { Region->TransitionPoints.Add(TP); }
+        Region->MarkPackageDirty();
+        return true;
+    }
+
     UE_LOG(LogTemp, Warning, TEXT("RegisterTransitionPoint: unknown registration asset type '%s'"), *RegAsset->GetClass()->GetName());
     return false;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RemoveTransitionPointFromAllAssets
+// Вариант А: сканирует ВСЕ ассеты через AssetRegistry и удаляет запись по AnchorID.
+// ─────────────────────────────────────────────────────────────────────────────
+int32 ULocationEditorUtils::RemoveTransitionPointFromAllAssets(const FGuid& AnchorID)
+{
+    if (!AnchorID.IsValid()) return 0;
+
+    FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+    IAssetRegistry& AR = ARM.Get();
+
+    int32 RemovedTotal = 0;
+
+    // Вспомогательная лямбда — удаляет из массива и маркирует ассет грязным
+    auto RemoveFromArray = [&](TArray<FLocationTransitionPoint>& Points, UObject* Owner) -> int32
+    {
+        const int32 Before = Points.Num();
+        Points.RemoveAll([&](const FLocationTransitionPoint& P)
+        {
+            return P.TransitionPointID == AnchorID;
+        });
+        const int32 Removed = Before - Points.Num();
+        if (Removed > 0)
+        {
+            Owner->Modify();
+            Owner->MarkPackageDirty();
+            UE_LOG(LogTemp, Log, TEXT("RemoveTransitionPointFromAllAssets: удалено %d записей из '%s'"),
+                Removed, *Owner->GetName());
+        }
+        return Removed;
+    };
+
+    // ── WorldRegionAsset ──────────────────────────────────────────────────
+    {
+        FARFilter Filter;
+        Filter.ClassPaths.Add(UWorldRegionAsset::StaticClass()->GetClassPathName());
+        Filter.bRecursiveClasses = true;
+        TArray<FAssetData> Assets;
+        AR.GetAssets(Filter, Assets);
+
+        for (const FAssetData& AD : Assets)
+        {
+            UWorldRegionAsset* Asset = Cast<UWorldRegionAsset>(AD.GetAsset());
+            if (!Asset) Asset = Cast<UWorldRegionAsset>(AD.ToSoftObjectPath().TryLoad());
+            if (!Asset) continue;
+            RemovedTotal += RemoveFromArray(Asset->TransitionPoints, Asset);
+        }
+    }
+
+    // ── StreetAsset ───────────────────────────────────────────────────────
+    {
+        FARFilter Filter;
+        Filter.ClassPaths.Add(UStreetAsset::StaticClass()->GetClassPathName());
+        Filter.bRecursiveClasses = true;
+        TArray<FAssetData> Assets;
+        AR.GetAssets(Filter, Assets);
+
+        for (const FAssetData& AD : Assets)
+        {
+            UStreetAsset* Asset = Cast<UStreetAsset>(AD.GetAsset());
+            if (!Asset) Asset = Cast<UStreetAsset>(AD.ToSoftObjectPath().TryLoad());
+            if (!Asset) continue;
+            RemovedTotal += RemoveFromArray(Asset->TransitionPoints, Asset);
+        }
+    }
+
+    // ── InteriorSetAsset ──────────────────────────────────────────────────
+    {
+        FARFilter Filter;
+        Filter.ClassPaths.Add(UInteriorSetAsset::StaticClass()->GetClassPathName());
+        Filter.bRecursiveClasses = true;
+        TArray<FAssetData> Assets;
+        AR.GetAssets(Filter, Assets);
+
+        for (const FAssetData& AD : Assets)
+        {
+            UInteriorSetAsset* Asset = Cast<UInteriorSetAsset>(AD.GetAsset());
+            if (!Asset) Asset = Cast<UInteriorSetAsset>(AD.ToSoftObjectPath().TryLoad());
+            if (!Asset) continue;
+            RemovedTotal += RemoveFromArray(Asset->TransitionPoints, Asset);
+        }
+    }
+
+    // ── FloorAsset ────────────────────────────────────────────────────────
+    {
+        FARFilter Filter;
+        Filter.ClassPaths.Add(UFloorAsset::StaticClass()->GetClassPathName());
+        Filter.bRecursiveClasses = true;
+        TArray<FAssetData> Assets;
+        AR.GetAssets(Filter, Assets);
+
+        for (const FAssetData& AD : Assets)
+        {
+            UFloorAsset* Asset = Cast<UFloorAsset>(AD.GetAsset());
+            if (!Asset) Asset = Cast<UFloorAsset>(AD.ToSoftObjectPath().TryLoad());
+            if (!Asset) continue;
+            RemovedTotal += RemoveFromArray(Asset->TransitionPoints, Asset);
+        }
+    }
+
+    return RemovedTotal;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
 {
@@ -171,7 +287,6 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
             const FGuid ID = Points[i].TransitionPointID;
             bool bFound = false;
 
-            // Если SourceAnchor soft ptr валиден — быстрая проверка
             if (!Points[i].SourceAnchor.IsNull())
             {
                 UObject* Obj = Points[i].SourceAnchor.Get();
@@ -184,7 +299,6 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
                 }
             }
 
-            // Иначе сканируем связные уровни
             if (!bFound)
             {
                 for (const FSoftObjectPath& LP : LevelPaths)
@@ -204,6 +318,7 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
         RemovedTotal += Removed;
     };
 
+    // Floor
     if (UFloorAsset* Floor = Cast<UFloorAsset>(Asset))
     {
         if (!Floor->FloorLevel.IsNull())
@@ -212,6 +327,7 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
             CheckAndRemove(Floor->TransitionPoints, Paths, Floor);
         }
     }
+    // InteriorSet
     else if (UInteriorSetAsset* Interior = Cast<UInteriorSetAsset>(Asset))
     {
         TArray<FSoftObjectPath> Paths;
@@ -234,13 +350,12 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
         for (const TSoftObjectPtr<UFloorAsset>& FR : Interior->Floors)
         {
             if (FR.IsValid())
-            {
                 Paths.Add(FR.ToSoftObjectPath());
-            }
         }
 
         CheckAndRemove(Interior->TransitionPoints, Paths, Interior);
     }
+    // Street
     else if (UStreetAsset* Street = Cast<UStreetAsset>(Asset))
     {
         TArray<FSoftObjectPath> Paths;
@@ -269,6 +384,15 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
         }
 
         CheckAndRemove(Street->TransitionPoints, Paths, Street);
+    }
+    // WorldRegion — точки перехода без улицы и дома
+    else if (UWorldRegionAsset* Region = Cast<UWorldRegionAsset>(Asset))
+    {
+        TArray<FSoftObjectPath> Paths;
+        if (!Region->RegionLevel.IsNull())
+            Paths.Add(Region->RegionLevel.ToSoftObjectPath());
+
+        CheckAndRemove(Region->TransitionPoints, Paths, Region);
     }
 
     return RemovedTotal;

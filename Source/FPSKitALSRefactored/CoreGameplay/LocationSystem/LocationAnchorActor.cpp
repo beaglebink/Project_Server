@@ -59,15 +59,20 @@ void ALocationAnchorActor::PostLoad()
 
 UObject* ALocationAnchorActor::GetOwnerRegistrationAsset() const
 {
-    if (OwnerContextType == ELocationContextType::Floor && !OwnerFloor.IsNull())
+    // Приоритет: Floor > InteriorSet > Street > Region
+    // OwnerContextType намеренно игнорируется — используем только заполненные поля.
+    if (!OwnerFloor.IsNull())
         return OwnerFloor.LoadSynchronous();
 
-    if (OwnerContextType == ELocationContextType::Street)
-    {
-        if (!OwnerInteriorSet.IsNull()) return OwnerInteriorSet.LoadSynchronous();
-        if (!OwnerStreet.IsNull())      return OwnerStreet.LoadSynchronous();
-        if (!OwnerRegion.IsNull())      return OwnerRegion.LoadSynchronous();
-    }
+    if (!OwnerInteriorSet.IsNull())
+        return OwnerInteriorSet.LoadSynchronous();
+
+    if (!OwnerStreet.IsNull())
+        return OwnerStreet.LoadSynchronous();
+
+    if (!OwnerRegion.IsNull())
+        return OwnerRegion.LoadSynchronous();
+
     return nullptr;
 }
 

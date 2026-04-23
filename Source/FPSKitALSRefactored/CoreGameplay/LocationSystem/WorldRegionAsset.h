@@ -38,6 +38,12 @@ public:
     //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Spatial")
     TArray<FLocationAnchor> Anchors;
 
+    // ── Точки перехода уровня района (акторы без улицы и дома) ────────────
+    // Заполняются автоматически при нажатии Apply на ALocationAnchorActor,
+    // у которого не указаны OwnerStreet и OwnerInteriorSet.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Transitions")
+    TArray<FLocationTransitionPoint> TransitionPoints;
+
     // ── Дочерние улицы ─────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldRegion|Streets")
     TArray<TSoftObjectPtr<class UStreetAsset>> Streets;

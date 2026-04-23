@@ -16,8 +16,6 @@ class FPSKITALSREFACTORED_API ULocationEditorUtils : public UBlueprintFunctionLi
     GENERATED_BODY()
 
 public:
-    // Здесь UFUNCTION доступны только в редакторе, но сами декларации функций
-    // присутствуют всегда — это устраняет ошибки компоновки в Shipping.
 #if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
 #endif
@@ -104,7 +102,7 @@ public:
         UFloorAsset* DestFloor,
         const FGuid& DestAnchorID);
 
-    // --- New: transition points management ---
+    // --- Transition points management ---
 #if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
 #endif
@@ -119,6 +117,17 @@ public:
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
 #endif
     static int32 ValidateAllTransitionPoints();
+
+    /**
+     * Сканирует ВСЕ ассеты (WorldRegionAsset, StreetAsset, InteriorSetAsset, FloorAsset)
+     * через AssetRegistry и удаляет из них FLocationTransitionPoint с TransitionPointID == AnchorID.
+     * Используется при смене «адреса» актора перед регистрацией в новом ассете.
+     * @return Количество удалённых записей.
+     */
+#if WITH_EDITOR
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+#endif
+    static int32 RemoveTransitionPointFromAllAssets(const FGuid& AnchorID);
 
     // Blueprint-callable validation wrappers (call from Blutility)
 #if WITH_EDITOR

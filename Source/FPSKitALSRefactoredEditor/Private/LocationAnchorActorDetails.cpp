@@ -470,6 +470,18 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
     Actor->DestinationLink.TargetAnchorDisplayName = SelectedDisplayName;
     Actor->MarkPackageDirty();
 
+    // ── Миграция: удаляем старую запись TransitionPoint из ВСЕХ ассетов ──
+    // (на случай если Owner актора изменился с прошлого Apply)
+    if (Actor->AnchorID.IsValid())
+    {
+        const int32 Removed = ULocationEditorUtils::RemoveTransitionPointFromAllAssets(Actor->AnchorID);
+        if (Removed > 0)
+        {
+            UE_LOG(LogTemp, Log, TEXT("LocationAnchorActorDetails: удалено %d старых TransitionPoint записей для '%s'"),
+                Removed, *Actor->GetName());
+        }
+    }
+
     // Собираем адрес источника из Owner-полей актора
     TSoftObjectPtr<UWorldRegionAsset> SourceRegion      = Actor->OwnerRegion;
     TSoftObjectPtr<UStreetAsset>      SourceStreet      = Actor->OwnerStreet;
@@ -491,7 +503,7 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
                 TargetLevelPath = Region->RegionLevel.ToSoftObjectPath();
     }
 
-    // Записываем обратную ссылку в целевом якоре и обновляем ассеты/TransitionPoints через ULocationEditorUtils
+    // Записываем обратную ссылку в целевом якоре и регистрируем его TransitionPoint
     if (TargetLevelPath.IsValid())
     {
         const FString PackageName = TargetLevelPath.GetLongPackageName();
@@ -511,7 +523,6 @@ FReply FLocationAnchorActorDetails::OnApplyClicked()
                     if (!DestAnchor || DestAnchor->AnchorID != SelectedGuid) continue;
 
                     DestAnchor->Modify();
-                    // Полный адрес источника → в DestinationLink целевого якоря
                     DestAnchor->DestinationLink.TargetRegion      = SourceRegion;
                     DestAnchor->DestinationLink.TargetStreet      = SourceStreet;
                     DestAnchor->DestinationLink.TargetInteriorSet = SourceInteriorSet;
