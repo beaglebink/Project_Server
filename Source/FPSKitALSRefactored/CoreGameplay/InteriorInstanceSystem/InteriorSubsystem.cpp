@@ -555,12 +555,12 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 {
 	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
-	if (!P || !P->IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: payload невалиден"));
-		OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
-		return;
-	}
+    if (!P || !P->IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: payload invalid (payload невалиден)"));
+        OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
+        return;
+    }
 
 	TransitionPayloadCache = P;
 	UWorld* W = GetWorld();
@@ -572,12 +572,12 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 
 	// Получаем путь целевого уровня из payload
 	const FString TargetLevelPath = P->GetTargetLevelPackageName();
-	if (TargetLevelPath.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: не удалось определить целевой уровень"));
-		OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
-		return;
-	}
+    if (TargetLevelPath.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: failed to determine target level (не удалось определить целевой уровень)"));
+        OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
+        return;
+    }
 
 	// --- ВАЖНО: объявляем TargetAnchorID здесь, чтобы он был виден далее в функции ---
 	const FGuid TargetAnchorID = P->GetTargetAnchorID();
@@ -619,13 +619,13 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 		*CurrentLevelShort, *TargetLevelPath, *NormTarget, *TargetAnchorID.ToString());
 
 	// Сравниваем короткое имя текущего уровня с нормализованным именем целевого уровня
-	if (!CurrentLevelShort.IsEmpty() && !NormTarget.IsEmpty() && CurrentLevelShort == NormTarget)
-	{
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: та же карта (по имени) — телепортируем на месте"));
-		const bool bOk = TeleportToAnchor(TargetAnchorID);
-		OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache->DestinationLink, false);
-		return;
-	}
+    if (!CurrentLevelShort.IsEmpty() && !NormTarget.IsEmpty() && CurrentLevelShort == NormTarget)
+    {
+        UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: same map (by name) — teleporting in-place (та же карта (по имени) — телепортируем на месте)"));
+        const bool bOk = TeleportToAnchor(TargetAnchorID);
+        OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache->DestinationLink, false);
+        return;
+    }
 
 	SetPendingAnchorID(TargetAnchorID);
 

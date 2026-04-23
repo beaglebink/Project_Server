@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
@@ -7,7 +7,7 @@
 #include "MissionSubsystem.generated.h"
 
 // All handlers receive FOutcomeEventBase - cast Payload to concrete type inside handler
-// (Все обработчики получают FOutcomeEventBase - кастуй Payload к конкретному типу внутри)
+// (Р’СЃРµ РѕР±СЂР°Р±РѕС‚С‡РёРєРё РїРѕР»СѓС‡Р°СЋС‚ FOutcomeEventBase вЂ” РІРЅСѓС‚СЂРё РїСЂРёРІРµРґРёС‚Рµ Payload Рє РєРѕРЅРєСЂРµС‚РЅРѕРјСѓ С‚РёРїСѓ)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGhostClearedEvent,    const FOutcomeEventBase&, Outcome);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionProgressEvent, const FOutcomeEventBase&, Outcome);
 
@@ -21,7 +21,7 @@ public:
 	virtual void Deinitialize() override;
 
 	// Condition assets assigned in Editor Details panel or at runtime via Set*
-	// (Ассеты условий можно присвоить в редакторе или в рантайме через Set*)
+	// (РђСЃСЃРµС‚С‹ СѓСЃР»РѕРІРёР№ РјРѕР¶РЅРѕ РїСЂРёСЃРІРѕРёС‚СЊ РІ СЂРµРґР°РєС‚РѕСЂРµ РёР»Рё РІ СЂР°РЅС‚Р°Р№РјРµ С‡РµСЂРµР· Set*)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> GhostClearedCondition;
 
@@ -51,7 +51,7 @@ public:
 	void UnsubscribeAll();
 
 	// Set condition at runtime and (re)subscribe automatically
-	// (Присвоить условие в рантайме и автоматически (пере)подписаться)
+	// (РџСЂРёСЃРІРѕРёС‚СЊ СѓСЃР»РѕРІРёРµ РІ СЂР°РЅС‚Р°Р№РјРµ Рё Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё (РїРµСЂРµ)РїРѕРґРїРёСЃР°С‚СЊСЃСЏ)
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void SetGhostClearedCondition(UOutcomeConditionAsset* NewCondition);
 

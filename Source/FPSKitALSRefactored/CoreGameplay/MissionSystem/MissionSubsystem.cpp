@@ -7,8 +7,8 @@ void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	// Lazy subscribe: only subscribe if condition assigned in editor or earlier
-	// (Ленивая подписка: подписываемся только если ассет задан в редакторе или ранее)
+    // Lazy subscribe: only subscribe if condition assigned in editor or earlier
+    // (Ленивая подписка: подписываемся только если ассет задан в редакторе или раньше)
 	if (GhostClearedCondition)
 	{
 		SubscribeGhostCleared();

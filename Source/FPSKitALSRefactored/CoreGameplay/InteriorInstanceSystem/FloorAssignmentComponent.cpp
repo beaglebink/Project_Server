@@ -1,4 +1,4 @@
-#include "FloorAssignmentComponent.h"
+ï»¿#include "FloorAssignmentComponent.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "FloorPlacementPayload.h"
 #include "Engine/World.h"
@@ -13,14 +13,17 @@ void UFloorAssignmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Åñëè ItemId îòñóòñòâóåò — ãåíåðèðóåì runtime GUID.
-	// Â ðåäàêòîðå ItemId ñòàâèòñÿ èíñòðóìåíòîì è ñîõðàíÿåòñÿ â .umap, ïîýòîìó çäåñü íå ìîäèôèöèðóåì ïàêåòû.
+    // If ItemId is absent â€” generate a runtime GUID.
+    // (Ð•ÑÐ»Ð¸ ItemId Ð¾Ñ‚ÑÑƒÑ‚ÑÑ‚Ð²ÑƒÐµÑ‚ â€” Ð³ÐµÐ½ÐµÑ€Ð¸Ñ€ÑƒÐµÐ¼ runtime GUID.)
+    // In editor the ItemId is set by the tool and saved to .umap, so we don't modify assets here.
+    // (Ð’ Ñ€ÐµÐ´Ð°ÐºÑ‚Ð¾Ñ€Ðµ ItemId ÑÑ‚Ð°Ð²Ð¸Ñ‚ÑÑ Ð¸Ð½ÑÑ‚Ñ€ÑƒÐ¼ÐµÐ½Ñ‚Ð¾Ð¼ Ð¸ ÑÐ¾Ñ…Ñ€Ð°Ð½ÑÐµÑ‚ÑÑ Ð² .umap, Ð¿Ð¾ÑÑ‚Ð¾Ð¼Ñƒ Ð·Ð´ÐµÑÑŒ Ð½Ðµ Ð¼Ð¾Ð´Ð¸Ñ„Ð¸Ñ†Ð¸Ñ€ÑƒÐµÐ¼ Ð¿Ð°ÐºÐµÑ‚Ñ‹.)
 	if (!ItemId.IsValid())
 	{
 		ItemId = FGuid::NewGuid();
 	}
 
-	// Publish placement registration via EventBus
+    // Publish placement registration via EventBus
+    // (ÐŸÑƒÐ±Ð»Ð¸ÐºÑƒÐµÐ¼ Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ð°Ñ†Ð¸ÑŽ Ñ€Ð°Ð·Ð¼ÐµÑ‰ÐµÐ½Ð¸Ñ Ñ‡ÐµÑ€ÐµÐ· EventBus)
 	if (UWorld* W = GetWorld())
 	{
 		if (UGameInstance* GI = W->GetGameInstance())

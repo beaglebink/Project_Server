@@ -13,7 +13,8 @@ enum class EFloorActorType : uint8
 	Debris 			UMETA(DisplayName = "Debris")
 };
 
-// Ключ: конкретное здание (InteriorSetId) + этаж (FloorId)
+// Key: specific building (InteriorSetId) + floor (FloorId)
+// (Ключ: конкретное здание (InteriorSetId) + этаж (FloorId))
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FInteriorFloorKey
 {
@@ -35,8 +36,10 @@ struct FPSKITALSREFACTORED_API FInteriorFloorKey
 	}
 };
 
-// Хеш-функция для ключа — формируем хеши из компонент GUID напрямую,
-// чтобы избежать неоднозначности при разрешении перегрузок GetTypeHash.
+// Hash function for the key — combine hashes of GUID components directly
+// to avoid ambiguity when resolving GetTypeHash overloads.
+// (Хеш-функция для ключа — формируем хеши из компонент GUID напрямую,
+// чтобы избежать неоднозначности при разрешении перегрузок GetTypeHash.)
 FORCEINLINE uint32 GetTypeHash(const FInteriorFloorKey& K)
 {
 	auto HashGuid = [](const FGuid& G) -> uint32
@@ -53,7 +56,8 @@ FORCEINLINE uint32 GetTypeHash(const FInteriorFloorKey& K)
 	return HashCombine(H1, H2);
 }
 
-// Запись о размещённом объекте (из уровня или заспавненном)
+// Record of a placed object (from the level or spawned)
+// (Запись о размещённом объекте (из уровня или заспавненном))
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 {
@@ -71,7 +75,8 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	FGuid AnchorId;
 
-	// Мировой трансформ экземпляра — теперь сохраняем полный трансформ вместо только позиции
+    // World transform of the instance — now store full transform instead of only position
+    // (Мировой трансформ экземпляра — теперь сохраняем полный трансформ вместо только позиции)
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	FTransform WorldTransform = FTransform::Identity;
 
@@ -79,7 +84,8 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 	bool bHasAnchor = false;
 };
 
-// Группировка массивов по семантике для одного ключа (InteriorSet + Floor).
+// Grouping of arrays by semantic categories for one key (InteriorSet + Floor).
+// (Группировка массивов по семантике для одного ключа (InteriorSet + Floor).)
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FFloorPopulationBuckets
 {

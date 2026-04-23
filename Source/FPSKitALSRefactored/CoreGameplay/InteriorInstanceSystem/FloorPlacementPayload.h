@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
@@ -23,9 +23,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
 	FGuid AnchorId;
 
-	// Теперь передаём полный трансформ
-	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
-	FTransform WorldTransform = FTransform::Identity;
+    // Optional world transform of the placed actor
+    // (РћРїС†РёРѕРЅР°Р»СЊРЅР°СЏ РјРёСЂРѕРІР°СЏ С‚СЂР°РЅСЃС„РѕСЂРјР°С†РёСЏ СЂР°Р·РјРµС‰С‘РЅРЅРѕРіРѕ Р°РєС‚РѕСЂР°)
+    UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
+    FTransform WorldTransform = FTransform::Identity;
 
 	// Optional stable id (from component) to identify the placed actor
 	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")

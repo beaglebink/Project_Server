@@ -1,3 +1,4 @@
+п»ї// Original header: keep engine macros intact and comments in Russian
 #pragma once
 
 #include "CoreMinimal.h"
@@ -5,61 +6,61 @@
 #include "FloorPopulationTypes.h"
 #include "FloorAssignmentComponent.generated.h"
 
-// Канал снапшота — расширяемый список, пока достаточен None / Snapshot
+// РљР°РЅР°Р» СЃРЅР°РїС€РѕС‚Р° вЂ” СЂР°СЃС€РёСЂСЏРµРјС‹Р№ СЃРїРёСЃРѕРє, РїРѕРєР° РґРѕСЃС‚Р°С‚РѕС‡РµРЅ None / Snapshot
 UENUM(BlueprintType)
 enum class ESnapshotChannel : uint8
 {
-	None     UMETA(DisplayName = "None"),
-	Snapshot UMETA(DisplayName = "Snapshot"),
+    None     UMETA(DisplayName = "None"),
+    Snapshot UMETA(DisplayName = "Snapshot"),
 };
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UFloorAssignmentComponent : public UActorComponent
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	UFloorAssignmentComponent();
+    UFloorAssignmentComponent();
 
-	// Имя интерьера (для визуализации)
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
-	FText InteriorSetName;
+    // РРјСЏ РёРЅС‚РµСЂСЊРµСЂР° (РґР»СЏ РІРёР·СѓР°Р»РёР·Р°С†РёРё)
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    FText InteriorSetName;
 
-	// GUID интерьера (сохраняется в экземпляре уровня)
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
-	FGuid InteriorSetId;
+    // GUID РёРЅС‚РµСЂСЊРµСЂР° (СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ СЌРєР·РµРјРїР»СЏСЂРµ СѓСЂРѕРІРЅСЏ)
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    FGuid InteriorSetId;
 
-	// Отображаемое имя этажа
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
-	FText FloorName;
+    // РћС‚РѕР±СЂР°Р¶Р°РµРјРѕРµ РёРјСЏ СЌС‚Р°Р¶Р°
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    FText FloorName;
 
-	// GUID этажа (сохраняется в экземпляре уровня)
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
-	FGuid FloorId;
+    // GUID СЌС‚Р°Р¶Р° (СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ СЌРєР·РµРјРїР»СЏСЂРµ СѓСЂРѕРІРЅСЏ)
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    FGuid FloorId;
 
-	// Тип актора на этаже
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
-	EFloorActorType ActorType = EFloorActorType::LightItem;
+    // РўРёРї Р°РєС‚РѕСЂР° РЅР° СЌС‚Р°Р¶Рµ
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
+    EFloorActorType ActorType = EFloorActorType::LightItem;
 
-	// Опциональный якорь (GUID)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
-	FGuid AnchorId;
+    // РћРїС†РёРѕРЅР°Р»СЊРЅС‹Р№ СЏРєРѕСЂСЊ (GUID)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
+    FGuid AnchorId;
 
-	// Стабильный идентификатор экземпляра для сопоставления с snapshot (сохраняется в .umap)
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
-	FGuid ItemId;
+    // РЎС‚Р°Р±РёР»СЊРЅС‹Р№ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЌРєР·РµРјРїР»СЏСЂР° РґР»СЏ СЃРѕРїРѕСЃС‚Р°РІР»РµРЅРёСЏ СЃ snapshot (СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ .umap)
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    FGuid ItemId;
 
-	// Канал снапшота — если != None, актор участвует в сохранении/восстановлении
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
-	ESnapshotChannel SnapshotChannel = ESnapshotChannel::None;
+    // РљР°РЅР°Р» СЃРЅР°РїС€РѕС‚Р° вЂ” РµСЃР»Рё != None, Р°РєС‚РѕСЂ СѓС‡Р°СЃС‚РІСѓРµС‚ РІ СЃРѕС…СЂР°РЅРµРЅРёРё/РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРё
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    ESnapshotChannel SnapshotChannel = ESnapshotChannel::None;
 
-	UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
-	FGuid GetInteriorSetId() const { return InteriorSetId; }
+    UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
+    FGuid GetInteriorSetId() const { return InteriorSetId; }
 
-	UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
-	FGuid GetFloorId() const { return FloorId; }
+    UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
+    FGuid GetFloorId() const { return FloorId; }
 
 protected:
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 };
