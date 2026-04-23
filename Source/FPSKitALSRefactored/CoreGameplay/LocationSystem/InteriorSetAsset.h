@@ -14,19 +14,19 @@ class FPSKITALSREFACTORED_API UInteriorSetAsset : public UPrimaryDataAsset
 public:
     // Стабильный идентификатор здания. UPROPERTY обязателен — сохраняется в .uasset
     // и остаётся неизменным между сессиями редактора.
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "InteriorSet|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Identity")
     FGuid InteriorSetID;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Identity")
     FText DisplayName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Hierarchy")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Hierarchy")
     TSoftObjectPtr<class UStreetAsset> ParentStreet;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Address")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Address")
     FText AddressLine;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Address")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Address")
     int32 AddressNumber = 0;
 
     TArray<EInteriorSetFlag> ClassificationFlags;
@@ -35,7 +35,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Transitions")
     TArray<FLocationTransitionPoint> TransitionPoints;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Floors")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Floors")
     TArray<TSoftObjectPtr<class UFloorAsset>> Floors;
 
 #if WITH_EDITOR

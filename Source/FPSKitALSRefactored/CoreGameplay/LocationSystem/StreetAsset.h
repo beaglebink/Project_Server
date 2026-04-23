@@ -12,9 +12,10 @@ class FPSKITALSREFACTORED_API UStreetAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Street|Identity")
     FGuid StreetID;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Street|Identity")
     FText DisplayName;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Hierarchy")
@@ -35,7 +36,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Transitions")
     TArray<FLocationTransitionPoint> TransitionPoints;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Buildings")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Street|Buildings")
     TArray<TSoftObjectPtr<class UInteriorSetAsset>> InteriorSets;
 
 #if WITH_EDITOR

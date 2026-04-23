@@ -11,7 +11,7 @@ class FPSKITALSREFACTORED_API UWorldMapAsset : public UPrimaryDataAsset
 
 public:
     // ── Идентификатор ──────────────────────────────────────────────────────
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldMap|Identity")
     FGuid WorldMapID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Identity")

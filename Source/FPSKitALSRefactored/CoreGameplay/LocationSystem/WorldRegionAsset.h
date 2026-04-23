@@ -12,7 +12,7 @@ class FPSKITALSREFACTORED_API UWorldRegionAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldRegion|Identity")
     FGuid WorldRegionID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Identity")
@@ -39,7 +39,7 @@ public:
     TArray<FLocationAnchor> Anchors;
 
     // ── Дочерние улицы ─────────────────────────────────────────────────────
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Streets")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldRegion|Streets")
     TArray<TSoftObjectPtr<class UStreetAsset>> Streets;
 
 #if WITH_EDITOR

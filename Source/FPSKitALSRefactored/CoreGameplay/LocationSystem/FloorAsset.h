@@ -14,13 +14,13 @@ class FPSKITALSREFACTORED_API UFloorAsset : public UPrimaryDataAsset
 public:
     // Стабильный идентификатор этажа. UPROPERTY обязателен — сохраняется в .uasset
     // и остаётся неизменным между сессиями редактора.
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Floor|Identity")
     FGuid FloorID;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Floor|Identity")
     FText DisplayName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Floor|Identity")
     int32 FloorIndex = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Level")
