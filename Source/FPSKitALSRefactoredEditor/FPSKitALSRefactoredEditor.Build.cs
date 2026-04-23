@@ -6,6 +6,8 @@ public class FPSKitALSRefactoredEditor : ModuleRules
 {
     public FPSKitALSRefactoredEditor(ReadOnlyTargetRules Target) : base(Target)
     {
+	OptimizeCode = CodeOptimization.Never;
+
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         PrivateDependencyModuleNames.AddRange(new string[] {

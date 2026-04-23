@@ -25,7 +25,20 @@ template<typename T>
 static void ClearSoft(TSoftObjectPtr<T>& Ptr) { Ptr = TSoftObjectPtr<T>(); }
 
 // ── Сканирование уровня на якоря ──────────────────────────────────────────
-static void ScanLevelForAnchors(const FSoftObjectPath& LevelSoftPath, TArray<TPair<FGuid, FText>>& OutAnchors)
+struct FAnchorOwnerFilter
+{
+    TSoftObjectPtr<UWorldRegionAsset> Region;
+    TSoftObjectPtr<UStreetAsset> Street;
+    TSoftObjectPtr<UInteriorSetAsset> InteriorSet;
+    TSoftObjectPtr<UFloorAsset> Floor;
+
+    bool IsAny() const
+    {
+        return !Region.IsNull() || !Street.IsNull() || !InteriorSet.IsNull() || !Floor.IsNull();
+    }
+};
+
+static void ScanLevelForAnchors(const FSoftObjectPath& LevelSoftPath, TArray<TPair<FGuid, FText>>& OutAnchors, const FAnchorOwnerFilter* OwnerFilter = nullptr, const TSet<FGuid>* AllowedGUIDs = nullptr, const FGuid* ExcludeAnchorID = nullptr)
 {
     OutAnchors.Empty();
     if (!LevelSoftPath.IsValid()) return;
@@ -46,6 +59,54 @@ static void ScanLevelForAnchors(const FSoftObjectPath& LevelSoftPath, TArray<TPa
         if (!IsValid(Actor)) continue;
         if (ALocationAnchorActor* Anchor = Cast<ALocationAnchorActor>(Actor))
         {
+            // Skip the anchor we are currently editing
+            if (ExcludeAnchorID && ExcludeAnchorID->IsValid() && Anchor->AnchorID == *ExcludeAnchorID)
+                continue;
+            if (OwnerFilter && OwnerFilter->IsAny())
+            {
+                // Debug: show anchor's owner pointers vs filter
+                FString FilterRegion = OwnerFilter->Region.IsNull() ? TEXT("<null>") : OwnerFilter->Region.ToSoftObjectPath().GetAssetPathString();
+                FString FilterStreet = OwnerFilter->Street.IsNull() ? TEXT("<null>") : OwnerFilter->Street.ToSoftObjectPath().GetAssetPathString();
+                FString FilterInterior = OwnerFilter->InteriorSet.IsNull() ? TEXT("<null>") : OwnerFilter->InteriorSet.ToSoftObjectPath().GetAssetPathString();
+                FString FilterFloor = OwnerFilter->Floor.IsNull() ? TEXT("<null>") : OwnerFilter->Floor.ToSoftObjectPath().GetAssetPathString();
+                FString AnchorRegion = Anchor->OwnerRegion.IsNull() ? TEXT("<null>") : Anchor->OwnerRegion.ToSoftObjectPath().GetAssetPathString();
+                FString AnchorStreet = Anchor->OwnerStreet.IsNull() ? TEXT("<null>") : Anchor->OwnerStreet.ToSoftObjectPath().GetAssetPathString();
+                FString AnchorInterior = Anchor->OwnerInteriorSet.IsNull() ? TEXT("<null>") : Anchor->OwnerInteriorSet.ToSoftObjectPath().GetAssetPathString();
+                FString AnchorFloor = Anchor->OwnerFloor.IsNull() ? TEXT("<null>") : Anchor->OwnerFloor.ToSoftObjectPath().GetAssetPathString();
+                UE_LOG(LogTemp, Log, TEXT("ScanLevelForAnchors: Anchor '%s' owners: Region=%s Street=%s Interior=%s Floor=%s  Filter: R=%s S=%s I=%s F=%s"), *Anchor->GetName(), *AnchorRegion, *AnchorStreet, *AnchorInterior, *AnchorFloor, *FilterRegion, *FilterStreet, *FilterInterior, *FilterFloor);
+                if (!OwnerFilter->Region.IsNull())
+                {
+                    if (Anchor->OwnerRegion.IsNull() || Anchor->OwnerRegion.ToSoftObjectPath() != OwnerFilter->Region.ToSoftObjectPath())
+                    {
+                        UE_LOG(LogTemp, Log, TEXT("ScanLevelForAnchors: skipping '%s' due Region mismatch (anchor owner %s)"), *Anchor->GetName(), *AnchorRegion);
+                        continue;
+                    }
+                }
+                if (!OwnerFilter->Street.IsNull())
+                {
+                    if (Anchor->OwnerStreet.IsNull() || Anchor->OwnerStreet.ToSoftObjectPath() != OwnerFilter->Street.ToSoftObjectPath())
+                    {
+                        UE_LOG(LogTemp, Log, TEXT("ScanLevelForAnchors: skipping '%s' due Street mismatch (anchor owner %s)"), *Anchor->GetName(), *AnchorStreet);
+                        continue;
+                    }
+                }
+                if (!OwnerFilter->InteriorSet.IsNull())
+                {
+                    if (Anchor->OwnerInteriorSet.IsNull() || Anchor->OwnerInteriorSet.ToSoftObjectPath() != OwnerFilter->InteriorSet.ToSoftObjectPath())
+                    {
+                        UE_LOG(LogTemp, Log, TEXT("ScanLevelForAnchors: skipping '%s' due InteriorSet mismatch (anchor owner %s)"), *Anchor->GetName(), *AnchorInterior);
+                        continue;
+                    }
+                }
+                if (!OwnerFilter->Floor.IsNull())
+                {
+                    if (Anchor->OwnerFloor.IsNull() || Anchor->OwnerFloor.ToSoftObjectPath() != OwnerFilter->Floor.ToSoftObjectPath())
+                    {
+                        UE_LOG(LogTemp, Log, TEXT("ScanLevelForAnchors: skipping '%s' due Floor mismatch (anchor owner %s)"), *Anchor->GetName(), *AnchorFloor);
+                        continue;
+                    }
+                }
+            }
             FText Label = Anchor->DisplayName.IsEmpty()
                 ? FText::FromString(Anchor->GetName()) : Anchor->DisplayName;
             OutAnchors.Add(TPair<FGuid, FText>(Anchor->AnchorID, Label));
@@ -383,22 +444,123 @@ void FLocationAnchorActorDetails::RebuildAnchorList()
 
     FSoftObjectPath LevelPath;
 
-    if (!Actor->DestinationLink.TargetFloor.IsNull())
+    // Priority: Region -> Street -> InteriorSet (Building) -> Floor
+    if (!Actor->DestinationLink.TargetRegion.IsNull())
+    {
+        UWorldRegionAsset* Region = Actor->DestinationLink.TargetRegion.LoadSynchronous();
+        if (Region && !Region->RegionLevel.IsNull())
+        {
+            LevelPath = Region->RegionLevel.ToSoftObjectPath();
+        }
+    }
+
+    if (!LevelPath.IsValid() && !Actor->DestinationLink.TargetStreet.IsNull())
+    {
+        UStreetAsset* Street = Actor->DestinationLink.TargetStreet.LoadSynchronous();
+        if (Street && !Street->ParentWorldRegion.IsNull())
+        {
+            if (UWorldRegionAsset* R = Street->ParentWorldRegion.LoadSynchronous())
+            {
+                if (!R->RegionLevel.IsNull())
+                    LevelPath = R->RegionLevel.ToSoftObjectPath();
+            }
+        }
+    }
+
+    if (!LevelPath.IsValid() && !Actor->DestinationLink.TargetInteriorSet.IsNull())
+    {
+        UInteriorSetAsset* IS = Actor->DestinationLink.TargetInteriorSet.LoadSynchronous();
+        if (IS)
+        {
+            // Prefer first floor's level if available
+            if (!IS->Floors.IsEmpty())
+            {
+                UFloorAsset* FF = IS->Floors[0].LoadSynchronous();
+                if (FF && !FF->FloorLevel.IsNull())
+                {
+                    LevelPath = FF->FloorLevel.ToSoftObjectPath();
+                }
+            }
+
+            // Fallback to parent street -> parent region level
+            if (!LevelPath.IsValid() && !IS->ParentStreet.IsNull())
+            {
+                if (UStreetAsset* S = IS->ParentStreet.LoadSynchronous())
+                {
+                    if (!S->ParentWorldRegion.IsNull())
+                    {
+                        if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous())
+                        {
+                            if (!R->RegionLevel.IsNull())
+                                LevelPath = R->RegionLevel.ToSoftObjectPath();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!LevelPath.IsValid() && !Actor->DestinationLink.TargetFloor.IsNull())
     {
         UFloorAsset* Floor = Actor->DestinationLink.TargetFloor.LoadSynchronous();
         if (Floor && !Floor->FloorLevel.IsNull())
             LevelPath = Floor->FloorLevel.ToSoftObjectPath();
     }
 
-    if (!LevelPath.IsValid() && !Actor->DestinationLink.TargetRegion.IsNull())
+    // If a specific floor is selected, prefer its level regardless of previously resolved LevelPath
+    if (!Actor->DestinationLink.TargetFloor.IsNull())
     {
-        UWorldRegionAsset* Region = Actor->DestinationLink.TargetRegion.LoadSynchronous();
-        if (Region && !Region->RegionLevel.IsNull())
-            LevelPath = Region->RegionLevel.ToSoftObjectPath();
+        if (UFloorAsset* Floor = Actor->DestinationLink.TargetFloor.LoadSynchronous())
+        {
+            if (!Floor->FloorLevel.IsNull())
+            {
+                LevelPath = Floor->FloorLevel.ToSoftObjectPath();
+            }
+        }
     }
 
-    TArray<TPair<FGuid, FText>> FoundAnchors;
-    ScanLevelForAnchors(LevelPath, FoundAnchors);
+    // Debug logging: show which destination pointers are set and resolved LevelPath
+    {
+        FString RegPath = Actor->DestinationLink.TargetRegion.IsNull() ? TEXT("<null>") : Actor->DestinationLink.TargetRegion.ToSoftObjectPath().GetAssetPathString();
+        FString StrPath = Actor->DestinationLink.TargetStreet.IsNull() ? TEXT("<null>") : Actor->DestinationLink.TargetStreet.ToSoftObjectPath().GetAssetPathString();
+        FString IntPath = Actor->DestinationLink.TargetInteriorSet.IsNull() ? TEXT("<null>") : Actor->DestinationLink.TargetInteriorSet.ToSoftObjectPath().GetAssetPathString();
+        FString FlrPath = Actor->DestinationLink.TargetFloor.IsNull() ? TEXT("<null>") : Actor->DestinationLink.TargetFloor.ToSoftObjectPath().GetAssetPathString();
+        FString Lvl = LevelPath.IsValid() ? LevelPath.ToString() : TEXT("<invalid>");
+        UE_LOG(LogTemp, Log, TEXT("RebuildAnchorList: Region=%s Street=%s InteriorSet=%s Floor=%s ResolvedLevel=%s"), *RegPath, *StrPath, *IntPath, *FlrPath, *Lvl);
+    }
+
+    TArray<TPair<FGuid, FText>> FoundAnchors2;
+    FAnchorOwnerFilter OwnerFilter;
+    if (!Actor->DestinationLink.TargetRegion.IsNull()) OwnerFilter.Region = Actor->DestinationLink.TargetRegion;
+    if (!Actor->DestinationLink.TargetStreet.IsNull()) OwnerFilter.Street = Actor->DestinationLink.TargetStreet;
+    if (!Actor->DestinationLink.TargetInteriorSet.IsNull()) OwnerFilter.InteriorSet = Actor->DestinationLink.TargetInteriorSet;
+    if (!Actor->DestinationLink.TargetFloor.IsNull()) OwnerFilter.Floor = Actor->DestinationLink.TargetFloor;
+
+    // If LevelPath is valid, scan that level. Otherwise scan all loaded worlds' persistent levels.
+    if (LevelPath.IsValid())
+    {
+        const FGuid* Exclude = Actor ? &Actor->AnchorID : nullptr;
+        ScanLevelForAnchors(LevelPath, FoundAnchors2, &OwnerFilter, nullptr, Exclude);
+    }
+    else
+    {
+        if (GEngine)
+        {
+            const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+            for (const FWorldContext& WC : WorldContexts)
+            {
+                UWorld* World = WC.World();
+                if (!World || !World->PersistentLevel) continue;
+                FSoftObjectPath SoftPath(World->PersistentLevel->GetOutermost()->GetPathName());
+                TArray<TPair<FGuid, FText>> Temp;
+                const FGuid* Exclude = Actor ? &Actor->AnchorID : nullptr;
+                ScanLevelForAnchors(SoftPath, Temp, &OwnerFilter, nullptr, Exclude);
+                for (const auto& P : Temp) FoundAnchors2.Add(P);
+            }
+        }
+    }
+
+    TArray<TPair<FGuid, FText>>& FoundAnchors = FoundAnchors2;
 
     for (const auto& P : FoundAnchors)
     {
