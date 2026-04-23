@@ -5,7 +5,8 @@
 #include "InteractSetTooltipPayload.generated.h"
 
 /**
- * Payload для команды изменения текста подсказки (FText) через EventBus.
+ * Payload for the command to update an interactive item's tooltip via EventBus.
+ * (Payload для команды изменения текста подсказки (FText) через EventBus.)
  */
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UInteractSetTooltipPayload : public UOutcomePayload

@@ -1,4 +1,4 @@
-#include "InteractiveItemComponent.h"
+п»ї#include "InteractiveItemComponent.h"
 #include "InteractivePickerComponent.h"
 #include "InteractItemStatePayload.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
@@ -228,11 +228,12 @@ void UInteractiveItemComponent::SetTooltip(const FText& NewTooltip)
 	CurrentTooltip = NewTooltip;
 	InteractiveTooltipText = NewTooltip;
 
-	// 3) уведомление подсистемы и UI, которые могут подписываться
-	if (OnInteractTooltipChange.IsBound())
-	{
-		OnInteractTooltipChange.Broadcast(CurrentTooltip);
-	}
+    // 3) Notify subsystem and UI listeners about tooltip change
+    // (РЈРІРµРґРѕРјР»РµРЅРёРµ РїРѕРґСЃРёСЃС‚РµРјС‹ Рё UI, РєРѕС‚РѕСЂС‹Рµ РјРѕРіСѓС‚ РїРѕРґРїРёСЃС‹РІР°С‚СЊСЃСЏ)
+    if (OnInteractTooltipChange.IsBound())
+    {
+        OnInteractTooltipChange.Broadcast(CurrentTooltip);
+    }
 
 	UE_LOG(LogTemp, Log, TEXT("InteractiveItemComponent: Tooltip set ItemId=%s Tooltip=%s"),
 		*ItemId.ToString(), *CurrentTooltip.ToString());

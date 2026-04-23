@@ -87,11 +87,11 @@ public:
 		{
 			if (Comp && Comp->GetItemId() == ItemId)
 			{
-				Comp->SetIsActive(bEnabled);
-				UE_LOG(LogTemp, Log, TEXT("FInteractiveSubsystemMethods: SetEnabled ItemId=%s bEnabled=%s Owner=%s"),
-					*ItemId.ToString(),
-					bEnabled ? TEXT("true") : TEXT("false"),
-					*Owner->GetName());
+                Comp->SetIsActive(bEnabled);
+                UE_LOG(LogTemp, Log, TEXT("FInteractiveSubsystemMethods: SetEnabled ItemId=%s bEnabled=%s Owner=%s (Установлен флаг активности)"),
+                    *ItemId.ToString(),
+                    bEnabled ? TEXT("true") : TEXT("false"),
+                    *Owner->GetName());
 				return true;
 			}
 		}
@@ -110,10 +110,10 @@ public:
 			if (Comp && Comp->GetItemId() == ItemId)
 			{
 				Comp->InteractionRange = NewRange;
-				UE_LOG(LogTemp, Log, TEXT("FInteractiveSubsystemMethods: SetRange ItemId=%s NewRange=%.2f Owner=%s"),
-					*ItemId.ToString(),
-					NewRange,
-					*Owner->GetName());
+                UE_LOG(LogTemp, Log, TEXT("FInteractiveSubsystemMethods: SetRange ItemId=%s NewRange=%.2f Owner=%s (Диапазон обновлён)"),
+                    *ItemId.ToString(),
+                    NewRange,
+                    *Owner->GetName());
 				// Optionally notify component about change (component may broadcast itself when appropriate)
 				return true;
 			}
@@ -133,8 +133,8 @@ public:
 			if (Comp && Comp->GetItemId() == ItemId)
 			{
 				Comp->SetTooltip(NewTooltip);
-				UE_LOG(LogTemp, Log, TEXT("FInteractiveSubsystemMethods: SetTooltip ItemId=%s Owner=%s Tooltip=%s"),
-					*ItemId.ToString(), *Owner->GetName(), *NewTooltip.ToString());
+                UE_LOG(LogTemp, Log, TEXT("FInteractiveSubsystemMethods: SetTooltip ItemId=%s Owner=%s Tooltip=%s (Тултип обновлён)"),
+                    *ItemId.ToString(), *Owner->GetName(), *NewTooltip.ToString());
 				return true;
 			}
 		}

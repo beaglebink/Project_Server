@@ -1,13 +1,13 @@
-#/***********************************************
+п»ї#/***********************************************
  * EventBus subsystem implementation
  *
  * English: Core implementation of a lightweight EventBus used to publish
  * and subscribe to Outcome events. Handlers can be registered with
  * condition assets; dispatching evaluates conditions and invokes handlers.
  *
- * Русский: Реализация подсистемы EventBus для публикации и подписки
- * на события Outcome. Обработчики регистрируются с помощью ассетов
- * условий; при рассылке выполняются условия и вызываются обработчики.
+ * Р СѓСЃСЃРєРёР№: Р РµР°Р»РёР·Р°С†РёСЏ РїРѕРґСЃРёСЃС‚РµРјС‹ EventBus РґР»СЏ РїСѓР±Р»РёРєР°С†РёРё Рё РїРѕРґРїРёСЃРєРё
+ * РЅР° СЃРѕР±С‹С‚РёСЏ Outcome. РћР±СЂР°Р±РѕС‚С‡РёРєРё СЂРµРіРёСЃС‚СЂРёСЂСѓСЋС‚СЃСЏ СЃ РїРѕРјРѕС‰СЊСЋ Р°СЃСЃРµС‚РѕРІ
+ * СѓСЃР»РѕРІРёР№; РїСЂРё СЂР°СЃСЃС‹Р»РєРµ РІС‹РїРѕР»РЅСЏСЋС‚СЃСЏ СѓСЃР»РѕРІРёСЏ Рё РІС‹Р·С‹РІР°СЋС‚СЃСЏ РѕР±СЂР°Р±РѕС‚С‡РёРєРё.
  ***********************************************/
 #
 #include "EventBusSubsystem.h"
@@ -41,7 +41,7 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 
 	bDispatching = false;
 
-	// Выполняем отложенные операции Register/Unregister накопленные во время dispatch
+	// Р’С‹РїРѕР»РЅСЏРµРј РѕС‚Р»РѕР¶РµРЅРЅС‹Рµ РѕРїРµСЂР°С†РёРё Register/Unregister РЅР°РєРѕРїР»РµРЅРЅС‹Рµ РІРѕ РІСЂРµРјСЏ dispatch
 	for (const FPendingOperation& Op : PendingOperations)
 	{
 		if (Op.Type == FPendingOperation::EType::Unregister)
@@ -101,7 +101,7 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 
 	if (bDispatching)
 	{
-		// Откладываем регистрацию до завершения текущего dispatch
+		// РћС‚РєР»Р°РґС‹РІР°РµРј СЂРµРіРёСЃС‚СЂР°С†РёСЋ РґРѕ Р·Р°РІРµСЂС€РµРЅРёСЏ С‚РµРєСѓС‰РµРіРѕ dispatch
 		FPendingOperation Op;
 		Op.Type  = FPendingOperation::EType::Register;
 		Op.Entry = MoveTemp(NewEntry);
@@ -127,7 +127,7 @@ void UEventBusSubsystem::UnregisterHandler(FOutcomeHandlerHandle& Handle)
 
 	if (bDispatching)
 	{
-		// Откладываем удаление до завершения текущего dispatch
+		// РћС‚РєР»Р°РґС‹РІР°РµРј СѓРґР°Р»РµРЅРёРµ РґРѕ Р·Р°РІРµСЂС€РµРЅРёСЏ С‚РµРєСѓС‰РµРіРѕ dispatch
 		FPendingOperation Op;
 		Op.Type     = FPendingOperation::EType::Unregister;
 		Op.HandleId = IdToRemove;
@@ -158,7 +158,7 @@ void UEventBusSubsystem::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	// Явно разрегистрируем все обработчики при уничтожении сабсистемы
+	// РЇРІРЅРѕ СЂР°Р·СЂРµРіРёСЃС‚СЂРёСЂСѓРµРј РІСЃРµ РѕР±СЂР°Р±РѕС‚С‡РёРєРё РїСЂРё СѓРЅРёС‡С‚РѕР¶РµРЅРёРё СЃР°Р±СЃРёСЃС‚РµРјС‹
 	for (FOutcomeHandlerEntry& Entry : Handlers)
 	{
 		Entry.Handler.Unbind();

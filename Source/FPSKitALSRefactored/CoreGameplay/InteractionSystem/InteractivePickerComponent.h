@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -11,7 +11,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveFocusEvent, UInteractiveItemComponent*, FocusedItem);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInteractiveLostFocusEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPickerStartUsePressKeyEvent);
-// Используем объявление делегата OnInteractTooltipChange из InteractiveItemComponent.h
+// OnInteractTooltipChange delegate is declared in InteractiveItemComponent.h
+// (Р”РµР»РµРіР°С‚ OnInteractTooltipChange РѕР±СЉСЏРІР»РµРЅ РІ InteractiveItemComponent.h)
 // DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractTooltipChange, const FText&, NewTooltip);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -49,10 +50,11 @@ private:
 	UFUNCTION()
 	void FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent);
 
-	// Обработчик изменения тултипа интерактивного компонента.
-	// Должен быть объявлен как UFUNCTION для AddDynamic
-	UFUNCTION()
-	void HandleInteractTooltipChange(const FText& NewTooltip);
+    // Helper to handle tooltip change coming from interactive item component.
+    // Must be UFUNCTION for AddDynamic
+    // (РћР±СЂР°Р±РѕС‚С‡РёРє РёР·РјРµРЅРµРЅРёСЏ С‚СѓР»С‚РёРїР° вЂ” РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ UFUNCTION РґР»СЏ AddDynamic)
+    UFUNCTION()
+    void HandleInteractTooltipChange(const FText& NewTooltip);
 
 public:
 	UPROPERTY(BlueprintAssignable, SaveGame, Category = "InteractiveItem")
@@ -65,11 +67,12 @@ public:
 	FPickerStartUsePressKeyEvent OnInteractionPressKeyEvent;
 
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
-	// Использует делегат, объявленный в InteractiveItemComponent.h
-	FOnInteractTooltipChange OnInteractTooltipChange;
+    // Uses the tooltip delegate declared in InteractiveItemComponent.h
+    // (РСЃРїРѕР»СЊР·СѓРµС‚ РґРµР»РµРіР°С‚, РѕР±СЉСЏРІР»РµРЅРЅС‹Р№ РІ InteractiveItemComponent.h)
+    FOnInteractTooltipChange OnInteractTooltipChange;
 
-	// Fired when subsystem updates enabled state or tooltip
-	// Использует объявление делегата из InteractiveItemComponent.h
+    // Fired when subsystem updates enabled state or tooltip
+    // (РЎСЂР°Р±Р°С‚С‹РІР°РµС‚, РєРѕРіРґР° РїРѕРґСЃРёСЃС‚РµРјР° РѕР±РЅРѕРІР»СЏРµС‚ enabled РёР»Рё С‚СѓР»С‚РёРї)
 	UPROPERTY(BlueprintAssignable, Category = "InteractiveItem")
 	FOnInteractStateChanged OnInteractStateChanged;
 

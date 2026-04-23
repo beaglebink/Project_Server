@@ -5,7 +5,8 @@
 #include "InteractSetEnabledPayload.generated.h"
 
 /**
- * Payload для команды включения/выключения интерактивного компонента через EventBus.
+ * Payload for the command to enable/disable an interactive component via EventBus.
+ * (Payload для команды включения/выключения интерактивного компонента через EventBus.)
  */
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UInteractSetEnabledPayload : public UOutcomePayload

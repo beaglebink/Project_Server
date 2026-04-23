@@ -5,7 +5,8 @@
 #include "InteractSetRangePayload.generated.h"
 
 /**
- * Payload для команды изменения радиуса интерации через EventBus.
+ * Payload for the command to change interaction range via EventBus.
+ * (Payload для команды изменения радиуса интеракции через EventBus.)
  */
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UInteractSetRangePayload : public UOutcomePayload
