@@ -40,8 +40,9 @@ static bool IsAnchorPresentOnLevel(const FGuid& AnchorID, const FSoftObjectPath&
     return false;
 }
 
-/** Находит актор-янкор по AnchorID на уровне LevelSoftPath (если загружен пакет) */
-static ALocationAnchorActor* FindAnchorOnLevel(const FGuid& AnchorID, const FSoftObjectPath& LevelSoftPath)
+/** Локальная реализация: находит актор-янкор по AnchorID на уровне LevelSoftPath (если загружен пакет).
+    Имя функции переименовано, чтобы не дублировать реализацию в другом TU. */
+static ALocationAnchorActor* FindAnchorOnLevel_Local(const FGuid& AnchorID, const FSoftObjectPath& LevelSoftPath)
 {
     if (!AnchorID.IsValid() || !LevelSoftPath.IsValid()) return nullptr;
 
@@ -104,7 +105,7 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
 
         if (DestLevelPath.IsValid())
         {
-            if (ALocationAnchorActor* DestA = FindAnchorOnLevel(TP.DestinationLink.TargetAnchorID, DestLevelPath))
+            if (ALocationAnchorActor* DestA = FindAnchorOnLevel_Local(TP.DestinationLink.TargetAnchorID, DestLevelPath))
             {
                 TP.DestinationAnchor = TSoftObjectPtr<UObject>(DestA);
                 TP.DestinationLink.TargetAnchorActor = TSoftObjectPtr<UObject>(DestA);
