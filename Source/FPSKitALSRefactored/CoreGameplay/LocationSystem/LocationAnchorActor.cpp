@@ -15,6 +15,8 @@
 #include "Engine/World.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #endif
 
 ALocationAnchorActor::ALocationAnchorActor()
@@ -55,7 +57,49 @@ void ALocationAnchorActor::PostLoad()
 #endif
 }
 
-// ── Runtime реализации — вне #if WITH_EDITOR, доступны в Shipping ─────────
+void ALocationAnchorActor::Destroyed()
+{
+    Super::Destroyed();
+
+#if WITH_EDITOR
+    if (GIsEditor && AnchorID.IsValid())
+    {
+        const int32 Removed = ULocationEditorUtils::RemoveTransitionPointFromAllAssets(AnchorID);
+        if (Removed > 0)
+        {
+            const FString AnchorDisplayLabel = DisplayName.IsEmpty()
+                ? GetName()
+                : DisplayName.ToString();
+
+            const FText NotifyText = FText::Format(
+                NSLOCTEXT("LocationAnchor", "RemovedOnDelete",
+                    "Якорь \"{0}\" был зарегистрирован — {1} запис(ей) TransitionPoint удалено из ассетов."),
+                FText::FromString(AnchorDisplayLabel),
+                FText::AsNumber(Removed));
+
+            FNotificationInfo Info(NotifyText);
+            Info.bFireAndForget       = true;
+            Info.ExpireDuration       = 6.0f;
+            Info.bUseSuccessFailIcons = true;
+            Info.Image = FCoreStyle::Get().GetBrush(TEXT("Icons.WarningWithColor"));
+
+            TSharedPtr<SNotificationItem> Notification =
+                FSlateNotificationManager::Get().AddNotification(Info);
+            if (Notification.IsValid())
+            {
+                Notification->SetCompletionState(SNotificationItem::CS_Fail);
+            }
+
+            UE_LOG(LogTemp, Warning,
+                TEXT("ALocationAnchorActor::Destroyed — актор '%s' [%s] удалён со сцены, "
+                     "убрано %d TransitionPoint-записей из ассетов."),
+                *AnchorDisplayLabel, *AnchorID.ToString(), Removed);
+        }
+    }
+#endif
+}
+
+// ── Runtime реализации ────────────────────────────────────────────────────
 
 UObject* ALocationAnchorActor::GetOwnerRegistrationAsset() const
 {
@@ -117,10 +161,10 @@ void ALocationAnchorActor::SyncToAsset()
         {
             if (Anchor.AnchorID == AnchorID)
             {
-                Anchor.DisplayName    = DisplayName;
-                Anchor.WorldPosition  = GetActorLocation();
+                Anchor.DisplayName      = DisplayName;
+                Anchor.WorldPosition    = GetActorLocation();
                 Anchor.WorldOrientation = GetActorRotation();
-                Anchor.ReturnLink     = DestinationLink;
+                Anchor.ReturnLink       = DestinationLink;
                 return true;
             }
         }

@@ -112,8 +112,7 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
         }
     }
 
-    // Определяем ассет регистрации через GetOwnerRegistrationAsset()
-    // Приоритет: Floor > InteriorSet > Street > Region (без улицы и дома → Region)
+    // Определяем ассет регистрации
     UObject* RegAsset = SourceAnchor->GetOwnerRegistrationAsset();
     if (!RegAsset)
     {
@@ -157,6 +156,9 @@ bool ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor* SourceA
     // WorldRegion — актор без улицы и дома
     if (UWorldRegionAsset* Region = Cast<UWorldRegionAsset>(RegAsset))
     {
+        // Валидация массива перед добавлением: чистим висячие ссылки
+        ValidateAndCleanTransitionPoints(Region);
+
         Region->Modify();
         FLocationTransitionPoint* Existing = Region->TransitionPoints.FindByPredicate(
             [&](const FLocationTransitionPoint& P) { return P.TransitionPointID == TP.TransitionPointID; });
@@ -182,7 +184,6 @@ int32 ULocationEditorUtils::RemoveTransitionPointFromAllAssets(const FGuid& Anch
 
     int32 RemovedTotal = 0;
 
-    // Вспомогательная лямбда — удаляет из массива и маркирует ассет грязным
     auto RemoveFromArray = [&](TArray<FLocationTransitionPoint>& Points, UObject* Owner) -> int32
     {
         const int32 Before = Points.Num();
@@ -190,15 +191,45 @@ int32 ULocationEditorUtils::RemoveTransitionPointFromAllAssets(const FGuid& Anch
         {
             return P.TransitionPointID == AnchorID;
         });
-        const int32 Removed = Before - Points.Num();
+        const int32 After = Points.Num();
+        const int32 Removed = Before - After;
         if (Removed > 0)
         {
             Owner->Modify();
             Owner->MarkPackageDirty();
-            UE_LOG(LogTemp, Log, TEXT("RemoveTransitionPointFromAllAssets: удалено %d записей из '%s'"),
-                Removed, *Owner->GetName());
+            UE_LOG(LogTemp, Log, TEXT("RemoveTransitionPointFromAllAssets: deleted %d records from '%s' (before=%d, after=%d)"),
+                Removed, *Owner->GetName(), Before, After);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Verbose, TEXT("RemoveTransitionPointFromAllAssets: no records found in '%s' (checked %d)"),
+                *Owner->GetName(), Before);
         }
         return Removed;
+    };
+
+    auto LoadAssetObject = [&](const FAssetData& AD) -> UObject*
+    {
+        UObject* Obj = AD.GetAsset();
+        if (Obj) return Obj;
+
+        // Попытка загрузить через SoftPath
+        FSoftObjectPath SOP = AD.ToSoftObjectPath();
+        if (SOP.IsValid())
+        {
+            Obj = SOP.TryLoad();
+            if (Obj) return Obj;
+        }
+
+        // Как запасной вариант, попытаться LoadObject по ObjectPath
+        const FString ObjPath = AD.ObjectPath.ToString();
+        if (!ObjPath.IsEmpty())
+        {
+            Obj = LoadObject<UObject>(nullptr, *ObjPath);
+            if (Obj) return Obj;
+        }
+
+        return nullptr;
     };
 
     // ── WorldRegionAsset ──────────────────────────────────────────────────
@@ -211,8 +242,9 @@ int32 ULocationEditorUtils::RemoveTransitionPointFromAllAssets(const FGuid& Anch
 
         for (const FAssetData& AD : Assets)
         {
-            UWorldRegionAsset* Asset = Cast<UWorldRegionAsset>(AD.GetAsset());
-            if (!Asset) Asset = Cast<UWorldRegionAsset>(AD.ToSoftObjectPath().TryLoad());
+            UObject* Loaded = LoadAssetObject(AD);
+            if (!Loaded) continue;
+            UWorldRegionAsset* Asset = Cast<UWorldRegionAsset>(Loaded);
             if (!Asset) continue;
             RemovedTotal += RemoveFromArray(Asset->TransitionPoints, Asset);
         }
@@ -228,8 +260,9 @@ int32 ULocationEditorUtils::RemoveTransitionPointFromAllAssets(const FGuid& Anch
 
         for (const FAssetData& AD : Assets)
         {
-            UStreetAsset* Asset = Cast<UStreetAsset>(AD.GetAsset());
-            if (!Asset) Asset = Cast<UStreetAsset>(AD.ToSoftObjectPath().TryLoad());
+            UObject* Loaded = LoadAssetObject(AD);
+            if (!Loaded) continue;
+            UStreetAsset* Asset = Cast<UStreetAsset>(Loaded);
             if (!Asset) continue;
             RemovedTotal += RemoveFromArray(Asset->TransitionPoints, Asset);
         }
@@ -245,8 +278,9 @@ int32 ULocationEditorUtils::RemoveTransitionPointFromAllAssets(const FGuid& Anch
 
         for (const FAssetData& AD : Assets)
         {
-            UInteriorSetAsset* Asset = Cast<UInteriorSetAsset>(AD.GetAsset());
-            if (!Asset) Asset = Cast<UInteriorSetAsset>(AD.ToSoftObjectPath().TryLoad());
+            UObject* Loaded = LoadAssetObject(AD);
+            if (!Loaded) continue;
+            UInteriorSetAsset* Asset = Cast<UInteriorSetAsset>(Loaded);
             if (!Asset) continue;
             RemovedTotal += RemoveFromArray(Asset->TransitionPoints, Asset);
         }
@@ -262,13 +296,15 @@ int32 ULocationEditorUtils::RemoveTransitionPointFromAllAssets(const FGuid& Anch
 
         for (const FAssetData& AD : Assets)
         {
-            UFloorAsset* Asset = Cast<UFloorAsset>(AD.GetAsset());
-            if (!Asset) Asset = Cast<UFloorAsset>(AD.ToSoftObjectPath().TryLoad());
+            UObject* Loaded = LoadAssetObject(AD);
+            if (!Loaded) continue;
+            UFloorAsset* Asset = Cast<UFloorAsset>(Loaded);
             if (!Asset) continue;
             RemovedTotal += RemoveFromArray(Asset->TransitionPoints, Asset);
         }
     }
 
+    UE_LOG(LogTemp, Log, TEXT("RemoveTransitionPointFromAllAssets: a total of %d records deleted for AnchorID %s"), RemovedTotal, *AnchorID.ToString());
     return RemovedTotal;
 }
 
@@ -318,7 +354,6 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
         RemovedTotal += Removed;
     };
 
-    // Floor
     if (UFloorAsset* Floor = Cast<UFloorAsset>(Asset))
     {
         if (!Floor->FloorLevel.IsNull())
@@ -327,61 +362,37 @@ int32 ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject* Asset)
             CheckAndRemove(Floor->TransitionPoints, Paths, Floor);
         }
     }
-    // InteriorSet
     else if (UInteriorSetAsset* Interior = Cast<UInteriorSetAsset>(Asset))
     {
         TArray<FSoftObjectPath> Paths;
-
         if (!Interior->ParentStreet.IsNull())
         {
             if (UStreetAsset* S = Interior->ParentStreet.LoadSynchronous())
-            {
                 if (!S->ParentWorldRegion.IsNull())
-                {
                     if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous())
-                    {
                         if (!R->RegionLevel.IsNull())
                             Paths.Add(R->RegionLevel.ToSoftObjectPath());
-                    }
-                }
-            }
         }
-
         for (const TSoftObjectPtr<UFloorAsset>& FR : Interior->Floors)
-        {
             if (FR.IsValid())
                 Paths.Add(FR.ToSoftObjectPath());
-        }
 
         CheckAndRemove(Interior->TransitionPoints, Paths, Interior);
     }
-    // Street
     else if (UStreetAsset* Street = Cast<UStreetAsset>(Asset))
     {
         TArray<FSoftObjectPath> Paths;
         if (!Street->ParentWorldRegion.IsNull())
-        {
             if (UWorldRegionAsset* R = Street->ParentWorldRegion.LoadSynchronous())
-            {
                 if (!R->RegionLevel.IsNull())
                     Paths.Add(R->RegionLevel.ToSoftObjectPath());
-            }
-        }
 
         for (const TSoftObjectPtr<UInteriorSetAsset>& IR : Street->InteriorSets)
-        {
             if (IR.IsValid())
-            {
                 if (UInteriorSetAsset* IS = IR.LoadSynchronous())
-                {
                     for (const TSoftObjectPtr<UFloorAsset>& FR : IS->Floors)
-                    {
                         if (FR.IsValid())
                             Paths.Add(FR.ToSoftObjectPath());
-                    }
-                }
-            }
-        }
 
         CheckAndRemove(Street->TransitionPoints, Paths, Street);
     }

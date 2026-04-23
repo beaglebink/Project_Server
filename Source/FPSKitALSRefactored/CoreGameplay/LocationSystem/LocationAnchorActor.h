@@ -60,7 +60,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Destination")
     FLocationAnchorLink DestinationLink;
 
-    // Runtime UFUNCTION — доступны во всех конфигурациях, реализованы вне #if WITH_EDITOR
+    // Runtime UFUNCTION — доступны во всех конфигурациях
     UFUNCTION(BlueprintCallable, Category = "Anchor|Transition")
     FLocationAnchorLink GetDestinationLink() const { return DestinationLink; }
 
@@ -76,7 +76,6 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Anchor|Components")
     UBillboardComponent* EditorSprite;
 
-    // Editor-only UFUNCTION: CallInEditor — защищены #if WITH_EDITOR, UHT не генерирует exec в Shipping
 #if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "Anchor|Editor")
     void SyncToAsset();
@@ -87,6 +86,10 @@ public:
 
     virtual void PostActorCreated() override;
     virtual void PostLoad() override;
+
+    /** Вызывается при уничтожении актора (в том числе при удалении со сцены в редакторе).
+     *  В редакторе: показывает уведомление если актор зарегистрирован и удаляет запись из ассетов. */
+    virtual void Destroyed() override;
 
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
