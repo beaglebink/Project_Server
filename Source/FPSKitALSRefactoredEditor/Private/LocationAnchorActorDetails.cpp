@@ -246,6 +246,17 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         SNew(SObjectPropertyEntryBox)
         .AllowedClass(UStreetAsset::StaticClass())
         .ObjectPath(this, &FLocationAnchorActorDetails::GetSelectedStreetPath)
+        .OnShouldFilterAsset_Lambda([this](const FAssetData& AD) {
+            // If a target region is selected, show only streets in that region
+            ALocationAnchorActor* Actor = TargetActor.Get();
+            if (!Actor) return false;
+            if (Actor->DestinationLink.TargetRegion.IsNull()) return false;
+            UStreetAsset* S = Cast<UStreetAsset>(AD.GetAsset());
+            if (!S) S = Cast<UStreetAsset>(AD.ToSoftObjectPath().TryLoad());
+            if (!S) return true;
+            if (S->ParentWorldRegion.IsNull()) return true;
+            return S->ParentWorldRegion.ToSoftObjectPath() != Actor->DestinationLink.TargetRegion.ToSoftObjectPath();
+        })
         .OnObjectChanged(this, &FLocationAnchorActorDetails::OnStreetPicked)
         .AllowClear(true)
     ];
@@ -257,6 +268,32 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         SNew(SObjectPropertyEntryBox)
         .AllowedClass(UInteriorSetAsset::StaticClass())
         .ObjectPath(this, &FLocationAnchorActorDetails::GetSelectedInteriorSetPath)
+        .OnShouldFilterAsset_Lambda([this](const FAssetData& AD) {
+            ALocationAnchorActor* Actor = TargetActor.Get();
+            if (!Actor) return false;
+            // If a target street is selected, filter by that street
+            if (!Actor->DestinationLink.TargetStreet.IsNull())
+            {
+                UInteriorSetAsset* IS = Cast<UInteriorSetAsset>(AD.GetAsset());
+                if (!IS) IS = Cast<UInteriorSetAsset>(AD.ToSoftObjectPath().TryLoad());
+                if (!IS) return true;
+                if (IS->ParentStreet.IsNull()) return true;
+                return IS->ParentStreet.ToSoftObjectPath() != Actor->DestinationLink.TargetStreet.ToSoftObjectPath();
+            }
+            // If only region selected, allow interiors whose parent street belongs to region
+            if (!Actor->DestinationLink.TargetRegion.IsNull())
+            {
+                UInteriorSetAsset* IS = Cast<UInteriorSetAsset>(AD.GetAsset());
+                if (!IS) IS = Cast<UInteriorSetAsset>(AD.ToSoftObjectPath().TryLoad());
+                if (!IS) return true;
+                if (IS->ParentStreet.IsNull()) return true;
+                UStreetAsset* S = IS->ParentStreet.LoadSynchronous();
+                if (!S) return true;
+                if (S->ParentWorldRegion.IsNull()) return true;
+                return S->ParentWorldRegion.ToSoftObjectPath() != Actor->DestinationLink.TargetRegion.ToSoftObjectPath();
+            }
+            return false;
+        })
         .OnObjectChanged(this, &FLocationAnchorActorDetails::OnInteriorSetPicked)
         .AllowClear(true)
     ];
@@ -268,6 +305,17 @@ void FLocationAnchorActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
         SNew(SObjectPropertyEntryBox)
         .AllowedClass(UFloorAsset::StaticClass())
         .ObjectPath(this, &FLocationAnchorActorDetails::GetSelectedFloorPath)
+        .OnShouldFilterAsset_Lambda([this](const FAssetData& AD) {
+            ALocationAnchorActor* Actor = TargetActor.Get();
+            if (!Actor) return true;
+            // Only show floors when an interior set (building) is selected
+            if (Actor->DestinationLink.TargetInteriorSet.IsNull()) return true;
+            UFloorAsset* F = Cast<UFloorAsset>(AD.GetAsset());
+            if (!F) F = Cast<UFloorAsset>(AD.ToSoftObjectPath().TryLoad());
+            if (!F) return true;
+            if (F->ParentInteriorSet.IsNull()) return true;
+            return F->ParentInteriorSet.ToSoftObjectPath() != Actor->DestinationLink.TargetInteriorSet.ToSoftObjectPath();
+        })
         .OnObjectChanged(this, &FLocationAnchorActorDetails::OnFloorPicked)
         .AllowClear(true)
     ];
