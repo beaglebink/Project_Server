@@ -484,3 +484,14 @@ int32 ULocationEditorUtils::ValidateFloorTransitionsByGuid(const FGuid& FloorGui
     return 0;
 #endif
 }
+
+#if !WITH_EDITOR
+
+TMap<FGuid, FText> ULocationEditorUtils::GetRegionAnchors(UWorldRegionAsset* Region)   { return {}; }
+TMap<FGuid, FText> ULocationEditorUtils::GetFloorAnchors(UFloorAsset* Floor)           { return {}; }
+int32              ULocationEditorUtils::SyncAllAnchorsOnMap()                         { return 0; }
+bool               ULocationEditorUtils::EstablishBidirectionalLink(UWorldRegionAsset*, const FGuid&, UFloorAsset*, const FGuid&) { return false; }
+bool               ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor*){ return false; }
+int32              ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject*)    { return 0; }
+
+#endif // !WITH_EDITOR

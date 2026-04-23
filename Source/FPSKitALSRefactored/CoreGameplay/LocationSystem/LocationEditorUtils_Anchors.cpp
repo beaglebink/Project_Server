@@ -3,9 +3,9 @@
 #include "FloorAsset.h"
 #include "LocationAnchorActor.h"
 #include "EngineUtils.h"
-#include "Editor.h"
 
 #if WITH_EDITOR
+#include "Editor.h"
 
 TMap<FGuid, FText> ULocationEditorUtils::GetRegionAnchors(UWorldRegionAsset* Region)
 {
@@ -85,5 +85,4 @@ bool ULocationEditorUtils::EstablishBidirectionalLink(
 
     return true;
 }
-
-#endif
+#endif // WITH_EDITOR

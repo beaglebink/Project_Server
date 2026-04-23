@@ -16,58 +16,88 @@ class FPSKITALSREFACTORED_API ULocationEditorUtils : public UBlueprintFunctionLi
     GENERATED_BODY()
 
 public:
+    // Здесь UFUNCTION доступны только в редакторе, но сами декларации функций
+    // присутствуют всегда — это устраняет ошибки компоновки в Shipping.
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
+#endif
     static int32 AutoFillParentsForWorldMap(UWorldMapAsset* WorldMap);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
+#endif
     static int32 AutoFillParentsForStreet(UStreetAsset* Street);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationSystem|Editor")
+#endif
     static int32 AutoFillParentsForInteriorSet(UInteriorSetAsset* InteriorSet);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Query")
+#endif
     static TArray<UWorldMapAsset*> GetAllWorldMapAssets();
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+#endif
     static TMap<FGuid, FText> GetWorldMaps();
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+#endif
     static TMap<FGuid, FText> GetRegions(const FGuid& WorldMapGuid);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+#endif
     static TMap<FGuid, FText> GetStreets(const FGuid& WorldRegionGuid);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+#endif
     static TMap<FGuid, FText> GetInteriorSets(const FGuid& StreetGuid);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+#endif
     static TMap<FGuid, FText> GetFloors(const FGuid& InteriorSetGuid);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+#endif
     static int32 ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+#endif
     static int32 SelectActorsByFloor(const FGuid& FloorGuid);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssigner")
+#endif
     static int32 UnregisterSelectedActors();
 
     // ── Якоря ──────────────────────────────────────────────────────────────
 
-    /** Возвращает список якорей региона: AnchorID → DisplayName */
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+#endif
     static TMap<FGuid, FText> GetRegionAnchors(UWorldRegionAsset* Region);
 
-    /** Возвращает список якорей этажа: AnchorID → DisplayName */
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+#endif
     static TMap<FGuid, FText> GetFloorAnchors(UFloorAsset* Floor);
 
-    /** Синхронизирует все ALocationAnchorActor на текущей карте с их ассетами */
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+#endif
     static int32 SyncAllAnchorsOnMap();
 
-    /** Создаёт двустороннюю связь: находит целевой якорь в ассете и прописывает ему ReturnLink обратно */
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+#endif
     static bool EstablishBidirectionalLink(
         UWorldRegionAsset* SourceRegion,
         const FGuid& SourceAnchorID,
@@ -75,25 +105,34 @@ public:
         const FGuid& DestAnchorID);
 
     // --- New: transition points management ---
-    /** Регистрирует/обновляет TransitionPoint для указанного актора (Editor only). */
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+#endif
     static bool RegisterTransitionPoint(class ALocationAnchorActor* SourceAnchor);
 
-    /** Проверяет и очищает устаревшие TransitionPoints в ассете (Editor only). Возвращает число удалённых записей. */
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+#endif
     static int32 ValidateAndCleanTransitionPoints(UObject* Asset);
 
-    /** Проверяет все Street/InteriorSet/Floor ассеты в проекте и очищает устаревшие записи. */
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "AnchorEditor")
+#endif
     static int32 ValidateAllTransitionPoints();
 
     // Blueprint-callable validation wrappers (call from Blutility)
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+#endif
     static int32 ValidateStreetTransitionsByGuid(const FGuid& StreetGuid);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+#endif
     static int32 ValidateInteriorSetTransitionsByGuid(const FGuid& InteriorSetGuid);
 
+#if WITH_EDITOR
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+#endif
     static int32 ValidateFloorTransitionsByGuid(const FGuid& FloorGuid);
 };
