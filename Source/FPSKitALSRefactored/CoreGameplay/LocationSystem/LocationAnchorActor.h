@@ -28,12 +28,19 @@ class FPSKITALSREFACTORED_API ALocationAnchorActor : public AActor
 public:
     ALocationAnchorActor();
 
+    virtual void BeginPlay() override;
+
     // Идентификация
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Identity")
     FGuid AnchorID;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Identity")
     FText DisplayName;
+
+    // If false, this anchor does not require a destination to be considered valid.
+    // Exposed to Blueprint so designers can place anchors that don't participate in transition validation.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anchor|Config")
+    bool RequiresDestination = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Classification")
     ELocationTransitionType TransitionType = ELocationTransitionType::Door;

@@ -254,8 +254,11 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 			UInteractiveItemComponent* ItemFromHit = HitActor ? HitActor->FindComponentByClass<UInteractiveItemComponent>() : nullptr;
 			if (ItemFromHit)
 			{
-				SelectedItem = ItemFromHit;
-				break;
+				if (ItemFromHit->IsActive())
+				{
+					SelectedItem = ItemFromHit;
+					break;
+				}
 			}
 		}
 	}

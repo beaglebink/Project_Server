@@ -19,6 +19,10 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #endif
 
+#include "InteractiveItemComponent.h"
+#include "UObject/Package.h"
+#include "UObject/SoftObjectPath.h"
+
 ALocationAnchorActor::ALocationAnchorActor()
 {
     PrimaryActorTick.bCanEverTick = false;
@@ -55,6 +59,95 @@ void ALocationAnchorActor::PostLoad()
         TryAutoAssignOwnerFromWorld();
     }
 #endif
+}
+
+void ALocationAnchorActor::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // At runtime, ensure interactive component state reflects RequiresDestination and link validity.
+    if (UInteractiveItemComponent* Comp = FindComponentByClass<UInteractiveItemComponent>())
+    {
+        // Default to inactive if anchor does not require destination
+        /*
+        if (!RequiresDestination)
+        {
+            Comp->SetIsActive(false);
+            return;
+        }
+        */
+
+        // If requires destination, check if destination link is valid and reciprocal
+        bool bValidLink = false;
+        if (DestinationLink.TargetAnchorID.IsValid())
+        {
+            // First try explicit cached actor reference
+            if (!DestinationLink.TargetAnchorActor.IsNull())
+            {
+                UObject* Obj = DestinationLink.TargetAnchorActor.Get();
+                if (!Obj) Obj = DestinationLink.TargetAnchorActor.LoadSynchronous();
+                if (ALocationAnchorActor* Dest = Cast<ALocationAnchorActor>(Obj))
+                {
+                    if (Dest->DestinationLink.TargetAnchorID == AnchorID)
+                        bValidLink = true;
+                }
+            }
+
+            // If not resolved via cached actor, try resolving by asset level paths (floor or region)
+            if (!bValidLink)
+            {
+                FSoftObjectPath DestLevelPath;
+                if (!DestinationLink.TargetFloor.IsNull())
+                {
+                    if (UFloorAsset* F = DestinationLink.TargetFloor.LoadSynchronous())
+                        if (!F->FloorLevel.IsNull())
+                            DestLevelPath = F->FloorLevel.ToSoftObjectPath();
+                }
+                if (!DestLevelPath.IsValid() && !DestinationLink.TargetRegion.IsNull())
+                {
+                    if (UWorldRegionAsset* R = DestinationLink.TargetRegion.LoadSynchronous())
+                        if (!R->RegionLevel.IsNull())
+                            DestLevelPath = R->RegionLevel.ToSoftObjectPath();
+                }
+
+                if (DestLevelPath.IsValid())
+                {
+                    const FString PackageName = DestLevelPath.GetLongPackageName();
+                    if (!PackageName.IsEmpty())
+                    {
+                        UPackage* Pkg = FindPackage(nullptr, *PackageName);
+                        if (!Pkg) Pkg = LoadPackage(nullptr, *PackageName, LOAD_NoWarn | LOAD_Quiet);
+                        if (Pkg)
+                        {
+                            if (UWorld* World = UWorld::FindWorldInPackage(Pkg))
+                            {
+                                if (World->PersistentLevel)
+                                {
+                                    for (AActor* Actor : World->PersistentLevel->Actors)
+                                    {
+                                        if (!IsValid(Actor)) continue;
+                                        if (ALocationAnchorActor* Dest = Cast<ALocationAnchorActor>(Actor))
+                                        {
+                                            if (Dest->AnchorID == DestinationLink.TargetAnchorID)
+                                            {
+                                                if (Dest->DestinationLink.TargetAnchorID == AnchorID)
+                                                {
+                                                    bValidLink = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Comp->SetIsActive(bValidLink);
+    }
 }
 
 void ALocationAnchorActor::Destroyed()

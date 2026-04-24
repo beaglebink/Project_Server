@@ -28,6 +28,7 @@
 #include "Components/ChildActorComponent.h"
 #include "LocationEditorUtils.h"
 #include "LocationAnchorActor.h"
+#include "InteractiveItemComponent.h"
 #include "ScopedTransaction.h"
 
 // -----------------------------------------------------------------------------
@@ -43,6 +44,12 @@ static TArray<FAssetData> GetAssetDataByClassName(const FString& ClassName)
 
 // Forward declaration: implemented further below
 static int32 UpdateTransitionPointsForAsset(UObject* Asset, const TArray<FSoftObjectPath>& LevelPaths);
+// Forward declarations for anchor lookup helpers (defined further below)
+static ALocationAnchorActor* FindAnchorOnLevel(const FGuid& AnchorID, const FSoftObjectPath& LevelSoftPath);
+static ALocationAnchorActor* FindAnchorInLevelPaths(const FGuid& AnchorID, const TArray<FSoftObjectPath>& Paths);
+// Forward declarations for scene anchor collectors
+static void GetAnchorsOnLevel(const FSoftObjectPath& LevelSoftPath, TArray<ALocationAnchorActor*>& OutAnchors);
+static void GetAnchorsInLevelPaths(const TArray<FSoftObjectPath>& Paths, TArray<ALocationAnchorActor*>& OutAnchors);
 
 int32 FFloorAssignerEditorLibrary::ValidateRegionTransitions(const FGuid& RegionGuid)
 {
@@ -59,8 +66,155 @@ int32 FFloorAssignerEditorLibrary::ValidateRegionTransitions(const FGuid& Region
         TArray<FSoftObjectPath> LevelPaths;
         if (!Region->RegionLevel.IsNull()) LevelPaths.Add(Region->RegionLevel.ToSoftObjectPath());
 
+        // First: scan scene level for anchors that exist on the level but are not yet registered in the asset
+        TArray<ALocationAnchorActor*> SceneAnchors;
+        GetAnchorsInLevelPaths(LevelPaths, SceneAnchors);
+        TArray<FString> UnregisteredShort;
+        for (ALocationAnchorActor* Anchor : SceneAnchors)
+        {
+            if (!IsValid(Anchor) || !Anchor->AnchorID.IsValid()) continue;
+            bool bFound = false;
+            for (const FLocationTransitionPoint& TP : Region->TransitionPoints)
+            {
+                if (TP.TransitionPointID == Anchor->AnchorID) { bFound = true; break; }
+            }
+            if (!bFound && (Anchor->RequiresDestination))
+            {
+                UnregisteredShort.Add(FString::Printf(TEXT("%s (%s) — Region: %s"), *Anchor->GetName(), *Anchor->DisplayName.ToString(), *Region->DisplayName.ToString()));
+                UE_LOG(LogTemp, Warning, TEXT("ValidateRegionTransitions: Anchor on level not registered in Region asset: Actor=%s, Asset=%s, Pos=%s"), *Anchor->GetName(), *Region->GetName(), *Anchor->GetActorLocation().ToString());
+            }
+        }
+        if (UnregisteredShort.Num() > 0)
+        {
+            FString Msg;
+            for (const FString& S : UnregisteredShort) { Msg += S + TEXT("\n"); }
+            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(FString::Printf(TEXT("Found %d anchors on scene not registered in Region asset:\n%s"), UnregisteredShort.Num(), *Msg)));
+        }
+
         int32 Removed = ULocationEditorUtils::ValidateAndCleanTransitionPoints(Region);
         int32 Updated = UpdateTransitionPointsForAsset(Region, LevelPaths);
+
+        // Additional check: validate that transition points that point to other anchors have reciprocal links
+        TArray<FString> ShortMessages;
+        for (const FLocationTransitionPoint& TP : Region->TransitionPoints)
+        {
+            if (!TP.DestinationLink.TargetAnchorID.IsValid()) continue;
+
+            // Try to locate source actor
+            ALocationAnchorActor* SourceActor = nullptr;
+            if (!TP.SourceAnchor.IsNull()) SourceActor = Cast<ALocationAnchorActor>(TP.SourceAnchor.Get());
+            if (!SourceActor) SourceActor = FindAnchorInLevelPaths(TP.TransitionPointID, LevelPaths);
+
+            // Resolve destination level path
+            FSoftObjectPath DestLevelPath;
+            if (!TP.DestinationLink.TargetFloor.IsNull())
+            {
+                if (UFloorAsset* F = TP.DestinationLink.TargetFloor.LoadSynchronous())
+                    if (!F->FloorLevel.IsNull())
+                        DestLevelPath = F->FloorLevel.ToSoftObjectPath();
+            }
+            if (!DestLevelPath.IsValid() && !TP.DestinationLink.TargetRegion.IsNull())
+            {
+                if (UWorldRegionAsset* R = TP.DestinationLink.TargetRegion.LoadSynchronous())
+                    if (!R->RegionLevel.IsNull())
+                        DestLevelPath = R->RegionLevel.ToSoftObjectPath();
+            }
+
+            ALocationAnchorActor* DestActor = nullptr;
+            if (DestLevelPath.IsValid()) DestActor = FindAnchorOnLevel(TP.DestinationLink.TargetAnchorID, DestLevelPath);
+
+            bool bReciprocal = false;
+            if (DestActor)
+            {
+                // Direct destination link back to this TP
+                if (DestActor->DestinationLink.TargetAnchorID == TP.TransitionPointID)
+                {
+                    bReciprocal = true;
+                }
+                else
+                {
+                    // Check anchors stored in the owner registration asset (if available)
+                    if (UObject* DAReg = DestActor->GetOwnerRegistrationAsset())
+                    {
+                        // WorldRegion
+                        if (UWorldRegionAsset* Reg = Cast<UWorldRegionAsset>(DAReg))
+                        {
+                            for (const FLocationAnchor& AnchorEntry : Reg->Anchors)
+                            {
+                                if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID)
+                                {
+                                    bReciprocal = true;
+                                    break;
+                                }
+                            }
+                        }
+                        // Street
+                        else if (UStreetAsset* StreetOwner = Cast<UStreetAsset>(DAReg))
+                        {
+                            for (const FLocationAnchor& AnchorEntry : StreetOwner->Anchors)
+                            {
+                                if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID)
+                                {
+                                    bReciprocal = true;
+                                    break;
+                                }
+                            }
+                        }
+                        // InteriorSet: no direct Anchors array on InteriorSet; check floors
+                        else if (UInteriorSetAsset* InteriorOwner = Cast<UInteriorSetAsset>(DAReg))
+                        {
+                            for (const TSoftObjectPtr<UFloorAsset>& FloorRef : InteriorOwner->Floors)
+                            {
+                                if (!FloorRef.IsValid()) continue;
+                                UFloorAsset* FloorObj = FloorRef.LoadSynchronous();
+                                if (!FloorObj) continue;
+                                for (const FLocationAnchor& AnchorEntry : FloorObj->Anchors)
+                                {
+                                    if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID)
+                                    {
+                                        bReciprocal = true;
+                                        break;
+                                    }
+                                }
+                                if (bReciprocal) break;
+                            }
+                        }
+                        // Floor
+                        else if (UFloorAsset* FloorOwner = Cast<UFloorAsset>(DAReg))
+                        {
+                            for (const FLocationAnchor& AnchorEntry : FloorOwner->Anchors)
+                            {
+                                if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID)
+                                {
+                                    bReciprocal = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!bReciprocal)
+            {
+                FString ObjName = SourceActor ? SourceActor->GetName() : TEXT("<no actor>");
+                FString Disp = SourceActor ? SourceActor->DisplayName.ToString() : TP.DisplayName.ToString();
+                FString Loc = FString::Printf(TEXT("Region: %s"), *Region->DisplayName.ToString());
+                ShortMessages.Add(FString::Printf(TEXT("%s (%s) — %s"), *ObjName, *Disp, *Loc));
+
+                // Log detailed info
+                FVector Pos = SourceActor ? SourceActor->GetActorLocation() : TP.SourceWorldPosition;
+                UE_LOG(LogTemp, Warning, TEXT("ValidateRegionTransitions: Non-reciprocal anchor '%s' (%s) in region asset '%s' at pos %s -> dest anchor id %s"),
+                    *ObjName, *Disp, *Region->GetName(), *Pos.ToString(), *TP.DestinationLink.TargetAnchorID.ToString());
+            }
+        }
+
+        if (ShortMessages.Num() > 0)
+        {
+            FString Msg;
+            for (const FString& S : ShortMessages) { Msg += S + TEXT("\n"); }
+            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Msg));
+        }
 
         UE_LOG(LogTemp, Log, TEXT("ValidateRegionTransitions: Region '%s' removed %d, updated %d transition points"), *Region->GetName(), Removed, Updated);
         return Removed + Updated;
@@ -131,6 +285,44 @@ static ALocationAnchorActor* FindAnchorInLevelPaths(const FGuid& AnchorID, const
             return A;
     }
     return nullptr;
+}
+
+// Collect all anchor actors on a single level
+static void GetAnchorsOnLevel(const FSoftObjectPath& LevelSoftPath, TArray<ALocationAnchorActor*>& OutAnchors)
+{
+    if (!LevelSoftPath.IsValid()) return;
+    const FString PackageName = LevelSoftPath.GetLongPackageName();
+    if (PackageName.IsEmpty()) return;
+    UPackage* Pkg = FindPackage(nullptr, *PackageName);
+    if (!Pkg) Pkg = LoadPackage(nullptr, *PackageName, LOAD_NoWarn | LOAD_Quiet);
+    if (!Pkg) return;
+    UWorld* World = UWorld::FindWorldInPackage(Pkg);
+    if (!World || !World->PersistentLevel) return;
+    for (AActor* Actor : World->PersistentLevel->Actors)
+    {
+        if (!IsValid(Actor)) continue;
+        if (ALocationAnchorActor* Anchor = Cast<ALocationAnchorActor>(Actor))
+        {
+            OutAnchors.Add(Anchor);
+        }
+    }
+}
+
+static void GetAnchorsInLevelPaths(const TArray<FSoftObjectPath>& Paths, TArray<ALocationAnchorActor*>& OutAnchors)
+{
+    for (const FSoftObjectPath& P : Paths)
+    {
+        GetAnchorsOnLevel(P, OutAnchors);
+    }
+}
+
+static void SetAnchorInteractiveEnabled(ALocationAnchorActor* Anchor, bool bEnable)
+{
+    if (!IsValid(Anchor)) return;
+    if (UInteractiveItemComponent* Comp = Anchor->FindComponentByClass<UInteractiveItemComponent>())
+    {
+        Comp->SetIsActive(bEnable);
+    }
 }
 
 static void ResolveDestinationActorInTP(FLocationTransitionPoint& TP)
@@ -532,8 +724,130 @@ int32 FFloorAssignerEditorLibrary::ValidateStreetTransitions(const FGuid& Street
             }
         }
 
+        // Scan region level(s) and interior/floor levels that belong to this street for unregistered anchors
+        TArray<FSoftObjectPath> AllPaths = LevelPaths;
+        for (const TSoftObjectPtr<UInteriorSetAsset>& IR : Street->InteriorSets)
+            if (IR.IsValid())
+                if (UInteriorSetAsset* IS2 = IR.LoadSynchronous())
+                    for (const TSoftObjectPtr<UFloorAsset>& FR : IS2->Floors)
+                        if (FR.IsValid()) AllPaths.Add(FR.ToSoftObjectPath());
+
+        TArray<ALocationAnchorActor*> SceneAnchors;
+        GetAnchorsInLevelPaths(AllPaths, SceneAnchors);
+        TArray<FString> UnregisteredShort;
+        for (ALocationAnchorActor* Anchor : SceneAnchors)
+        {
+            if (!IsValid(Anchor) || !Anchor->AnchorID.IsValid()) continue;
+            bool bFound = false;
+            for (const FLocationTransitionPoint& TP : Street->TransitionPoints) { if (TP.TransitionPointID == Anchor->AnchorID) { bFound = true; break; } }
+            if (!bFound && Anchor->RequiresDestination)
+            {
+                FString RegionDisp;
+                if (!Street->ParentWorldRegion.IsNull()) if (UWorldRegionAsset* R = Street->ParentWorldRegion.LoadSynchronous()) RegionDisp = R->DisplayName.ToString();
+                UnregisteredShort.Add(FString::Printf(TEXT("%s (%s) — %s - %s"), *Anchor->GetName(), *Anchor->DisplayName.ToString(), *RegionDisp, *Street->DisplayName.ToString()));
+                UE_LOG(LogTemp, Warning, TEXT("ValidateStreetTransitions: Anchor on level not registered in Street asset: Actor=%s, Asset=%s, Pos=%s"), *Anchor->GetName(), *Street->GetName(), *Anchor->GetActorLocation().ToString());
+            }
+            
+        }
+        if (UnregisteredShort.Num() > 0)
+        {
+            FString Msg;
+            for (const FString& S : UnregisteredShort) { Msg += S + TEXT("\n"); }
+            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(FString::Printf(TEXT("Found %d anchors on scene not registered in Street asset:\n%s"), UnregisteredShort.Num(), *Msg)));
+        }
+
         int32 Removed = ULocationEditorUtils::ValidateAndCleanTransitionPoints(Street);
         int32 Updated = UpdateTransitionPointsForAsset(Street, LevelPaths);
+
+        // Reciprocal link checks
+        TArray<FString> ShortMessages;
+        for (const FLocationTransitionPoint& TP : Street->TransitionPoints)
+        {
+            if (!TP.DestinationLink.TargetAnchorID.IsValid()) continue;
+
+            ALocationAnchorActor* SourceActor = nullptr;
+            if (!TP.SourceAnchor.IsNull()) SourceActor = Cast<ALocationAnchorActor>(TP.SourceAnchor.Get());
+            if (!SourceActor) SourceActor = FindAnchorInLevelPaths(TP.TransitionPointID, LevelPaths);
+
+            // Resolve dest level
+            FSoftObjectPath DestLevelPath;
+            if (!TP.DestinationLink.TargetFloor.IsNull())
+            {
+                if (UFloorAsset* F = TP.DestinationLink.TargetFloor.LoadSynchronous())
+                    if (!F->FloorLevel.IsNull()) DestLevelPath = F->FloorLevel.ToSoftObjectPath();
+            }
+            if (!DestLevelPath.IsValid() && !TP.DestinationLink.TargetRegion.IsNull())
+            {
+                if (UWorldRegionAsset* R = TP.DestinationLink.TargetRegion.LoadSynchronous())
+                    if (!R->RegionLevel.IsNull()) DestLevelPath = R->RegionLevel.ToSoftObjectPath();
+            }
+
+            ALocationAnchorActor* DestActor = nullptr;
+            if (DestLevelPath.IsValid()) DestActor = FindAnchorOnLevel(TP.DestinationLink.TargetAnchorID, DestLevelPath);
+
+            bool bReciprocal = false;
+            if (DestActor)
+            {
+                if (DestActor->DestinationLink.TargetAnchorID == TP.TransitionPointID) bReciprocal = true;
+                else if (UObject* DAReg = DestActor->GetOwnerRegistrationAsset())
+                {
+                    if (UWorldRegionAsset* Reg = Cast<UWorldRegionAsset>(DAReg))
+                    {
+                        for (const FLocationAnchor& A : Reg->Anchors) if (A.AnchorID == DestActor->AnchorID && A.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                    }
+                    else if (UStreetAsset* S2 = Cast<UStreetAsset>(DAReg))
+                    {
+                        for (const FLocationAnchor& A : S2->Anchors) if (A.AnchorID == DestActor->AnchorID && A.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                    }
+                    else if (UInteriorSetAsset* IS2 = Cast<UInteriorSetAsset>(DAReg))
+                    {
+                        for (const TSoftObjectPtr<UFloorAsset>& FloorRef : IS2->Floors)
+                        {
+                            if (!FloorRef.IsValid()) continue;
+                            UFloorAsset* FloorObj = FloorRef.LoadSynchronous();
+                            if (!FloorObj) continue;
+                            for (const FLocationAnchor& AnchorEntry : FloorObj->Anchors)
+                            {
+                                if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID)
+                                {
+                                    bReciprocal = true;
+                                    break;
+                                }
+                            }
+                            if (bReciprocal) break;
+                        }
+                    }
+                    else if (UFloorAsset* F2 = Cast<UFloorAsset>(DAReg))
+                    {
+                        for (const FLocationAnchor& A : F2->Anchors) if (A.AnchorID == DestActor->AnchorID && A.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                    }
+                }
+            }
+
+            if (!bReciprocal)
+            {
+                FString ObjName = SourceActor ? SourceActor->GetName() : TEXT("<no actor>");
+                FString Disp = SourceActor ? SourceActor->DisplayName.ToString() : TP.DisplayName.ToString();
+                FString RegionDisp, StreetDisp;
+                if (!Street->ParentWorldRegion.IsNull()) { if (UWorldRegionAsset* R = Street->ParentWorldRegion.LoadSynchronous()) RegionDisp = R->DisplayName.ToString(); }
+                StreetDisp = Street->DisplayName.ToString();
+                FString Loc = FString::Printf(TEXT("%s - %s"), *RegionDisp, *StreetDisp);
+                ShortMessages.Add(FString::Printf(TEXT("%s (%s) — %s"), *ObjName, *Disp, *Loc));
+
+                FVector Pos = SourceActor ? SourceActor->GetActorLocation() : TP.SourceWorldPosition;
+                FString AssetNames = Street->GetName();
+                if (!Street->ParentWorldRegion.IsNull()) if (UWorldRegionAsset* R = Street->ParentWorldRegion.LoadSynchronous()) AssetNames = FString::Printf(TEXT("%s/%s"), *R->GetName(), *Street->GetName());
+                UE_LOG(LogTemp, Warning, TEXT("ValidateStreetTransitions: Non-reciprocal anchor '%s' (%s) in street asset '%s' at pos %s -> dest anchor id %s"),
+                    *ObjName, *Disp, *AssetNames, *Pos.ToString(), *TP.DestinationLink.TargetAnchorID.ToString());
+            }
+        }
+
+        if (ShortMessages.Num() > 0)
+        {
+            FString Msg;
+            for (const FString& S : ShortMessages) { Msg += S + TEXT("\n"); }
+            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Msg));
+        }
 
         UE_LOG(LogTemp, Log, TEXT("ValidateStreetTransitions: Street '%s' removed %d, updated %d transition points"), *Street->GetName(), Removed, Updated);
         return Removed + Updated;
@@ -571,8 +885,131 @@ int32 FFloorAssignerEditorLibrary::ValidateInteriorSetTransitions(const FGuid& I
             }
         }
 
+        // For interior set, gather the region level and floors' levels; floors have separate scenes
+        TArray<FSoftObjectPath> AllPaths = LevelPaths;
+        for (const TSoftObjectPtr<UFloorAsset>& FR : IS->Floors) if (FR.IsValid()) AllPaths.Add(FR.ToSoftObjectPath());
+
+        TArray<ALocationAnchorActor*> SceneAnchors;
+        GetAnchorsInLevelPaths(AllPaths, SceneAnchors);
+        TArray<FString> UnregisteredShort;
+        for (ALocationAnchorActor* Anchor : SceneAnchors)
+        {
+            if (!IsValid(Anchor) || !Anchor->AnchorID.IsValid()) continue;
+            bool bFound = false;
+            for (const FLocationTransitionPoint& TP : IS->TransitionPoints) { if (TP.TransitionPointID == Anchor->AnchorID) { bFound = true; break; } }
+            if (!bFound && Anchor->RequiresDestination)
+            {
+                FString RegionDisp, StreetDisp;
+                if (!IS->ParentStreet.IsNull()) if (UStreetAsset* S = IS->ParentStreet.LoadSynchronous()) { StreetDisp = S->DisplayName.ToString(); if (!S->ParentWorldRegion.IsNull()) if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous()) RegionDisp = R->DisplayName.ToString(); }
+                UnregisteredShort.Add(FString::Printf(TEXT("%s (%s) — %s - %s - %s"), *Anchor->GetName(), *Anchor->DisplayName.ToString(), *RegionDisp, *StreetDisp, *IS->DisplayName.ToString()));
+                UE_LOG(LogTemp, Warning, TEXT("ValidateInteriorSetTransitions: Anchor on level not registered in InteriorSet asset: Actor=%s, Asset=%s, Pos=%s"), *Anchor->GetName(), *IS->GetName(), *Anchor->GetActorLocation().ToString());
+            }
+            
+        }
+        if (UnregisteredShort.Num() > 0)
+        {
+            FString Msg;
+            for (const FString& S : UnregisteredShort) { Msg += S + TEXT("\n"); }
+            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(FString::Printf(TEXT("Found %d anchors on scene not registered in InteriorSet asset:\n%s"), UnregisteredShort.Num(), *Msg)));
+        }
+
         int32 Removed = ULocationEditorUtils::ValidateAndCleanTransitionPoints(IS);
         int32 Updated = UpdateTransitionPointsForAsset(IS, LevelPaths);
+
+        // Reciprocal check
+        TArray<FString> ShortMessages;
+        for (const FLocationTransitionPoint& TP : IS->TransitionPoints)
+        {
+            if (!TP.DestinationLink.TargetAnchorID.IsValid()) continue;
+
+            ALocationAnchorActor* SourceActor = nullptr;
+            if (!TP.SourceAnchor.IsNull()) SourceActor = Cast<ALocationAnchorActor>(TP.SourceAnchor.Get());
+            if (!SourceActor) SourceActor = FindAnchorInLevelPaths(TP.TransitionPointID, LevelPaths);
+
+            FSoftObjectPath DestLevelPath;
+            if (!TP.DestinationLink.TargetFloor.IsNull())
+            {
+                if (UFloorAsset* F = TP.DestinationLink.TargetFloor.LoadSynchronous()) if (!F->FloorLevel.IsNull()) DestLevelPath = F->FloorLevel.ToSoftObjectPath();
+            }
+            if (!DestLevelPath.IsValid() && !TP.DestinationLink.TargetRegion.IsNull())
+            {
+                if (UWorldRegionAsset* R = TP.DestinationLink.TargetRegion.LoadSynchronous()) if (!R->RegionLevel.IsNull()) DestLevelPath = R->RegionLevel.ToSoftObjectPath();
+            }
+
+            ALocationAnchorActor* DestActor = nullptr;
+            if (DestLevelPath.IsValid()) DestActor = FindAnchorOnLevel(TP.DestinationLink.TargetAnchorID, DestLevelPath);
+
+            bool bReciprocal = false;
+            if (DestActor)
+            {
+                if (DestActor->DestinationLink.TargetAnchorID == TP.TransitionPointID)
+                {
+                    bReciprocal = true;
+                }
+                else if (UObject* DAReg = DestActor->GetOwnerRegistrationAsset())
+                {
+                    if (UWorldRegionAsset* Reg = Cast<UWorldRegionAsset>(DAReg))
+                    {
+                        for (const FLocationAnchor& AnchorEntry : Reg->Anchors)
+                        {
+                            if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                        }
+                    }
+                    else if (UStreetAsset* StreetOwner = Cast<UStreetAsset>(DAReg))
+                    {
+                        for (const FLocationAnchor& AnchorEntry : StreetOwner->Anchors)
+                        {
+                            if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                        }
+                    }
+                    else if (UInteriorSetAsset* InteriorOwner = Cast<UInteriorSetAsset>(DAReg))
+                    {
+                        for (const TSoftObjectPtr<UFloorAsset>& FloorRef : InteriorOwner->Floors)
+                        {
+                            if (!FloorRef.IsValid()) continue;
+                            UFloorAsset* FloorObj = FloorRef.LoadSynchronous();
+                            if (!FloorObj) continue;
+                            for (const FLocationAnchor& AnchorEntry : FloorObj->Anchors)
+                            {
+                                if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                            }
+                            if (bReciprocal) break;
+                        }
+                    }
+                    else if (UFloorAsset* FloorOwner = Cast<UFloorAsset>(DAReg))
+                    {
+                        for (const FLocationAnchor& AnchorEntry : FloorOwner->Anchors)
+                        {
+                            if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                        }
+                    }
+                }
+            }
+
+            if (!bReciprocal)
+            {
+                FString ObjName = SourceActor ? SourceActor->GetName() : TEXT("<no actor>");
+                FString Disp = SourceActor ? SourceActor->DisplayName.ToString() : TP.DisplayName.ToString();
+                FString RegionDisp, StreetDisp, ISDisp;
+                if (!IS->ParentStreet.IsNull()) if (UStreetAsset* S = IS->ParentStreet.LoadSynchronous()) { StreetDisp = S->DisplayName.ToString(); if (!S->ParentWorldRegion.IsNull()) if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous()) RegionDisp = R->DisplayName.ToString(); }
+                ISDisp = IS->DisplayName.ToString();
+                FString Loc = FString::Printf(TEXT("%s - %s - %s"), *RegionDisp, *StreetDisp, *ISDisp);
+                ShortMessages.Add(FString::Printf(TEXT("%s (%s) — %s"), *ObjName, *Disp, *Loc));
+
+                FVector Pos = SourceActor ? SourceActor->GetActorLocation() : TP.SourceWorldPosition;
+                FString AssetNames = IS->GetName();
+                if (!IS->ParentStreet.IsNull()) if (UStreetAsset* S = IS->ParentStreet.LoadSynchronous()) { if (!S->ParentWorldRegion.IsNull()) if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous()) AssetNames = FString::Printf(TEXT("%s/%s/%s"), *R->GetName(), *S->GetName(), *IS->GetName()); else AssetNames = FString::Printf(TEXT("%s/%s"), *S->GetName(), *IS->GetName()); }
+                UE_LOG(LogTemp, Warning, TEXT("ValidateInteriorSetTransitions: Non-reciprocal anchor '%s' (%s) in interiorset asset '%s' at pos %s -> dest anchor id %s"),
+                    *ObjName, *Disp, *AssetNames, *Pos.ToString(), *TP.DestinationLink.TargetAnchorID.ToString());
+            }
+        }
+
+        if (ShortMessages.Num() > 0)
+        {
+            FString Msg;
+            for (const FString& S : ShortMessages) { Msg += S + TEXT("\n"); }
+            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Msg));
+        }
 
         UE_LOG(LogTemp, Log, TEXT("ValidateInteriorSetTransitions: InteriorSet '%s' removed %d, updated %d transition points"), *IS->GetName(), Removed, Updated);
         return Removed + Updated;
@@ -603,8 +1040,120 @@ int32 FFloorAssignerEditorLibrary::ValidateFloorTransitions(const FGuid& FloorGu
             TArray<FSoftObjectPath> LevelPaths;
             if (!Floor->FloorLevel.IsNull()) LevelPaths.Add(Floor->FloorLevel.ToSoftObjectPath());
 
+            // For floor, check anchors on its level
+            TArray<ALocationAnchorActor*> SceneAnchors;
+            GetAnchorsOnLevel(Floor->FloorLevel.ToSoftObjectPath(), SceneAnchors);
+            TArray<FString> UnregisteredShort;
+            for (ALocationAnchorActor* Anchor : SceneAnchors)
+            {
+                if (!IsValid(Anchor) || !Anchor->AnchorID.IsValid()) continue;
+                bool bFound = false;
+                for (const FLocationTransitionPoint& TP : Floor->TransitionPoints) { if (TP.TransitionPointID == Anchor->AnchorID) { bFound = true; break; } }
+                if (!bFound && Anchor->RequiresDestination)
+                {
+                    FString RegionDisp, StreetDisp, ISDisp;
+                    if (UInteriorSetAsset* PIS = Floor->ParentInteriorSet.LoadSynchronous()) { ISDisp = PIS->DisplayName.ToString(); if (!PIS->ParentStreet.IsNull()) if (UStreetAsset* S = PIS->ParentStreet.LoadSynchronous()) { StreetDisp = S->DisplayName.ToString(); if (!S->ParentWorldRegion.IsNull()) if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous()) RegionDisp = R->DisplayName.ToString(); } }
+                    UnregisteredShort.Add(FString::Printf(TEXT("%s (%s) — %s - %s - %s - %s"), *Anchor->GetName(), *Anchor->DisplayName.ToString(), *RegionDisp, *StreetDisp, *ISDisp, *Floor->DisplayName.ToString()));
+                    UE_LOG(LogTemp, Warning, TEXT("ValidateFloorTransitions: Anchor on level not registered in Floor asset: Actor=%s, Asset=%s, Pos=%s"), *Anchor->GetName(), *Floor->GetName(), *Anchor->GetActorLocation().ToString());
+                }
+                
+            }
+            if (UnregisteredShort.Num() > 0)
+            {
+                FString Msg;
+                for (const FString& S : UnregisteredShort) { Msg += S + TEXT("\n"); }
+                FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(FString::Printf(TEXT("Found %d anchors on scene not registered in Floor asset:\n%s"), UnregisteredShort.Num(), *Msg)));
+            }
+
             int32 Removed = ULocationEditorUtils::ValidateAndCleanTransitionPoints(Floor);
             int32 Updated = UpdateTransitionPointsForAsset(Floor, LevelPaths);
+
+            // Reciprocal checks for floor
+            TArray<FString> ShortMessages;
+            for (const FLocationTransitionPoint& TP : Floor->TransitionPoints)
+            {
+                if (!TP.DestinationLink.TargetAnchorID.IsValid()) continue;
+
+                ALocationAnchorActor* SourceActor = nullptr;
+                if (!TP.SourceAnchor.IsNull()) SourceActor = Cast<ALocationAnchorActor>(TP.SourceAnchor.Get());
+                if (!SourceActor) SourceActor = FindAnchorInLevelPaths(TP.TransitionPointID, LevelPaths);
+
+                FSoftObjectPath DestLevelPath;
+                if (!TP.DestinationLink.TargetFloor.IsNull())
+                {
+                    if (UFloorAsset* F = TP.DestinationLink.TargetFloor.LoadSynchronous()) if (!F->FloorLevel.IsNull()) DestLevelPath = F->FloorLevel.ToSoftObjectPath();
+                }
+                if (!DestLevelPath.IsValid() && !TP.DestinationLink.TargetRegion.IsNull())
+                {
+                    if (UWorldRegionAsset* R = TP.DestinationLink.TargetRegion.LoadSynchronous()) if (!R->RegionLevel.IsNull()) DestLevelPath = R->RegionLevel.ToSoftObjectPath();
+                }
+
+                ALocationAnchorActor* DestActor = nullptr;
+                if (DestLevelPath.IsValid()) DestActor = FindAnchorOnLevel(TP.DestinationLink.TargetAnchorID, DestLevelPath);
+
+                bool bReciprocal = false;
+                if (DestActor)
+                {
+                    if (DestActor->DestinationLink.TargetAnchorID == TP.TransitionPointID)
+                    {
+                        bReciprocal = true;
+                    }
+                    else if (UObject* DAReg = DestActor->GetOwnerRegistrationAsset())
+                    {
+                        if (UWorldRegionAsset* Reg = Cast<UWorldRegionAsset>(DAReg))
+                        {
+                            for (const FLocationAnchor& AnchorEntry : Reg->Anchors) if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                        }
+                        else if (UStreetAsset* StreetOwner = Cast<UStreetAsset>(DAReg))
+                        {
+                            for (const FLocationAnchor& AnchorEntry : StreetOwner->Anchors) if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                        }
+                        else if (UInteriorSetAsset* InteriorOwner = Cast<UInteriorSetAsset>(DAReg))
+                        {
+                            for (const TSoftObjectPtr<UFloorAsset>& FloorRef : InteriorOwner->Floors)
+                            {
+                                if (!FloorRef.IsValid()) continue;
+                                UFloorAsset* FloorObj = FloorRef.LoadSynchronous();
+                                if (!FloorObj) continue;
+                                for (const FLocationAnchor& AnchorEntry : FloorObj->Anchors) if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                                if (bReciprocal) break;
+                            }
+                        }
+                        else if (UFloorAsset* FloorOwner = Cast<UFloorAsset>(DAReg))
+                        {
+                            for (const FLocationAnchor& AnchorEntry : FloorOwner->Anchors) if (AnchorEntry.AnchorID == DestActor->AnchorID && AnchorEntry.ReturnLink.TargetAnchorID == TP.TransitionPointID) { bReciprocal = true; break; }
+                        }
+                    }
+                }
+
+                if (!bReciprocal)
+                {
+                    FString ObjName = SourceActor ? SourceActor->GetName() : TEXT("<no actor>");
+                    FString Disp = SourceActor ? SourceActor->DisplayName.ToString() : TP.DisplayName.ToString();
+                    FString RegionDisp, StreetDisp, ISDisp, FloorDisp;
+                    if (UInteriorSetAsset* PIS = Floor->ParentInteriorSet.LoadSynchronous())
+                    {
+                        ISDisp = PIS->DisplayName.ToString();
+                        if (!PIS->ParentStreet.IsNull()) if (UStreetAsset* S = PIS->ParentStreet.LoadSynchronous()) { StreetDisp = S->DisplayName.ToString(); if (!S->ParentWorldRegion.IsNull()) if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous()) RegionDisp = R->DisplayName.ToString(); }
+                    }
+                    FloorDisp = Floor->DisplayName.ToString();
+                    FString Loc = FString::Printf(TEXT("%s - %s - %s - %s"), *RegionDisp, *StreetDisp, *ISDisp, *FloorDisp);
+                    ShortMessages.Add(FString::Printf(TEXT("%s (%s) — %s"), *ObjName, *Disp, *Loc));
+
+                    FVector Pos = SourceActor ? SourceActor->GetActorLocation() : TP.SourceWorldPosition;
+                    FString AssetNames = Floor->GetName();
+                    if (UInteriorSetAsset* PIS2 = Floor->ParentInteriorSet.LoadSynchronous()) if (!PIS2->ParentStreet.IsNull()) if (UStreetAsset* S = PIS2->ParentStreet.LoadSynchronous()) if (!S->ParentWorldRegion.IsNull()) if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous()) AssetNames = FString::Printf(TEXT("%s/%s/%s/%s"), *R->GetName(), *S->GetName(), *PIS2->GetName(), *Floor->GetName());
+                    UE_LOG(LogTemp, Warning, TEXT("ValidateFloorTransitions: Non-reciprocal anchor '%s' (%s) in floor asset '%s' at pos %s -> dest anchor id %s"),
+                        *ObjName, *Disp, *AssetNames, *Pos.ToString(), *TP.DestinationLink.TargetAnchorID.ToString());
+                }
+            }
+
+            if (ShortMessages.Num() > 0)
+            {
+                FString Msg;
+                for (const FString& S : ShortMessages) { Msg += S + TEXT("\n"); }
+                FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Msg));
+            }
 
             UE_LOG(LogTemp, Log, TEXT("ValidateFloorTransitions: Floor '%s' removed %d, updated %d transition points"), *Floor->GetName(), Removed, Updated);
             return Removed + Updated;

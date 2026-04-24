@@ -6,7 +6,7 @@ public class FPSKitALSRefactored : ModuleRules
     public FPSKitALSRefactored(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-
+        OptimizeCode = CodeOptimization.Never;
         PublicDependencyModuleNames.AddRange(new string[]
         {
             "Core", "CoreUObject", "Engine",
