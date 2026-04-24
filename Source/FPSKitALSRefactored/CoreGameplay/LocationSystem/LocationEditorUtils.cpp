@@ -503,6 +503,33 @@ int32 ULocationEditorUtils::ValidateRegionTransitionsByGuid(const FGuid& RegionG
 #endif
 }
 
+int32 ULocationEditorUtils::ValidateRegionTransitionsCascadeByGuid(const FGuid& RegionGuid)
+{
+#if WITH_EDITOR
+    return FFloorAssignerEditorLibrary::ValidateRegionTransitionsCascade(RegionGuid);
+#else
+    return 0;
+#endif
+}
+
+int32 ULocationEditorUtils::ValidateStreetTransitionsCascadeByGuid(const FGuid& StreetGuid)
+{
+#if WITH_EDITOR
+    return FFloorAssignerEditorLibrary::ValidateStreetTransitionsCascade(StreetGuid);
+#else
+    return 0;
+#endif
+}
+
+int32 ULocationEditorUtils::ValidateInteriorSetTransitionsCascadeByGuid(const FGuid& InteriorSetGuid)
+{
+#if WITH_EDITOR
+    return FFloorAssignerEditorLibrary::ValidateInteriorSetTransitionsCascade(InteriorSetGuid);
+#else
+    return 0;
+#endif
+}
+
 #if !WITH_EDITOR
 
 TMap<FGuid, FText> ULocationEditorUtils::GetRegionAnchors(UWorldRegionAsset* Region)   { return {}; }

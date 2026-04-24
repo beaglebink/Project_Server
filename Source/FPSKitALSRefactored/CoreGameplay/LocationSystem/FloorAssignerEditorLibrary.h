@@ -26,6 +26,10 @@ public:
     static int32 ValidateRegionTransitions(const FGuid& RegionGuid);
     static int32 ValidateInteriorSetTransitions(const FGuid& InteriorSetGuid);
     static int32 ValidateFloorTransitions(const FGuid& FloorGuid);
+    // Cascade validations
+    static int32 ValidateRegionTransitionsCascade(const FGuid& RegionGuid);
+    static int32 ValidateStreetTransitionsCascade(const FGuid& StreetGuid);
+    static int32 ValidateInteriorSetTransitionsCascade(const FGuid& InteriorSetGuid);
 };
 
 #endif // WITH_EDITOR

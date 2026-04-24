@@ -149,4 +149,15 @@ public:
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
 #endif
     static int32 ValidateRegionTransitionsByGuid(const FGuid& RegionGuid);
+
+#if WITH_EDITOR
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+    static int32 ValidateRegionTransitionsCascadeByGuid(const FGuid& RegionGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+    static int32 ValidateStreetTransitionsCascadeByGuid(const FGuid& StreetGuid);
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "LocationEditor|Validation")
+    static int32 ValidateInteriorSetTransitionsCascadeByGuid(const FGuid& InteriorSetGuid);
+#endif
 };
