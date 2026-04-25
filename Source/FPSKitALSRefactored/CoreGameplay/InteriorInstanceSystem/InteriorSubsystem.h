@@ -11,6 +11,7 @@
 #include "FloorPlacementPayload.h"
 #include "../LocationSystem/LocationSpatialTypes.h"
 #include <InteriorTransitionPayload.h>
+#include "../MissionSystem/MissionEnvelopeTypes.h"
 #include "InteriorSubsystem.generated.h"
 
 
@@ -212,8 +213,23 @@ public:
 	UFUNCTION()
 	void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
 
+	// ── Mission Snapshot API ────────────────────────────────────────────────
+	// Сохранить состояние конкретного этажа под ключом миссии.
+	// Используется MissionSubsystem при активации миссии.
+	void SaveMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey);
+
+	// Восстановить состояние этажа из mission-snapshot.
+	// Применяется перед показом этажа (re-enter) в рамках активной миссии.
+	void RestoreMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey);
+
+	// Освободить mission-snapshot после завершения миссии.
+	// Policy определяет что делать с накопленными изменениями.
+	void ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy);
+
+	// Получить список снимков всех этажей для конкретной миссии (для сохранения на диск)
+	const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* GetMissionSnapshots(FName MissionId) const;
+
 private:
-	// Handler for spawn/despawn interactive objects
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
 
 	// Runtime condition assets to keep alive
@@ -341,6 +357,12 @@ protected:
 	TMap<FString, FInteriorFloorKey> FriendlyFloorIndex;
 
 private:
+	// ── Mission floor snapshots ────────────────────────────────────────────────
+	// Внешний ключ — FName идентификатор миссии.
+	// Внутренний ключ — FInteriorFloorKey (InteriorSetId + FloorId).
+	// Значение — список снимков акторов этажа в момент активации миссии.
+	TMap<FName, TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
+
 	// Обработчик завершения загрузки карты (после SeamlessTravel)
 	void OnPostLoadMap(UWorld* LoadedWorld);
 	FDelegateHandle PostLoadMapHandle;

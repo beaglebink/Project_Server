@@ -6,15 +6,28 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "EngineUtils.h"
-#include "Engine/ReflectionCapture.h"
-#include "BookfaceSubsystem.h"
-#include "InstantMessengerSubsystem.h"
 
 void UGameSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
     TArray<FString> Slots = GetAvailableSlots();
     CurrentSlot = Slots.Num() > 0 ? Slots[0] : TEXT("SaveGame1");
+}
+
+void UGameSaveSubsystem::RegisterSaveableSubsystem(ISaveableSubsystem* Subsystem)
+{
+    if (Subsystem && !SaveableSubsystems.Contains(Subsystem))
+    {
+        SaveableSubsystems.Add(Subsystem);
+        UE_LOG(LogTemp, Log,
+            TEXT("GameSaveSubsystem: Registered subsystem '%s'"),
+            *Subsystem->GetSaveSubsystemName());
+    }
+}
+
+void UGameSaveSubsystem::UnregisterSaveableSubsystem(ISaveableSubsystem* Subsystem)
+{
+    SaveableSubsystems.Remove(Subsystem);
 }
 
 void UGameSaveSubsystem::SetActiveSlot(const FString& SlotName)
@@ -58,17 +71,25 @@ TArray<FSaveSlotInfo> UGameSaveSubsystem::GetSaveSlotsForUI() const
 
 void UGameSaveSubsystem::SaveGame()
 {
-    UWorld* World = GetWorld();
-    if (!World) return;
-
     UThisSaveGame* SaveGameObject = Cast<UThisSaveGame>(
         UGameplayStatics::CreateSaveGameObject(UThisSaveGame::StaticClass()));
     if (!SaveGameObject) return;
 
-    // Теперь SerializeWorld сам выставляет bSkipTransformRestore для особых акторов
-    SaveGameObject->SavedActors = USaveGameHelper::SerializeWorld(World);
+    // Собираем данные у всех зарегистрированных подсистем
+    for (ISaveableSubsystem* Subsystem : SaveableSubsystems)
+    {
+        if (!Subsystem) continue;
+        FSubsystemSaveData Data;
+        Subsystem->CollectSaveData(Data);
+        if (!Data.SubsystemName.IsEmpty())
+        {
+            SaveGameObject->SavedSubsystems.Add(Data);
+        }
+    }
 
-    // 3. Генерируем имя слота
+    // DEPRECATED: SavedActors больше не заполняется (USaveGameHelper::SerializeWorld устарел)
+
+    // Генерируем имя слота
     FString TimeStamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
     FString BaseSlotName = FString::Printf(TEXT("Save_%s"), *TimeStamp);
 
@@ -87,51 +108,58 @@ void UGameSaveSubsystem::SaveGame()
 
     CurrentSlot = FinalSlotName;
 
-    // 4. Сохраняем в слот
     UGameplayStatics::SaveGameToSlot(SaveGameObject, CurrentSlot, 0);
 
-    UE_LOG(LogTemp, Log, TEXT("Сохранение выполнено в слот: %s"), *CurrentSlot);
+    UE_LOG(LogTemp, Log, TEXT("GameSaveSubsystem: Saved to slot '%s' (%d subsystems)"),
+        *CurrentSlot, SaveableSubsystems.Num());
 }
 
 void UGameSaveSubsystem::LoadGame()
 {
     UThisSaveGame* SaveGameObject = Cast<UThisSaveGame>(
         UGameplayStatics::LoadGameFromSlot(CurrentSlot, 0));
-    if (!SaveGameObject) return;
+    if (!SaveGameObject)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("GameSaveSubsystem: Cannot load slot '%s'"), *CurrentSlot);
+        return;
+    }
 
-    UWorld* World = GetWorld();
-    if (!World) return;
+    // Раздаём данные зарегистрированным подсистемам по имени
+    for (const FSubsystemSaveData& Data : SaveGameObject->SavedSubsystems)
+    {
+        for (ISaveableSubsystem* Subsystem : SaveableSubsystems)
+        {
+            if (Subsystem && Subsystem->GetSaveSubsystemName() == Data.SubsystemName)
+            {
+                Subsystem->ApplySaveData(Data);
+                break;
+            }
+        }
+    }
 
-    // Очистка мира остаётся прежней
-    USaveGameHelper::ClearWorld(World, SaveGameObject->SavedActors);
-
-    // Восстановление: DeserializeWorld теперь учитывает bSkipTransformRestore
-    USaveGameHelper::DeserializeWorld(World, SaveGameObject->SavedActors);
-
-    UE_LOG(LogTemp, Log, TEXT("Загрузка выполнена из слота: %s"), *CurrentSlot);
+    UE_LOG(LogTemp, Log, TEXT("GameSaveSubsystem: Loaded from slot '%s' (%d subsystem blocks)"),
+        *CurrentSlot, SaveGameObject->SavedSubsystems.Num());
 }
 
 void UGameSaveSubsystem::DeleteSaveSlot(const FString& SlotName)
 {
-    // Путь к файлу сохранения
     FString SaveDir = FPaths::ProjectSavedDir() / TEXT("SaveGames");
     FString FullPath = SaveDir / (SlotName + TEXT(".sav"));
 
-    // Проверяем, существует ли файл
     if (IFileManager::Get().FileExists(*FullPath))
     {
         bool bDeleted = IFileManager::Get().Delete(*FullPath);
         if (bDeleted)
         {
-            UE_LOG(LogTemp, Log, TEXT("Слот %s успешно удалён."), *SlotName);
+            UE_LOG(LogTemp, Log, TEXT("GameSaveSubsystem: Slot '%s' deleted"), *SlotName);
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("Не удалось удалить слот %s."), *SlotName);
+            UE_LOG(LogTemp, Warning, TEXT("GameSaveSubsystem: Failed to delete slot '%s'"), *SlotName);
         }
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("Слот %s не найден."), *SlotName);
+        UE_LOG(LogTemp, Warning, TEXT("GameSaveSubsystem: Slot '%s' not found"), *SlotName);
     }
 }

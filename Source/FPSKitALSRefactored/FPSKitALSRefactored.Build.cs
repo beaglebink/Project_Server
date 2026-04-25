@@ -18,16 +18,16 @@ public class FPSKitALSRefactored : ModuleRules
             "GameplayTags",
             "InputCore",
             "Slate",
-            "SlateCore"
+            "SlateCore",
+            "Json",
+            "JsonUtilities"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
             "MoviePlayer",
             "Slate",
-            "SlateCore",
-            "Json",
-            "JsonUtilities"
+            "SlateCore"
         });
 
         if (Target.bBuildEditor)
@@ -51,6 +51,9 @@ public class FPSKitALSRefactored : ModuleRules
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "TeleportationSystem"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "Weapon"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "Cubixon"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "MissionSystem"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "SaveGame"));
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "LocationSystem"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
     }
 }
