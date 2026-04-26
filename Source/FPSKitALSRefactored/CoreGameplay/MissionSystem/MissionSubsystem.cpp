@@ -973,6 +973,22 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 
 		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Requested FloorStateSave for mission '%s' floor %s"),
 			*MissionId.ToString(), *FloorId.ToString());
+
+		// Переводим контроллер миссии в приостановленное состояние — это сигнал, что миссия временно "поставлена на паузу"
+		// Пока игрок уходит с этажа и snapshot сохраняется. Suspend() вызовет BroadcastStatusChanged().
+		if (Ctrl->GetStatus() == EMissionStatus::Active)
+		{
+			Ctrl->Suspend();
+			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Suspended mission controller for '%s' before leaving floor"), *MissionId.ToString());
+		}
+	}
+
+	// После того, как мы запросили сохранение snapshot'ов и приостановили контроллеры,
+	// делаем явное сохранение через GameSaveSubsystem — чтобы обеспечить долговременное хранение контроллера/статуса.
+	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+	{
+		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Triggering SaveGame after FloorLeaving handling"));
+		SaveSys->SaveGame();
 	}
 }
 

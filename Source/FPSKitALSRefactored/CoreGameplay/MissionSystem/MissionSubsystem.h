@@ -21,9 +21,17 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionProgressEvent, const FOutc
 // ─── FActiveMissionEntry ──────────────────────────────────────────────────────
 // Запись об активной миссии в MissionSubsystem.
 // MissionId = FName имени ассета (стабильный, читаемый).
+USTRUCT()
 struct FActiveMissionEntry
 {
+	GENERATED_BODY()
+
+	// Идентификатор миссии (имя ассета)
+	UPROPERTY()
 	FName MissionId;
+
+	// Контроллер миссии — помечен UPROPERTY чтобы GC учитывал ссылку во время загрузок/SeamlessTravel
+	UPROPERTY()
 	TObjectPtr<UMissionController> Controller;
 };
 
@@ -190,6 +198,8 @@ private:
 
 	// ─── Активные миссии ─────────────────────────────────────────────────────
 	// Ключ — FName идентификатор миссии (имя ассета)
+	// Контейнер помечен как UPROPERTY чтобы GC видел внутренние UPROPERTY поля контроллеров
+	UPROPERTY()
 	TMap<FName, FActiveMissionEntry> ActiveMissions;
 
 	// ─── Вспомогательные методы ───────────────────────────────────────────────
