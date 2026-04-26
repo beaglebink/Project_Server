@@ -28,14 +28,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "FloorState")
 	FGuid FloorId;
 
-    // Setup helper: accepts asset path or name + floor index; resolves GUIDs internally.
-    // (Setup helper: принимает путь или имя ассета + индекс этажа; внутри определяет GUID'ы.)
+	// Optional: mission identifier — if set, InteriorSubsystem will save/restore under mission snapshot
+	UPROPERTY(BlueprintReadWrite, Category = "FloorState")
+	FName MissionId;
+
     UFUNCTION(BlueprintCallable, Category = "FloorState")
     UFloorStatePayload* Setup(const FString& InInteriorSetPathOrName, int32 InFloorIndex);
 
-    // New convenient Setup: provide the Floor asset directly (recommended).
-    // In Blueprints you can pass a reference to the FloorAsset directly.
-    // (Новый удобный Setup: задавать этаж через сам Asset (рекомендуется). В Blueprint можно передать ссылку на FloorAsset напрямую.)
     UFUNCTION(BlueprintCallable, Category = "FloorState")
     UFloorStatePayload* SetupFromFloorAsset(UFloorAsset* InFloorAsset);
 };

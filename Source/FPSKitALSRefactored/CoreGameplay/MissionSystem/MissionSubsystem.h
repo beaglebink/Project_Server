@@ -35,7 +35,7 @@ struct FEnvelopeConflictInfo
 	bool bHasConflict = false;
 	// Имя миссии-победителя (меньший Priority)
 	FName WinnerMissionId;
-	// Имя миссии-проигравшей (больший Priority — молча откладывает)
+	// Имя миссии-проигравшей (большой Priority — молча откладывает)
 	FName LoserMissionId;
 };
 
@@ -166,6 +166,13 @@ public:
 	bool IsMissionProgressSubscribed() const { return MissionProgressHandle.IsValid(); }
 
 private:
+	// Helper to register runtime condition -> handler (реализовано в .cpp)
+	void TryRegisterCondition(
+		TObjectPtr<UOutcomeConditionAsset>& Condition,
+		FOutcomeHandlerHandle& Handle,
+		void (UMissionSubsystem::* HandlerMethod)(const FOutcomeEventBase&),
+		EOutcomeMission MissionFilter = EOutcomeMission::Default);
+
 	void HandleGhostCleared(const FOutcomeEventBase& Outcome);
 	void HandleMissionProgress(const FOutcomeEventBase& Outcome);
 
@@ -195,14 +202,4 @@ private:
 
 	// Применить политику Envelope при уходе из здания
 	void ApplyEnvelopeExitPolicy(FName MissionId, const FMissionEnvelope& Envelope);
-
-	// Промоутить изменения канала в WorldStateSubsystem (политика Persist)
-	void PromoteChannelToWorldState(FName MissionId, const FMissionEnvelope& Envelope);
-
-	// Helper for EventBus registration (реализация в .cpp)
-	void TryRegisterCondition(
-		TObjectPtr<UOutcomeConditionAsset>& Condition,
-		FOutcomeHandlerHandle& Handle,
-		void (UMissionSubsystem::* HandlerMethod)(const FOutcomeEventBase&),
-		EOutcomeMission MissionFilter = EOutcomeMission::Default);
 };

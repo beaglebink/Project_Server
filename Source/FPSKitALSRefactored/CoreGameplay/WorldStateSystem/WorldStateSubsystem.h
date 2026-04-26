@@ -25,6 +25,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> ChangingLocationAvailabilityCondition;
 
+	// Condition / handle for receiving WorldStateRecord commands via EventBus
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+	TObjectPtr<UOutcomeConditionAsset> WorldStateRecordCondition;
+
 	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
 	FOnChangingLocationAvailabilityEvent OnChangingLocationAvailability;
 
@@ -89,6 +93,10 @@ private:
 	void HandleChangingLocationAvailability(const FOutcomeEventBase& Outcome);
 
 	FOutcomeHandlerHandle ChangingLocationAvailabilityHandle;
+	FOutcomeHandlerHandle WorldStateRecordHandle;
+
+	// Handler for incoming WorldStateRecord payloads
+	void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
 
 	// Per-item listeners
 	TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;

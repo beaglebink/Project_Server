@@ -5,6 +5,7 @@
 #include "../SaveGame/GameSaveSubsystem.h"
 #include "EngineUtils.h"
 #include "JsonObjectConverter.h"
+#include "WorldStateRecordPayload.h"
 
 void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -19,6 +20,17 @@ void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (ChangingLocationAvailabilityCondition)
 	{
 		SubscribeChangingLocationAvailability();
+	}
+
+	// subscribe to incoming world-state record commands (if condition asset provided)
+	if (WorldStateRecordCondition)
+	{
+		if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+		{
+			WorldStateRecordHandle = EventBus->RegisterHandler(
+				WorldStateRecordCondition,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleSetWorldStateRecord));
+		}
 	}
 }
 
@@ -143,6 +155,14 @@ void UWorldStateSubsystem::HandleChangingLocationAvailability(const FOutcomeEven
 	// Broadcast the unified event to Blueprint listeners.
 	// (Шлём унифицированное событие слушателям Blueprint.)
 	OnChangingLocationAvailability.Broadcast(Outcome);
+}
+
+void UWorldStateSubsystem::HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome)
+{
+	if (UWorldStateRecordPayload* P = Cast<UWorldStateRecordPayload>(Outcome.Payload))
+	{
+		SetWorldStateRecord(P->Record);
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

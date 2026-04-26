@@ -8,6 +8,8 @@
 #include "../InteractionSystem/InteractSetRangePayload.h"
 #include "../InteractionSystem/InteractSetTooltipPayload.h"
 #include "FloorStatePayload.h"
+#include "../MissionSystem/ReleaseMissionSnapshotPayload.h"
+#include "../WorldStateSystem/WorldStateRecordPayload.h"
 #include "FloorAssignmentComponent.h"
 #include "UObject/UnrealType.h"
 #include "EngineUtils.h"
@@ -911,6 +913,23 @@ void UInteriorSubsystem::SubscribeAll()
 				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleFloorTransition));
 		}
 	}
+
+	// Register handler for mission snapshot release commands (published by MissionSubsystem)
+	if (!MissionReleaseHandle.IsValid())
+	{
+		MissionReleaseConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		MissionReleaseConditionAsset->OperatorType = EConditionOperator::Composite;
+		MissionReleaseConditionAsset->FilterRow.OutcomeType = EOutcomeType::Mission;
+		MissionReleaseConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		MissionReleaseConditionAsset->CompileCondition();
+
+		if (MissionReleaseConditionAsset->GetCondition().IsValid())
+		{
+			MissionReleaseHandle = EventBus->RegisterHandler(
+				MissionReleaseConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleReleaseMissionSnapshot));
+		}
+	}
 }
 
 void UInteriorSubsystem::SubscribePlacementRegistration()
@@ -1239,5 +1258,13 @@ const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>*
 UInteriorSubsystem::GetMissionSnapshots(FName MissionId) const
 {
 	return MissionFloorSnapshots.Find(MissionId);
+}
+
+void UInteriorSubsystem::HandleReleaseMissionSnapshot(const FOutcomeEventBase& Outcome)
+{
+	if (UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(Outcome.Payload))
+	{
+		ReleaseMissionSnapshot(P->MissionId, P->Envelope, P->Policy);
+	}
 }
 

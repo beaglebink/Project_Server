@@ -3,15 +3,13 @@
 #include "../SpawnGroupSystem/GhostClearedPayload.h"
 #include "MissionProgressPayload.h"
 #include "MissionEnvelopePayload.h"
-#include "../InteriorInstanceSystem/InteriorSubsystem.h"
-#include "../WorldStateSystem/WorldStateSubsystem.h"
 #include "../LocationSystem/FloorAsset.h"
 #include "../LocationSystem/InteriorSetAsset.h"
 #include "../SaveGame/GameSaveSubsystem.h"
 #include "JsonObjectConverter.h"
 #include "Engine/GameInstance.h"
-#include "EngineUtils.h" // <- Для TActorIterator
-#include "../InteriorInstanceSystem/FloorAssignmentComponent.h" // <- Для UFloorAssignmentComponent
+#include "../InteriorInstanceSystem/FloorStatePayload.h"
+#include "ReleaseMissionSnapshotPayload.h"
 
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -279,8 +277,9 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 		return;
 	}
 
-	// Сохранить snapshot состояния всех этажей в scope envelope
-	if (UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>())
+	// Публикуем FloorStateSave с MissionId для каждого этажа в scope через EventBus
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (EventBus)
 	{
 		const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelope();
 		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelope.Scope.InteriorScopes)
@@ -294,7 +293,19 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 				}
 				if (Floor->FloorID.IsValid())
 				{
-					Interior->SaveMissionFloorState(MissionId, FInteriorFloorKey(SetId, Floor->FloorID));
+					UFloorStatePayload* P = Cast<UFloorStatePayload>(
+						EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
+					if (P)
+					{
+						P->InteriorSetId = SetId;
+						P->FloorId = Floor->FloorID;
+						P->MissionId = MissionId;
+						FOutcomeEventBase Ev;
+						Ev.OutcomeType = EOutcomeType::Interior;
+						Ev.OutcomeInterior = EOutcomeInterior::FloorStateSave;
+						Ev.Payload = P;
+						EventBus->PublishOutcome(Ev);
+					}
 				}
 			}
 		}
@@ -493,119 +504,24 @@ void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionE
 
 	if (Policy == EJobSpacePolicy::None)
 	{
-		// Поведение мира по умолчанию — ничего не делаем
 		return;
 	}
 
-	// Для Partial — проверяем каналы с политикой Persist и промоутим в WorldState
-	if (Policy == EJobSpacePolicy::Partial)
+	// Для любой политики (Reset/Freeze/Partial) — делегируем через EventBus.
+	// InteriorSubsystem обработает Release согласно Policy.
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
-		for (const FEnvelopeChannelEntry& Ch : Envelope.Channels)
+		UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(
+			EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
+		if (P)
 		{
-			if (Ch.Policy == EChannelPolicy::Persist)
-			{
-				PromoteChannelToWorldState(MissionId, Envelope);
-				break;
-			}
+			P->Setup(MissionId, Envelope, Policy);
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Mission;
+			Ev.Payload = P;
+			EventBus->PublishOutcome(Ev);
 		}
 	}
-
-	// InteriorSubsystem применяет политику: Reset сбрасывает, остальное оставляет
-	if (UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>())
-	{
-		Interior->ReleaseMissionSnapshot(MissionId, Envelope, Policy);
-	}
-}
-
-void UMissionSubsystem::PromoteChannelToWorldState(
-	FName MissionId,
-	const FMissionEnvelope& Envelope)
-{
-	UWorldStateSubsystem* WSS = GetGameInstance()->GetSubsystem<UWorldStateSubsystem>();
-	UInteriorSubsystem*   IS  = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
-	if (!WSS || !IS) return;
-
-	// Получаем mission-snapshot из InteriorSubsystem и переносим
-	// SaveGame-свойства Persist-объектов в WorldStateSubsystem.
-	const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* Snapshots =
-		IS->GetMissionSnapshots(MissionId);
-	if (!Snapshots) return;
-
-	UWorld* World = GetWorld();
-	if (!World) return;
-
-	// Собираем карту ItemId -> Actor через FloorAssignmentComponent
-	TMap<FGuid, AActor*> ActorByItemId;
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		AActor* Actor = *It;
-		if (!IsValid(Actor)) continue;
-		if (UFloorAssignmentComponent* FAC =
-			Actor->FindComponentByClass<UFloorAssignmentComponent>())
-		{
-			if (FAC->ItemId.IsValid())
-			{
-				ActorByItemId.Add(FAC->ItemId, Actor);
-			}
-		}
-	}
-
-	// Итерируемся по этажам в scope
-	for (const auto& FloorPair : *Snapshots)
-	{
-		for (const FFloorSavedActorState& Snapshot : FloorPair.Value)
-		{
-			AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
-			if (!ActorPtr || !IsValid(*ActorPtr)) continue;
-
-			AActor* Actor = *ActorPtr;
-			UFloorAssignmentComponent* FAC =
-				Actor->FindComponentByClass<UFloorAssignmentComponent>();
-			if (!FAC) continue;
-
-			// Проверяем что канал этого актора входит в Persist-политику Envelope
-			EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
-			TOptional<EChannelPolicy> Policy = Envelope.GetPolicyForChannel(ActorChannel);
-
-			bool bShouldPersist = false;
-			if (Envelope.JobSpacePolicy != EJobSpacePolicy::Partial)
-			{
-				// Для Reset/Freeze/None — не промоутим
-				bShouldPersist = false;
-			}
-			else if (Policy.IsSet() &&
-				(Policy.GetValue() == EChannelPolicy::Persist ||
-				 Policy.GetValue() == EChannelPolicy::PersistIdentityOnly))
-			{
-				bShouldPersist = true;
-			}
-
-			if (!bShouldPersist) continue;
-
-			// Снимаем текущие SaveGame-свойства с актора и пишем в WorldStateSubsystem
-			for (TFieldIterator<FProperty> PropIt(Actor->GetClass()); PropIt; ++PropIt)
-			{
-				FProperty* Prop = *PropIt;
-				if (!Prop->HasAllPropertyFlags(CPF_SaveGame)) continue;
-
-				FString Exported;
-				Prop->ExportText_InContainer(0, Exported, Actor, nullptr, Actor, PPF_None);
-
-				FWorldStateRecord Record(
-					FAC->ItemId,
-					EWorldStateChangeCategory::InteractiveObject,
-					Prop->GetFName(),
-					Exported,
-					MissionId
-				);
-				WSS->SetWorldStateRecord(Record);
-			}
-		}
-	}
-
-	UE_LOG(LogTemp, Log,
-		TEXT("MissionSubsystem: PromoteChannelToWorldState done for mission '%s'"),
-		*MissionId.ToString());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -369,4 +369,13 @@ private:
 
 	UPROPERTY()
 	UInteriorTransitionPayload* TransitionPayloadCache = nullptr;
+
+	// ----- Mission release via EventBus -----
+	UPROPERTY()
+	UOutcomeConditionAsset* MissionReleaseConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle MissionReleaseHandle;
+
+	// Handler invoked when a ReleaseMissionSnapshot command arrives via EventBus
+	void HandleReleaseMissionSnapshot(const FOutcomeEventBase& Outcome);
 };
