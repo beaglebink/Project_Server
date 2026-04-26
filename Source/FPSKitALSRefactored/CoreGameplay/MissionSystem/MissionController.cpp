@@ -22,7 +22,7 @@ void UMissionController::Activate()
     }
 
     Status = EMissionStatus::Active;
-    BroadcastStatusChanged();
+    //BroadcastStatusChanged(); //Возможно лишний вызов
 
     OnMissionActivated();
 

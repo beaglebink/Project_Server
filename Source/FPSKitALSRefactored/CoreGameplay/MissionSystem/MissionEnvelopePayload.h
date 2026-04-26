@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
@@ -6,34 +6,34 @@
 #include "MissionEnvelopePayload.generated.h"
 
 // ??? UMissionEnvelopePayload ???????????????????????????????????????????????????
-// Payload для событий регистрации / снятия Envelope миссии через EventBus.
+// Payload РґР»СЏ СЃРѕР±С‹С‚РёР№ СЂРµРіРёСЃС‚СЂР°С†РёРё / СЃРЅСЏС‚РёСЏ Envelope РјРёСЃСЃРёРё С‡РµСЂРµР· EventBus.
 // OutcomeType = Mission, OutcomeMission = MissionActivated / MissionCompleted / etc.
 //
-// Blueprint-использование:
-//   1. Создать через EventBus->CreatePayload(UMissionEnvelopePayload)
-//   2. Заполнить поля через Setup()
-//   3. PublishOutcome с OutcomeType=Mission и OutcomeMission=MissionActivated
+// Blueprint-РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ:
+//   1. РЎРѕР·РґР°С‚СЊ С‡РµСЂРµР· EventBus->CreatePayload(UMissionEnvelopePayload)
+//   2. Р—Р°РїРѕР»РЅРёС‚СЊ РїРѕР»СЏ С‡РµСЂРµР· Setup()
+//   3. PublishOutcome СЃ OutcomeType=Mission Рё OutcomeMission=MissionActivated
 //
-// MissionSubsystem подписан и при получении вызывает CreateMission + ActivateMission.
+// MissionSubsystem РїРѕРґРїРёСЃР°РЅ Рё РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РІС‹Р·С‹РІР°РµС‚ CreateMission + ActivateMission.
 UCLASS(BlueprintType, Blueprintable)
 class FPSKITALSREFACTORED_API UMissionEnvelopePayload : public UOutcomePayload
 {
     GENERATED_BODY()
 
 public:
-    // Стабильный FName-идентификатор миссии (имя ассета UMissionAsset)
+    // РЎС‚Р°Р±РёР»СЊРЅС‹Р№ FName-РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РјРёСЃСЃРёРё (РёРјСЏ Р°СЃСЃРµС‚Р° UMissionAsset)
     UPROPERTY(BlueprintReadWrite, Category = "MissionEnvelope")
     FName MissionId;
 
-    // Ссылка на ассет миссии (заполняется до публикации события)
+    // РЎСЃС‹Р»РєР° РЅР° Р°СЃСЃРµС‚ РјРёСЃСЃРёРё (Р·Р°РїРѕР»РЅСЏРµС‚СЃСЏ РґРѕ РїСѓР±Р»РёРєР°С†РёРё СЃРѕР±С‹С‚РёСЏ)
     UPROPERTY(BlueprintReadWrite, Category = "MissionEnvelope")
     TObjectPtr<class UMissionAsset> MissionAsset;
 
-    // Причина завершения (заполняется при MissionCompleted/Failed/Abandoned)
+    // РџСЂРёС‡РёРЅР° Р·Р°РІРµСЂС€РµРЅРёСЏ (Р·Р°РїРѕР»РЅСЏРµС‚СЃСЏ РїСЂРё MissionCompleted/Failed/Abandoned)
     UPROPERTY(BlueprintReadWrite, Category = "MissionEnvelope")
     EMissionEndReason EndReason = EMissionEndReason::None;
 
-    // Удобный Setup для C++ и Blueprint
+    // РЈРґРѕР±РЅС‹Р№ Setup РґР»СЏ C++ Рё Blueprint
     UFUNCTION(BlueprintCallable, Category = "MissionEnvelope")
     UMissionEnvelopePayload* Setup(FName InMissionId, UMissionAsset* InAsset,
                                     EMissionEndReason InEndReason = EMissionEndReason::None)

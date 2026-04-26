@@ -13,7 +13,7 @@ enum class EEnvelopeChannel : uint8
 {
     Clutter             UMETA(DisplayName = "Clutter / Loose Items"),
     InteractiveObjects  UMETA(DisplayName = "Interactive Objects"),
-    Terminals           UMETA(DisplayName = "Terminals / Minigames"),
+    Terminals           UMETA(DisplayName = "Terminals"),
     SpawnGroups         UMETA(DisplayName = "Spawn Groups"),
     StableActors        UMETA(DisplayName = "Stable Actors"),
     EnvironmentJobState UMETA(DisplayName = "Environment Job State")

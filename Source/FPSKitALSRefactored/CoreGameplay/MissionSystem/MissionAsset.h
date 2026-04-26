@@ -5,6 +5,8 @@
 #include "MissionEnvelopeTypes.h"
 #include "MissionAsset.generated.h"
 
+class UMissionController; // forward declaration
+
 // ??? UMissionAsset ????????????????????????????????????????????????????????????
 // PrimaryDataAsset для описания одной миссии.
 // Содержит Envelope с настройками persistence.
@@ -33,6 +35,10 @@ public:
     // Дублирует Envelope.Priority для удобства поиска в подсистеме.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Priority")
     int32 Priority = 0;
+
+    // Укажите BP-класс контроллера миссии (наследник UMissionController).
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Controller")
+    TSubclassOf<UMissionController> ControllerClass;
 
     // Возвращает стабильный FName-идентификатор для использования в рантайме
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mission|Identity")
