@@ -202,4 +202,16 @@ private:
 
 	// Применить политику Envelope при уходе из здания
 	void ApplyEnvelopeExitPolicy(FName MissionId, const FMissionEnvelope& Envelope);
+
+	// Подписка на уведомления о покидании этажа (публикуется InteriorSubsystem)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions|Envelope", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UOutcomeConditionAsset> FloorLeavingCondition;
+
+	FOutcomeHandlerHandle FloorLeavingHandle;
+
+	// Обработчик: получает InteriorTransitionPayload (SourceFloor) и публикует FloorStateSave per mission
+	void HandleFloorLeavingNotification(const FOutcomeEventBase& Outcome);
+
+	void SubscribeFloorLeaving();
+	void UnsubscribeFloorLeaving();
 };

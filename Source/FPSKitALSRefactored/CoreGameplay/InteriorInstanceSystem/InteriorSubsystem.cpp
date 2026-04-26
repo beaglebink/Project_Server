@@ -647,6 +647,17 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	});
 
 	// Уведомляем подписчиков: сейчас будет уход с исходного этажа
+	// Сначала оповестим через EventBus, чтобы MissionSubsystem мог запросить сохранение mission-snapshots.
+	if (UEventBusSubsystem* EventBus = CachedEventBus.Get() ? CachedEventBus.Get() : GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		// Reuse existing payload P (contains SourceFloor info)
+		FOutcomeEventBase Ev;
+		Ev.OutcomeType = EOutcomeType::Interior;
+		Ev.OutcomeInterior = EOutcomeInterior::FloorLeaving; // notify listeners that we're leaving this floor
+		Ev.Payload = P;
+		EventBus->PublishOutcome(Ev);
+	}
+	// Затем стандартный локальный broadcast
 	OnFloorExiting.Broadcast(P->SourceFloor);
 
 	W->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.0f, false);
@@ -1217,7 +1228,7 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(
 
 	if (Policy == EJobSpacePolicy::Reset)
 	{
-		// Восстановить исходное состояние из mission snapshot (состояние до активации миссии)
+		// Восстанавливать исходное состояние из mission snapshot (состояние до активации миссии)
 		for (auto& Pair : *MissionMap)
 		{
 			FloorStateSnapshots.FindOrAdd(Pair.Key) = Pair.Value;

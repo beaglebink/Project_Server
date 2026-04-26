@@ -9,6 +9,7 @@
 #include "JsonObjectConverter.h"
 #include "Engine/GameInstance.h"
 #include "../InteriorInstanceSystem/FloorStatePayload.h"
+#include "../InteriorInstanceSystem/InteriorTransitionPayload.h"
 #include "ReleaseMissionSnapshotPayload.h"
 
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -23,22 +24,15 @@ void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Автоподписка на envelope-события через EventBus
 	SubscribeMissionEnvelopeEvents();
-
-	// Lazy subscribe: only subscribe if condition assigned in editor or earlier
-	if (GhostClearedCondition)
-	{
-		SubscribeGhostCleared();
-	}
-	if (MissionProgressCondition)
-	{
-		SubscribeMissionProgress();
-	}
+	// Подписка на уведомления о покидании этажа (Interior -> Mission coordination)
+	SubscribeFloorLeaving();
 }
 
 void UMissionSubsystem::Deinitialize()
 {
 	UnsubscribeMissionEnvelopeEvents();
 	UnsubscribeAll();
+	UnsubscribeFloorLeaving();
 
 	// Снимаем регистрацию из GameSaveSubsystem
 	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
@@ -121,6 +115,33 @@ void UMissionSubsystem::SubscribeMissionProgress()
 	}
 }
 
+void UMissionSubsystem::SubscribeFloorLeaving()
+{
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
+
+	if (FloorLeavingHandle.IsValid()) return;
+
+	if (!FloorLeavingCondition)
+	{
+		FloorLeavingCondition = NewObject<UOutcomeConditionAsset>(this);
+		FloorLeavingCondition->OperatorType = EConditionOperator::Composite;
+		FloorLeavingCondition->FilterRow.OutcomeType = EOutcomeType::Interior;
+		FloorLeavingCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		FloorLeavingCondition->FilterRow.InteriorType = EOutcomeInterior::FloorLeaving;
+		FloorLeavingCondition->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		FloorLeavingCondition->CompileCondition();
+	}
+
+	if (FloorLeavingCondition->GetCondition().IsValid())
+	{
+		FloorLeavingHandle = EventBus->RegisterHandler(
+			FloorLeavingCondition,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleFloorLeavingNotification));
+		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Subscribed to FloorLeaving (handle=%u)"), FloorLeavingHandle.IsValid() ? FloorLeavingHandle.GetId() : 0);
+	}
+}
+
 void UMissionSubsystem::UnsubscribeGhostCleared()
 {
 	if (!GhostClearedHandle.IsValid()) return;
@@ -143,6 +164,18 @@ void UMissionSubsystem::UnsubscribeMissionProgress()
 		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Unsubscribed MissionProgress (handle=%u)"), MissionProgressHandle.GetId());
 	}
 	MissionProgressHandle.Invalidate();
+}
+
+void UMissionSubsystem::UnsubscribeFloorLeaving()
+{
+	if (!FloorLeavingHandle.IsValid()) return;
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		EventBus->UnregisterHandler(FloorLeavingHandle);
+		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Unsubscribed FloorLeaving (handle=%u)"), FloorLeavingHandle.GetId());
+	}
+	FloorLeavingHandle.Invalidate();
 }
 
 void UMissionSubsystem::UnsubscribeAll()
@@ -871,6 +904,73 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		UE_LOG(LogTemp, Log,
 			TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d"),
 			*MissionIdStr, StatusInt);
+	}
+}
+
+void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& Outcome)
+{
+	// Защитная проверка через ассет условия (если назначен)
+	if (FloorLeavingCondition)
+	{
+		auto Query = FloorLeavingCondition->GetCondition();
+		if (Query.IsValid() && !Query->Evaluate(Outcome)) return;
+	}
+
+	// Ожидаем payload типа InteriorTransitionPayload (с SourceFloor)
+	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
+	if (!P) return;
+
+	// Получаем ассет этажа и его идентификаторы
+	TSoftObjectPtr<UFloorAsset> SourceFloorRef = P->SourceFloor;
+	UFloorAsset* SourceFloor = SourceFloorRef.Get();
+	if (!SourceFloor || !SourceFloor->FloorID.IsValid()) return;
+
+	const FGuid FloorId = SourceFloor->FloorID;
+	FGuid InteriorSetId;
+	if (SourceFloor->ParentInteriorSet.IsValid() && SourceFloor->ParentInteriorSet.Get())
+	{
+		InteriorSetId = SourceFloor->ParentInteriorSet.Get()->InteriorSetID;
+	}
+
+	// Публикуем запросы на сохранение snapshot'ов для всех активных миссий,
+	// чей scope включает этот этаж.
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
+
+	for (const auto& Pair : ActiveMissions)
+	{
+		const FName MissionId = Pair.Key;
+		UMissionController* Ctrl = Pair.Value.Controller;
+		if (!Ctrl) continue;
+
+		const FMissionEnvelope& Env = Ctrl->GetEnvelope();
+
+		bool bInScope = false;
+		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Env.Scope.InteriorScopes)
+		{
+			if (UFloorAsset* F = FloorRef.Get())
+			{
+				if (F->FloorID == FloorId) { bInScope = true; break; }
+			}
+		}
+		if (!bInScope) continue;
+
+		UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
+		if (!SaveP) continue;
+
+		SaveP->InteriorSetId = InteriorSetId;
+		SaveP->FloorId = FloorId;
+		SaveP->MissionId = MissionId;
+
+		FOutcomeEventBase Ev;
+		Ev.OutcomeType = EOutcomeType::Interior;
+		Ev.OutcomeInterior = EOutcomeInterior::FloorStateSave;
+		Ev.Payload = SaveP;
+
+		EventBus->PublishOutcome(Ev);
+
+		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Requested FloorStateSave for mission '%s' floor %s"),
+			*MissionId.ToString(), *FloorId.ToString());
 	}
 }
 
