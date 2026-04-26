@@ -198,4 +198,11 @@ private:
 
 	// Промоутить изменения канала в WorldStateSubsystem (политика Persist)
 	void PromoteChannelToWorldState(FName MissionId, const FMissionEnvelope& Envelope);
+
+	// Helper for EventBus registration (реализация в .cpp)
+	void TryRegisterCondition(
+		TObjectPtr<UOutcomeConditionAsset>& Condition,
+		FOutcomeHandlerHandle& Handle,
+		void (UMissionSubsystem::* HandlerMethod)(const FOutcomeEventBase&),
+		EOutcomeMission MissionFilter = EOutcomeMission::Default);
 };

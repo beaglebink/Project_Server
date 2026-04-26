@@ -237,7 +237,27 @@ UMissionController* UMissionSubsystem::CreateMission(UMissionAsset* MissionAsset
 		}
 	}
 
-	UMissionController* Controller = NewObject<UMissionController>(GetGameInstance());
+	// Создаём контроллер нужного класса (из ассета). Если в ассете задан Blueprint класс,
+	// он будет инстанцирован и вызовы Activate()/OnMissionActivated будут попадать в BP-реализацию.
+	UMissionController* Controller = nullptr;
+	if (MissionAsset->ControllerClass && MissionAsset->ControllerClass->IsChildOf(UMissionController::StaticClass()))
+	{
+		Controller = NewObject<UMissionController>(GetGameInstance(), MissionAsset->ControllerClass);
+	}
+	else
+	{
+		// Фоллбек на базовый C++ контроллер
+		Controller = NewObject<UMissionController>(GetGameInstance());
+		if (!MissionAsset->ControllerClass)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("MissionSubsystem::CreateMission: ControllerClass not set in MissionAsset '%s', using default UMissionController"), *MissionId.ToString());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem::CreateMission: ControllerClass for MissionAsset '%s' is not a UMissionController subclass, using default"), *MissionId.ToString());
+		}
+	}
+
 	Controller->InitFromAsset(MissionAsset, GetGameInstance());
 
 	FActiveMissionEntry Entry;
@@ -597,32 +617,117 @@ void UMissionSubsystem::SubscribeMissionEnvelopeEvents()
 	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 	if (!EventBus) return;
 
-	// Регистрируемся только если ассет условия задан (назначается из редактора)
-	auto TryRegister = [&](TObjectPtr<UOutcomeConditionAsset>& Condition,
-	                       FOutcomeHandlerHandle& Handle,
-	                       auto HandlerMethod)
+	// ------- Mission Activated (explicit condition like Interior example) -------
+	if (!EnvelopeActivateHandle.IsValid())
 	{
-		if (!Condition || Handle.IsValid()) return;
-		if (!Condition->GetCondition().IsValid())
+		// Если ассет не задан в редакторе — создаём его и настраиваем фильтр
+		if (!MissionActivatedCondition)
 		{
-			Condition->CompileCondition();
+			MissionActivatedCondition = NewObject<UOutcomeConditionAsset>(this);
+			MissionActivatedCondition->OperatorType = EConditionOperator::Composite;
+			MissionActivatedCondition->FilterRow.OutcomeType = EOutcomeType::Mission;
+			MissionActivatedCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+			MissionActivatedCondition->FilterRow.MissionType = EOutcomeMission::MissionActivated;
+			MissionActivatedCondition->FilterRow.MissionComparison = EConditionComparison::Equals;
+			MissionActivatedCondition->CompileCondition();
 		}
-		if (!Condition->GetCondition().IsValid()) return;
-		Handle = EventBus->RegisterHandler(
-			Condition,
-			FOutcomeHandlerDelegate::CreateUObject(this, HandlerMethod));
-	};
 
-	TryRegister(MissionActivatedCondition, EnvelopeActivateHandle,
-		&UMissionSubsystem::HandleEnvelopeActivate);
-	TryRegister(MissionResolvedCondition,  EnvelopeResolveHandle,
-		&UMissionSubsystem::HandleEnvelopeResolve);
-	TryRegister(BuildingLeavingCondition,  BuildingLeavingHandle,
-		&UMissionSubsystem::HandleBuildingLeaving);
+		if (MissionActivatedCondition->GetCondition().IsValid())
+		{
+			EnvelopeActivateHandle = EventBus->RegisterHandler(
+				MissionActivatedCondition,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleEnvelopeActivate));
+		}
+	}
+
+	// ------- Mission Resolved (filter only by OutcomeType=Mission) -------
+	if (!EnvelopeResolveHandle.IsValid())
+	{
+		if (!MissionResolvedCondition)
+		{
+			MissionResolvedCondition = NewObject<UOutcomeConditionAsset>(this);
+			MissionResolvedCondition->OperatorType = EConditionOperator::Composite;
+			MissionResolvedCondition->FilterRow.OutcomeType = EOutcomeType::Mission;
+			MissionResolvedCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+			// Не задаём конкретный MissionType — обработчик внутри проверит конкретику (Completed/Failed/Abandoned)
+			MissionResolvedCondition->CompileCondition();
+		}
+
+		if (MissionResolvedCondition->GetCondition().IsValid())
+		{
+			EnvelopeResolveHandle = EventBus->RegisterHandler(
+				MissionResolvedCondition,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleEnvelopeResolve));
+		}
+	}
+
+	// ------- Building Leaving (filter by OutcomeType=Mission) -------
+	if (!BuildingLeavingHandle.IsValid())
+	{
+		if (!BuildingLeavingCondition)
+		{
+			BuildingLeavingCondition = NewObject<UOutcomeConditionAsset>(this);
+			BuildingLeavingCondition->OperatorType = EConditionOperator::Composite;
+			BuildingLeavingCondition->FilterRow.OutcomeType = EOutcomeType::Mission;
+			BuildingLeavingCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+			BuildingLeavingCondition->CompileCondition();
+		}
+
+		if (BuildingLeavingCondition->GetCondition().IsValid())
+		{
+			BuildingLeavingHandle = EventBus->RegisterHandler(
+				BuildingLeavingCondition,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleBuildingLeaving));
+		}
+	}
 
 	UE_LOG(LogTemp, Log,
 		TEXT("MissionSubsystem: SubscribeMissionEnvelopeEvents (Activate=%d, Resolve=%d, Building=%d)"),
 		EnvelopeActivateHandle.IsValid(), EnvelopeResolveHandle.IsValid(), BuildingLeavingHandle.IsValid());
+}
+
+// ----------------------------------------------------------------------------- 
+// TryRegisterCondition — перенос логики регистрации из лямбды в метод класса
+// ----------------------------------------------------------------------------- 
+void UMissionSubsystem::TryRegisterCondition(
+	TObjectPtr<UOutcomeConditionAsset>& Condition,
+	FOutcomeHandlerHandle& Handle,
+	void (UMissionSubsystem::* HandlerMethod)(const FOutcomeEventBase&),
+	EOutcomeMission MissionFilter)
+{
+	if (Handle.IsValid()) return;
+
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
+
+	// Если ассет отсутствует — создаём встроенный ассет и заполняем базовую фильтрацию.
+	if (!Condition)
+	{
+		Condition = NewObject<UOutcomeConditionAsset>(this);
+	}
+
+	// Устанавливаем Composite + минимальный фильтр OutcomeType == Mission
+	Condition->OperatorType = EConditionOperator::Composite;
+	Condition->FilterRow.OutcomeType = EOutcomeType::Mission;
+	Condition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+
+	// Для подписки на конкретный тип Mission (например, активация) — задаём MissionType
+	if (MissionFilter != EOutcomeMission::Default)
+	{
+		Condition->FilterRow.MissionType = MissionFilter;
+		Condition->FilterRow.MissionComparison = EConditionComparison::Equals;
+	}
+
+	// Компиляция и регистрация
+	if (!Condition->GetCondition().IsValid())
+	{
+		Condition->CompileCondition();
+	}
+	if (!Condition->GetCondition().IsValid()) return;
+
+	Handle = EventBus->RegisterHandler(
+		Condition,
+		FOutcomeHandlerDelegate::CreateUObject(this, HandlerMethod));
 }
 
 void UMissionSubsystem::UnsubscribeMissionEnvelopeEvents()
@@ -713,10 +818,8 @@ void UMissionSubsystem::HandleBuildingLeaving(const FOutcomeEventBase& Outcome)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ISaveableSubsystem
+// ISaveableSubsystem: CollectSaveData / ApplySaveData
 // ─────────────────────────────────────────────────────────────────────────────
-
-// ─── Вспомогательные структуры для JSON-сериализации миссий ──────────────────
 
 struct FMissionSaveEntry
 {
