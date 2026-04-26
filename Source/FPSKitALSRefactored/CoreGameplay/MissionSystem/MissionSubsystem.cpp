@@ -311,6 +311,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 	}
 
 	// Публикуем FloorStateSave с MissionId для каждого этажа в scope через EventBus
+	/*
 	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 	if (EventBus)
 	{
@@ -343,6 +344,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 			}
 		}
 	}
+	*/
 
 	Entry->Controller->Activate();
 }

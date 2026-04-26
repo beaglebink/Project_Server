@@ -1065,7 +1065,80 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 	FTimerHandle TimerHandle;
 	FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, AnchorID]()
 	{
+		// Попытка телепорта — если false, всё равно продолжим проверку (якорь мог отсутствовать, но restore всё равно не делать).
 		const bool bOk = TeleportToAnchor(AnchorID);
+
+		// Пытаемся найти актор-якорь в текущем мире
+		UWorld* World = GetWorld();
+		ALocationAnchorActor* FoundAnchor = nullptr;
+		if (World)
+		{
+			for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
+			{
+				if (It->AnchorID == AnchorID)
+				{
+					FoundAnchor = *It;
+					break;
+				}
+			}
+		}
+
+		// Если нашли якорь — извлекаем связанный FloorAsset (если есть) и формируем CurrentKey
+		FInteriorFloorKey CurrentKey;
+		bool bHaveKey = false;
+		if (FoundAnchor)
+		{
+			UObject* OwnerAsset = FoundAnchor->GetOwnerRegistrationAsset();
+			if (UFloorAsset* FloorAsset = Cast<UFloorAsset>(OwnerAsset))
+			{
+				if (FloorAsset->FloorID.IsValid())
+				{
+					FGuid InteriorSetId;
+					if (FloorAsset->ParentInteriorSet.IsValid() && FloorAsset->ParentInteriorSet.Get())
+					{
+						InteriorSetId = FloorAsset->ParentInteriorSet.Get()->InteriorSetID;
+					}
+					CurrentKey = FInteriorFloorKey(InteriorSetId, FloorAsset->FloorID);
+					bHaveKey = true;
+				}
+			}
+		}
+
+		// Если есть ключ этажа — восстановим snapshots для всех миссий, у которых он сохранён.
+		if (bHaveKey)
+		{
+			for (const auto& Pair : MissionFloorSnapshots)
+			{
+				const FName MissionId = Pair.Key;
+				const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> &MapRef = Pair.Value;
+				if (MapRef.Contains(CurrentKey))
+				{
+					RestoreMissionFloorState(MissionId, CurrentKey);
+					UE_LOG(LogTemp, Log,
+						TEXT("InteriorSubsystem::OnPostLoadMap: Restored mission snapshot for mission '%s' floor %s/%s"),
+						*MissionId.ToString(), *CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
+				}
+			}
+
+			// Публикуем уведомление через EventBus о том, что восстановление завершено для этого этажа
+			if (UEventBusSubsystem* EventBus = CachedEventBus.Get() ? CachedEventBus.Get() : GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+			{
+				UFloorStatePayload* NotifyP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
+				if (NotifyP)
+				{
+					NotifyP->InteriorSetId = CurrentKey.InteriorSetId;
+					NotifyP->FloorId = CurrentKey.FloorId;
+					// MissionId оставляем пустым — это уведомление
+					FOutcomeEventBase NotifyEv;
+					NotifyEv.OutcomeType = EOutcomeType::Interior;
+					NotifyEv.OutcomeInterior = EOutcomeInterior::FloorStateRestore; // оповещение о завершении рестора
+					NotifyEv.Payload = NotifyP;
+					EventBus->PublishOutcome(NotifyEv);
+				}
+			}
+		}
+
+		// Финальная нотификация о завершении загрузки/перехода
 		OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 		ClearPendingAnchorID();
 	});
