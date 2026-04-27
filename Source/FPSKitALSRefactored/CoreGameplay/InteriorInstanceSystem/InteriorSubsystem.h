@@ -142,7 +142,7 @@ public:
 
 	/**
 	 * Вызывается перед уходом с этажа (до SeamlessTravel или телепорта).
-	 * Используйте для выполнения действий на исходном этаже (сохранение состояния, анимации и т.д.).
+	 * Используйте для выполнения.actions на исходном этаже (сохранение состояния, анимации и т.д.).
 	 * SourceFloor — ассет этажа, с которого уходим (null если не был указан в дескрипторе).
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
@@ -155,9 +155,10 @@ public:
 
 	// ── Snapshot API (BlueprintCallable, EventBus-driven) ─────────────────
 
-	/** Добавляет снимок состояния акторов этажа в память подсистемы. Не перезаписывает уже сохранённые. */
+	/** Сохраняет снимок состояния акторов этажа.
+	 *  Если MissionId задан — сохраняет в слот миссии, иначе в общий слот (NAME_None). */
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
-	void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId);
+	void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId = NAME_None);
 
 	/** Восстанавливает состояние акторов этажа из памяти. Возвращает количество восстановленных акторов. */
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
@@ -358,10 +359,13 @@ protected:
 
 private:
 	// ── Mission floor snapshots ────────────────────────────────────────────────
-	// Внешний ключ — FName идентификатор миссии.
-	// Внутренний ключ — FInteriorFloorKey (InteriorSetId + FloorId).
-	// Значение — список снимков акторов этажа в момент активации миссии.
-	TMap<FName, TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
+	// Теперь: внешний ключ — FInteriorFloorKey (InteriorSetId + FloorId).
+	// Внутренний map: MissionId -> список снимков акторов для этой миссии на данном этаже.
+	// Это ускоряет поиск по этажу при восстановлении после загрузки.
+	TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
+
+	// Кеш результаты запроса GetMissionSnapshots (возвращаем указатель на этот кеш)
+	mutable TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> MissionSnapshotQueryCache;
 
 	// Обработчик завершения загрузки карты (после SeamlessTravel)
 	void OnPostLoadMap(UWorld* LoadedWorld);

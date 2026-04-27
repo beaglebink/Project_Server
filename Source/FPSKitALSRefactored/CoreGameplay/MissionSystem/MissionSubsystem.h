@@ -191,10 +191,15 @@ private:
 	FOutcomeHandlerHandle EnvelopeActivateHandle;
 	FOutcomeHandlerHandle EnvelopeResolveHandle;
 	FOutcomeHandlerHandle BuildingLeavingHandle;
+	// Handle для подтверждения релиза миссии (публикуется InteriorSubsystem)
+	FOutcomeHandlerHandle MissionReleasedHandle;
+	UPROPERTY()
+	TObjectPtr<UOutcomeConditionAsset> MissionReleasedCondition;
 
 	void HandleEnvelopeActivate(const FOutcomeEventBase& Outcome);
 	void HandleEnvelopeResolve(const FOutcomeEventBase& Outcome);
 	void HandleBuildingLeaving(const FOutcomeEventBase& Outcome);
+	void HandleMissionReleased(const FOutcomeEventBase& Outcome);
 
 	// ─── Активные миссии ─────────────────────────────────────────────────────
 	// Ключ — FName идентификатор миссии (имя ассета)

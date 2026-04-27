@@ -632,6 +632,27 @@ void UMissionSubsystem::SubscribeMissionEnvelopeEvents()
 		}
 	}
 
+	// ------- Mission Released (published by InteriorSubsystem after ReleaseMissionSnapshot finished) -------
+	if (!MissionReleasedHandle.IsValid())
+	{
+		if (!MissionReleasedCondition)
+		{
+			MissionReleasedCondition = NewObject<UOutcomeConditionAsset>(this);
+			MissionReleasedCondition->OperatorType = EConditionOperator::Composite;
+			MissionReleasedCondition->FilterRow.OutcomeType = EOutcomeType::Mission;
+			MissionReleasedCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+			// Не задаём конкретный MissionType — в обработчике проверим payload класс
+			MissionReleasedCondition->CompileCondition();
+		}
+
+		if (MissionReleasedCondition->GetCondition().IsValid())
+		{
+			MissionReleasedHandle = EventBus->RegisterHandler(
+				MissionReleasedCondition,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleMissionReleased));
+		}
+	}
+
 	UE_LOG(LogTemp, Log,
 		TEXT("MissionSubsystem: SubscribeMissionEnvelopeEvents (Activate=%d, Resolve=%d, Building=%d)"),
 		EnvelopeActivateHandle.IsValid(), EnvelopeResolveHandle.IsValid(), BuildingLeavingHandle.IsValid());
@@ -694,6 +715,7 @@ void UMissionSubsystem::UnsubscribeMissionEnvelopeEvents()
 	Unreg(EnvelopeActivateHandle);
 	Unreg(EnvelopeResolveHandle);
 	Unreg(BuildingLeavingHandle);
+	Unreg(MissionReleasedHandle);
 }
 
 void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
@@ -766,6 +788,32 @@ void UMissionSubsystem::HandleBuildingLeaving(const FOutcomeEventBase& Outcome)
 	// Этот обработчик — дополнительный канал для Blueprint-triggered события.
 	UE_LOG(LogTemp, Verbose,
 		TEXT("MissionSubsystem: BuildingLeaving event received (no MissionEnvelopePayload)"));
+}
+
+void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
+{
+	// Мы ожидаем подтверждение релиза от InteriorSubsystem в виде UReleaseMissionSnapshotPayload
+	if (UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(Outcome.Payload))
+	{
+		const FName MissionId = P->MissionId;
+		if (MissionId.IsNone()) return;
+
+		// Finalize mission lifecycle: удаляем контроллер и очищаем локальную информацию
+		if (FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId))
+		{
+			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Finalizing mission release for '%s' (removing controller)"), *MissionId.ToString());
+			ActiveMissions.Remove(MissionId);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("MissionSubsystem: MissionReleased received for unknown mission '%s'"), *MissionId.ToString());
+		}
+	}
+	else
+	{
+		// Игнорируем другие payloads
+		return;
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -976,11 +1024,14 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 
 		// Переводим контроллер миссии в приостановленное состояние — это сигнал, что миссия временно "поставлена на паузу"
 		// Пока игрок уходит с этажа и snapshot сохраняется. Suspend() вызовет BroadcastStatusChanged().
+		// Это нужно вызывать не всегда а когда выходим на улицу, потом сделаю
+		/*
 		if (Ctrl->GetStatus() == EMissionStatus::Active)
 		{
 			Ctrl->Suspend();
 			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Suspended mission controller for '%s' before leaving floor"), *MissionId.ToString());
 		}
+		*/
 	}
 
 	// После того, как мы запросили сохранение snapshot'ов и приостановили контроллеры,
