@@ -503,32 +503,22 @@ int32 ULocationEditorUtils::ValidateRegionTransitionsByGuid(const FGuid& RegionG
 #endif
 }
 
+#if WITH_EDITOR
 int32 ULocationEditorUtils::ValidateRegionTransitionsCascadeByGuid(const FGuid& RegionGuid)
 {
-#if WITH_EDITOR
     return FFloorAssignerEditorLibrary::ValidateRegionTransitionsCascade(RegionGuid);
-#else
-    return 0;
-#endif
 }
 
 int32 ULocationEditorUtils::ValidateStreetTransitionsCascadeByGuid(const FGuid& StreetGuid)
 {
-#if WITH_EDITOR
     return FFloorAssignerEditorLibrary::ValidateStreetTransitionsCascade(StreetGuid);
-#else
-    return 0;
-#endif
 }
 
 int32 ULocationEditorUtils::ValidateInteriorSetTransitionsCascadeByGuid(const FGuid& InteriorSetGuid)
 {
-#if WITH_EDITOR
     return FFloorAssignerEditorLibrary::ValidateInteriorSetTransitionsCascade(InteriorSetGuid);
-#else
-    return 0;
-#endif
 }
+#endif
 
 #if !WITH_EDITOR
 
@@ -538,5 +528,6 @@ int32              ULocationEditorUtils::SyncAllAnchorsOnMap()                  
 bool               ULocationEditorUtils::EstablishBidirectionalLink(UWorldRegionAsset*, const FGuid&, UFloorAsset*, const FGuid&) { return false; }
 bool               ULocationEditorUtils::RegisterTransitionPoint(ALocationAnchorActor*){ return false; }
 int32              ULocationEditorUtils::ValidateAndCleanTransitionPoints(UObject*)    { return 0; }
+int32              ULocationEditorUtils::RemoveTransitionPointFromAllAssets(const FGuid& AnchorID) { return 0; }
 
 #endif // !WITH_EDITOR
