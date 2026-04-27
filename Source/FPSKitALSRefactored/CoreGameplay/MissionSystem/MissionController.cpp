@@ -2,6 +2,7 @@
 #include "MissionSubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "MissionEnvelopePayload.h"
 
 void UMissionController::InitFromAsset(UMissionAsset* InAsset, UGameInstance* InOwner)
 {
@@ -41,12 +42,65 @@ void UMissionController::RequestResolve(EMissionEndReason Reason)
 
     EndReason = Reason;
     Status    = EMissionStatus::Resolved;
+
+    // Публикуем изменение статуса (для подписчиков)
     BroadcastStatusChanged();
 
+    // Локальный хук для BP
     OnMissionResolved(Reason);
 
     UE_LOG(LogTemp, Log, TEXT("MissionController[%s]: Resolved with reason %d"),
         *GetMissionId().ToString(), (int32)Reason);
+
+    // Делегируем применение политики ExitPolicy через EventBus
+    // — MissionSubsystem подписан на события MissionCompleted/MissionFailed/MissionAbandoned
+    if (UGameInstance* GI = OwnerGameInstance.Get())
+    {
+        if (UEventBusSubsystem* EventBus = GI->GetSubsystem<UEventBusSubsystem>())
+        {
+            UMissionEnvelopePayload* P = Cast<UMissionEnvelopePayload>(
+                EventBus->CreatePayload(UMissionEnvelopePayload::StaticClass()));
+            if (P)
+            {
+                // Заполняем payload: MissionId, Asset, EndReason
+                P->Setup(GetMissionId(), MissionAsset, Reason);
+
+                FOutcomeEventBase Ev;
+                Ev.OutcomeType = EOutcomeType::Mission;
+
+                // Соответствие EndReason -> OutcomeMission
+                switch (Reason)
+                {
+                case EMissionEndReason::Completed:
+                    Ev.OutcomeMission = EOutcomeMission::MissionCompleted;
+                    break;
+                case EMissionEndReason::Failed:
+                    Ev.OutcomeMission = EOutcomeMission::MissionFailed;
+                    break;
+                case EMissionEndReason::Abandoned:
+                    Ev.OutcomeMission = EOutcomeMission::MissionAbandoned;
+                    break;
+                default:
+                    Ev.OutcomeMission = EOutcomeMission::Default;
+                    break;
+                }
+
+                Ev.Payload = P;
+                EventBus->PublishOutcome(Ev);
+
+                UE_LOG(LogTemp, Log, TEXT("MissionController: Published mission resolve via EventBus for '%s' (reason=%d)"),
+                    *GetMissionId().ToString(), static_cast<int32>(Reason));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("MissionController: Failed to create UMissionEnvelopePayload for '%s'"), *GetMissionId().ToString());
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("MissionController: EventBus subsystem not available to publish mission resolve for '%s'"), *GetMissionId().ToString());
+        }
+    }
 }
 
 void UMissionController::Suspend()
@@ -147,7 +201,7 @@ void UMissionController::BroadcastStatusChanged()
     Event.OutcomeType    = EOutcomeType::Mission;
     Event.OutcomeMission = MissionOutcome;
 
-    // Payload с именем миссии через MissionProgressPayload
-    // (используем существующий тип, не создаём лишних зависимостей)
+    // Payload с именем миссии через MissionEnvelopePayload
+    Event.Payload = nullptr;
     EventBus->PublishOutcome(Event);
 }

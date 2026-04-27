@@ -42,7 +42,7 @@ public:
 
     // Возвращает стабильный FName-идентификатор для использования в рантайме
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mission|Identity")
-    FName GetMissionId() const { return GetFName(); }
+    FName GetMissionId() const { return DisplayName.IsEmpty() ? GetFName() : FName(*DisplayName.ToString()); }
 
     virtual FPrimaryAssetId GetPrimaryAssetId() const override
     {
