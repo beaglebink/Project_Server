@@ -1358,7 +1358,6 @@ void UInteriorSubsystem::SaveMissionFloorState(FName MissionId, const FInteriorF
 {
 	if (MissionId.IsNone() || !FloorKey.FloorId.IsValid()) return;
 
-	// Сохраняем напрямую в слот миссии — больше не нужно промежуточного FloorStateSnapshots
 	SaveFloorActorsState(FloorKey.InteriorSetId, FloorKey.FloorId, MissionId);
 
 	UE_LOG(LogTemp, Log,
@@ -1419,7 +1418,7 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(
 	}
 	else if (Policy == EJobSpacePolicy::Partial)
 	{
-		// Применяем политику попканально
+		// Применяем политику поканально
 		for (const FEnvelopeChannelEntry& ChannelEntry : Envelope.Channels)
 		{
 			if (ChannelEntry.Policy == EChannelPolicy::Reset)

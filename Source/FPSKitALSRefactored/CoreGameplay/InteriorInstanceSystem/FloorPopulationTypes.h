@@ -10,6 +10,7 @@ enum class EFloorActorType : uint8
 	LightItem		UMETA(DisplayName = "Light Item"),
 	Terminal		UMETA(DisplayName = "Terminal"),
 	NPC_Spawner 	UMETA(DisplayName = "NPC Spawner"),
+	StableActor		UMETA(DisplayName = "Stable Actor"),
 	Debris 			UMETA(DisplayName = "Debris")
 };
 

@@ -107,8 +107,8 @@ public:
 
     // Вызывается при разрешении (Completed / Failed / Abandoned)
     UFUNCTION(BlueprintNativeEvent, Category = "Mission|Events")
-    void OnMissionResolved(EMissionEndReason Reason);
-    virtual void OnMissionResolved_Implementation(EMissionEndReason Reason) {}
+    void OnMissionCompleted(EMissionEndReason Reason);
+    virtual void OnMissionCompleted_Implementation(EMissionEndReason Reason) {}
 
     // Вызывается при выходе из здания (до принятия решения об Envelope)
     UFUNCTION(BlueprintNativeEvent, Category = "Mission|Events")

@@ -47,7 +47,7 @@ void UMissionController::RequestResolve(EMissionEndReason Reason)
     BroadcastStatusChanged();
 
     // Локальный хук для BP
-    OnMissionResolved(Reason);
+    OnMissionCompleted(Reason);
 
     UE_LOG(LogTemp, Log, TEXT("MissionController[%s]: Resolved with reason %d"),
         *GetMissionId().ToString(), (int32)Reason);
