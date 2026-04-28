@@ -27,8 +27,6 @@ enum class EChannelPolicy : uint8
     Reset               UMETA(DisplayName = "Reset"),
     // Заморозить — не изменять состояние при входе/выходе
     Freeze              UMETA(DisplayName = "Freeze"),
-    // Сохранить изменения в WorldState
-    Persist             UMETA(DisplayName = "Persist"),
     // Сохранить только идентификатор (для StableActors)
     PersistIdentityOnly UMETA(DisplayName = "Persist Identity Only"),
     // Сброс если не зачищено (для SpawnGroups)
@@ -85,9 +83,16 @@ struct FPSKITALSREFACTORED_API FMissionExitPolicy
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ExitPolicy")
     bool bFloorTransitionPreservesEnvelope = true;
 
-    // Что делать с пространством задания при уходе из здания
+    // Что делать с пространством задания при уходе из здания (во время активной миссии)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
     EJobSpacePolicy OnLeaveBuilding = EJobSpacePolicy::None;
+
+    // Что делать с постоянным хранилищем при успешном завершении миссии (MissionCompleted)
+    // ResetAll    — не обновлять FloorStateSnapshots
+    // FreezeAll   — сохранить все акторы в FloorStateSnapshots
+    // Partial     — сохранить по каналам согласно Channels
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
+    EJobSpacePolicy OnMissionCompleted = EJobSpacePolicy::None;
 };
 
 // Описание канала с политикой 

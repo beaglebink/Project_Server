@@ -360,7 +360,21 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 	}
 
 	Entry->Controller->RequestResolve(Reason);
-	ApplyEnvelopeExitPolicy(MissionId, Entry->Controller->GetEnvelope());
+
+	const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelope();
+
+	if (Reason == EMissionEndReason::Completed)
+	{
+		// Используем политику завершения миссии (OnMissionCompleted)
+		const EJobSpacePolicy CompletionPolicy = Envelope.ExitPolicy.OnMissionCompleted;
+		ApplyMissionCompletionPolicy(MissionId, Envelope, CompletionPolicy, Reason);
+	}
+	else
+	{
+		// Failed / Abandoned — не обновляем FloorStateSnapshots,
+		// просто удаляем MissionFloorSnapshots через Release с Policy=Reset (без записи в постоянное хранилище)
+		ApplyMissionCompletionPolicy(MissionId, Envelope, EJobSpacePolicy::Reset, Reason);
+	}
 }
 
 UMissionController* UMissionSubsystem::GetMissionController(FName MissionId) const
@@ -551,6 +565,28 @@ void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionE
 		if (P)
 		{
 			P->Setup(MissionId, Envelope, Policy);
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Mission;
+			Ev.Payload = P;
+			EventBus->PublishOutcome(Ev);
+		}
+	}
+}
+
+void UMissionSubsystem::ApplyMissionCompletionPolicy(
+	FName MissionId,
+	const FMissionEnvelope& Envelope,
+	EJobSpacePolicy Policy,
+	EMissionEndReason EndReason)
+{
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(
+			EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
+		if (P)
+		{
+			// bIsCompletion=true: InteriorSubsystem writes to FloorStateSnapshots per policy
+			P->SetupCompletion(MissionId, Envelope, Policy, EndReason);
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Mission;
 			Ev.Payload = P;
@@ -792,27 +828,34 @@ void UMissionSubsystem::HandleBuildingLeaving(const FOutcomeEventBase& Outcome)
 
 void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 {
-	// Мы ожидаем подтверждение релиза от InteriorSubsystem в виде UReleaseMissionSnapshotPayload
-	if (UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(Outcome.Payload))
-	{
-		const FName MissionId = P->MissionId;
-		if (MissionId.IsNone()) return;
+	UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(Outcome.Payload);
+	if (!P) return;
 
-		// Finalize mission lifecycle: удаляем контроллер и очищаем локальную информацию
-		if (FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId))
-		{
-			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Finalizing mission release for '%s' (removing controller)"), *MissionId.ToString());
-			ActiveMissions.Remove(MissionId);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Verbose, TEXT("MissionSubsystem: MissionReleased received for unknown mission '%s'"), *MissionId.ToString());
-		}
+	const FName MissionId = P->MissionId;
+	if (MissionId.IsNone()) return;
+
+	// Floor-exit release — снапшот сохранён, но миссия продолжается
+	if (!P->bIsCompletion)
+	{
+		UE_LOG(LogTemp, Verbose,
+			TEXT("MissionSubsystem: HandleMissionReleased — floor-exит snapshot for '%s', mission continues"),
+			*MissionId.ToString());
+		return;
+	}
+
+	// Только финальный release (MissionCompleted / Failed / Abandoned) — финализируем lifecycle
+	if (FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId))
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("MissionSubsystem: Finalizing mission release for '%s' (removing controller)"),
+			*MissionId.ToString());
+		ActiveMissions.Remove(MissionId);
 	}
 	else
 	{
-		// Игнорируем другие payloads
-		return;
+		UE_LOG(LogTemp, Verbose,
+			TEXT("MissionSubsystem: MissionReleased received for unknown mission '%s'"),
+			*MissionId.ToString());
 	}
 }
 
@@ -959,18 +1002,15 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& Outcome)
 {
-	// Защитная проверка через ассет условия (если назначен)
 	if (FloorLeavingCondition)
 	{
 		auto Query = FloorLeavingCondition->GetCondition();
 		if (Query.IsValid() && !Query->Evaluate(Outcome)) return;
 	}
 
-	// Ожидаем payload типа InteriorTransitionPayload (с SourceFloor)
 	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
 	if (!P) return;
 
-	// Получаем ассет этажа и его идентификаторы
 	TSoftObjectPtr<UFloorAsset> SourceFloorRef = P->SourceFloor;
 	UFloorAsset* SourceFloor = SourceFloorRef.Get();
 	if (!SourceFloor || !SourceFloor->FloorID.IsValid()) return;
@@ -982,10 +1022,12 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		InteriorSetId = SourceFloor->ParentInteriorSet.Get()->InteriorSetID;
 	}
 
-	// Публикуем запросы на сохранение snapshot'ов для всех активных миссий,
-	// чей scope включает этот этаж.
 	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 	if (!EventBus) return;
+
+	// Find the highest-priority mission for this floor (larger Priority number = higher priority)
+	FName TopMissionId = NAME_None;
+	int32 TopPriority = INT32_MIN;
 
 	for (const auto& Pair : ActiveMissions)
 	{
@@ -994,7 +1036,6 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		if (!Ctrl) continue;
 
 		const FMissionEnvelope& Env = Ctrl->GetEnvelope();
-
 		bool bInScope = false;
 		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Env.Scope.InteriorScopes)
 		{
@@ -1005,37 +1046,56 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		}
 		if (!bInScope) continue;
 
+		// Save MissionFloorSnapshot for every mission in scope (always)
 		UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
-		if (!SaveP) continue;
-
-		SaveP->InteriorSetId = InteriorSetId;
-		SaveP->FloorId = FloorId;
-		SaveP->MissionId = MissionId;
-
-		FOutcomeEventBase Ev;
-		Ev.OutcomeType = EOutcomeType::Interior;
-		Ev.OutcomeInterior = EOutcomeInterior::FloorStateSave;
-		Ev.Payload = SaveP;
-
-		EventBus->PublishOutcome(Ev);
-
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Requested FloorStateSave for mission '%s' floor %s"),
-			*MissionId.ToString(), *FloorId.ToString());
-
-		// Переводим контроллер миссии в приостановленное состояние — это сигнал, что миссия временно "поставлена на паузу"
-		// Пока игрок уходит с этажа и snapshot сохраняется. Suspend() вызовет BroadcastStatusChanged().
-		// Это нужно вызывать не всегда а когда выходим на улицу, потом сделаю
-		/*
-		if (Ctrl->GetStatus() == EMissionStatus::Active)
+		if (SaveP)
 		{
-			Ctrl->Suspend();
-			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Suspended mission controller for '%s' before leaving floor"), *MissionId.ToString());
+			SaveP->InteriorSetId = InteriorSetId;
+			SaveP->FloorId = FloorId;
+			SaveP->MissionId = MissionId;
+			FOutcomeEventBase SaveEv;
+			SaveEv.OutcomeType = EOutcomeType::Interior;
+			SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
+			SaveEv.Payload = SaveP;
+			EventBus->PublishOutcome(SaveEv);
+			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Saved MissionFloorSnapshot for mission '%s' floor %s"),
+				*MissionId.ToString(), *FloorId.ToString());
 		}
-		*/
+
+		// Track the highest-priority mission
+		if (Env.Priority > TopPriority)
+		{
+			TopPriority = Env.Priority;
+			TopMissionId = MissionId;
+		}
 	}
 
-	// После того, как мы запросили сохранение snapshot'ов и приостановили контроллеры,
-	// делаем явное сохранение через GameSaveSubsystem — чтобы обеспечить долговременное хранение контроллера/статуса.
+	// Apply JobSpacePolicy only for the top-priority mission
+	if (!TopMissionId.IsNone())
+	{
+		if (FActiveMissionEntry* TopEntry = ActiveMissions.Find(TopMissionId))
+		{
+			const FMissionEnvelope& TopEnv = TopEntry->Controller->GetEnvelope();
+			const EJobSpacePolicy JobPolicy = TopEnv.JobSpacePolicy;
+			if (JobPolicy != EJobSpacePolicy::None)
+			{
+				UReleaseMissionSnapshotPayload* ReleaseP = Cast<UReleaseMissionSnapshotPayload>(
+					EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
+				if (ReleaseP)
+				{
+					ReleaseP->Setup(TopMissionId, TopEnv, JobPolicy);
+					FOutcomeEventBase ReleaseEv;
+					ReleaseEv.OutcomeType = EOutcomeType::Mission;
+					ReleaseEv.Payload = ReleaseP;
+					EventBus->PublishOutcome(ReleaseEv);
+					UE_LOG(LogTemp, Log,
+						TEXT("MissionSubsystem: Applied JobSpacePolicy=%d for top-priority mission '%s' on floor leaving"),
+						(int32)JobPolicy, *TopMissionId.ToString());
+				}
+			}
+		}
+	}
+
 	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
 	{
 		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Triggering SaveGame after FloorLeaving handling"));

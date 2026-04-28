@@ -215,8 +215,13 @@ private:
 	// Проверяет что два envelope имеют хотя бы один общий канал
 	bool ChannelsOverlap(const FMissionEnvelope& A, const FMissionEnvelope& B) const;
 
-	// Применить политику Envelope при уходе из здания
+	// Применить политику выхода из здания во время активной миссии (JobSpacePolicy)
 	void ApplyEnvelopeExitPolicy(FName MissionId, const FMissionEnvelope& Envelope);
+
+	// Применить политику завершения миссии (ExitPolicy.OnMissionCompleted)
+	// bIsCompletion=true — записывает в FloorStateSnapshots согласно Policy для Completed,
+	// для Failed/Abandoned Policy=Reset — только очищает MissionFloorSnapshots.
+	void ApplyMissionCompletionPolicy(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, EMissionEndReason EndReason);
 
 	// Подписка на уведомления о покидании этажа (публикуется InteriorSubsystem)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions|Envelope", meta = (AllowPrivateAccess = "true"))

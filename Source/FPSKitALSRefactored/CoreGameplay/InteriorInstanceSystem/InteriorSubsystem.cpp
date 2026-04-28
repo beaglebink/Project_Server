@@ -1443,6 +1443,7 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(
 
 	// Очищаем mission snapshot — он больше не нужен
 	// Удаляем все записи для данной миссии внутри PerFloor maps
+	/*
 	for (auto It = MissionFloorSnapshots.CreateIterator(); It; ++It)
 	{
 		TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = It->Value;
@@ -1453,6 +1454,8 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(
 	UE_LOG(LogTemp, Log,
 		TEXT("InteriorSubsystem::ReleaseMissionSnapshot: released snapshot for mission '%s' (policy=%d)"),
 		*MissionId.ToString(), static_cast<int32>(Policy));
+
+	*/
 	/*
 	// Publish a Release confirmation via EventBus so MissionSubsystem can finalize mission lifecycle.
 	UEventBusSubsystem* EventBus = CachedEventBus.Get();

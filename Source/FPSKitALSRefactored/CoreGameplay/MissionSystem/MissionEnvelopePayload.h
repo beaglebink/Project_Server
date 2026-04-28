@@ -36,7 +36,7 @@ public:
     // Удобный Setup для C++ и Blueprint
     UFUNCTION(BlueprintCallable, Category = "MissionEnvelope")
     UMissionEnvelopePayload* Setup(FName InMissionId, UMissionAsset* InAsset,
-                                    EMissionEndReason InEndReason = EMissionEndReason::None)
+                                    EMissionEndReason InEndReason)
     {
         MissionId   = InMissionId;
         MissionAsset = InAsset;
