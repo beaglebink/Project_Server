@@ -1387,100 +1387,6 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, const FInteri
     }
 }
 
-void UInteriorSubsystem::ReleaseMissionSnapshot(
-	FName MissionId,
-	const FMissionEnvelope& Envelope,
-	EJobSpacePolicy Policy)
-{
-	// Для новой структуры MissionFloorSnapshots (key = FloorKey, value = map MissionId -> snapshots)
-	// ищем все этажи, где есть запись для данной миссии.
-	bool bFound = false;
-	if (Policy == EJobSpacePolicy::Reset)
-	{
-		for (auto& Pair : MissionFloorSnapshots)
-		{
-			const FInteriorFloorKey& FloorKey = Pair.Key;
-			TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
-			if (TArray<FFloorSavedActorState>* Snap = PerFloor.Find(MissionId))
-			{
-				// Восстанавливаем напрямую
-				if (UWorld* World = GetWorld())
-				{
-					RestoreFromSnapshotArray(World, *Snap, FloorKey.InteriorSetId, FloorKey.FloorId);
-					bFound = true;
-				}
-			}
-		}
-	}
-	else if (Policy == EJobSpacePolicy::Freeze)
-	{
-		// Freeze — состояние не изменяем, просто снимаем владение
-	}
-	else if (Policy == EJobSpacePolicy::Partial)
-	{
-		// Применяем политику поканально
-		for (const FEnvelopeChannelEntry& ChannelEntry : Envelope.Channels)
-		{
-			if (ChannelEntry.Policy == EChannelPolicy::Reset)
-			{
-				// Сбросить только объекты этого канала — пока делаем полный сброс per floor:
-				for (auto& Pair : MissionFloorSnapshots)
-				{
-					const FInteriorFloorKey& FloorKey = Pair.Key;
-					TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
-					if (TArray<FFloorSavedActorState>* Snap = PerFloor.Find(MissionId))
-					{
-						// Копируем в глобальный буфер и вызываем restore
-						FloorStateSnapshots.FindOrAdd(FloorKey) = *Snap;
-						RestoreFloorActorsState(FloorKey.InteriorSetId, FloorKey.FloorId);
-						bFound = true;
-					}
-				}
-				break;
-			}
-		}
-	}
-
-	// Очищаем mission snapshot — он больше не нужен
-	// Удаляем все записи для данной миссии внутри PerFloor maps
-	/*
-	for (auto It = MissionFloorSnapshots.CreateIterator(); It; ++It)
-	{
-		TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = It->Value;
-		PerFloor.Remove(MissionId);
-		if (PerFloor.Num() == 0)
-			It.RemoveCurrent();
-	}
-	UE_LOG(LogTemp, Log,
-		TEXT("InteriorSubsystem::ReleaseMissionSnapshot: released snapshot for mission '%s' (policy=%d)"),
-		*MissionId.ToString(), static_cast<int32>(Policy));
-
-	*/
-	/*
-	// Publish a Release confirmation via EventBus so MissionSubsystem can finalize mission lifecycle.
-	UEventBusSubsystem* EventBus = CachedEventBus.Get();
-	if (!EventBus && GetGameInstance())
-		EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-
-	if (EventBus)
-	{
-		UReleaseMissionSnapshotPayload* Notify = Cast<UReleaseMissionSnapshotPayload>(
-			EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
-		if (Notify)
-		{
-			Notify->Setup(MissionId, Envelope, Policy);
-
-			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Mission;
-			// Не используем OutcomeMission filter — MissionSubsystem зарегистрирован по OutcomeType и проверяет payload класс
-			Ev.Payload = Notify;
-			EventBus->PublishOutcome(Ev);
-			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Published Release confirmation for '%s'"), *MissionId.ToString());
-		}
-	}
-	*/
-}
-
 const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>*
 UInteriorSubsystem::GetMissionSnapshots(FName MissionId) const
 {
@@ -1502,7 +1408,162 @@ void UInteriorSubsystem::HandleReleaseMissionSnapshot(const FOutcomeEventBase& O
 {
 	if (UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(Outcome.Payload))
 	{
-		ReleaseMissionSnapshot(P->MissionId, P->Envelope, P->Policy);
+		ReleaseMissionSnapshot(P->MissionId, P->Envelope, P->Policy, P->bIsCompletion);
 	}
+}
+
+void UInteriorSubsystem::ReleaseMissionSnapshot(
+	FName MissionId,
+	const FMissionEnvelope& Envelope,
+	EJobSpacePolicy Policy,
+	bool bIsCompletion /*= false*/)
+{
+	if (MissionId.IsNone()) return;
+
+	UWorld* World = GetWorld();
+
+	// Если это просто покидание этажа во время миссии — ничего дополнительно не делать:
+	if (!bIsCompletion)
+	{
+		UE_LOG(LogTemp, Verbose,
+			TEXT("InteriorSubsystem::ReleaseMissionSnapshot: floor-exit for mission '%s', policy=%d — mission snapshot preserved"),
+			*MissionId.ToString(), static_cast<int32>(Policy));
+		return;
+	}
+
+	// Обработка завершения миссии (bIsCompletion == true)
+	switch (Policy)
+	{
+	case EJobSpacePolicy::Reset:
+	{
+		// ResetAll: восстановить из базового FloorStateSnapshots (если есть)
+		for (auto& Pair : MissionFloorSnapshots)
+		{
+			const FInteriorFloorKey& FloorKey = Pair.Key;
+			TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
+			if (!PerFloor.Contains(MissionId)) continue;
+
+			if (const TArray<FFloorSavedActorState>* BaseSnap = FloorStateSnapshots.Find(FloorKey))
+			{
+				if (World && BaseSnap && !BaseSnap->IsEmpty())
+				{
+					RestoreFromSnapshotArray(World, *BaseSnap, FloorKey.InteriorSetId, FloorKey.FloorId);
+					UE_LOG(LogTemp, Log,
+						TEXT("InteriorSubsystem::ReleaseMissionSnapshot: ResetAll — restored FloorStateSnapshots for floor %s (mission '%s')"),
+						*FloorKey.FloorId.ToString(), *MissionId.ToString());
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Verbose,
+					TEXT("InteriorSubsystem::ReleaseMissionSnapshot: ResetAll — no FloorStateSnapshots baseline for floor %s"),
+					*FloorKey.FloorId.ToString());
+			}
+		}
+		break;
+	}
+
+	case EJobSpacePolicy::Freeze:
+	{
+		// FreezeAll: копируем mission snapshot в постоянное хранилище FloorStateSnapshots
+		for (auto& Pair : MissionFloorSnapshots)
+		{
+			const FInteriorFloorKey& FloorKey = Pair.Key;
+			TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
+			if (const TArray<FFloorSavedActorState>* MissionSnap = PerFloor.Find(MissionId))
+			{
+				FloorStateSnapshots.FindOrAdd(FloorKey) = *MissionSnap;
+				UE_LOG(LogTemp, Log,
+					TEXT("InteriorSubsystem::ReleaseMissionSnapshot: FreezeAll — wrote MissionFloorSnapshot to FloorStateSnapshots for floor %s (mission '%s')"),
+					*FloorKey.FloorId.ToString(), *MissionId.ToString());
+			}
+		}
+		break;
+	}
+
+	case EJobSpacePolicy::Partial:
+	{
+		// Partial: применяем политику поканально
+		for (auto& Pair : MissionFloorSnapshots)
+		{
+			const FInteriorFloorKey& FloorKey = Pair.Key;
+			TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
+			const TArray<FFloorSavedActorState>* MissionSnap = PerFloor.Find(MissionId);
+			if (!MissionSnap) continue;
+
+			for (const FEnvelopeChannelEntry& ChannelEntry : Envelope.Channels)
+			{
+				if (ChannelEntry.Policy == EChannelPolicy::Freeze)
+				{
+					TArray<FFloorSavedActorState>& BaseSnap = FloorStateSnapshots.FindOrAdd(FloorKey);
+
+					for (const FFloorSavedActorState& ActorSnap : *MissionSnap)
+					{
+						bool bMatchChannel = false;
+						if (World)
+						{
+							for (TActorIterator<AActor> It(World); It; ++It)
+							{
+								AActor* Actor = *It;
+								if (!IsValid(Actor)) continue;
+								UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+								if (!FAC) continue;
+								if (FAC->ItemId != ActorSnap.ItemId) continue;
+								if (FAC->SnapshotChannel == static_cast<ESnapshotChannel>(ChannelEntry.Channel))
+								{
+									bMatchChannel = true;
+								}
+								break;
+							}
+						}
+						if (!bMatchChannel) continue;
+
+						bool bUpdated = false;
+						for (FFloorSavedActorState& Existing : BaseSnap)
+						{
+							if (Existing.ItemId == ActorSnap.ItemId)
+							{
+								Existing = ActorSnap;
+								bUpdated = true;
+								break;
+							}
+						}
+						if (!bUpdated) BaseSnap.Add(ActorSnap);
+					}
+				}
+				else if (ChannelEntry.Policy == EChannelPolicy::Reset)
+				{
+					if (const TArray<FFloorSavedActorState>* BaseSnap = FloorStateSnapshots.Find(FloorKey))
+					{
+						if (World && BaseSnap && !BaseSnap->IsEmpty())
+						{
+							RestoreFromSnapshotArray(World, *BaseSnap, FloorKey.InteriorSetId, FloorKey.FloorId);
+							UE_LOG(LogTemp, Log,
+								TEXT("InteriorSubsystem::ReleaseMissionSnapshot: Partial-Reset — restored FloorStateSnapshots for floor %s (mission '%s')"),
+								*FloorKey.FloorId.ToString(), *MissionId.ToString());
+						}
+					}
+				}
+			}
+		}
+		break;
+	}
+
+	default:
+		break;
+	}
+
+	// Очищаем mission snapshots для этой миссии
+	for (auto It = MissionFloorSnapshots.CreateIterator(); It; ++It)
+	{
+		TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = It->Value;
+		PerFloor.Remove(MissionId);
+		if (PerFloor.Num() == 0)
+			It.RemoveCurrent();
+	}
+
+	UE_LOG(LogTemp, Log,
+		TEXT("InteriorSubsystem::ReleaseMissionSnapshot: completed for mission '%s' (policy=%d)"),
+		*MissionId.ToString(), static_cast<int32>(Policy));
 }
 

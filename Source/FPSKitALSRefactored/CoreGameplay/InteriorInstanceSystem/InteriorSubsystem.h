@@ -156,7 +156,7 @@ public:
 	// ── Snapshot API (BlueprintCallable, EventBus-driven) ─────────────────
 
 	/** Сохраняет снимок состояния акторов этажа.
-	 *  Если MissionId задан — сохраняет в слот миссии, иначе в общий слот (NAME_None). */
+	 *  Если MissionId задан — сохраняет в_slot миссии, иначе в общий слот (NAME_None). */
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
 	void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId = NAME_None);
 
@@ -225,7 +225,7 @@ public:
 
 	// Освободить mission-snapshot после завершения миссии.
 	// Policy определяет что делать с накопленными изменениями.
-	void ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy);
+	void ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion = false);
 
 	// Получить список снимков всех этажей для конкретной миссии (для сохранения на диск)
 	const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* GetMissionSnapshots(FName MissionId) const;
