@@ -218,84 +218,131 @@ namespace
 
 void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId)
 {
-	UWorld* W = GetWorld();
-	if (!W) return;
+    UWorld* W = GetWorld();
+    if (!W) return;
 
-	FInteriorFloorKey Key(InteriorSetId, FloorId);
+    FInteriorFloorKey Key(InteriorSetId, FloorId);
 
-	// Получаем/создаём слот для данной миссии (или общий слот NAME_None)
-	TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionFloorSnapshots.FindOrAdd(Key);
-	TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
+    if (MissionId == NAME_None)
+    {
+        // записать baseline в FloorStateSnapshots (перезаписать)
+        TArray<FFloorSavedActorState>& Bucket = FloorStateSnapshots.FindOrAdd(Key);
+        Bucket.Empty();
 
-	TMap<FGuid, int32> ExistingIndex;
-	for (int32 i = 0; i < Bucket.Num(); ++i)
-		ExistingIndex.Add(Bucket[i].ItemId, i);
+        for (TActorIterator<AActor> It(W); It; ++It)
+        {
+            AActor* Actor = *It;
+            if (!IsValid(Actor)) continue;
+            UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+            if (!Comp) continue;
+            if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
 
-	int32 AddedCount   = 0;
-	int32 UpdatedCount = 0;
+            FFloorSavedActorState Snapshot;
+            Snapshot.ItemId = Comp->ItemId;
+            SnapshotActor(Actor, Snapshot);
+            Bucket.Add(MoveTemp(Snapshot));
 
-	for (TActorIterator<AActor> It(W); It; ++It)
-	{
-		AActor* Actor = *It;
-		if (!IsValid(Actor)) continue;
+            // child actors (как в оригинале)
+            TArray<UChildActorComponent*> ChildComps;
+            Actor->GetComponents<UChildActorComponent>(ChildComps);
+            for (UChildActorComponent* ChildComp : ChildComps)
+            {
+                if (!IsValid(ChildComp)) continue;
+                AActor* ChildActor = ChildComp->GetChildActor();
+                if (!IsValid(ChildActor)) continue;
+                UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
+                if (!ChildFloorComp) continue;
+                if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
+                if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
 
-		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
-		if (!Comp) continue;
-		if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
+                FFloorSavedActorState ChildSnapshot;
+                ChildSnapshot.ItemId = ChildFloorComp->ItemId;
+                ChildSnapshot.RelativeTransform = ChildComp->GetRelativeTransform();
+                ChildSnapshot.bHasRelativeTransform = true;
+                SnapshotActor(ChildActor, ChildSnapshot);
+                Bucket.Add(MoveTemp(ChildSnapshot));
+            }
+        }
 
-		FFloorSavedActorState Snapshot;
-		Snapshot.ItemId = Comp->ItemId;
-		SnapshotActor(Actor, Snapshot);
+        UE_LOG(LogTemp, Log,
+            TEXT("InteriorSubsystem: SaveFloorActorsState — saved baseline for floor %s/%s (total: %d)"),
+            *InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
+        return;
+    }
 
-		if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
-		{
-			Bucket[*FoundIdx] = MoveTemp(Snapshot);
-			++UpdatedCount;
-		}
-		else
-		{
-			Bucket.Add(MoveTemp(Snapshot));
-			ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
-			++AddedCount;
-		}
+    // существующая логика: сохраняем в MissionFloorSnapshots[Key][MissionId]
+    TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionFloorSnapshots.FindOrAdd(Key);
+    TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
 
-		TArray<UChildActorComponent*> ChildComps;
-		Actor->GetComponents<UChildActorComponent>(ChildComps);
-		for (UChildActorComponent* ChildComp : ChildComps)
-		{
-			if (!IsValid(ChildComp)) continue;
-			AActor* ChildActor = ChildComp->GetChildActor();
-			if (!IsValid(ChildActor)) continue;
+    TMap<FGuid, int32> ExistingIndex;
+    for (int32 i = 0; i < Bucket.Num(); ++i)
+        ExistingIndex.Add(Bucket[i].ItemId, i);
 
-			UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
-			if (!ChildFloorComp) continue;
-			if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
-			if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
+    int32 AddedCount   = 0;
+    int32 UpdatedCount = 0;
 
-			FFloorSavedActorState ChildSnapshot;
-			ChildSnapshot.ItemId              = ChildFloorComp->ItemId;
-			ChildSnapshot.RelativeTransform   = ChildComp->GetRelativeTransform();
-			ChildSnapshot.bHasRelativeTransform = true;
-			SnapshotActor(ChildActor, ChildSnapshot);
+    for (TActorIterator<AActor> It(W); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!IsValid(Actor)) continue;
 
-			if (int32* ChildIdx = ExistingIndex.Find(ChildSnapshot.ItemId))
-			{
-				Bucket[*ChildIdx] = MoveTemp(ChildSnapshot);
-				++UpdatedCount;
-			}
-			else
-			{
-				Bucket.Add(MoveTemp(ChildSnapshot));
-				ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
-				++AddedCount;
-			}
-		}
-	}
+        UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+        if (!Comp) continue;
+        if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
 
-	UE_LOG(LogTemp, Log,
-		TEXT("InteriorSubsystem: SaveFloorActorsState — added %d, updated %d for mission '%s' floor %s/%s (total: %d)"),
-		AddedCount, UpdatedCount, *MissionId.ToString(),
-		*InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
+        FFloorSavedActorState Snapshot;
+        Snapshot.ItemId = Comp->ItemId;
+        SnapshotActor(Actor, Snapshot);
+
+        if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
+        {
+            Bucket[*FoundIdx] = MoveTemp(Snapshot);
+            ++UpdatedCount;
+        }
+        else
+        {
+            Bucket.Add(MoveTemp(Snapshot));
+            ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
+            ++AddedCount;
+        }
+
+        TArray<UChildActorComponent*> ChildComps;
+        Actor->GetComponents<UChildActorComponent>(ChildComps);
+        for (UChildActorComponent* ChildComp : ChildComps)
+        {
+            if (!IsValid(ChildComp)) continue;
+            AActor* ChildActor = ChildComp->GetChildActor();
+            if (!IsValid(ChildActor)) continue;
+
+            UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
+            if (!ChildFloorComp) continue;
+            if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
+            if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
+
+            FFloorSavedActorState ChildSnapshot;
+            ChildSnapshot.ItemId              = ChildFloorComp->ItemId;
+            ChildSnapshot.RelativeTransform   = ChildComp->GetRelativeTransform();
+            ChildSnapshot.bHasRelativeTransform = true;
+            SnapshotActor(ChildActor, ChildSnapshot);
+
+            if (int32* ChildIdx = ExistingIndex.Find(ChildSnapshot.ItemId))
+            {
+                Bucket[*ChildIdx] = MoveTemp(ChildSnapshot);
+                ++UpdatedCount;
+            }
+            else
+            {
+                Bucket.Add(MoveTemp(ChildSnapshot));
+                ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
+                ++AddedCount;
+            }
+        }
+    }
+
+    UE_LOG(LogTemp, Log,
+        TEXT("InteriorSubsystem: SaveFloorActorsState — added %d, updated %d for mission '%s' floor %s/%s (total: %d)"),
+        AddedCount, UpdatedCount, *MissionId.ToString(),
+        *InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
 }
 
 // -----------------------------------------------------------------------------
@@ -304,97 +351,97 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId)
 {
-	UWorld* W = GetWorld();
-	if (!W) return 0;
+    UWorld* W = GetWorld();
+    if (!W) return 0;
 
-	FInteriorFloorKey Key(InteriorSetId, FloorId);
+    FInteriorFloorKey Key(InteriorSetId, FloorId);
 
-	// Ищем все снимки миссий для данного этажа
-	const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(Key);
-	if (!PerFloor || PerFloor->Num() == 0) return 0;
+    // Ищем все снимки миссий для данного этажа
+    const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(Key);
+    if (!PerFloor || PerFloor->Num() == 0) return 0;
 
-	// Собираем актёров этажа
-	TMap<FGuid, AActor*> ActorByItemId;
-	for (TActorIterator<AActor> It(W); It; ++It)
-	{
-		AActor* Actor = *It;
-		if (!IsValid(Actor)) continue;
-		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
-		{
-			if (C->SnapshotChannel != ESnapshotChannel::None)
-				ActorByItemId.Add(C->ItemId, Actor);
-		}
+    // Собираем актёров этажа в словарь по ItemId
+    TMap<FGuid, AActor*> ActorByItemId;
+    for (TActorIterator<AActor> It(W); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!IsValid(Actor)) continue;
+        if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+        {
+            if (C->SnapshotChannel != ESnapshotChannel::None)
+                ActorByItemId.Add(C->ItemId, Actor);
+        }
 
-		TArray<UChildActorComponent*> ChildComps;
-		Actor->GetComponents<UChildActorComponent>(ChildComps);
-		for (UChildActorComponent* ChildComp : ChildComps)
-		{
-			if (!IsValid(ChildComp)) continue;
-			AActor* ChildActor = ChildComp->GetChildActor();
-			if (!IsValid(ChildActor)) continue;
-			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
-			{
-				if (CC->SnapshotChannel != ESnapshotChannel::None)
-					ActorByItemId.Add(CC->ItemId, ChildActor);
-			}
-		}
-	}
+        TArray<UChildActorComponent*> ChildComps;
+        Actor->GetComponents<UChildActorComponent>(ChildComps);
+        for (UChildActorComponent* ChildComp : ChildComps)
+        {
+            if (!IsValid(ChildComp)) continue;
+            AActor* ChildActor = ChildComp->GetChildActor();
+            if (!IsValid(ChildActor)) continue;
+            if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
+            {
+                if (CC->SnapshotChannel != ESnapshotChannel::None)
+                    ActorByItemId.Add(CC->ItemId, ChildActor);
+            }
+        }
+    }
 
-	int32 TotalRestored = 0;
+    int32 TotalRestored = 0;
 
-	// Восстанавливаем снимки для каждой миссии, привязанной к этому этажу
-	for (const auto& MissionPair : *PerFloor)
-	{
-		const TArray<FFloorSavedActorState>& Snapshots = MissionPair.Value;
+    // Восстанавливаем снимки для каждой миссии, привязанной к этому этажу
+    for (const auto& MissionPair : *PerFloor)
+    {
+        const TArray<FFloorSavedActorState>& Snapshots = MissionPair.Value;
 
-		// First pass: независимые (root) акторы
-		for (const FFloorSavedActorState& Snapshot : Snapshots)
-		{
-			if (Snapshot.bHasRelativeTransform) continue;
-			AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
-			if (!ActorPtr || !IsValid(*ActorPtr)) continue;
-			RestoreActorSnapshot(*ActorPtr, Snapshot, true);
-			++TotalRestored;
-		}
+        // First pass: независимые (root) акторы
+        for (const FFloorSavedActorState& Snapshot : Snapshots)
+        {
+            if (Snapshot.bHasRelativeTransform) continue;
+            AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
+            if (!ActorPtr || !IsValid(*ActorPtr)) continue;
+            RestoreActorSnapshot(*ActorPtr, Snapshot, true);
+            ++TotalRestored;
+        }
 
-		// Second pass: дочерние (child) акторы
-		for (const FFloorSavedActorState& Snapshot : Snapshots)
-		{
-			if (!Snapshot.bHasRelativeTransform) continue;
-			AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
-			if (!ActorPtr || !IsValid(*ActorPtr)) continue;
-			AActor* ChildActor = *ActorPtr;
+        // Second pass: дочерние (child) акторы
+        for (const FFloorSavedActorState& Snapshot : Snapshots)
+        {
+            if (!Snapshot.bHasRelativeTransform) continue;
+            AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
+            if (!ActorPtr || !IsValid(*ActorPtr)) continue;
+            AActor* ChildActor = *ActorPtr;
 
-			AActor* ParentActor = ChildActor->GetAttachParentActor();
-			bool bAppliedRelative = false;
-			if (IsValid(ParentActor))
-			{
-				TArray<UChildActorComponent*> ParentChildComps;
-				ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
-				for (UChildActorComponent* ParentChildComp : ParentChildComps)
-				{
-					if (!IsValid(ParentChildComp)) continue;
-					if (ParentChildComp->GetChildActor() == ChildActor)
-					{
-						ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
-						bAppliedRelative = true;
-						break;
-					}
-				}
-			}
+            AActor* ParentActor = ChildActor->GetAttachParentActor();
+            bool bAppliedRelative = false;
+            if (IsValid(ParentActor))
+            {
+                TArray<UChildActorComponent*> ParentChildComps;
+                ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
+                for (UChildActorComponent* ParentChildComp : ParentChildComps)
+                {
+                    if (!IsValid(ParentChildComp)) continue;
+                    if (ParentChildComp->GetChildActor() == ChildActor)
+                    {
+                        ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
+                        bAppliedRelative = true;
+                        break;
+                    }
+                }
+            }
 
-			if (!bAppliedRelative)
-				ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+            if (!bAppliedRelative)
+                ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
 
-			RestoreActorSnapshot(ChildActor, Snapshot, false);
-			++TotalRestored;
-		}
+            RestoreActorSnapshot(ChildActor, Snapshot, false);
+            ++TotalRestored;
+        }
 
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: RestoreFloorActorsState — restored %d actors for mission '%s' floor %s/%s"),
-			TotalRestored, *MissionPair.Key.ToString(), *InteriorSetId.ToString(), *FloorId.ToString());
-	}
+        UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: RestoreFloorActorsState — restored %d actors for mission '%s' floor %s/%s"),
+            TotalRestored, *MissionPair.Key.ToString(), *InteriorSetId.ToString(), *FloorId.ToString());
+    }
 
-	return TotalRestored;
+    return TotalRestored;
 }
 
 // --- добавлен новый хелпер: восстанавливает actors напрямую из переданного массива снимков ---
@@ -1213,16 +1260,54 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		// Если есть ключ этажа — восстановим snapshots для всех миссий, у которых он сохранён.
 		if (bHaveKey)
 		{
-			// Ищем PerFloor запись в MissionFloorSnapshots по текущему FloorKey
+			bool bDidRestoreAny = false;
+
+			// 1) Сначала попробуем восстановить mission-snapshots (как раньше)
 			if (const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(CurrentKey))
 			{
-				for (const auto& MissionPair : *PerFloor)
+				if (PerFloor->Num() > 0)
 				{
-					const FName& MissionId = MissionPair.Key;
-					RestoreMissionFloorState(MissionId, CurrentKey);
-					UE_LOG(LogTemp, Log,
-						TEXT("InteriorSubsystem::OnPostLoadMap: Restored mission snapshot for mission '%s' floor %s/%s"),
-						*MissionId.ToString(), *CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
+					for (const auto& MissionPair : *PerFloor)
+					{
+						const FName& MissionId = MissionPair.Key;
+						RestoreMissionFloorState(MissionId, CurrentKey);
+						UE_LOG(LogTemp, Log,
+							TEXT("InteriorSubsystem::OnPostLoadMap: Restored mission snapshot for mission '%s' floor %s/%s"),
+							*MissionId.ToString(), *CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
+						bDidRestoreAny = true;
+					}
+				}
+			}
+
+			// 2) Если mission-snapshots отсутствуют — пытаемся восстановить baseline из FloorStateSnapshots
+			if (!bDidRestoreAny)
+			{
+				if (const TArray<FFloorSavedActorState>* BaseSnap = FloorStateSnapshots.Find(CurrentKey))
+				{
+					if (BaseSnap && !BaseSnap->IsEmpty())
+					{
+						UWorld* LocalWorld = GetWorld();
+						if (LocalWorld)
+						{
+							RestoreFromSnapshotArray(LocalWorld, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId);
+							UE_LOG(LogTemp, Log,
+								TEXT("InteriorSubsystem::OnPostLoadMap: Restored baseline FloorStateSnapshots for floor %s/%s (count=%d)"),
+								*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString(), BaseSnap->Num());
+							bDidRestoreAny = true;
+						}
+					}
+					else
+					{
+						UE_LOG(LogTemp, Verbose,
+							TEXT("InteriorSubsystem::OnPostLoadMap: FloorStateSnapshots exists but empty for floor %s/%s"),
+							*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
+					}
+				}
+				else
+				{
+					UE_LOG(LogTemp, Verbose,
+						TEXT("InteriorSubsystem::OnPostLoadMap: No mission snapshots and no baseline FloorStateSnapshots for floor %s/%s"),
+						*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
 				}
 			}
 

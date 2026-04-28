@@ -1047,19 +1047,31 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		if (!bInScope) continue;
 
 		// Save MissionFloorSnapshot for every mission in scope (always)
-		UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
-		if (SaveP)
+		// Save MissionFloorSnapshot only when mission's JobSpacePolicy requires it.
+		// If policy == Reset => do not create mission snapshot on floor leave.
+		const EJobSpacePolicy JobPolicyForSave = Env.JobSpacePolicy;
+		if (JobPolicyForSave == EJobSpacePolicy::Reset)
 		{
-			SaveP->InteriorSetId = InteriorSetId;
-			SaveP->FloorId = FloorId;
-			SaveP->MissionId = MissionId;
-			FOutcomeEventBase SaveEv;
-			SaveEv.OutcomeType = EOutcomeType::Interior;
-			SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
-			SaveEv.Payload = SaveP;
-			EventBus->PublishOutcome(SaveEv);
-			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Saved MissionFloorSnapshot for mission '%s' floor %s"),
-				*MissionId.ToString(), *FloorId.ToString());
+			UE_LOG(LogTemp, Verbose,
+				TEXT("MissionSubsystem: Skipping mission snapshot save for mission '%s' on floor leaving (JobSpacePolicy=Reset)"),
+				*MissionId.ToString());
+		}
+		else
+		{
+			UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
+			if (SaveP)
+			{
+				SaveP->InteriorSetId = InteriorSetId;
+				SaveP->FloorId = FloorId;
+				SaveP->MissionId = MissionId;
+				FOutcomeEventBase SaveEv;
+				SaveEv.OutcomeType = EOutcomeType::Interior;
+				SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
+				SaveEv.Payload = SaveP;
+				EventBus->PublishOutcome(SaveEv);
+				UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Saved MissionFloorSnapshot for mission '%s' floor %s"),
+					*MissionId.ToString(), *FloorId.ToString());
+			}
 		}
 
 		// Track the highest-priority mission
