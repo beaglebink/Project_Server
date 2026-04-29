@@ -158,7 +158,7 @@ public:
 	/** Сохраняет снимок состояния акторов этажа.
 	 *  Если MissionId задан — сохраняет в_slot миссии, иначе в общий слот (NAME_None). */
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
-	void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId = NAME_None);
+	void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry>& Channels);
 
 	/** Восстанавливает состояние акторов этажа из памяти. Возвращает количество восстановленных акторов. */
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")

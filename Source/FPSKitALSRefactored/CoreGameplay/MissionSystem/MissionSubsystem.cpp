@@ -1064,6 +1064,8 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 				SaveP->InteriorSetId = InteriorSetId;
 				SaveP->FloorId = FloorId;
 				SaveP->MissionId = MissionId;
+				SaveP->Channels = Env.Channels;
+				SaveP->Policy = JobPolicyForSave;
 				FOutcomeEventBase SaveEv;
 				SaveEv.OutcomeType = EOutcomeType::Interior;
 				SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
@@ -1107,11 +1109,12 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 			}
 		}
 	}
-
+	/*
 	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
 	{
 		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Triggering SaveGame after FloorLeaving handling"));
 		SaveSys->SaveGame();
 	}
+	*/
 }
 

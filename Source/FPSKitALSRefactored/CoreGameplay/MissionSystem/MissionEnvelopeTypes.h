@@ -188,8 +188,10 @@ FORCEINLINE EEnvelopeChannel FloorActorTypeToEnvelopeChannel(EFloorActorType Act
     switch (ActorType)
     {
     case EFloorActorType::LightItem:
-    case EFloorActorType::Debris:
     case EFloorActorType::HeavyFurniture:
+        return EEnvelopeChannel::InteractiveObjects;
+
+    case EFloorActorType::Debris:
         return EEnvelopeChannel::Clutter;
 
     case EFloorActorType::StableActor:

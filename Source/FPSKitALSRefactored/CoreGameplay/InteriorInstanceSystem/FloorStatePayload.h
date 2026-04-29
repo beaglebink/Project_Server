@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
+#include "MissionEnvelopeTypes.h"
 #include "FloorStatePayload.generated.h"
 
 class UFloorAsset; // forward
@@ -31,6 +32,12 @@ public:
 	// Optional: mission identifier — if set, InteriorSubsystem will save/restore under mission snapshot
 	UPROPERTY(BlueprintReadWrite, Category = "FloorState")
 	FName MissionId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "FloorState")
+	EJobSpacePolicy Policy;
+
+	UPROPERTY(BlueprintReadWrite, Category = "FloorState")
+	TArray<FEnvelopeChannelEntry> Channels;
 
     UFUNCTION(BlueprintCallable, Category = "FloorState")
     UFloorStatePayload* Setup(const FString& InInteriorSetPathOrName, int32 InFloorIndex);

@@ -618,16 +618,16 @@ static void ApplyFloorToComponent(
     Owner->Modify();
     Comp->Modify();
 
-    // Если у компонента ещё нет ItemId — создаём новый GUID и помечаем пакет dirty,
+    // пересоздаем GUID Comp->ItemId в любом случае для уникальности
     // чтобы компонент можно было потом идентифицировать при сохранении/восстановлении.
-    if (!Comp->ItemId.IsValid())
-    {
+    //if (!Comp->ItemId.IsValid())
+    //{
 #if WITH_EDITOR
-        Comp->ItemId = FGuid::NewDeterministicGuid(Owner->GetPathName(), 0);
+        Comp->ItemId = FGuid::NewGuid();//FGuid::NewDeterministicGuid(Owner->GetPathName(), 0);
 #else
         Comp->ItemId = FGuid::NewGuid();
 #endif
-    }
+    //}
 
     Comp->FloorId         = FloorGuid;
     Comp->InteriorSetId   = InteriorSetGuid;
