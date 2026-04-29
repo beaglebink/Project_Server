@@ -14,6 +14,8 @@
 #include "../MissionSystem/MissionEnvelopeTypes.h"
 #include "InteriorSubsystem.generated.h"
 
+// Forward-declare UMissionController to avoid including its .cpp in header and to break multiple-definition issues.
+class UMissionController;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
 
@@ -80,6 +82,20 @@ struct FFloorSavedActorState
 	TArray<FFloorSavedPropertyEntry>  ActorProperties;
 	TArray<FFloorSavedComponentState> ComponentStates;
 };
+
+USTRUCT()
+struct FActiveMissionInterior
+{
+	GENERATED_BODY()
+
+	// Идентификатор миссии (имя ассета)
+	UPROPERTY()
+	FName MissionId;
+
+	// Контроллер миссии — помечен UPROPERTY чтобы GC учитывал ссылку во время загрузок/SeamlessTravel
+	UPROPERTY()
+	TObjectPtr<UMissionController> Controller;
+};	
 
 UCLASS()
 class FPSKITALSREFACTORED_API UInteriorSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods
@@ -349,6 +365,9 @@ private:
 	UPROPERTY()
 	FGuid PendingAnchorID;
 
+	UPROPERTY()
+	TMap<FName, FActiveMissionInterior> ActiveMissions;
+
 protected:
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override;
@@ -382,4 +401,12 @@ private:
 
 	// Handler invoked when a ReleaseMissionSnapshot command arrives via EventBus
 	void HandleReleaseMissionSnapshot(const FOutcomeEventBase& Outcome);
+
+	// ----- Update mission list via EventBus -----
+	UPROPERTY()
+	UOutcomeConditionAsset* UpdateMissionListConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle UpdateMissionListHandle;
+
+	void HandleUpdateMissionList(const FOutcomeEventBase& Outcome);
 };

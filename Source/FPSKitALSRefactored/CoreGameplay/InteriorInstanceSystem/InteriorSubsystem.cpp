@@ -30,6 +30,7 @@
 #include "../LocationSystem/LocationAnchorActor.h"
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
+#include "UpdateMissionListPayload.h"
 
 // -----------------------------------------------------------------------------
 // Snapshot helpers
@@ -1124,6 +1125,22 @@ void UInteriorSubsystem::SubscribeAll()
 				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleReleaseMissionSnapshot));
 		}
 	}
+
+	// Register handler for Update Mission List
+	if (!UpdateMissionListHandle.IsValid())
+	{
+		UpdateMissionListConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		UpdateMissionListConditionAsset->OperatorType = EConditionOperator::Composite;
+		UpdateMissionListConditionAsset->FilterRow.OutcomeType = EOutcomeType::Mission;
+		UpdateMissionListConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		UpdateMissionListConditionAsset->CompileCondition();
+		if (UpdateMissionListConditionAsset->GetCondition().IsValid())
+		{
+			UpdateMissionListHandle = EventBus->RegisterHandler(
+				UpdateMissionListConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleUpdateMissionList));
+		}
+	}
 }
 
 void UInteriorSubsystem::SubscribePlacementRegistration()
@@ -1343,6 +1360,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			}
 
 			// Публикуем уведомление через EventBus о том, что восстановление завершено для этого этажа
+			/*
 			if (UEventBusSubsystem* EventBus = CachedEventBus.Get() ? CachedEventBus.Get() : GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 			{
 				UFloorStatePayload* NotifyP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
@@ -1358,6 +1376,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					EventBus->PublishOutcome(NotifyEv);
 				}
 			}
+			*/
 		}
 
 		// Финальная нотификация о завершении загрузки/перехода
@@ -1429,8 +1448,6 @@ TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& UInteriorSubsyst
 	return RegistrationListeners;
 }
 
-// UnsubscribeAll — если в файле нет реализации, добавьте её;
-// если уже есть — этот блок можно удалить, чтобы не было дублирования.
 void UInteriorSubsystem::UnsubscribeAll()
 {
 	if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
@@ -1497,6 +1514,14 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, const FInteri
             if (!Snapshot || Snapshot->IsEmpty()) return;
             UWorld* World = GetWorld();
             if (!World) return;
+
+			auto MissionInterior = ActiveMissions.Find(MissionId);
+			auto& Controller = MissionInterior->Controller;
+			auto MissionAsset = Controller->GetMissionAsset();
+			auto& Envelope = MissionAsset->Envelope;
+			if (Envelope.JobSpacePolicy == EJobSpacePolicy::Reset)
+				return;
+
             RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId);
             UE_LOG(LogTemp, Log,
                 TEXT("InteriorSubsystem::RestoreMissionFloorState: restored snapshot for mission '%s' floor %s/%s"),
@@ -1528,6 +1553,30 @@ void UInteriorSubsystem::HandleReleaseMissionSnapshot(const FOutcomeEventBase& O
 	if (UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(Outcome.Payload))
 	{
 		ReleaseMissionSnapshot(P->MissionId, P->Envelope, P->Policy, P->bIsCompletion);
+	}
+}
+
+void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcome)
+{
+	if(UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(Outcome.Payload))
+	{
+		ActiveMissions.Empty();
+		TArray<FName> Keys;
+		TMap<FName, FActiveMissionEntry> Map = P->ActiveMissions;
+		Map.GetKeys(Keys);
+		for (const FName& MissionId : Keys)
+		{
+			if (!MissionId.IsNone())
+			{
+				//ActiveMissions.Add(MissionId);
+				FActiveMissionInterior MissionInterior;
+				
+				MissionInterior.MissionId = MissionId;
+				MissionInterior.Controller = Map[MissionId].Controller;
+
+				ActiveMissions.Add(MissionId, MissionInterior);
+			}
+		}
 	}
 }
 

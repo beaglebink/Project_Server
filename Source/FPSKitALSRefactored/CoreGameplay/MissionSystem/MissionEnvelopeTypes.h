@@ -80,12 +80,12 @@ struct FPSKITALSREFACTORED_API FMissionExitPolicy
 
     // Переход между этажами внутри здания — Envelope не освобождается.
     // (Это поведение фиксировано, поле только для документации.)
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ExitPolicy")
-    bool bFloorTransitionPreservesEnvelope = true;
+    //UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ExitPolicy")
+    //bool bFloorTransitionPreservesEnvelope = true;
 
     // Что делать с пространством задания при уходе из здания (во время активной миссии)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
-    EJobSpacePolicy OnLeaveBuilding = EJobSpacePolicy::None;
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
+    //EJobSpacePolicy OnLeaveBuilding = EJobSpacePolicy::None;
 
     // Что делать с постоянным хранилищем при успешном завершении миссии (MissionCompleted)
     // ResetAll    — не обновлять FloorStateSnapshots

@@ -11,6 +11,7 @@
 #include "../InteriorInstanceSystem/FloorStatePayload.h"
 #include "../InteriorInstanceSystem/InteriorTransitionPayload.h"
 #include "ReleaseMissionSnapshotPayload.h"
+#include <UpdateMissionListPayload.h>
 
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -310,6 +311,19 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 		return;
 	}
 
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
+		EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
+		if (P1)
+		{
+			P1->ActiveMissions = ActiveMissions;
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Mission;	
+			Ev.Payload = P1;
+			EventBus->PublishOutcome(Ev);
+		}
+	}
 	// Публикуем FloorStateSave с MissionId для каждого этажа в scope через EventBus
 	/*
 	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
@@ -549,7 +563,7 @@ void UMissionSubsystem::NotifyBuildingExited(const FText& BuildingDisplayName)
 
 void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionEnvelope& Envelope)
 {
-	const EJobSpacePolicy Policy = Envelope.ExitPolicy.OnLeaveBuilding;
+	const EJobSpacePolicy Policy = Envelope.ExitPolicy.OnMissionCompleted;
 
 	if (Policy == EJobSpacePolicy::None)
 	{
@@ -581,12 +595,11 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 {
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
-		UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(
-			EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
+		UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
+		EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
 		if (P)
 		{
-			// bIsCompletion=true: InteriorSubsystem writes to FloorStateSnapshots per policy
-			P->SetupCompletion(MissionId, Envelope, Policy, EndReason);
+			P->ActiveMissions = ActiveMissions;
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Mission;
 			Ev.Payload = P;
@@ -857,6 +870,20 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 			TEXT("MissionSubsystem: MissionReleased received for unknown mission '%s'"),
 			*MissionId.ToString());
 	}
+
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
+		EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
+		if (P1)
+		{
+			P1->ActiveMissions = ActiveMissions;
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Mission;
+			Ev.Payload = P1;
+			EventBus->PublishOutcome(Ev);
+		}
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1050,6 +1077,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		// Save MissionFloorSnapshot only when mission's JobSpacePolicy requires it.
 		// If policy == Reset => do not create mission snapshot on floor leave.
 		const EJobSpacePolicy JobPolicyForSave = Env.JobSpacePolicy;
+		/*
 		if (JobPolicyForSave == EJobSpacePolicy::Reset)
 		{
 			UE_LOG(LogTemp, Verbose,
@@ -1058,6 +1086,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		}
 		else
 		{
+		*/
 			UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
 			if (SaveP)
 			{
@@ -1074,7 +1103,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 				UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Saved MissionFloorSnapshot for mission '%s' floor %s"),
 					*MissionId.ToString(), *FloorId.ToString());
 			}
-		}
+		//}
 
 		// Track the highest-priority mission
 		if (Env.Priority > TopPriority)
