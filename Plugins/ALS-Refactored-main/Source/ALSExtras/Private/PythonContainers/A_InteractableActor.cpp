@@ -5,6 +5,15 @@
 AA_InteractableActor::AA_InteractableActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	RootComponent = StaticMesh;
+
+	StaticMesh->SetCollisionProfileName(TEXT("HighlyReactiveObject"));
+	StaticMesh->SetSimulatePhysics(true);
+	StaticMesh->SetNotifyRigidBodyCollision(true);
+	StaticMesh->SetMassOverrideInKg(NAME_None, 7.0f, true);
+	StaticMesh->SetLinearDamping(0.5f);
+	StaticMesh->SetAngularDamping(0.1f);
 }
 
 void AA_InteractableActor::BeginPlay()

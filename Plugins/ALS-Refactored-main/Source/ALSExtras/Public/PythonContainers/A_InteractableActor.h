@@ -19,6 +19,9 @@ protected:
 public:	
 	virtual void Tick(float DeltaTime) override;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "StaticMesh")
+	UStaticMeshComponent* StaticMesh;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Name")
 	FName Name;
 
