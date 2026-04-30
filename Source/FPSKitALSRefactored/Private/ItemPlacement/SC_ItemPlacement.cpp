@@ -96,10 +96,10 @@ void USC_ItemPlacement::OnCheckerSphereOverlapEnd(UPrimitiveComponent* Overlappe
 
 	if (AA_DropZone* DropZone = Cast<AA_DropZone>(OtherActor))
 	{
+		ChoosenDropZones.Remove(DropZone);
 		if (!DropZone->bIsOccupied)
 		{
 			DropZone->SetMeshMaterialAndState(1, false);
-			ChoosenDropZones.Remove(DropZone);
 		}
 	}
 }
