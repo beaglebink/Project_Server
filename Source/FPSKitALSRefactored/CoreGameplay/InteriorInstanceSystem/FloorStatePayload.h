@@ -39,6 +39,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "FloorState")
 	TArray<FEnvelopeChannelEntry> Channels;
 
+	UPROPERTY(BlueprintReadWrite, Category = "FloorState")
+	int32 CurrentMissionStep = -1;
+
     UFUNCTION(BlueprintCallable, Category = "FloorState")
     UFloorStatePayload* Setup(const FString& InInteriorSetPathOrName, int32 InFloorIndex);
 

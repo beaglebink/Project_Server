@@ -92,10 +92,15 @@ struct FActiveMissionInterior
 	UPROPERTY()
 	FName MissionId;
 
+	UPROPERTY()
+	int32 MissionStep;
+
 	// Контроллер миссии — помечен UPROPERTY чтобы GC учитывал ссылку во время загрузок/SeamlessTravel
 	UPROPERTY()
 	TObjectPtr<UMissionController> Controller;
 };	
+
+
 
 UCLASS()
 class FPSKITALSREFACTORED_API UInteriorSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods
@@ -178,7 +183,7 @@ public:
 
 	/** Восстанавливает состояние акторов этажа из памяти. Возвращает количество восстановленных акторов. */
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
-	int32 RestoreFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId);
+	int32 RestoreFloorActorsState(const FGuid& InteriorSetId, int32 CurrentMissionStep, const FGuid& FloorId);
 
 	// Build runtime cache of interior assets (friendly keys -> GUID key)
 	// Friendly key format: "<SoftObjectPath>:floor_<FloorIndex>"
@@ -237,7 +242,7 @@ public:
 
 	// Восстановить состояние этажа из mission-snapshot.
 	// Применяется перед показом этажа (re-enter) в рамках активной миссии.
-	void RestoreMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey);
+	void RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey);
 
 	// Освободить mission-snapshot после завершения миссии.
 	// Policy определяет что делать с накопленными изменениями.

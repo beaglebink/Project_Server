@@ -33,17 +33,19 @@ public:
 
     // Envelope contains the full persistence configuration.
     // If the Envelope is empty (JobSpacePolicy = None, Scope is empty), the world uses default behavior.
+    // The Envelope array contains all configurations of the mission steps.
+	// Массив Envelope содержит все конфигурации шагов миссии.
     // Envelope содержит всю конфигурацию persistence.
     // Если Envelope пуст (JobSpacePolicy = None, Scope пуст), используется поведение мира по умолчанию.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Envelope")
-    FMissionEnvelope Envelope;
+    TArray<FMissionEnvelope> Envelopes;
 
     // Priority for resolving conflicts between several active missions.
     // Duplicates Envelope.Priority for easier lookup in the subsystem.
     // Приоритет разрешения конфликтов между несколькими активными миссиями.
     // Дублирует Envelope.Priority для удобства поиска в подсистеме.
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Priority")
-    int32 Priority = 0;
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Priority")
+    //int32 Priority = 0;
 
     // Specify the mission controller BP class inherited from UMissionController.
     // Укажите BP-класс контроллера миссии, наследник UMissionController.
@@ -66,7 +68,7 @@ public:
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override
     {
         Super::PostEditChangeProperty(PropertyChangedEvent);
-        Envelope.Priority = Priority;
+        //Envelope.Priority = Priority;
     }
 #endif
 };

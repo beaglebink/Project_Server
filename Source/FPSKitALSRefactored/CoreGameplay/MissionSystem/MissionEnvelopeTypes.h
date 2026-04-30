@@ -146,7 +146,7 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
     TArray<FEnvelopeChannelEntry> Channels;
 
     // Политика выхода
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "MissionCompletePolicy"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Mission Complete Policy"))
     EJobSpacePolicy OnMissionCompleted = EJobSpacePolicy::Freeze;
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.

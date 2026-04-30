@@ -30,6 +30,10 @@ struct FActiveMissionEntry
 	UPROPERTY()
 	FName MissionId;
 
+	// текущий шаг миссии (индекс в массиве шагов ассета, 0-based)
+	UPROPERTY()
+	int32 MissionStep = 0;
+
 	// Контроллер миссии — помечен UPROPERTY чтобы GC учитывал ссылку во время загрузок/SeamlessTravel
 	UPROPERTY()
 	TObjectPtr<UMissionController> Controller;

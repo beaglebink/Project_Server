@@ -138,22 +138,22 @@ FName UMissionController::GetMissionId() const
     return NAME_None;
 }
 
-const FMissionEnvelope& UMissionController::GetEnvelope() const
+const TArray<FMissionEnvelope>& UMissionController::GetEnvelopes() const
 {
-    static FMissionEnvelope EmptyEnvelope;
+    static TArray<FMissionEnvelope> EmptyEnvelopes;
     if (MissionAsset)
     {
-        return MissionAsset->Envelope;
+        return MissionAsset->Envelopes;
     }
-    return EmptyEnvelope;
+    return EmptyEnvelopes;
 }
-
+/*
 bool UMissionController::HasValidEnvelope() const
 {
     if (!MissionAsset) return false;
     return MissionAsset->Envelope.IsValid();
 }
-
+*/
 void UMissionController::NotifyBuildingExited()
 {
     OnBuildingExited();

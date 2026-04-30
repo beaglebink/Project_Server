@@ -86,11 +86,11 @@ public:
 
 	// Получить Envelope миссии для доступа к конфигурации persistence и политики
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mission|Info")
-    const FMissionEnvelope& GetEnvelope() const;
+    const TArray<FMissionEnvelope>& GetEnvelopes() const;
 
     // true если envelope имеет смысл (не пустой scope)
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mission|Info")
-    bool HasValidEnvelope() const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mission|Info")
+    //bool HasValidEnvelope() const;
 
     // Уведомления от MissionSubsystem 
 

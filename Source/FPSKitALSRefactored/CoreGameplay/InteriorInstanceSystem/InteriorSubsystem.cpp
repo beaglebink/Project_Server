@@ -382,7 +382,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 // RestoreFloorActorsState
 // -----------------------------------------------------------------------------
 
-int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId)
+int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, int32 CurrentMissionStep, const FGuid& FloorId)
 {
     UWorld* W = GetWorld();
     if (!W) return 0;
@@ -724,13 +724,20 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 {
 	if (UFloorStatePayload* P = Cast<UFloorStatePayload>(Outcome.Payload))
 	{
+		int32 CurrentMissionStep = P->CurrentMissionStep;
+		if(CurrentMissionStep < 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorStateRestore: invalid CurrentMissionStep=%d"), CurrentMissionStep);
+			return;
+		}
+
 		if (P->MissionId != NAME_None)
 		{
-			RestoreMissionFloorState(P->MissionId, FInteriorFloorKey(P->InteriorSetId, P->FloorId));
+			RestoreMissionFloorState(P->MissionId, CurrentMissionStep,  FInteriorFloorKey(P->InteriorSetId, P->FloorId));
 		}
 		else
 		{
-			RestoreFloorActorsState(P->InteriorSetId, P->FloorId);
+			RestoreFloorActorsState(P->InteriorSetId, CurrentMissionStep, P->FloorId);
 		}
 	}
 }
@@ -1342,7 +1349,10 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						{
 							continue;
 						}
-						RestoreMissionFloorState(MissionId, CurrentKey);
+
+						int32 CurrentMissionStep = ActiveMissions[MissionId].MissionStep;
+
+						RestoreMissionFloorState(MissionId, CurrentMissionStep, CurrentKey);
 						UE_LOG(LogTemp, Log,
 							TEXT("InteriorSubsystem::OnPostLoadMap: Restored mission snapshot for mission '%s' floor %s/%s"),
 							*MissionId.ToString(), *CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
@@ -1526,7 +1536,7 @@ void UInteriorSubsystem::SaveMissionFloorState(FName MissionId, const FInteriorF
 		*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString());
 }
 
-void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey)
+void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey)
 {
     if (MissionId.IsNone() || !FloorKey.FloorId.IsValid()) return;
 
@@ -1542,7 +1552,7 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, const FInteri
 			auto MissionInterior = ActiveMissions.Find(MissionId);
 			auto& Controller = MissionInterior->Controller;
 			auto MissionAsset = Controller->GetMissionAsset();
-			auto& Envelope = MissionAsset->Envelope;
+			auto& Envelope = MissionAsset->Envelopes[CurrentMissionStep];
 			if (Envelope.JobSpacePolicy == EJobSpacePolicy::Reset)
 				return;
 
@@ -1596,6 +1606,7 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 				FActiveMissionInterior MissionInterior;
 				
 				MissionInterior.MissionId = MissionId;
+				MissionInterior.MissionStep = Map[MissionId].MissionStep;
 				MissionInterior.Controller = Map[MissionId].Controller;
 
 				ActiveMissions.Add(MissionId, MissionInterior);
@@ -1616,7 +1627,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 		{
 			TObjectPtr<UMissionController> Controller = MissionInterior->Controller;
 			UMissionAsset* MissionAsset = Controller->GetMissionAsset();
-			FMissionEnvelope Envelope = MissionAsset->Envelope;
+			FMissionEnvelope Envelope = MissionAsset->Envelopes[MissionInterior->MissionStep];
 			
 			//ReleaseMissionSnapshot(MissionId, Envelope, Envelope.JobSpacePolicy, true);
 			//MissionFloorSnapshots
@@ -1713,7 +1724,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 											UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>();
 											if (!FAC) continue;
 											if (FAC->ItemId != ActorSnap.ItemId) continue;
-											if (FAC->SnapshotChannel == static_cast<ESnapshotChannel>(Channel.Channel))
+											if (FAC->SnapshotChannel == ESnapshotChannel::Snapshot/*static_cast<ESnapshotChannel>(Channel.Channel)*/)
 											{
 												bMatchChannel = true;
 											}

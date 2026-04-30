@@ -257,11 +257,11 @@ UMissionController* UMissionSubsystem::CreateMission(UMissionAsset* MissionAsset
 			*MissionId.ToString());
 		return ActiveMissions[MissionId].Controller;
 	}
-
+/*
 	// Проверка конфликтов envelope
-	if (MissionAsset->Envelope.IsValid())
+	if (MissionAsset->Envelopes[0].IsValid())
 	{
-		TArray<FEnvelopeConflictInfo> Conflicts = CheckEnvelopeConflicts(MissionId, MissionAsset->Envelope);
+		TArray<FEnvelopeConflictInfo> Conflicts = CheckEnvelopeConflicts(MissionId, MissionAsset->Envelopes[ActiveMissions[MissionId].MissionStep]);
 		for (const FEnvelopeConflictInfo& Conflict : Conflicts)
 		{
 			UE_LOG(LogTemp, Log,
@@ -269,7 +269,7 @@ UMissionController* UMissionSubsystem::CreateMission(UMissionAsset* MissionAsset
 				*Conflict.WinnerMissionId.ToString(), *Conflict.LoserMissionId.ToString());
 		}
 	}
-
+*/
 	// Создаём контроллер нужного класса (из ассета). Если в ассете задан Blueprint класс,
 	// он будет инстанцирован и вызовы Activate()/OnMissionActivated будут попадать в BP-реализацию.
 	UMissionController* Controller = nullptr;
@@ -340,7 +340,7 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 
 	Entry->Controller->RequestResolve(Reason);
 
-	const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelope();
+	const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelopes()[Entry->MissionStep];
 
 	if (Reason == EMissionEndReason::Completed)
 	{
@@ -395,8 +395,8 @@ TArray<FEnvelopeConflictInfo> UMissionSubsystem::CheckEnvelopeConflicts(
 		if (Pair.Key == NewMissionId) continue;
 		const UMissionController* OtherCtrl = Pair.Value.Controller;
 		if (!OtherCtrl) continue;
-
-		const FMissionEnvelope& OtherEnvelope = OtherCtrl->GetEnvelope();
+		
+		const FMissionEnvelope& OtherEnvelope = OtherCtrl->GetEnvelopes()[Pair.Value.MissionStep];
 
 		if (!ScopesOverlap(NewEnvelope.Scope, OtherEnvelope.Scope)) continue;
 		if (!ChannelsOverlap(NewEnvelope, OtherEnvelope)) continue;
@@ -433,7 +433,7 @@ FName UMissionSubsystem::GetChannelOwner(
 		const UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
 
-		const FMissionEnvelope& Env = Ctrl->GetEnvelope();
+		const FMissionEnvelope& Env = Ctrl->GetEnvelopes()[Pair.Value.MissionStep];
 
 		// Проверяем что этаж входит в scope
 		bool bInScope = false;
@@ -515,7 +515,7 @@ void UMissionSubsystem::NotifyBuildingExited(const FText& BuildingDisplayName)
 		UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
 
-		const FMissionEnvelope& Env = Ctrl->GetEnvelope();
+		const FMissionEnvelope& Env = Ctrl->GetEnvelopes()[Pair.Value.MissionStep];
 		if (Env.Scope.BuildingDisplayName.EqualTo(BuildingDisplayName))
 		{
 			Ctrl->NotifyBuildingExited();
@@ -751,14 +751,14 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 	// Если миссия уже существует — игнорируем (дублированное событие)
 	if (ActiveMissions.Contains(MissionId)) return;
 
-	int32 NewMissionPriority = P->MissionAsset->Envelope.Priority;
-	auto NewScope = P->MissionAsset->Envelope.Scope;
+	//int32 NewMissionPriority = P->MissionAsset->Envelopes[ActiveMissions[MissionId].MissionStep].Priority;
+	auto NewScope = P->MissionAsset->Envelopes[0].Scope;
 
 	for(auto & AMPair : ActiveMissions)
 	{
 		TObjectPtr<UMissionController> Controller = AMPair.Value.Controller;
 		if (!Controller) continue;
-		const FMissionEnvelope& Env = Controller->GetEnvelope();
+		const FMissionEnvelope& Env = Controller->GetEnvelopes()[AMPair.Value.MissionStep];
 
 		auto Scope = Env.Scope;
 		for(auto & InteriorScope : Scope.InteriorScopes)
@@ -767,23 +767,7 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 			{
 				if (InteriorScope == NewInteriorScope)
 				{
-					if (NewMissionPriority <= Env.Priority)
-					{
-						UE_LOG(LogTemp, Log,
-							TEXT("MissionSubsystem::HandleEnvelopeActivate: New mission '%s' (priority %d) wins over existing mission '%s' (priority %d) on floor '%s'"),
-							*MissionId.ToString(), NewMissionPriority,
-							*AMPair.Key.ToString(), Env.Priority,
-							*InteriorScope->GetName());
-						return; // Конфликт с приоритетом — новая миссия не активируется
-					}
-					else
-					{
-						UE_LOG(LogTemp, Log,
-							TEXT("MissionSubsystem::HandleEnvelopeActivate: Existing mission '%s' (priority %d) wins over new mission '%s' (priority %d) on floor '%s'"),
-							*AMPair.Key.ToString(), Env.Priority,
-							*MissionId.ToString(), NewMissionPriority,
-							*InteriorScope->GetName());
-					}
+					// TODO: потом дописать определение конфликта миссий
 				}
 			}
 		}
@@ -821,7 +805,7 @@ void UMissionSubsystem::HandleEnvelopeResolve(const FOutcomeEventBase& Outcome)
 	// BroadcastStatusChanged из Controller сам публикует событие)
 	const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
 	if (!Entry || !Entry->Controller) return;
-	if (Entry->Controller->GetStatus() == EMissionStatus::Resolved) return;
+	//if (Entry->Controller->GetStatus() == EMissionStatus::Resolved) return;
 
 	ResolveMission(MissionId, Reason);
 
@@ -925,7 +909,7 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 		const EMissionStatus Status      = Ctrl->GetStatus();
 		const EMissionEndReason EndReason = Ctrl->GetEndReason();
-		const EMissionResumeMode Resume  = Asset->Envelope.ResumeMode;
+		const EMissionResumeMode Resume  = Asset->Envelopes[Pair.Value.MissionStep].ResumeMode;
 
 		// Применяем NonResumableMode при сохранении:
 		// FailOnLoad — запишем статус как Failed
@@ -1071,7 +1055,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
 
-		const FMissionEnvelope& Env = Ctrl->GetEnvelope();
+		const FMissionEnvelope& Env = Ctrl->GetEnvelopes()[Pair.Value.MissionStep];
 		bool bInScope = false;
 		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Env.Scope.InteriorScopes)
 		{
@@ -1089,6 +1073,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 			SaveP->InteriorSetId = InteriorSetId;
 			SaveP->FloorId = FloorId;
 			SaveP->MissionId = MissionId;
+			SaveP->CurrentMissionStep = Pair.Value.MissionStep;
 			SaveP->Channels = Env.Channels;
 			SaveP->Policy = JobPolicyForSave;
 			FOutcomeEventBase SaveEv;
@@ -1113,7 +1098,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 	{
 		if (FActiveMissionEntry* TopEntry = ActiveMissions.Find(TopMissionId))
 		{
-			const FMissionEnvelope& TopEnv = TopEntry->Controller->GetEnvelope();
+			const FMissionEnvelope& TopEnv = TopEntry->Controller->GetEnvelopes()[TopEntry->MissionStep];
 			const EJobSpacePolicy JobPolicy = TopEnv.JobSpacePolicy;
 			if (JobPolicy != EJobSpacePolicy::None)
 			{
