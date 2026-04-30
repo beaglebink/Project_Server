@@ -44,7 +44,7 @@ void UMissionController::RequestResolve(EMissionEndReason Reason)
     Status    = EMissionStatus::Resolved;
 
     // Публикуем изменение статуса (для подписчиков)
-    BroadcastStatusChanged();
+    //BroadcastStatusChanged();
 
     // Локальный хук для BP
     OnMissionCompleted(Reason);
@@ -110,7 +110,7 @@ void UMissionController::Suspend()
         return;
     }
     Status = EMissionStatus::Suspended;
-    BroadcastStatusChanged();
+    //BroadcastStatusChanged();
     OnMissionSuspended();
 
     UE_LOG(LogTemp, Log, TEXT("MissionController[%s]: Suspended"), *GetMissionId().ToString());
@@ -123,7 +123,7 @@ void UMissionController::Resume()
         return;
     }
     Status = EMissionStatus::Active;
-    BroadcastStatusChanged();
+    //BroadcastStatusChanged();
     OnMissionResumed();
 
     UE_LOG(LogTemp, Log, TEXT("MissionController[%s]: Resumed"), *GetMissionId().ToString());
@@ -167,7 +167,7 @@ UWorld* UMissionController::GetWorld() const
     }
     return nullptr;
 }
-
+/*
 void UMissionController::BroadcastStatusChanged()
 {
     UGameInstance* GI = OwnerGameInstance.Get();
@@ -205,3 +205,4 @@ void UMissionController::BroadcastStatusChanged()
     Event.Payload = nullptr;
     EventBus->PublishOutcome(Event);
 }
+*/

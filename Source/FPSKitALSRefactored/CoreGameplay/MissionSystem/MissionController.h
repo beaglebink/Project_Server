@@ -139,5 +139,5 @@ private:
     EMissionEndReason EndReason = EMissionEndReason::None;
 
     // Публикует событие на EventBus об изменении статуса миссии
-    void BroadcastStatusChanged();
+    //void BroadcastStatusChanged();
 };

@@ -12,6 +12,7 @@
 #include "../InteriorInstanceSystem/InteriorTransitionPayload.h"
 #include "ReleaseMissionSnapshotPayload.h"
 #include <UpdateMissionListPayload.h>
+#include <ApplyMissionCompletionPolicyPayload.h>
 
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -319,7 +320,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 		{
 			P1->ActiveMissions = ActiveMissions;
 			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Mission;	
+			Ev.OutcomeType = EOutcomeType::Interior;	
 			Ev.Payload = P1;
 			EventBus->PublishOutcome(Ev);
 		}
@@ -380,7 +381,7 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 	if (Reason == EMissionEndReason::Completed)
 	{
 		// Используем политику завершения миссии (OnMissionCompleted)
-		const EJobSpacePolicy CompletionPolicy = Envelope.ExitPolicy.OnMissionCompleted;
+		const EJobSpacePolicy CompletionPolicy = Envelope.OnMissionCompleted;
 		ApplyMissionCompletionPolicy(MissionId, Envelope, CompletionPolicy, Reason);
 	}
 	else
@@ -563,7 +564,7 @@ void UMissionSubsystem::NotifyBuildingExited(const FText& BuildingDisplayName)
 
 void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionEnvelope& Envelope)
 {
-	const EJobSpacePolicy Policy = Envelope.ExitPolicy.OnMissionCompleted;
+	const EJobSpacePolicy Policy = Envelope.OnMissionCompleted;
 
 	if (Policy == EJobSpacePolicy::None)
 	{
@@ -580,7 +581,7 @@ void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionE
 		{
 			P->Setup(MissionId, Envelope, Policy);
 			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Mission;
+			Ev.OutcomeType = EOutcomeType::Interior;
 			Ev.Payload = P;
 			EventBus->PublishOutcome(Ev);
 		}
@@ -595,16 +596,34 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 {
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
+		UApplyMissionCompletionPolicyPayload* P = Cast<UApplyMissionCompletionPolicyPayload>(EventBus->CreatePayload(UApplyMissionCompletionPolicyPayload::StaticClass()));
+		if (P)
+		{
+			P->MissionId = MissionId;
+			P->Envelope = Envelope;
+			P->Policy = Policy;
+			P->EndReason = EndReason;
+
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Interior;
+			Ev.OutcomeMission = EOutcomeMission::MissionCompleted;
+			Ev.Payload = P;
+			EventBus->PublishOutcome(Ev);
+		}
+
+		ActiveMissions.Remove(MissionId);
+		/*
 		UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
 		EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
 		if (P)
 		{
 			P->ActiveMissions = ActiveMissions;
 			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Mission;
+			Ev.OutcomeType = EOutcomeType::Interior;
 			Ev.Payload = P;
 			EventBus->PublishOutcome(Ev);
 		}
+		*/
 	}
 }
 
@@ -879,7 +898,7 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 		{
 			P1->ActiveMissions = ActiveMissions;
 			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Mission;
+			Ev.OutcomeType = EOutcomeType::Interior;
 			Ev.Payload = P1;
 			EventBus->PublishOutcome(Ev);
 		}
@@ -1128,7 +1147,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 				{
 					ReleaseP->Setup(TopMissionId, TopEnv, JobPolicy);
 					FOutcomeEventBase ReleaseEv;
-					ReleaseEv.OutcomeType = EOutcomeType::Mission;
+					ReleaseEv.OutcomeType = EOutcomeType::Interior;
 					ReleaseEv.Payload = ReleaseP;
 					EventBus->PublishOutcome(ReleaseEv);
 					UE_LOG(LogTemp, Log,

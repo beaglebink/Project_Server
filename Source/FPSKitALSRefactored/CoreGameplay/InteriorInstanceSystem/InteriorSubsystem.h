@@ -409,4 +409,12 @@ private:
 	FOutcomeHandlerHandle UpdateMissionListHandle;
 
 	void HandleUpdateMissionList(const FOutcomeEventBase& Outcome);
+
+	// ----- Complete mssion via EventBus -----
+	UPROPERTY()
+	UOutcomeConditionAsset* CompleteMissionConditionAsset = nullptr;
+
+	FOutcomeHandlerHandle CompleteMissionHandle;
+
+	void HandleCompleteMission(const FOutcomeEventBase& Outcome);
 };

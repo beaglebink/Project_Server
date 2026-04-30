@@ -91,8 +91,7 @@ struct FPSKITALSREFACTORED_API FMissionExitPolicy
     // ResetAll    — не обновлять FloorStateSnapshots
     // FreezeAll   — сохранить все акторы в FloorStateSnapshots
     // Partial     — сохранить по каналам согласно Channels
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
-    EJobSpacePolicy OnMissionCompleted = EJobSpacePolicy::None;
+
 };
 
 // Описание канала с политикой 
@@ -139,16 +138,21 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
     // Политика JobSpacePolicy.
     // Если Partial — каждый канал в Channels должен быть объявлен явно.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Policy")
-    EJobSpacePolicy JobSpacePolicy = EJobSpacePolicy::None;
+    EJobSpacePolicy JobSpacePolicy = EJobSpacePolicy::Freeze;
 
     // Каналы с политиками. Используется только при JobSpacePolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Channels",
-        meta = (EditCondition = "JobSpacePolicy == EJobSpacePolicy::Partial"))
+        meta = (EditCondition = "JobSpacePolicy == EJobSpacePolicy::Partial", EditConditionHides))
     TArray<FEnvelopeChannelEntry> Channels;
 
     // Политика выхода
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Exit")
-    FMissionExitPolicy ExitPolicy;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "MissionCompletePolicy"))
+    EJobSpacePolicy OnMissionCompleted = EJobSpacePolicy::Freeze;
+
+    // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
+        meta = (EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> ExitChannels; 
 
     // Приоритет — при конфликте каналов побеждает envelope с меньшим числом
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Priority")

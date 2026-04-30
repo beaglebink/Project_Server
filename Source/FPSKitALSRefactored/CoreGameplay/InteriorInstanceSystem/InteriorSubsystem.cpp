@@ -31,6 +31,7 @@
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
 #include "UpdateMissionListPayload.h"
+#include "ApplyMissionCompletionPolicyPayload.h"
 
 // -----------------------------------------------------------------------------
 // Snapshot helpers
@@ -1114,7 +1115,7 @@ void UInteriorSubsystem::SubscribeAll()
 	{
 		MissionReleaseConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 		MissionReleaseConditionAsset->OperatorType = EConditionOperator::Composite;
-		MissionReleaseConditionAsset->FilterRow.OutcomeType = EOutcomeType::Mission;
+		MissionReleaseConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
 		MissionReleaseConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
 		MissionReleaseConditionAsset->CompileCondition();
 
@@ -1131,7 +1132,7 @@ void UInteriorSubsystem::SubscribeAll()
 	{
 		UpdateMissionListConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 		UpdateMissionListConditionAsset->OperatorType = EConditionOperator::Composite;
-		UpdateMissionListConditionAsset->FilterRow.OutcomeType = EOutcomeType::Mission;
+		UpdateMissionListConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
 		UpdateMissionListConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
 		UpdateMissionListConditionAsset->CompileCondition();
 		if (UpdateMissionListConditionAsset->GetCondition().IsValid())
@@ -1141,6 +1142,25 @@ void UInteriorSubsystem::SubscribeAll()
 				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleUpdateMissionList));
 		}
 	}
+
+	// Register handler for mission complete
+	if (!CompleteMissionHandle.IsValid())
+	{
+		CompleteMissionConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		CompleteMissionConditionAsset->OperatorType = EConditionOperator::Composite;
+		CompleteMissionConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		CompleteMissionConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		CompleteMissionConditionAsset->FilterRow.MissionType = EOutcomeMission::MissionCompleted;
+		CompleteMissionConditionAsset->FilterRow.MissionComparison = EConditionComparison::Equals;
+		CompleteMissionConditionAsset->CompileCondition();
+		if (CompleteMissionConditionAsset->GetCondition().IsValid())
+		{
+			CompleteMissionHandle = EventBus->RegisterHandler(
+				CompleteMissionConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleCompleteMission));
+		}
+	}
+
 }
 
 void UInteriorSubsystem::SubscribePlacementRegistration()
@@ -1318,6 +1338,10 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					for (const auto& MissionPair : *PerFloor)
 					{
 						const FName& MissionId = MissionPair.Key;
+						if(!ActiveMissions.Contains(MissionId))
+						{
+							continue;
+						}
 						RestoreMissionFloorState(MissionId, CurrentKey);
 						UE_LOG(LogTemp, Log,
 							TEXT("InteriorSubsystem::OnPostLoadMap: Restored mission snapshot for mission '%s' floor %s/%s"),
@@ -1576,6 +1600,183 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 
 				ActiveMissions.Add(MissionId, MissionInterior);
 			}
+		}
+	}
+}
+
+void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
+{
+	if (UApplyMissionCompletionPolicyPayload* P = Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload))
+	{
+		FName MissionId = P->MissionId;
+		if (MissionId.IsNone()) return;
+		// При завершении миссии — применить политику к сохранённым snapshot-ам для этой миссии
+		auto MissionInterior = ActiveMissions.Find(MissionId);
+		if (MissionInterior)
+		{
+			TObjectPtr<UMissionController> Controller = MissionInterior->Controller;
+			UMissionAsset* MissionAsset = Controller->GetMissionAsset();
+			FMissionEnvelope Envelope = MissionAsset->Envelope;
+			
+			//ReleaseMissionSnapshot(MissionId, Envelope, Envelope.JobSpacePolicy, true);
+			//MissionFloorSnapshots
+			//FloorStateSnapshots
+			//SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry> &Channels)
+
+			FMissionEnvelopeScope Scope = Envelope.Scope;
+			for(auto S : Scope.InteriorScopes)
+			{
+				FGuid FloorGuid = S->FloorID;
+				FGuid InteriorSetID = S->ParentInteriorSet.Get()->InteriorSetID;
+				FString ScopeLevelName = S->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+				FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(GetWorld()).ToLower();
+
+			// Функция нормализации имени из package → base filename
+				auto NormalizeNameFromPackage = [](const FString& InPath) -> FString
+				{
+					if (InPath.IsEmpty()) return FString();
+
+					FString PackagePath = InPath;
+					if (PackagePath.Contains(TEXT(".")))
+					{
+						PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
+					}
+
+					const FString Base = FPaths::GetBaseFilename(PackagePath);
+
+					FString Result = Base;
+					int32 PIEPos = Result.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
+					if (PIEPos != INDEX_NONE)
+					{
+						int32 MPos = Result.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
+						if (MPos != INDEX_NONE && MPos + 3 < Result.Len())
+							Result = Result.Mid(MPos + 3);
+						else if (PIEPos + 6 < Result.Len())
+							Result = Result.Mid(PIEPos + 6);
+					}
+
+					return Result.ToLower();
+				};
+
+				const FString NormTarget = NormalizeNameFromPackage(ScopeLevelName);
+
+				if (NormTarget == CurrentLevelName)
+				{
+					SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, Envelope.OnMissionCompleted, Envelope.ExitChannels);
+				}
+			}
+			//FGuid Interior = 
+
+			//SaveFloorActorsState()
+
+			switch (Envelope.OnMissionCompleted)
+			{
+				case EJobSpacePolicy::Reset:
+				{
+					break;
+				}
+				case EJobSpacePolicy::Freeze:
+				{
+					for (auto& Pair : MissionFloorSnapshots)
+					{
+						const FInteriorFloorKey& FloorKey = Pair.Key;
+						TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
+						if (!PerFloor.Contains(MissionId)) continue;
+
+						FloorStateSnapshots.Add(FloorKey, PerFloor[MissionId]);
+					}
+
+					break;
+				}
+				
+				case EJobSpacePolicy::Partial:
+				{
+					for (auto Channel : Envelope.ExitChannels)
+					{
+						if (Channel.Policy == EChannelPolicy::Freeze)
+						{
+							for (auto& Pair : MissionFloorSnapshots)
+							{
+								const FInteriorFloorKey& FloorKey = Pair.Key;
+								TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
+								if (!PerFloor.Contains(MissionId)) continue;
+								TArray<FFloorSavedActorState>& BaseSnap = FloorStateSnapshots.FindOrAdd(FloorKey);
+								for (const FFloorSavedActorState& ActorSnap : PerFloor[MissionId])
+								{
+									bool bMatchChannel = false;
+									if (GetWorld())
+									{
+										for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+										{
+											AActor* Actor = *It;
+											if (!IsValid(Actor)) continue;
+											UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+											if (!FAC) continue;
+											if (FAC->ItemId != ActorSnap.ItemId) continue;
+											if (FAC->SnapshotChannel == static_cast<ESnapshotChannel>(Channel.Channel))
+											{
+												bMatchChannel = true;
+											}
+											break;
+										}
+									}
+									if (!bMatchChannel) continue;
+									bool bUpdated = false;
+									for (FFloorSavedActorState& Existing : BaseSnap)
+									{
+										if (Existing.ItemId == ActorSnap.ItemId)
+										{
+											Existing = ActorSnap;
+											bUpdated = true;
+											break;
+										}
+									}
+									if (!bUpdated) BaseSnap.Add(ActorSnap);
+								}
+							}
+						}
+						else if (Channel.Policy == EChannelPolicy::Reset)
+						{
+							for (auto& Pair : MissionFloorSnapshots)
+							{
+								const FInteriorFloorKey& FloorKey = Pair.Key;
+								TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
+								if (!PerFloor.Contains(MissionId)) continue;
+
+								if (TArray<FFloorSavedActorState>* BaseSnap = FloorStateSnapshots.Find(FloorKey))
+								{
+									if (GetWorld())
+									{
+										for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+										{
+											AActor* Actor = *It;
+											if (!IsValid(Actor)) continue;
+											UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+											if (!FAC) continue;
+
+											for (auto C : Envelope.ExitChannels)
+											{
+												EEnvelopeChannel EC = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
+												if (EC == C.Channel && C.Policy == EChannelPolicy::Reset)
+												{
+													BaseSnap->RemoveAll([&](const FFloorSavedActorState& State)
+													{
+														return State.ItemId == FAC->ItemId;
+													});
+												}
+											}
+										}
+									}
+	
+								}
+							}
+						}
+					}	
+
+					break;
+				}
+			}
+			ActiveMissions.Remove(MissionId);
 		}
 	}
 }
