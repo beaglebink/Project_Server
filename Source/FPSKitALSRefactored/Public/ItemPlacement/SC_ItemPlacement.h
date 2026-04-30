@@ -31,7 +31,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY()
-	AA_DropZone* ChoosenDropZone;
+	TSet<AA_DropZone*> ChoosenDropZones;
 
 	UFUNCTION()
 	void OnSearcherSphereOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -46,6 +46,6 @@ protected:
 	void OnCheckerSphereOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "ItemPlacement")
-	void GrabItemToDropZone(AA_InteractableActor* Item);
+	void AttachReleaseItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching);
 
 };

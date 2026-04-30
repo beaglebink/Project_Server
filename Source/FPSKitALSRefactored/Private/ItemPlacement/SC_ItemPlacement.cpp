@@ -43,7 +43,10 @@ void USC_ItemPlacement::OnSearcherSphereOverlapBegin(UPrimitiveComponent* Overla
 
 	if (AA_DropZone* DropZone = Cast<AA_DropZone>(OtherActor))
 	{
-		DropZone->SetMeshMaterialAndState(1, false);
+		if (!DropZone->bIsOccupied)
+		{
+			DropZone->SetMeshMaterialAndState(1, false);
+		}
 	}
 }
 
@@ -69,14 +72,17 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 
 	if (AA_DropZone* DropZone = Cast<AA_DropZone>(OtherActor))
 	{
-		if (!DropZone->bIsOccupied && DropZone->ItemName == ItemName)
+		if (!DropZone->bIsOccupied)
 		{
-			ChoosenDropZone = DropZone;
-			ChoosenDropZone->SetMeshMaterialAndState(3, false);
-		}
-		else
-		{
-			DropZone->SetMeshMaterialAndState(2, false);
+			if (DropZone->ItemName == ItemName)
+			{
+				ChoosenDropZones.Add(DropZone);
+				DropZone->SetMeshMaterialAndState(3, false);
+			}
+			else
+			{
+				DropZone->SetMeshMaterialAndState(2, false);
+			}
 		}
 	}
 }
@@ -93,23 +99,52 @@ void USC_ItemPlacement::OnCheckerSphereOverlapEnd(UPrimitiveComponent* Overlappe
 		if (!DropZone->bIsOccupied)
 		{
 			DropZone->SetMeshMaterialAndState(1, false);
-			ChoosenDropZone = nullptr;
+			ChoosenDropZones.Remove(DropZone);
 		}
 	}
 }
 
-void USC_ItemPlacement::GrabItemToDropZone(AA_InteractableActor* Item)
+void USC_ItemPlacement::AttachReleaseItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching)
 {
-	if (!ChoosenDropZone)
+	if (bIsAttaching)
 	{
-		return;
-	}
+		if (ChoosenDropZones.Num() > 0)
+		{
+			float DistanceToClosestDropZone = TNumericLimits<float>::Max();
+			AA_DropZone* ChoosenDropZone = nullptr;
 
-	if (UStaticMeshComponent* StaticMeshComponent = Item->FindComponentByClass<UStaticMeshComponent>())
+			for (AA_DropZone* DropZone : ChoosenDropZones)
+			{
+				float DistanceToDropZone = FVector::Dist(DropZone->GetActorLocation(), Item->GetActorLocation());
+				if (DistanceToDropZone < DistanceToClosestDropZone)
+				{
+					DistanceToClosestDropZone = DistanceToDropZone;
+					ChoosenDropZone = DropZone;
+				}
+			}
+
+			if (UStaticMeshComponent* StaticMeshComponent = Item->FindComponentByClass<UStaticMeshComponent>())
+			{
+				StaticMeshComponent->SetSimulatePhysics(false);
+				Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+				Item->AttachingDropZone = ChoosenDropZone;
+				ChoosenDropZone->bIsOccupied = true;
+				ChoosenDropZone->SetMeshMaterialAndState(0, false);
+			}
+		}
+	}
+	else
 	{
-		StaticMeshComponent->SetSimulatePhysics(false);
-		Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-		ChoosenDropZone->bIsOccupied = true;
-		ChoosenDropZone->SetMeshMaterialAndState(0, false);
+		if (Item->AttachingDropZone)
+		{
+			if (UStaticMeshComponent* StaticMeshComponent = Item->FindComponentByClass<UStaticMeshComponent>())
+			{
+				StaticMeshComponent->SetSimulatePhysics(true);
+				Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+				Item->AttachingDropZone->bIsOccupied = false;
+				Item->AttachingDropZone->SetMeshMaterialAndState(3, false);
+				Item->AttachingDropZone = nullptr;
+			}
+		}
 	}
 }
