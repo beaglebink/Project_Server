@@ -5,9 +5,12 @@
 #include "MissionEnvelopeTypes.h"
 #include "MissionAsset.generated.h"
 
-class UMissionController; // forward declaration
+class UMissionController; // Forward declaration (Предварительное объявление)
 
-// ??? UMissionAsset ????????????????????????????????????????????????????????????
+// UMissionAsset data asset for describing a single mission.
+// Contains an Envelope with persistence settings.
+// The mission identifier at runtime is the asset name FName (GetFName()).
+// The designer never works with the GUID directly.
 // PrimaryDataAsset для описания одной миссии.
 // Содержит Envelope с настройками persistence.
 // Идентификатор миссии в рантайме — FName имени ассета (GetFName()).
@@ -18,29 +21,37 @@ class FPSKITALSREFACTORED_API UMissionAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    // Читаемое название миссии для UI и дебага
+    // Human-readable mission name for UI and debugging.
+    // Читаемое название миссии для UI и дебага.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Identity")
     FText DisplayName;
 
-    // Краткое описание (для журнала, UI)
+    // Short description for the journal and UI.
+    // Краткое описание для журнала и UI.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Identity")
     FText Description;
 
-    // Envelope — вся конфигурация persistence.
-    // Если Envelope пуст (JobSpacePolicy = None, Scope пуст) — поведение мира по умолчанию.
+    // Envelope contains the full persistence configuration.
+    // If the Envelope is empty (JobSpacePolicy = None, Scope is empty), the world uses default behavior.
+    // Envelope содержит всю конфигурацию persistence.
+    // Если Envelope пуст (JobSpacePolicy = None, Scope пуст), используется поведение мира по умолчанию.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Envelope")
     FMissionEnvelope Envelope;
 
+    // Priority for resolving conflicts between several active missions.
+    // Duplicates Envelope.Priority for easier lookup in the subsystem.
     // Приоритет разрешения конфликтов между несколькими активными миссиями.
     // Дублирует Envelope.Priority для удобства поиска в подсистеме.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Priority")
     int32 Priority = 0;
 
-    // Укажите BP-класс контроллера миссии (наследник UMissionController).
+    // Specify the mission controller BP class inherited from UMissionController.
+    // Укажите BP-класс контроллера миссии, наследник UMissionController.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Controller")
     TSubclassOf<UMissionController> ControllerClass;
 
-    // Возвращает стабильный FName-идентификатор для использования в рантайме
+    // Returns a stable FName identifier for runtime use.
+    // Возвращает стабильный FName-идентификатор для использования в рантайме.
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mission|Identity")
     FName GetMissionId() const { return DisplayName.IsEmpty() ? GetFName() : FName(*DisplayName.ToString()); }
 
@@ -50,7 +61,8 @@ public:
     }
 
 #if WITH_EDITOR
-    // Синхронизируем Priority в Envelope при изменении в DataAsset
+    // Synchronizes Priority into Envelope when the DataAsset is changed.
+    // Синхронизирует Priority в Envelope при изменении DataAsset.
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override
     {
         Super::PostEditChangeProperty(PropertyChangedEvent);

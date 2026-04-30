@@ -325,42 +325,6 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 			EventBus->PublishOutcome(Ev);
 		}
 	}
-	// Публикуем FloorStateSave с MissionId для каждого этажа в scope через EventBus
-	/*
-	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-	if (EventBus)
-	{
-		const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelope();
-		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelope.Scope.InteriorScopes)
-		{
-			if (UFloorAsset* Floor = FloorRef.Get())
-			{
-				FGuid SetId;
-				if (Floor->ParentInteriorSet.IsValid() && Floor->ParentInteriorSet.Get())
-				{
-					SetId = Floor->ParentInteriorSet.Get()->InteriorSetID;
-				}
-				if (Floor->FloorID.IsValid())
-				{
-					UFloorStatePayload* P = Cast<UFloorStatePayload>(
-						EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
-					if (P)
-					{
-						P->InteriorSetId = SetId;
-						P->FloorId = Floor->FloorID;
-						P->MissionId = MissionId;
-						FOutcomeEventBase Ev;
-						Ev.OutcomeType = EOutcomeType::Interior;
-						Ev.OutcomeInterior = EOutcomeInterior::FloorStateSave;
-						Ev.Payload = P;
-						EventBus->PublishOutcome(Ev);
-					}
-				}
-			}
-		}
-	}
-	*/
-
 	Entry->Controller->Activate();
 }
 
@@ -612,18 +576,6 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 		}
 
 		ActiveMissions.Remove(MissionId);
-		/*
-		UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
-		EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
-		if (P)
-		{
-			P->ActiveMissions = ActiveMissions;
-			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Interior;
-			Ev.Payload = P;
-			EventBus->PublishOutcome(Ev);
-		}
-		*/
 	}
 }
 
@@ -798,6 +750,44 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 
 	// Если миссия уже существует — игнорируем (дублированное событие)
 	if (ActiveMissions.Contains(MissionId)) return;
+
+	int32 NewMissionPriority = P->MissionAsset->Envelope.Priority;
+	auto NewScope = P->MissionAsset->Envelope.Scope;
+
+	for(auto & AMPair : ActiveMissions)
+	{
+		TObjectPtr<UMissionController> Controller = AMPair.Value.Controller;
+		if (!Controller) continue;
+		const FMissionEnvelope& Env = Controller->GetEnvelope();
+
+		auto Scope = Env.Scope;
+		for(auto & InteriorScope : Scope.InteriorScopes)
+		{
+			for (auto& NewInteriorScope : NewScope.InteriorScopes)
+			{
+				if (InteriorScope == NewInteriorScope)
+				{
+					if (NewMissionPriority <= Env.Priority)
+					{
+						UE_LOG(LogTemp, Log,
+							TEXT("MissionSubsystem::HandleEnvelopeActivate: New mission '%s' (priority %d) wins over existing mission '%s' (priority %d) on floor '%s'"),
+							*MissionId.ToString(), NewMissionPriority,
+							*AMPair.Key.ToString(), Env.Priority,
+							*InteriorScope->GetName());
+						return; // Конфликт с приоритетом — новая миссия не активируется
+					}
+					else
+					{
+						UE_LOG(LogTemp, Log,
+							TEXT("MissionSubsystem::HandleEnvelopeActivate: Existing mission '%s' (priority %d) wins over new mission '%s' (priority %d) on floor '%s'"),
+							*AMPair.Key.ToString(), Env.Priority,
+							*MissionId.ToString(), NewMissionPriority,
+							*InteriorScope->GetName());
+					}
+				}
+			}
+		}
+	}
 
 	UMissionController* Ctrl = CreateMission(P->MissionAsset);
 	if (Ctrl)
@@ -1092,37 +1082,23 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		}
 		if (!bInScope) continue;
 
-		// Save MissionFloorSnapshot for every mission in scope (always)
-		// Save MissionFloorSnapshot only when mission's JobSpacePolicy requires it.
-		// If policy == Reset => do not create mission snapshot on floor leave.
 		const EJobSpacePolicy JobPolicyForSave = Env.JobSpacePolicy;
-		/*
-		if (JobPolicyForSave == EJobSpacePolicy::Reset)
+		UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
+		if (SaveP)
 		{
-			UE_LOG(LogTemp, Verbose,
-				TEXT("MissionSubsystem: Skipping mission snapshot save for mission '%s' on floor leaving (JobSpacePolicy=Reset)"),
-				*MissionId.ToString());
+			SaveP->InteriorSetId = InteriorSetId;
+			SaveP->FloorId = FloorId;
+			SaveP->MissionId = MissionId;
+			SaveP->Channels = Env.Channels;
+			SaveP->Policy = JobPolicyForSave;
+			FOutcomeEventBase SaveEv;
+			SaveEv.OutcomeType = EOutcomeType::Interior;
+			SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
+			SaveEv.Payload = SaveP;
+			EventBus->PublishOutcome(SaveEv);
+			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Saved MissionFloorSnapshot for mission '%s' floor %s"),
+				*MissionId.ToString(), *FloorId.ToString());
 		}
-		else
-		{
-		*/
-			UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
-			if (SaveP)
-			{
-				SaveP->InteriorSetId = InteriorSetId;
-				SaveP->FloorId = FloorId;
-				SaveP->MissionId = MissionId;
-				SaveP->Channels = Env.Channels;
-				SaveP->Policy = JobPolicyForSave;
-				FOutcomeEventBase SaveEv;
-				SaveEv.OutcomeType = EOutcomeType::Interior;
-				SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
-				SaveEv.Payload = SaveP;
-				EventBus->PublishOutcome(SaveEv);
-				UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Saved MissionFloorSnapshot for mission '%s' floor %s"),
-					*MissionId.ToString(), *FloorId.ToString());
-			}
-		//}
 
 		// Track the highest-priority mission
 		if (Env.Priority > TopPriority)
@@ -1157,12 +1133,5 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 			}
 		}
 	}
-	/*
-	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
-	{
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Triggering SaveGame after FloorLeaving handling"));
-		SaveSys->SaveGame();
-	}
-	*/
 }
 
