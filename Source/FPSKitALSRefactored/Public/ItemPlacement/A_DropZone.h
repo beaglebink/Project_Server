@@ -22,8 +22,6 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	void SetMeshMaterialAndState(int32 NewState, bool IsPlacing);
-
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Item")
 	TSubclassOf<AA_InteractableActor> ItemClass;
@@ -39,6 +37,14 @@ public:
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_MeshMaterial;
+
+	UPROPERTY()
+	FName ItemName;
+
+	UPROPERTY()
+	uint8 bIsOccupied : 1{false};
+
+	void SetMeshMaterialAndState(int32 NewState, bool IsPlacing);
 
 private:
 	uint8 IsPlacingOnScene : 1{true};
