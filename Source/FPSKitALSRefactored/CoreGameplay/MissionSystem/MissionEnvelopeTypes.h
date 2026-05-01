@@ -12,11 +12,15 @@ UENUM(BlueprintType)
 enum class EEnvelopeChannel : uint8
 {
     Clutter             UMETA(DisplayName = "Clutter / Loose Items"),
-    InteractiveObjects  UMETA(DisplayName = "Interactive Objects"),
-    Terminals           UMETA(DisplayName = "Terminals"),
+    InteriorObjects     UMETA(DisplayName = "Interior Objects"),
+    DoorLocks           UMETA(DisplayName = "Door Locks"),
     SpawnGroups         UMETA(DisplayName = "Spawn Groups"),
-    StableActors        UMETA(DisplayName = "Stable Actors"),
-    EnvironmentJobState UMETA(DisplayName = "Environment Job State")
+    TerminalState       UMETA(DisplayName = "Terminal State"),
+    ActorPlacement      UMETA(DisplayName = "Actor Placement"),
+    ActorAvailability   UMETA(DisplayName = "Actor Availability"),
+    DialogueAccess      UMETA(DisplayName = "Dialogue Access"),
+    InventoryItems      UMETA(DisplayName = "Inventory Items"),
+    LocationTriggers    UMETA(DisplayName = "Location Triggers")
 };
 
 // Политики поведения канала при завершении миссии 
@@ -193,19 +197,31 @@ FORCEINLINE EEnvelopeChannel FloorActorTypeToEnvelopeChannel(EFloorActorType Act
     {
     case EFloorActorType::LightItem:
     case EFloorActorType::HeavyFurniture:
-        return EEnvelopeChannel::InteractiveObjects;
+        return EEnvelopeChannel::InteriorObjects;
 
     case EFloorActorType::Debris:
         return EEnvelopeChannel::Clutter;
 
+	case EFloorActorType::DoorLocks:
+		return EEnvelopeChannel::DoorLocks;
+
     case EFloorActorType::StableActor:
-        return EEnvelopeChannel::StableActors;
+        return EEnvelopeChannel::ActorPlacement;
+
+	case EFloorActorType::DialogueAccess:
+		return EEnvelopeChannel::DialogueAccess;
 
     case EFloorActorType::Terminal:
-        return EEnvelopeChannel::Terminals;
+        return EEnvelopeChannel::TerminalState;
 
     case EFloorActorType::NPC_Spawner:
         return EEnvelopeChannel::SpawnGroups;
+
+    case EFloorActorType::InventoryItems:
+		return EEnvelopeChannel::InventoryItems;
+
+    case EFloorActorType::LocationTriggers:
+		return EEnvelopeChannel::LocationTriggers;
 
     default:
         return EEnvelopeChannel::Clutter;

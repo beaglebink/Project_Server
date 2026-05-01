@@ -6,12 +6,16 @@
 UENUM(BlueprintType)
 enum class EFloorActorType : uint8
 {
-	HeavyFurniture	UMETA(DisplayName = "Heavy Furniture"),
-	LightItem		UMETA(DisplayName = "Light Item"),
-	Terminal		UMETA(DisplayName = "Terminal"),
-	NPC_Spawner 	UMETA(DisplayName = "NPC Spawner"),
-	StableActor		UMETA(DisplayName = "Stable Actor"),
-	Debris 			UMETA(DisplayName = "Debris")
+	HeavyFurniture		UMETA(DisplayName = "Heavy Furniture"),
+	LightItem			UMETA(DisplayName = "Light Item"),
+	Debris 				UMETA(DisplayName = "Debris"),
+	DoorLocks 			UMETA(DisplayName = "Door Locks"),
+	StableActor			UMETA(DisplayName = "Stable Actor"),
+	DialogueAccess 		UMETA(DisplayName = "Dialogue Access"),
+	Terminal			UMETA(DisplayName = "Terminal"),
+	InventoryItems 		UMETA(DisplayName = "Inventory Items"),
+	NPC_Spawner 		UMETA(DisplayName = "NPC Spawner"),
+	LocationTriggers    UMETA(DisplayName = "Location Triggers")
 };
 
 // Key: specific building (InteriorSetId) + floor (FloorId)
