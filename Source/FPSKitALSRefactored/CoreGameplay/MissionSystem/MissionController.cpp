@@ -54,6 +54,7 @@ void UMissionController::RequestResolve(EMissionEndReason Reason)
 
     // Делегируем применение политики ExitPolicy через EventBus
     // — MissionSubsystem подписан на события MissionCompleted/MissionFailed/MissionAbandoned
+/*
     if (UGameInstance* GI = OwnerGameInstance.Get())
     {
         if (UEventBusSubsystem* EventBus = GI->GetSubsystem<UEventBusSubsystem>())
@@ -101,6 +102,7 @@ void UMissionController::RequestResolve(EMissionEndReason Reason)
             UE_LOG(LogTemp, Warning, TEXT("MissionController: EventBus subsystem not available to publish mission resolve for '%s'"), *GetMissionId().ToString());
         }
     }
+    */
 }
 
 void UMissionController::Suspend()

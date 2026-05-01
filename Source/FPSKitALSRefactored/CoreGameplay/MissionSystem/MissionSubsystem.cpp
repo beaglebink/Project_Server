@@ -176,6 +176,13 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 
 		FActiveMissionEntry* ActiveMission = ActiveMissions.Find(MissionName);
 		UMissionController* Controller = ActiveMission ? ActiveMission->Controller : nullptr;
+
+		if(!Controller)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: No active mission found with name '%s'"), *MissionName.ToString());
+			return;
+		}
+
 		UMissionAsset* MissionAsset = Controller->GetMissionAsset();
 		if (MissionAsset)
 		{
@@ -183,6 +190,7 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 			StepIndex++; // предполагается, что прогресс миссии приходит после успешного выполнения шага, так что индекс шага для получения envelope увеличиваем на 1
 			ActiveMission->MissionStep = StepIndex; // сохраняем прогресс миссии (текущий шаг) в MissionSubsystem, чтобы при покидании этажа или загрузке игры можно было восстановить состояние миссии
 			ActiveMissions.Add(MissionName, *ActiveMission); // обновляем запись о миссии с новым шагом
+
 
 			if (MissionAsset->Envelopes.IsValidIndex(StepIndex))
 			{
@@ -201,13 +209,17 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 						EventBus->PublishOutcome(Ev);
 					}
 				}
+
+				Controller->OnMissionStepProgress(StepIndex);
 			}
 			else
 			{
 				// Если индекс шага выходит за пределы массива Envelopes, это может означать, что миссия завершилась
 				UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: Mission '%s' complete"), *MissionName.ToString());
 
-				ApplyMissionCompletionPolicy(MissionName, MissionAsset->Envelopes.Last(), MissionAsset->Envelopes.Last().OnMissionCompleted, EMissionEndReason::Completed);
+				ApplyMissionCompletionPolicy(MissionName, MissionAsset->Envelopes.Last(), MissionAsset->Envelopes.Last().OnStageCompleted, EMissionEndReason::Completed);
+
+				Controller->OnMissionCompleted(EMissionEndReason::Completed);
 			}
 		}
 		else
@@ -325,7 +337,7 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 	if (Reason == EMissionEndReason::Completed)
 	{
 		// Используем политику завершения миссии (OnMissionCompleted)
-		const EJobSpacePolicy CompletionPolicy = Envelope.OnMissionCompleted;
+		const EJobSpacePolicy CompletionPolicy = Envelope.OnStageCompleted;
 		ApplyMissionCompletionPolicy(MissionId, Envelope, CompletionPolicy, Reason);
 	}
 	else
@@ -509,7 +521,7 @@ void UMissionSubsystem::NotifyBuildingExited(const FText& BuildingDisplayName)
 
 void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionEnvelope& Envelope)
 {
-	const EJobSpacePolicy Policy = Envelope.OnMissionCompleted;
+	const EJobSpacePolicy Policy = Envelope.OnStageCompleted;
 
 	if (Policy == EJobSpacePolicy::None)
 	{
@@ -767,7 +779,9 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 void UMissionSubsystem::HandleEnvelopeResolve(const FOutcomeEventBase& Outcome)
 {
 	// Ловим только события завершения миссии
+	/*
 	EMissionEndReason Reason = EMissionEndReason::None;
+
 	switch (Outcome.OutcomeMission)
 	{
 	case EOutcomeMission::MissionCompleted: Reason = EMissionEndReason::Completed; break;
@@ -775,12 +789,17 @@ void UMissionSubsystem::HandleEnvelopeResolve(const FOutcomeEventBase& Outcome)
 	case EOutcomeMission::MissionAbandoned: Reason = EMissionEndReason::Abandoned; break;
 	default: return; // Не наш тип события
 	}
+	*/
+	if (Outcome.OutcomeMission == EOutcomeMission::MissionActivated)
+		return;
 
 	UMissionEnvelopePayload* P = Cast<UMissionEnvelopePayload>(Outcome.Payload);
 	if (!P) return;
 
 	const FName MissionId = P->MissionId;
 	if (MissionId.IsNone()) return;
+
+	EMissionEndReason Reason = P->EndReason;
 
 	// Не обрабатываем если уже resolved (избегаем двойного вызова —
 	// BroadcastStatusChanged из Controller сам публикует событие)

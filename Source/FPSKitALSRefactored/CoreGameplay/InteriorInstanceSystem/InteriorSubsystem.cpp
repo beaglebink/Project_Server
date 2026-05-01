@@ -1673,14 +1673,14 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 
 				if (NormTarget == CurrentLevelName)
 				{
-					SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, Envelope.OnMissionCompleted, Envelope.ExitChannels);
+					SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, Envelope.OnStageCompleted, Envelope.StageCompleteChannels);
 				}
 			}
 			//FGuid Interior = 
 
 			//SaveFloorActorsState()
 
-			switch (Envelope.OnMissionCompleted)
+			switch (Envelope.OnStageCompleted)
 			{
 				case EJobSpacePolicy::Reset:
 				{
@@ -1702,7 +1702,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 				
 				case EJobSpacePolicy::Partial:
 				{
-					for (auto Channel : Envelope.ExitChannels)
+					for (auto Channel : Envelope.StageCompleteChannels)
 					{
 						if (Channel.Policy == EChannelPolicy::Freeze)
 						{
@@ -1765,7 +1765,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 											UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>();
 											if (!FAC) continue;
 
-											for (auto C : Envelope.ExitChannels)
+											for (auto C : Envelope.StageCompleteChannels)
 											{
 												EEnvelopeChannel EC = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
 												if (EC == C.Channel && C.Policy == EChannelPolicy::Reset)

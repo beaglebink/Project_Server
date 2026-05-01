@@ -151,12 +151,30 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
 
     // Политика выхода
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Stage Complete Policy"))
-    EJobSpacePolicy OnMissionCompleted = EJobSpacePolicy::Freeze;
+    EJobSpacePolicy OnStageCompleted = EJobSpacePolicy::Freeze;
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (DisplayName = "Stage Exit Channels", EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
-    TArray<FEnvelopeChannelEntry> ExitChannels;
+        meta = (DisplayName = "Stage Complete Channels", EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> StageCompleteChannels;
+
+    // Политика провала миссии
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Mission Failed Policy"))
+    EJobSpacePolicy OnMissionFailed = EJobSpacePolicy::Reset;
+
+    // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
+        meta = (DisplayName = "Mission Failed Channels", EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> MissionFailedChannels;
+
+    // Политика отказа от миссии
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Mission Abandoned Policy"))
+    EJobSpacePolicy OnMissionAbandoned = EJobSpacePolicy::Reset;
+
+    // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
+        meta = (DisplayName = "Mission Abandoned Channels", EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> MissionAbandonedChannels;
 
     // Приоритет — при конфликте каналов побеждает envelope с меньшим числом
     //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Priority")

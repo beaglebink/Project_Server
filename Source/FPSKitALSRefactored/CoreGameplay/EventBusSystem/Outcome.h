@@ -22,8 +22,8 @@ enum class EOutcomeMission : uint8
 	MissionActivated		UMETA(DisplayName = "Mission Activated"),
 	MissionProgress			UMETA(DisplayName = "Mission Progress"),
 	MissionCompleted		UMETA(DisplayName = "Mission Completed"),
-	MissionFailed			UMETA(DisplayName = "Mission Failed"),
-	MissionAbandoned		UMETA(DisplayName = "Mission Abandoned")
+	MissionFailed			UMETA(Hidden, DisplayName = "Mission Failed"),
+	MissionAbandoned		UMETA(Hidden, DisplayName = "Mission Abandoned")
 };
 
 UENUM(BlueprintType)

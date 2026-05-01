@@ -105,10 +105,14 @@ public:
     void OnMissionActivated();
     virtual void OnMissionActivated_Implementation() {}
 
-    // Вызывается при разрешении (Completed / Failed / Abandoned)
+    // Вызывается при разрешении (Completed)
     UFUNCTION(BlueprintNativeEvent, Category = "Mission|Events")
     void OnMissionCompleted(EMissionEndReason Reason);
     virtual void OnMissionCompleted_Implementation(EMissionEndReason Reason) {}
+
+    UFUNCTION(BlueprintNativeEvent, Category = "Mission|Events")
+    void OnMissionStepProgress(int32 Step);
+    virtual void OnMissionStepProgress_Implementation(int32 Step) {}
 
     // Вызывается при выходе из здания (до принятия решения об Envelope)
     UFUNCTION(BlueprintNativeEvent, Category = "Mission|Events")
