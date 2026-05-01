@@ -1,6 +1,7 @@
 #include "ItemPlacement/SC_ItemPlacement.h"
 #include "Components/SphereComponent.h"
 #include "ItemPlacement/A_DropZone.h"
+#include "ItemPlacement/A_AreaDropZone.h"
 #include "PythonContainers/A_InteractableActor.h"
 
 USC_ItemPlacement::USC_ItemPlacement()
@@ -48,6 +49,11 @@ void USC_ItemPlacement::OnSearcherSphereOverlapBegin(UPrimitiveComponent* Overla
 			DropZone->SetMeshMaterialAndState(1, false);
 		}
 	}
+
+	if (AA_AreaDropZone* AreaDropZone = Cast<AA_AreaDropZone>(OtherActor))
+	{
+		AreaDropZone->SetMeshMaterialAndState(1, false);
+	}
 }
 
 void USC_ItemPlacement::OnSearcherSphereOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
@@ -60,6 +66,11 @@ void USC_ItemPlacement::OnSearcherSphereOverlapEnd(UPrimitiveComponent* Overlapp
 	if (AA_DropZone* DropZone = Cast<AA_DropZone>(OtherActor))
 	{
 		DropZone->SetMeshMaterialAndState(0, false);
+	}
+
+	if (AA_AreaDropZone* AreaDropZone = Cast<AA_AreaDropZone>(OtherActor))
+	{
+		AreaDropZone->SetMeshMaterialAndState(0, false);
 	}
 }
 
@@ -85,6 +96,18 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 			}
 		}
 	}
+
+	if (AA_AreaDropZone* AreaDropZone = Cast<AA_AreaDropZone>(OtherActor))
+	{
+		if (AreaDropZone->ItemsNames.Find(ItemName) != INDEX_NONE)
+		{
+			AreaDropZone->SetMeshMaterialAndState(3, false);
+		}
+		else
+		{
+			AreaDropZone->SetMeshMaterialAndState(2, false);
+		}
+	}
 }
 
 void USC_ItemPlacement::OnCheckerSphereOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
@@ -101,6 +124,11 @@ void USC_ItemPlacement::OnCheckerSphereOverlapEnd(UPrimitiveComponent* Overlappe
 		{
 			DropZone->SetMeshMaterialAndState(1, false);
 		}
+	}
+
+	if (AA_AreaDropZone* AreaDropZone = Cast<AA_AreaDropZone>(OtherActor))
+	{
+		AreaDropZone->SetMeshMaterialAndState(1, false);
 	}
 }
 
