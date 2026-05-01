@@ -12,37 +12,21 @@ class FPSKITALSREFACTORED_API UMissionProgressPayload : public UOutcomePayload
 
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "MissionProgress")
-	FGuid MissionId;
-
-	UPROPERTY(BlueprintReadWrite, Category = "MissionProgress")
-	FString MissionName;
-
-	UPROPERTY(BlueprintReadWrite, Category = "MissionProgress")
-	int32 StepIndex = 0;
+	FName MissionName;
 
 	// Fill all fields in one call - use after CreatePayload
-	// C++:  Payload->Setup(MissionId, MissionName, StepIndex)
+	// C++:  Payload->Setup(MissionName)
 	// BP:   Setup node after CreatePayload → Cast To UMissionProgressPayload
 	// (Заполняет все поля одним вызовом - использовать после CreatePayload)
 	UFUNCTION(BlueprintCallable, Category = "MissionProgress")
-	UMissionProgressPayload* Setup(
-		const FGuid&   InMissionId,
-		const FString& InMissionName,
-		int32          InStepIndex)
+	UMissionProgressPayload* Setup(FName InMissionName)
 	{
-		MissionId   = InMissionId;
 		MissionName = InMissionName;
-		StepIndex   = InStepIndex;
 		return this;
 	}
 
 	// Getters
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionProgress")
-	FGuid GetMissionId() const { return MissionId; }
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionProgress")
-	FString GetMissionName() const { return MissionName; }
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionProgress")
-	int32 GetStepIndex() const { return StepIndex; }
+	FName GetMissionName() const { return MissionName; }
 };

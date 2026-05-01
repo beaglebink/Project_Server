@@ -13,11 +13,6 @@
 #include "../LocationSystem/FloorAsset.h"
 #include "MissionSubsystem.generated.h"
 
-// All handlers receive FOutcomeEventBase - cast Payload to concrete type inside handler
-// (Все обработчики получают FOutcomeEventBase — внутри приведите Payload к конкретному типу)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGhostClearedEvent,    const FOutcomeEventBase&, Outcome);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMissionProgressEvent, const FOutcomeEventBase&, Outcome);
-
 // ─── FActiveMissionEntry ──────────────────────────────────────────────────────
 // Запись об активной миссии в MissionSubsystem.
 // MissionId = FName имени ассета (стабильный, читаемый).
@@ -94,16 +89,19 @@ public:
 
 	// Проверить конфликт нового envelope с активными миссиями по scope + channel.
 	// Возвращает список конфликтов (для каждого затронутого канала).
+	/*
 	TArray<FEnvelopeConflictInfo> CheckEnvelopeConflicts(
 		FName NewMissionId,
 		const FMissionEnvelope& NewEnvelope) const;
+	*/
 
 	// Найти "победителя" для конкретного канала в конкретной зоне.
 	// Возвращает MissionId с наименьшим Priority (или NAME_None если нет владельца).
+	/*
 	FName GetChannelOwner(
 		const FInteriorFloorKey& FloorKey,
 		EEnvelopeChannel Channel) const;
-
+	*/
 	// ===== BUILDING EXIT HANDLING =====
 
 	// Вызывается InteriorSubsystem когда игрок покидает здание.
@@ -144,15 +142,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> MissionProgressCondition;
 
-	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
-	FOnGhostClearedEvent OnGhostCleared;
-
-	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
-	FOnMissionProgressEvent OnMissionProgress;
-
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
-	void SubscribeGhostCleared();
-
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void SubscribeMissionProgress();
 
@@ -164,9 +153,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void UnsubscribeAll();
-
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
-	void SetGhostClearedCondition(UOutcomeConditionAsset* NewCondition);
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void SetMissionProgressCondition(UOutcomeConditionAsset* NewCondition);
@@ -185,7 +171,6 @@ private:
 		void (UMissionSubsystem::* HandlerMethod)(const FOutcomeEventBase&),
 		EOutcomeMission MissionFilter = EOutcomeMission::Default);
 
-	void HandleGhostCleared(const FOutcomeEventBase& Outcome);
 	void HandleMissionProgress(const FOutcomeEventBase& Outcome);
 
 	FOutcomeHandlerHandle GhostClearedHandle;

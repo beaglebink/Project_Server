@@ -26,6 +26,7 @@ void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Автоподписка на envelope-события через EventBus
 	SubscribeMissionEnvelopeEvents();
+	SubscribeMissionProgress();
 	// Подписка на уведомления о покидании этажа (Interior -> Mission coordination)
 	SubscribeFloorLeaving();
 }
@@ -45,17 +46,6 @@ void UMissionSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UMissionSubsystem::SetGhostClearedCondition(UOutcomeConditionAsset* NewCondition)
-{
-	if (GhostClearedCondition == NewCondition) return;
-	GhostClearedCondition = NewCondition;
-	if (GhostClearedHandle.IsValid())
-	{
-		UnsubscribeGhostCleared();
-	}
-	SubscribeGhostCleared();
-}
-
 void UMissionSubsystem::SetMissionProgressCondition(UOutcomeConditionAsset* NewCondition)
 {
 	if (MissionProgressCondition == NewCondition) return;
@@ -67,53 +57,31 @@ void UMissionSubsystem::SetMissionProgressCondition(UOutcomeConditionAsset* NewC
 	SubscribeMissionProgress();
 }
 
-void UMissionSubsystem::SubscribeGhostCleared()
-{
-	if (GhostClearedHandle.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: Already subscribed to GhostCleared"));
-		return;
-	}
-
-	if (!GhostClearedCondition)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: GhostClearedCondition is null, cannot subscribe"));
-		return;
-	}
-
-	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-	{
-		GhostClearedHandle = EventBus->RegisterHandler(
-			GhostClearedCondition,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleGhostCleared)
-		);
-
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Subscribed to GhostCleared (handle=%u)"), GhostClearedHandle.GetId());
-	}
-}
-
 void UMissionSubsystem::SubscribeMissionProgress()
 {
-	if (MissionProgressHandle.IsValid())
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
+
+	if (!MissionProgressHandle.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: Already subscribed to MissionProgress"));
-		return;
+		if (!MissionProgressCondition)
+		{
+			MissionProgressCondition = NewObject<UOutcomeConditionAsset>(this);
+			MissionProgressCondition->OperatorType = EConditionOperator::Composite;
+			MissionProgressCondition->FilterRow.OutcomeType = EOutcomeType::Mission;
+			MissionProgressCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+			MissionProgressCondition->FilterRow.MissionType = EOutcomeMission::MissionProgress;
+			MissionProgressCondition->FilterRow.MissionComparison = EConditionComparison::Equals;
+			MissionProgressCondition->CompileCondition();
+		}
 	}
 
-	if (!MissionProgressCondition)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: MissionProgressCondition is null, cannot subscribe"));
-		return;
-	}
-
-	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	if (MissionProgressCondition->GetCondition().IsValid())
 	{
 		MissionProgressHandle = EventBus->RegisterHandler(
 			MissionProgressCondition,
 			FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleMissionProgress)
 		);
-
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Subscribed to MissionProgress (handle=%u)"), MissionProgressHandle.GetId());
 	}
 }
 
@@ -186,32 +154,6 @@ void UMissionSubsystem::UnsubscribeAll()
 	UnsubscribeMissionProgress();
 }
 
-void UMissionSubsystem::HandleGhostCleared(const FOutcomeEventBase& Outcome)
-{
-	// Defensive check using compiled query (EventBus already filters, this is extra safety)
-	// (Защитная проверка с использованием скомпилированного Query (EventBus уже фильтрует))
-	if (GhostClearedCondition)
-	{
-		auto Query = GhostClearedCondition->GetCondition();
-		if (Query.IsValid() && !Query->Evaluate(Outcome))
-		{
-			UE_LOG(LogTemp, Verbose, TEXT("MissionSubsystem: Incoming outcome does not satisfy GhostClearedCondition -> ignoring"));
-			return;
-		}
-	}
-
-	if (UGhostClearedPayload* P = Cast<UGhostClearedPayload>(Outcome.Payload))
-	{
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Ghost %s cleared"), *P->GhostType);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Verbose, TEXT("MissionSubsystem: HandleGhostCleared called with no payload or unexpected payload type"));
-	}
-
-	OnGhostCleared.Broadcast(Outcome);
-}
-
 void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 {
 	if (MissionProgressCondition)
@@ -226,15 +168,53 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 
 	if (UMissionProgressPayload* P = Cast<UMissionProgressPayload>(Outcome.Payload))
 	{
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission %s step %d"),
-			*P->MissionName, P->StepIndex);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Verbose, TEXT("MissionSubsystem: HandleMissionProgress called with no payload or unexpected payload type"));
-	}
+		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission %s"),
+			*P->MissionName.ToString());
 
-	OnMissionProgress.Broadcast(Outcome);
+		FName MissionName = P->MissionName;
+
+
+		FActiveMissionEntry* ActiveMission = ActiveMissions.Find(MissionName);
+		UMissionController* Controller = ActiveMission ? ActiveMission->Controller : nullptr;
+		UMissionAsset* MissionAsset = Controller->GetMissionAsset();
+		if (MissionAsset)
+		{
+			int32 StepIndex = ActiveMission->MissionStep;
+			StepIndex++; // предполагается, что прогресс миссии приходит после успешного выполнения шага, так что индекс шага для получения envelope увеличиваем на 1
+			ActiveMission->MissionStep = StepIndex; // сохраняем прогресс миссии (текущий шаг) в MissionSubsystem, чтобы при покидании этажа или загрузке игры можно было восстановить состояние миссии
+			ActiveMissions.Add(MissionName, *ActiveMission); // обновляем запись о миссии с новым шагом
+
+			if (MissionAsset->Envelopes.IsValidIndex(StepIndex))
+			{
+				const FMissionEnvelope& Envelope = MissionAsset->Envelopes[StepIndex];
+				
+				if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+				{
+					UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
+					EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
+					if (P1)
+					{
+						P1->ActiveMissions = ActiveMissions;
+						FOutcomeEventBase Ev;
+						Ev.OutcomeType = EOutcomeType::Interior;
+						Ev.Payload = P1;
+						EventBus->PublishOutcome(Ev);
+					}
+				}
+			}
+			else
+			{
+				// Если индекс шага выходит за пределы массива Envelopes, это может означать, что миссия завершилась
+				UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: Mission '%s' complete"), *MissionName.ToString());
+
+				ApplyMissionCompletionPolicy(MissionName, MissionAsset->Envelopes.Last(), MissionAsset->Envelopes.Last().OnMissionCompleted, EMissionEndReason::Completed);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: No active mission found with name '%s'"), *MissionName.ToString());
+		}
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -383,7 +363,7 @@ TArray<FName> UMissionSubsystem::GetActiveMissionIds() const
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFLICT RESOLUTION
 // ─────────────────────────────────────────────────────────────────────────────
-
+/*
 TArray<FEnvelopeConflictInfo> UMissionSubsystem::CheckEnvelopeConflicts(
 	FName NewMissionId,
 	const FMissionEnvelope& NewEnvelope) const
@@ -420,7 +400,8 @@ TArray<FEnvelopeConflictInfo> UMissionSubsystem::CheckEnvelopeConflicts(
 
 	return Result;
 }
-
+*/
+/*
 FName UMissionSubsystem::GetChannelOwner(
 	const FInteriorFloorKey& FloorKey,
 	EEnvelopeChannel Channel) const
@@ -463,7 +444,7 @@ FName UMissionSubsystem::GetChannelOwner(
 
 	return BestOwner;
 }
-
+*/
 bool UMissionSubsystem::ScopesOverlap(
 	const FMissionEnvelopeScope& A,
 	const FMissionEnvelopeScope& B) const
@@ -1085,12 +1066,15 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 				*MissionId.ToString(), *FloorId.ToString());
 		}
 
+		TopMissionId = MissionId;
 		// Track the highest-priority mission
+		/*
 		if (Env.Priority > TopPriority)
 		{
 			TopPriority = Env.Priority;
 			TopMissionId = MissionId;
 		}
+		*/
 	}
 
 	// Apply JobSpacePolicy only for the top-priority mission

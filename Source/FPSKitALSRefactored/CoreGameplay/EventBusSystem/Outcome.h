@@ -20,7 +20,7 @@ enum class EOutcomeMission : uint8
 {
 	Default					UMETA(DisplayName = "Default"),
 	MissionActivated		UMETA(DisplayName = "Mission Activated"),
-	MissionStepCompleted	UMETA(DisplayName = "Mission Step Completed"),
+	MissionProgress			UMETA(DisplayName = "Mission Progress"),
 	MissionCompleted		UMETA(DisplayName = "Mission Completed"),
 	MissionFailed			UMETA(DisplayName = "Mission Failed"),
 	MissionAbandoned		UMETA(DisplayName = "Mission Abandoned")

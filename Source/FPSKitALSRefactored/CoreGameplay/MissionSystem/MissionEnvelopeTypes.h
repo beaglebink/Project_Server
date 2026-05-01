@@ -146,17 +146,17 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
     TArray<FEnvelopeChannelEntry> Channels;
 
     // Политика выхода
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Mission Complete Policy"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Stage Complete Policy"))
     EJobSpacePolicy OnMissionCompleted = EJobSpacePolicy::Freeze;
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
-    TArray<FEnvelopeChannelEntry> ExitChannels; 
+        meta = (DisplayName = "Stage Exit Channels", EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> ExitChannels;
 
     // Приоритет — при конфликте каналов побеждает envelope с меньшим числом
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Priority")
-    int32 Priority = 0;
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Priority")
+    //int32 Priority = 0;
 
     // Режим возобновления после загрузки сохранения
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Save")
