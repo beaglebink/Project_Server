@@ -334,6 +334,8 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 
 	const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelopes()[Entry->MissionStep];
 
+	EJobSpacePolicy ExitPolicy;
+
 	if (Reason == EMissionEndReason::Completed)
 	{
 		// Используем политику завершения миссии (OnMissionCompleted)
@@ -343,8 +345,24 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 	else
 	{
 		// Failed / Abandoned — не обновляем FloorStateSnapshots,
-		// просто удаляем MissionFloorSnapshots через Release с Policy=Reset (без записи в постоянное хранилище)
-		ApplyMissionCompletionPolicy(MissionId, Envelope, EJobSpacePolicy::Reset, Reason);
+		
+
+		switch (Reason)
+		{
+			case EMissionEndReason::Failed:
+			{
+				ExitPolicy = Envelope.OnMissionFailed;
+				UE_LOG(LogTemp, Log, TEXT("MissionSubsystem::ResolveMission: Mission '%s' failed"), *MissionId.ToString());
+				break;
+			}
+			case EMissionEndReason::Abandoned:
+			{
+				ExitPolicy = Envelope.OnMissionAbandoned;
+				UE_LOG(LogTemp, Log, TEXT("MissionSubsystem::ResolveMission: Mission '%s' abandoned"), *MissionId.ToString());
+				break;
+			}
+		}
+		ApplyMissionCompletionPolicy(MissionId, Envelope, ExitPolicy, Reason);
 	}
 }
 

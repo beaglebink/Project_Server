@@ -221,13 +221,129 @@ namespace
 // SaveFloorActorsState
 // -----------------------------------------------------------------------------
 
-void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry> &Channels)
+static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
+{
+	// ищем запись для канала
+	const FEnvelopeChannelEntry* FoundEntry = nullptr;
+	bool IsResetPolicy = false;
+
+	switch (Reason)
+	{
+	case EMissionEndReason::None:
+	{
+		IsResetPolicy = Envelope.JobSpacePolicy == EJobSpacePolicy::Reset;
+		break;
+	}
+	case EMissionEndReason::Completed:
+	{
+		IsResetPolicy = Envelope.OnStageCompleted == EJobSpacePolicy::Reset;
+		break;
+	}
+	case EMissionEndReason::Failed:
+	{
+		IsResetPolicy = Envelope.OnMissionFailed == EJobSpacePolicy::Reset;
+		break;
+	}
+	case EMissionEndReason::Abandoned:
+	{
+		IsResetPolicy = Envelope.OnMissionAbandoned == EJobSpacePolicy::Reset;
+		break;
+	}
+	}
+
+	switch (Reason)
+	{
+	case EMissionEndReason::None:
+	{
+		FoundEntry = Envelope.Channels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		break;
+	}
+	case EMissionEndReason::Completed:
+	{
+		FoundEntry = Envelope.StageCompleteChannels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		break;
+	}
+	case EMissionEndReason::Failed:
+	{
+		FoundEntry = Envelope.MissionFailedChannels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		break;
+	}
+	case EMissionEndReason::Abandoned:
+	{
+		FoundEntry = Envelope.MissionAbandonedChannels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		break;
+	}
+	}
+
+	if (IsRead || Reason != EMissionEndReason::None)
+	{
+		if (IsResetPolicy)
+		{
+			return false;
+		}
+
+		// если записи нет → пропускаем
+		if (!FoundEntry)
+		{
+			return false;
+		}
+
+		if (FoundEntry->Policy == EChannelPolicy::Freeze)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return true;
+	}
+
+}
+
+void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason/*, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry>& Channels*/)
 {
     UWorld* W = GetWorld();
     if (!W) return;
 
     FInteriorFloorKey Key(InteriorSetId, FloorId);
 
+	auto MissionInterior = ActiveMissions.Find(MissionId);
+	FMissionEnvelope Envelope = FMissionEnvelope();
+	if (MissionInterior)
+	{
+		int32 MissionStep = MissionInterior->MissionStep;
+		auto Controller = MissionInterior->Controller;
+		TArray<FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
+		if(Envelopes.IsValidIndex(MissionStep))
+		{
+			Envelope = Envelopes[MissionStep];
+		}
+	}
+	else
+	{
+		return;
+	}
+	/*
     auto ShouldSkipForPartial = [&](EFloorActorType ActorType) -> bool
     {
         if (JobSpacePolicy != EJobSpacePolicy::Partial) return false;
@@ -239,8 +355,9 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
         }
         return false;
     };
-
-    if (MissionId == NAME_None)
+	*/
+	/*
+    if (!MissionInterior)
     {
         // записать baseline в FloorStateSnapshots (перезаписать)
         TArray<FFloorSavedActorState>& Bucket = FloorStateSnapshots.FindOrAdd(Key);
@@ -254,9 +371,11 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
             if (!Comp) continue;
             if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
 
+			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType)))
+				continue;
             // Пропускаем актёра, если политика Partial и для его типа канал помечен как Reset
-            if (ShouldSkipForPartial(Comp->ActorType))
-                continue;
+            //if (ShouldSkipForPartial(Comp->ActorType))
+            //    continue;
 
             FFloorSavedActorState Snapshot;
             Snapshot.ItemId = Comp->ItemId;
@@ -276,9 +395,11 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
                 if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
                 if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
 
+				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType)))
+					continue;
                 // Пропускаем дочерний актёр по той же логике
-                if (ShouldSkipForPartial(ChildFloorComp->ActorType))
-                    continue;
+                //if (ShouldSkipForPartial(ChildFloorComp->ActorType))
+                //    continue;
 
                 FFloorSavedActorState ChildSnapshot;
                 ChildSnapshot.ItemId = ChildFloorComp->ItemId;
@@ -294,7 +415,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
             *InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
         return;
     }
-
+	*/
     // существующая логика: сохраняем в MissionFloorSnapshots[Key][MissionId]
     TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionFloorSnapshots.FindOrAdd(Key);
     TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
@@ -315,9 +436,37 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
         if (!Comp) continue;
         if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
 
+		const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(Comp->ActorType);
+
+		// ищем запись для канала
+		/*
+		const FEnvelopeChannelEntry* FoundEntry = Envelope.Channels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		*/
+		/*
+		// если записи нет → пропускаем
+		if (!FoundEntry)
+		{
+			continue;
+		}
+
+		// если запись есть и политика == Reset → тоже пропускаем
+		if (FoundEntry->Policy == EChannelPolicy::Reset)
+		{
+			continue;
+		}
+		*/
+
+		if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+			continue;
+
+
         // Пропускаем актёра при Partial+Reset
-        if (ShouldSkipForPartial(Comp->ActorType))
-            continue;
+        //if (ShouldSkipForPartial(Comp->ActorType))
+        //    continue;
 
         FFloorSavedActorState Snapshot;
         Snapshot.ItemId = Comp->ItemId;
@@ -348,9 +497,11 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
             if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
             if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
 
+			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+				continue;
             // Пропускаем дочерний актёр при Partial+Reset
-            if (ShouldSkipForPartial(ChildFloorComp->ActorType))
-                continue;
+            //if (ShouldSkipForPartial(ChildFloorComp->ActorType))
+            //    continue;
 
             FFloorSavedActorState ChildSnapshot;
             ChildSnapshot.ItemId              = ChildFloorComp->ItemId;
@@ -478,7 +629,7 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
 }
 
 // --- добавлен новый хелпер: восстанавливает actors напрямую из переданного массива снимков ---
-static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId)
+static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope)
 {
 	if (!W) return 0;
 	if (Snapshots.IsEmpty()) return 0;
@@ -490,26 +641,130 @@ static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorSt
 		if (!IsValid(Actor)) continue;
 		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
 		{
+			const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(C->ActorType);
+
+			if (Envelope.IsValid())
+			{
+				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
+					continue;
+			}
+
+/*
+			// ищем запись для канала
+			const FEnvelopeChannelEntry* FoundEntry = Envelope.Channels.FindByPredicate(
+				[ActorChannel](const FEnvelopeChannelEntry& Entry)
+				{
+					return Entry.Channel == ActorChannel;
+				});
+
+			// если записи нет → пропускаем
+			if (!FoundEntry)
+			{
+				continue;
+			}
+
+			// если запись есть и политика == Reset → тоже пропускаем
+			if (FoundEntry->Policy == EChannelPolicy::Reset)
+			{
+				continue;
+			}
+*/
+			// иначе добавляем актёра
+			ActorByItemId.Add(C->ItemId, Actor);
+		}
+
+
+		/*
+		AActor* Actor = *It;
+		if (!IsValid(Actor)) continue;
+		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+		{
 			if (C->SnapshotChannel != ESnapshotChannel::None)
 			{
-				ActorByItemId.Add(C->ItemId, Actor);
+				if (Envelope.IsValid())
+				{
+					const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(C->ActorType);
+					if (Envelope.Channels.ContainsByPredicate([ActorChannel](const FEnvelopeChannelEntry& Entry)
+						{
+							return Entry.Channel == ActorChannel && Entry.Policy == EChannelPolicy::Reset;
+						}))
+					{
+						continue; // пропускаем актёра, если его канал помечен как Reset в текущем конверте
+					}
+
+					ActorByItemId.Add(C->ItemId, Actor);
+				}
+				else
+				{
+
+					ActorByItemId.Add(C->ItemId, Actor);
+				}
 			}
 		}
+		*/
 
 		TArray<UChildActorComponent*> ChildComps;
 		Actor->GetComponents<UChildActorComponent>(ChildComps);
 		for (UChildActorComponent* ChildComp : ChildComps)
 		{
+
+
 			if (!IsValid(ChildComp)) continue;
 			AActor* ChildActor = ChildComp->GetChildActor();
 			if (!IsValid(ChildActor)) continue;
+
+			if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+			{
+				const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(C->ActorType);
+
+				// ищем запись для канала
+				const FEnvelopeChannelEntry* FoundEntry = Envelope.Channels.FindByPredicate(
+					[ActorChannel](const FEnvelopeChannelEntry& Entry)
+					{
+						return Entry.Channel == ActorChannel;
+					});
+
+				// если записи нет → пропускаем
+				if (!FoundEntry)
+				{
+					continue;
+				}
+
+				// если запись есть и политика == Reset → тоже пропускаем
+				if (FoundEntry->Policy == EChannelPolicy::Reset)
+				{
+					continue;
+				}
+
+				// иначе добавляем актёра
+				ActorByItemId.Add(C->ItemId, Actor);
+			}
+
+			/*
 			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
 			{
 				if (CC->SnapshotChannel != ESnapshotChannel::None)
 				{
-					ActorByItemId.Add(CC->ItemId, ChildActor);
+					if (Envelope.IsValid())
+					{
+						const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(CC->ActorType);
+						if (Envelope.Channels.ContainsByPredicate([ActorChannel](const FEnvelopeChannelEntry& Entry)
+							{
+								return Entry.Channel == ActorChannel && Entry.Policy == EChannelPolicy::Reset;
+							}))
+						{
+							continue; // пропускаем актёра, если его канал помечен как Reset в текущем конверте
+						}
+
+						ActorByItemId.Add(CC->ItemId, Actor);
+					}
+					else
+					{
+						ActorByItemId.Add(CC->ItemId, Actor);
+					}
 				}
 			}
+			*/
 		}
 	}
 
@@ -717,7 +972,7 @@ void UInteriorSubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
 void UInteriorSubsystem::HandleFloorStateSave(const FOutcomeEventBase& Outcome)
 {
 	if (UFloorStatePayload* P = Cast<UFloorStatePayload>(Outcome.Payload))
-		SaveFloorActorsState(P->InteriorSetId, P->FloorId, P->MissionId, P->Policy, P->Channels);
+		SaveFloorActorsState(P->InteriorSetId, P->FloorId, P->MissionId, EMissionEndReason::None);
 }
 
 void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcome)
@@ -1371,7 +1626,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						UWorld* LocalWorld = GetWorld();
 						if (LocalWorld)
 						{
-							RestoreFromSnapshotArray(LocalWorld, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId);
+							RestoreFromSnapshotArray(LocalWorld, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FMissionEnvelope());
 							UE_LOG(LogTemp, Log,
 								TEXT("InteriorSubsystem::OnPostLoadMap: Restored baseline FloorStateSnapshots for floor %s/%s (count=%d)"),
 								*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString(), BaseSnap->Num());
@@ -1528,7 +1783,7 @@ void UInteriorSubsystem::SaveMissionFloorState(FName MissionId, const FInteriorF
 	EJobSpacePolicy Policy = EJobSpacePolicy::Freeze;
 	TArray<FEnvelopeChannelEntry> Channels;
 
-	SaveFloorActorsState(FloorKey.InteriorSetId, FloorKey.FloorId, MissionId, Policy, Channels);
+	SaveFloorActorsState(FloorKey.InteriorSetId, FloorKey.FloorId, MissionId, EMissionEndReason::None);
 
 	UE_LOG(LogTemp, Log,
 		TEXT("InteriorSubsystem::SaveMissionFloorState: saved for mission '%s' floor %s/%s"),
@@ -1553,10 +1808,11 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 			auto& Controller = MissionInterior->Controller;
 			auto MissionAsset = Controller->GetMissionAsset();
 			auto& Envelope = MissionAsset->Envelopes[CurrentMissionStep];
-			if (Envelope.JobSpacePolicy == EJobSpacePolicy::Reset)
-				return;
+			
+			//if (Envelope.JobSpacePolicy == EJobSpacePolicy::Reset)
+			//	return;
 
-            RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId);
+            RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
             UE_LOG(LogTemp, Log,
                 TEXT("InteriorSubsystem::RestoreMissionFloorState: restored snapshot for mission '%s' floor %s/%s"),
                 *MissionId.ToString(),
@@ -1621,6 +1877,8 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 	{
 		FName MissionId = P->MissionId;
 		if (MissionId.IsNone()) return;
+
+
 		// При завершении миссии — применить политику к сохранённым snapshot-ам для этой миссии
 		auto MissionInterior = ActiveMissions.Find(MissionId);
 		if (MissionInterior)
@@ -1628,12 +1886,33 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 			TObjectPtr<UMissionController> Controller = MissionInterior->Controller;
 			UMissionAsset* MissionAsset = Controller->GetMissionAsset();
 			FMissionEnvelope Envelope = MissionAsset->Envelopes[MissionInterior->MissionStep];
-			
-			//ReleaseMissionSnapshot(MissionId, Envelope, Envelope.JobSpacePolicy, true);
-			//MissionFloorSnapshots
-			//FloorStateSnapshots
-			//SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry> &Channels)
 
+			EJobSpacePolicy Policy;
+			TArray<FEnvelopeChannelEntry> EndChannels;
+			//
+
+			switch (P->EndReason)
+			{
+				case EMissionEndReason::Completed:
+				{
+					Policy =Envelope.OnStageCompleted;
+					EndChannels = Envelope.StageCompleteChannels;
+					break;
+				}
+				case EMissionEndReason::Failed:
+				{
+					Policy = Envelope.OnMissionFailed;
+					EndChannels = Envelope.MissionFailedChannels;
+					break;
+				}
+				case EMissionEndReason::Abandoned:
+				{
+					Policy = Envelope.OnMissionAbandoned;
+					EndChannels = Envelope.MissionAbandonedChannels;
+					break;
+				}
+			}
+			
 			FMissionEnvelopeScope Scope = Envelope.Scope;
 			for(auto S : Scope.InteriorScopes)
 			{
@@ -1673,14 +1952,11 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 
 				if (NormTarget == CurrentLevelName)
 				{
-					SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, Envelope.OnStageCompleted, Envelope.StageCompleteChannels);
+					SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, P->EndReason);
 				}
 			}
-			//FGuid Interior = 
 
-			//SaveFloorActorsState()
-
-			switch (Envelope.OnStageCompleted)
+			switch (Policy)
 			{
 				case EJobSpacePolicy::Reset:
 				{
@@ -1702,7 +1978,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 				
 				case EJobSpacePolicy::Partial:
 				{
-					for (auto Channel : Envelope.StageCompleteChannels)
+					for (auto Channel : EndChannels)
 					{
 						if (Channel.Policy == EChannelPolicy::Freeze)
 						{
@@ -1823,7 +2099,7 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionE
 			{
 				if (World && BaseSnap && !BaseSnap->IsEmpty())
 				{
-					RestoreFromSnapshotArray(World, *BaseSnap, FloorKey.InteriorSetId, FloorKey.FloorId);
+					RestoreFromSnapshotArray(World, *BaseSnap, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
 					UE_LOG(LogTemp, Log,
 						TEXT("InteriorSubsystem::ReleaseMissionSnapshot: ResetAll — restored FloorStateSnapshots for floor %s (mission '%s')"),
 						*FloorKey.FloorId.ToString(), *MissionId.ToString());
@@ -1913,7 +2189,7 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionE
 					{
 						if (World && BaseSnap && !BaseSnap->IsEmpty())
 						{
-							RestoreFromSnapshotArray(World, *BaseSnap, FloorKey.InteriorSetId, FloorKey.FloorId);
+							RestoreFromSnapshotArray(World, *BaseSnap, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
 							UE_LOG(LogTemp, Log,
 								TEXT("InteriorSubsystem::ReleaseMissionSnapshot: Partial-Reset — restored FloorStateSnapshots for floor %s (mission '%s')"),
 								*FloorKey.FloorId.ToString(), *MissionId.ToString());

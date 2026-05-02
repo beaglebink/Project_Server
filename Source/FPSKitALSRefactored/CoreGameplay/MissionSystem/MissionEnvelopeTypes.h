@@ -155,7 +155,7 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (DisplayName = "Stage Complete Channels", EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
+        meta = (DisplayName = "Stage Complete Channels", EditCondition = "OnStageCompleted == EJobSpacePolicy::Partial", EditConditionHides))
     TArray<FEnvelopeChannelEntry> StageCompleteChannels;
 
     // Политика провала миссии
@@ -164,7 +164,7 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (DisplayName = "Mission Failed Channels", EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
+        meta = (DisplayName = "Mission Failed Channels", EditCondition = "OnMissionFailed == EJobSpacePolicy::Partial", EditConditionHides))
     TArray<FEnvelopeChannelEntry> MissionFailedChannels;
 
     // Политика отказа от миссии
@@ -173,7 +173,7 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (DisplayName = "Mission Abandoned Channels", EditCondition = "OnMissionCompleted == EJobSpacePolicy::Partial", EditConditionHides))
+        meta = (DisplayName = "Mission Abandoned Channels", EditCondition = "OnMissionAbandoned == EJobSpacePolicy::Partial", EditConditionHides))
     TArray<FEnvelopeChannelEntry> MissionAbandonedChannels;
 
     // Приоритет — при конфликте каналов побеждает envelope с меньшим числом
