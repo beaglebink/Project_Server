@@ -226,35 +226,14 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 	// ищем запись для канала
 	const FEnvelopeChannelEntry* FoundEntry = nullptr;
 	bool IsResetPolicy = false;
+	bool IsPartialPolicy = false;
 
 	switch (Reason)
 	{
 	case EMissionEndReason::None:
 	{
 		IsResetPolicy = Envelope.JobSpacePolicy == EJobSpacePolicy::Reset;
-		break;
-	}
-	case EMissionEndReason::Completed:
-	{
-		IsResetPolicy = Envelope.OnStageCompleted == EJobSpacePolicy::Reset;
-		break;
-	}
-	case EMissionEndReason::Failed:
-	{
-		IsResetPolicy = Envelope.OnMissionFailed == EJobSpacePolicy::Reset;
-		break;
-	}
-	case EMissionEndReason::Abandoned:
-	{
-		IsResetPolicy = Envelope.OnMissionAbandoned == EJobSpacePolicy::Reset;
-		break;
-	}
-	}
-
-	switch (Reason)
-	{
-	case EMissionEndReason::None:
-	{
+		IsPartialPolicy = Envelope.JobSpacePolicy == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.Channels.FindByPredicate(
 			[ActorChannel](const FEnvelopeChannelEntry& Entry)
 			{
@@ -264,6 +243,8 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 	}
 	case EMissionEndReason::Completed:
 	{
+		IsResetPolicy = Envelope.OnStageCompleted == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.OnStageCompleted == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.StageCompleteChannels.FindByPredicate(
 			[ActorChannel](const FEnvelopeChannelEntry& Entry)
 			{
@@ -273,6 +254,8 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 	}
 	case EMissionEndReason::Failed:
 	{
+		IsResetPolicy = Envelope.OnMissionFailed == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.OnMissionFailed == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.MissionFailedChannels.FindByPredicate(
 			[ActorChannel](const FEnvelopeChannelEntry& Entry)
 			{
@@ -282,6 +265,8 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 	}
 	case EMissionEndReason::Abandoned:
 	{
+		IsResetPolicy = Envelope.OnMissionAbandoned == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.OnMissionAbandoned == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.MissionAbandonedChannels.FindByPredicate(
 			[ActorChannel](const FEnvelopeChannelEntry& Entry)
 			{
@@ -304,13 +289,13 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 			return false;
 		}
 
-		if (FoundEntry->Policy == EChannelPolicy::Freeze)
+		if (IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Freeze)
 		{
 			return true;
 		}
 		else
 		{
-			return false;
+			return !IsResetPolicy;
 		}
 	}
 	else
