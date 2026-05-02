@@ -1,55 +1,49 @@
-#include "ItemPlacement/A_DropZone.h"
-#include "Components/SphereComponent.h"
+#include "ItemPlacement/A_AreaDropZone.h"
 #include "PythonContainers/A_InteractableActor.h"
 
-AA_DropZone::AA_DropZone()
+AA_AreaDropZone::AA_AreaDropZone()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
-	ItemSphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("ItemSphereCollision"));
 
 	DropZoneMesh->SetupAttachment(RootComponent);
-	ItemSphereCollision->SetupAttachment(RootComponent);
 
-	DropZoneMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	ItemSphereCollision->SetCollisionProfileName(TEXT("DropZoneObject"));
+	DropZoneMesh->SetCollisionProfileName(TEXT("DropZoneObject"));
 }
 
-void AA_DropZone::OnConstruction(const FTransform& Transform)
+void AA_AreaDropZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (ItemClass)
+	if (ItemsClasses.Num() > 0)
 	{
-		if (AA_InteractableActor* Item = ItemClass->GetDefaultObject<AA_InteractableActor>())
+		for (const TSubclassOf<AA_InteractableActor>& ItemClass : ItemsClasses)
 		{
-			ItemName = Item->Name;
-			const UStaticMeshComponent* SourceMesh = Item->FindComponentByClass<UStaticMeshComponent>();
-			if (SourceMesh && SourceMesh->GetStaticMesh())
+			if (!ItemClass)
 			{
-				DropZoneMesh->SetStaticMesh(SourceMesh->GetStaticMesh());
+				continue;
+			}
+
+			if (AA_InteractableActor* Item = ItemClass->GetDefaultObject<AA_InteractableActor>())
+			{
+				ItemsNames.Add(Item->Name);
 			}
 		}
 	}
 
-	if (DropZoneMesh)
-	{
-		ItemSphereCollision->SetSphereRadius(DropZoneMesh->Bounds.SphereRadius);
-	}
-
+	DropZoneMesh->SetWorldScale3D(DropZoneMeshSize / 100.0f);
 	SetMeshMaterialAndState(0, IsPlacingOnScene);
 }
 
-
-void AA_DropZone::Tick(float DeltaTime)
+void AA_AreaDropZone::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 }
 
-void AA_DropZone::BeginPlay()
+void AA_AreaDropZone::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -57,7 +51,7 @@ void AA_DropZone::BeginPlay()
 	SetMeshMaterialAndState(0, IsPlacingOnScene);
 }
 
-void AA_DropZone::SetMeshMaterialAndState(int32 NewState, bool IsPlacing)
+void AA_AreaDropZone::SetMeshMaterialAndState(int32 NewState, bool IsPlacing)
 {
 	if (DropZoneMesh && DropZoneMeshMaterial)
 	{

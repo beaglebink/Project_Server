@@ -5,6 +5,8 @@
 #include "GameFramework/Actor.h"
 #include "A_InteractableActor.generated.h"
 
+class AA_DropZone;
+
 UCLASS()
 class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalInteraction
 {
@@ -24,6 +26,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Name")
 	FName Name;
+
+	UPROPERTY()
+	AA_DropZone* AttachingDropZone;
 
     UFUNCTION(BlueprintCallable, Category = "TextParsing")
 	bool ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName);
