@@ -328,79 +328,6 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 	{
 		return;
 	}
-	/*
-    auto ShouldSkipForPartial = [&](EFloorActorType ActorType) -> bool
-    {
-        if (JobSpacePolicy != EJobSpacePolicy::Partial) return false;
-        const EEnvelopeChannel EnvelopeChannel = FloorActorTypeToEnvelopeChannel(ActorType);
-        for (const FEnvelopeChannelEntry& Channel : Channels)
-        {
-            if (Channel.Channel == EnvelopeChannel && Channel.Policy == EChannelPolicy::Reset)
-                return true;
-        }
-        return false;
-    };
-	*/
-	/*
-    if (!MissionInterior)
-    {
-        // записать baseline в FloorStateSnapshots (перезаписать)
-        TArray<FFloorSavedActorState>& Bucket = FloorStateSnapshots.FindOrAdd(Key);
-        Bucket.Empty();
-
-        for (TActorIterator<AActor> It(W); It; ++It)
-        {
-            AActor* Actor = *It;
-            if (!IsValid(Actor)) continue;
-            UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
-            if (!Comp) continue;
-            if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
-
-			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType)))
-				continue;
-            // Пропускаем актёра, если политика Partial и для его типа канал помечен как Reset
-            //if (ShouldSkipForPartial(Comp->ActorType))
-            //    continue;
-
-            FFloorSavedActorState Snapshot;
-            Snapshot.ItemId = Comp->ItemId;
-            SnapshotActor(Actor, Snapshot);
-            Bucket.Add(MoveTemp(Snapshot));
-
-            // child actors (как в оригинале)
-            TArray<UChildActorComponent*> ChildComps;
-            Actor->GetComponents<UChildActorComponent>(ChildComps);
-            for (UChildActorComponent* ChildComp : ChildComps)
-            {
-                if (!IsValid(ChildComp)) continue;
-                AActor* ChildActor = ChildComp->GetChildActor();
-                if (!IsValid(ChildActor)) continue;
-                UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
-                if (!ChildFloorComp) continue;
-                if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
-                if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
-
-				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType)))
-					continue;
-                // Пропускаем дочерний актёр по той же логике
-                //if (ShouldSkipForPartial(ChildFloorComp->ActorType))
-                //    continue;
-
-                FFloorSavedActorState ChildSnapshot;
-                ChildSnapshot.ItemId = ChildFloorComp->ItemId;
-                ChildSnapshot.RelativeTransform = ChildComp->GetRelativeTransform();
-                ChildSnapshot.bHasRelativeTransform = true;
-                SnapshotActor(ChildActor, ChildSnapshot);
-                Bucket.Add(MoveTemp(ChildSnapshot));
-            }
-        }
-
-        UE_LOG(LogTemp, Log,
-            TEXT("InteriorSubsystem: SaveFloorActorsState — saved baseline for floor %s/%s (total: %d)"),
-            *InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
-        return;
-    }
-	*/
     // существующая логика: сохраняем в MissionFloorSnapshots[Key][MissionId]
     TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionFloorSnapshots.FindOrAdd(Key);
     TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
@@ -423,35 +350,8 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 		const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(Comp->ActorType);
 
-		// ищем запись для канала
-		/*
-		const FEnvelopeChannelEntry* FoundEntry = Envelope.Channels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
-		*/
-		/*
-		// если записи нет → пропускаем
-		if (!FoundEntry)
-		{
-			continue;
-		}
-
-		// если запись есть и политика == Reset → тоже пропускаем
-		if (FoundEntry->Policy == EChannelPolicy::Reset)
-		{
-			continue;
-		}
-		*/
-
 		if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
 			continue;
-
-
-        // Пропускаем актёра при Partial+Reset
-        //if (ShouldSkipForPartial(Comp->ActorType))
-        //    continue;
 
         FFloorSavedActorState Snapshot;
         Snapshot.ItemId = Comp->ItemId;
@@ -484,9 +384,6 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
 				continue;
-            // Пропускаем дочерний актёр при Partial+Reset
-            //if (ShouldSkipForPartial(ChildFloorComp->ActorType))
-            //    continue;
 
             FFloorSavedActorState ChildSnapshot;
             ChildSnapshot.ItemId              = ChildFloorComp->ItemId;
@@ -634,59 +531,10 @@ static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorSt
 					continue;
 			}
 
-/*
-			// ищем запись для канала
-			const FEnvelopeChannelEntry* FoundEntry = Envelope.Channels.FindByPredicate(
-				[ActorChannel](const FEnvelopeChannelEntry& Entry)
-				{
-					return Entry.Channel == ActorChannel;
-				});
-
-			// если записи нет → пропускаем
-			if (!FoundEntry)
-			{
-				continue;
-			}
-
-			// если запись есть и политика == Reset → тоже пропускаем
-			if (FoundEntry->Policy == EChannelPolicy::Reset)
-			{
-				continue;
-			}
-*/
 			// иначе добавляем актёра
 			ActorByItemId.Add(C->ItemId, Actor);
 		}
 
-
-		/*
-		AActor* Actor = *It;
-		if (!IsValid(Actor)) continue;
-		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
-		{
-			if (C->SnapshotChannel != ESnapshotChannel::None)
-			{
-				if (Envelope.IsValid())
-				{
-					const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(C->ActorType);
-					if (Envelope.Channels.ContainsByPredicate([ActorChannel](const FEnvelopeChannelEntry& Entry)
-						{
-							return Entry.Channel == ActorChannel && Entry.Policy == EChannelPolicy::Reset;
-						}))
-					{
-						continue; // пропускаем актёра, если его канал помечен как Reset в текущем конверте
-					}
-
-					ActorByItemId.Add(C->ItemId, Actor);
-				}
-				else
-				{
-
-					ActorByItemId.Add(C->ItemId, Actor);
-				}
-			}
-		}
-		*/
 
 		TArray<UChildActorComponent*> ChildComps;
 		Actor->GetComponents<UChildActorComponent>(ChildComps);
@@ -724,32 +572,6 @@ static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorSt
 				// иначе добавляем актёра
 				ActorByItemId.Add(C->ItemId, Actor);
 			}
-
-			/*
-			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
-			{
-				if (CC->SnapshotChannel != ESnapshotChannel::None)
-				{
-					if (Envelope.IsValid())
-					{
-						const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(CC->ActorType);
-						if (Envelope.Channels.ContainsByPredicate([ActorChannel](const FEnvelopeChannelEntry& Entry)
-							{
-								return Entry.Channel == ActorChannel && Entry.Policy == EChannelPolicy::Reset;
-							}))
-						{
-							continue; // пропускаем актёра, если его канал помечен как Reset в текущем конверте
-						}
-
-						ActorByItemId.Add(CC->ItemId, Actor);
-					}
-					else
-					{
-						ActorByItemId.Add(CC->ItemId, Actor);
-					}
-				}
-			}
-			*/
 		}
 	}
 
@@ -1479,7 +1301,6 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		CachedEventBus = GI->GetSubsystem<UEventBusSubsystem>();
 	}
 
-	BuildAssetIndex();
 	SubscribeAll();
 
 	// Подписываемся на загрузку карты (срабатывает после SeamlessTravel)
@@ -1632,25 +1453,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
 				}
 			}
-
-			// Публикуем уведомление через EventBus о том, что восстановление завершено для этого этажа
-			/*
-			if (UEventBusSubsystem* EventBus = CachedEventBus.Get() ? CachedEventBus.Get() : GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-			{
-				UFloorStatePayload* NotifyP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
-				if (NotifyP)
-				{
-					NotifyP->InteriorSetId = CurrentKey.InteriorSetId;
-					NotifyP->FloorId = CurrentKey.FloorId;
-					// MissionId оставляем пустым — это уведомление
-					FOutcomeEventBase NotifyEv;
-					NotifyEv.OutcomeType = EOutcomeType::Interior;
-					NotifyEv.OutcomeInterior = EOutcomeInterior::FloorStateRestore; // оповещение о завершении рестора
-					NotifyEv.Payload = NotifyP;
-					EventBus->PublishOutcome(NotifyEv);
-				}
-			}
-			*/
 		}
 
 		// Финальная нотификация о завершении загрузки/перехода
@@ -1660,10 +1462,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, false);
 }
-
-// --- Missing wrapper implementations required by UHT exec functions ---
-// Эти простые реализации связывают публичные UFUNCTION() с внутренней логикой.
-// Вставьте этот блок в конец файла (убедитесь, что определений с такими же сигнатурами ещё нет).
 
 void UInteriorSubsystem::SubscribeInteractionRegistration() { SubscribeAll(); }
 void UInteriorSubsystem::UnsubscribeInteractionRegistration() { UnsubscribeAll(); }
@@ -1705,15 +1503,6 @@ void UInteriorSubsystem::AddRegistrationListener(const FGuid& ItemId, UInteracti
 void UInteriorSubsystem::RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
 {
 	FInteractiveSubsystemMethods::RemoveRegistrationListener(ItemId, Listener);
-}
-
-// BuildAssetIndex — если у вас уже есть реализация, можно опустить; иначе простая реализация
-void UInteriorSubsystem::BuildAssetIndex()
-{
-	// Если уже реализовано выше, оставить как есть.
-	// Зазиимплементированная версия присутствует в файле; этот вызов может быть просто noop здесь.
-	// Оставляем вызов фактической реализации, если она находится в другом месте файла.
-	// Если нет — добавьте реализацию аналогично той, что вы видели ранее (AssetRegistry проход).
 }
 
 // Реализация защищённого метода, требуемого FInteractiveSubsystemMethods

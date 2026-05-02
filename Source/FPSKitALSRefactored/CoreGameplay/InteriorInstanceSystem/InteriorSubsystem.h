@@ -95,7 +95,6 @@ struct FActiveMissionInterior
 	UPROPERTY()
 	int32 MissionStep;
 
-	// Контроллер миссии — помечен UPROPERTY чтобы GC учитывал ссылку во время загрузок/SeamlessTravel
 	UPROPERTY()
 	TObjectPtr<UMissionController> Controller;
 };	
@@ -184,11 +183,6 @@ public:
 	/** Восстанавливает состояние акторов этажа из памяти. Возвращает количество восстановленных акторов. */
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
 	int32 RestoreFloorActorsState(const FGuid& InteriorSetId, int32 CurrentMissionStep, const FGuid& FloorId);
-
-	// Build runtime cache of interior assets (friendly keys -> GUID key)
-	// Friendly key format: "<SoftObjectPath>:floor_<FloorIndex>"
-	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
-	void BuildAssetIndex();
 
 	// Pending spawn transform API (public для доступа из GameMode)
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Transition")

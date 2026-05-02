@@ -249,19 +249,6 @@ UMissionController* UMissionSubsystem::CreateMission(UMissionAsset* MissionAsset
 			*MissionId.ToString());
 		return ActiveMissions[MissionId].Controller;
 	}
-/*
-	// Проверка конфликтов envelope
-	if (MissionAsset->Envelopes[0].IsValid())
-	{
-		TArray<FEnvelopeConflictInfo> Conflicts = CheckEnvelopeConflicts(MissionId, MissionAsset->Envelopes[ActiveMissions[MissionId].MissionStep]);
-		for (const FEnvelopeConflictInfo& Conflict : Conflicts)
-		{
-			UE_LOG(LogTemp, Log,
-				TEXT("MissionSubsystem::CreateMission: Channel conflict — '%s' wins over '%s'"),
-				*Conflict.WinnerMissionId.ToString(), *Conflict.LoserMissionId.ToString());
-		}
-	}
-*/
 	// Создаём контроллер нужного класса (из ассета). Если в ассете задан Blueprint класс,
 	// он будет инстанцирован и вызовы Activate()/OnMissionActivated будут попадать в BP-реализацию.
 	UMissionController* Controller = nullptr;
@@ -345,8 +332,6 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 	else
 	{
 		// Failed / Abandoned — не обновляем FloorStateSnapshots,
-		
-
 		switch (Reason)
 		{
 			case EMissionEndReason::Failed:
@@ -393,88 +378,6 @@ TArray<FName> UMissionSubsystem::GetActiveMissionIds() const
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFLICT RESOLUTION
 // ─────────────────────────────────────────────────────────────────────────────
-/*
-TArray<FEnvelopeConflictInfo> UMissionSubsystem::CheckEnvelopeConflicts(
-	FName NewMissionId,
-	const FMissionEnvelope& NewEnvelope) const
-{
-	TArray<FEnvelopeConflictInfo> Result;
-
-	for (const auto& Pair : ActiveMissions)
-	{
-		if (Pair.Key == NewMissionId) continue;
-		const UMissionController* OtherCtrl = Pair.Value.Controller;
-		if (!OtherCtrl) continue;
-		
-		const FMissionEnvelope& OtherEnvelope = OtherCtrl->GetEnvelopes()[Pair.Value.MissionStep];
-
-		if (!ScopesOverlap(NewEnvelope.Scope, OtherEnvelope.Scope)) continue;
-		if (!ChannelsOverlap(NewEnvelope, OtherEnvelope)) continue;
-
-		FEnvelopeConflictInfo Info;
-		Info.bHasConflict = true;
-
-		// Меньший Priority = победитель
-		if (NewEnvelope.Priority <= OtherEnvelope.Priority)
-		{
-			Info.WinnerMissionId = NewMissionId;
-			Info.LoserMissionId  = Pair.Key;
-		}
-		else
-		{
-			Info.WinnerMissionId = Pair.Key;
-			Info.LoserMissionId  = NewMissionId;
-		}
-		Result.Add(Info);
-	}
-
-	return Result;
-}
-*/
-/*
-FName UMissionSubsystem::GetChannelOwner(
-	const FInteriorFloorKey& FloorKey,
-	EEnvelopeChannel Channel) const
-{
-	FName BestOwner = NAME_None;
-	int32 BestPriority = INT32_MAX;
-
-	for (const auto& Pair : ActiveMissions)
-	{
-		const UMissionController* Ctrl = Pair.Value.Controller;
-		if (!Ctrl) continue;
-
-		const FMissionEnvelope& Env = Ctrl->GetEnvelopes()[Pair.Value.MissionStep];
-
-		// Проверяем что этаж входит в scope
-		bool bInScope = false;
-		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Env.Scope.InteriorScopes)
-		{
-			if (const UFloorAsset* Floor = FloorRef.Get())
-			{
-				if (Floor->FloorID == FloorKey.FloorId)
-				{
-					bInScope = true;
-					break;
-				}
-			}
-		}
-		if (!bInScope) continue;
-
-		// Проверяем что канал объявлен
-		TOptional<EChannelPolicy> Policy = Env.GetPolicyForChannel(Channel);
-		if (!Policy.IsSet() && Env.JobSpacePolicy == EJobSpacePolicy::Partial) continue;
-
-		if (Env.Priority < BestPriority)
-		{
-			BestPriority = Env.Priority;
-			BestOwner    = Pair.Key;
-		}
-	}
-
-	return BestOwner;
-}
-*/
 bool UMissionSubsystem::ScopesOverlap(
 	const FMissionEnvelopeScope& A,
 	const FMissionEnvelopeScope& B) const
@@ -796,18 +699,6 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 
 void UMissionSubsystem::HandleEnvelopeResolve(const FOutcomeEventBase& Outcome)
 {
-	// Ловим только события завершения миссии
-	/*
-	EMissionEndReason Reason = EMissionEndReason::None;
-
-	switch (Outcome.OutcomeMission)
-	{
-	case EOutcomeMission::MissionCompleted: Reason = EMissionEndReason::Completed; break;
-	case EOutcomeMission::MissionFailed:    Reason = EMissionEndReason::Failed;    break;
-	case EOutcomeMission::MissionAbandoned: Reason = EMissionEndReason::Abandoned; break;
-	default: return; // Не наш тип события
-	}
-	*/
 	if (Outcome.OutcomeMission == EOutcomeMission::MissionActivated)
 		return;
 
@@ -1104,14 +995,6 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		}
 
 		TopMissionId = MissionId;
-		// Track the highest-priority mission
-		/*
-		if (Env.Priority > TopPriority)
-		{
-			TopPriority = Env.Priority;
-			TopMissionId = MissionId;
-		}
-		*/
 	}
 
 	// Apply JobSpacePolicy only for the top-priority mission

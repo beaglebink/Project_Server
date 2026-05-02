@@ -86,24 +86,6 @@ public:
 	TArray<FName> GetActiveMissionIds() const;
 
 	// ===== CONFLICT RESOLUTION =====
-
-	// Проверить конфликт нового envelope с активными миссиями по scope + channel.
-	// Возвращает список конфликтов (для каждого затронутого канала).
-	/*
-	TArray<FEnvelopeConflictInfo> CheckEnvelopeConflicts(
-		FName NewMissionId,
-		const FMissionEnvelope& NewEnvelope) const;
-	*/
-
-	// Найти "победителя" для конкретного канала в конкретной зоне.
-	// Возвращает MissionId с наименьшим Priority (или NAME_None если нет владельца).
-	/*
-	FName GetChannelOwner(
-		const FInteriorFloorKey& FloorKey,
-		EEnvelopeChannel Channel) const;
-	*/
-	// ===== BUILDING EXIT HANDLING =====
-
 	// Вызывается InteriorSubsystem когда игрок покидает здание.
 	// MissionSubsystem уведомляет контроллеры чьи Scope включают это здание.
 	void NotifyBuildingExited(const FText& BuildingDisplayName);
