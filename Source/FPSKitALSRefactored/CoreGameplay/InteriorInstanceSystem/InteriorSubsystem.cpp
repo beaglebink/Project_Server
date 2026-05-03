@@ -286,7 +286,11 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 		// если записи нет → пропускаем
 		if (!FoundEntry)
 		{
-			return false;
+			if (IsPartialPolicy)
+			{
+				return false;
+			}
+			return true;
 		}
 
 		if (IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Freeze)
