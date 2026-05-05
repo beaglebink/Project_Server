@@ -184,15 +184,14 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 		}
 
 		UMissionAsset* MissionAsset = Controller->GetMissionAsset();
+		FName ConflictedMissionName;
 		if (MissionAsset)
 		{
 			if (MissionAsset->Envelopes.IsValidIndex(ActiveMission->MissionStep + 1))
 			{
-				FName ConflictedMissionName;
-
 				FMissionEnvelope& Envelope = MissionAsset->Envelopes[ActiveMission->MissionStep + 1];
 
-				if (IsMissionConflict(Envelope, ConflictedMissionName))
+				if (IsMissionConflict(MissionName, Envelope, ConflictedMissionName))
 				{
 					UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s'  conflicts with '%s'"), *MissionName.ToString(), *ConflictedMissionName.ToString());
 					return;
@@ -665,10 +664,12 @@ void UMissionSubsystem::UnsubscribeMissionEnvelopeEvents()
 	Unreg(MissionReleasedHandle);
 }
 
-bool UMissionSubsystem::IsMissionConflict(FMissionEnvelope NewMissionEnvelope, FName& ConflictedMissionName)
+bool UMissionSubsystem::IsMissionConflict(FName MissionName, FMissionEnvelope NewMissionEnvelope, FName& ConflictedMissionName)
 {
 	for (auto& AMPair : ActiveMissions)
 	{
+		if (AMPair.Key == MissionName) continue; // не сравниваем миссию с самой собой
+
 		auto Controller = AMPair.Value.Controller;
 		if (!Controller) continue;
 
@@ -687,7 +688,7 @@ bool UMissionSubsystem::IsMissionConflict(FMissionEnvelope NewMissionEnvelope, F
 		{
 			if (Floors.Contains(NewFloor))
 			{
-				if (NewMissionEnvelope.RuntimePolicy != EJobSpacePolicy::Partial || NewMissionEnvelope.RuntimePolicyChannels.Num() > 0)
+				if ((NewMissionEnvelope.RuntimePolicy != EJobSpacePolicy::Partial || NewMissionEnvelope.RuntimePolicyChannels.Num() > 0) && (Envelope.RuntimePolicy != EJobSpacePolicy::Partial || Envelope.RuntimePolicyChannels.Num() > 0))
 				{
 					IsOverlapFloor = true;
 					ConflictedMissionName = AMPair.Key;
@@ -723,7 +724,7 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 		return;
 	}
 
-	if (IsMissionConflict(P->MissionAsset->Envelopes[0], ConflictedMissionName))
+	if (IsMissionConflict(MissionId, P->MissionAsset->Envelopes[0], ConflictedMissionName))
 	{
 		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s'  conflicts with '%s'"), *MissionId.ToString(), *ConflictedMissionName.ToString());
 		return;

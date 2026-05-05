@@ -100,7 +100,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|EventBus")
 	void UnsubscribeMissionEnvelopeEvents();
 
-	bool IsMissionConflict(FMissionEnvelope NewMissionEnvelope, FName& ConflictedMissionName);
+	bool IsMissionConflict(FName MissionName, FMissionEnvelope NewMissionEnvelope, FName& ConflictedMissionName);
 
 	// Ассеты условий для envelope-событий.
 	// Назначаются в редакторе или через Blueprint после StartUp.
