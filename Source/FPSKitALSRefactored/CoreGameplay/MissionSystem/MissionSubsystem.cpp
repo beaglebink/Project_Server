@@ -186,6 +186,19 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 		UMissionAsset* MissionAsset = Controller->GetMissionAsset();
 		if (MissionAsset)
 		{
+			if (MissionAsset->Envelopes.IsValidIndex(ActiveMission->MissionStep + 1))
+			{
+				FName ConflictedMissionName;
+
+				FMissionEnvelope& Envelope = MissionAsset->Envelopes[ActiveMission->MissionStep + 1];
+
+				if (IsMissionConflict(Envelope, ConflictedMissionName))
+				{
+					UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s'  conflicts with '%s'"), *MissionName.ToString(), *ConflictedMissionName.ToString());
+					return;
+				}
+			}
+
 			int32 StepIndex = ActiveMission->MissionStep;
 			StepIndex++; // предполагается, что прогресс миссии приходит после успешного выполнения шага, так что индекс шага для получения envelope увеличиваем на 1
 			ActiveMission->MissionStep = StepIndex; // сохраняем прогресс миссии (текущий шаг) в MissionSubsystem, чтобы при покидании этажа или загрузке игры можно было восстановить состояние миссии
@@ -217,7 +230,7 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 				// Если индекс шага выходит за пределы массива Envelopes, это может означать, что миссия завершилась
 				UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: Mission '%s' complete"), *MissionName.ToString());
 
-				ApplyMissionCompletionPolicy(MissionName, MissionAsset->Envelopes.Last(), MissionAsset->Envelopes.Last().OnStageCompleted, EMissionEndReason::Completed);
+				ApplyMissionCompletionPolicy(MissionName, MissionAsset->Envelopes.Last(), MissionAsset->Envelopes.Last().NextStagePolicy, EMissionEndReason::Completed);
 
 				Controller->OnMissionCompleted(EMissionEndReason::Completed);
 			}
@@ -321,12 +334,12 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 
 	const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelopes()[Entry->MissionStep];
 
-	EJobSpacePolicy ExitPolicy;
+	EJobSpacePolicy ExitPolicy = Envelope.NextStagePolicy;
 
 	if (Reason == EMissionEndReason::Completed)
 	{
 		// Используем политику завершения миссии (OnMissionCompleted)
-		const EJobSpacePolicy CompletionPolicy = Envelope.OnStageCompleted;
+		const EJobSpacePolicy CompletionPolicy = Envelope.NextStagePolicy;
 		ApplyMissionCompletionPolicy(MissionId, Envelope, CompletionPolicy, Reason);
 	}
 	else
@@ -336,13 +349,13 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 		{
 			case EMissionEndReason::Failed:
 			{
-				ExitPolicy = Envelope.OnMissionFailed;
+				ExitPolicy = Envelope.MissionFailedPolicy;
 				UE_LOG(LogTemp, Log, TEXT("MissionSubsystem::ResolveMission: Mission '%s' failed"), *MissionId.ToString());
 				break;
 			}
 			case EMissionEndReason::Abandoned:
 			{
-				ExitPolicy = Envelope.OnMissionAbandoned;
+				ExitPolicy = Envelope.MissionAbandonedPolicy;
 				UE_LOG(LogTemp, Log, TEXT("MissionSubsystem::ResolveMission: Mission '%s' abandoned"), *MissionId.ToString());
 				break;
 			}
@@ -401,16 +414,16 @@ bool UMissionSubsystem::ChannelsOverlap(
 	const FMissionEnvelope& B) const
 {
 	// Если у обоих политика не Partial — любые каналы потенциально конфликтуют
-	if (A.JobSpacePolicy != EJobSpacePolicy::Partial ||
-		B.JobSpacePolicy != EJobSpacePolicy::Partial)
+	if (A.RuntimePolicy != EJobSpacePolicy::Partial ||
+		B.RuntimePolicy != EJobSpacePolicy::Partial)
 	{
 		return true;
 	}
 
 	// Partial — проверяем явное пересечение каналов
-	for (const FEnvelopeChannelEntry& EntryA : A.Channels)
+	for (const FEnvelopeChannelEntry& EntryA : A.RuntimePolicyChannels)
 	{
-		for (const FEnvelopeChannelEntry& EntryB : B.Channels)
+		for (const FEnvelopeChannelEntry& EntryB : B.RuntimePolicyChannels)
 		{
 			if (EntryA.Channel == EntryB.Channel) return true;
 		}
@@ -442,7 +455,7 @@ void UMissionSubsystem::NotifyBuildingExited(const FText& BuildingDisplayName)
 
 void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionEnvelope& Envelope)
 {
-	const EJobSpacePolicy Policy = Envelope.OnStageCompleted;
+	const EJobSpacePolicy Policy = Envelope.NextStagePolicy;
 
 	if (Policy == EJobSpacePolicy::None)
 	{
@@ -652,6 +665,45 @@ void UMissionSubsystem::UnsubscribeMissionEnvelopeEvents()
 	Unreg(MissionReleasedHandle);
 }
 
+bool UMissionSubsystem::IsMissionConflict(FMissionEnvelope NewMissionEnvelope, FName& ConflictedMissionName)
+{
+	for (auto& AMPair : ActiveMissions)
+	{
+		auto Controller = AMPair.Value.Controller;
+		if (!Controller) continue;
+
+		TArray < FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
+		if (!Envelopes.IsValidIndex(AMPair.Value.MissionStep)) continue;
+
+		FMissionEnvelope Envelope = Envelopes[AMPair.Value.MissionStep];
+		//FMissionEnvelope NewMissionEnvelope = P->MissionAsset->Envelopes[Stage];
+
+		auto Scope = Envelope.Scope;
+		TArray<TSoftObjectPtr<class UFloorAsset>> Floors = Scope.InteriorScopes;
+		TArray<TSoftObjectPtr<class UFloorAsset>> NewFloors = NewMissionEnvelope.Scope.InteriorScopes;
+
+		bool IsOverlapFloor = false;
+		for (auto& NewFloor : NewFloors)
+		{
+			if (Floors.Contains(NewFloor))
+			{
+				if (NewMissionEnvelope.RuntimePolicy != EJobSpacePolicy::Partial || NewMissionEnvelope.RuntimePolicyChannels.Num() > 0)
+				{
+					IsOverlapFloor = true;
+					ConflictedMissionName = AMPair.Key;
+					break;
+				}
+			}
+		}
+
+		if (IsOverlapFloor)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 {
 	// Принимаем только если это MissionActivated с нашим Payload
@@ -665,26 +717,16 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 	// Если миссия уже существует — игнорируем (дублированное событие)
 	if (ActiveMissions.Contains(MissionId)) return;
 
-	//int32 NewMissionPriority = P->MissionAsset->Envelopes[ActiveMissions[MissionId].MissionStep].Priority;
-	auto NewScope = P->MissionAsset->Envelopes[0].Scope;
-
-	for(auto & AMPair : ActiveMissions)
+	FName ConflictedMissionName;
+	if (!P->MissionAsset->Envelopes.IsValidIndex(0))
 	{
-		TObjectPtr<UMissionController> Controller = AMPair.Value.Controller;
-		if (!Controller) continue;
-		const FMissionEnvelope& Env = Controller->GetEnvelopes()[AMPair.Value.MissionStep];
+		return;
+	}
 
-		auto Scope = Env.Scope;
-		for(auto & InteriorScope : Scope.InteriorScopes)
-		{
-			for (auto& NewInteriorScope : NewScope.InteriorScopes)
-			{
-				if (InteriorScope == NewInteriorScope)
-				{
-					// TODO: потом дописать определение конфликта миссий
-				}
-			}
-		}
+	if (IsMissionConflict(P->MissionAsset->Envelopes[0], ConflictedMissionName))
+	{
+		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s'  conflicts with '%s'"), *MissionId.ToString(), *ConflictedMissionName.ToString());
+		return;
 	}
 
 	UMissionController* Ctrl = CreateMission(P->MissionAsset);
@@ -714,7 +756,6 @@ void UMissionSubsystem::HandleEnvelopeResolve(const FOutcomeEventBase& Outcome)
 	// BroadcastStatusChanged из Controller сам публикует событие)
 	const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
 	if (!Entry || !Entry->Controller) return;
-	//if (Entry->Controller->GetStatus() == EMissionStatus::Resolved) return;
 
 	ResolveMission(MissionId, Reason);
 
@@ -975,7 +1016,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		}
 		if (!bInScope) continue;
 
-		const EJobSpacePolicy JobPolicyForSave = Env.JobSpacePolicy;
+		const EJobSpacePolicy JobPolicyForSave = Env.RuntimePolicy;
 		UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
 		if (SaveP)
 		{
@@ -983,7 +1024,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 			SaveP->FloorId = FloorId;
 			SaveP->MissionId = MissionId;
 			SaveP->CurrentMissionStep = Pair.Value.MissionStep;
-			SaveP->Channels = Env.Channels;
+			SaveP->Channels = Env.RuntimePolicyChannels;
 			SaveP->Policy = JobPolicyForSave;
 			FOutcomeEventBase SaveEv;
 			SaveEv.OutcomeType = EOutcomeType::Interior;
@@ -1003,7 +1044,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		if (FActiveMissionEntry* TopEntry = ActiveMissions.Find(TopMissionId))
 		{
 			const FMissionEnvelope& TopEnv = TopEntry->Controller->GetEnvelopes()[TopEntry->MissionStep];
-			const EJobSpacePolicy JobPolicy = TopEnv.JobSpacePolicy;
+			const EJobSpacePolicy JobPolicy = TopEnv.RuntimePolicy;
 			if (JobPolicy != EJobSpacePolicy::None)
 			{
 				UReleaseMissionSnapshotPayload* ReleaseP = Cast<UReleaseMissionSnapshotPayload>(

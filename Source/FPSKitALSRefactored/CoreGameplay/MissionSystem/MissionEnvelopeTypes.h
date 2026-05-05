@@ -142,34 +142,34 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
     // Политика JobSpacePolicy.
     // Если Partial — каждый канал в Channels должен быть объявлен явно.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Policy")
-    EJobSpacePolicy JobSpacePolicy = EJobSpacePolicy::Freeze;
+    EJobSpacePolicy RuntimePolicy = EJobSpacePolicy::Freeze;
 
     // Каналы с политиками. Используется только при JobSpacePolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Channels",
-        meta = (EditCondition = "JobSpacePolicy == EJobSpacePolicy::Partial", EditConditionHides))
-    TArray<FEnvelopeChannelEntry> Channels;
+        meta = (EditCondition = "RuntimePolicy == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> RuntimePolicyChannels;
 
     // Политика выхода
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Stage Complete Policy"))
-    EJobSpacePolicy OnStageCompleted = EJobSpacePolicy::Freeze;
+    EJobSpacePolicy NextStagePolicy = EJobSpacePolicy::Freeze;
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (DisplayName = "Stage Complete Channels", EditCondition = "OnStageCompleted == EJobSpacePolicy::Partial", EditConditionHides))
-    TArray<FEnvelopeChannelEntry> StageCompleteChannels;
+        meta = (DisplayName = "Stage Complete Channels", EditCondition = "NextStagePolicy == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> NextStagePolicyChannels;
 
     // Политика провала миссии
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Mission Failed Policy"))
-    EJobSpacePolicy OnMissionFailed = EJobSpacePolicy::Reset;
+    EJobSpacePolicy MissionFailedPolicy = EJobSpacePolicy::Reset;
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (DisplayName = "Mission Failed Channels", EditCondition = "OnMissionFailed == EJobSpacePolicy::Partial", EditConditionHides))
-    TArray<FEnvelopeChannelEntry> MissionFailedChannels;
+        meta = (DisplayName = "Mission Failed Channels", EditCondition = "MissionFailedPolicy == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> MissionFailedPolicyChannels;
 
     // Политика отказа от миссии
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (DisplayName = "Mission Abandoned Policy"))
-    EJobSpacePolicy OnMissionAbandoned = EJobSpacePolicy::Reset;
+    EJobSpacePolicy MissionAbandonedPolicy = EJobSpacePolicy::Reset;
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
@@ -187,7 +187,7 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
     // Возвращает политику для указанного канала. Если канал не объявлен — TOptional пуст.
     TOptional<EChannelPolicy> GetPolicyForChannel(EEnvelopeChannel InChannel) const
     {
-        for (const FEnvelopeChannelEntry& Entry : Channels)
+        for (const FEnvelopeChannelEntry& Entry : RuntimePolicyChannels)
         {
             if (Entry.Channel == InChannel)
             {

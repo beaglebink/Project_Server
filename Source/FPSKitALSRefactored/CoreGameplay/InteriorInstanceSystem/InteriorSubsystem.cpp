@@ -232,9 +232,9 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 	{
 	case EMissionEndReason::None:
 	{
-		IsResetPolicy = Envelope.JobSpacePolicy == EJobSpacePolicy::Reset;
-		IsPartialPolicy = Envelope.JobSpacePolicy == EJobSpacePolicy::Partial;
-		FoundEntry = Envelope.Channels.FindByPredicate(
+		IsResetPolicy = Envelope.RuntimePolicy == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.RuntimePolicy == EJobSpacePolicy::Partial;
+		FoundEntry = Envelope.RuntimePolicyChannels.FindByPredicate(
 			[ActorChannel](const FEnvelopeChannelEntry& Entry)
 			{
 				return Entry.Channel == ActorChannel;
@@ -243,9 +243,9 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 	}
 	case EMissionEndReason::Completed:
 	{
-		IsResetPolicy = Envelope.OnStageCompleted == EJobSpacePolicy::Reset;
-		IsPartialPolicy = Envelope.OnStageCompleted == EJobSpacePolicy::Partial;
-		FoundEntry = Envelope.StageCompleteChannels.FindByPredicate(
+		IsResetPolicy = Envelope.NextStagePolicy == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.NextStagePolicy == EJobSpacePolicy::Partial;
+		FoundEntry = Envelope.NextStagePolicyChannels.FindByPredicate(
 			[ActorChannel](const FEnvelopeChannelEntry& Entry)
 			{
 				return Entry.Channel == ActorChannel;
@@ -254,9 +254,9 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 	}
 	case EMissionEndReason::Failed:
 	{
-		IsResetPolicy = Envelope.OnMissionFailed == EJobSpacePolicy::Reset;
-		IsPartialPolicy = Envelope.OnMissionFailed == EJobSpacePolicy::Partial;
-		FoundEntry = Envelope.MissionFailedChannels.FindByPredicate(
+		IsResetPolicy = Envelope.MissionFailedPolicy == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.MissionFailedPolicy == EJobSpacePolicy::Partial;
+		FoundEntry = Envelope.MissionFailedPolicyChannels.FindByPredicate(
 			[ActorChannel](const FEnvelopeChannelEntry& Entry)
 			{
 				return Entry.Channel == ActorChannel;
@@ -265,8 +265,8 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 	}
 	case EMissionEndReason::Abandoned:
 	{
-		IsResetPolicy = Envelope.OnMissionAbandoned == EJobSpacePolicy::Reset;
-		IsPartialPolicy = Envelope.OnMissionAbandoned == EJobSpacePolicy::Partial;
+		IsResetPolicy = Envelope.MissionAbandonedPolicy == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.MissionAbandonedPolicy == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.MissionAbandonedChannels.FindByPredicate(
 			[ActorChannel](const FEnvelopeChannelEntry& Entry)
 			{
@@ -555,7 +555,7 @@ static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorSt
 				const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(C->ActorType);
 
 				// ищем запись для канала
-				const FEnvelopeChannelEntry* FoundEntry = Envelope.Channels.FindByPredicate(
+				const FEnvelopeChannelEntry* FoundEntry = Envelope.RuntimePolicyChannels.FindByPredicate(
 					[ActorChannel](const FEnvelopeChannelEntry& Entry)
 					{
 						return Entry.Channel == ActorChannel;
@@ -1673,19 +1673,19 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 			{
 				case EMissionEndReason::Completed:
 				{
-					Policy =Envelope.OnStageCompleted;
-					EndChannels = Envelope.StageCompleteChannels;
+					Policy =Envelope.NextStagePolicy;
+					EndChannels = Envelope.NextStagePolicyChannels;
 					break;
 				}
 				case EMissionEndReason::Failed:
 				{
-					Policy = Envelope.OnMissionFailed;
-					EndChannels = Envelope.MissionFailedChannels;
+					Policy = Envelope.MissionFailedPolicy;
+					EndChannels = Envelope.MissionFailedPolicyChannels;
 					break;
 				}
 				case EMissionEndReason::Abandoned:
 				{
-					Policy = Envelope.OnMissionAbandoned;
+					Policy = Envelope.MissionAbandonedPolicy;
 					EndChannels = Envelope.MissionAbandonedChannels;
 					break;
 				}
@@ -1819,7 +1819,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 											UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>();
 											if (!FAC) continue;
 
-											for (auto C : Envelope.StageCompleteChannels)
+											for (auto C : Envelope.NextStagePolicyChannels)
 											{
 												EEnvelopeChannel EC = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
 												if (EC == C.Channel && C.Policy == EChannelPolicy::Reset)
@@ -1921,7 +1921,7 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionE
 			const TArray<FFloorSavedActorState>* MissionSnap = PerFloor.Find(MissionId);
 			if (!MissionSnap) continue;
 
-			for (const FEnvelopeChannelEntry& ChannelEntry : Envelope.Channels)
+			for (const FEnvelopeChannelEntry& ChannelEntry : Envelope.RuntimePolicyChannels)
 			{
 				if (ChannelEntry.Policy == EChannelPolicy::Freeze)
 				{
