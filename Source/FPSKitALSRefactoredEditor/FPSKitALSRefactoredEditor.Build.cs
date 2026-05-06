@@ -6,21 +6,18 @@ public class FPSKitALSRefactoredEditor : ModuleRules
 {
     public FPSKitALSRefactoredEditor(ReadOnlyTargetRules Target) : base(Target)
     {
-        OptimizeCode = CodeOptimization.Never;
+	OptimizeCode = CodeOptimization.Never;
+
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         PrivateDependencyModuleNames.AddRange(new string[] {
             "Core", "CoreUObject", "Engine", "InputCore",
             "UnrealEd", "PropertyEditor", "Slate", "SlateCore", "AssetRegistry",
-            "GraphEditor",
-            "Kismet",
-            "BlueprintGraph",
             "FPSKitALSRefactored"
         });
 
         string RuntimeModuleBase = Path.GetFullPath(Path.Combine(ModuleDirectory, "..", "FPSKitALSRefactored"));
         PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "CoreGameplay", "LocationSystem"));
-        PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "CoreGameplay", "MissionSystem", "ProxySystem"));
         PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "Public"));
 
         PrivateIncludePaths.Add("FPSKitALSRefactoredEditor/Private");

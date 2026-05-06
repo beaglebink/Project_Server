@@ -7,12 +7,9 @@ public class FPSKitALSRefactored : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         OptimizeCode = CodeOptimization.Never;
-
         PublicDependencyModuleNames.AddRange(new string[]
         {
-            "Core",
-            "CoreUObject",
-            "Engine",
+            "Core", "CoreUObject", "Engine",
             "ALS",
             "ALSExtras",
             "EnhancedInput",
@@ -40,10 +37,7 @@ public class FPSKitALSRefactored : ModuleRules
                 "EditorStyle",
                 "PropertyEditor",
                 "UnrealEd",
-                "MoviePlayer",
-                "BlueprintGraph",
-                "KismetCompiler",
-                "GraphEditor"
+                "MoviePlayer"
             });
         }
 
@@ -58,7 +52,6 @@ public class FPSKitALSRefactored : ModuleRules
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "Weapon"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "Cubixon"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "MissionSystem"));
-        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "MissionSystem", "ProxySystem"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "SaveGame"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "CoreGameplay", "LocationSystem"));
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
