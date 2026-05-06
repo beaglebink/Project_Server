@@ -2,7 +2,7 @@
 #include "KismetCompiler.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
-#include "K2Node_DynamicCast.h"
+#include "K2Node_DynamicCast.h"      // <-- ДОБАВИТЬ
 #include "ProxyManager.h"
 #include "ActorProxy.h"
 #include "FloorAsset.h"
@@ -15,6 +15,7 @@ void UK2Node_GetActorByClass::AllocateDefaultPins()
     CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UFloorAsset::StaticClass(), TEXT("FloorAsset"));
     CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Class, AActor::StaticClass(), TEXT("ActorClass"));
     CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Name, TEXT("ActorName"));
+
     CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, UActorProxy::StaticClass(), TEXT("Result"));
 }
 
@@ -58,13 +59,12 @@ void UK2Node_GetActorByClass::UpdateOutputPinType()
     if (ActorClass)
     {
         ResultPin->PinType.PinSubCategoryObject = ActorClass;
-        // Используем FText::FromString для чистого имени
-        ResultPin->PinFriendlyName = FText::FromString(ActorClass->GetName());
+        ResultPin->PinFriendlyName = FText::FromString(FString::Printf(TEXT("As %s"), *ActorClass->GetName()));
     }
     else
     {
         ResultPin->PinType.PinSubCategoryObject = UActorProxy::StaticClass();
-        ResultPin->PinFriendlyName = FText::FromString(TEXT("Result"));
+        ResultPin->PinFriendlyName = FText::FromString("Result");
     }
 
     if (GetGraph())
@@ -78,16 +78,14 @@ FText UK2Node_GetActorByClass::GetNodeTitle(ENodeTitleType::Type TitleType) cons
     TSubclassOf<AActor> ActorClass = GetActorClassFromPin();
     if (ActorClass)
     {
-        // Чистый тайтл без printf-форматирования
-        FString ClassName = ActorClass->GetName();
-        return FText::FromString(FString(TEXT("Get ")) + ClassName + FString(TEXT(" from Floor")));
+        return FText::FromString(FString::Printf(TEXT("Get %s from Floor"), *ActorClass->GetName()));
     }
-    return NSLOCTEXT("K2Node", "GetProxyActorByClass", "Get Proxy Actor by Class");
+    return FText::FromString("Get Proxy Actor by Class");
 }
 
 FText UK2Node_GetActorByClass::GetTooltipText() const
 {
-    return NSLOCTEXT("K2Node", "GetProxyActorByClassTooltip", "Return a proxy actor of the specified class from the selected floor.");
+    return FText::FromString("Возвращает одного прокси-актора указанного класса из выбранного этажа");
 }
 
 void UK2Node_GetActorByClass::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
@@ -106,6 +104,7 @@ void UK2Node_GetActorByClass::ExpandNode(FKismetCompilerContext& CompilerContext
     CallFuncNode->SetFromFunction(TargetFunc);
     CallFuncNode->AllocateDefaultPins();
 
+    // Связываем входные пины
     UEdGraphPin* FloorAssetPin = FindPin(TEXT("FloorAsset"));
     UEdGraphPin* ActorNamePin = FindPin(TEXT("ActorName"));
 
@@ -118,6 +117,7 @@ void UK2Node_GetActorByClass::ExpandNode(FKismetCompilerContext& CompilerContext
         CompilerContext.MovePinLinksToIntermediate(*ActorNamePin, *CallFuncNode->FindPin(TEXT("ActorName")));
     }
 
+    // Связываем выходной пин
     UEdGraphPin* ResultPin = FindPin(TEXT("Result"));
     UEdGraphPin* FuncResultPin = CallFuncNode->GetReturnValuePin();
 
@@ -126,12 +126,15 @@ void UK2Node_GetActorByClass::ExpandNode(FKismetCompilerContext& CompilerContext
         TSubclassOf<AActor> ActorClass = GetActorClassFromPin();
         if (ActorClass && ActorClass != AActor::StaticClass())
         {
+            // Создаём промежуточный DynamicCast узел
             UK2Node_DynamicCast* CastNode = CompilerContext.SpawnIntermediateNode<UK2Node_DynamicCast>(this, SourceGraph);
             CastNode->TargetType = ActorClass;
             CastNode->AllocateDefaultPins();
 
+            // Связываем прокси с входом Cast
             FuncResultPin->MakeLinkTo(CastNode->GetCastSourcePin());
 
+            // Выход Cast связываем с выходным пином нашей ноды
             UEdGraphPin* CastResultPin = CastNode->GetCastResultPin();
             if (CastResultPin)
             {
@@ -161,5 +164,5 @@ void UK2Node_GetActorByClass::GetMenuActions(FBlueprintActionDatabaseRegistrar& 
 
 FText UK2Node_GetActorByClass::GetMenuCategory() const
 {
-    return NSLOCTEXT("K2Node", "GetProxyActorByClassCategory", "Proxy System");
+    return FText::FromString("Proxy System");
 }
