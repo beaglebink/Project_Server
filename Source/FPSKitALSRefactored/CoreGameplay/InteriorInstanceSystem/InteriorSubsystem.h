@@ -416,4 +416,6 @@ private:
 	FOutcomeHandlerHandle CompleteMissionHandle;
 
 	void HandleCompleteMission(const FOutcomeEventBase& Outcome);
+	void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
+	void StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EJobSpacePolicy Policy, TArray<FEnvelopeChannelEntry>& EndChannels);
 };

@@ -215,6 +215,7 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 					if (P1)
 					{
 						P1->ActiveMissions = ActiveMissions;
+						P1->CurrentMissionId = MissionName;
 						FOutcomeEventBase Ev;
 						Ev.OutcomeType = EOutcomeType::Interior;
 						Ev.Payload = P1;
@@ -310,6 +311,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 		if (P1)
 		{
 			P1->ActiveMissions = ActiveMissions;
+			P1->CurrentMissionId = MissionId;
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Interior;	
 			Ev.Payload = P1;
@@ -822,6 +824,7 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 		if (P1)
 		{
 			P1->ActiveMissions = ActiveMissions;
+			P1->CurrentMissionId = MissionId;
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Interior;
 			Ev.Payload = P1;

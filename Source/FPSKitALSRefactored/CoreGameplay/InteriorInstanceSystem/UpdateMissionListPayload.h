@@ -16,4 +16,7 @@ class FPSKITALSREFACTORED_API UUpdateMissionListPayload : public UOutcomePayload
 public:
 	UPROPERTY()
 	TMap<FName, FActiveMissionEntry> ActiveMissions;
+
+	UPROPERTY()
+	FName CurrentMissionId;
 };
