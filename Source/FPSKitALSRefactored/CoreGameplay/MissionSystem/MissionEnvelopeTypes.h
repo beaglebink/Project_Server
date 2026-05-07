@@ -173,7 +173,7 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
 
     // Каналы с политиками выхода. Используется только при ExitPolicy = Partial.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (DisplayName = "Mission Abandoned Channels", EditCondition = "OnMissionAbandoned == EJobSpacePolicy::Partial", EditConditionHides))
+        meta = (DisplayName = "Mission Abandoned Channels", EditCondition = "MissionAbandonedPolicy == EJobSpacePolicy::Partial", EditConditionHides))
     TArray<FEnvelopeChannelEntry> MissionAbandonedChannels;
 
     // Приоритет — при конфликте каналов побеждает envelope с меньшим числом

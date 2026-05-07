@@ -518,6 +518,54 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
 static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope)
 {
 	if (!W) return 0;
+
+	// НУЖНО СРАВНИТЬ ТЕКУЩИЙ УРОВЕНЬ И ТОТ УРОВЕНЬ НА КОТОРОМ РАБОТАЕТ МИССИЯ
+
+
+	FMissionEnvelopeScope Scope = Envelope.Scope;
+	for (auto S : Scope.InteriorScopes)
+	{
+		FGuid FloorGuid = S->FloorID;
+		FGuid InteriorSetID = S->ParentInteriorSet.Get()->InteriorSetID;
+		FString ScopeLevelName = S->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(W).ToLower();
+
+		// Функция нормализации имени из package → base filename
+		auto NormalizeNameFromPackage = [](const FString& InPath) -> FString
+			{
+				if (InPath.IsEmpty()) return FString();
+
+				FString PackagePath = InPath;
+				if (PackagePath.Contains(TEXT(".")))
+				{
+					PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
+				}
+
+				const FString Base = FPaths::GetBaseFilename(PackagePath);
+
+				FString Result = Base;
+				int32 PIEPos = Result.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
+				if (PIEPos != INDEX_NONE)
+				{
+					int32 MPos = Result.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
+					if (MPos != INDEX_NONE && MPos + 3 < Result.Len())
+						Result = Result.Mid(MPos + 3);
+					else if (PIEPos + 6 < Result.Len())
+						Result = Result.Mid(PIEPos + 6);
+				}
+
+				return Result.ToLower();
+			};
+
+		const FString NormTarget = NormalizeNameFromPackage(ScopeLevelName);
+
+		if (NormTarget != CurrentLevelName)
+		{
+			//SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, P->EndReason);
+			return 0;
+		}
+	}
+
 	if (Snapshots.IsEmpty()) return 0;
 
 	TMap<FGuid, AActor*> ActorByItemId;
@@ -2015,7 +2063,9 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 								if (FAC->ItemId != ActorSnap.ItemId) continue;
 								if (FAC->SnapshotChannel == ESnapshotChannel::Snapshot)
 								{
-									bMatchChannel = true;
+									EEnvelopeChannel EC = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
+									
+									bMatchChannel = EC == Channel.Channel;
 								}
 								break;
 							}
