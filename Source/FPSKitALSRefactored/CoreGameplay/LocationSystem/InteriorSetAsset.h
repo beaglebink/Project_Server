@@ -38,6 +38,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Floors")
     TArray<TSoftObjectPtr<class UFloorAsset>> Floors;
 
+    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
+    {
+        Super::PostDuplicate(DuplicateMode);
+        InteriorSetID = FGuid::NewGuid();
+    }
+
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
 #endif

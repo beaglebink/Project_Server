@@ -28,6 +28,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Regions")
     TArray<TSoftObjectPtr<class UWorldRegionAsset>> Regions;
 
+    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
+    {
+        Super::PostDuplicate(DuplicateMode);
+        WorldMapID = FGuid::NewGuid();
+    }
+
 #if WITH_EDITOR
     // Автогенерация GUID при создании ассета
     virtual void PostInitProperties() override;

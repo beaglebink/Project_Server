@@ -36,6 +36,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Transitions")
     TArray<FLocationTransitionPoint> TransitionPoints;
 
+    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
+    {
+        Super::PostDuplicate(DuplicateMode);
+        FloorID = FGuid::NewGuid();
+    }
+
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
 #endif

@@ -39,6 +39,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Street|Buildings")
     TArray<TSoftObjectPtr<class UInteriorSetAsset>> InteriorSets;
 
+    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
+    {
+        Super::PostDuplicate(DuplicateMode);
+        StreetID = FGuid::NewGuid();
+    }
+
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
 #endif

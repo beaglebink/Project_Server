@@ -48,6 +48,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldRegion|Streets")
     TArray<TSoftObjectPtr<class UStreetAsset>> Streets;
 
+    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
+    {
+        Super::PostDuplicate(DuplicateMode);
+        WorldRegionID = FGuid::NewGuid();
+    }
+
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
 #endif
