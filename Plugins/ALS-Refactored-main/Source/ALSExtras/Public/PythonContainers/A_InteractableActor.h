@@ -15,6 +15,8 @@ class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalIntera
 public:	
 	AA_InteractableActor();
 
+	virtual void OnConstruction(const FTransform& Transform) override;
+
 protected:
 	virtual void BeginPlay() override;
 

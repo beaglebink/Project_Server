@@ -153,7 +153,6 @@ void AA_PaintableTexture::DrawCellOnRenderTarget(int32 CellX, int32 CellY)
 
 void AA_PaintableTexture::OnFinish()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Finished!"));
 	bIsOnDissolving = true;
 
 	// Dissolve VFX

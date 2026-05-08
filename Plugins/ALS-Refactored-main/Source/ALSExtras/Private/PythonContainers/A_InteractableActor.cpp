@@ -7,6 +7,11 @@ AA_InteractableActor::AA_InteractableActor()
 	PrimaryActorTick.bCanEverTick = true;
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
 	RootComponent = StaticMesh;
+}
+
+void AA_InteractableActor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
 
 	StaticMesh->SetCollisionProfileName(TEXT("HighlyReactiveObject"));
 	StaticMesh->SetSimulatePhysics(true);
