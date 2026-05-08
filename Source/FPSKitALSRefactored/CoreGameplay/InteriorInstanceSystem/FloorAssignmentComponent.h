@@ -47,7 +47,7 @@ public:
     FGuid AnchorId;
 
     // Стабильный идентификатор экземпляра для сопоставления с snapshot (сохраняется в .umap)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, DuplicateTransient, Category = "FloorAssignment")
     FGuid ItemId;
 
     // Канал снапшота — если != None, актор участвует в сохранении/восстановлении
@@ -59,6 +59,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
     FGuid GetFloorId() const { return FloorId; }
+
+    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
+    {
+        Super::PostDuplicate(DuplicateMode);
+        ItemId = FGuid::NewGuid();
+    }
 
 protected:
     virtual void BeginPlay() override;
