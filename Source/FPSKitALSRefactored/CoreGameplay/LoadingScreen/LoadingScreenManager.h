@@ -71,4 +71,7 @@ private:
 	int32 ViewportFallbackZOrder = 1000000;
 
 	TSharedPtr<SWindow> LoadingWindow;
+
+	// Сохранение видимости курсора
+	bool bSavedMouseCursorVisible = false;
 };
