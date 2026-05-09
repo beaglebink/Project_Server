@@ -62,6 +62,8 @@ public:
 
     virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
     {
+        if (DuplicateMode == EDuplicateMode::Type::Normal) return;
+
         Super::PostDuplicate(DuplicateMode);
         ItemId = FGuid::NewGuid();
     }

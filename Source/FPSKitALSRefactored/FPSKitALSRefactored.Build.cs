@@ -20,7 +20,8 @@ public class FPSKitALSRefactored : ModuleRules
             "Slate",
             "SlateCore",
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
+            "SlateRHIRenderer"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]

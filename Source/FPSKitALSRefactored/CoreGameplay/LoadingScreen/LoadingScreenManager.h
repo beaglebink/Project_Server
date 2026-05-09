@@ -5,6 +5,7 @@
 #include "MoviePlayer.h"
 #include "Containers/Ticker.h"
 #include "Widgets/SWindow.h"
+#include "Rendering/SlateRenderer.h"
 #include "LoadingScreenManager.generated.h"
 
 UCLASS(Abstract, Blueprintable, BlueprintType)
