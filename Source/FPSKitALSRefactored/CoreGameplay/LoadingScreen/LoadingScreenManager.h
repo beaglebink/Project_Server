@@ -5,7 +5,6 @@
 #include "MoviePlayer.h"
 #include "Containers/Ticker.h"
 #include "Widgets/SWindow.h"
-#include "Rendering/SlateRenderer.h"
 #include "LoadingScreenManager.generated.h"
 
 UCLASS(Abstract, Blueprintable, BlueprintType)
@@ -47,6 +46,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Loading Screen")
 	bool IsLoadingScreenVisible() const { return bIsVisible; }
 
+	// Консольная переменная для переключения в устаревший режим (без отдельного окна и захвата)
+	static bool bUseLegacyLoadingScreen;
+
 private:
 	void OnMoviePlaybackFinished();
 	void HideLoadingScreenInternal();
@@ -54,7 +56,6 @@ private:
 
 	void CreateLoadingWindow(const TSharedPtr<SWidget>& Content);
 	void DestroyLoadingWindow();
-	bool FocusGuardTick(float DeltaTime);
 
 	UPROPERTY()
 	TObjectPtr<ULoadingScreenSettings> Settings;
@@ -65,7 +66,6 @@ private:
 
 	FDelegateHandle OnPrepareHandle;
 	FTSTicker::FDelegateHandle HideTickerHandle;
-	FTSTicker::FDelegateHandle FocusGuardHandle;
 
 	bool bViewportFallback = false;
 	TSharedPtr<SWidget> ViewportFallbackWidget;
@@ -73,6 +73,8 @@ private:
 
 	TSharedPtr<SWindow> LoadingWindow;
 
-	// Сохранение видимости курсора
+	// Для сборки
 	bool bSavedMouseCursorVisible = false;
+
+
 };

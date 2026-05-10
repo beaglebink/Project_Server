@@ -29,6 +29,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Hierarchy")
     TSoftObjectPtr<class UInteriorSetAsset> ParentInteriorSet;
 
+    // === ИЗМЕНЕНИЕ: Кэш идентификатора родительского InteriorSetAsset ===
+    // Заполняется автоматически в редакторе и при загрузке.
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Floor|Identity")
+    FGuid InteriorSetID;
+    // === КОНЕЦ ИЗМЕНЕНИЯ ===
+
     FVector NavigationOrigin = FVector::ZeroVector;
     TArray<FLocationZone> Zones;
     TArray<FLocationAnchor> Anchors;
@@ -42,8 +48,11 @@ public:
         FloorID = FGuid::NewGuid();
     }
 
+    virtual void PostLoad() override;                  // === ИЗМЕНЕНИЕ: добавлено объявление
+
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override; // === ИЗМЕНЕНИЕ
 #endif
 
     virtual FPrimaryAssetId GetPrimaryAssetId() const override

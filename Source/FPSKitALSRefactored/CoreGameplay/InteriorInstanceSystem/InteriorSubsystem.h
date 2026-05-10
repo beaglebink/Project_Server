@@ -275,6 +275,7 @@ private:
 	TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
 	// Cached EventBus subsystem for outcome publishing
+	UPROPERTY()
 	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
 
 	// Helpers to subscribe/unsubscribe groups
@@ -318,6 +319,7 @@ private:
 	FOutcomeHandlerHandle SetTooltipHandle;
 
 	// Runtime map: (InteriorSetId, FloorId) -> placed actors
+	UPROPERTY()
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloor;
 
 	// ── In-memory snapshot storage (appended per floor, never overwritten) ─
