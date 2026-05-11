@@ -2168,6 +2168,7 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	TSharedPtr<FJsonValue> MissionFloorValue = Root->TryGetField(TEXT("MissionFloorSnapshots"));
 	if (MissionFloorValue.IsValid())
 	{
+		MissionFloorSnapshots.Empty();
 		DeserializeMissionFloorSnapshots(MissionFloorValue, MissionFloorSnapshots);
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored MissionFloorSnapshots, count=%d"), MissionFloorSnapshots.Num());
 	}
