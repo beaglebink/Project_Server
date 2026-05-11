@@ -130,9 +130,6 @@ public:
 	void SubscribeMissionProgress();
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
-	void UnsubscribeGhostCleared();
-
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void UnsubscribeMissionProgress();
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
@@ -140,9 +137,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void SetMissionProgressCondition(UOutcomeConditionAsset* NewCondition);
-
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
-	bool IsGhostClearedSubscribed() const { return GhostClearedHandle.IsValid(); }
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	bool IsMissionProgressSubscribed() const { return MissionProgressHandle.IsValid(); }
@@ -157,7 +151,7 @@ private:
 
 	void HandleMissionProgress(const FOutcomeEventBase& Outcome);
 
-	FOutcomeHandlerHandle GhostClearedHandle;
+	//FOutcomeHandlerHandle GhostClearedHandle;
 	FOutcomeHandlerHandle MissionProgressHandle;
 
 	// Handles для envelope-событий (MissionActivated, Resolve, BuildingLeaving)

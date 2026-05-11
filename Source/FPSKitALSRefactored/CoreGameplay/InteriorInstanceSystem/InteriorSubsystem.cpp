@@ -31,7 +31,292 @@
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
 #include "UpdateMissionListPayload.h"
+#include "../SaveGame/GameSaveSubsystem.h"
 #include "ApplyMissionCompletionPolicyPayload.h"
+
+// -----------------------------------------------------------------------------
+// JSON serialization helpers for snapshot structures
+// -----------------------------------------------------------------------------
+
+static TSharedPtr<FJsonObject> TransformToJsonObject(const FTransform& Transform)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	FVector Loc = Transform.GetLocation();
+	FRotator Rot = Transform.Rotator();
+	FVector Scale = Transform.GetScale3D();
+	Obj->SetArrayField(TEXT("Location"), {
+		MakeShared<FJsonValueNumber>(Loc.X),
+		MakeShared<FJsonValueNumber>(Loc.Y),
+		MakeShared<FJsonValueNumber>(Loc.Z)
+		});
+	Obj->SetArrayField(TEXT("Rotation"), {
+		MakeShared<FJsonValueNumber>(Rot.Pitch),
+		MakeShared<FJsonValueNumber>(Rot.Yaw),
+		MakeShared<FJsonValueNumber>(Rot.Roll)
+		});
+	Obj->SetArrayField(TEXT("Scale"), {
+		MakeShared<FJsonValueNumber>(Scale.X),
+		MakeShared<FJsonValueNumber>(Scale.Y),
+		MakeShared<FJsonValueNumber>(Scale.Z)
+		});
+	return Obj;
+}
+
+static FTransform TransformFromJsonObject(const TSharedPtr<FJsonObject>& Obj)
+{
+	if (!Obj.IsValid()) return FTransform::Identity;
+	auto ReadVector = [](const TSharedPtr<FJsonObject>& O, const FString& Field) -> FVector
+		{
+			if (!O->HasField(Field)) return FVector::ZeroVector;
+			const TArray<TSharedPtr<FJsonValue>>& Arr = O->GetArrayField(Field);
+			if (Arr.Num() >= 3)
+				return FVector(Arr[0]->AsNumber(), Arr[1]->AsNumber(), Arr[2]->AsNumber());
+			return FVector::ZeroVector;
+		};
+	FVector Loc = ReadVector(Obj, TEXT("Location"));
+	FRotator Rot;
+	if (Obj->HasField(TEXT("Rotation")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>& Arr = Obj->GetArrayField(TEXT("Rotation"));
+		if (Arr.Num() >= 3)
+			Rot = FRotator(Arr[0]->AsNumber(), Arr[1]->AsNumber(), Arr[2]->AsNumber());
+	}
+	FVector Scale = ReadVector(Obj, TEXT("Scale"));
+	return FTransform(Rot, Loc, Scale);
+}
+
+static TSharedPtr<FJsonObject> PropertyEntryToJson(const FFloorSavedPropertyEntry& Entry)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetStringField(TEXT("PropertyName"), Entry.PropertyName.ToString());
+	Obj->SetStringField(TEXT("ValueText"), Entry.ValueText);
+	return Obj;
+}
+
+static FFloorSavedPropertyEntry PropertyEntryFromJson(const TSharedPtr<FJsonObject>& Obj)
+{
+	FFloorSavedPropertyEntry Entry;
+	if (Obj.IsValid())
+	{
+		Entry.PropertyName = FName(*Obj->GetStringField(TEXT("PropertyName")));
+		Entry.ValueText = Obj->GetStringField(TEXT("ValueText"));
+	}
+	return Entry;
+}
+
+static TSharedPtr<FJsonObject> ComponentStateToJson(const FFloorSavedComponentState& State)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetStringField(TEXT("ComponentName"), State.ComponentName.ToString());
+	Obj->SetStringField(TEXT("ComponentClassName"), State.ComponentClassName.ToString());
+	Obj->SetBoolField(TEXT("bWasActive"), State.bWasActive);
+	Obj->SetBoolField(TEXT("bWasAttached"), State.bWasAttached);
+	Obj->SetStringField(TEXT("AttachParentName"), State.AttachParentName.ToString());
+	Obj->SetStringField(TEXT("AttachSocketName"), State.AttachSocketName.ToString());
+	Obj->SetObjectField(TEXT("RelativeTransform"), TransformToJsonObject(State.RelativeTransform));
+	Obj->SetObjectField(TEXT("WorldTransform"), TransformToJsonObject(State.WorldTransform));
+	Obj->SetBoolField(TEXT("bHasRelativeTransform"), State.bHasRelativeTransform);
+	Obj->SetBoolField(TEXT("bHasWorldTransform"), State.bHasWorldTransform);
+	Obj->SetBoolField(TEXT("bWasSimulatingPhysics"), State.bWasSimulatingPhysics);
+	Obj->SetArrayField(TEXT("SavedLinearVelocity"), {
+		MakeShared<FJsonValueNumber>(State.SavedLinearVelocity.X),
+		MakeShared<FJsonValueNumber>(State.SavedLinearVelocity.Y),
+		MakeShared<FJsonValueNumber>(State.SavedLinearVelocity.Z)
+		});
+	Obj->SetArrayField(TEXT("SavedAngularVelocityDeg"), {
+		MakeShared<FJsonValueNumber>(State.SavedAngularVelocityDeg.X),
+		MakeShared<FJsonValueNumber>(State.SavedAngularVelocityDeg.Y),
+		MakeShared<FJsonValueNumber>(State.SavedAngularVelocityDeg.Z)
+		});
+
+	TArray<TSharedPtr<FJsonValue>> PropsArray;
+	for (const auto& Prop : State.Properties)
+		PropsArray.Add(MakeShared<FJsonValueObject>(PropertyEntryToJson(Prop)));
+	Obj->SetArrayField(TEXT("Properties"), PropsArray);
+	return Obj;
+}
+
+static FFloorSavedComponentState ComponentStateFromJson(const TSharedPtr<FJsonObject>& Obj)
+{
+	FFloorSavedComponentState State;
+	if (!Obj.IsValid()) return State;
+	State.ComponentName = FName(*Obj->GetStringField(TEXT("ComponentName")));
+	State.ComponentClassName = FName(*Obj->GetStringField(TEXT("ComponentClassName")));
+	State.bWasActive = Obj->GetBoolField(TEXT("bWasActive"));
+	State.bWasAttached = Obj->GetBoolField(TEXT("bWasAttached"));
+	State.AttachParentName = FName(*Obj->GetStringField(TEXT("AttachParentName")));
+	State.AttachSocketName = FName(*Obj->GetStringField(TEXT("AttachSocketName")));
+	if (Obj->HasField(TEXT("RelativeTransform")))
+		State.RelativeTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("RelativeTransform")));
+	if (Obj->HasField(TEXT("WorldTransform")))
+		State.WorldTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("WorldTransform")));
+	State.bHasRelativeTransform = Obj->GetBoolField(TEXT("bHasRelativeTransform"));
+	State.bHasWorldTransform = Obj->GetBoolField(TEXT("bHasWorldTransform"));
+	State.bWasSimulatingPhysics = Obj->GetBoolField(TEXT("bWasSimulatingPhysics"));
+
+	if (Obj->HasField(TEXT("SavedLinearVelocity")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>& Arr = Obj->GetArrayField(TEXT("SavedLinearVelocity"));
+		if (Arr.Num() >= 3)
+			State.SavedLinearVelocity = FVector(Arr[0]->AsNumber(), Arr[1]->AsNumber(), Arr[2]->AsNumber());
+	}
+	if (Obj->HasField(TEXT("SavedAngularVelocityDeg")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>& Arr = Obj->GetArrayField(TEXT("SavedAngularVelocityDeg"));
+		if (Arr.Num() >= 3)
+			State.SavedAngularVelocityDeg = FVector(Arr[0]->AsNumber(), Arr[1]->AsNumber(), Arr[2]->AsNumber());
+	}
+
+	if (Obj->HasField(TEXT("Properties")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>& PropsArray = Obj->GetArrayField(TEXT("Properties"));
+		for (const auto& Val : PropsArray)
+			if (Val->Type == EJson::Object)
+				State.Properties.Add(PropertyEntryFromJson(Val->AsObject()));
+	}
+	return State;
+}
+
+static TSharedPtr<FJsonObject> ActorStateToJson(const FFloorSavedActorState& State)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetStringField(TEXT("ItemId"), State.ItemId.ToString());
+	Obj->SetObjectField(TEXT("ActorTransform"), TransformToJsonObject(State.ActorTransform));
+	Obj->SetObjectField(TEXT("RelativeTransform"), TransformToJsonObject(State.RelativeTransform));
+	Obj->SetBoolField(TEXT("bHasRelativeTransform"), State.bHasRelativeTransform);
+
+	TArray<TSharedPtr<FJsonValue>> PropsArray;
+	for (const auto& Prop : State.ActorProperties)
+		PropsArray.Add(MakeShared<FJsonValueObject>(PropertyEntryToJson(Prop)));
+	Obj->SetArrayField(TEXT("ActorProperties"), PropsArray);
+
+	TArray<TSharedPtr<FJsonValue>> CompArray;
+	for (const auto& Comp : State.ComponentStates)
+		CompArray.Add(MakeShared<FJsonValueObject>(ComponentStateToJson(Comp)));
+	Obj->SetArrayField(TEXT("ComponentStates"), CompArray);
+	return Obj;
+}
+
+static FFloorSavedActorState ActorStateFromJson(const TSharedPtr<FJsonObject>& Obj)
+{
+	FFloorSavedActorState State;
+	if (!Obj.IsValid()) return State;
+	FGuid::Parse(Obj->GetStringField(TEXT("ItemId")), State.ItemId);
+	if (Obj->HasField(TEXT("ActorTransform")))
+		State.ActorTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("ActorTransform")));
+	if (Obj->HasField(TEXT("RelativeTransform")))
+		State.RelativeTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("RelativeTransform")));
+	State.bHasRelativeTransform = Obj->GetBoolField(TEXT("bHasRelativeTransform"));
+
+	if (Obj->HasField(TEXT("ActorProperties")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>& PropsArray = Obj->GetArrayField(TEXT("ActorProperties"));
+		for (const auto& Val : PropsArray)
+			if (Val->Type == EJson::Object)
+				State.ActorProperties.Add(PropertyEntryFromJson(Val->AsObject()));
+	}
+	if (Obj->HasField(TEXT("ComponentStates")))
+	{
+		const TArray<TSharedPtr<FJsonValue>>& CompArray = Obj->GetArrayField(TEXT("ComponentStates"));
+		for (const auto& Val : CompArray)
+			if (Val->Type == EJson::Object)
+				State.ComponentStates.Add(ComponentStateFromJson(Val->AsObject()));
+	}
+	return State;
+}
+
+static TSharedPtr<FJsonValue> SerializeFloorStateSnapshots(const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>& Snapshots)
+{
+	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
+	for (const auto& Pair : Snapshots)
+	{
+		FString KeyStr = FString::Printf(TEXT("%s|%s"), *Pair.Key.InteriorSetId.ToString(), *Pair.Key.FloorId.ToString());
+		TArray<TSharedPtr<FJsonValue>> Arr;
+		for (const auto& State : Pair.Value)
+			Arr.Add(MakeShared<FJsonValueObject>(ActorStateToJson(State)));
+		Root->SetArrayField(KeyStr, Arr);
+	}
+	return MakeShared<FJsonValueObject>(Root);
+}
+
+static void DeserializeFloorStateSnapshots(const TSharedPtr<FJsonValue>& JsonValue, TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>& OutSnapshots)
+{
+	OutSnapshots.Empty();
+	if (!JsonValue.IsValid() || JsonValue->Type != EJson::Object) return;
+	TSharedPtr<FJsonObject> Root = JsonValue->AsObject();
+	for (const auto& Pair : Root->Values)
+	{
+		TArray<FString> Parts;
+		Pair.Key.ParseIntoArray(Parts, TEXT("|"), false);
+		if (Parts.Num() != 2) continue;
+		FGuid InteriorSetId, FloorId;
+		if (!FGuid::Parse(Parts[0], InteriorSetId) || !FGuid::Parse(Parts[1], FloorId)) continue;
+		FInteriorFloorKey Key(InteriorSetId, FloorId);
+		TArray<FFloorSavedActorState> States;
+		if (Pair.Value->Type == EJson::Array)
+		{
+			const TArray<TSharedPtr<FJsonValue>>& Arr = Pair.Value->AsArray();
+			for (const auto& Item : Arr)
+				if (Item->Type == EJson::Object)
+					States.Add(ActorStateFromJson(Item->AsObject()));
+		}
+		OutSnapshots.Add(Key, MoveTemp(States));
+	}
+}
+
+static TSharedPtr<FJsonValue> SerializeMissionFloorSnapshots(const TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>>& Snapshots)
+{
+	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
+	for (const auto& Pair : Snapshots)
+	{
+		FString KeyStr = FString::Printf(TEXT("%s|%s"), *Pair.Key.InteriorSetId.ToString(), *Pair.Key.FloorId.ToString());
+		TSharedPtr<FJsonObject> FloorObj = MakeShared<FJsonObject>();
+		for (const auto& MissionPair : Pair.Value)
+		{
+			TArray<TSharedPtr<FJsonValue>> Arr;
+			for (const auto& State : MissionPair.Value)
+				Arr.Add(MakeShared<FJsonValueObject>(ActorStateToJson(State)));
+			FloorObj->SetArrayField(MissionPair.Key.ToString(), Arr);
+		}
+		Root->SetObjectField(KeyStr, FloorObj);
+	}
+	return MakeShared<FJsonValueObject>(Root);
+}
+
+static void DeserializeMissionFloorSnapshots(const TSharedPtr<FJsonValue>& JsonValue, TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>>& OutSnapshots)
+{
+	OutSnapshots.Empty();
+	if (!JsonValue.IsValid() || JsonValue->Type != EJson::Object) return;
+	TSharedPtr<FJsonObject> Root = JsonValue->AsObject();
+	for (const auto& Pair : Root->Values)
+	{
+		TArray<FString> Parts;
+		Pair.Key.ParseIntoArray(Parts, TEXT("|"), false);
+		if (Parts.Num() != 2) continue;
+		FGuid InteriorSetId, FloorId;
+		if (!FGuid::Parse(Parts[0], InteriorSetId) || !FGuid::Parse(Parts[1], FloorId)) continue;
+		FInteriorFloorKey Key(InteriorSetId, FloorId);
+		TMap<FName, TArray<FFloorSavedActorState>> PerMission;
+		if (Pair.Value->Type == EJson::Object)
+		{
+			TSharedPtr<FJsonObject> FloorObj = Pair.Value->AsObject();
+			for (const auto& MissionPair : FloorObj->Values)
+			{
+				FName MissionId(*MissionPair.Key);
+				TArray<FFloorSavedActorState> States;
+				if (MissionPair.Value->Type == EJson::Array)
+				{
+					const TArray<TSharedPtr<FJsonValue>>& Arr = MissionPair.Value->AsArray();
+					for (const auto& Item : Arr)
+						if (Item->Type == EJson::Object)
+							States.Add(ActorStateFromJson(Item->AsObject()));
+				}
+				PerMission.Add(MissionId, MoveTemp(States));
+			}
+		}
+		OutSnapshots.Add(Key, MoveTemp(PerMission));
+	}
+}
 
 // -----------------------------------------------------------------------------
 // Snapshot helpers
@@ -1362,6 +1647,12 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+	// Регистрируемся в GameSaveSubsystem для участия в сохранении/загрузке
+	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+	{
+		SaveSys->RegisterSaveableSubsystem(this);
+	}
+
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		CachedEventBus = GI->GetSubsystem<UEventBusSubsystem>();
@@ -1681,6 +1972,255 @@ UInteriorSubsystem::GetMissionSnapshots(FName MissionId) const
 	}
 	return &MissionSnapshotQueryCache;
 }
+
+void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
+{
+	OutData.SubsystemName = GetSaveSubsystemName();
+
+	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
+
+	// --- 1. Сериализация ActiveMissions (как было ранее, но с небольшими правками) ---
+	TArray<TSharedPtr<FJsonValue>> MissionArray;
+	for (const auto& Pair : ActiveMissions)
+	{
+		const UMissionController* Ctrl = Pair.Value.Controller;
+		if (!Ctrl) continue;
+
+		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
+		if (!Asset) continue;
+
+		const EMissionStatus Status = Ctrl->GetStatus();
+		const EMissionEndReason EndReason = Ctrl->GetEndReason();
+		const FMissionEnvelope& Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+		const EMissionResumeMode Resume = Envelope.ResumeMode;
+		const int32 MissionStep = Pair.Value.MissionStep;
+
+		uint8 SavedStatus = static_cast<uint8>(Status);
+		uint8 SavedEndReason = static_cast<uint8>(EndReason);
+
+		if (Resume == EMissionResumeMode::FailOnLoad && Status == EMissionStatus::Active)
+		{
+			SavedStatus = static_cast<uint8>(EMissionStatus::Resolved);
+			SavedEndReason = static_cast<uint8>(EMissionEndReason::Failed);
+		}
+
+		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+		Obj->SetStringField(TEXT("MissionId"), Pair.Key.ToString());
+		Obj->SetStringField(TEXT("AssetPath"), Asset->GetPathName());
+		Obj->SetNumberField(TEXT("Status"), SavedStatus);
+		Obj->SetNumberField(TEXT("EndReason"), SavedEndReason);
+		Obj->SetNumberField(TEXT("ResumeMode"), static_cast<uint8>(Resume));
+		Obj->SetNumberField(TEXT("MissionStep"), static_cast<uint8>(MissionStep));
+
+		MissionArray.Add(MakeShared<FJsonValueObject>(Obj));
+	}
+	Root->SetArrayField(TEXT("Missions"), MissionArray);
+
+	// --- 2. Сериализация FloorStateSnapshots ---
+	Root->SetField(TEXT("FloorStateSnapshots"), SerializeFloorStateSnapshots(FloorStateSnapshots));
+
+	// --- 3. Сериализация MissionFloorSnapshots ---
+	Root->SetField(TEXT("MissionFloorSnapshots"), SerializeMissionFloorSnapshots(MissionFloorSnapshots));
+
+	// Запись в строку
+	FString Output;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
+	FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
+	OutData.SerializedData = Output;
+}
+
+void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
+{
+	if (InData.SerializedData.IsEmpty()) return;
+
+	TSharedPtr<FJsonObject> Root;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(InData.SerializedData);
+	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::ApplySaveData: failed to parse JSON"));
+		return;
+	}
+
+	// --- 1. Восстановление списка активных миссий (сохраняем в контейнер для последующего использования) ---
+	// Здесь мы не восстанавливаем сами миссии, а только сохраняем информацию для MissionSubsystem.
+	// Само восстановление миссий выполнит MissionSubsystem при загрузке.
+	// Однако мы можем заполнить временный массив, который позже будет передан в MissionSubsystem.
+	// Пока просто прочитаем и залогируем.
+
+	const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
+	if (Root->TryGetArrayField(TEXT("Missions"), MissionArray))
+	{
+		for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
+		{
+			const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+			if (!Val->TryGetObject(ObjPtr)) continue;
+			const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+
+			FString MissionIdStr, AssetPath;
+			int32 StatusInt = 0, EndReasonInt = 0, ResumeModeInt = 0, MissionStep = -1;
+
+			Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
+			Obj->TryGetStringField(TEXT("AssetPath"), AssetPath);
+			Obj->TryGetNumberField(TEXT("Status"), StatusInt);
+			Obj->TryGetNumberField(TEXT("EndReason"), EndReasonInt);
+			Obj->TryGetNumberField(TEXT("ResumeMode"), ResumeModeInt);
+			Obj->TryGetNumberField(TEXT("MissionStep"), MissionStep);
+
+			const FName MissionId = FName(*MissionIdStr);
+			const EMissionStatus   Status = static_cast<EMissionStatus>(StatusInt);
+			const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
+			const EMissionResumeMode Resume = static_cast<EMissionResumeMode>(ResumeModeInt);
+			//const int32 MissionStep = static_cast<int32>(MissionStep);
+
+			// Загрузить ассет
+			UMissionAsset* Asset = Cast<UMissionAsset>(
+				StaticLoadObject(UMissionAsset::StaticClass(), nullptr, *AssetPath));
+			if (!Asset)
+			{
+				UE_LOG(LogTemp, Warning,
+					TEXT("MissionSubsystem::ApplySaveData: Cannot load MissionAsset '%s'"), *AssetPath);
+				continue;
+			}
+
+			switch (Resume)
+			{
+			case EMissionResumeMode::RestartOnLoad:
+			{
+				UMissionController* Ctrl = CreateMission(Asset);
+				if (Ctrl)
+				{
+					//ActivateMission(MissionId);
+					Ctrl->MissionStep = 0;
+					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+				}
+				continue;
+			}
+			case EMissionResumeMode::Resumable:
+			{
+				UMissionController* Ctrl = CreateMission(Asset);
+				if (Ctrl)
+				{
+					//ActivateMission(MissionId);
+					Ctrl->MissionStep = MissionStep;
+					ActiveMissions.Find(MissionId)->MissionStep = MissionStep;
+				}
+				continue;
+			}
+			case EMissionResumeMode::FailOnLoad:
+			{
+				UMissionController* Ctrl = CreateMission(Asset);
+				if (!Ctrl) continue;
+
+				// Восстанавливаем статус из сохранения
+				if (Status == EMissionStatus::Active || Status == EMissionStatus::Suspended)
+				{
+					/*
+					Ctrl->Activate();
+					if (Status == EMissionStatus::Suspended)
+					{
+						Ctrl->Suspend();
+					}
+					*/
+				}
+				else if (Status == EMissionStatus::Resolved)
+				{
+					Ctrl->MissionStep = Asset->Envelopes.Num() - 1;
+					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+					//Ctrl->Activate();
+					//Ctrl->RequestResolve(EndReason);
+				}
+			}
+			}
+
+			// RestartOnLoad — создать заново и активировать
+			/*
+			if (Resume == EMissionResumeMode::RestartOnLoad)
+			{
+				UMissionController* Ctrl = CreateMission(Asset);
+				if (Ctrl)
+				{
+					Ctrl->MissionStep = MissionStep;
+				}
+				continue;
+			}
+			*/
+
+			// FailOnLoad — запись уже сохранена с Failed статусом, просто создаём запись
+			// Resumable — восстанавливаем как было
+			//UMissionController* Ctrl = CreateMission(Asset);
+
+			// Здесь можно сохранить эту информацию в отдельную структуру для MissionSubsystem.
+			// Например, во временный TMap, или опубликовать через EventBus.
+			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: read mission '%s' (Status=%d)"),
+				*MissionIdStr, StatusInt);
+		}
+	}
+
+	// --- 2. Восстановление FloorStateSnapshots ---
+	TSharedPtr<FJsonValue> FloorStateValue = Root->TryGetField(TEXT("FloorStateSnapshots"));
+	if (FloorStateValue.IsValid())
+	{
+		DeserializeFloorStateSnapshots(FloorStateValue, FloorStateSnapshots);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored FloorStateSnapshots, count=%d"), FloorStateSnapshots.Num());
+	}
+
+	// --- 3. Восстановление MissionFloorSnapshots ---
+	TSharedPtr<FJsonValue> MissionFloorValue = Root->TryGetField(TEXT("MissionFloorSnapshots"));
+	if (MissionFloorValue.IsValid())
+	{
+		DeserializeMissionFloorSnapshots(MissionFloorValue, MissionFloorSnapshots);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored MissionFloorSnapshots, count=%d"), MissionFloorSnapshots.Num());
+	}
+}
+
+UMissionController* UInteriorSubsystem::CreateMission(UMissionAsset* MissionAsset)
+{
+	if (!MissionAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem::CreateMission: MissionAsset is null"));
+		return nullptr;
+	}
+
+	const FName MissionId = MissionAsset->GetMissionId();
+
+	if (ActiveMissions.Contains(MissionId))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem::CreateMission: Mission '%s' already exists"),
+			*MissionId.ToString());
+		return ActiveMissions[MissionId].Controller;
+	}
+	// Создаём контроллер нужного класса (из ассета). Если в ассете задан Blueprint класс,
+	// он будет инстанцирован и вызовы Activate()/OnMissionActivated будут попадать в BP-реализацию.
+	UMissionController* Controller = nullptr;
+	if (MissionAsset->ControllerClass && MissionAsset->ControllerClass->IsChildOf(UMissionController::StaticClass()))
+	{
+		Controller = NewObject<UMissionController>(GetGameInstance(), MissionAsset->ControllerClass);
+	}
+	else
+	{
+		// Фоллбек на базовый C++ контроллер
+		Controller = NewObject<UMissionController>(GetGameInstance());
+		if (!MissionAsset->ControllerClass)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("MissionSubsystem::CreateMission: ControllerClass not set in MissionAsset '%s', using default UMissionController"), *MissionId.ToString());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem::CreateMission: ControllerClass for MissionAsset '%s' is not a UMissionController subclass, using default"), *MissionId.ToString());
+		}
+	}
+
+	Controller->InitFromAsset(MissionAsset, GetGameInstance());
+
+	FActiveMissionInterior Entry;
+	Entry.MissionId = MissionId;
+	Entry.Controller = Controller;
+	ActiveMissions.Add(MissionId, Entry);
+
+	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem::CreateMission: Created mission '%s'"), *MissionId.ToString());
+	return Controller;
+}
+
 
 void UInteriorSubsystem::HandleReleaseMissionSnapshot(const FOutcomeEventBase& Outcome)
 {

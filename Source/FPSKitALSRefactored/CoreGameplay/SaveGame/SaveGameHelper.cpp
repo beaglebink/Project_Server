@@ -10,6 +10,7 @@
 #include "Components/SceneComponent.h"
 
 // Проверка акторов
+/*
 bool USaveGameHelper::IsActorEligibleForSave(const AActor* Actor)
 {
     if (!Actor) return false;
@@ -42,8 +43,9 @@ bool USaveGameHelper::IsActorEligibleForSave(const AActor* Actor)
 
     return true;
 }
-
+*/
 // Проверка компонентов
+/*
 bool USaveGameHelper::IsComponentEligibleForSave(const UActorComponent* Comp)
 {
     if (!Comp) return false;
@@ -68,8 +70,9 @@ bool USaveGameHelper::IsComponentEligibleForSave(const UActorComponent* Comp)
 
     return true;
 }
-
+*/
 // Сериализация актора
+/*
 FString USaveGameHelper::SerializeActor(AActor* Actor)
 {
     if (!Actor) return "";
@@ -96,8 +99,9 @@ FString USaveGameHelper::SerializeActor(AActor* Actor)
     FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
     return Output;
 }
-
+*/
 // Десериализация актора
+/*
 void USaveGameHelper::DeserializeActor(AActor* Actor, const FString& JsonString)
 {
     if (!Actor || JsonString.IsEmpty()) return;
@@ -127,8 +131,9 @@ void USaveGameHelper::DeserializeActor(AActor* Actor, const FString& JsonString)
         }
     }
 }
-
+*/
 // Сериализация мира
+/*
 TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
 {
     TArray<FActorSaveData> Result;
@@ -201,6 +206,7 @@ TArray<FActorSaveData> USaveGameHelper::SerializeWorld(UWorld* World)
 
     return Result;
 }
+*/
 
 USceneComponent* ResolveParentComponent(const FString& ComponentPath)
 {
@@ -209,6 +215,7 @@ USceneComponent* ResolveParentComponent(const FString& ComponentPath)
 }
 
 // Десериализация мира
+/*
 void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveData>& SavedActors)
 {
     if (!World) return;
@@ -348,8 +355,9 @@ void USaveGameHelper::DeserializeWorld(UWorld* World, const TArray<FActorSaveDat
         }
     }
 }
-
+*/
 // Сериализация компонентов
+/*
 TArray<FComponentSaveData> USaveGameHelper::SerializeComponents(AActor* Actor)
 {
     TArray<FComponentSaveData> Result;
@@ -391,8 +399,9 @@ TArray<FComponentSaveData> USaveGameHelper::SerializeComponents(AActor* Actor)
 
     return Result;
 }
-
+*/
 // Десериализация компонентов
+/*
 void USaveGameHelper::DeserializeComponents(AActor* Actor, const TArray<FComponentSaveData>& SavedComponents)
 {
     if (!Actor) return;
@@ -452,8 +461,9 @@ void USaveGameHelper::DeserializeComponents(AActor* Actor, const TArray<FCompone
         }
     }
 }
-
+*/
 // Сериализация компонента
+/*
 FString USaveGameHelper::SerializeComponent(UActorComponent* Component)
 {
     if (!Component) return "";
@@ -483,8 +493,9 @@ FString USaveGameHelper::SerializeComponent(UActorComponent* Component)
 
     return Output;
 }
-
+*/
 // Десериализация компонента
+/*
 void USaveGameHelper::DeserializeComponent(UActorComponent* Component, const FString& JsonString)
 {
     if (!Component || JsonString.IsEmpty()) return;
@@ -515,8 +526,9 @@ void USaveGameHelper::DeserializeComponent(UActorComponent* Component, const FSt
         UE_LOG(LogTemp, Log, TEXT("[DeserializeComponent] Компонент %s: данные восстановлены."), *Component->GetName());
     }
 }
-
+*/
 // Очистка мира
+/*
 void USaveGameHelper::ClearWorld(UWorld* World, const TArray<FActorSaveData>& SavedActors)
 {
     if (!World) return;
@@ -544,3 +556,4 @@ void USaveGameHelper::ClearWorld(UWorld* World, const TArray<FActorSaveData>& Sa
         }
     }
 }
+*/

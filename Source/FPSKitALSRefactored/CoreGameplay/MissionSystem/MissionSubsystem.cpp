@@ -112,18 +112,6 @@ void UMissionSubsystem::SubscribeFloorLeaving()
 	}
 }
 
-void UMissionSubsystem::UnsubscribeGhostCleared()
-{
-	if (!GhostClearedHandle.IsValid()) return;
-
-	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-	{
-		EventBus->UnregisterHandler(GhostClearedHandle);
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Unsubscribed GhostCleared (handle=%u)"), GhostClearedHandle.GetId());
-	}
-	GhostClearedHandle.Invalidate();
-}
-
 void UMissionSubsystem::UnsubscribeMissionProgress()
 {
 	if (!MissionProgressHandle.IsValid()) return;
@@ -150,7 +138,6 @@ void UMissionSubsystem::UnsubscribeFloorLeaving()
 
 void UMissionSubsystem::UnsubscribeAll()
 {
-	UnsubscribeGhostCleared();
 	UnsubscribeMissionProgress();
 }
 
@@ -223,6 +210,7 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 					}
 				}
 
+				Controller->MissionStep = StepIndex;
 				Controller->OnMissionStepProgress(StepIndex);
 			}
 			else
@@ -864,6 +852,7 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		const EMissionStatus Status      = Ctrl->GetStatus();
 		const EMissionEndReason EndReason = Ctrl->GetEndReason();
 		const EMissionResumeMode Resume  = Asset->Envelopes[Pair.Value.MissionStep].ResumeMode;
+		const int32 MissionStep = Pair.Value.MissionStep;
 
 		// Применяем NonResumableMode при сохранении:
 		// FailOnLoad — запишем статус как Failed
@@ -885,6 +874,7 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		Obj->SetNumberField(TEXT("Status"),    SavedStatus);
 		Obj->SetNumberField(TEXT("EndReason"), SavedEndReason);
 		Obj->SetNumberField(TEXT("ResumeMode"), static_cast<uint8>(Resume));
+		Obj->SetNumberField(TEXT("MissionStep"), static_cast<int32>(MissionStep));
 
 		MissionArray.Add(MakeShared<FJsonValueObject>(Obj));
 	}
@@ -917,13 +907,14 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
 		FString MissionIdStr, AssetPath;
-		int32 StatusInt = 0, EndReasonInt = 0, ResumeModeInt = 0;
+		int32 StatusInt = 0, EndReasonInt = 0, ResumeModeInt = 0, MissionStep = -1;
 
 		Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
 		Obj->TryGetStringField(TEXT("AssetPath"), AssetPath);
 		Obj->TryGetNumberField(TEXT("Status"),    StatusInt);
 		Obj->TryGetNumberField(TEXT("EndReason"), EndReasonInt);
 		Obj->TryGetNumberField(TEXT("ResumeMode"), ResumeModeInt);
+		Obj->TryGetNumberField(TEXT("MissionStep"), MissionStep);
 
 		const FName MissionId = FName(*MissionIdStr);
 		const EMissionStatus   Status    = static_cast<EMissionStatus>(StatusInt);
@@ -940,14 +931,68 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			continue;
 		}
 
+		switch (Resume)
+		{
+			case EMissionResumeMode::RestartOnLoad:
+			{
+				UMissionController* Ctrl = CreateMission(Asset);
+				if (Ctrl)
+				{
+					ActivateMission(MissionId);
+					Ctrl->MissionStep = 0;
+					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+				}
+				continue;
+			}
+			case EMissionResumeMode::Resumable:
+			{
+				UMissionController* Ctrl = CreateMission(Asset);
+				if (Ctrl)
+				{
+					ActivateMission(MissionId);
+					Ctrl->MissionStep = MissionStep;
+					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+				}
+				continue;
+			}
+			case EMissionResumeMode::FailOnLoad:
+			{
+				UMissionController* Ctrl = CreateMission(Asset);
+				if (!Ctrl) continue;
+
+				// Восстанавливаем статус из сохранения
+				if (Status == EMissionStatus::Active || Status == EMissionStatus::Suspended)
+				{
+					Ctrl->Activate();
+					if (Status == EMissionStatus::Suspended)
+					{
+						Ctrl->Suspend();
+					}
+				}
+				else if (Status == EMissionStatus::Resolved)
+				{
+					Ctrl->MissionStep = Asset->Envelopes.Num() - 1;
+					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+					Ctrl->Activate();
+					Ctrl->RequestResolve(EndReason);
+				}
+			}
+		}
+		/*
 		// RestartOnLoad — создать заново и активировать
 		if (Resume == EMissionResumeMode::RestartOnLoad)
 		{
 			UMissionController* Ctrl = CreateMission(Asset);
-			if (Ctrl) ActivateMission(MissionId);
+			if (Ctrl)
+			{
+				ActivateMission(MissionId);
+				Ctrl->MissionStep = 0;
+			}
 			continue;
 		}
+		*/
 
+		/*
 		// FailOnLoad — запись уже сохранена с Failed статусом, просто создаём запись
 		// Resumable — восстанавливаем как было
 		UMissionController* Ctrl = CreateMission(Asset);
@@ -967,10 +1012,10 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			Ctrl->Activate();
 			Ctrl->RequestResolve(EndReason);
 		}
-
+		*/
 		UE_LOG(LogTemp, Log,
-			TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d"),
-			*MissionIdStr, StatusInt);
+			TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
+			*MissionIdStr, StatusInt, MissionStep);
 	}
 }
 

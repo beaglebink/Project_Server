@@ -132,6 +132,9 @@ public:
     // Необходимо для работы NewObject с GameInstance как Outer
     virtual UWorld* GetWorld() const override;
 
+    UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+    int32 MissionStep = -1;
+
 private:
     UPROPERTY()
     TObjectPtr<UMissionAsset> MissionAsset;

@@ -12,6 +12,8 @@
 #include "../LocationSystem/LocationSpatialTypes.h"
 #include <InteriorTransitionPayload.h>
 #include "../MissionSystem/MissionEnvelopeTypes.h"
+#include "ISaveableSubsystem.h"
+#include "MissionAsset.h"
 #include "InteriorSubsystem.generated.h"
 
 // Forward-declare UMissionController to avoid including its .cpp in header and to break multiple-definition issues.
@@ -102,7 +104,7 @@ struct FActiveMissionInterior
 
 
 UCLASS()
-class FPSKITALSREFACTORED_API UInteriorSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods
+class FPSKITALSREFACTORED_API UInteriorSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods, public ISaveableSubsystem
 {
 	GENERATED_BODY()
 
@@ -244,6 +246,12 @@ public:
 
 	// Получить список снимков всех этажей для конкретной миссии (для сохранения на диск)
 	const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* GetMissionSnapshots(FName MissionId) const;
+
+	// ===== ISaveableSubsystem =====
+	virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
+	virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
+	UMissionController* CreateMission(UMissionAsset* MissionAsset);
+	virtual FString GetSaveSubsystemName() const override { return TEXT("InteriorSubsystem"); }
 
 private:
 	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);

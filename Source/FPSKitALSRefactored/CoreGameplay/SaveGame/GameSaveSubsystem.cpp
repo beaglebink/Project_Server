@@ -1,7 +1,7 @@
 #include "GameSaveSubsystem.h"
 #include "ThisSaveGame.h"
 #include "SaveInterface.h"
-#include "SaveGameHelper.h"
+//#include "SaveGameHelper.h"
 #include "Kismet/GameplayStatics.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -86,8 +86,6 @@ void UGameSaveSubsystem::SaveGame()
             SaveGameObject->SavedSubsystems.Add(Data);
         }
     }
-
-    // DEPRECATED: SavedActors больше не заполняется (USaveGameHelper::SerializeWorld устарел)
 
     // Генерируем имя слота
     FString TimeStamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
