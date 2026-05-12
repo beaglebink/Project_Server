@@ -30,6 +30,11 @@ void AA_Dirt::OnConstruction(const FTransform& Transform)
 		DecalComponent->SetMaterial(0, DecalDynamicMaterial);
 	}
 
+	if (DirtTexture)
+	{
+		DecalDynamicMaterial->SetTextureParameterValue("DirtTexture", DirtTexture);
+	}
+
 	if (!BrushDynamicMaterial)
 	{
 		BrushDynamicMaterial = UMaterialInstanceDynamic::Create(BrushMaterial, this);
@@ -45,23 +50,35 @@ void AA_Dirt::BeginPlay()
 {
 	Super::BeginPlay();
 
-	RenderTarget = NewObject<UTextureRenderTarget2D>(this);
-	RenderTarget->InitCustomFormat(1024, 1024, PF_R32_FLOAT, false);
-	RenderTarget->ClearColor = FLinearColor::Black;
-	RenderTarget->UpdateResourceImmediate();
-	DecalDynamicMaterial->SetTextureParameterValue("RenderTarget", RenderTarget);
-	BrushDynamicMaterial->SetTextureParameterValue("PrevRenderTarget", RenderTarget);
+	RenderTarget_A = NewObject<UTextureRenderTarget2D>(this);
+	RenderTarget_A->InitCustomFormat(256, 256, PF_R16F, false);
+	RenderTarget_A->ClearColor = FLinearColor::Black;
+	RenderTarget_A->UpdateResourceImmediate();
+	BrushDynamicMaterial->SetTextureParameterValue("PrevRenderTarget", RenderTarget_A);
+
+	RenderTarget_B = NewObject<UTextureRenderTarget2D>(this);
+	RenderTarget_B->InitCustomFormat(256, 256, PF_R16F, false);
+	RenderTarget_B->ClearColor = FLinearColor::Black;
+	RenderTarget_B->UpdateResourceImmediate();
+
+	DecalDynamicMaterial->SetTextureParameterValue("RenderTarget", RenderTarget_B);
 }
 
 void AA_Dirt::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
+
 	FVector Local = DecalComponent->GetComponentTransform().InverseTransformPosition(Hit.ImpactPoint);
 	Local *= 0.5f;
 	float U = Local.Z / DecalComponent->DecalSize.Z;
 	float V = Local.Y / DecalComponent->DecalSize.Y;
 
-	BrushDynamicMaterial->SetTextureParameterValue("PrevRenderTarget", RenderTarget);
+	BrushDynamicMaterial->SetTextureParameterValue("PrevRenderTarget", RenderTarget_A);
 	BrushDynamicMaterial->SetVectorParameterValue("HitUV", FLinearColor(U, V, 0, 0));
-	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, RenderTarget, BrushDynamicMaterial);
-	DecalDynamicMaterial->SetTextureParameterValue("RenderTarget", RenderTarget);
+	BrushDynamicMaterial->SetScalarParameterValue("WashPower", Hit.Distance);
+	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, RenderTarget_B, BrushDynamicMaterial);
+	DecalDynamicMaterial->SetTextureParameterValue("RenderTarget", RenderTarget_B);
+
+	UTextureRenderTarget2D* Temp = RenderTarget_A;
+	RenderTarget_A = RenderTarget_B;
+	RenderTarget_B = Temp;
 }

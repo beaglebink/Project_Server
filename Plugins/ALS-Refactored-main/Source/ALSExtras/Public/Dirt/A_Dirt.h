@@ -29,6 +29,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UBoxComponent* BoxComponent;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UTexture2D* DirtTexture;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UMaterialInterface* BrushMaterial;
 
@@ -39,7 +42,10 @@ public:
 	UMaterialInstanceDynamic* BrushDynamicMaterial;
 
 	UPROPERTY()
-	UTextureRenderTarget2D* RenderTarget;
+	UTextureRenderTarget2D* RenderTarget_A;
+
+	UPROPERTY()
+	UTextureRenderTarget2D* RenderTarget_B;
 
 private:
 	FTimerHandle HitTimerHandle;
