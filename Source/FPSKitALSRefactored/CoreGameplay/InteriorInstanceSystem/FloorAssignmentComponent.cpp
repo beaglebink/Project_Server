@@ -18,10 +18,12 @@ void UFloorAssignmentComponent::BeginPlay()
     // (Если ItemId отсутствует — генерируем runtime GUID.)
     // In editor the ItemId is set by the tool and saved to .umap, so we don't modify assets here.
     // (В редакторе ItemId ставится инструментом и сохраняется в .umap, поэтому здесь не модифицируем пакеты.)
+	/*
 	if (!ItemId.IsValid())
 	{
 		ItemId = FGuid::NewGuid();
 	}
+	*/
 
     // Publish placement registration via EventBus
     // (Публикуем регистрацию размещения через EventBus)
