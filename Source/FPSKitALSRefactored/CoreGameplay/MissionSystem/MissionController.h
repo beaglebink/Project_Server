@@ -66,6 +66,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Mission|Control")
     void Resume();
 
+    UFUNCTION(BlueprintCallable, Category = "Mission|Control")
+    void OnRestore();
+
     // Геттеры 
 
 	// Получить FName-идентификатор миссии (обычно совпадает с именем DataAsset)
@@ -128,6 +131,11 @@ public:
     UFUNCTION(BlueprintNativeEvent, Category = "Mission|Events")
     void OnMissionResumed();
     virtual void OnMissionResumed_Implementation() {}
+
+    // Вызывается при возобновлении
+    UFUNCTION(BlueprintNativeEvent, Category = "Mission|Events")
+    void OnMissionRestored();
+    virtual void OnMissionRestored_Implementation() {}
 
     // Необходимо для работы NewObject с GameInstance как Outer
     virtual UWorld* GetWorld() const override;

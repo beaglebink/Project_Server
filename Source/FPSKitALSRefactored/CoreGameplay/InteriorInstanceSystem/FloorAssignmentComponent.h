@@ -50,7 +50,7 @@ public:
     FGuid ItemId;
 
     // Канал снапшота — если != None, актор участвует в сохранении/восстановлении
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, DuplicateTransient, Category = "FloorAssignment")
     ESnapshotChannel SnapshotChannel = ESnapshotChannel::None;
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")

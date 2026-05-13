@@ -1851,6 +1851,14 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 				}
 			}
 		}
+		else
+		{
+			APlayerController* PC = World->GetFirstPlayerController();
+			if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
+			{
+				IPlayerController_I::Execute_SetLoadScreen(PC, false);
+			}
+		}
 
 		// Финальная нотификация о завершении загрузки/перехода
 		OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
@@ -2086,6 +2094,7 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	// Пока просто прочитаем и залогируем.
 
 	const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
+	ActiveMissions.Empty();
 	if (Root->TryGetArrayField(TEXT("Missions"), MissionArray))
 	{
 		for (const TSharedPtr<FJsonValue>& Val : *MissionArray)

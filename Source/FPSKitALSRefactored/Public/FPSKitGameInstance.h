@@ -25,10 +25,10 @@ public:
 	virtual void Shutdown() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Loading")
-	void TravelToLevel(const FString& LevelName);
+	void ShowLoadscreen();
 
 	UFUNCTION(BlueprintCallable, Category = "Loading")
-	void OnLevelReady();
+	void HideLoadscreen();
 
 private:
 	UPROPERTY(Transient)

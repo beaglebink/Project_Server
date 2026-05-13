@@ -41,7 +41,7 @@ void UFPSKitGameInstance::Shutdown()
 	Super::Shutdown();
 }
 
-void UFPSKitGameInstance::TravelToLevel(const FString& LevelName)
+void UFPSKitGameInstance::ShowLoadscreen()
 {
 	ULoadingScreenManager* Manager = GetSubsystem<ULoadingScreenManager>();
 	if (Manager)
@@ -55,7 +55,7 @@ void UFPSKitGameInstance::TravelToLevel(const FString& LevelName)
 	}
 }
 
-void UFPSKitGameInstance::OnLevelReady()
+void UFPSKitGameInstance::HideLoadscreen()
 {
 	UE_LOG(LogTemp, Log, TEXT("UFPSKitGameInstance::OnLevelReady — called"));
 

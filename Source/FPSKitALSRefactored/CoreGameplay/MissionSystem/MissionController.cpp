@@ -131,6 +131,13 @@ void UMissionController::Resume()
     UE_LOG(LogTemp, Log, TEXT("MissionController[%s]: Resumed"), *GetMissionId().ToString());
 }
 
+void UMissionController::OnRestore()
+{
+    OnMissionRestored();
+
+    UE_LOG(LogTemp, Log, TEXT("MissionController[%s]: Restored"), *GetMissionId().ToString());
+}
+
 FName UMissionController::GetMissionId() const
 {
     if (MissionAsset)

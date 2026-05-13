@@ -901,6 +901,7 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
 	if (!Root->TryGetArrayField(TEXT("Missions"), MissionArray)) return;
 
+	ActiveMissions.Empty();
 	for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
 	{
 		const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
