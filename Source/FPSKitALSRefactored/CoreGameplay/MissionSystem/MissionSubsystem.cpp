@@ -282,7 +282,7 @@ UMissionController* UMissionSubsystem::CreateMission(UMissionAsset* MissionAsset
 	return Controller;
 }
 
-void UMissionSubsystem::ActivateMission(FName MissionId)
+void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 {
 	FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
 	if (!Entry || !Entry->Controller)
@@ -300,6 +300,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId)
 		{
 			P1->ActiveMissions = ActiveMissions;
 			P1->CurrentMissionId = MissionId;
+			P1->IsUpdateSnapshots = IsUpdateSnapshots;
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Interior;	
 			Ev.Payload = P1;
@@ -938,7 +939,7 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (Ctrl)
 				{
-					ActivateMission(MissionId);
+					ActivateMission(MissionId, false);
 					Ctrl->MissionStep = 0;
 					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
 				}
@@ -949,7 +950,7 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (Ctrl)
 				{
-					ActivateMission(MissionId);
+					ActivateMission(MissionId, false);
 					Ctrl->MissionStep = MissionStep;
 					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
 				}

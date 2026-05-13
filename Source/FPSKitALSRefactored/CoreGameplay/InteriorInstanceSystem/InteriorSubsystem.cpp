@@ -2286,9 +2286,11 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 			}
 		}
 
-		//FMissionEnvelope Envelope = &Mission.Controller->GetMissionAsset()->Envelopes[Mission.MissionStep];
-		StoreCurrentLevel(Envelope, P->CurrentMissionId, EMissionEndReason::Completed);
-		StoreSnapshot(P->CurrentMissionId, Envelope, Envelope.NextStagePolicy, Envelope.NextStagePolicyChannels);
+		if (P->IsUpdateSnapshots)
+		{
+			StoreCurrentLevel(Envelope, P->CurrentMissionId, EMissionEndReason::Completed);
+			StoreSnapshot(P->CurrentMissionId, Envelope, Envelope.NextStagePolicy, Envelope.NextStagePolicyChannels);
+		}
 
 		ActiveMissions.Empty();
 		TArray<FName> Keys;

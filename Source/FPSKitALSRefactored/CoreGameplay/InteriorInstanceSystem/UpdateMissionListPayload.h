@@ -19,4 +19,7 @@ public:
 
 	UPROPERTY()
 	FName CurrentMissionId;
+
+	UPROPERTY()
+	bool IsUpdateSnapshots = true;
 };

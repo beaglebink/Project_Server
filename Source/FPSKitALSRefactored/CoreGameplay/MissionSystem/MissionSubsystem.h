@@ -66,7 +66,7 @@ public:
 	// Активировать ранее созданную миссию.
 	// Вызывает Controller->Activate() и регистрирует envelope в InteriorSubsystem.
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
-	void ActivateMission(FName MissionId);
+	void ActivateMission(FName MissionId, bool IsUpdateSnapshots = true);
 
 	// Завершить миссию с указанием причины.
 	// Вызывает Controller->RequestResolve(), затем обрабатывает Envelope release.
