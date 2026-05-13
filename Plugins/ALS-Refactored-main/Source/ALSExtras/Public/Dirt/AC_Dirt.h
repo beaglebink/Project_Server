@@ -1,34 +1,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "Components/ActorComponent.h"
 #include "Interfaces/I_WeaponInteraction.h"
-#include "A_Dirt.generated.h"
+#include "AC_Dirt.generated.h"
 
-class UBoxComponent;
 
-UCLASS()
-class ALSEXTRAS_API AA_Dirt : public AActor, public II_WeaponInteraction
+UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+class ALSEXTRAS_API UAC_Dirt : public UActorComponent, public II_WeaponInteraction
 {
 	GENERATED_BODY()
 
-public:
-	AA_Dirt();
+public:	
+	UAC_Dirt();
 
-	virtual void OnConstruction(const FTransform& Transform)override;
-
-	virtual void Tick(float DeltaTime) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:
 	virtual void BeginPlay() override;
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UDecalComponent* DecalComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UBoxComponent* BoxComponent;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	UTexture2D* DirtTexture;
 
@@ -36,7 +27,7 @@ public:
 	UMaterialInterface* BrushMaterial;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* DecalDynamicMaterial;
+	UMaterialInstanceDynamic* OverlayDynamicMaterial;
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* BrushDynamicMaterial;
@@ -46,6 +37,9 @@ public:
 
 	UPROPERTY()
 	UTextureRenderTarget2D* RenderTarget_B;
+
+	UPROPERTY()
+	UStaticMeshComponent* StaticMeshComponent;
 
 private:
 	void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
