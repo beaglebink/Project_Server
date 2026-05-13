@@ -6,6 +6,11 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "EngineUtils.h"
+#include <JsonObjectConverter.h>
+#include "PlayerController_I.h"
+#include "SceneDataProvider.h"
+#include "InteriorSubsystem.h"
+#include "LocationAnchorActor.h"
 
 void UGameSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -75,6 +80,50 @@ void UGameSaveSubsystem::SaveGame()
         UGameplayStatics::CreateSaveGameObject(UThisSaveGame::StaticClass()));
     if (!SaveGameObject) return;
 
+    // --- Сохраняем карту и позицию игрока ---
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        FString PackageName = World->GetOutermost()->GetName();
+
+#if WITH_EDITOR
+        PackageName = UWorld::RemovePIEPrefix(PackageName);
+#endif
+
+        SaveGameObject->MapName = PackageName;
+
+        APawn* Pawn = UGameplayStatics::GetPlayerPawn(World, 0);
+        SaveGameObject->PlayerTransform = Pawn ? Pawn->GetActorTransform() : FTransform::Identity;
+    }
+
+    TArray<AActor*> FoundAnchors; // массив остаётся базовым
+    UGameplayStatics::GetAllActorsOfClass(World, ALocationAnchorActor::StaticClass(), FoundAnchors);
+
+    TSoftObjectPtr<UFloorAsset> OwnerFloor;
+    if (FoundAnchors.Num() > 0)
+    {
+		ALocationAnchorActor* Anchor = Cast<ALocationAnchorActor>(FoundAnchors[0]);
+		OwnerFloor = Anchor ? Anchor->OwnerFloor : nullptr;
+    }
+
+    if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+    {
+        UInteriorTransitionPayload* P1 = Cast<UInteriorTransitionPayload>(EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass()));
+        EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass());
+        if (P1)
+        {
+            P1->IsUseAnchor = false;
+            P1->IsUseTravel = false;
+			P1->SourceFloor = OwnerFloor;
+            FOutcomeEventBase Ev;
+            Ev.OutcomeType = EOutcomeType::Interior;
+            Ev.OutcomeInterior = EOutcomeInterior::FloorTransition;
+            Ev.Payload = P1;
+            EventBus->PublishOutcome(Ev);
+        }
+    }
+
+
     // Собираем данные у всех зарегистрированных подсистем
     for (ISaveableSubsystem* Subsystem : SaveableSubsystems)
     {
@@ -122,6 +171,25 @@ void UGameSaveSubsystem::LoadGame()
         return;
     }
 
+    // Чтение MapName 
+    FString LoadedMapName = SaveGameObject->MapName;
+    FString CurrentMapName;
+
+    UE_LOG(LogTemp, Log, TEXT("GameSaveSubsystem: Loaded MapName = '%s'"), *LoadedMapName);
+
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        CurrentMapName = World->GetOutermost()->GetName();
+
+#if WITH_EDITOR
+        CurrentMapName = UWorld::RemovePIEPrefix(CurrentMapName);
+#endif
+    }
+
+    // Восстановление PlayerTransform
+	FTransform PlayerTransform = SaveGameObject->PlayerTransform;
+
     // Раздаём данные зарегистрированным подсистемам по имени
     for (const FSubsystemSaveData& Data : SaveGameObject->SavedSubsystems)
     {
@@ -137,6 +205,67 @@ void UGameSaveSubsystem::LoadGame()
 
     UE_LOG(LogTemp, Log, TEXT("GameSaveSubsystem: Loaded from slot '%s' (%d subsystem blocks)"),
         *CurrentSlot, SaveGameObject->SavedSubsystems.Num());
+
+    if(LoadedMapName != CurrentMapName)
+    {
+        if (World)
+        {
+            APlayerController* PC = World->GetFirstPlayerController();
+            if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
+            {
+				IPlayerController_I::Execute_StoreCharacterState(PC, PlayerTransform);
+            }
+
+            UGameInstance* GI = UGameplayStatics::GetGameInstance(World);
+            if(GI && GI->GetClass()->ImplementsInterface(USceneDataProvider::StaticClass()))
+            {
+                ISceneDataProvider::Execute_SetNeedTeleportToAnchor(GI, false);
+			}
+
+            if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+            {
+                UInteriorTransitionPayload* P1 = Cast<UInteriorTransitionPayload>(EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass()));
+                EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass());
+                if (P1)
+                {
+                    P1->IsUseAnchor = false;
+					P1->TargetLevelPath = LoadedMapName;
+                    FOutcomeEventBase Ev;
+                    Ev.OutcomeType = EOutcomeType::Interior;
+                    Ev.OutcomeInterior = EOutcomeInterior::FloorTransition;
+                    Ev.Payload = P1;
+                    EventBus->PublishOutcome(Ev);
+                }
+            }
+        }
+    }
+    else
+    {
+        if (World)
+        {
+            APlayerController* PC = World->GetFirstPlayerController();
+            if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
+            {
+                IPlayerController_I::Execute_SetLoadScreen(PC, true);
+                IPlayerController_I::Execute_StoreCharacterState(PC, PlayerTransform);
+            }
+
+            UGameInstance* GI = UGameplayStatics::GetGameInstance(World);
+            if (GI && GI->GetClass()->ImplementsInterface(USceneDataProvider::StaticClass()))
+            {
+                ISceneDataProvider::Execute_SetNeedTeleportToAnchor(GI, false);
+            }
+            World->SeamlessTravel(CurrentMapName, true);
+        }
+        /*
+        APawn* Pawn = UGameplayStatics::GetPlayerPawn(World, 0);
+        if (Pawn)
+        {
+            Pawn->SetActorTransform(PlayerTransform);
+			Pawn->GetController()->SetControlRotation(PlayerTransform.GetRotation().Rotator());
+		}
+        */
+    }
 }
 
 void UGameSaveSubsystem::DeleteSaveSlot(const FString& SlotName)

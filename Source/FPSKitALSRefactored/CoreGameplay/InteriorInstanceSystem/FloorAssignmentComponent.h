@@ -1,5 +1,4 @@
-﻿// Original header: keep engine macros intact and comments in Russian
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
@@ -60,13 +59,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
     FGuid GetFloorId() const { return FloorId; }
 
-    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
-    {
-        Super::PostDuplicate(DuplicateMode);
+    //virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
+    //{
+    //    Super::PostDuplicate(DuplicateMode);
 
-        if (DuplicateMode == EDuplicateMode::Type::Normal) return;
+        //if (DuplicateMode == EDuplicateMode::Type::Normal) return;
+        
         //ItemId = FGuid::NewGuid();
-    }
+    //}
 
 protected:
     virtual void BeginPlay() override;

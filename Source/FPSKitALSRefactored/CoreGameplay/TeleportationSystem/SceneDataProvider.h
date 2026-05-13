@@ -24,4 +24,10 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Dictionary system")
 	UNiagaraSystem* ConnectionEffect() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Save system")
+	bool GetNeedTeleportToAnchor() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Save system")
+	void SetNeedTeleportToAnchor(bool bNeed);
 };

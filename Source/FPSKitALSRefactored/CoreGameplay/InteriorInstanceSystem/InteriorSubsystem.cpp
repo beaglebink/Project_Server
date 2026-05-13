@@ -33,6 +33,7 @@
 #include "UpdateMissionListPayload.h"
 #include "../SaveGame/GameSaveSubsystem.h"
 #include "ApplyMissionCompletionPolicyPayload.h"
+#include "SceneDataProvider.h"
 
 // -----------------------------------------------------------------------------
 // JSON serialization helpers for snapshot structures
@@ -1162,7 +1163,7 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 {
 	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
-    if (!P || !P->IsValid())
+    if (!P && (P->DestinationLink.IsValid() && !P->IsUseAnchor) || (!P->DestinationLink.IsValid() && P->IsUseAnchor)) 
     {
         UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: payload invalid (payload невалиден)"));
         OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
@@ -1178,73 +1179,78 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	}
 
 	// Получаем путь целевого уровня из payload
-	const FString TargetLevelPath = P->GetTargetLevelPackageName();
-    if (TargetLevelPath.IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: failed to determine target level (не удалось определить целевой уровень)"));
-        OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
-        return;
-    }
+	const FString TargetLevelPath = P->IsUseAnchor ? P->GetTargetLevelPackageName() : P->TargetLevelPath;
+	bool IsUseTravel = P->IsUseTravel;
 
-	// --- ВАЖНО: объявляем TargetAnchorID здесь, чтобы он был виден далее в функции ---
-	const FGuid TargetAnchorID = P->GetTargetAnchorID();
-
-	// Получаем короткое имя текущего уровня через GameplayStatics — параметр true убирает PIE‑префиксы
-	FString CurrentLevelShort = UGameplayStatics::GetCurrentLevelName(W, true);
-	CurrentLevelShort = CurrentLevelShort.ToLower();
-
-	// Функция нормализации имени из package → base filename
-	auto NormalizeNameFromPackage = [](const FString& InPath) -> FString
+	if (IsUseTravel)
 	{
-		if (InPath.IsEmpty()) return FString();
-
-		FString PackagePath = InPath;
-		if (PackagePath.Contains(TEXT(".")))
+		if (TargetLevelPath.IsEmpty())
 		{
-			PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
+			UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: failed to determine target level (не удалось определить целевой уровень)"));
+			OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
+			return;
 		}
 
-		const FString Base = FPaths::GetBaseFilename(PackagePath);
+		const FGuid TargetAnchorID = P->GetTargetAnchorID();
 
-		FString Result = Base;
-		int32 PIEPos = Result.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
-		if (PIEPos != INDEX_NONE)
+		// Получаем короткое имя текущего уровня через GameplayStatics — параметр true убирает PIE‑префиксы
+		FString CurrentLevelShort = UGameplayStatics::GetCurrentLevelName(W, true);
+		CurrentLevelShort = CurrentLevelShort.ToLower();
+
+		// Функция нормализации имени из package → base filename
+		auto NormalizeNameFromPackage = [](const FString& InPath) -> FString
 		{
-			int32 MPos = Result.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
-			if (MPos != INDEX_NONE && MPos + 3 < Result.Len())
-				Result = Result.Mid(MPos + 3);
-			else if (PIEPos + 6 < Result.Len())
-				Result = Result.Mid(PIEPos + 6);
+			if (InPath.IsEmpty()) return FString();
+
+			FString PackagePath = InPath;
+			if (PackagePath.Contains(TEXT(".")))
+			{
+				PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
+			}
+
+			const FString Base = FPaths::GetBaseFilename(PackagePath);
+
+			FString Result = Base;
+			int32 PIEPos = Result.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
+			if (PIEPos != INDEX_NONE)
+			{
+				int32 MPos = Result.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
+				if (MPos != INDEX_NONE && MPos + 3 < Result.Len())
+					Result = Result.Mid(MPos + 3);
+				else if (PIEPos + 6 < Result.Len())
+					Result = Result.Mid(PIEPos + 6);
+			}
+
+			return Result.ToLower();
+		};
+
+		const FString NormTarget = NormalizeNameFromPackage(TargetLevelPath);
+
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::HandleFloorTransition: currentShort='%s', targetPackage='%s' (norm='%s'), anchor=[%s]"),
+			*CurrentLevelShort, *TargetLevelPath, *NormTarget, *TargetAnchorID.ToString());
+
+		// Сравниваем короткое имя текущего уровня с нормализованным именем целевого уровня
+		if (P->IsUseAnchor)
+		{
+			if (!CurrentLevelShort.IsEmpty() && NormTarget.IsEmpty() && CurrentLevelShort == NormTarget)
+			{
+				UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: same map (by name) — teleporting in-place (та же карта (по имени) — телепортируем на месте)"));
+				const bool bOk = TeleportToAnchor(TargetAnchorID);
+				OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache->DestinationLink, false);
+				return;
+			}
+			SetPendingAnchorID(TargetAnchorID);
 		}
 
-		return Result.ToLower();
-	};
+		APlayerController* PC = W->GetFirstPlayerController();
+		if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
+		{
+			IPlayerController_I::Execute_SetLoadScreen(PC, true);
+			IPlayerController_I::Execute_StoreWeaponState(PC);
+		}
 
-	const FString NormTarget = NormalizeNameFromPackage(TargetLevelPath);
-
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::HandleFloorTransition: currentShort='%s', targetPackage='%s' (norm='%s'), anchor=[%s]"),
-		*CurrentLevelShort, *TargetLevelPath, *NormTarget, *TargetAnchorID.ToString());
-
-	// Сравниваем короткое имя текущего уровня с нормализованным именем целевого уровня
-    if (!CurrentLevelShort.IsEmpty() && !NormTarget.IsEmpty() && CurrentLevelShort == NormTarget)
-    {
-        UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: same map (by name) — teleporting in-place (та же карта (по имени) — телепортируем на месте)"));
-        const bool bOk = TeleportToAnchor(TargetAnchorID);
-        OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache->DestinationLink, false);
-        return;
-    }
-
-	SetPendingAnchorID(TargetAnchorID);
-
-	APlayerController* PC = W->GetFirstPlayerController();
-	if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
-	{
-		IPlayerController_I::Execute_SetLoadScreen(PC, true);
-		IPlayerController_I::Execute_StoreWeaponState(PC);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: SeamlessTravel → '%s'"), *TargetLevelPath);
 	}
-
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: SeamlessTravel → '%s'"), *TargetLevelPath);
-
 	FTimerDelegate TravelDelegate = FTimerDelegate::CreateLambda([TargetLevelPath, this]()
 	{
 		if (UWorld* LocalW = GetWorld())
@@ -1253,6 +1259,7 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 
 	// Уведомляем подписчиков: сейчас будет уход с исходного этажа
 	// Сначала оповестим через EventBus, чтобы MissionSubsystem мог запросить сохранение mission-snapshots.
+
 	if (UEventBusSubsystem* EventBus = CachedEventBus.Get() ? CachedEventBus.Get() : GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
 		// Reuse existing payload P (contains SourceFloor info)
@@ -1265,7 +1272,10 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	// Затем стандартный локальный broadcast
 	OnFloorExiting.Broadcast(P->SourceFloor);
 
-	W->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.0f, false);
+	if (IsUseTravel)
+	{
+		W->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.0f, false);
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -1695,7 +1705,15 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		return;
 	}
 
-	if (!HasPendingAnchorID())
+	bool bNeedTeleportToAnchor = true;
+	UGameInstance* GI = UGameplayStatics::GetGameInstance(LoadedWorld);
+	if (GI && GI->GetClass()->ImplementsInterface(USceneDataProvider::StaticClass()))
+	{
+		bNeedTeleportToAnchor = ISceneDataProvider::Execute_GetNeedTeleportToAnchor(GI);
+	}
+
+
+	if (bNeedTeleportToAnchor && !HasPendingAnchorID())
 	{
 		UE_LOG(LogTemp, Verbose, TEXT("InteriorSubsystem::OnPostLoadMap: нет PendingAnchorID"));
 		return;
@@ -1709,10 +1727,21 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 
 	// Небольшая задержка — дождаться создания акторов на уровне
 	FTimerHandle TimerHandle;
-	FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, AnchorID]()
+	FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, AnchorID, LoadedWorld, bNeedTeleportToAnchor]()
 	{
 		// Попытка телепорта — если false, всё равно продолжим проверку (якорь мог отсутствовать, но restore всё равно не делать).
-		const bool bOk = TeleportToAnchor(AnchorID);
+		bool bOk = false;
+
+		if (bNeedTeleportToAnchor)
+		{
+			bOk = TeleportToAnchor(AnchorID);
+		}
+		
+		UGameInstance* GI = UGameplayStatics::GetGameInstance(LoadedWorld);
+		if (GI && GI->GetClass()->ImplementsInterface(USceneDataProvider::StaticClass()))
+		{
+			ISceneDataProvider::Execute_SetNeedTeleportToAnchor(GI, true);
+		}
 
 		// Пытаемся найти актор-якорь в текущем мире
 		UWorld* World = GetWorld();
@@ -1721,7 +1750,15 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		{
 			for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
 			{
-				if (It->AnchorID == AnchorID)
+				if (bNeedTeleportToAnchor)
+				{
+					if (It->AnchorID == AnchorID)
+					{
+						FoundAnchor = *It;
+						break;
+					}
+				}
+				else
 				{
 					FoundAnchor = *It;
 					break;
@@ -1749,7 +1786,8 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						{
 							InteriorSetId = LoadedSet->InteriorSetID;
 						}
-					}					CurrentKey = FInteriorFloorKey(InteriorSetId, FloorAsset->FloorID);
+					}					
+					CurrentKey = FInteriorFloorKey(InteriorSetId, FloorAsset->FloorID);
 					bHaveKey = true;
 				}
 			}

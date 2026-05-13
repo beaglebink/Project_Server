@@ -23,4 +23,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SeamlessTravel")
 	void RestoreWeaponState();
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SeamlessTravel")
+	void StoreCharacterState(const FTransform& CharacterTransform);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SeamlessTravel")
+	void RetoreCharacterState(FTransform& CharacterTransform);
 };

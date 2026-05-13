@@ -12,6 +12,12 @@ class FPSKITALSREFACTORED_API UThisSaveGame : public USaveGame
 
 public:
     UPROPERTY()
+	FString MapName;
+
+    UPROPERTY()
+	FTransform PlayerTransform;
+
+    UPROPERTY()
     TArray<FActorSaveData> SavedActors;
 
     UPROPERTY()

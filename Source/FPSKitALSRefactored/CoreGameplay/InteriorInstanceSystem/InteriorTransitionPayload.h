@@ -71,6 +71,15 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
 	TSoftObjectPtr<UFloorAsset> SourceFloor;
 
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	bool IsUseAnchor = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	FString TargetLevelPath;
+
+	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
+	bool IsUseTravel = true;
+
 	/** Простой Setup из уже собранной FLocationAnchorLink (совместимость) */
 	UFUNCTION(BlueprintCallable, Category = "InteriorTransition")
 	UInteriorTransitionPayload* Setup(const FLocationAnchorLink& InDestinationLink);
@@ -91,8 +100,8 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorTransition")
 	FText GetTargetAnchorDisplayName() const { return DestinationLink.TargetAnchorDisplayName; }
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorTransition")
-	bool IsValid() const { return DestinationLink.IsValid(); }
+	//UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorTransition")
+	//bool IsValid() const { return DestinationLink.IsValid(); }
 
 	/**
 	 * Определяет путь к карте назначения (пакетный путь).
