@@ -151,6 +151,8 @@ public:
 	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 
+	void OnActorSpawned(AActor* SpawnedActor);
+
 	// Legacy monitoring broadcast (kept for tools/debug)
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
 	FOnInteriorInteractItemRegistrationEvent OnInteractItemRegistered;
@@ -185,6 +187,8 @@ public:
 	/** Восстанавливает состояние акторов этажа из памяти. Возвращает количество восстановленных акторов. */
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
 	int32 RestoreFloorActorsState(const FGuid& InteriorSetId, int32 CurrentMissionStep, const FGuid& FloorId);
+
+	int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope);
 
 	// Pending spawn transform API (public для доступа из GameMode)
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Transition")
@@ -379,6 +383,8 @@ private:
 
 	UPROPERTY()
 	TMap<FName, FActiveMissionInterior> ActiveMissions;
+
+	FDelegateHandle ActorSpawnedHandle;
 
 protected:
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods

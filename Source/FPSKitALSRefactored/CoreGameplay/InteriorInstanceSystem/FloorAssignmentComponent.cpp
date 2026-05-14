@@ -27,6 +27,7 @@ void UFloorAssignmentComponent::BeginPlay()
 
     // Publish placement registration via EventBus
     // (Публикуем регистрацию размещения через EventBus)
+	/*
 	if (SnapshotChannel == ESnapshotChannel::None || !ItemId.IsValid())
 		return;
 
@@ -39,7 +40,7 @@ void UFloorAssignmentComponent::BeginPlay()
 				UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
 				if (Payload)
 				{
-					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId/*, GetOwner()*/);
+					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId);
 
 					FOutcomeEventBase Ev;
 					Ev.OutcomeType = EOutcomeType::Interior;
@@ -51,6 +52,7 @@ void UFloorAssignmentComponent::BeginPlay()
 			}
 		}
 	}
+	*/
 }
 
 void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)

@@ -892,111 +892,107 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
-	FSubsystemSaveData Data;
-	Data = InData;
+	// Копируем данные в FString, чтобы лямбда владела своей копией
+	FString SerializedDataCopy = InData.SerializedData;
 
 	FTimerHandle TimerHandle;
-	FTimerDelegate Delegate = FTimerDelegate::CreateLambda([&]()
-	{
-
-		if (InData.SerializedData.IsEmpty()) return;
-
-		TSharedPtr<FJsonObject> Root;
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Data.SerializedData);
-		if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid()) return;
-
-		const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
-		if (!Root->TryGetArrayField(TEXT("Missions"), MissionArray)) return;
-
-		ActiveMissions.Empty();
-		for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
+	FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, SerializedDataCopy]()
 		{
-			const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
-			if (!Val->TryGetObject(ObjPtr)) continue;
-			const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+			if (SerializedDataCopy.IsEmpty()) return;
 
-			FString MissionIdStr, AssetPath;
-			int32 StatusInt = 0, EndReasonInt = 0, ResumeModeInt = 0, MissionStep = -1;
+			TSharedPtr<FJsonObject> Root;
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(SerializedDataCopy);
+			if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid()) return;
 
-			Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
-			Obj->TryGetStringField(TEXT("AssetPath"), AssetPath);
-			Obj->TryGetNumberField(TEXT("Status"), StatusInt);
-			Obj->TryGetNumberField(TEXT("EndReason"), EndReasonInt);
-			Obj->TryGetNumberField(TEXT("ResumeMode"), ResumeModeInt);
-			Obj->TryGetNumberField(TEXT("MissionStep"), MissionStep);
+			const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
+			if (!Root->TryGetArrayField(TEXT("Missions"), MissionArray)) return;
 
-			const FName MissionId = FName(*MissionIdStr);
-			const EMissionStatus   Status = static_cast<EMissionStatus>(StatusInt);
-			const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
-			const EMissionResumeMode Resume = static_cast<EMissionResumeMode>(ResumeModeInt);
-
-			// Загрузить ассет
-			UMissionAsset* Asset = Cast<UMissionAsset>(
-				StaticLoadObject(UMissionAsset::StaticClass(), nullptr, *AssetPath));
-			if (!Asset)
+			ActiveMissions.Empty();
+			for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
 			{
-				UE_LOG(LogTemp, Warning,
-					TEXT("MissionSubsystem::ApplySaveData: Cannot load MissionAsset '%s'"), *AssetPath);
-				continue;
-			}
+				const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+				if (!Val->TryGetObject(ObjPtr)) continue;
+				const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-			switch (Resume)
-			{
-			case EMissionResumeMode::RestartOnLoad:
-			{
-				UMissionController* Ctrl = CreateMission(Asset);
-				if (Ctrl)
+				FString MissionIdStr, AssetPath;
+				int32 StatusInt = 0, EndReasonInt = 0, ResumeModeInt = 0, MissionStep = -1;
+
+				Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
+				Obj->TryGetStringField(TEXT("AssetPath"), AssetPath);
+				Obj->TryGetNumberField(TEXT("Status"), StatusInt);
+				Obj->TryGetNumberField(TEXT("EndReason"), EndReasonInt);
+				Obj->TryGetNumberField(TEXT("ResumeMode"), ResumeModeInt);
+				Obj->TryGetNumberField(TEXT("MissionStep"), MissionStep);
+
+				const FName MissionId = FName(*MissionIdStr);
+				const EMissionStatus   Status = static_cast<EMissionStatus>(StatusInt);
+				const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
+				const EMissionResumeMode Resume = static_cast<EMissionResumeMode>(ResumeModeInt);
+
+				UMissionAsset* Asset = Cast<UMissionAsset>(
+					StaticLoadObject(UMissionAsset::StaticClass(), nullptr, *AssetPath));
+				if (!Asset)
 				{
-					Ctrl->MissionStep = 0;
-					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-					ActivateMission(MissionId, false);
+					UE_LOG(LogTemp, Warning,
+						TEXT("MissionSubsystem::ApplySaveData: Cannot load MissionAsset '%s'"), *AssetPath);
+					continue;
 				}
-				continue;
-			}
-			case EMissionResumeMode::Resumable:
-			{
-				UMissionController* Ctrl = CreateMission(Asset);
-				if (Ctrl)
-				{
-					Ctrl->MissionStep = MissionStep;
-					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-					ActivateMission(MissionId, false);
-				}
-				continue;
-			}
-			case EMissionResumeMode::FailOnLoad:
-			{
-				UMissionController* Ctrl = CreateMission(Asset);
-				if (!Ctrl) continue;
 
-				// Восстанавливаем статус из сохранения
-				if (Status == EMissionStatus::Active || Status == EMissionStatus::Suspended)
+				switch (Resume)
 				{
-					Ctrl->Activate();
-					if (Status == EMissionStatus::Suspended)
+				case EMissionResumeMode::RestartOnLoad:
+				{
+					UMissionController* Ctrl = CreateMission(Asset);
+					if (Ctrl)
 					{
-						Ctrl->Suspend();
+						Ctrl->MissionStep = 0;
+						ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+						ActivateMission(MissionId, false);
 					}
+					break;
 				}
-				else if (Status == EMissionStatus::Resolved)
+				case EMissionResumeMode::Resumable:
 				{
-					Ctrl->MissionStep = Asset->Envelopes.Num() - 1;
-					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-					Ctrl->Activate();
-					Ctrl->RequestResolve(EndReason);
+					UMissionController* Ctrl = CreateMission(Asset);
+					if (Ctrl)
+					{
+						Ctrl->MissionStep = MissionStep;
+						ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+						ActivateMission(MissionId, false);
+					}
+					break;
 				}
+				case EMissionResumeMode::FailOnLoad:
+				{
+					UMissionController* Ctrl = CreateMission(Asset);
+					if (!Ctrl) continue;
+
+					if (Status == EMissionStatus::Active || Status == EMissionStatus::Suspended)
+					{
+						Ctrl->Activate();
+						if (Status == EMissionStatus::Suspended)
+						{
+							Ctrl->Suspend();
+						}
+					}
+					else if (Status == EMissionStatus::Resolved)
+					{
+						Ctrl->MissionStep = Asset->Envelopes.Num() - 1;
+						ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+						Ctrl->Activate();
+						Ctrl->RequestResolve(EndReason);
+					}
+					break;
+				}
+				}
+
+				UE_LOG(LogTemp, Log,
+					TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
+					*MissionIdStr, StatusInt, MissionStep);
 			}
-			}
+		});
 
-			UE_LOG(LogTemp, Log,
-				TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
-				*MissionIdStr, StatusInt, MissionStep);
-		}
-	});
-
-	auto World = GetWorld();
-
-	if (World)
+	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, false);
 	}

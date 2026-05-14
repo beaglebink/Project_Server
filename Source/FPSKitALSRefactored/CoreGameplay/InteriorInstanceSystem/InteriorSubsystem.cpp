@@ -35,6 +35,29 @@
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
 
+auto ContainsActorIdInSpawned = [](const TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId) -> bool
+	{
+		if (!TargetActorId.IsValid()) return false;
+
+		for (const auto& Pair : SpawnedMap)
+		{
+			const FFloorPopulationBuckets& Buckets = Pair.Value;
+			auto CheckArray = [&TargetActorId](const TArray<FFloorPopulationRecord>& Arr) -> bool
+				{
+					return Arr.ContainsByPredicate([&TargetActorId](const FFloorPopulationRecord& Record)
+						{
+							return Record.ActorId == TargetActorId;
+						});
+				};
+			if (CheckArray(Buckets.HeavyFurniture)) return true;
+			if (CheckArray(Buckets.LightItems)) return true;
+			if (CheckArray(Buckets.Terminals)) return true;
+			if (CheckArray(Buckets.NPCSpawners)) return true;
+			if (CheckArray(Buckets.Debris)) return true;
+		}
+		return false;
+
+	};
 // -----------------------------------------------------------------------------
 // JSON serialization helpers for snapshot structures
 // -----------------------------------------------------------------------------
@@ -942,13 +965,12 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
 }
 
 // --- добавлен новый хелпер: восстанавливает actors напрямую из переданного массива снимков ---
-static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope)
+int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope)
 {
 	if (!W) return 0;
 
 	FMissionEnvelopeScope Scope = Envelope.Scope;
 
-	// === ИЗМЕНЕНИЕ: используем кэшированный InteriorSetID и защиту от nullptr
 	for (const auto& S : Scope.InteriorScopes)   // const auto& чтобы избежать копирования
 	{
 		if (!S) continue;   // на случай null-указателей в массиве
@@ -1006,18 +1028,17 @@ static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorSt
 
 		if (NormTarget != CurrentLevelName)
 		{
-			// SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, P->EndReason);
 			return 0;
 		}
 	}
-	// === КОНЕЦ ИЗМЕНЕНИЯ ===
 
 	if (Snapshots.IsEmpty()) return 0;
 
 	TMap<FGuid, AActor*> ActorByItemId;
-	for (TActorIterator<AActor> It(W); It; ++It)
+	TArray<AActor*> AllActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), AllActors);
+	for (AActor* Actor : AllActors)
 	{
-		AActor* Actor = *It;
 		if (!IsValid(Actor)) continue;
 		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
 		{
@@ -1029,8 +1050,23 @@ static int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorSt
 					continue;
 			}
 
-			// иначе добавляем актёра
-			ActorByItemId.Add(C->ItemId, Actor);
+			if (C->SnapshotChannel == ESnapshotChannel::None)
+			{
+				continue;
+			}
+
+			FGuid ItemId = C->ItemId;
+
+			if (ContainsActorIdInSpawned(DestroyedActorsByInteriorFloor, ItemId))
+			{
+				Actor->Destroy();
+				continue;
+			}
+			else
+			{
+				// иначе добавляем актёра
+				ActorByItemId.Add(C->ItemId, Actor);
+			}
 		}
 
 		TArray<UChildActorComponent*> ChildComps;
@@ -1183,6 +1219,8 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	}
 
 	FInteriorFloorKey Key(P->InteriorSetId, P->FloorId);
+	/*
+
 
 	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
 	{
@@ -1208,7 +1246,9 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement spawned for floor %s/%s (AnchorId=%s)"),
 			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
 	}
-	else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
+	else 
+	*/
+	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
 	{
 		FFloorPopulationBuckets& BucketsDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(Key);
 		FFloorPopulationRecord NewRecord;
@@ -1253,29 +1293,6 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 				RemoveByActorId(Buckets.NPCSpawners);
 				RemoveByActorId(Buckets.Debris);
 			}
-		};
-
-		auto ContainsActorIdInSpawned = [](const TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId) -> bool
-		{
-			if (!TargetActorId.IsValid()) return false;
-
-			for (const auto& Pair : SpawnedMap)
-			{
-				const FFloorPopulationBuckets& Buckets = Pair.Value;
-				auto CheckArray = [&TargetActorId](const TArray<FFloorPopulationRecord>& Arr) -> bool
-				{
-					return Arr.ContainsByPredicate([&TargetActorId](const FFloorPopulationRecord& Record)
-					{
-						return Record.ActorId == TargetActorId;
-					});
-				};
-				if (CheckArray(Buckets.HeavyFurniture)) return true;
-				if (CheckArray(Buckets.LightItems)) return true;
-				if (CheckArray(Buckets.Terminals)) return true;
-				if (CheckArray(Buckets.NPCSpawners)) return true;
-				if (CheckArray(Buckets.Debris)) return true;
-			}
-			return false;
 		};
 
 		if (ContainsActorIdInSpawned(SpawnedActorsByInteriorFloor, P->ItemId))
@@ -1875,6 +1892,11 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// Подписываемся на загрузку карты (срабатывает после SeamlessTravel)
 	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
 		this, &UInteriorSubsystem::OnPostLoadMap);
+
+	if (UWorld* World = GetWorld())
+	{
+		ActorSpawnedHandle = World->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateUObject(this, &UInteriorSubsystem::OnActorSpawned));
+	}
 }
 
 void UInteriorSubsystem::Deinitialize()
@@ -1891,6 +1913,11 @@ void UInteriorSubsystem::Deinitialize()
 	//FloorStateSnapshots.Empty();
 	MissionFloorSnapshots.Empty();
 	CachedEventBus = nullptr;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
+	}
 
 	Super::Deinitialize();
 }
@@ -2028,7 +2055,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 
 			bool bDidRestoreAny = false;
 
-			// 1) Сначала попробуем восстановить mission-snapshots (как раньше)
+			// 1) Восстановить mission-snapshots
 			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: OnPostLoadMap MissionFloorSnapshots count before: %d"), MissionFloorSnapshots.Num());
 			if (const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(CurrentKey))
 			{
@@ -2191,9 +2218,6 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 			auto MissionAsset = Controller->GetMissionAsset();
 			auto& Envelope = MissionAsset->Envelopes[CurrentMissionStep];
 			
-			//if (Envelope.JobSpacePolicy == EJobSpacePolicy::Reset)
-			//	return;
-
             RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
             UE_LOG(LogTemp, Log,
                 TEXT("InteriorSubsystem::RestoreMissionFloorState: restored snapshot for mission '%s' floor %s/%s"),
@@ -2421,8 +2445,6 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		DeserializePopulationMap(DestroyedValue, DestroyedActorsByInteriorFloor);
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored DestroyedActors, count=%d"), DestroyedActorsByInteriorFloor.Num());
 	}
-
-
 }
 
 UMissionController* UInteriorSubsystem::CreateMission(UMissionAsset* MissionAsset)
@@ -2921,3 +2943,25 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionE
 		*MissionId.ToString(), static_cast<int32>(Policy));
 }
 
+void UInteriorSubsystem::OnActorSpawned(AActor* SpawnedActor)
+{
+	if (!IsValid(SpawnedActor)) return;
+	UFloorAssignmentComponent* Comp = SpawnedActor->FindComponentByClass<UFloorAssignmentComponent>();
+	if (!Comp) return;
+	if (Comp->SnapshotChannel == ESnapshotChannel::None) return;
+
+	// Публикуем событие о регистрации спавна
+	if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
+	{
+		UFloorPlacementPayload* Payload = EventBus->CreatePayload<UFloorPlacementPayload>();
+		if (Payload)
+		{
+			Payload->Setup(Comp->InteriorSetId, Comp->FloorId, Comp->ActorType, Comp->AnchorId, SpawnedActor->GetActorTransform(), Comp->ItemId);
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Interior;
+			Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementRegistered;
+			Ev.Payload = Payload;
+			EventBus->PublishOutcome(Ev);
+		}
+	}
+}
