@@ -33,8 +33,8 @@ public:
 	FGuid ItemId;
 
 	// Owner actor (weak ptr)
-	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
-	TWeakObjectPtr<AActor> OwnerActor;
+	//UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
+	//TWeakObjectPtr<AActor> OwnerActor;
 
 	UFUNCTION(BlueprintCallable, Category = "FloorPlacement")
 	UFloorPlacementPayload* Setup(
@@ -43,8 +43,8 @@ public:
 		EFloorActorType InActorType,
 		const FGuid& InAnchorId,
 		const FTransform& InWorldTransform,
-		const FGuid& InItemId,
-		AActor* InOwner)
+		const FGuid& InItemId/*,
+		AActor* InOwner*/)
 	{
 		InteriorSetId = InInteriorSetId;
 		FloorId = InFloorId;
@@ -52,7 +52,7 @@ public:
 		AnchorId = InAnchorId;
 		WorldTransform = InWorldTransform;
 		ItemId = InItemId;
-		OwnerActor = InOwner;
+		//OwnerActor = InOwner;
 		return this;
 	}
 };

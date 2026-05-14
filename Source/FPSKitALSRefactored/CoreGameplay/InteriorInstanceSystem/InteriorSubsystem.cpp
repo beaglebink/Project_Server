@@ -502,7 +502,146 @@ namespace
 		}
 	}
 } // namespace
+// -----------------------------------------------------------------------------
+// JSON serialization helpers for population structures
+// -----------------------------------------------------------------------------
 
+static FString ActorTypeToString(EFloorActorType Type)
+{
+	switch (Type)
+	{
+	case EFloorActorType::HeavyFurniture: return TEXT("HeavyFurniture");
+	case EFloorActorType::LightItem:      return TEXT("LightItem");
+	case EFloorActorType::Debris:         return TEXT("Debris");
+	case EFloorActorType::DoorLocks:      return TEXT("DoorLocks");
+	case EFloorActorType::StableActor:    return TEXT("StableActor");
+	case EFloorActorType::DialogueAccess: return TEXT("DialogueAccess");
+	case EFloorActorType::Terminal:       return TEXT("Terminal");
+	case EFloorActorType::InventoryItems: return TEXT("InventoryItems");
+	case EFloorActorType::NPC_Spawner:    return TEXT("NPC_Spawner");
+	case EFloorActorType::LocationTriggers: return TEXT("LocationTriggers");
+	default: return TEXT("LightItem");
+	}
+}
+
+static EFloorActorType StringToActorType(const FString& Str)
+{
+	if (Str == TEXT("HeavyFurniture")) return EFloorActorType::HeavyFurniture;
+	if (Str == TEXT("LightItem"))      return EFloorActorType::LightItem;
+	if (Str == TEXT("Debris"))         return EFloorActorType::Debris;
+	if (Str == TEXT("DoorLocks"))      return EFloorActorType::DoorLocks;
+	if (Str == TEXT("StableActor"))    return EFloorActorType::StableActor;
+	if (Str == TEXT("DialogueAccess")) return EFloorActorType::DialogueAccess;
+	if (Str == TEXT("Terminal"))       return EFloorActorType::Terminal;
+	if (Str == TEXT("InventoryItems")) return EFloorActorType::InventoryItems;
+	if (Str == TEXT("NPC_Spawner"))    return EFloorActorType::NPC_Spawner;
+	if (Str == TEXT("LocationTriggers"))return EFloorActorType::LocationTriggers;
+	return EFloorActorType::LightItem;
+}
+
+static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationRecord& Record)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetStringField(TEXT("ActorType"), ActorTypeToString(Record.ActorType));
+	if (Record.SourceClass)
+		Obj->SetStringField(TEXT("SourceClass"), Record.SourceClass->GetPathName());
+	Obj->SetStringField(TEXT("ActorId"), Record.ActorId.ToString());
+	Obj->SetStringField(TEXT("AnchorId"), Record.AnchorId.ToString());
+	Obj->SetObjectField(TEXT("WorldTransform"), TransformToJsonObject(Record.WorldTransform));
+	Obj->SetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
+	return Obj;
+}
+
+static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObject>& Obj)
+{
+	FFloorPopulationRecord Record;
+	if (!Obj.IsValid()) return Record;
+	FString ActorTypeStr;
+	if (Obj->TryGetStringField(TEXT("ActorType"), ActorTypeStr))
+		Record.ActorType = StringToActorType(ActorTypeStr);
+	FString SourceClassPath;
+	if (Obj->TryGetStringField(TEXT("SourceClass"), SourceClassPath))
+		Record.SourceClass = LoadClass<AActor>(nullptr, *SourceClassPath);
+	FGuid::Parse(Obj->GetStringField(TEXT("ActorId")), Record.ActorId);
+	FGuid::Parse(Obj->GetStringField(TEXT("AnchorId")), Record.AnchorId);
+	if (Obj->HasField(TEXT("WorldTransform")))
+		Record.WorldTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("WorldTransform")));
+	Obj->TryGetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
+	return Record;
+}
+
+static TSharedPtr<FJsonObject> PopulationBucketsToJson(const FFloorPopulationBuckets& Buckets)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	auto SerializeArray = [](const TArray<FFloorPopulationRecord>& Arr) -> TArray<TSharedPtr<FJsonValue>>
+		{
+			TArray<TSharedPtr<FJsonValue>> Result;
+			for (const auto& R : Arr)
+				Result.Add(MakeShared<FJsonValueObject>(PopulationRecordToJson(R)));
+			return Result;
+		};
+	Obj->SetArrayField(TEXT("HeavyFurniture"), SerializeArray(Buckets.HeavyFurniture));
+	Obj->SetArrayField(TEXT("LightItems"), SerializeArray(Buckets.LightItems));
+	Obj->SetArrayField(TEXT("Terminals"), SerializeArray(Buckets.Terminals));
+	Obj->SetArrayField(TEXT("NPCSpawners"), SerializeArray(Buckets.NPCSpawners));
+	Obj->SetArrayField(TEXT("Debris"), SerializeArray(Buckets.Debris));
+	return Obj;
+}
+
+static FFloorPopulationBuckets PopulationBucketsFromJson(const TSharedPtr<FJsonObject>& Obj)
+{
+	FFloorPopulationBuckets Buckets;
+	if (!Obj.IsValid()) return Buckets;
+	auto DeserializeArray = [](const TArray<TSharedPtr<FJsonValue>>& Arr) -> TArray<FFloorPopulationRecord>
+		{
+			TArray<FFloorPopulationRecord> Result;
+			for (const auto& Val : Arr)
+				if (Val->Type == EJson::Object)
+					Result.Add(PopulationRecordFromJson(Val->AsObject()));
+			return Result;
+		};
+	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+	if (Obj->TryGetArrayField(TEXT("HeavyFurniture"), Arr))
+		Buckets.HeavyFurniture = DeserializeArray(*Arr);
+	if (Obj->TryGetArrayField(TEXT("LightItems"), Arr))
+		Buckets.LightItems = DeserializeArray(*Arr);
+	if (Obj->TryGetArrayField(TEXT("Terminals"), Arr))
+		Buckets.Terminals = DeserializeArray(*Arr);
+	if (Obj->TryGetArrayField(TEXT("NPCSpawners"), Arr))
+		Buckets.NPCSpawners = DeserializeArray(*Arr);
+	if (Obj->TryGetArrayField(TEXT("Debris"), Arr))
+		Buckets.Debris = DeserializeArray(*Arr);
+	return Buckets;
+}
+
+static TSharedPtr<FJsonValue> SerializePopulationMap(const TMap<FInteriorFloorKey, FFloorPopulationBuckets>& Map)
+{
+	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
+	for (const auto& Pair : Map)
+	{
+		FString KeyStr = FString::Printf(TEXT("%s|%s"), *Pair.Key.InteriorSetId.ToString(), *Pair.Key.FloorId.ToString());
+		Root->SetObjectField(KeyStr, PopulationBucketsToJson(Pair.Value));
+	}
+	return MakeShared<FJsonValueObject>(Root);
+}
+
+static void DeserializePopulationMap(const TSharedPtr<FJsonValue>& JsonValue, TMap<FInteriorFloorKey, FFloorPopulationBuckets>& OutMap)
+{
+	OutMap.Empty();
+	if (!JsonValue.IsValid() || JsonValue->Type != EJson::Object) return;
+	TSharedPtr<FJsonObject> Root = JsonValue->AsObject();
+	for (const auto& Pair : Root->Values)
+	{
+		TArray<FString> Parts;
+		Pair.Key.ParseIntoArray(Parts, TEXT("|"), false);
+		if (Parts.Num() != 2) continue;
+		FGuid InteriorSetId, FloorId;
+		if (!FGuid::Parse(Parts[0], InteriorSetId) || !FGuid::Parse(Parts[1], FloorId)) continue;
+		FInteriorFloorKey Key(InteriorSetId, FloorId);
+		if (Pair.Value->Type == EJson::Object)
+			OutMap.Add(Key, PopulationBucketsFromJson(Pair.Value->AsObject()));
+	}
+}
 // -----------------------------------------------------------------------------
 // SaveFloorActorsState
 // -----------------------------------------------------------------------------
@@ -1038,6 +1177,11 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	UFloorPlacementPayload* P = Cast<UFloorPlacementPayload>(Outcome.Payload);
 	if (!P) return;
 
+	if(!P->ItemId.IsValid())
+	{
+		return;
+	}
+
 	FInteriorFloorKey Key(P->InteriorSetId, P->FloorId);
 
 	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
@@ -1046,42 +1190,100 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		NewRecord.ActorType      = P->ActorType;
 		NewRecord.AnchorId       = P->AnchorId;
 		NewRecord.WorldTransform = P->WorldTransform;
-		NewRecord.PlacedActor    = P->OwnerActor.Get();
+		NewRecord.ActorId		 = P->ItemId;
 		NewRecord.bHasAnchor     = P->AnchorId.IsValid();
 
-		FFloorPopulationBuckets& Buckets = SpawnedActorsByInteriorFloor.FindOrAdd(Key);
+		FFloorPopulationBuckets& BucketsAdded = SpawnedActorsByInteriorFloor.FindOrAdd(Key);
 
 		switch (P->ActorType)
 		{
-		case EFloorActorType::HeavyFurniture: Buckets.HeavyFurniture.Add(MoveTemp(NewRecord)); break;
-		case EFloorActorType::LightItem:      Buckets.LightItems.Add(MoveTemp(NewRecord));      break;
-		case EFloorActorType::Terminal:       Buckets.Terminals.Add(MoveTemp(NewRecord));       break;
-		case EFloorActorType::NPC_Spawner:    Buckets.NPCSpawners.Add(MoveTemp(NewRecord));     break;
-		case EFloorActorType::Debris:         Buckets.Debris.Add(MoveTemp(NewRecord));          break;
-		default:                              Buckets.LightItems.Add(MoveTemp(NewRecord));      break;
+		case EFloorActorType::HeavyFurniture: BucketsAdded.HeavyFurniture.Add(MoveTemp(NewRecord)); break;
+		case EFloorActorType::LightItem:      BucketsAdded.LightItems.Add(MoveTemp(NewRecord));      break;
+		case EFloorActorType::Terminal:       BucketsAdded.Terminals.Add(MoveTemp(NewRecord));       break;
+		case EFloorActorType::NPC_Spawner:    BucketsAdded.NPCSpawners.Add(MoveTemp(NewRecord));     break;
+		case EFloorActorType::Debris:         BucketsAdded.Debris.Add(MoveTemp(NewRecord));          break;
+		default:                              BucketsAdded.LightItems.Add(MoveTemp(NewRecord));      break;
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement registered for floor %s/%s (AnchorId=%s)"),
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement spawned for floor %s/%s (AnchorId=%s)"),
 			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
 	}
 	else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
 	{
-		if (FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(Key))
+		FFloorPopulationBuckets& BucketsDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(Key);
+		FFloorPopulationRecord NewRecord;
+
+		NewRecord.ActorType		 = P->ActorType;
+		NewRecord.AnchorId		 = P->AnchorId;
+		NewRecord.WorldTransform = P->WorldTransform;
+		NewRecord.ActorId		 = P->ItemId;
+		NewRecord.bHasAnchor	 = P->AnchorId.IsValid();
+
+		switch (P->ActorType)
 		{
-			const FGuid AnchorToRemove = P->AnchorId;
-			auto RemoveByAnchor = [&AnchorToRemove](TArray<FFloorPopulationRecord>& Arr)
-			{
-				Arr.RemoveAll([&AnchorToRemove](const FFloorPopulationRecord& R) { return R.AnchorId == AnchorToRemove; });
-			};
-			RemoveByAnchor(Buckets->HeavyFurniture);
-			RemoveByAnchor(Buckets->LightItems);
-			RemoveByAnchor(Buckets->Terminals);
-			RemoveByAnchor(Buckets->NPCSpawners);
-			RemoveByAnchor(Buckets->Debris);
+		case EFloorActorType::HeavyFurniture: BucketsDestroyed.HeavyFurniture.Add(MoveTemp(NewRecord)); break;
+		case EFloorActorType::LightItem:      BucketsDestroyed.LightItems.Add(MoveTemp(NewRecord));      break;
+		case EFloorActorType::Terminal:       BucketsDestroyed.Terminals.Add(MoveTemp(NewRecord));       break;
+		case EFloorActorType::NPC_Spawner:    BucketsDestroyed.NPCSpawners.Add(MoveTemp(NewRecord));     break;
+		case EFloorActorType::Debris:         BucketsDestroyed.Debris.Add(MoveTemp(NewRecord));          break;
+		default:                              BucketsDestroyed.LightItems.Add(MoveTemp(NewRecord));      break;
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement unregistered for floor %s/%s (AnchorId=%s)"),
+
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement destroyed for floor %s/%s (AnchorId=%s)"),
 			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
+
+		auto RemoveFromSpawnedByActorId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId)
+		{
+			if (!TargetActorId.IsValid()) return;
+
+			for (auto& Pair : SpawnedMap)
+			{
+				FFloorPopulationBuckets& Buckets = Pair.Value;
+				auto RemoveByActorId = [&TargetActorId](TArray<FFloorPopulationRecord>& Arr)
+				{
+					Arr.RemoveAll([&TargetActorId](const FFloorPopulationRecord& Record)
+					{
+						return Record.ActorId == TargetActorId;
+					});
+				};
+				RemoveByActorId(Buckets.HeavyFurniture);
+				RemoveByActorId(Buckets.LightItems);
+				RemoveByActorId(Buckets.Terminals);
+				RemoveByActorId(Buckets.NPCSpawners);
+				RemoveByActorId(Buckets.Debris);
+			}
+		};
+
+		auto ContainsActorIdInSpawned = [](const TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId) -> bool
+		{
+			if (!TargetActorId.IsValid()) return false;
+
+			for (const auto& Pair : SpawnedMap)
+			{
+				const FFloorPopulationBuckets& Buckets = Pair.Value;
+				auto CheckArray = [&TargetActorId](const TArray<FFloorPopulationRecord>& Arr) -> bool
+				{
+					return Arr.ContainsByPredicate([&TargetActorId](const FFloorPopulationRecord& Record)
+					{
+						return Record.ActorId == TargetActorId;
+					});
+				};
+				if (CheckArray(Buckets.HeavyFurniture)) return true;
+				if (CheckArray(Buckets.LightItems)) return true;
+				if (CheckArray(Buckets.Terminals)) return true;
+				if (CheckArray(Buckets.NPCSpawners)) return true;
+				if (CheckArray(Buckets.Debris)) return true;
+			}
+			return false;
+		};
+
+		if (ContainsActorIdInSpawned(SpawnedActorsByInteriorFloor, P->ItemId))
+		{
+			RemoveFromSpawnedByActorId(DestroyedActorsByInteriorFloor, P->ItemId);
+		}
+
+		RemoveFromSpawnedByActorId(SpawnedActorsByInteriorFloor, P->ItemId);
 	}
 }
 
@@ -2068,6 +2270,10 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	// --- 3. Сериализация MissionFloorSnapshots ---
 	Root->SetField(TEXT("MissionFloorSnapshots"), SerializeMissionFloorSnapshots(MissionFloorSnapshots));
 
+	// --- Сериализация SpawnedActorsByInteriorFloor и DestroyedActorsByInteriorFloor ---
+	Root->SetField(TEXT("SpawnedActors"), SerializePopulationMap(SpawnedActorsByInteriorFloor));
+	Root->SetField(TEXT("DestroyedActors"), SerializePopulationMap(DestroyedActorsByInteriorFloor));
+
 	// Запись в строку
 	FString Output;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -2179,25 +2385,6 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			}
 			}
 
-			// RestartOnLoad — создать заново и активировать
-			/*
-			if (Resume == EMissionResumeMode::RestartOnLoad)
-			{
-				UMissionController* Ctrl = CreateMission(Asset);
-				if (Ctrl)
-				{
-					Ctrl->MissionStep = MissionStep;
-				}
-				continue;
-			}
-			*/
-
-			// FailOnLoad — запись уже сохранена с Failed статусом, просто создаём запись
-			// Resumable — восстанавливаем как было
-			//UMissionController* Ctrl = CreateMission(Asset);
-
-			// Здесь можно сохранить эту информацию в отдельную структуру для MissionSubsystem.
-			// Например, во временный TMap, или опубликовать через EventBus.
 			UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: read mission '%s' (Status=%d)"),
 				*MissionIdStr, StatusInt);
 		}
@@ -2219,6 +2406,23 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		DeserializeMissionFloorSnapshots(MissionFloorValue, MissionFloorSnapshots);
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored MissionFloorSnapshots, count=%d"), MissionFloorSnapshots.Num());
 	}
+
+	// --- Десериализация SpawnedActorsByInteriorFloor и DestroyedActorsByInteriorFloor ---
+	TSharedPtr<FJsonValue> SpawnedValue = Root->TryGetField(TEXT("SpawnedActors"));
+	if (SpawnedValue.IsValid())
+	{
+		DeserializePopulationMap(SpawnedValue, SpawnedActorsByInteriorFloor);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored SpawnedActors, count=%d"), SpawnedActorsByInteriorFloor.Num());
+	}
+	TSharedPtr<FJsonValue> DestroyedValue = Root->TryGetField(TEXT("DestroyedActors"));
+
+	if (DestroyedValue.IsValid())
+	{
+		DeserializePopulationMap(DestroyedValue, DestroyedActorsByInteriorFloor);
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored DestroyedActors, count=%d"), DestroyedActorsByInteriorFloor.Num());
+	}
+
+
 }
 
 UMissionController* UInteriorSubsystem::CreateMission(UMissionAsset* MissionAsset)

@@ -27,6 +27,9 @@ void UFloorAssignmentComponent::BeginPlay()
 
     // Publish placement registration via EventBus
     // (Публикуем регистрацию размещения через EventBus)
+	if (SnapshotChannel == ESnapshotChannel::None || !ItemId.IsValid())
+		return;
+
 	if (UWorld* W = GetWorld())
 	{
 		if (UGameInstance* GI = W->GetGameInstance())
@@ -36,7 +39,7 @@ void UFloorAssignmentComponent::BeginPlay()
 				UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
 				if (Payload)
 				{
-					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId, GetOwner());
+					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId/*, GetOwner()*/);
 
 					FOutcomeEventBase Ev;
 					Ev.OutcomeType = EOutcomeType::Interior;
@@ -52,6 +55,12 @@ void UFloorAssignmentComponent::BeginPlay()
 
 void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (SnapshotChannel == ESnapshotChannel::None || !ItemId.IsValid())
+		return;
+
+	if(EndPlayReason != EEndPlayReason::Destroyed)
+		return;
+
 	// Publish unregistration via EventBus
 	if (UWorld* W = GetWorld())
 	{
@@ -62,7 +71,7 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 				UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
 				if (Payload)
 				{
-					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId, GetOwner());
+					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId/*, GetOwner()*/);
 
 					FOutcomeEventBase Ev;
 					Ev.OutcomeType = EOutcomeType::Interior;

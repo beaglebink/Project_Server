@@ -74,8 +74,11 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	TSubclassOf<AActor> SourceClass;
 
+	//UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
+	//TWeakObjectPtr<AActor> PlacedActor;
+
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
-	TWeakObjectPtr<AActor> PlacedActor;
+	FGuid ActorId;
 
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	FGuid AnchorId;

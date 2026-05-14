@@ -892,49 +892,56 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
-	if (InData.SerializedData.IsEmpty()) return;
+	FSubsystemSaveData Data;
+	Data = InData;
 
-	TSharedPtr<FJsonObject> Root;
-	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(InData.SerializedData);
-	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid()) return;
-
-	const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
-	if (!Root->TryGetArrayField(TEXT("Missions"), MissionArray)) return;
-
-	ActiveMissions.Empty();
-	for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
+	FTimerHandle TimerHandle;
+	FTimerDelegate Delegate = FTimerDelegate::CreateLambda([&]()
 	{
-		const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
-		if (!Val->TryGetObject(ObjPtr)) continue;
-		const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-		FString MissionIdStr, AssetPath;
-		int32 StatusInt = 0, EndReasonInt = 0, ResumeModeInt = 0, MissionStep = -1;
+		if (InData.SerializedData.IsEmpty()) return;
 
-		Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
-		Obj->TryGetStringField(TEXT("AssetPath"), AssetPath);
-		Obj->TryGetNumberField(TEXT("Status"),    StatusInt);
-		Obj->TryGetNumberField(TEXT("EndReason"), EndReasonInt);
-		Obj->TryGetNumberField(TEXT("ResumeMode"), ResumeModeInt);
-		Obj->TryGetNumberField(TEXT("MissionStep"), MissionStep);
+		TSharedPtr<FJsonObject> Root;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Data.SerializedData);
+		if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid()) return;
 
-		const FName MissionId = FName(*MissionIdStr);
-		const EMissionStatus   Status    = static_cast<EMissionStatus>(StatusInt);
-		const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
-		const EMissionResumeMode Resume  = static_cast<EMissionResumeMode>(ResumeModeInt);
+		const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
+		if (!Root->TryGetArrayField(TEXT("Missions"), MissionArray)) return;
 
-		// Загрузить ассет
-		UMissionAsset* Asset = Cast<UMissionAsset>(
-			StaticLoadObject(UMissionAsset::StaticClass(), nullptr, *AssetPath));
-		if (!Asset)
+		ActiveMissions.Empty();
+		for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
 		{
-			UE_LOG(LogTemp, Warning,
-				TEXT("MissionSubsystem::ApplySaveData: Cannot load MissionAsset '%s'"), *AssetPath);
-			continue;
-		}
+			const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+			if (!Val->TryGetObject(ObjPtr)) continue;
+			const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-		switch (Resume)
-		{
+			FString MissionIdStr, AssetPath;
+			int32 StatusInt = 0, EndReasonInt = 0, ResumeModeInt = 0, MissionStep = -1;
+
+			Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
+			Obj->TryGetStringField(TEXT("AssetPath"), AssetPath);
+			Obj->TryGetNumberField(TEXT("Status"), StatusInt);
+			Obj->TryGetNumberField(TEXT("EndReason"), EndReasonInt);
+			Obj->TryGetNumberField(TEXT("ResumeMode"), ResumeModeInt);
+			Obj->TryGetNumberField(TEXT("MissionStep"), MissionStep);
+
+			const FName MissionId = FName(*MissionIdStr);
+			const EMissionStatus   Status = static_cast<EMissionStatus>(StatusInt);
+			const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
+			const EMissionResumeMode Resume = static_cast<EMissionResumeMode>(ResumeModeInt);
+
+			// Загрузить ассет
+			UMissionAsset* Asset = Cast<UMissionAsset>(
+				StaticLoadObject(UMissionAsset::StaticClass(), nullptr, *AssetPath));
+			if (!Asset)
+			{
+				UE_LOG(LogTemp, Warning,
+					TEXT("MissionSubsystem::ApplySaveData: Cannot load MissionAsset '%s'"), *AssetPath);
+				continue;
+			}
+
+			switch (Resume)
+			{
 			case EMissionResumeMode::RestartOnLoad:
 			{
 				UMissionController* Ctrl = CreateMission(Asset);
@@ -979,45 +986,19 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					Ctrl->RequestResolve(EndReason);
 				}
 			}
-		}
-		/*
-		// RestartOnLoad — создать заново и активировать
-		if (Resume == EMissionResumeMode::RestartOnLoad)
-		{
-			UMissionController* Ctrl = CreateMission(Asset);
-			if (Ctrl)
-			{
-				ActivateMission(MissionId);
-				Ctrl->MissionStep = 0;
 			}
-			continue;
-		}
-		*/
 
-		/*
-		// FailOnLoad — запись уже сохранена с Failed статусом, просто создаём запись
-		// Resumable — восстанавливаем как было
-		UMissionController* Ctrl = CreateMission(Asset);
-		if (!Ctrl) continue;
+			UE_LOG(LogTemp, Log,
+				TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
+				*MissionIdStr, StatusInt, MissionStep);
+		}
+	});
 
-		// Восстанавливаем статус из сохранения
-		if (Status == EMissionStatus::Active || Status == EMissionStatus::Suspended)
-		{
-			Ctrl->Activate();
-			if (Status == EMissionStatus::Suspended)
-			{
-				Ctrl->Suspend();
-			}
-		}
-		else if (Status == EMissionStatus::Resolved)
-		{
-			Ctrl->Activate();
-			Ctrl->RequestResolve(EndReason);
-		}
-		*/
-		UE_LOG(LogTemp, Log,
-			TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
-			*MissionIdStr, StatusInt, MissionStep);
+	auto World = GetWorld();
+
+	if (World)
+	{
+		World->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, false);
 	}
 }
 

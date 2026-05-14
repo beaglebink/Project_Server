@@ -330,6 +330,9 @@ private:
 	UPROPERTY()
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloor;
 
+	UPROPERTY()
+	TMap<FInteriorFloorKey, FFloorPopulationBuckets> DestroyedActorsByInteriorFloor;
+
 	// ── In-memory snapshot storage (appended per floor, never overwritten) ─
 	// Key = FInteriorFloorKey; value = list of actor snapshots for that floor.
 	TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> FloorStateSnapshots;
