@@ -2282,8 +2282,10 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 {
 	if(UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(Outcome.Payload))
 	{
-		auto ActiveMissionInterior = ActiveMissions.Find(P->CurrentMissionId);
+		auto ActiveMissionInterior = P->ActiveMissions.Find(P->CurrentMissionId);
 		FMissionEnvelope Envelope = FMissionEnvelope();
+		//int32 MissionStep = 0;
+
 		if (ActiveMissionInterior)
 		{
 			int32 MissionStep = ActiveMissionInterior->MissionStep;
@@ -2315,6 +2317,7 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 				MissionInterior.MissionId = MissionId;
 				MissionInterior.MissionStep = Map[MissionId].MissionStep;
 				MissionInterior.Controller = Map[MissionId].Controller;
+				MissionInterior.Controller->MissionStep = MissionInterior.MissionStep;
 
 				ActiveMissions.Add(MissionId, MissionInterior);
 			}

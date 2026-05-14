@@ -940,9 +940,9 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (Ctrl)
 				{
-					ActivateMission(MissionId, false);
 					Ctrl->MissionStep = 0;
 					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+					ActivateMission(MissionId, false);
 				}
 				continue;
 			}
@@ -951,9 +951,9 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (Ctrl)
 				{
-					ActivateMission(MissionId, false);
 					Ctrl->MissionStep = MissionStep;
 					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+					ActivateMission(MissionId, false);
 				}
 				continue;
 			}
