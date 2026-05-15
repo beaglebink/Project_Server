@@ -39,5 +39,10 @@ private:
 
 	float WireMeshLength;
 
+	UPROPERTY()
 	TArray<USplineMeshComponent*> SplineMeshComponents;
+
+	void MoveSplinePoints(float DeltaTime);
+
+	void UpdateSplineMeshes();
 };

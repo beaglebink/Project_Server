@@ -9,7 +9,8 @@ AA_Wire::AA_Wire()
 	SplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("SplineComponent"));
 
 	SplineComponent->SetupAttachment(StaticMesh);
-	//StaticMesh->SetSimulatePhysics(false);
+
+	StaticMesh->SetSimulatePhysics(false);
 }
 
 void AA_Wire::OnConstruction(const FTransform& Transform)
@@ -47,7 +48,7 @@ void AA_Wire::OnConstruction(const FTransform& Transform)
 		{
 			USplineMeshComponent* SplineMesh = NewObject<USplineMeshComponent>(this);
 			SplineMeshComponents.Add(SplineMesh);
-			SplineMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			SplineMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 			SplineMesh->SetForwardAxis(ESplineMeshAxis::X);
 			SplineMesh->SetupAttachment(RootComponent);
 			SplineMesh->RegisterComponent();
@@ -62,10 +63,33 @@ void AA_Wire::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	MoveSplinePoints(DeltaTime);
+
+	UpdateSplineMeshes();
 }
 
 void AA_Wire::BeginPlay()
 {
 	Super::BeginPlay();
 
+}
+
+void AA_Wire::MoveSplinePoints(float DeltaTime)
+{
+	SplineComponent->SetLocationAtSplinePoint(0, StaticMesh->GetComponentLocation(), ESplineCoordinateSpace::World);
+}
+
+void AA_Wire::UpdateSplineMeshes()
+{
+	int32 NumPoints = SplineComponent->GetNumberOfSplinePoints();
+
+	for (int i = 0; i < NumPoints - 1; ++i)
+	{
+		FVector Start = SplineComponent->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::World);
+		FVector End = SplineComponent->GetLocationAtSplinePoint(i + 1, ESplineCoordinateSpace::World);
+
+		FVector Tangent = (End - Start);
+
+		SplineMeshComponents[i]->SetStartAndEnd(Start, Tangent, End, Tangent);
+	}
 }
