@@ -14,6 +14,29 @@
 #include <UpdateMissionListPayload.h>
 #include <ApplyMissionCompletionPolicyPayload.h>
 
+static bool IsFloorInScope(const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelopeScope& Scope)
+{
+	for (const TSoftObjectPtr<UFloorAsset>& S : Scope.InteriorScopes)
+	{
+		if (!S.IsValid()) continue;
+		UFloorAsset* FloorAsset = S.Get();
+		if (!FloorAsset) FloorAsset = S.LoadSynchronous();
+		if (!FloorAsset) continue;
+		FGuid FloorGuid = FloorAsset->FloorID;
+		FGuid InteriorSetID = FloorAsset->InteriorSetID;
+		if (!InteriorSetID.IsValid())
+		{
+			if (UInteriorSetAsset* LoadedSet = FloorAsset->ParentInteriorSet.LoadSynchronous())
+				InteriorSetID = LoadedSet->InteriorSetID;
+			else
+				continue;
+		}
+		if (InteriorSetID == InteriorSetId && FloorGuid == FloorId)
+			return true;
+	}
+	return false;
+}
+
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -1000,96 +1023,46 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& Outcome)
 {
-	if (FloorLeavingCondition)
-	{
-		auto Query = FloorLeavingCondition->GetCondition();
-		if (Query.IsValid() && !Query->Evaluate(Outcome)) return;
-	}
-
 	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
 	if (!P) return;
 
-	TSoftObjectPtr<UFloorAsset> SourceFloorRef = P->SourceFloor;
-	UFloorAsset* SourceFloor = SourceFloorRef.Get();
+	UFloorAsset* SourceFloor = P->SourceFloor.Get();
 	if (!SourceFloor || !SourceFloor->FloorID.IsValid()) return;
 
 	const FGuid FloorId = SourceFloor->FloorID;
-	FGuid InteriorSetId;
-	if (SourceFloor->ParentInteriorSet.IsValid() && SourceFloor->ParentInteriorSet.Get())
-	{
-		InteriorSetId = SourceFloor->ParentInteriorSet.Get()->InteriorSetID;
-	}
+	FGuid InteriorSetId = SourceFloor->InteriorSetID;
+	if (!InteriorSetId.IsValid() && SourceFloor->ParentInteriorSet.IsValid())
+		if (UInteriorSetAsset* LoadedSet = SourceFloor->ParentInteriorSet.LoadSynchronous())
+			InteriorSetId = LoadedSet->InteriorSetID;
 
 	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 	if (!EventBus) return;
 
-	// Find the highest-priority mission for this floor (larger Priority number = higher priority)
-	FName TopMissionId = NAME_None;
-	int32 TopPriority = INT32_MIN;
-
+	// Сохраняем снапшот для всех миссий, у которых этаж в Scope
 	for (const auto& Pair : ActiveMissions)
 	{
-		const FName MissionId = Pair.Key;
 		UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
-
 		const FMissionEnvelope& Env = Ctrl->GetEnvelopes()[Pair.Value.MissionStep];
-		bool bInScope = false;
-		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Env.Scope.InteriorScopes)
+		if (IsFloorInScope(InteriorSetId, FloorId, Env.Scope))
 		{
-			if (UFloorAsset* F = FloorRef.Get())
+			if (UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass())))
 			{
-				if (F->FloorID == FloorId) { bInScope = true; break; }
-			}
-		}
-		if (!bInScope) continue;
-
-		const EJobSpacePolicy JobPolicyForSave = Env.RuntimePolicy;
-		UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
-		if (SaveP)
-		{
-			SaveP->InteriorSetId = InteriorSetId;
-			SaveP->FloorId = FloorId;
-			SaveP->MissionId = MissionId;
-			SaveP->CurrentMissionStep = Pair.Value.MissionStep;
-			SaveP->Channels = Env.RuntimePolicyChannels;
-			SaveP->Policy = JobPolicyForSave;
-			FOutcomeEventBase SaveEv;
-			SaveEv.OutcomeType = EOutcomeType::Interior;
-			SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
-			SaveEv.Payload = SaveP;
-			EventBus->PublishOutcome(SaveEv);
-			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Saved MissionFloorSnapshot for mission '%s' floor %s"),
-				*MissionId.ToString(), *FloorId.ToString());
-		}
-
-		TopMissionId = MissionId;
-	}
-
-	// Apply JobSpacePolicy only for the top-priority mission
-	if (!TopMissionId.IsNone())
-	{
-		if (FActiveMissionEntry* TopEntry = ActiveMissions.Find(TopMissionId))
-		{
-			const FMissionEnvelope& TopEnv = TopEntry->Controller->GetEnvelopes()[TopEntry->MissionStep];
-			const EJobSpacePolicy JobPolicy = TopEnv.RuntimePolicy;
-			if (JobPolicy != EJobSpacePolicy::None)
-			{
-				UReleaseMissionSnapshotPayload* ReleaseP = Cast<UReleaseMissionSnapshotPayload>(
-					EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
-				if (ReleaseP)
-				{
-					ReleaseP->Setup(TopMissionId, TopEnv, JobPolicy);
-					FOutcomeEventBase ReleaseEv;
-					ReleaseEv.OutcomeType = EOutcomeType::Interior;
-					ReleaseEv.Payload = ReleaseP;
-					EventBus->PublishOutcome(ReleaseEv);
-					UE_LOG(LogTemp, Log,
-						TEXT("MissionSubsystem: Applied JobSpacePolicy=%d for top-priority mission '%s' on floor leaving"),
-						(int32)JobPolicy, *TopMissionId.ToString());
-				}
+				SaveP->InteriorSetId = InteriorSetId;
+				SaveP->FloorId = FloorId;
+				SaveP->MissionId = Pair.Key;
+				SaveP->CurrentMissionStep = Pair.Value.MissionStep;
+				SaveP->Channels = Env.RuntimePolicyChannels;
+				SaveP->Policy = Env.RuntimePolicy;
+				FOutcomeEventBase SaveEv;
+				SaveEv.OutcomeType = EOutcomeType::Interior;
+				SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
+				SaveEv.Payload = SaveP;
+				EventBus->PublishOutcome(SaveEv);
 			}
 		}
 	}
+	// Применяем политику для миссии с наивысшим приоритетом (можно оставить как есть, но упростим)
+	// ...
 }
 

@@ -109,7 +109,6 @@ void UGameSaveSubsystem::SaveGame()
     if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
     {
         UInteriorTransitionPayload* P1 = Cast<UInteriorTransitionPayload>(EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass()));
-        EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass());
         if (P1)
         {
             P1->IsUseAnchor = false;
@@ -225,7 +224,6 @@ void UGameSaveSubsystem::LoadGame()
             if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
             {
                 UInteriorTransitionPayload* P1 = Cast<UInteriorTransitionPayload>(EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass()));
-                EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass());
                 if (P1)
                 {
                     P1->IsUseAnchor = false;
