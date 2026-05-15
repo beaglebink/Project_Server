@@ -1232,16 +1232,16 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	UFloorPlacementPayload* P = Cast<UFloorPlacementPayload>(Outcome.Payload);
 	if (!P) return;
 
-	if(!P->ItemId.IsValid())
+	if (!P->ItemId.IsValid())
 	{
 		return;
 	}
 
-	FInteriorFloorKey Key(P->InteriorSetId, P->FloorId);
-
+	// Используем текущий этаж (CurrentKey), на котором произошёл спавн/удаление
+	// (в вашем коде ранее использовался CurrentKey, а не переданный P->InteriorSetId/P->FloorId)
 	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
 	{
-		// 1. Добавляем запись в SpawnedActorsByInteriorFloor (как раньше)
+		// Добавляем запись в SpawnedActorsByInteriorFloor
 		FFloorPopulationRecord NewRecord;
 		NewRecord.ActorType = P->ActorType;
 		NewRecord.WorldTransform = P->WorldTransform;
@@ -1261,71 +1261,14 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		default:                              BucketsAdded.LightItems.Add(NewRecord);      break;
 		}
 
-		// 2. Создаём снапшот актора (если в Payload есть ссылка на него)
-		AActor* SpawnedActor = P->Actor.Get();   // предполагаем, что такое поле добавлено
-		if (SpawnedActor)
-		{
-			FFloorSavedActorState Snapshot;
-			Snapshot.ItemId = P->ItemId;
-			// Вызываем статическую функцию SnapshotActor из анонимного namespace
-			SnapshotActor(SpawnedActor, Snapshot);
-
-			// 3. Сохраняем снапшот для всех активных миссий, где текущий этаж входит в Scope
-			for (const auto& Pair : ActiveMissions)
-			{
-				const FName MissionId = Pair.Key;
-				const FActiveMissionInterior& MissionInterior = Pair.Value;
-				UMissionController* Controller = MissionInterior.Controller;
-				if (!Controller) continue;
-
-				const FMissionEnvelope& Envelope = Controller->GetEnvelopes()[MissionInterior.MissionStep];
-				const FMissionEnvelopeScope& Scope = Envelope.Scope;
-
-				// Проверяем принадлежность текущего этажа к миссии
-				bool bInScope = Scope.InteriorScopes.ContainsByPredicate([&](const TSoftObjectPtr<UFloorAsset>& S)
-					{
-						if (!S.IsValid()) return false;
-						FGuid FloorGuid = S->FloorID;
-						FGuid InteriorSetID = S->InteriorSetID;
-						if (!InteriorSetID.IsValid())
-						{
-							UInteriorSetAsset* LoadedSet = S->ParentInteriorSet.LoadSynchronous();
-							if (LoadedSet) InteriorSetID = LoadedSet->InteriorSetID;
-							else return false;
-						}
-						return (InteriorSetID == CurrentKey.InteriorSetId && FloorGuid == CurrentKey.FloorId);
-					});
-
-				if (bInScope)
-				{
-					TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = SpawnedActorsSnapshots.FindOrAdd(CurrentKey);
-					TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
-
-					// Обновляем существующий снимок (если актор уже был) или добавляем новый
-					bool bUpdated = false;
-					for (FFloorSavedActorState& Existing : Bucket)
-					{
-						if (Existing.ItemId == Snapshot.ItemId)
-						{
-							Existing = Snapshot;
-							bUpdated = true;
-							break;
-						}
-					}
-					if (!bUpdated)
-						Bucket.Add(Snapshot);
-				}
-			}
-		}
-
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement spawned for floor %s/%s (AnchorId=%s)"),
-			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement spawned for floor %s/%s (ActorId=%s)"),
+			*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString(), *P->ItemId.ToString());
 	}
 	else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
 	{
+		// Добавляем запись в DestroyedActorsByInteriorFloor
 		FFloorPopulationBuckets& BucketsDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 		FFloorPopulationRecord NewRecord;
-
 		NewRecord.ActorType = P->ActorType;
 		NewRecord.WorldTransform = P->WorldTransform;
 		NewRecord.ActorId = P->ItemId;
@@ -1333,17 +1276,18 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 
 		switch (P->ActorType)
 		{
-		case EFloorActorType::HeavyFurniture: BucketsDestroyed.HeavyFurniture.Add(MoveTemp(NewRecord)); break;
-		case EFloorActorType::LightItem:      BucketsDestroyed.LightItems.Add(MoveTemp(NewRecord));      break;
-		case EFloorActorType::Terminal:       BucketsDestroyed.Terminals.Add(MoveTemp(NewRecord));       break;
-		case EFloorActorType::NPC_Spawner:    BucketsDestroyed.NPCSpawners.Add(MoveTemp(NewRecord));     break;
-		case EFloorActorType::Debris:         BucketsDestroyed.Debris.Add(MoveTemp(NewRecord));          break;
-		default:                              BucketsDestroyed.LightItems.Add(MoveTemp(NewRecord));      break;
+		case EFloorActorType::HeavyFurniture: BucketsDestroyed.HeavyFurniture.Add(NewRecord); break;
+		case EFloorActorType::LightItem:      BucketsDestroyed.LightItems.Add(NewRecord);      break;
+		case EFloorActorType::Terminal:       BucketsDestroyed.Terminals.Add(NewRecord);       break;
+		case EFloorActorType::NPC_Spawner:    BucketsDestroyed.NPCSpawners.Add(NewRecord);     break;
+		case EFloorActorType::Debris:         BucketsDestroyed.Debris.Add(NewRecord);          break;
+		default:                              BucketsDestroyed.LightItems.Add(NewRecord);      break;
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement destroyed for floor %s/%s (AnchorId=%s)"),
-			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
+		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement destroyed for floor %s/%s (ActorId=%s)"),
+			*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString(), *P->ItemId.ToString());
 
+		// Удаляем запись из SpawnedActorsByInteriorFloor
 		auto RemoveFromSpawnedByActorId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId)
 			{
 				if (!TargetActorId.IsValid()) return;
@@ -1369,19 +1313,22 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		{
 			RemoveFromSpawnedByActorId(DestroyedActorsByInteriorFloor, P->ItemId);
 		}
-
 		RemoveFromSpawnedByActorId(SpawnedActorsByInteriorFloor, P->ItemId);
 
-		// --- Удаляем снапшот из SpawnedActorsSnapshots для всех миссий на этом этаже ---
-		if (TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = SpawnedActorsSnapshots.Find(CurrentKey))
+		// (Опционально) Удаляем снапшот удалённого актора из MissionFloorSnapshots для всех миссий на этом этаже
+		for (auto& FloorPair : MissionFloorSnapshots)
 		{
-			for (auto& MissionPair : *PerFloor)
+			const FInteriorFloorKey& FloorKey = FloorPair.Key;
+			if (FloorKey.InteriorSetId == CurrentKey.InteriorSetId && FloorKey.FloorId == CurrentKey.FloorId)
 			{
-				TArray<FFloorSavedActorState>& Bucket = MissionPair.Value;
-				Bucket.RemoveAll([ItemId = P->ItemId](const FFloorSavedActorState& State)
-					{
-						return State.ItemId == ItemId;
-					});
+				for (auto& MissionPair : FloorPair.Value)
+				{
+					TArray<FFloorSavedActorState>& Snapshots = MissionPair.Value;
+					Snapshots.RemoveAll([ItemId = P->ItemId](const FFloorSavedActorState& State)
+						{
+							return State.ItemId == ItemId;
+						});
+				}
 			}
 		}
 	}
@@ -2298,33 +2245,28 @@ void UInteriorSubsystem::SaveMissionFloorState(FName MissionId, const FInteriorF
 
 void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey)
 {
-    if (MissionId.IsNone() || !FloorKey.FloorId.IsValid()) return;
+	if (MissionId.IsNone() || !FloorKey.FloorId.IsValid()) return;
 
-    // Найти per-floor map, затем entry по MissionId
 	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: RestoreMissionFloorState MissionFloorSnapshots count before: %d"), MissionFloorSnapshots.Num());
-    if (const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(FloorKey))
-    {
-        if (const TArray<FFloorSavedActorState>* Snapshot = PerFloor->Find(MissionId))
-        {
-            if (!Snapshot || Snapshot->IsEmpty()) return;
-            UWorld* World = GetWorld();
-            if (!World) return;
+	if (const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(FloorKey))
+	{
+		if (const TArray<FFloorSavedActorState>* Snapshot = PerFloor->Find(MissionId))
+		{
+			if (!Snapshot || Snapshot->IsEmpty()) return;
+			UWorld* World = GetWorld();
+			if (!World) return;
 
-			auto MissionInterior = ActiveMissions.Find(MissionId);
-			auto& Controller = MissionInterior->Controller;
-			auto MissionAsset = Controller->GetMissionAsset();
-			auto& Envelope = MissionAsset->Envelopes[CurrentMissionStep];
-
-			//AddSpawnedActors();
+			// 1. Спавним динамические акторы (если есть)
 			RestoreSpawnedActorsForCurrentFloor();
 
-            RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
-            UE_LOG(LogTemp, Log,
-                TEXT("InteriorSubsystem::RestoreMissionFloorState: restored snapshot for mission '%s' floor %s/%s"),
-                *MissionId.ToString(),
-                *FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString());
-        }
-    }
+			// 2. Восстанавливаем состояние всех акторов из снапшота
+			RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, FMissionEnvelope());
+			UE_LOG(LogTemp, Log,
+				TEXT("InteriorSubsystem::RestoreMissionFloorState: restored snapshot for mission '%s' floor %s/%s"),
+				*MissionId.ToString(),
+				*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString());
+		}
+	}
 }
 
 void UInteriorSubsystem::AddSpawnedActors()
@@ -2352,7 +2294,18 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Record.SourceClass, Record.WorldTransform, Params);
 		if (!SpawnedActor) continue;
 
-		// Восстанавливаем состояние из снапшота (если есть)
+		// Найти компонент FloorAssignment и установить его свойства (обязательно!)
+		UFloorAssignmentComponent* Comp = SpawnedActor->FindComponentByClass<UFloorAssignmentComponent>();
+		if (Comp)
+		{
+			Comp->ItemId = Record.ActorId;
+			Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
+		}
+
+		// (Опционально) Если вы хотите восстановить состояние сразу (но лучше это делать в RestoreFromSnapshotArray позже)
+		// Если вы всё же передаёте Snapshots и хотите восстановить свойства здесь, оставьте этот блок.
+		// Однако в текущей архитектуре Snapshots всегда nullptr, потому что вы решили не использовать SpawnedActorsSnapshots.
+		// Поэтому этот блок можно закомментировать или удалить.
 		if (Snapshots)
 		{
 			const FFloorSavedActorState* Snapshot = Snapshots->FindByPredicate([&Record](const FFloorSavedActorState& State)
@@ -2361,7 +2314,6 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 				});
 			if (Snapshot)
 			{
-				// Вызов функции из анонимного пространства имён (доступна в этом cpp)
 				RestoreActorSnapshot(SpawnedActor, *Snapshot, true);
 			}
 		}
@@ -2372,41 +2324,12 @@ void UInteriorSubsystem::RestoreSpawnedActorsForCurrentFloor()
 	FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(CurrentKey);
 	if (!Buckets) return;
 
-	for (const auto& Pair : ActiveMissions)
-	{
-		const FName MissionId = Pair.Key;
-		const FActiveMissionInterior& MissionInterior = Pair.Value;
-		UMissionController* Controller = MissionInterior.Controller;
-		if (!Controller) continue;
-
-		const FMissionEnvelope& Envelope = Controller->GetEnvelopes()[MissionInterior.MissionStep];
-		const FMissionEnvelopeScope& Scope = Envelope.Scope;
-
-		bool bInScope = Scope.InteriorScopes.ContainsByPredicate([&](const TSoftObjectPtr<UFloorAsset>& S)
-			{
-				if (!S.IsValid()) return false;
-				FGuid FloorGuid = S->FloorID;
-				FGuid InteriorSetID = S->InteriorSetID;
-				if (!InteriorSetID.IsValid())
-				{
-					UInteriorSetAsset* LoadedSet = S->ParentInteriorSet.LoadSynchronous();
-					if (LoadedSet) InteriorSetID = LoadedSet->InteriorSetID;
-					else return false;
-				}
-				return (InteriorSetID == CurrentKey.InteriorSetId && FloorGuid == CurrentKey.FloorId);
-			});
-
-		if (!bInScope) continue;
-
-		const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = SpawnedActorsSnapshots.Find(CurrentKey);
-		const TArray<FFloorSavedActorState>* Snapshots = PerFloor ? PerFloor->Find(MissionId) : nullptr;
-
-		SpawnFromType(Buckets->HeavyFurniture, Snapshots);
-		SpawnFromType(Buckets->LightItems, Snapshots);
-		SpawnFromType(Buckets->Terminals, Snapshots);
-		SpawnFromType(Buckets->NPCSpawners, Snapshots);
-		SpawnFromType(Buckets->Debris, Snapshots);
-	}
+	// Просто спавним акторы без восстановления состояния (состояние будет восстановлено позже из MissionFloorSnapshots)
+	SpawnFromType(Buckets->HeavyFurniture, nullptr);
+	SpawnFromType(Buckets->LightItems, nullptr);
+	SpawnFromType(Buckets->Terminals, nullptr);
+	SpawnFromType(Buckets->NPCSpawners, nullptr);
+	SpawnFromType(Buckets->Debris, nullptr);
 }
 
 const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* UInteriorSubsystem::GetMissionSnapshots(FName MissionId) const 
