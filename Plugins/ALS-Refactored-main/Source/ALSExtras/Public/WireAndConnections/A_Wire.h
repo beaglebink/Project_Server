@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "PythonContainers/A_InteractableActor.h"
 #include "A_Wire.generated.h"
 
 class USplineComponent;
@@ -9,7 +10,7 @@ class USplineMeshComponent;
 class UStaticMesh;
 
 UCLASS()
-class ALSEXTRAS_API AA_Wire : public AActor
+class ALSEXTRAS_API AA_Wire : public AA_InteractableActor
 {
 	GENERATED_BODY()
 
@@ -29,9 +30,6 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UStaticMesh* WireMesh;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
-	UStaticMeshComponent* MaleConnectorMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	int32 NumberOfSegments = 20;

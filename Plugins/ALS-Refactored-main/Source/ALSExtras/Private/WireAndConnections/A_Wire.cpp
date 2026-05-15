@@ -6,13 +6,10 @@ AA_Wire::AA_Wire()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	MaleConnectorMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MaleConnectorMesh"));
 	SplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("SplineComponent"));
 
-	RootComponent = Root;
-	MaleConnectorMesh->SetupAttachment(Root);
-	SplineComponent->SetupAttachment(MaleConnectorMesh);
+	SplineComponent->SetupAttachment(StaticMesh);
+	//StaticMesh->SetSimulatePhysics(false);
 }
 
 void AA_Wire::OnConstruction(const FTransform& Transform)
