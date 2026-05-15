@@ -29,13 +29,16 @@ void AA_Wire::OnConstruction(const FTransform& Transform)
 	{
 		WireMeshLength = WireMesh->GetBounds().BoxExtent.X * 2;
 		SplineComponent->AddSplinePoint(FVector::ZeroVector, ESplineCoordinateSpace::Local);
+		FVector Dir = SplineComponent->GetRotationAtSplinePoint(0, ESplineCoordinateSpace::Local).Vector().GetSafeNormal();
+		FVector PointLocation = SplineComponent->GetLocationAtSplinePoint(0, ESplineCoordinateSpace::Local) + Dir * WireMeshLength;
+		SplineComponent->AddSplinePoint(PointLocation, ESplineCoordinateSpace::Local);
 
-		for (int32 i = 1; i <= NumberOfSegments; ++i)
+		for (int32 i = 2; i <= NumberOfSegments; ++i)
 		{
-			FVector Dir = SplineComponent->GetRotationAtSplinePoint(i - 1, ESplineCoordinateSpace::Local).Vector().GetSafeNormal();
+			Dir = SplineComponent->GetRotationAtSplinePoint(i - 1, ESplineCoordinateSpace::Local).Vector().GetSafeNormal();
 			FRotator RandomRot = FRotator(0.0f, FMath::RandRange(-PointNoise, PointNoise), 0.0f);
 			FVector NoisyDir = RandomRot.RotateVector(Dir);
-			FVector PointLocation = SplineComponent->GetLocationAtSplinePoint(i - 1, ESplineCoordinateSpace::Local) + NoisyDir * WireMeshLength;
+			PointLocation = SplineComponent->GetLocationAtSplinePoint(i - 1, ESplineCoordinateSpace::Local) + NoisyDir * WireMeshLength;
 			SplineComponent->AddSplinePoint(PointLocation, ESplineCoordinateSpace::Local);
 		}
 
