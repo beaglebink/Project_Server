@@ -59,15 +59,16 @@ void UAC_Dirt::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 	FVector2D HitUV;
 	bool bHasUV = UGameplayStatics::FindCollisionUV(Hit, 0, HitUV);
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("HitUV: %s"), *HitUV.ToString()));
+	if (bHasUV)
+	{
+		BrushDynamicMaterial->SetTextureParameterValue("PrevRenderTarget", RenderTarget_A);
+		BrushDynamicMaterial->SetVectorParameterValue("HitUV", FLinearColor(HitUV.X, HitUV.Y, 0, 0));
+		BrushDynamicMaterial->SetScalarParameterValue("WashPower", Hit.Distance);
+		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, RenderTarget_B, BrushDynamicMaterial);
+		OverlayDynamicMaterial->SetTextureParameterValue("RenderTarget", RenderTarget_B);
 
-	BrushDynamicMaterial->SetTextureParameterValue("PrevRenderTarget", RenderTarget_A);
-	BrushDynamicMaterial->SetVectorParameterValue("HitUV", FLinearColor(HitUV.X, HitUV.Y, 0, 0));
-	BrushDynamicMaterial->SetScalarParameterValue("WashPower", Hit.Distance);
-	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, RenderTarget_B, BrushDynamicMaterial);
-	OverlayDynamicMaterial->SetTextureParameterValue("RenderTarget", RenderTarget_B);
-
-	UTextureRenderTarget2D* Temp = RenderTarget_A;
-	RenderTarget_A = RenderTarget_B;
-	RenderTarget_B = Temp;
+		UTextureRenderTarget2D* Temp = RenderTarget_A;
+		RenderTarget_A = RenderTarget_B;
+		RenderTarget_B = Temp;
+	}
 }
