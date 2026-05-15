@@ -35,6 +35,7 @@
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
 
+
 auto ContainsActorIdInSpawned = [](const TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId) -> bool
 	{
 		if (!TargetActorId.IsValid()) return false;
@@ -444,23 +445,41 @@ namespace
 			TArray<FFloorSavedPropertyEntry> Props;
 			CollectSaveGameProperties(C, Props);
 
+			// --- Явная сериализация для UFloorAssignmentComponent ---
+			/*
+			if (UFloorAssignmentComponent* FloorComp = Cast<UFloorAssignmentComponent>(C))
+			{
+				// Добавляем ItemId
+				FString ItemIdStr = FloorComp->ItemId.ToString();
+				Props.Add({ TEXT("ItemId"), ItemIdStr });
+				// Добавляем SnapshotChannel
+				const UEnum* EnumPtr = StaticEnum<ESnapshotChannel>();
+				if (EnumPtr)
+				{
+					FString ChannelStr = EnumPtr->GetValueAsString(FloorComp->SnapshotChannel);
+					Props.Add({ TEXT("SnapshotChannel"), ChannelStr });
+				}
+			}
+			*/
+			// -----------------------------------------------------
+
 			FFloorSavedComponentState CState;
-			CState.ComponentName      = C->GetFName();
+			CState.ComponentName = C->GetFName();
 			CState.ComponentClassName = C->GetClass()->GetFName();
-			CState.bWasActive         = C->IsActive();
-			CState.Properties         = MoveTemp(Props);
+			CState.bWasActive = C->IsActive();
+			CState.Properties = MoveTemp(Props);
 
 			if (USceneComponent* SC = Cast<USceneComponent>(C))
 			{
 				if (USceneComponent* ParentSC = SC->GetAttachParent())
 				{
-					CState.bWasAttached      = true;
-					CState.AttachParentName  = ParentSC->GetFName();
-					CState.AttachSocketName  = SC->GetAttachSocketName();
+					CState.bWasAttached = true;
+					CState.AttachParentName = ParentSC->GetFName();
+					CState.AttachSocketName = SC->GetAttachSocketName();
 					CState.RelativeTransform = SC->GetRelativeTransform();
 					CState.bHasRelativeTransform = true;
 				}
-				CState.WorldTransform    = SC->GetComponentTransform();
+				CState.WorldTransform = SC->GetComponentTransform();
 				CState.bHasWorldTransform = true;
 			}
 
@@ -469,7 +488,7 @@ namespace
 				CState.bWasSimulatingPhysics = PC->IsSimulatingPhysics();
 				if (CState.bWasSimulatingPhysics)
 				{
-					CState.SavedLinearVelocity     = PC->GetPhysicsLinearVelocity();
+					CState.SavedLinearVelocity = PC->GetPhysicsLinearVelocity();
 					CState.SavedAngularVelocityDeg = PC->GetPhysicsAngularVelocityInDegrees();
 				}
 			}
@@ -569,7 +588,7 @@ static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationReco
 	if (Record.SourceClass)
 		Obj->SetStringField(TEXT("SourceClass"), Record.SourceClass->GetPathName());
 	Obj->SetStringField(TEXT("ActorId"), Record.ActorId.ToString());
-	Obj->SetStringField(TEXT("AnchorId"), Record.AnchorId.ToString());
+	//Obj->SetStringField(TEXT("AnchorId"), Record.AnchorId.ToString());
 	Obj->SetObjectField(TEXT("WorldTransform"), TransformToJsonObject(Record.WorldTransform));
 	Obj->SetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
 	return Obj;
@@ -586,7 +605,7 @@ static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObj
 	if (Obj->TryGetStringField(TEXT("SourceClass"), SourceClassPath))
 		Record.SourceClass = LoadClass<AActor>(nullptr, *SourceClassPath);
 	FGuid::Parse(Obj->GetStringField(TEXT("ActorId")), Record.ActorId);
-	FGuid::Parse(Obj->GetStringField(TEXT("AnchorId")), Record.AnchorId);
+//	FGuid::Parse(Obj->GetStringField(TEXT("AnchorId")), Record.AnchorId);
 	if (Obj->HasField(TEXT("WorldTransform")))
 		Record.WorldTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("WorldTransform")));
 	Obj->TryGetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
@@ -1219,45 +1238,98 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	}
 
 	FInteriorFloorKey Key(P->InteriorSetId, P->FloorId);
-	/*
-
 
 	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
 	{
+		// 1. Добавляем запись в SpawnedActorsByInteriorFloor (как раньше)
 		FFloorPopulationRecord NewRecord;
-		NewRecord.ActorType      = P->ActorType;
-		NewRecord.AnchorId       = P->AnchorId;
+		NewRecord.ActorType = P->ActorType;
 		NewRecord.WorldTransform = P->WorldTransform;
-		NewRecord.ActorId		 = P->ItemId;
-		NewRecord.bHasAnchor     = P->AnchorId.IsValid();
+		NewRecord.ActorId = P->ItemId;
+		NewRecord.bHasAnchor = P->AnchorId.IsValid();
+		NewRecord.SourceClass = P->ActorClass;
 
-		FFloorPopulationBuckets& BucketsAdded = SpawnedActorsByInteriorFloor.FindOrAdd(Key);
+		FFloorPopulationBuckets& BucketsAdded = SpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 
 		switch (P->ActorType)
 		{
-		case EFloorActorType::HeavyFurniture: BucketsAdded.HeavyFurniture.Add(MoveTemp(NewRecord)); break;
-		case EFloorActorType::LightItem:      BucketsAdded.LightItems.Add(MoveTemp(NewRecord));      break;
-		case EFloorActorType::Terminal:       BucketsAdded.Terminals.Add(MoveTemp(NewRecord));       break;
-		case EFloorActorType::NPC_Spawner:    BucketsAdded.NPCSpawners.Add(MoveTemp(NewRecord));     break;
-		case EFloorActorType::Debris:         BucketsAdded.Debris.Add(MoveTemp(NewRecord));          break;
-		default:                              BucketsAdded.LightItems.Add(MoveTemp(NewRecord));      break;
+		case EFloorActorType::HeavyFurniture: BucketsAdded.HeavyFurniture.Add(NewRecord); break;
+		case EFloorActorType::LightItem:      BucketsAdded.LightItems.Add(NewRecord);      break;
+		case EFloorActorType::Terminal:       BucketsAdded.Terminals.Add(NewRecord);       break;
+		case EFloorActorType::NPC_Spawner:    BucketsAdded.NPCSpawners.Add(NewRecord);     break;
+		case EFloorActorType::Debris:         BucketsAdded.Debris.Add(NewRecord);          break;
+		default:                              BucketsAdded.LightItems.Add(NewRecord);      break;
+		}
+
+		// 2. Создаём снапшот актора (если в Payload есть ссылка на него)
+		AActor* SpawnedActor = P->Actor.Get();   // предполагаем, что такое поле добавлено
+		if (SpawnedActor)
+		{
+			FFloorSavedActorState Snapshot;
+			Snapshot.ItemId = P->ItemId;
+			// Вызываем статическую функцию SnapshotActor из анонимного namespace
+			SnapshotActor(SpawnedActor, Snapshot);
+
+			// 3. Сохраняем снапшот для всех активных миссий, где текущий этаж входит в Scope
+			for (const auto& Pair : ActiveMissions)
+			{
+				const FName MissionId = Pair.Key;
+				const FActiveMissionInterior& MissionInterior = Pair.Value;
+				UMissionController* Controller = MissionInterior.Controller;
+				if (!Controller) continue;
+
+				const FMissionEnvelope& Envelope = Controller->GetEnvelopes()[MissionInterior.MissionStep];
+				const FMissionEnvelopeScope& Scope = Envelope.Scope;
+
+				// Проверяем принадлежность текущего этажа к миссии
+				bool bInScope = Scope.InteriorScopes.ContainsByPredicate([&](const TSoftObjectPtr<UFloorAsset>& S)
+					{
+						if (!S.IsValid()) return false;
+						FGuid FloorGuid = S->FloorID;
+						FGuid InteriorSetID = S->InteriorSetID;
+						if (!InteriorSetID.IsValid())
+						{
+							UInteriorSetAsset* LoadedSet = S->ParentInteriorSet.LoadSynchronous();
+							if (LoadedSet) InteriorSetID = LoadedSet->InteriorSetID;
+							else return false;
+						}
+						return (InteriorSetID == CurrentKey.InteriorSetId && FloorGuid == CurrentKey.FloorId);
+					});
+
+				if (bInScope)
+				{
+					TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = SpawnedActorsSnapshots.FindOrAdd(CurrentKey);
+					TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
+
+					// Обновляем существующий снимок (если актор уже был) или добавляем новый
+					bool bUpdated = false;
+					for (FFloorSavedActorState& Existing : Bucket)
+					{
+						if (Existing.ItemId == Snapshot.ItemId)
+						{
+							Existing = Snapshot;
+							bUpdated = true;
+							break;
+						}
+					}
+					if (!bUpdated)
+						Bucket.Add(Snapshot);
+				}
+			}
 		}
 
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement spawned for floor %s/%s (AnchorId=%s)"),
 			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
 	}
-	else 
-	*/
-	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
+	else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
 	{
-		FFloorPopulationBuckets& BucketsDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(Key);
+		FFloorPopulationBuckets& BucketsDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 		FFloorPopulationRecord NewRecord;
 
-		NewRecord.ActorType		 = P->ActorType;
-		NewRecord.AnchorId		 = P->AnchorId;
+		NewRecord.ActorType = P->ActorType;
 		NewRecord.WorldTransform = P->WorldTransform;
-		NewRecord.ActorId		 = P->ItemId;
-		NewRecord.bHasAnchor	 = P->AnchorId.IsValid();
+		NewRecord.ActorId = P->ItemId;
+		NewRecord.bHasAnchor = P->AnchorId.IsValid();
 
 		switch (P->ActorType)
 		{
@@ -1269,31 +1341,29 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		default:                              BucketsDestroyed.LightItems.Add(MoveTemp(NewRecord));      break;
 		}
 
-
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement destroyed for floor %s/%s (AnchorId=%s)"),
 			*P->InteriorSetId.ToString(), *P->FloorId.ToString(), *P->AnchorId.ToString());
 
 		auto RemoveFromSpawnedByActorId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId)
-		{
-			if (!TargetActorId.IsValid()) return;
-
-			for (auto& Pair : SpawnedMap)
 			{
-				FFloorPopulationBuckets& Buckets = Pair.Value;
-				auto RemoveByActorId = [&TargetActorId](TArray<FFloorPopulationRecord>& Arr)
+				if (!TargetActorId.IsValid()) return;
+				for (auto& Pair : SpawnedMap)
 				{
-					Arr.RemoveAll([&TargetActorId](const FFloorPopulationRecord& Record)
-					{
-						return Record.ActorId == TargetActorId;
-					});
-				};
-				RemoveByActorId(Buckets.HeavyFurniture);
-				RemoveByActorId(Buckets.LightItems);
-				RemoveByActorId(Buckets.Terminals);
-				RemoveByActorId(Buckets.NPCSpawners);
-				RemoveByActorId(Buckets.Debris);
-			}
-		};
+					FFloorPopulationBuckets& Buckets = Pair.Value;
+					auto RemoveByActorId = [&TargetActorId](TArray<FFloorPopulationRecord>& Arr)
+						{
+							Arr.RemoveAll([&TargetActorId](const FFloorPopulationRecord& Record)
+								{
+									return Record.ActorId == TargetActorId;
+								});
+						};
+					RemoveByActorId(Buckets.HeavyFurniture);
+					RemoveByActorId(Buckets.LightItems);
+					RemoveByActorId(Buckets.Terminals);
+					RemoveByActorId(Buckets.NPCSpawners);
+					RemoveByActorId(Buckets.Debris);
+				}
+			};
 
 		if (ContainsActorIdInSpawned(SpawnedActorsByInteriorFloor, P->ItemId))
 		{
@@ -1301,6 +1371,19 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		}
 
 		RemoveFromSpawnedByActorId(SpawnedActorsByInteriorFloor, P->ItemId);
+
+		// --- Удаляем снапшот из SpawnedActorsSnapshots для всех миссий на этом этаже ---
+		if (TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = SpawnedActorsSnapshots.Find(CurrentKey))
+		{
+			for (auto& MissionPair : *PerFloor)
+			{
+				TArray<FFloorSavedActorState>& Bucket = MissionPair.Value;
+				Bucket.RemoveAll([ItemId = P->ItemId](const FFloorSavedActorState& State)
+					{
+						return State.ItemId == ItemId;
+					});
+			}
+		}
 	}
 }
 
@@ -1493,6 +1576,7 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 
 	if (IsUseTravel)
 	{
+		UnsubscribeFromSpawnActor();
 		W->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.0f, false);
 	}
 }
@@ -1887,15 +1971,29 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		CachedEventBus = GI->GetSubsystem<UEventBusSubsystem>();
 	}
 
+	// Подписываемся на загрузку карты (срабатывает после SeamlessTravel)
+	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UInteriorSubsystem::OnPostLoadMap);
+
 	SubscribeAll();
 
-	// Подписываемся на загрузку карты (срабатывает после SeamlessTravel)
-	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
-		this, &UInteriorSubsystem::OnPostLoadMap);
+	SubscribeToSpawnActor();
+}
+
+void UInteriorSubsystem::SubscribeToSpawnActor()
+{
+
 
 	if (UWorld* World = GetWorld())
 	{
 		ActorSpawnedHandle = World->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateUObject(this, &UInteriorSubsystem::OnActorSpawned));
+	}
+}
+
+void UInteriorSubsystem::UnsubscribeFromSpawnActor()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
 	}
 }
 
@@ -1914,10 +2012,7 @@ void UInteriorSubsystem::Deinitialize()
 	MissionFloorSnapshots.Empty();
 	CachedEventBus = nullptr;
 
-	if (UWorld* World = GetWorld())
-	{
-		World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
-	}
+	UnsubscribeFromSpawnActor();
 
 	Super::Deinitialize();
 }
@@ -1933,6 +2028,8 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 	{
 		return;
 	}
+
+	SubscribeToSpawnActor();
 
 	bool bNeedTeleportToAnchor = true;
 	UGameInstance* GI = UGameplayStatics::GetGameInstance(LoadedWorld);
@@ -1996,7 +2093,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		}
 
 		// Если нашли якорь — извлекаем связанный FloorAsset (если есть) и формируем CurrentKey
-		FInteriorFloorKey CurrentKey;
+		
 		bool bHaveKey = false;
 		if (FoundAnchor)
 		{
@@ -2217,7 +2314,10 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 			auto& Controller = MissionInterior->Controller;
 			auto MissionAsset = Controller->GetMissionAsset();
 			auto& Envelope = MissionAsset->Envelopes[CurrentMissionStep];
-			
+
+			//AddSpawnedActors();
+			RestoreSpawnedActorsForCurrentFloor();
+
             RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
             UE_LOG(LogTemp, Log,
                 TEXT("InteriorSubsystem::RestoreMissionFloorState: restored snapshot for mission '%s' floor %s/%s"),
@@ -2227,8 +2327,89 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
     }
 }
 
-const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>*
-UInteriorSubsystem::GetMissionSnapshots(FName MissionId) const
+void UInteriorSubsystem::AddSpawnedActors()
+{
+	//FInteriorFloorKey Key(InteriorSetId, FloorId);
+	/*
+	FFloorPopulationBuckets* BucketsAdded = SpawnedActorsByInteriorFloor.Find(CurrentKey);
+	if (!BucketsAdded) return;
+
+	SpawnFromType(BucketsAdded->HeavyFurniture);
+	SpawnFromType(BucketsAdded->LightItems);
+	SpawnFromType(BucketsAdded->Terminals);
+	SpawnFromType(BucketsAdded->NPCSpawners);
+	SpawnFromType(BucketsAdded->Debris);
+	*/
+}
+
+void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, const TArray<FFloorSavedActorState>* Snapshots)
+{
+	for (const FFloorPopulationRecord& Record : Array)
+	{
+		if (!Record.SourceClass) continue;
+
+		FActorSpawnParameters Params;
+		AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Record.SourceClass, Record.WorldTransform, Params);
+		if (!SpawnedActor) continue;
+
+		// Восстанавливаем состояние из снапшота (если есть)
+		if (Snapshots)
+		{
+			const FFloorSavedActorState* Snapshot = Snapshots->FindByPredicate([&Record](const FFloorSavedActorState& State)
+				{
+					return State.ItemId == Record.ActorId;
+				});
+			if (Snapshot)
+			{
+				// Вызов функции из анонимного пространства имён (доступна в этом cpp)
+				RestoreActorSnapshot(SpawnedActor, *Snapshot, true);
+			}
+		}
+	}
+}
+void UInteriorSubsystem::RestoreSpawnedActorsForCurrentFloor()
+{
+	FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(CurrentKey);
+	if (!Buckets) return;
+
+	for (const auto& Pair : ActiveMissions)
+	{
+		const FName MissionId = Pair.Key;
+		const FActiveMissionInterior& MissionInterior = Pair.Value;
+		UMissionController* Controller = MissionInterior.Controller;
+		if (!Controller) continue;
+
+		const FMissionEnvelope& Envelope = Controller->GetEnvelopes()[MissionInterior.MissionStep];
+		const FMissionEnvelopeScope& Scope = Envelope.Scope;
+
+		bool bInScope = Scope.InteriorScopes.ContainsByPredicate([&](const TSoftObjectPtr<UFloorAsset>& S)
+			{
+				if (!S.IsValid()) return false;
+				FGuid FloorGuid = S->FloorID;
+				FGuid InteriorSetID = S->InteriorSetID;
+				if (!InteriorSetID.IsValid())
+				{
+					UInteriorSetAsset* LoadedSet = S->ParentInteriorSet.LoadSynchronous();
+					if (LoadedSet) InteriorSetID = LoadedSet->InteriorSetID;
+					else return false;
+				}
+				return (InteriorSetID == CurrentKey.InteriorSetId && FloorGuid == CurrentKey.FloorId);
+			});
+
+		if (!bInScope) continue;
+
+		const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = SpawnedActorsSnapshots.Find(CurrentKey);
+		const TArray<FFloorSavedActorState>* Snapshots = PerFloor ? PerFloor->Find(MissionId) : nullptr;
+
+		SpawnFromType(Buckets->HeavyFurniture, Snapshots);
+		SpawnFromType(Buckets->LightItems, Snapshots);
+		SpawnFromType(Buckets->Terminals, Snapshots);
+		SpawnFromType(Buckets->NPCSpawners, Snapshots);
+		SpawnFromType(Buckets->Debris, Snapshots);
+	}
+}
+
+const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* UInteriorSubsystem::GetMissionSnapshots(FName MissionId) const 
 {
 	// Сформировать временную карту этаж->snapshot для данной миссии и вернуть указатель на кеш
 	MissionSnapshotQueryCache.Reset();
@@ -2946,22 +3127,57 @@ void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionE
 void UInteriorSubsystem::OnActorSpawned(AActor* SpawnedActor)
 {
 	if (!IsValid(SpawnedActor)) return;
-	UFloorAssignmentComponent* Comp = SpawnedActor->FindComponentByClass<UFloorAssignmentComponent>();
-	if (!Comp) return;
-	if (Comp->SnapshotChannel == ESnapshotChannel::None) return;
-
-	// Публикуем событие о регистрации спавна
-	if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
+	if (UWorld* World = GetWorld())
 	{
-		UFloorPlacementPayload* Payload = EventBus->CreatePayload<UFloorPlacementPayload>();
-		if (Payload)
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UInteriorSubsystem::TryRegisterActor, SpawnedActor, 20));
+	}
+}
+
+void UInteriorSubsystem::TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLeft)
+{
+	if (!IsValid(SpawnedActor)) return;
+
+	UFloorAssignmentComponent* Comp = SpawnedActor->FindComponentByClass<UFloorAssignmentComponent>();
+	if (!Comp || Comp->SnapshotChannel == ESnapshotChannel::None) return;
+
+	// Если актор с таким ItemId уже зарегистрирован в SpawnedActorsByInteriorFloor, пропускаем регистрацию
+	if (ContainsActorIdInSpawned(SpawnedActorsByInteriorFloor, Comp->ItemId))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("TryRegisterActor: Actor %s already registered (ItemId %s), skipping registration"),
+			*SpawnedActor->GetName(), *Comp->ItemId.ToString());
+		return;
+	}
+
+	if (Comp->ItemId.IsValid())
+	{
+		// публикуем событие
+		if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
 		{
-			Payload->Setup(Comp->InteriorSetId, Comp->FloorId, Comp->ActorType, Comp->AnchorId, SpawnedActor->GetActorTransform(), Comp->ItemId);
-			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Interior;
-			Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementRegistered;
-			Ev.Payload = Payload;
-			EventBus->PublishOutcome(Ev);
+			UFloorPlacementPayload* Payload = EventBus->CreatePayload<UFloorPlacementPayload>();
+			if (Payload)
+			{
+				UClass* ActorClass = SpawnedActor->GetClass();
+				Payload->Setup(Comp->ActorType, SpawnedActor->GetActorTransform(), Comp->ItemId, ActorClass);
+				FOutcomeEventBase Ev;
+				Ev.OutcomeType = EOutcomeType::Interior;
+				Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementRegistered;
+				Ev.Payload = Payload;
+				EventBus->PublishOutcome(Ev);
+			}
 		}
+		return;
+	}
+
+	if (AttemptsLeft > 0)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			FTimerHandle RetryHandle;
+			World->GetTimerManager().SetTimer(RetryHandle, FTimerDelegate::CreateUObject(this, &UInteriorSubsystem::TryRegisterActor, SpawnedActor, AttemptsLeft - 1), 0.05f, false);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TryRegisterActor: ItemId not set after attempts for actor %s"), *SpawnedActor->GetName());
 	}
 }

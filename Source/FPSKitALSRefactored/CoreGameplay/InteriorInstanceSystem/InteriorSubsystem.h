@@ -110,6 +110,8 @@ class FPSKITALSREFACTORED_API UInteriorSubsystem : public UGameInstanceSubsystem
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	void SubscribeToSpawnActor();
+	void UnsubscribeFromSpawnActor();
 	virtual void Deinitialize() override;
 
 	// ===== Interaction registration =====
@@ -152,6 +154,8 @@ public:
 	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 
 	void OnActorSpawned(AActor* SpawnedActor);
+
+	void TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLeft);
 
 	// Legacy monitoring broadcast (kept for tools/debug)
 	UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
@@ -244,6 +248,12 @@ public:
 	// Применяется перед показом этажа (re-enter) в рамках активной миссии.
 	void RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey);
 
+	void AddSpawnedActors();
+
+	void SpawnFromType(TArray<FFloorPopulationRecord>& Array, const TArray<FFloorSavedActorState>* Snapshots);
+
+	void RestoreSpawnedActorsForCurrentFloor();
+
 	// Освободить mission-snapshot после завершения миссии.
 	// Policy определяет что делать с накопленными изменениями.
 	void ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion = false);
@@ -334,6 +344,9 @@ private:
 	UPROPERTY()
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloor;
 
+	//UPROPERTY()
+	TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> SpawnedActorsSnapshots;
+
 	UPROPERTY()
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets> DestroyedActorsByInteriorFloor;
 
@@ -381,10 +394,13 @@ private:
 	UPROPERTY()
 	FGuid PendingAnchorID;
 
-	UPROPERTY()
+
 	TMap<FName, FActiveMissionInterior> ActiveMissions;
 
 	FDelegateHandle ActorSpawnedHandle;
+
+	UPROPERTY()	
+	FInteriorFloorKey CurrentKey;
 
 protected:
 	// Реализация абстрактного доступа для FInteractiveSubsystemMethods

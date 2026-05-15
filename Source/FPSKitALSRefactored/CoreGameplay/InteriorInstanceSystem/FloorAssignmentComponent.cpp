@@ -73,7 +73,7 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 				UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
 				if (Payload)
 				{
-					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId/*, GetOwner()*/);
+					Payload->Setup(ActorType, GetOwner()->GetActorTransform(), ItemId/*, GetOwner()*/);
 
 					FOutcomeEventBase Ev;
 					Ev.OutcomeType = EOutcomeType::Interior;

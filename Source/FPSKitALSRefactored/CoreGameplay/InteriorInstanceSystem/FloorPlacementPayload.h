@@ -32,27 +32,25 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
 	FGuid ItemId;
 
+	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
+	UClass* ActorClass;
+
 	// Owner actor (weak ptr)
-	//UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
-	//TWeakObjectPtr<AActor> OwnerActor;
+	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
+	TWeakObjectPtr<AActor> Actor;
 
 	UFUNCTION(BlueprintCallable, Category = "FloorPlacement")
 	UFloorPlacementPayload* Setup(
-		const FGuid& InInteriorSetId,
-		const FGuid& InFloorId,
 		EFloorActorType InActorType,
-		const FGuid& InAnchorId,
-		const FTransform& InWorldTransform,
-		const FGuid& InItemId/*,
-		AActor* InOwner*/)
+			const FTransform& InWorldTransform,
+		const FGuid& InItemId,
+		UClass* Class = nullptr)
 	{
-		InteriorSetId = InInteriorSetId;
-		FloorId = InFloorId;
 		ActorType = InActorType;
-		AnchorId = InAnchorId;
 		WorldTransform = InWorldTransform;
 		ItemId = InItemId;
-		//OwnerActor = InOwner;
+		ActorClass = Class;
+
 		return this;
 	}
 };

@@ -22,23 +22,23 @@ public:
     UFloorAssignmentComponent();
 
     // Имя интерьера (для визуализации)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FText InteriorSetName;
 
     // GUID интерьера (сохраняется в экземпляре уровня)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid InteriorSetId;
 
     // Отображаемое имя этажа
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FText FloorName;
 
     // GUID этажа (сохраняется в экземпляре уровня)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid FloorId;
 
     // Тип актора на этаже
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
     EFloorActorType ActorType = EFloorActorType::LightItem;
 
     // Опциональный якорь (GUID)
@@ -46,11 +46,11 @@ public:
     FGuid AnchorId;
 
     // Стабильный идентификатор экземпляра для сопоставления с snapshot (сохраняется в .umap)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, DuplicateTransient, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
     FGuid ItemId;
 
     // Канал снапшота — если != None, актор участвует в сохранении/восстановлении
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, DuplicateTransient, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
     ESnapshotChannel SnapshotChannel = ESnapshotChannel::None;
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
@@ -58,6 +58,13 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
     FGuid GetFloorId() const { return FloorId; }
+
+    UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
+	void Registrate() 
+    { 
+        ItemId = FGuid::NewGuid(); 
+		SnapshotChannel = ESnapshotChannel::Snapshot;
+    }
 
     //virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
     //{

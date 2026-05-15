@@ -74,14 +74,11 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	TSubclassOf<AActor> SourceClass;
 
-	//UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
-	//TWeakObjectPtr<AActor> PlacedActor;
+	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
+	TWeakObjectPtr<AActor> PlacedActor;
 
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	FGuid ActorId;
-
-	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
-	FGuid AnchorId;
 
     // World transform of the instance — now store full transform instead of only position
     // (Мировой трансформ экземпляра — теперь сохраняем полный трансформ вместо только позиции)
