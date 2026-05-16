@@ -114,8 +114,6 @@ public:
 	void UnsubscribeFromSpawnActor();
 	virtual void Deinitialize() override;
 
-	void ProcessLoadedMap(const FGuid& AnchorID);
-
 	// ===== Interaction registration =====
 	UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
 	void SubscribeInteractionRegistration();
