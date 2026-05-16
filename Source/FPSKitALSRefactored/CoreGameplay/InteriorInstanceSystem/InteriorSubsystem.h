@@ -248,11 +248,9 @@ public:
 	// Применяется перед показом этажа (re-enter) в рамках активной миссии.
 	void RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey);
 
-	void AddSpawnedActors();
+	void SpawnFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope);
 
-	void SpawnFromType(TArray<FFloorPopulationRecord>& Array, const TArray<FFloorSavedActorState>* Snapshots);
-
-	void RestoreSpawnedActorsForCurrentFloor();
+	void RestoreSpawnedActorsForCurrentFloor(const FMissionEnvelope& Envelope);
 
 	// Освободить mission-snapshot после завершения миссии.
 	// Policy определяет что делать с накопленными изменениями.
