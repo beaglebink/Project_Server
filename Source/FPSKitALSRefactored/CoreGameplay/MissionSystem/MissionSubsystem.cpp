@@ -174,9 +174,9 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 		FName ConflictedMissionName;
 		if (MissionAsset)
 		{
-			if (MissionAsset->Envelopes.IsValidIndex(ActiveMission->MissionStep + 1))
+			if (MissionAsset->Envelopes.IsValidIndex(ActiveMission->MissionStep))
 			{
-				FMissionEnvelope& Envelope = MissionAsset->Envelopes[ActiveMission->MissionStep + 1];
+				FMissionEnvelope& Envelope = MissionAsset->Envelopes[ActiveMission->MissionStep];
 
 				if (IsMissionConflict(MissionName, Envelope, ConflictedMissionName))
 				{

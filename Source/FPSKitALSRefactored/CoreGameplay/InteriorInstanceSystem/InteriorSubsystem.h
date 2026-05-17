@@ -214,10 +214,10 @@ private:
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloor;
     UPROPERTY()
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> DestroyedActorsByInteriorFloor;
-    UPROPERTY()
-    TMap<FInteriorFloorKey, FFloorPopulationBuckets> PersistentSpawnedActors;
-    UPROPERTY()
-    TMap<FInteriorFloorKey, FFloorPopulationBuckets> PersistentDestroyedActors;
+    //UPROPERTY()
+    //TMap<FInteriorFloorKey, FFloorPopulationBuckets> PersistentSpawnedActors;
+    //UPROPERTY()
+    //TMap<FInteriorFloorKey, FFloorPopulationBuckets> PersistentDestroyedActors;
 
     TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> FloorStateSnapshots;
     TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;

@@ -803,6 +803,9 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
     UWorld* W = GetWorld();
     if (!W) return;
 
+	UE_LOG(LogTemp, Warning, TEXT("[SAVE] SaveFloorActorsState: Mission=%s, Floor=%s/%s, Reason=%d"),
+		*MissionId.ToString(), *InteriorSetId.ToString(), *FloorId.ToString(), (int32)Reason);
+
     FInteriorFloorKey Key(InteriorSetId, FloorId);
 
 	auto MissionInterior = ActiveMissions.Find(MissionId);
@@ -897,12 +900,21 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
                 ++AddedCount;
             }
         }
+
+		if (Comp->SnapshotChannel != ESnapshotChannel::None)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SAVE]   Capturing actor: %s, ItemId=%s, Type=%d, Channel=%d"),
+				*Actor->GetName(), *Comp->ItemId.ToString(), (int32)Comp->ActorType, (int32)Comp->SnapshotChannel);
+		}
     }
 
     UE_LOG(LogTemp, Log,
         TEXT("InteriorSubsystem: SaveFloorActorsState — added %d, updated %d for mission '%s' floor %s/%s (total: %d)"),
         AddedCount, UpdatedCount, *MissionId.ToString(),
         *InteriorSetId.ToString(), *FloorId.ToString(), Bucket.Num());
+
+	UE_LOG(LogTemp, Warning, TEXT("[SAVE] Finished: Added=%d, Updated=%d, Total bucket size=%d for Mission=%s"),
+		AddedCount, UpdatedCount, Bucket.Num(), *MissionId.ToString());
 }
 
 // -----------------------------------------------------------------------------
@@ -1008,108 +1020,43 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
 // --- добавлен новый хелпер: восстанавливает actors напрямую из переданного массива снимков ---
 int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope)
 {
-	if (!W) return 0;
+	UE_LOG(LogTemp, Warning, TEXT("[RESTORE] RestoreFromSnapshotArray for floor %s/%s, snapshot count=%d"),
+		*InteriorSetId.ToString(), *FloorId.ToString(), Snapshots.Num());
 
-	FMissionEnvelopeScope Scope = Envelope.Scope;
-
-	for (const auto& S : Scope.InteriorScopes)   // const auto& чтобы избежать копирования
+	if (!W)
 	{
-		if (!S) continue;   // на случай null-указателей в массиве
-
-		// Прямой доступ к скопированному GUID без загрузки ассета
-		FGuid FloorGuid = S->FloorID;
-		FGuid InteriorSetID = S->InteriorSetID;   // <-- теперь всегда доступен
-
-		// Если GUID невалиден (например, старый ассет) – пытаемся загрузить ассет
-		if (!InteriorSetID.IsValid())
-		{
-			UInteriorSetAsset* LoadedSet = S->ParentInteriorSet.LoadSynchronous();
-			if (LoadedSet)
-			{
-				InteriorSetID = LoadedSet->InteriorSetID;
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("RestoreFromSnapshotArray: InteriorSetID is invalid and ParentInteriorSet could not be loaded for floor %s, skipping"), *FloorGuid.ToString());
-				continue;
-			}
-		}
-
-		FString ScopeLevelName = S->FloorLevel.ToSoftObjectPath().GetLongPackageName();
-		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(W).ToLower();
-
-		// Функция нормализации имени из package → base filename
-		auto NormalizeNameFromPackage = [](const FString& InPath) -> FString
-			{
-				if (InPath.IsEmpty()) return FString();
-
-				FString PackagePath = InPath;
-				if (PackagePath.Contains(TEXT(".")))
-				{
-					PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
-				}
-
-				const FString Base = FPaths::GetBaseFilename(PackagePath);
-
-				FString Result = Base;
-				int32 PIEPos = Result.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
-				if (PIEPos != INDEX_NONE)
-				{
-					int32 MPos = Result.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
-					if (MPos != INDEX_NONE && MPos + 3 < Result.Len())
-						Result = Result.Mid(MPos + 3);
-					else if (PIEPos + 6 < Result.Len())
-						Result = Result.Mid(PIEPos + 6);
-				}
-
-				return Result.ToLower();
-			};
-
-		const FString NormTarget = NormalizeNameFromPackage(ScopeLevelName);
-
-		if (NormTarget != CurrentLevelName)
-		{
-			return 0;
-		}
+		UE_LOG(LogTemp, Error, TEXT("[RESTORE] No world!"));
+		return 0;
 	}
 
-	if (Snapshots.IsEmpty()) return 0;
+	if (Snapshots.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RESTORE] Snapshots array is empty, nothing to restore"));
+		return 0;
+	}
 
+	// Собираем всех акторов текущего уровня, имеющих FloorAssignmentComponent
 	TMap<FGuid, AActor*> ActorByItemId;
 	TArray<AActor*> AllActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), AllActors);
+	UGameplayStatics::GetAllActorsOfClass(W, AActor::StaticClass(), AllActors);
 	for (AActor* Actor : AllActors)
 	{
 		if (!IsValid(Actor)) continue;
 		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
 		{
-			const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(C->ActorType);
-
-			if (C->SnapshotChannel == ESnapshotChannel::None)
+			if (C->SnapshotChannel != ESnapshotChannel::None)
 			{
-				continue;
-			}
-
-			if (Envelope.IsValid())
-			{
-				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
+				// Проверяем, не помечен ли актор на удаление через DestroyedActorsByInteriorFloor
+				if (ContainsActorIdInSpawned(DestroyedActorsByInteriorFloor, C->ItemId))
+				{
+					Actor->Destroy();
+					UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Actor %s (ItemId=%s) marked as destroyed, removing"), *Actor->GetName(), *C->ItemId.ToString());
 					continue;
-			}
-
-			FGuid ItemId = C->ItemId;
-
-			if (ContainsActorIdInSpawned(DestroyedActorsByInteriorFloor, ItemId))
-			{
-				Actor->Destroy();
-				continue;
-			}
-			else
-			{
-				// иначе добавляем актёра
+				}
 				ActorByItemId.Add(C->ItemId, Actor);
 			}
 		}
-
+		// Также проверяем дочерние акторы (ChildActorComponent)
 		TArray<UChildActorComponent*> ChildComps;
 		Actor->GetComponents<UChildActorComponent>(ChildComps);
 		for (UChildActorComponent* ChildComp : ChildComps)
@@ -1117,80 +1064,86 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 			if (!IsValid(ChildComp)) continue;
 			AActor* ChildActor = ChildComp->GetChildActor();
 			if (!IsValid(ChildActor)) continue;
-
-			if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
 			{
-				const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(C->ActorType);
-
-				const FEnvelopeChannelEntry* FoundEntry = Envelope.RuntimePolicyChannels.FindByPredicate(
-					[ActorChannel](const FEnvelopeChannelEntry& Entry)
+				if (CC->SnapshotChannel != ESnapshotChannel::None)
+				{
+					if (ContainsActorIdInSpawned(DestroyedActorsByInteriorFloor, CC->ItemId))
 					{
-						return Entry.Channel == ActorChannel;
-					});
-
-				if (!FoundEntry)
-				{
-					continue;
+						ChildActor->Destroy();
+						continue;
+					}
+					ActorByItemId.Add(CC->ItemId, ChildActor);
 				}
-
-				if (FoundEntry->Policy == EChannelPolicy::Reset)
-				{
-					continue;
-				}
-
-				ActorByItemId.Add(C->ItemId, Actor);
 			}
 		}
 	}
 
 	int32 Restored = 0;
 
-	// First pass: non-relative (root) actors
+	// First pass: root actors (без относительного преобразования)
 	for (const FFloorSavedActorState& Snapshot : Snapshots)
 	{
 		if (Snapshot.bHasRelativeTransform) continue;
-		AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
-		if (!ActorPtr || !IsValid(*ActorPtr)) continue;
-		RestoreActorSnapshot(*ActorPtr, Snapshot, true);
-		++Restored;
+		if (AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId))
+		{
+			AActor* Actor = *ActorPtr;
+			if (IsValid(Actor))
+			{
+				RestoreActorSnapshot(Actor, Snapshot, true);
+				++Restored;
+				UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Restored root actor %s (ItemId=%s)"), *Actor->GetName(), *Snapshot.ItemId.ToString());
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Actor with ItemId=%s found but invalid"), *Snapshot.ItemId.ToString());
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Root actor with ItemId=%s NOT FOUND in world"), *Snapshot.ItemId.ToString());
+		}
 	}
 
-	// Second pass: relative (child) actors
+	// Second pass: child actors (с относительным преобразованием)
 	for (const FFloorSavedActorState& Snapshot : Snapshots)
 	{
 		if (!Snapshot.bHasRelativeTransform) continue;
-		AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
-		if (!ActorPtr || !IsValid(*ActorPtr)) continue;
-		AActor* ChildActor = *ActorPtr;
-
-		AActor* ParentActor = ChildActor->GetAttachParentActor();
-		bool bAppliedRelative = false;
-		if (IsValid(ParentActor))
+		if (AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId))
 		{
-			TArray<UChildActorComponent*> ParentChildComps;
-			ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
-			for (UChildActorComponent* ParentChildComp : ParentChildComps)
+			AActor* ChildActor = *ActorPtr;
+			if (!IsValid(ChildActor)) continue;
+
+			AActor* ParentActor = ChildActor->GetAttachParentActor();
+			bool bAppliedRelative = false;
+			if (IsValid(ParentActor))
 			{
-				if (!IsValid(ParentChildComp)) continue;
-				if (ParentChildComp->GetChildActor() == ChildActor)
+				TArray<UChildActorComponent*> ParentChildComps;
+				ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
+				for (UChildActorComponent* ParentChildComp : ParentChildComps)
 				{
-					ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
-					bAppliedRelative = true;
-					break;
+					if (IsValid(ParentChildComp) && ParentChildComp->GetChildActor() == ChildActor)
+					{
+						ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
+						bAppliedRelative = true;
+						break;
+					}
 				}
 			}
+			if (!bAppliedRelative)
+				ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+
+			RestoreActorSnapshot(ChildActor, Snapshot, false);
+			++Restored;
+			UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Restored child actor %s (ItemId=%s)"), *ChildActor->GetName(), *Snapshot.ItemId.ToString());
 		}
-
-		if (!bAppliedRelative)
-			ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
-
-		RestoreActorSnapshot(ChildActor, Snapshot, false);
-		++Restored;
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Child actor with ItemId=%s NOT FOUND in world"), *Snapshot.ItemId.ToString());
+		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: RestoreFromSnapshotArray — restored %d actors for floor %s/%s"),
-		Restored, *InteriorSetId.ToString(), *FloorId.ToString());
-
+	UE_LOG(LogTemp, Warning, TEXT("[RESTORE] Finished: restored %d actors out of %d snapshots"), Restored, Snapshots.Num());
 	return Restored;
 }
 
@@ -1285,6 +1238,10 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement spawned for floor %s/%s (ActorId=%s)"),
 			*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString(), *P->ItemId.ToString());
+
+		UE_LOG(LogTemp, Warning, TEXT("[DYNAMIC] SPAWN registered: ItemId=%s, Type=%d, Floor=%s/%s"),
+			*P->ItemId.ToString(), (int32)P->ActorType,
+			*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
 	}
 	else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
 	{
@@ -1336,6 +1293,10 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			RemoveFromSpawnedByActorId(DestroyedActorsByInteriorFloor, P->ItemId);
 		}
 		RemoveFromSpawnedByActorId(SpawnedActorsByInteriorFloor, P->ItemId);
+
+		UE_LOG(LogTemp, Warning, TEXT("[DYNAMIC] DESTROY unregistered: ItemId=%s, Type=%d, Floor=%s/%s"),
+			*P->ItemId.ToString(), (int32)P->ActorType,
+			*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
 
 		// (Опционально) Удаляем снапшот удалённого актора из MissionFloorSnapshots для всех миссий на этом этаже
 		for (auto& FloorPair : MissionFloorSnapshots)
@@ -2088,14 +2049,13 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			}
 		}
 
-		// Если есть ключ этажа — восстановим snapshots для всех миссий, у которых он сохранён.
+		// Внутри лямбды, после того как определили bHaveKey и CurrentKey
 		if (bHaveKey)
 		{
-			// !!! ВАЖНО: сначала применяем постоянные спавны/удаления,
-			// чтобы объекты появились в мире до восстановления их состояния.
+			// 1. Сначала применяем постоянные спавны/удаления (чтобы объекты появились в мире)
 			ApplyPersistentPopulation(CurrentKey);
 
-			// Теперь восстанавливаем базовые снапшоты (FloorStateSnapshots)
+			// 2. Восстанавливаем базовые снапшоты состояния (FloorStateSnapshots)
 			if (const TArray<FFloorSavedActorState>* BaseSnap = FloorStateSnapshots.Find(CurrentKey))
 			{
 				if (BaseSnap && !BaseSnap->IsEmpty())
@@ -2111,7 +2071,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 				}
 			}
 
-			// Затем восстанавливаем миссионные снапшоты (если есть активные миссии)
+			// 3. Восстанавливаем миссионные снапшоты (если активна миссия)
 			if (const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(CurrentKey))
 			{
 				if (PerFloor->Num() > 0)
@@ -2119,10 +2079,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					for (const auto& MissionPair : *PerFloor)
 					{
 						const FName& MissionId = MissionPair.Key;
-						if (!ActiveMissions.Contains(MissionId))
-						{
-							continue;
-						}
+						if (!ActiveMissions.Contains(MissionId)) continue;
 						int32 CurrentMissionStep = ActiveMissions[MissionId].MissionStep;
 						RestoreMissionFloorState(MissionId, CurrentMissionStep, CurrentKey);
 						UE_LOG(LogTemp, Log,
@@ -2380,8 +2337,8 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetField(TEXT("DestroyedActors"), SerializePopulationMap(DestroyedActorsByInteriorFloor));
 
 	// НОВОЕ:
-	Root->SetField(TEXT("PersistentSpawnedActors"), SerializePopulationMap(PersistentSpawnedActors));
-	Root->SetField(TEXT("PersistentDestroyedActors"), SerializePopulationMap(PersistentDestroyedActors));
+	//Root->SetField(TEXT("PersistentSpawnedActors"), SerializePopulationMap(PersistentSpawnedActors));
+	//Root->SetField(TEXT("PersistentDestroyedActors"), SerializePopulationMap(PersistentDestroyedActors));
 
 	// Запись в строку
 	FString Output;
@@ -2532,10 +2489,10 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	}
 
 	// НОВОЕ:
-	TSharedPtr<FJsonValue> PersSpawnedValue = Root->TryGetField(TEXT("PersistentSpawnedActors"));
-	if (PersSpawnedValue.IsValid()) { DeserializePopulationMap(PersSpawnedValue, PersistentSpawnedActors); }
-	TSharedPtr<FJsonValue> PersDestroyedValue = Root->TryGetField(TEXT("PersistentDestroyedActors"));
-	if (PersDestroyedValue.IsValid()) { DeserializePopulationMap(PersDestroyedValue, PersistentDestroyedActors); }
+	//TSharedPtr<FJsonValue> PersSpawnedValue = Root->TryGetField(TEXT("PersistentSpawnedActors"));
+	//if (PersSpawnedValue.IsValid()) { DeserializePopulationMap(PersSpawnedValue, SpawnedActorsByInteriorFloor); }
+	//TSharedPtr<FJsonValue> PersDestroyedValue = Root->TryGetField(TEXT("PersistentDestroyedActors"));
+	//if (PersDestroyedValue.IsValid()) { DeserializePopulationMap(PersDestroyedValue, DestroyedActorsByInteriorFloor); }
 }
 
 UMissionController* UInteriorSubsystem::CreateMission(UMissionAsset* MissionAsset)
@@ -2597,29 +2554,61 @@ void UInteriorSubsystem::HandleReleaseMissionSnapshot(const FOutcomeEventBase& O
 
 void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcome)
 {
-	if(UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(Outcome.Payload))
+	if (UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(Outcome.Payload))
 	{
-		auto ActiveMissionInterior = P->ActiveMissions.Find(P->CurrentMissionId);
-		FMissionEnvelope Envelope = FMissionEnvelope();
-		//int32 MissionStep = 0;
+		UE_LOG(LogTemp, Warning, TEXT("[UPDATE_MISSION] Received UpdateMissionListPayload. CurrentMissionId=%s, IsUpdateSnapshots=%d"),
+			*P->CurrentMissionId.ToString(), P->IsUpdateSnapshots);
 
-		if (ActiveMissionInterior)
+		// Определяем текущий Envelope для сохранения snapshot (если требуется)
+		FMissionEnvelope Envelope;
+		if (P->IsUpdateSnapshots)
 		{
-			int32 MissionStep = ActiveMissionInterior->MissionStep;
-			auto Controller = ActiveMissionInterior->Controller;
-			TArray<FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
-			if (Envelopes.IsValidIndex(MissionStep))
+			auto ActiveMissionInterior = ActiveMissions.Find(P->CurrentMissionId);
+			//int32 MissionStep = 0;
+			
+			if (ActiveMissionInterior)
 			{
-				Envelope = Envelopes[MissionStep];
+				int32 MissionStep = ActiveMissionInterior->MissionStep;
+				auto Controller = ActiveMissionInterior->Controller;
+				TArray<FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
+				if (Envelopes.IsValidIndex(MissionStep))
+				{
+					Envelope = Envelopes[MissionStep];
+				}
 			}
+			/*
+			auto ActiveMissionInterior = P->ActiveMissions.Find(P->CurrentMissionId);
+			if (ActiveMissionInterior)
+			{
+				int32 MissionStep = ActiveMissionInterior->MissionStep;
+				auto Controller = ActiveMissionInterior->Controller;
+				TArray<FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
+				if (Envelopes.IsValidIndex(MissionStep))
+				{
+					Envelope = Envelopes[MissionStep];
+					UE_LOG(LogTemp, Warning, TEXT("[UPDATE_MISSION] Envelope found for step %d, Policy=%d"), MissionStep, (int32)Envelope.NextStagePolicy);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("[UPDATE_MISSION] Invalid MissionStep %d"), MissionStep);
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("[UPDATE_MISSION] ActiveMission not found for %s"), *P->CurrentMissionId.ToString());
+			}
+			*/
 		}
 
 		if (P->IsUpdateSnapshots)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("[UPDATE_MISSION] Calling StoreCurrentLevel..."));
 			StoreCurrentLevel(Envelope, P->CurrentMissionId, EMissionEndReason::Completed);
+			UE_LOG(LogTemp, Warning, TEXT("[UPDATE_MISSION] Calling StoreSnapshot with Policy=%d"), (int32)Envelope.NextStagePolicy);
 			StoreSnapshot(P->CurrentMissionId, Envelope, Envelope.NextStagePolicy, Envelope.NextStagePolicyChannels);
 		}
 
+		// Обновляем список активных миссий
 		ActiveMissions.Empty();
 		TArray<FName> Keys;
 		TMap<FName, FActiveMissionEntry> Map = P->ActiveMissions;
@@ -2630,13 +2619,12 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 			if (!MissionId.IsNone())
 			{
 				FActiveMissionInterior MissionInterior;
-				
 				MissionInterior.MissionId = MissionId;
 				MissionInterior.MissionStep = Map[MissionId].MissionStep;
 				MissionInterior.Controller = Map[MissionId].Controller;
 				MissionInterior.Controller->MissionStep = MissionInterior.MissionStep;
-
 				ActiveMissions.Add(MissionId, MissionInterior);
+				UE_LOG(LogTemp, Log, TEXT("[UPDATE_MISSION] Added active mission %s, step=%d"), *MissionId.ToString(), MissionInterior.MissionStep);
 			}
 		}
 	}
@@ -2695,129 +2683,175 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 
 void UInteriorSubsystem::StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] ========== START =========="));
+	UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] Mission=%s, EndReason=%d"), *MissionId.ToString(), (int32)EndReason);
+
 	FMissionEnvelopeScope Scope = Envelope.Scope;
-	// === ИЗМЕНЕНИЕ: используем кэшированный InteriorSetID
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[STORE_CURRENT] No world!"));
+		return;
+	}
+
+	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+	FString CurrentLevelNameLower = CurrentLevelName.ToLower();
+	UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] CurrentLevelName (raw) = '%s', lower = '%s'"), *CurrentLevelName, *CurrentLevelNameLower);
+
+	int32 ScopesFound = 0;
 	for (const auto& S : Scope.InteriorScopes)
 	{
-		if (!S) continue;
+		if (!S)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] Skipping null scope entry"));
+			continue;
+		}
 
-		// Прямой доступ к InteriorSetID
+		ScopesFound++;
 		FGuid FloorGuid = S->FloorID;
 		FGuid InteriorSetID = S->InteriorSetID;
-
-		// Обратная совместимость для старых ассетов
 		if (!InteriorSetID.IsValid())
 		{
 			UInteriorSetAsset* LoadedSet = S->ParentInteriorSet.LoadSynchronous();
-			if (LoadedSet)
-			{
-				InteriorSetID = LoadedSet->InteriorSetID;
-			}
+			if (LoadedSet) InteriorSetID = LoadedSet->InteriorSetID;
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("StoreCurrentLevel: InteriorSetID is invalid and ParentInteriorSet could not be loaded for floor %s"), *FloorGuid.ToString());
+				UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] InteriorSetID invalid and cannot load for floor %s"), *FloorGuid.ToString());
 				continue;
 			}
 		}
 
 		FString ScopeLevelName = S->FloorLevel.ToSoftObjectPath().GetLongPackageName();
-		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(GetWorld()).ToLower();
+		UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] ScopeLevelName (raw) = '%s'"), *ScopeLevelName);
 
-		auto NormalizeNameFromPackage = [](const FString& InPath) -> FString
+		// Нормализация: берём базовое имя файла без пути, убираем PIE-префиксы и приводим к нижнему регистру
+		auto NormalizeLevelName = [](const FString& InPath) -> FString
 			{
 				if (InPath.IsEmpty()) return FString();
-
 				FString PackagePath = InPath;
 				if (PackagePath.Contains(TEXT(".")))
-				{
 					PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
-				}
-
-				const FString Base = FPaths::GetBaseFilename(PackagePath);
-
-				FString Result = Base;
-				int32 PIEPos = Result.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
+				FString Base = FPaths::GetBaseFilename(PackagePath);
+				// Убираем PIE-префиксы вида UEDPIE_0_
+				int32 PIEPos = Base.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
 				if (PIEPos != INDEX_NONE)
 				{
-					int32 MPos = Result.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
-					if (MPos != INDEX_NONE && MPos + 3 < Result.Len())
-						Result = Result.Mid(MPos + 3);
-					else if (PIEPos + 6 < Result.Len())
-						Result = Result.Mid(PIEPos + 6);
+					int32 MPos = Base.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
+					if (MPos != INDEX_NONE && MPos + 3 < Base.Len())
+						Base = Base.Mid(MPos + 3);
+					else
+						Base = Base.Mid(PIEPos + 6);
 				}
-
-				return Result.ToLower();
+				return Base.ToLower();
 			};
 
-		const FString NormTarget = NormalizeNameFromPackage(ScopeLevelName);
+		FString NormTarget = NormalizeLevelName(ScopeLevelName);
+		UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] NormTarget = '%s'"), *NormTarget);
 
-		if (NormTarget == CurrentLevelName)
+		// Также нормализуем текущее имя уровня (на случай если оно с префиксом)
+		FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+		UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] NormCurrent = '%s'"), *NormCurrent);
+
+		if (NormTarget == NormCurrent)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] MATCH! Saving state for floor %s/%s"), *InteriorSetID.ToString(), *FloorGuid.ToString());
 			SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, EndReason);
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] NO MATCH: NormTarget='%s' != NormCurrent='%s'"), *NormTarget, *NormCurrent);
+		}
 	}
+
+	if (ScopesFound == 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[STORE_CURRENT] No InteriorScopes defined in Envelope!"));
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] ========== END =========="));
 }
+
 void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EJobSpacePolicy Policy, TArray<FEnvelopeChannelEntry>& EndChannels)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[STORE] StoreSnapshot called: Mission=%s, Policy=%d"), *MissionId.ToString(), (int32)Policy);
+
+	// Проверяем, есть ли снапшоты для этой миссии
+	bool bHasSnapshotsForMission = false;
+	for (const auto& Pair : MissionFloorSnapshots)
+	{
+		if (Pair.Value.Contains(MissionId))
+		{
+			bHasSnapshotsForMission = true;
+			break;
+		}
+	}
+	if (!bHasSnapshotsForMission)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[STORE] WARNING: No MissionFloorSnapshots found for mission %s! Nothing to persist."), *MissionId.ToString());
+
+	}
 	switch (Policy)
 	{
 	case EJobSpacePolicy::Reset:
 	{
-		// Существующая логика для FloorStateSnapshots (оставляем без изменений)
+		UE_LOG(LogTemp, Warning, TEXT("[STORE] Reset policy: clearing persistent maps for all floors in MissionFloorSnapshots"));
 		for (auto& Pair : MissionFloorSnapshots)
 		{
 			const FInteriorFloorKey& FloorKey = Pair.Key;
-			if (const TArray<FFloorSavedActorState>* BaseSnap = FloorStateSnapshots.Find(FloorKey))
-			{
-				// Здесь может быть ваш код для сброса FloorStateSnapshots
-			}
-		}
-
-		// Удаляем постоянные записи для всех этажей, затронутых миссией
-		for (auto& Pair : MissionFloorSnapshots)
-		{
-			const FInteriorFloorKey& FloorKey = Pair.Key;
-			PersistentSpawnedActors.Remove(FloorKey);
-			PersistentDestroyedActors.Remove(FloorKey);
+			SpawnedActorsByInteriorFloor.Remove(FloorKey);
+			DestroyedActorsByInteriorFloor.Remove(FloorKey);
 		}
 		break;
 	}
 	case EJobSpacePolicy::Freeze:
 	{
-		// Существующая логика для FloorStateSnapshots
-		UE_LOG(LogTemp, Log, TEXT("UInteriorSubsystem::StoreSnapshot Policy freeze MissionFloorSnapshots count before store: %d"), MissionFloorSnapshots.Num());
+		UE_LOG(LogTemp, Warning, TEXT("[STORE] Freeze policy: copying mission snapshots and dynamic maps to persistent storage"));
+
+		// Статические снапшоты свойств
 		for (auto& Pair : MissionFloorSnapshots)
 		{
 			const FInteriorFloorKey& FloorKey = Pair.Key;
 			TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
 			if (!PerFloor.Contains(MissionId)) continue;
-
 			FloorStateSnapshots.Add(FloorKey, PerFloor[MissionId]);
+			UE_LOG(LogTemp, Warning, TEXT("[STORE]   Copied actor state snapshots for floor %s/%s, count=%d"),
+				*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString(), PerFloor[MissionId].Num());
 		}
-
-		// Копируем временные карты спавна/удаления в постоянные
+		/*
+		// Динамические объекты (спавн и удаление)
 		for (auto& Pair : MissionFloorSnapshots)
 		{
 			const FInteriorFloorKey& FloorKey = Pair.Key;
 			if (const FFloorPopulationBuckets* Spawned = SpawnedActorsByInteriorFloor.Find(FloorKey))
 			{
+				UE_LOG(LogTemp, Warning, TEXT("[STORE]   Copying SPAWNED for floor %s/%s: Heavy=%d, Light=%d, Terminals=%d, NPCSpawners=%d, Debris=%d"),
+					*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString(),
+					Spawned->HeavyFurniture.Num(), Spawned->LightItems.Num(), Spawned->Terminals.Num(),
+					Spawned->NPCSpawners.Num(), Spawned->Debris.Num());
 				PersistentSpawnedActors.FindOrAdd(FloorKey) = *Spawned;
 			}
 			if (const FFloorPopulationBuckets* Destroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
 			{
+				UE_LOG(LogTemp, Warning, TEXT("[STORE]   Copying DESTROYED for floor %s/%s: total count=%d"),
+					*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString(),
+					Destroyed->HeavyFurniture.Num() + Destroyed->LightItems.Num() + Destroyed->Terminals.Num() +
+					Destroyed->NPCSpawners.Num() + Destroyed->Debris.Num());
 				PersistentDestroyedActors.FindOrAdd(FloorKey) = *Destroyed;
 			}
 		}
 		break;
+		*/
 	}
 	case EJobSpacePolicy::Partial:
 	{
-		// Обрабатываем каждый канал согласно его политике
+		UE_LOG(LogTemp, Warning, TEXT("[STORE] Partial policy: processing %d channels"), EndChannels.Num());
 		for (const FEnvelopeChannelEntry& ChannelEntry : EndChannels)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("[STORE]   Channel %d, Policy %d"), (int32)ChannelEntry.Channel, (int32)ChannelEntry.Policy);
+
 			if (ChannelEntry.Policy == EChannelPolicy::Freeze)
 			{
-				// 1. Копируем снимки свойств акторов для этого канала в FloorStateSnapshots
+				// 1) Копируем статические снапшоты для этого канала
 				for (auto& Pair : MissionFloorSnapshots)
 				{
 					const FInteriorFloorKey& FloorKey = Pair.Key;
@@ -2825,9 +2859,9 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 					if (!PerFloor.Contains(MissionId)) continue;
 					const TArray<FFloorSavedActorState>& MissionSnap = PerFloor[MissionId];
 					TArray<FFloorSavedActorState>& BaseSnap = FloorStateSnapshots.FindOrAdd(FloorKey);
+
 					for (const FFloorSavedActorState& ActorSnap : MissionSnap)
 					{
-						// Определяем канал этого актора по его типу (через существующий актор в мире)
 						EEnvelopeChannel ActorChannel = EEnvelopeChannel::Clutter;
 						if (UWorld* W = GetWorld())
 						{
@@ -2862,12 +2896,12 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 					}
 				}
 
-				// 2. Копируем спавн/удаление для этого канала в постоянные карты
+				// 2) Копируем динамические карты для этого канала
 				for (auto& Pair : MissionFloorSnapshots)
 				{
 					const FInteriorFloorKey& FloorKey = Pair.Key;
-					FFloorPopulationBuckets& PersSpawned = PersistentSpawnedActors.FindOrAdd(FloorKey);
-					FFloorPopulationBuckets& PersDestroyed = PersistentDestroyedActors.FindOrAdd(FloorKey);
+					FFloorPopulationBuckets& PersSpawned = SpawnedActorsByInteriorFloor.FindOrAdd(FloorKey);
+					FFloorPopulationBuckets& PersDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(FloorKey);
 
 					if (const FFloorPopulationBuckets* TempSpawned = SpawnedActorsByInteriorFloor.Find(FloorKey))
 					{
@@ -2889,11 +2923,10 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 			}
 			else if (ChannelEntry.Policy == EChannelPolicy::Reset)
 			{
-				// Удаление из постоянных карт для данного канала
 				for (auto& Pair : MissionFloorSnapshots)
 				{
 					const FInteriorFloorKey& FloorKey = Pair.Key;
-					if (FFloorPopulationBuckets* PersSpawned = PersistentSpawnedActors.Find(FloorKey))
+					if (FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(FloorKey))
 					{
 						RemoveRecordsForChannel(PersSpawned->HeavyFurniture, ChannelEntry.Channel);
 						RemoveRecordsForChannel(PersSpawned->LightItems, ChannelEntry.Channel);
@@ -2901,7 +2934,7 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 						RemoveRecordsForChannel(PersSpawned->NPCSpawners, ChannelEntry.Channel);
 						RemoveRecordsForChannel(PersSpawned->Debris, ChannelEntry.Channel);
 					}
-					if (FFloorPopulationBuckets* PersDestroyed = PersistentDestroyedActors.Find(FloorKey))
+					if (FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
 					{
 						RemoveRecordsForChannel(PersDestroyed->HeavyFurniture, ChannelEntry.Channel);
 						RemoveRecordsForChannel(PersDestroyed->LightItems, ChannelEntry.Channel);
@@ -2916,18 +2949,20 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 	}
 	case EJobSpacePolicy::None:
 	{
-		UE_LOG(LogTemp, Log, TEXT("UInteriorSubsystem::HandleCompleteMission Policy == None"));
+		UE_LOG(LogTemp, Log, TEXT("[STORE] None policy, nothing stored"));
 		return;
 	}
 	}
-
-	// Очистка временных карт для обработанных этажей
+	/*
+	// Очищаем временные карты для обработанных этажей
 	for (auto& Pair : MissionFloorSnapshots)
 	{
 		const FInteriorFloorKey& FloorKey = Pair.Key;
 		SpawnedActorsByInteriorFloor.Remove(FloorKey);
 		DestroyedActorsByInteriorFloor.Remove(FloorKey);
+		UE_LOG(LogTemp, Verbose, TEXT("[STORE] Cleared temp maps for floor %s/%s"), *FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString());
 	}
+	*/
 }
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)
@@ -3144,12 +3179,12 @@ void UInteriorSubsystem::TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLe
 
 void UInteriorSubsystem::CopyRecordsForChannel(const TArray<FFloorPopulationRecord>& Source, TArray<FFloorPopulationRecord>& Dest, EEnvelopeChannel Channel)
 {
-	//CopyRecordsForChannelHelper(Source, Dest, Channel);
+	CopyRecordsForChannelHelper(Source, Dest, Channel);
 }
 
 void UInteriorSubsystem::RemoveRecordsForChannel(TArray<FFloorPopulationRecord>& Records, EEnvelopeChannel Channel)
 {
-	//RemoveRecordsForChannelHelper(Records, Channel);
+	RemoveRecordsForChannelHelper(Records, Channel);
 }
 
 AActor* UInteriorSubsystem::FindActorByItemId(const FGuid& ItemId) const
@@ -3174,14 +3209,10 @@ void UInteriorSubsystem::SpawnRecords(const TArray<FFloorPopulationRecord>& Reco
 	for (const FFloorPopulationRecord& Rec : Records)
 	{
 		if (!Rec.SourceClass) continue;
-
-		// Проверяем, нет ли уже актора с таким ItemId в мире
-		if (FindActorByItemId(Rec.ActorId)) continue;
-
+		if (FindActorByItemId(Rec.ActorId)) continue; // не спавним повторно
 		FActorSpawnParameters Params;
 		AActor* Spawned = GetWorld()->SpawnActor<AActor>(Rec.SourceClass, Rec.WorldTransform, Params);
 		if (!Spawned) continue;
-
 		if (UFloorAssignmentComponent* Comp = Spawned->FindComponentByClass<UFloorAssignmentComponent>())
 		{
 			Comp->ItemId = Rec.ActorId;
@@ -3203,20 +3234,39 @@ void UInteriorSubsystem::DestroyRecords(const TArray<FFloorPopulationRecord>& Re
 
 void UInteriorSubsystem::ApplyPersistentPopulation(const FInteriorFloorKey& FloorKey)
 {
-	UWorld* World = GetWorld();
-	if (!World) return;
+	UE_LOG(LogTemp, Warning, TEXT("[APPLY] ApplyPersistentPopulation for floor %s/%s"),
+		*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString());
 
-	if (const FFloorPopulationBuckets* PersSpawned = PersistentSpawnedActors.Find(FloorKey))
+	UWorld* World = GetWorld();
+	if (!World)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[APPLY] No world!"));
+		return;
+	}
+
+	// Спавним объекты из PersistentSpawnedActors
+	if (const FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(FloorKey))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[APPLY]   PersistentSpawnedActors found: Heavy=%d, Light=%d, Terminals=%d, NPCSpawners=%d, Debris=%d"),
+			PersSpawned->HeavyFurniture.Num(), PersSpawned->LightItems.Num(), PersSpawned->Terminals.Num(),
+			PersSpawned->NPCSpawners.Num(), PersSpawned->Debris.Num());
 		SpawnRecords(PersSpawned->HeavyFurniture);
 		SpawnRecords(PersSpawned->LightItems);
 		SpawnRecords(PersSpawned->Terminals);
 		SpawnRecords(PersSpawned->NPCSpawners);
 		SpawnRecords(PersSpawned->Debris);
 	}
-
-	if (const FFloorPopulationBuckets* PersDestroyed = PersistentDestroyedActors.Find(FloorKey))
+	else
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[APPLY]   No PersistentSpawnedActors for this floor"));
+	}
+
+	// Уничтожаем объекты из PersistentDestroyedActors
+	if (const FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
+	{
+		int32 TotalDestroyed = PersDestroyed->HeavyFurniture.Num() + PersDestroyed->LightItems.Num() +
+			PersDestroyed->Terminals.Num() + PersDestroyed->NPCSpawners.Num() + PersDestroyed->Debris.Num();
+		UE_LOG(LogTemp, Warning, TEXT("[APPLY]   PersistentDestroyedActors found: total %d objects to destroy"), TotalDestroyed);
 		DestroyRecords(PersDestroyed->HeavyFurniture);
 		DestroyRecords(PersDestroyed->LightItems);
 		DestroyRecords(PersDestroyed->Terminals);
@@ -3224,7 +3274,8 @@ void UInteriorSubsystem::ApplyPersistentPopulation(const FInteriorFloorKey& Floo
 		DestroyRecords(PersDestroyed->Debris);
 	}
 
-	// Очищаем временные карты для этого этажа
+	// Очищаем временные карты для этого этажа (чтобы повторно не спавнить)
 	SpawnedActorsByInteriorFloor.Remove(FloorKey);
 	DestroyedActorsByInteriorFloor.Remove(FloorKey);
+	UE_LOG(LogTemp, Verbose, TEXT("[APPLY] Cleared temporary maps for floor %s/%s"), *FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString());
 }
