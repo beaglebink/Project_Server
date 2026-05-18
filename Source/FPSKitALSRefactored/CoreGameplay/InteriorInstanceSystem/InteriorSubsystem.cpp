@@ -1297,8 +1297,8 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		FMissionEnvelope Envelope = FMissionEnvelope();
 		if (!IsCurrentWorldMission(Envelope)) return;
 
-		if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(P->ActorType), EMissionEndReason::None, true))
-			return;
+		//if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(P->ActorType), EMissionEndReason::None, true))
+		//	return;
 
 		switch (P->ActorType)
 		{
@@ -2359,7 +2359,11 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		EEnvelopeChannel Channel = FloorActorTypeToEnvelopeChannel(Record.ActorType);
 
 		if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
+		{
+			Array.Empty();
 			continue;
+		}
+
 
 		FActorSpawnParameters Params;
 		AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Record.SourceClass, Record.WorldTransform, Params);
