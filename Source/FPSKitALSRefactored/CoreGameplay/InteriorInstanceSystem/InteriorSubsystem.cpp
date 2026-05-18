@@ -2198,7 +2198,11 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					for (const auto& MissionPair : *PerFloor)
 					{
 						const FName& MissionId = MissionPair.Key;
-						if (!ActiveMissions.Contains(MissionId)) continue;
+						if (!ActiveMissions.Contains(MissionId))
+						{
+							RestoreSpawnedActorsForCurrentFloor(FMissionEnvelope());
+							continue;
+						}
 
 						//ApplyPersistentPopulation(CurrentKey);
 
@@ -2358,12 +2362,14 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		if (!Record.SourceClass) continue;
 		EEnvelopeChannel Channel = FloorActorTypeToEnvelopeChannel(Record.ActorType);
 
-		if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
+		if (Envelope.IsValid())
 		{
-			Array.Empty();
-			continue;
+			if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
+			{
+				Array.Empty();
+				continue;
+			}
 		}
-
 
 		FActorSpawnParameters Params;
 		AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Record.SourceClass, Record.WorldTransform, Params);
