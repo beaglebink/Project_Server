@@ -10,7 +10,7 @@ public class ALSExtras : ModuleRules
         PublicDependencyModuleNames.AddRange(new[]
         {
             "Core", "CoreUObject", "Engine", "AIModule",
-            "ALS", "UMG", "GameplayTags", "Niagara",
+            "ALS", "UMG", "GameplayTags", "Niagara", "CableComponent",
             // FPSKitALSRefactored stays here - ALSExtras needs full linking
             // with types like UInteractiveItemComponent, UInteractivePickerComponent
             // Cycle is broken: FPSKitALSRefactored has only PRIVATE dep on ALSExtras
