@@ -232,6 +232,9 @@ private:
     UInteriorTransitionPayload* TransitionPayloadCache = nullptr;
 
     UPROPERTY()
+    TArray<AActor*> TestAllActors;
+
+    UPROPERTY()
     bool bHasPendingSpawn = false;
     UPROPERTY()
     FVector PendingSpawnLocation = FVector::ZeroVector;

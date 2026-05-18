@@ -2375,6 +2375,17 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 {
 	for (const FFloorPopulationRecord& Record : Array)
 	{
+		if (TestAllActors.ContainsByPredicate([&Record](AActor* ExistingActor)
+			{
+				UFloorAssignmentComponent* Comp = ExistingActor->FindComponentByClass<UFloorAssignmentComponent>();
+				return Comp && Comp->ItemId == Record.ActorId;
+			}))
+		{
+			continue;
+		}
+
+		//if (TestAllActors.Contains(Record)) continue;
+
 		if (!Record.SourceClass) continue;
 		EEnvelopeChannel Channel = FloorActorTypeToEnvelopeChannel(Record.ActorType);
 
@@ -2406,12 +2417,18 @@ void UInteriorSubsystem::RestoreSpawnedActorsForCurrentFloor(const FMissionEnvel
 	FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(CurrentKey);
 	if (!Buckets) return;
 
+	UWorld* World = GetWorld();
+
+	UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), TestAllActors);
+
 	// Просто спавним акторы без восстановления состояния (состояние будет восстановлено позже из MissionFloorSnapshots)
 	SpawnFromType(Buckets->HeavyFurniture, Envelope);
 	SpawnFromType(Buckets->LightItems, Envelope);
 	SpawnFromType(Buckets->Terminals, Envelope);
 	SpawnFromType(Buckets->NPCSpawners, Envelope);
 	SpawnFromType(Buckets->Debris, Envelope);
+
+	TestAllActors.Empty();
 }
 
 const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* UInteriorSubsystem::GetMissionSnapshots(FName MissionId) const 
