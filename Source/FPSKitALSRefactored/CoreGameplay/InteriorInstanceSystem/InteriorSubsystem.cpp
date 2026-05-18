@@ -3003,6 +3003,10 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 				for (auto& Pair : MissionFloorSnapshots)
 				{
 					const FInteriorFloorKey& FloorKey = Pair.Key;
+
+					if (FloorKey != CurrentKey)
+						continue;
+
 					FFloorPopulationBuckets& PersSpawned = SpawnedActorsByInteriorFloor.FindOrAdd(FloorKey);
 					FFloorPopulationBuckets& PersDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(FloorKey);
 
