@@ -2201,6 +2201,22 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						if (!ActiveMissions.Contains(MissionId))
 						{
 							RestoreSpawnedActorsForCurrentFloor(FMissionEnvelope());
+
+							if (const TArray<FFloorSavedActorState>* BaseSnap = FloorStateSnapshots.Find(CurrentKey))
+							{
+								if (BaseSnap && !BaseSnap->IsEmpty())
+								{
+									UWorld* LocalWorld = GetWorld();
+									if (LocalWorld)
+									{
+										RestoreFromSnapshotArray(LocalWorld, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FMissionEnvelope());
+										UE_LOG(LogTemp, Log,
+											TEXT("InteriorSubsystem::OnPostLoadMap: Restored baseline FloorStateSnapshots for floor %s/%s (count=%d)"),
+											*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString(), BaseSnap->Num());
+									}
+								}
+							}
+
 							continue;
 						}
 
