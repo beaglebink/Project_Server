@@ -1368,6 +1368,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			{
 				BucketsDestroyed.HeavyFurniture.Add(NewRecord);
 			}
+			break;
 		}
 
 		case EFloorActorType::LightItem:
@@ -1378,6 +1379,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			{
 				BucketsDestroyed.LightItems.Add(NewRecord);
 			}
+			break;
 		}
 
 		case EFloorActorType::Terminal:
@@ -1387,6 +1389,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 				}))
 			{
 				BucketsDestroyed.Terminals.Add(NewRecord);
+				break;
 			}
 		}
 
@@ -1398,6 +1401,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			{
 				BucketsDestroyed.NPCSpawners.Add(NewRecord);
 			}
+			break;
 		}
 
 		case EFloorActorType::Debris:
@@ -1408,6 +1412,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			{
 				BucketsDestroyed.Debris.Add(NewRecord);
 			}
+			break;
 		}
 
 		default: {}
@@ -2753,6 +2758,7 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					//Ctrl->Activate();
 					//Ctrl->RequestResolve(EndReason);
 				}
+				continue;
 			}
 			}
 
@@ -3101,6 +3107,7 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 			UE_LOG(LogTemp, Warning, TEXT("[STORE]   Copied actor state snapshots for floor %s/%s, count=%d"),
 				*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString(), PerFloor[MissionId].Num());
 		}
+		break;
 	}
 	case EJobSpacePolicy::Partial:
 	{
