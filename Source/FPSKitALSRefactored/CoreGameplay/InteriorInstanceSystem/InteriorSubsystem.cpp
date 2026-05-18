@@ -1067,8 +1067,17 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 		{
 			if (C->SnapshotChannel != ESnapshotChannel::None)
 			{
-				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
+				if (IsCurrentWorldMissionConst(Envelope))
+				{
+					if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
 					continue;
+				}
+				//if (!IsCurrentWorldMissionConst(Envelope))
+				//	continue;
+
+				//if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
+				//	continue;
+				
 				// Проверяем, не помечен ли актор на удаление через DestroyedActorsByInteriorFloor
 				if (ContainsActorIdInSpawned(DestroyedActorsByInteriorFloor, C->ItemId))
 				{
@@ -1076,7 +1085,29 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 					UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Actor %s (ItemId=%s) marked as destroyed, removing"), *Actor->GetName(), *C->ItemId.ToString());
 					continue;
 				}
-				ActorByItemId.Add(C->ItemId, Actor);
+
+				FInteriorFloorKey Key(InteriorSetId, FloorId);
+				TArray<FFloorSavedActorState>* ActorStates = FloorStateSnapshots.Find(Key);
+				
+				auto HasItemId = [](const TArray<FFloorSavedActorState>* ActorStates, const FGuid& ItemId) -> bool
+					{
+						return ActorStates && ActorStates->ContainsByPredicate([&ItemId](const FFloorSavedActorState& State)
+							{
+								return State.ItemId == ItemId;
+							});
+					};
+
+				if (!IsCurrentWorldMissionConst(Envelope))
+				{
+					if (HasItemId(ActorStates, C->ItemId))
+					{
+						ActorByItemId.Add(C->ItemId, Actor);
+					}
+				}
+				else
+				{
+					ActorByItemId.Add(C->ItemId, Actor);
+				}
 			}
 		}
 		// Также проверяем дочерние акторы (ChildActorComponent)
@@ -1329,12 +1360,57 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 
 		switch (P->ActorType)
 		{
-		case EFloorActorType::HeavyFurniture: BucketsDestroyed.HeavyFurniture.Add(NewRecord); break;
-		case EFloorActorType::LightItem:      BucketsDestroyed.LightItems.Add(NewRecord);      break;
-		case EFloorActorType::Terminal:       BucketsDestroyed.Terminals.Add(NewRecord);       break;
-		case EFloorActorType::NPC_Spawner:    BucketsDestroyed.NPCSpawners.Add(NewRecord);     break;
-		case EFloorActorType::Debris:         BucketsDestroyed.Debris.Add(NewRecord);          break;
-		default:                              BucketsDestroyed.LightItems.Add(NewRecord);      break;
+		case EFloorActorType::HeavyFurniture:
+		{
+			if (!BucketsDestroyed.HeavyFurniture.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
+				return Existing.ActorId == NewRecord.ActorId;
+				}))
+			{
+				BucketsDestroyed.HeavyFurniture.Add(NewRecord);
+			}
+		}
+
+		case EFloorActorType::LightItem:
+		{
+			if (!BucketsDestroyed.LightItems.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
+				return Existing.ActorId == NewRecord.ActorId;
+				}))
+			{
+				BucketsDestroyed.LightItems.Add(NewRecord);
+			}
+		}
+
+		case EFloorActorType::Terminal:
+		{
+			if (!BucketsDestroyed.Terminals.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
+				return Existing.ActorId == NewRecord.ActorId;
+				}))
+			{
+				BucketsDestroyed.Terminals.Add(NewRecord);
+			}
+		}
+
+		case EFloorActorType::NPC_Spawner:
+		{
+			if (!BucketsDestroyed.NPCSpawners.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
+				return Existing.ActorId == NewRecord.ActorId;
+				}))
+			{
+				BucketsDestroyed.NPCSpawners.Add(NewRecord);
+			}
+		}
+
+		case EFloorActorType::Debris:
+		{
+			if (!BucketsDestroyed.Debris.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
+				return Existing.ActorId == NewRecord.ActorId;
+				}))
+			{
+				BucketsDestroyed.Debris.Add(NewRecord);
+			}
+		}
+
+		default: {}
 		}
 
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Placement destroyed for floor %s/%s (ActorId=%s)"),
@@ -1435,6 +1511,70 @@ bool UInteriorSubsystem::IsCurrentWorldMission(FMissionEnvelope& Envelope)
 	}
 
 	return IsMissionWorld;
+}
+
+bool UInteriorSubsystem::IsCurrentWorldMissionConst(const FMissionEnvelope& Envelope)
+{
+	UWorld* World = GetWorld();
+	if (!World) return false;
+
+	bool IsMissionWorld = false;
+
+	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+
+	FMissionEnvelopeScope Scope = Envelope.Scope;
+	for (auto Sc : Scope.InteriorScopes)
+	{
+		FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+		FString NormTarget = NormalizeLevelName(ScopeLevelName);
+		FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+		if (NormTarget == NormCurrent)
+		{
+			IsMissionWorld = true;
+			break;
+		}
+	}
+	/*
+	for (const auto Pair : ActiveMissions)
+	{
+		const UMissionController* Ctrl = Pair.Value.Controller;
+		if (!Ctrl) continue;
+
+		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
+		if (!Asset) continue;
+
+		const EMissionStatus Status = Ctrl->GetStatus();
+		const EMissionEndReason EndReason = Ctrl->GetEndReason();
+		const FMissionEnvelope& Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+		const EMissionResumeMode Resume = Envelope.ResumeMode;
+		const int32 MissionStep = Pair.Value.MissionStep;
+
+		FMissionEnvelopeScope Scope = Envelope.Scope;
+		for (auto Sc : Scope.InteriorScopes)
+		{
+			FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+			FString NormTarget = NormalizeLevelName(ScopeLevelName);
+			FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+			if (NormTarget == NormCurrent)
+			{
+				IsMissionWorld = true;
+				break;
+			}
+		}
+
+		if (IsMissionWorld)
+		{
+			break;
+		}
+	}
+	*/
+
+	return IsMissionWorld;
+
 }
 
 // -----------------------------------------------------------------------------
@@ -2393,7 +2533,7 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		{
 			if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
 			{
-				Array.Empty();
+				//Array.Empty();
 				continue;
 			}
 		}
@@ -2982,7 +3122,7 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 
 					for (const FFloorSavedActorState& ActorSnap : MissionSnap)
 					{
-						EEnvelopeChannel ActorChannel = EEnvelopeChannel::Clutter;
+						EEnvelopeChannel ActorChannel = EEnvelopeChannel::None;
 						if (UWorld* W = GetWorld())
 						{
 							for (TActorIterator<AActor> It(W); It; ++It)
@@ -2991,6 +3131,8 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 								if (!IsValid(Actor)) continue;
 								if (UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>())
 								{
+									if (FAC->SnapshotChannel == ESnapshotChannel::None) continue;
+
 									if (FAC->ItemId == ActorSnap.ItemId)
 									{
 										ActorChannel = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
@@ -2999,6 +3141,9 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 								}
 							}
 						}
+
+						if (ActorChannel == EEnvelopeChannel::None) continue;
+
 						if (ActorChannel == ChannelEntry.Channel)
 						{
 							bool bUpdated = false;

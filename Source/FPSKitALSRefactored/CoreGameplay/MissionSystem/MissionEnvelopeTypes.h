@@ -11,6 +11,7 @@
 UENUM(BlueprintType)
 enum class EEnvelopeChannel : uint8
 {
+    None                UMETA(Hidden, DisplayName = "None"),
     Clutter             UMETA(DisplayName = "Clutter / Loose Items"),
     InteriorObjects     UMETA(DisplayName = "Interior Objects"),
     DoorLocks           UMETA(DisplayName = "Door Locks"),

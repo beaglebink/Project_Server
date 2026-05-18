@@ -171,6 +171,8 @@ public:
 
     bool IsCurrentWorldMission(FMissionEnvelope& Envelope);
 
+    bool IsCurrentWorldMissionConst(const FMissionEnvelope& Envelope);
+
     void SaveMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey);
     void RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey);
     void SpawnFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope);
