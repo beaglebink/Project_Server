@@ -81,6 +81,58 @@ auto ContainsActorIdInSpawned = [](const TMap<FInteriorFloorKey, FFloorPopulatio
 		return false;
 
 	};
+
+auto ContainsActorIdInSpawnedNew = [](const TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId) -> bool
+	{
+		if (!TargetActorId.IsValid()) return false;
+
+		for (const auto& Pair : SpawnedMap)
+		{
+			const FFloorPopulationBuckets& Buckets = Pair.Value;
+			auto CheckArray = [&TargetActorId](const TArray<FFloorPopulationRecord>& Arr) -> bool
+				{
+					return Arr.ContainsByPredicate([&TargetActorId](const FFloorPopulationRecord& Record)
+						{
+							return Record.ActorId == TargetActorId && Record.IsNewObject;
+						});
+				};
+			if (CheckArray(Buckets.HeavyFurniture)) return true;
+			if (CheckArray(Buckets.LightItems)) return true;
+			if (CheckArray(Buckets.Terminals)) return true;
+			if (CheckArray(Buckets.NPCSpawners)) return true;
+			if (CheckArray(Buckets.Debris)) return true;
+		}
+		return false;
+
+	};
+
+auto RemoveRecordByItemId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& Map, const FGuid& ItemId) -> bool
+	{
+		if (!ItemId.IsValid()) return false;
+		bool bRemoved = false;
+
+		// Проходим по всем этажам
+		for (auto& Pair : Map)
+		{
+			FFloorPopulationBuckets& Buckets = Pair.Value;
+
+			// Лямбда для удаления из массива
+			auto RemoveFromArray = [&](TArray<FFloorPopulationRecord>& Arr)
+				{
+					int32 OldCount = Arr.Num();
+					Arr.RemoveAll([&ItemId](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ItemId; });
+					if (OldCount != Arr.Num()) bRemoved = true;
+				};
+
+			RemoveFromArray(Buckets.HeavyFurniture);
+			RemoveFromArray(Buckets.LightItems);
+			RemoveFromArray(Buckets.Terminals);
+			RemoveFromArray(Buckets.NPCSpawners);
+			RemoveFromArray(Buckets.Debris);
+		}
+
+		return bRemoved;
+	};
 // -----------------------------------------------------------------------------
 // JSON serialization helpers for snapshot structures
 // -----------------------------------------------------------------------------
@@ -1080,15 +1132,22 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 				if (IsCurrentWorldMissionConst(Envelope))
 				{
 					if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
-					continue;
+					{
+						RemoveRecordByItemId(SpawnedActorsByInteriorFloor, C->ItemId);
+						continue;
+					}
 				}
 				
 				// Проверяем, не помечен ли актор на удаление через DestroyedActorsByInteriorFloor
-				if (ContainsActorIdInSpawned(DestroyedActorsByInteriorFloor, C->ItemId))
+				if (ContainsActorIdInSpawnedNew(DestroyedActorsByInteriorFloor, C->ItemId))
 				{
 					Actor->Destroy();
 					UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Actor %s (ItemId=%s) marked as destroyed, removing"), *Actor->GetName(), *C->ItemId.ToString());
 					continue;
+				}
+				else
+				{
+					RemoveRecordByItemId(DestroyedActorsByInteriorFloor, C->ItemId);
 				}
 
 				FInteriorFloorKey Key(InteriorSetId, FloorId);
@@ -1128,11 +1187,19 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 				if (CC->SnapshotChannel != ESnapshotChannel::None)
 				{
 					if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
+					{
+						RemoveRecordByItemId(SpawnedActorsByInteriorFloor, CC->ItemId);
 						continue;
-					if (ContainsActorIdInSpawned(DestroyedActorsByInteriorFloor, CC->ItemId))
+					}
+
+					if (ContainsActorIdInSpawnedNew(DestroyedActorsByInteriorFloor, CC->ItemId))
 					{
 						ChildActor->Destroy();
 						continue;
+					}
+					else
+					{
+						RemoveRecordByItemId(DestroyedActorsByInteriorFloor, CC->ItemId);
 					}
 					ActorByItemId.Add(CC->ItemId, ChildActor);
 				}
@@ -1456,6 +1523,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			*CurrentKey.InteriorSetId.ToString(), *CurrentKey.FloorId.ToString());
 
 		// (Опционально) Удаляем снапшот удалённого актора из MissionFloorSnapshots для всех миссий на этом этаже
+		/*
 		for (auto& FloorPair : MissionFloorSnapshots)
 		{
 			const FInteriorFloorKey& FloorKey = FloorPair.Key;
@@ -1471,6 +1539,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 				}
 			}
 		}
+		*/
 	}
 }
 
@@ -2572,26 +2641,17 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 
 void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope)
 {
+	UWorld* World = GetWorld();
+	if (!World) return;
+
 	for (const FFloorPopulationRecord& Record : Array)
 	{
-		/*
-		if (TestAllActors.ContainsByPredicate([&Record](AActor* ExistingActor)
-			{
-				UFloorAssignmentComponent* Comp = ExistingActor->FindComponentByClass<UFloorAssignmentComponent>();
-				return Comp && Comp->ItemId == Record.ActorId;
-			}))
-		{
-			continue;
-		}
-		*/
-		//if (TestAllActors.Contains(Record)) continue;
-		
-
 		if (!Record.SourceClass) continue;
 		EEnvelopeChannel Channel = FloorActorTypeToEnvelopeChannel(Record.ActorType);
 
 		if (!Record.IsNewObject)
 		{
+			RemoveRecordByItemId(SpawnedActorsByInteriorFloor, Record.ActorId);
 			continue;
 		}
 		else
@@ -2599,9 +2659,31 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 			if (!IsLoadingFromSave)
 			{
 				if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
+				{
+					RemoveRecordByItemId(SpawnedActorsByInteriorFloor, Record.ActorId);
 					continue;
+				}
+
 			}
 		}
+
+		bool IsAlreadySpawned = false;
+		TArray<AActor*> AllActors;
+		UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), AllActors);
+		for (AActor* Actor : AllActors)
+		{
+			if (!IsValid(Actor)) continue;
+			if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+			{
+				if(Record.ActorId == C->ItemId)
+				{
+					IsAlreadySpawned = true;
+					break;
+				}
+			}
+		}
+
+		if (IsAlreadySpawned) continue;
 
 		FActorSpawnParameters Params;
 		AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(Record.SourceClass, Record.WorldTransform, Params);
@@ -2619,7 +2701,8 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 }
 void UInteriorSubsystem::RestoreSpawnedActorsForCurrentFloor(const FMissionEnvelope& Envelope)
 {
-	FFloorPopulationBuckets* Buckets = SpawnedActorsByInteriorFloor.Find(CurrentKey);
+	TMap<FInteriorFloorKey, FFloorPopulationBuckets> Temp = SpawnedActorsByInteriorFloor;
+	FFloorPopulationBuckets* Buckets = Temp.Find(CurrentKey);
 	if (!Buckets) return;
 
 	UWorld* World = GetWorld();
