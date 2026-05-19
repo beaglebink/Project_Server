@@ -1134,6 +1134,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 					if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
 					{
 						RemoveRecordByItemId(SpawnedActorsByInteriorFloor, C->ItemId);
+						RemoveRecordByItemId(DestroyedActorsByInteriorFloor, C->ItemId);
 						continue;
 					}
 				}
@@ -1144,10 +1145,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 					Actor->Destroy();
 					UE_LOG(LogTemp, Warning, TEXT("[RESTORE]   Actor %s (ItemId=%s) marked as destroyed, removing"), *Actor->GetName(), *C->ItemId.ToString());
 					continue;
-				}
-				else
-				{
-					RemoveRecordByItemId(DestroyedActorsByInteriorFloor, C->ItemId);
 				}
 
 				FInteriorFloorKey Key(InteriorSetId, FloorId);
@@ -1189,6 +1186,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 					if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
 					{
 						RemoveRecordByItemId(SpawnedActorsByInteriorFloor, CC->ItemId);
+						RemoveRecordByItemId(DestroyedActorsByInteriorFloor, CC->ItemId);
 						continue;
 					}
 
@@ -1197,10 +1195,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 						ChildActor->Destroy();
 						continue;
 					}
-					else
-					{
-						RemoveRecordByItemId(DestroyedActorsByInteriorFloor, CC->ItemId);
-					}
+
 					ActorByItemId.Add(CC->ItemId, ChildActor);
 				}
 			}
@@ -2652,6 +2647,7 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		if (!Record.IsNewObject)
 		{
 			RemoveRecordByItemId(SpawnedActorsByInteriorFloor, Record.ActorId);
+			RemoveRecordByItemId(DestroyedActorsByInteriorFloor, Record.ActorId);
 			continue;
 		}
 		else
@@ -2661,6 +2657,7 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 				if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
 				{
 					RemoveRecordByItemId(SpawnedActorsByInteriorFloor, Record.ActorId);
+					RemoveRecordByItemId(DestroyedActorsByInteriorFloor, Record.ActorId);
 					continue;
 				}
 
