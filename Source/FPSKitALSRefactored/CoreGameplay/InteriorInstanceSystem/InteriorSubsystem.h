@@ -276,6 +276,8 @@ private:
     UPROPERTY()
     UOutcomeConditionAsset* CompleteMissionConditionAsset = nullptr;
 
+	bool IsLoadingFromSave = false;
+
     FOutcomeHandlerHandle SpawnRegisterHandle;
     FOutcomeHandlerHandle DespawnRegisterHandle;
     FOutcomeHandlerHandle PlacementRegisterHandle;

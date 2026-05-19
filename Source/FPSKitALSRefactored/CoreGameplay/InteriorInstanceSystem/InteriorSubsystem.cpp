@@ -631,7 +631,7 @@ static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationReco
 	if (Record.SourceClass)
 		Obj->SetStringField(TEXT("SourceClass"), Record.SourceClass->GetPathName());
 	Obj->SetStringField(TEXT("ActorId"), Record.ActorId.ToString());
-	//Obj->SetStringField(TEXT("AnchorId"), Record.AnchorId.ToString());
+	Obj->SetBoolField(TEXT("IsNewObject"), Record.IsNewObject);           // <-- добавлено
 	Obj->SetObjectField(TEXT("WorldTransform"), TransformToJsonObject(Record.WorldTransform));
 	Obj->SetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
 	return Obj;
@@ -641,14 +641,21 @@ static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObj
 {
 	FFloorPopulationRecord Record;
 	if (!Obj.IsValid()) return Record;
+
 	FString ActorTypeStr;
 	if (Obj->TryGetStringField(TEXT("ActorType"), ActorTypeStr))
 		Record.ActorType = StringToActorType(ActorTypeStr);
+
 	FString SourceClassPath;
 	if (Obj->TryGetStringField(TEXT("SourceClass"), SourceClassPath))
 		Record.SourceClass = LoadClass<AActor>(nullptr, *SourceClassPath);
+
 	FGuid::Parse(Obj->GetStringField(TEXT("ActorId")), Record.ActorId);
-//	FGuid::Parse(Obj->GetStringField(TEXT("AnchorId")), Record.AnchorId);
+
+	// Чтение поля IsNewObject, если его нет в сохранении – по умолчанию true
+	if (!Obj->TryGetBoolField(TEXT("IsNewObject"), Record.IsNewObject))
+		Record.IsNewObject = true;   // <-- добавлено с fallback
+
 	if (Obj->HasField(TEXT("WorldTransform")))
 		Record.WorldTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("WorldTransform")));
 	Obj->TryGetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
@@ -677,6 +684,7 @@ static FFloorPopulationBuckets PopulationBucketsFromJson(const TSharedPtr<FJsonO
 {
 	FFloorPopulationBuckets Buckets;
 	if (!Obj.IsValid()) return Buckets;
+
 	auto DeserializeArray = [](const TArray<TSharedPtr<FJsonValue>>& Arr) -> TArray<FFloorPopulationRecord>
 		{
 			TArray<FFloorPopulationRecord> Result;
@@ -685,6 +693,7 @@ static FFloorPopulationBuckets PopulationBucketsFromJson(const TSharedPtr<FJsonO
 					Result.Add(PopulationRecordFromJson(Val->AsObject()));
 			return Result;
 		};
+
 	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
 	if (Obj->TryGetArrayField(TEXT("HeavyFurniture"), Arr))
 		Buckets.HeavyFurniture = DeserializeArray(*Arr);
@@ -727,6 +736,7 @@ static void DeserializePopulationMap(const TSharedPtr<FJsonValue>& JsonValue, TM
 			OutMap.Add(Key, PopulationBucketsFromJson(Pair.Value->AsObject()));
 	}
 }
+
 // -----------------------------------------------------------------------------
 // SaveFloorActorsState
 // -----------------------------------------------------------------------------
@@ -1072,11 +1082,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 					if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
 					continue;
 				}
-				//if (!IsCurrentWorldMissionConst(Envelope))
-				//	continue;
-
-				//if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
-				//	continue;
 				
 				// Проверяем, не помечен ли актор на удаление через DestroyedActorsByInteriorFloor
 				if (ContainsActorIdInSpawned(DestroyedActorsByInteriorFloor, C->ItemId))
@@ -1097,7 +1102,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 							});
 					};
 
-				if (!IsCurrentWorldMissionConst(Envelope))
+				if (!IsCurrentWorldMissionConst(Envelope) && !IsLoadingFromSave)
 				{
 					if (HasItemId(ActorStates, C->ItemId))
 					{
@@ -1657,12 +1662,48 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 {
 	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
-    if (!P && (P->DestinationLink.IsValid() && !P->IsUseAnchor) || (!P->DestinationLink.IsValid() && P->IsUseAnchor)) 
-    {
-        UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: payload invalid (payload невалиден)"));
-        OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
-        return;
-    }
+	// Исправленная проверка: сначала проверяем P на валидность, потом условия
+	if (!P || (P->DestinationLink.IsValid() && !P->IsUseAnchor) || (!P->DestinationLink.IsValid() && P->IsUseAnchor))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InteriorSubsystem::HandleFloorTransition: payload invalid"));
+		OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
+		return;
+	}
+
+	// Если переход без якоря – помечаем объекты, которые уже были в снапшотах
+	if (!P->IsUseAnchor)
+	{
+		auto MarkNonNewActors = [&](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap)
+			{
+				auto ContainsItemIdInSnapshots = [&](const FGuid& ItemId) -> bool
+					{
+						if (!ItemId.IsValid()) return false;
+						for (const auto& FloorPair : MissionFloorSnapshots)
+							for (const auto& MissionPair : FloorPair.Value)
+								if (MissionPair.Value.ContainsByPredicate([&ItemId](const FFloorSavedActorState& State)
+									{ return State.ItemId == ItemId; }))
+									return true;
+						return false;
+					};
+
+				for (auto& KeyValuePair : SpawnedMap)
+				{
+					FFloorPopulationBuckets& Buckets = KeyValuePair.Value;
+					for (FFloorPopulationRecord& Record : Buckets.HeavyFurniture)
+						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+					for (FFloorPopulationRecord& Record : Buckets.LightItems)
+						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+					for (FFloorPopulationRecord& Record : Buckets.Terminals)
+						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+					for (FFloorPopulationRecord& Record : Buckets.NPCSpawners)
+						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+					for (FFloorPopulationRecord& Record : Buckets.Debris)
+						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+				}
+			};
+
+		MarkNonNewActors(SpawnedActorsByInteriorFloor);
+	}
 
 	TransitionPayloadCache = P;
 	UWorld* W = GetWorld();
@@ -2378,6 +2419,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		// Финальная нотификация о завершении загрузки/перехода
 		OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 		ClearPendingAnchorID();
+		IsLoadingFromSave = false;
 	});
 
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, false);
@@ -2487,6 +2529,9 @@ void UInteriorSubsystem::SaveMissionFloorState(FName MissionId, const FInteriorF
 
 void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey)
 {
+	UWorld* World = GetWorld();
+	if (!World) return;
+
 	if (MissionId.IsNone() || !FloorKey.FloorId.IsValid()) return;
 
 	// Найти per-floor map, затем entry по MissionId
@@ -2496,8 +2541,6 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 		if (const TArray<FFloorSavedActorState>* Snapshot = PerFloor->Find(MissionId))
 		{
 			if (!Snapshot || Snapshot->IsEmpty()) return;
-			UWorld* World = GetWorld();
-			if (!World) return;
 
 			auto MissionInterior = ActiveMissions.Find(MissionId);
 			auto& Controller = MissionInterior->Controller;
@@ -2506,7 +2549,19 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 
 			RestoreSpawnedActorsForCurrentFloor(Envelope);
 
-			RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
+			if (IsLoadingFromSave)
+			{
+				//RestoreSpawnedActorsForCurrentFloor(FMissionEnvelope());
+
+				RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, FMissionEnvelope());
+			}
+			else
+			{
+				//RestoreSpawnedActorsForCurrentFloor(Envelope);
+
+				RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
+			}
+			
 			UE_LOG(LogTemp, Log,
 				TEXT("InteriorSubsystem::RestoreMissionFloorState: restored snapshot for mission '%s' floor %s/%s"),
 				*MissionId.ToString(),
@@ -2519,6 +2574,7 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 {
 	for (const FFloorPopulationRecord& Record : Array)
 	{
+		/*
 		if (TestAllActors.ContainsByPredicate([&Record](AActor* ExistingActor)
 			{
 				UFloorAssignmentComponent* Comp = ExistingActor->FindComponentByClass<UFloorAssignmentComponent>();
@@ -2527,18 +2583,23 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		{
 			continue;
 		}
-
+		*/
 		//if (TestAllActors.Contains(Record)) continue;
+		
 
 		if (!Record.SourceClass) continue;
 		EEnvelopeChannel Channel = FloorActorTypeToEnvelopeChannel(Record.ActorType);
 
-		if (Envelope.IsValid())
+		if (!Record.IsNewObject)
 		{
-			if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
+			continue;
+		}
+		else
+		{
+			if (!IsLoadingFromSave)
 			{
-				//Array.Empty();
-				continue;
+				if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
+					continue;
 			}
 		}
 
@@ -2658,6 +2719,8 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
+	IsLoadingFromSave = true;
+
 	if (InData.SerializedData.IsEmpty()) return;
 
 	TSharedPtr<FJsonObject> Root;

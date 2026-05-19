@@ -80,6 +80,9 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	FGuid ActorId;
 
+	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
+	bool IsNewObject = true;
+
     // World transform of the instance — now store full transform instead of only position
     // (Мировой трансформ экземпляра — теперь сохраняем полный трансформ вместо только позиции)
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
