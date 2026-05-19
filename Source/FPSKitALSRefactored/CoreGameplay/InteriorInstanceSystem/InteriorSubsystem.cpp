@@ -1260,6 +1260,8 @@ void UInteriorSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Out
 
 void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Outcome)
 {
+	UWorld* World = GetWorld();
+	if (!World) return;
 	UFloorPlacementPayload* P = Cast<UFloorPlacementPayload>(Outcome.Payload);
 	if (!P) return;
 
@@ -1272,23 +1274,10 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	// (в вашем коде ранее использовался CurrentKey, а не переданный P->InteriorSetId/P->FloorId)
 	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
 	{
-		// Добавляем запись в SpawnedActorsByInteriorFloor
-		FFloorPopulationRecord NewRecord;
-		NewRecord.ActorType = P->ActorType;
-		NewRecord.WorldTransform = P->WorldTransform;
-		NewRecord.ActorId = P->ItemId;
-		NewRecord.bHasAnchor = P->AnchorId.IsValid();
-		NewRecord.SourceClass = P->ActorClass;
-
-		FFloorPopulationBuckets& BucketsAdded = SpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
-
-		/*
-		UWorld* World = GetWorld();
-		if (!World) return;
-
-		FMissionEnvelope Envelope = FMissionEnvelope();
+		bool IsMissionWorld = false;
 
 		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+		FString MissionName;
 		for (const auto Pair : ActiveMissions)
 		{
 			const UMissionController* Ctrl = Pair.Value.Controller;
@@ -1297,9 +1286,10 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			const UMissionAsset* Asset = Ctrl->GetMissionAsset();
 			if (!Asset) continue;
 
+			MissionName = Asset->Description.ToString();
 			const EMissionStatus Status = Ctrl->GetStatus();
 			const EMissionEndReason EndReason = Ctrl->GetEndReason();
-			Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+			const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 			const EMissionResumeMode Resume = Envelope.ResumeMode;
 			const int32 MissionStep = Pair.Value.MissionStep;
 
@@ -1323,13 +1313,20 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 				break;
 			}
 		}
-		*/
+
+
+		// Добавляем запись в SpawnedActorsByInteriorFloor
+		FFloorPopulationRecord NewRecord;
+		NewRecord.ActorType = P->ActorType;
+		NewRecord.WorldTransform = P->WorldTransform;
+		NewRecord.ActorId = P->ItemId;
+		NewRecord.bHasAnchor = P->AnchorId.IsValid();
+		NewRecord.SourceClass = P->ActorClass;
+
+		FFloorPopulationBuckets& BucketsAdded = SpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 
 		FMissionEnvelope Envelope = FMissionEnvelope();
 		if (!IsCurrentWorldMission(Envelope)) return;
-
-		//if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(P->ActorType), EMissionEndReason::None, true))
-		//	return;
 
 		switch (P->ActorType)
 		{
@@ -2327,6 +2324,8 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					UWorld* LocalWorld = GetWorld();
 					if (LocalWorld)
 					{
+						RestoreSpawnedActorsForCurrentFloor(FMissionEnvelope());
+
 						RestoreFromSnapshotArray(LocalWorld, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FMissionEnvelope());
 						UE_LOG(LogTemp, Log,
 							TEXT("InteriorSubsystem::OnPostLoadMap: Restored baseline FloorStateSnapshots for floor %s/%s (count=%d)"),
@@ -2988,6 +2987,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 			StoreSnapshot(MissionId, Envelope, Policy, EndChannels);
 
 			ActiveMissions.Remove(MissionId);
+			MissionFloorSnapshots.Find(CurrentKey)->Remove(MissionId);
 		}
 	}
 }
@@ -3085,12 +3085,43 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 	case EJobSpacePolicy::Reset:
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[STORE] Reset policy: clearing persistent maps for all floors in MissionFloorSnapshots"));
+		if(auto Map = MissionFloorSnapshots.Find(CurrentKey))
+		{
+			Map->Remove(MissionId);
+		}
+
+		if (auto Array = FloorStateSnapshots.Find(CurrentKey))
+		{
+			Array->Empty();
+		}
+		
+		if (FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(CurrentKey))
+		{
+			RemoveRecordsForChannel(PersSpawned->HeavyFurniture, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture));
+			RemoveRecordsForChannel(PersSpawned->LightItems, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem));
+			RemoveRecordsForChannel(PersSpawned->Terminals, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal));
+			RemoveRecordsForChannel(PersSpawned->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
+			RemoveRecordsForChannel(PersSpawned->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
+		}
+		if (FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(CurrentKey))
+		{
+			RemoveRecordsForChannel(PersDestroyed->HeavyFurniture, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture));
+			RemoveRecordsForChannel(PersDestroyed->LightItems, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem));
+			RemoveRecordsForChannel(PersDestroyed->Terminals, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal));
+			RemoveRecordsForChannel(PersDestroyed->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
+			RemoveRecordsForChannel(PersDestroyed->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
+		}
+
+		/*
 		for (auto& Pair : MissionFloorSnapshots)
 		{
 			const FInteriorFloorKey& FloorKey = Pair.Key;
 			SpawnedActorsByInteriorFloor.Remove(FloorKey);
 			DestroyedActorsByInteriorFloor.Remove(FloorKey);
+			MissionFloorSnapshots.Find(FloorKey)->Remove(MissionId);
+			FloorStateSnapshots.Remove(FloorKey);
 		}
+		*/
 		break;
 	}
 	case EJobSpacePolicy::Freeze:
@@ -3277,16 +3308,6 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 		return;
 	}
 	}
-	/*
-	// Очищаем временные карты для обработанных этажей
-	for (auto& Pair : MissionFloorSnapshots)
-	{
-		const FInteriorFloorKey& FloorKey = Pair.Key;
-		SpawnedActorsByInteriorFloor.Remove(FloorKey);
-		DestroyedActorsByInteriorFloor.Remove(FloorKey);
-		UE_LOG(LogTemp, Verbose, TEXT("[STORE] Cleared temp maps for floor %s/%s"), *FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString());
-	}
-	*/
 }
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)
