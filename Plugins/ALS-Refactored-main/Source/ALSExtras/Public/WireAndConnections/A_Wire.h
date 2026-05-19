@@ -26,17 +26,11 @@ protected:
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
-	UStaticMeshComponent* MiddlePoint;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UStaticMeshComponent* FemaleMeshComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UCableComponent* CableComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
-	UPhysicsConstraintComponent* ConstraintStartMiddle;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
-	UPhysicsConstraintComponent* ConstraintMiddleEnd;
+	UPhysicsConstraintComponent* Constraint;
 };
