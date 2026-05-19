@@ -1725,6 +1725,9 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 
 void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 {
+	UWorld* World = GetWorld();
+	if (!World) return;
+
 	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
 	// Исправленная проверка: сначала проверяем P на валидность, потом условия
 	if (!P || (P->DestinationLink.IsValid() && !P->IsUseAnchor) || (!P->DestinationLink.IsValid() && P->IsUseAnchor))
@@ -1737,16 +1740,26 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	// Если переход без якоря – помечаем объекты, которые уже были в снапшотах
 	if (!P->IsUseAnchor)
 	{
-		auto MarkNonNewActors = [&](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap)
+		/*
+		auto MarkNonNewActors = [&](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FMissionEnvelope& Envelope)
 			{
-				auto ContainsItemIdInSnapshots = [&](const FGuid& ItemId) -> bool
+				auto ContainsItemIdInSnapshots = [&](const FGuid& ItemId, EFloorActorType ActorType) -> bool
 					{
 						if (!ItemId.IsValid()) return false;
 						for (const auto& FloorPair : MissionFloorSnapshots)
+						{
 							for (const auto& MissionPair : FloorPair.Value)
-								if (MissionPair.Value.ContainsByPredicate([&ItemId](const FFloorSavedActorState& State)
-									{ return State.ItemId == ItemId; }))
+							{
+								if (MissionPair.Value.ContainsByPredicate([&](const FFloorSavedActorState& State)
+									{
+										return State.ItemId == ItemId &&
+											!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true);
+									}))
+								{
 									return true;
+								}
+							}
+						}
 						return false;
 					};
 
@@ -1754,19 +1767,44 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 				{
 					FFloorPopulationBuckets& Buckets = KeyValuePair.Value;
 					for (FFloorPopulationRecord& Record : Buckets.HeavyFurniture)
-						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+						if (ContainsItemIdInSnapshots(Record.ActorId, Record.ActorType)) Record.IsNewObject = false;
 					for (FFloorPopulationRecord& Record : Buckets.LightItems)
-						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+						if (ContainsItemIdInSnapshots(Record.ActorId, Record.ActorType)) Record.IsNewObject = false;
 					for (FFloorPopulationRecord& Record : Buckets.Terminals)
-						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+						if (ContainsItemIdInSnapshots(Record.ActorId, Record.ActorType)) Record.IsNewObject = false;
 					for (FFloorPopulationRecord& Record : Buckets.NPCSpawners)
-						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+						if (ContainsItemIdInSnapshots(Record.ActorId, Record.ActorType)) Record.IsNewObject = false;
 					for (FFloorPopulationRecord& Record : Buckets.Debris)
-						if (ContainsItemIdInSnapshots(Record.ActorId)) Record.IsNewObject = false;
+						if (ContainsItemIdInSnapshots(Record.ActorId, Record.ActorType)) Record.IsNewObject = false;
 				}
 			};
+		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
 
-		MarkNonNewActors(SpawnedActorsByInteriorFloor);
+		for (auto Mission : ActiveMissions)
+		{
+			int32 MissionStep = Mission.Value.MissionStep;
+			UMissionController* Controller = Mission.Value.Controller.Get();
+			UMissionAsset* MissionAsset = Controller->GetMissionAsset();
+			FMissionEnvelope& Envelope = MissionAsset->Envelopes[MissionStep];
+			FMissionEnvelopeScope Scope = Envelope.Scope;
+
+			TArray<TSoftObjectPtr<class UFloorAsset>> InteriorScopes = Scope.InteriorScopes;
+			for (auto IS : InteriorScopes)
+			{
+				UInteriorSetAsset* LoadedSet = IS->ParentInteriorSet.LoadSynchronous();
+				if (!LoadedSet) continue;
+
+				FString ScopeLevelName = IS->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+				FString NormTarget = NormalizeLevelName(ScopeLevelName);
+				FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+				if (NormTarget == NormCurrent)
+				{
+;					MarkNonNewActors(SpawnedActorsByInteriorFloor, Envelope);
+				}
+			}
+		}
+		*/
 	}
 
 	TransitionPayloadCache = P;
