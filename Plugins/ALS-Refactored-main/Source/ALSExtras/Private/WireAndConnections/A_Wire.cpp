@@ -64,6 +64,23 @@ void AA_Wire::BeginPlay()
 
 void AA_Wire::SetConnectorType(bool bIsMale)
 {
-	bIsMaleUsed = bIsMale;
-	OnConnectorTypeChanged(bIsMaleUsed);
+	CurrentConnectorMeshComponent = StaticMesh;
+
+	if (!bIsMale)
+	{
+		CurrentConnectorMeshComponent = FemaleMeshComponent;
+	}
+
+	OnConnectorTypeChanged(bIsMale);
+}
+
+void AA_Wire::SetPower(bool OnPower)
+{
+	bIsOnPower = OnPower;
+	OnPowerChanged(bIsOnPower);
+}
+
+void AA_Wire::OnPowerChanged_Implementation(bool OnPower)
+{
+
 }

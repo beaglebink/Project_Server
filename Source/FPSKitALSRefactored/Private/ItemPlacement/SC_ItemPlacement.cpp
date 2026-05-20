@@ -16,8 +16,6 @@ USC_ItemPlacement::USC_ItemPlacement()
 
 	DropZoneSearcherSphere->SetCollisionProfileName(TEXT("DropZoneInteractObject"));
 	DropZoneCheckerSphere->SetCollisionProfileName(TEXT("DropZoneInteractObject"));
-
-	DropZoneSearcherSphere->SetSphereRadius(500.0f);
 }
 
 void USC_ItemPlacement::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -132,7 +130,7 @@ void USC_ItemPlacement::OnCheckerSphereOverlapEnd(UPrimitiveComponent* Overlappe
 	}
 }
 
-void USC_ItemPlacement::AttachReleaseItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching)
+void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching)
 {
 	if (bIsAttaching)
 	{

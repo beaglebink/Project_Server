@@ -32,10 +32,20 @@ public:
 	void SetConnectorType(bool bIsMale);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
-	bool GetConnectorType() const { return bIsMaleUsed; }
+	bool GetConnectorType(UStaticMeshComponent*& ConnectorMesh) const { ConnectorMesh = CurrentConnectorMeshComponent; return bIsMaleUsed; }
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Wire")
 	void OnConnectorTypeChanged(bool bIsMale);
+
+	UFUNCTION(BlueprintCallable, Category = "Wire")
+	void SetPower(bool OnPower);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
+	bool GetPower() const { return bIsOnPower; }
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Wire")
+	void OnPowerChanged(bool OnPower);
+
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UCableComponent* CableComponent;
@@ -43,6 +53,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UPhysicsConstraintComponent* Constraint;
 
-	UPROPERTY(VisibleDefaultsOnly, Category = "Components")
+	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
+	UStaticMeshComponent* CurrentConnectorMeshComponent;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
 	uint8 bIsMaleUsed : 1{true};
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
+	uint8 bIsOnPower : 1{false};
 };

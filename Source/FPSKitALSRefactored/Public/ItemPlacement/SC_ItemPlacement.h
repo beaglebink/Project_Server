@@ -46,6 +46,6 @@ protected:
 	void OnCheckerSphereOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "ItemPlacement")
-	void AttachReleaseItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching);
+	void AttachReleasedItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching);
 
 };
