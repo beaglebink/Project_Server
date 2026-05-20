@@ -36,6 +36,148 @@
 #include "SceneDataProvider.h"
 
 // -----------------------------------------------------------------------------
+// Сериализация FEnvelopeChannelEntry и FMissionEnvelope для DelayedClear
+// -----------------------------------------------------------------------------
+
+static TSharedPtr<FJsonObject> EnvelopeChannelEntryToJson(const FEnvelopeChannelEntry& Entry)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetNumberField(TEXT("Channel"), static_cast<int32>(Entry.Channel));
+	Obj->SetNumberField(TEXT("Policy"), static_cast<int32>(Entry.Policy));
+	return Obj;
+}
+
+static FEnvelopeChannelEntry EnvelopeChannelEntryFromJson(const TSharedPtr<FJsonObject>& Obj)
+{
+	FEnvelopeChannelEntry Entry;
+	if (!Obj.IsValid()) return Entry;
+	int32 ChannelVal = 0, PolicyVal = 0;
+	if (Obj->TryGetNumberField(TEXT("Channel"), ChannelVal))
+		Entry.Channel = static_cast<EEnvelopeChannel>(ChannelVal);
+	if (Obj->TryGetNumberField(TEXT("Policy"), PolicyVal))
+		Entry.Policy = static_cast<EChannelPolicy>(PolicyVal);
+	return Entry;
+}
+
+static TSharedPtr<FJsonObject> MissionEnvelopeToJson(const FMissionEnvelope& Envelope)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetNumberField(TEXT("RuntimePolicy"), static_cast<int32>(Envelope.RuntimePolicy));
+	Obj->SetNumberField(TEXT("NextStagePolicy"), static_cast<int32>(Envelope.NextStagePolicy));
+	Obj->SetNumberField(TEXT("MissionFailedPolicy"), static_cast<int32>(Envelope.MissionFailedPolicy));
+	Obj->SetNumberField(TEXT("MissionAbandonedPolicy"), static_cast<int32>(Envelope.MissionAbandonedPolicy));
+	Obj->SetNumberField(TEXT("ResumeMode"), static_cast<int32>(Envelope.ResumeMode));
+
+	// Сериализация Scope (упростим: сохраняем только имя уровня, полный Scope не критичен для отложенного очищения)
+	// Но для полноты можно сохранить InteriorScopes – однако это сложно. Допустим, сохраним строку, если нужно.
+	// В данном случае для восстановления после загрузки достаточно политик и каналов, сам Scope не используется при применении DelayedClear.
+	// Поэтому пропустим или сохраним запасным полем. Ограничимся политиками.
+
+	auto SerializeChannelArray = [](const TArray<FEnvelopeChannelEntry>& Arr) -> TArray<TSharedPtr<FJsonValue>>
+		{
+			TArray<TSharedPtr<FJsonValue>> Result;
+			for (const auto& Entry : Arr)
+				Result.Add(MakeShared<FJsonValueObject>(EnvelopeChannelEntryToJson(Entry)));
+			return Result;
+		};
+
+	Obj->SetArrayField(TEXT("RuntimePolicyChannels"), SerializeChannelArray(Envelope.RuntimePolicyChannels));
+	Obj->SetArrayField(TEXT("NextStagePolicyChannels"), SerializeChannelArray(Envelope.NextStagePolicyChannels));
+	Obj->SetArrayField(TEXT("MissionFailedPolicyChannels"), SerializeChannelArray(Envelope.MissionFailedPolicyChannels));
+	Obj->SetArrayField(TEXT("MissionAbandonedChannels"), SerializeChannelArray(Envelope.MissionAbandonedChannels));
+	// Можно также сохранить Scope, если нужно, например, как строку уровня:
+	// if (Envelope.Scope.InteriorScopes.Num() > 0) ...
+	return Obj;
+}
+
+static FMissionEnvelope MissionEnvelopeFromJson(const TSharedPtr<FJsonObject>& Obj)
+{
+	FMissionEnvelope Envelope;
+	if (!Obj.IsValid()) return Envelope;
+
+	int32 Val;
+	if (Obj->TryGetNumberField(TEXT("RuntimePolicy"), Val))
+		Envelope.RuntimePolicy = static_cast<EJobSpacePolicy>(Val);
+	if (Obj->TryGetNumberField(TEXT("NextStagePolicy"), Val))
+		Envelope.NextStagePolicy = static_cast<EJobSpacePolicy>(Val);
+	if (Obj->TryGetNumberField(TEXT("MissionFailedPolicy"), Val))
+		Envelope.MissionFailedPolicy = static_cast<EJobSpacePolicy>(Val);
+	if (Obj->TryGetNumberField(TEXT("MissionAbandonedPolicy"), Val))
+		Envelope.MissionAbandonedPolicy = static_cast<EJobSpacePolicy>(Val);
+	if (Obj->TryGetNumberField(TEXT("ResumeMode"), Val))
+		Envelope.ResumeMode = static_cast<EMissionResumeMode>(Val);
+
+	auto DeserializeChannelArray = [](const TArray<TSharedPtr<FJsonValue>>& Arr) -> TArray<FEnvelopeChannelEntry>
+		{
+			TArray<FEnvelopeChannelEntry> Result;
+			for (const auto& Item : Arr)
+			{
+				if (Item->Type == EJson::Object)
+					Result.Add(EnvelopeChannelEntryFromJson(Item->AsObject()));
+			}
+			return Result;
+		};
+
+	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+	if (Obj->TryGetArrayField(TEXT("RuntimePolicyChannels"), Arr))
+		Envelope.RuntimePolicyChannels = DeserializeChannelArray(*Arr);
+	if (Obj->TryGetArrayField(TEXT("NextStagePolicyChannels"), Arr))
+		Envelope.NextStagePolicyChannels = DeserializeChannelArray(*Arr);
+	if (Obj->TryGetArrayField(TEXT("MissionFailedPolicyChannels"), Arr))
+		Envelope.MissionFailedPolicyChannels = DeserializeChannelArray(*Arr);
+	if (Obj->TryGetArrayField(TEXT("MissionAbandonedChannels"), Arr))
+		Envelope.MissionAbandonedChannels = DeserializeChannelArray(*Arr);
+
+	return Envelope;
+}
+
+static TSharedPtr<FJsonObject> DelayedClearToJson(const FDelayedClear& Delayed)
+{
+	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetStringField(TEXT("MissionId"), Delayed.MissionId.ToString());
+	Obj->SetObjectField(TEXT("Envelope"), MissionEnvelopeToJson(Delayed.Envelope));
+	Obj->SetNumberField(TEXT("Policy"), static_cast<int32>(Delayed.Policy));
+	Obj->SetBoolField(TEXT("IsValid"), Delayed.IsValid);
+
+	TArray<TSharedPtr<FJsonValue>> EndChannelsJson;
+	for (const auto& Entry : Delayed.EndChannels)
+		EndChannelsJson.Add(MakeShared<FJsonValueObject>(EnvelopeChannelEntryToJson(Entry)));
+	Obj->SetArrayField(TEXT("EndChannels"), EndChannelsJson);
+	return Obj;
+}
+
+static FDelayedClear DelayedClearFromJson(const TSharedPtr<FJsonObject>& Obj)
+{
+	FDelayedClear Delayed;
+	if (!Obj.IsValid()) return Delayed;
+
+	FString MissionIdStr;
+	if (Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr))
+		Delayed.MissionId = FName(*MissionIdStr);
+
+	TSharedPtr<FJsonObject> EnvelopeObj = Obj->GetObjectField(TEXT("Envelope"));
+	if (EnvelopeObj.IsValid())
+		Delayed.Envelope = MissionEnvelopeFromJson(EnvelopeObj);
+
+	int32 PolicyVal = 0;
+	if (Obj->TryGetNumberField(TEXT("Policy"), PolicyVal))
+		Delayed.Policy = static_cast<EJobSpacePolicy>(PolicyVal);
+
+	Obj->TryGetBoolField(TEXT("IsValid"), Delayed.IsValid);
+
+	const TArray<TSharedPtr<FJsonValue>>* EndArr = nullptr;
+	if (Obj->TryGetArrayField(TEXT("EndChannels"), EndArr))
+	{
+		for (const auto& Item : *EndArr)
+		{
+			if (Item->Type == EJson::Object)
+				Delayed.EndChannels.Add(EnvelopeChannelEntryFromJson(Item->AsObject()));
+		}
+	}
+	return Delayed;
+}
+
+// -----------------------------------------------------------------------------
 // Helper functions for persistent population (channel filtering)
 // -----------------------------------------------------------------------------
 
@@ -881,7 +1023,7 @@ static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel A
 
 }
 
-void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason/*, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry>& Channels*/)
+void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason, bool IsSaveAll)
 {
     UWorld* W = GetWorld();
     if (!W) return;
@@ -929,10 +1071,13 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
         if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
 
 		const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(Comp->ActorType);
-
-		if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
-			continue;
-
+		/*
+		if (!IsSaveAll)
+		{
+			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+				continue;
+		}
+		*/
         FFloorSavedActorState Snapshot;
         Snapshot.ItemId = Comp->ItemId;
         SnapshotActor(Actor, Snapshot);
@@ -1775,7 +1920,7 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	}
 	*/
 
-	if (P->IsUseDoor && DelayedClear.IsValid)
+	if (!IsLoadingFromSave && P->IsUseDoor && DelayedClear.IsValid)
 	{
 		switch (DelayedClear.Policy)
 		{
@@ -1997,8 +2142,9 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 
 	}
 
-
-
+	//DelayedClear.IsValid = false;
+	//IsSaveing = false;
+	IsLoadingFromSave = false;
 
 	// Если переход без якоря – помечаем объекты, которые уже были в снапшотах
 	if (!P->IsUseAnchor)
@@ -2643,7 +2789,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		return;
 	}
 
-	DelayedClear.IsValid = false;
+	
 
 	const FGuid AnchorID = GetPendingAnchorID();
 
@@ -3008,7 +3154,7 @@ void UInteriorSubsystem::RestoreSpawnedActorsForCurrentFloor(const FMissionEnvel
 	if (!Buckets) return;
 
 	UWorld* World = GetWorld();
-
+	TArray<AActor*> TestAllActors;
 	UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), TestAllActors);
 
 	// Просто спавним акторы без восстановления состояния (состояние будет восстановлено позже из MissionFloorSnapshots)
@@ -3087,13 +3233,25 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	// --- 3. Сериализация MissionFloorSnapshots ---
 	Root->SetField(TEXT("MissionFloorSnapshots"), SerializeMissionFloorSnapshots(MissionFloorSnapshots));
 
-	// --- Сериализация SpawnedActorsByInteriorFloor и DestroyedActorsByInteriorFloor ---
+	// --- 4. Сериализация SpawnedActorsByInteriorFloor и DestroyedActorsByInteriorFloor ---
 	Root->SetField(TEXT("SpawnedActors"), SerializePopulationMap(SpawnedActorsByInteriorFloor));
 	Root->SetField(TEXT("DestroyedActors"), SerializePopulationMap(DestroyedActorsByInteriorFloor));
 
-	// НОВОЕ:
-	//Root->SetField(TEXT("PersistentSpawnedActors"), SerializePopulationMap(PersistentSpawnedActors));
-	//Root->SetField(TEXT("PersistentDestroyedActors"), SerializePopulationMap(PersistentDestroyedActors));
+	// --- 5. Сериализация CurrentKey (добавлено) ---
+	Root->SetStringField(TEXT("CurrentInteriorSetId"), CurrentKey.InteriorSetId.ToString());
+	Root->SetStringField(TEXT("CurrentFloorId"), CurrentKey.FloorId.ToString());
+
+	// --- Сериализация DelayedClear ---
+	if (DelayedClear.IsValid)
+	{
+		Root->SetObjectField(TEXT("DelayedClear"), DelayedClearToJson(DelayedClear));
+	}
+	else
+	{
+		Root->SetBoolField(TEXT("DelayedClearValid"), false); // опционально, можно просто не писать поле
+	}
+
+	IsSaveing = true;
 
 	// Запись в строку
 	FString Output;
@@ -3116,12 +3274,7 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
-	// --- 1. Восстановление списка активных миссий (сохраняем в контейнер для последующего использования) ---
-	// Здесь мы не восстанавливаем сами миссии, а только сохраняем информацию для MissionSubsystem.
-	// Само восстановление миссий выполнит MissionSubsystem при загрузке.
-	// Однако мы можем заполнить временный массив, который позже будет передан в MissionSubsystem.
-	// Пока просто прочитаем и залогируем.
-
+	// --- 1. Восстановление списка активных миссий (как было ранее) ---
 	const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
 	ActiveMissions.Empty();
 	if (Root->TryGetArrayField(TEXT("Missions"), MissionArray))
@@ -3146,7 +3299,6 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			const EMissionStatus   Status = static_cast<EMissionStatus>(StatusInt);
 			const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
 			const EMissionResumeMode Resume = static_cast<EMissionResumeMode>(ResumeModeInt);
-			//const int32 MissionStep = static_cast<int32>(MissionStep);
 
 			// Загрузить ассет
 			UMissionAsset* Asset = Cast<UMissionAsset>(
@@ -3165,7 +3317,6 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (Ctrl)
 				{
-					//ActivateMission(MissionId);
 					Ctrl->MissionStep = 0;
 					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
 				}
@@ -3176,7 +3327,6 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (Ctrl)
 				{
-					//ActivateMission(MissionId);
 					Ctrl->MissionStep = MissionStep;
 					ActiveMissions.Find(MissionId)->MissionStep = MissionStep;
 				}
@@ -3187,23 +3337,14 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (!Ctrl) continue;
 
-				// Восстанавливаем статус из сохранения
 				if (Status == EMissionStatus::Active || Status == EMissionStatus::Suspended)
 				{
-					/*
-					Ctrl->Activate();
-					if (Status == EMissionStatus::Suspended)
-					{
-						Ctrl->Suspend();
-					}
-					*/
+					// Восстановление статуса (опционально)
 				}
 				else if (Status == EMissionStatus::Resolved)
 				{
 					Ctrl->MissionStep = Asset->Envelopes.Num() - 1;
 					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-					//Ctrl->Activate();
-					//Ctrl->RequestResolve(EndReason);
 				}
 				continue;
 			}
@@ -3231,7 +3372,7 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored MissionFloorSnapshots, count=%d"), MissionFloorSnapshots.Num());
 	}
 
-	// --- Десериализация SpawnedActorsByInteriorFloor и DestroyedActorsByInteriorFloor ---
+	// --- 4. Десериализация SpawnedActorsByInteriorFloor и DestroyedActorsByInteriorFloor ---
 	TSharedPtr<FJsonValue> SpawnedValue = Root->TryGetField(TEXT("SpawnedActors"));
 	if (SpawnedValue.IsValid())
 	{
@@ -3239,18 +3380,33 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored SpawnedActors, count=%d"), SpawnedActorsByInteriorFloor.Num());
 	}
 	TSharedPtr<FJsonValue> DestroyedValue = Root->TryGetField(TEXT("DestroyedActors"));
-
 	if (DestroyedValue.IsValid())
 	{
 		DeserializePopulationMap(DestroyedValue, DestroyedActorsByInteriorFloor);
 		UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem::ApplySaveData: restored DestroyedActors, count=%d"), DestroyedActorsByInteriorFloor.Num());
 	}
 
-	// НОВОЕ:
-	//TSharedPtr<FJsonValue> PersSpawnedValue = Root->TryGetField(TEXT("PersistentSpawnedActors"));
-	//if (PersSpawnedValue.IsValid()) { DeserializePopulationMap(PersSpawnedValue, SpawnedActorsByInteriorFloor); }
-	//TSharedPtr<FJsonValue> PersDestroyedValue = Root->TryGetField(TEXT("PersistentDestroyedActors"));
-	//if (PersDestroyedValue.IsValid()) { DeserializePopulationMap(PersDestroyedValue, DestroyedActorsByInteriorFloor); }
+	// --- 5. Восстановление CurrentKey (добавлено) ---
+	FString InteriorSetIdStr, FloorIdStr;
+	if (Root->TryGetStringField(TEXT("CurrentInteriorSetId"), InteriorSetIdStr))
+	{
+		FGuid::Parse(InteriorSetIdStr, CurrentKey.InteriorSetId);
+	}
+	if (Root->TryGetStringField(TEXT("CurrentFloorId"), FloorIdStr))
+	{
+		FGuid::Parse(FloorIdStr, CurrentKey.FloorId);
+	}
+
+	// --- Восстановление DelayedClear ---
+	TSharedPtr<FJsonObject> DelayedObj = Root->GetObjectField(TEXT("DelayedClear"));
+	if (DelayedObj.IsValid())
+	{
+		DelayedClear = DelayedClearFromJson(DelayedObj);
+	}
+	else
+	{
+		DelayedClear.IsValid = false; // сбросить, если нет в сохранении
+	}
 }
 
 UMissionController* UInteriorSubsystem::CreateMission(UMissionAsset* MissionAsset)
@@ -3312,13 +3468,37 @@ void UInteriorSubsystem::HandleReleaseMissionSnapshot(const FOutcomeEventBase& O
 
 void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcome)
 {
+	FMissionEnvelope Envelope;
 	if (UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(Outcome.Payload))
 	{
+		if (P->IsUpdateSnapshots)
+		{
+
+
+			auto ActiveMissionInterior = ActiveMissions.Find(P->CurrentMissionId);
+			if (ActiveMissionInterior)
+			{
+				int32 MissionStep = ActiveMissionInterior->MissionStep;
+				auto Controller = ActiveMissionInterior->Controller;
+				TArray<FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
+				if (Envelopes.IsValidIndex(MissionStep))
+				{
+					Envelope = Envelopes[MissionStep];
+				}
+			}
+
+
+
+			StoreCurrentLevel(Envelope, P->CurrentMissionId, EMissionEndReason::Completed);
+			StoreSnapshot(P->CurrentMissionId, Envelope, Envelope.NextStagePolicy, Envelope.NextStagePolicyChannels);
+		}
+
+
 		UE_LOG(LogTemp, Warning, TEXT("[UPDATE_MISSION] Received UpdateMissionListPayload. CurrentMissionId=%s, IsUpdateSnapshots=%d"),
 			*P->CurrentMissionId.ToString(), P->IsUpdateSnapshots);
 
 		// Определяем текущий Envelope для сохранения snapshot (если требуется)
-		FMissionEnvelope Envelope;
+		
 		if (P->IsUpdateSnapshots)
 		{
 			auto ActiveMissionInterior = ActiveMissions.Find(P->CurrentMissionId);
@@ -3334,30 +3514,8 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 					Envelope = Envelopes[MissionStep];
 				}
 			}
-			/*
-			auto ActiveMissionInterior = P->ActiveMissions.Find(P->CurrentMissionId);
-			if (ActiveMissionInterior)
-			{
-				int32 MissionStep = ActiveMissionInterior->MissionStep;
-				auto Controller = ActiveMissionInterior->Controller;
-				TArray<FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
-				if (Envelopes.IsValidIndex(MissionStep))
-				{
-					Envelope = Envelopes[MissionStep];
-					UE_LOG(LogTemp, Warning, TEXT("[UPDATE_MISSION] Envelope found for step %d, Policy=%d"), MissionStep, (int32)Envelope.NextStagePolicy);
-				}
-				else
-				{
-					UE_LOG(LogTemp, Error, TEXT("[UPDATE_MISSION] Invalid MissionStep %d"), MissionStep);
-				}
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("[UPDATE_MISSION] ActiveMission not found for %s"), *P->CurrentMissionId.ToString());
-			}
-			*/
 		}
-
+		/*
 		if (P->IsUpdateSnapshots)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[UPDATE_MISSION] Calling StoreCurrentLevel..."));
@@ -3365,7 +3523,7 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 			UE_LOG(LogTemp, Warning, TEXT("[UPDATE_MISSION] Calling StoreSnapshot with Policy=%d"), (int32)Envelope.NextStagePolicy);
 			StoreSnapshot(P->CurrentMissionId, Envelope, Envelope.NextStagePolicy, Envelope.NextStagePolicyChannels);
 		}
-
+		*/
 		// Обновляем список активных миссий
 		ActiveMissions.Empty();
 		TArray<FName> Keys;
@@ -3440,7 +3598,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 	}
 }
 
-void UInteriorSubsystem::StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason)
+void UInteriorSubsystem::StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason, bool IsSaveAll)
 {
 	//UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] ========== START =========="));
 	//UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] Mission=%s, EndReason=%d"), *MissionId.ToString(), (int32)EndReason);
@@ -3493,7 +3651,7 @@ void UInteriorSubsystem::StoreCurrentLevel(FMissionEnvelope Envelope, FName Miss
 		if (NormTarget == NormCurrent)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[STORE_CURRENT] MATCH! Saving state for floor %s/%s"), *InteriorSetID.ToString(), *FloorGuid.ToString());
-			SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, EndReason);
+			SaveFloorActorsState(InteriorSetID, FloorGuid, MissionId, EndReason, IsSaveAll);
 		}
 		else
 		{
@@ -3536,229 +3694,6 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 	DelayedClear.Policy = Policy;
 	DelayedClear.EndChannels = EndChannels;
 	DelayedClear.IsValid = true;
-
-	/*
-	switch (Policy)
-	{
-	case EJobSpacePolicy::Reset:
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[STORE] Reset policy: clearing persistent maps for all floors in MissionFloorSnapshots"));
-		if(auto Map = MissionFloorSnapshots.Find(CurrentKey))
-		{
-			Map->Remove(MissionId);
-		}
-
-		if (auto Array = FloorStateSnapshots.Find(CurrentKey))
-		{
-			Array->Empty();
-		}
-		
-		if (FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(CurrentKey))
-		{
-			RemoveRecordsForChannel(PersSpawned->HeavyFurniture, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture));
-			RemoveRecordsForChannel(PersSpawned->LightItems, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem));
-			RemoveRecordsForChannel(PersSpawned->Terminals, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal));
-			RemoveRecordsForChannel(PersSpawned->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
-			RemoveRecordsForChannel(PersSpawned->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
-		}
-		if (FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(CurrentKey))
-		{
-			RemoveRecordsForChannel(PersDestroyed->HeavyFurniture, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture));
-			RemoveRecordsForChannel(PersDestroyed->LightItems, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem));
-			RemoveRecordsForChannel(PersDestroyed->Terminals, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal));
-			RemoveRecordsForChannel(PersDestroyed->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
-			RemoveRecordsForChannel(PersDestroyed->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
-		}
-		break;
-	}
-	case EJobSpacePolicy::Freeze:
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[STORE] Freeze policy: copying mission snapshots and dynamic maps to persistent storage"));
-
-		// Статические снапшоты свойств
-		for (auto& Pair : MissionFloorSnapshots)
-		{
-			const FInteriorFloorKey& FloorKey = Pair.Key;
-			TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
-			if (!PerFloor.Contains(MissionId)) continue;
-			FloorStateSnapshots.Add(FloorKey, PerFloor[MissionId]);
-			UE_LOG(LogTemp, Warning, TEXT("[STORE]   Copied actor state snapshots for floor %s/%s, count=%d"),
-				*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString(), PerFloor[MissionId].Num());
-		}
-		break;
-	}
-	case EJobSpacePolicy::Partial:
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[STORE] Partial policy: processing %d channels"), EndChannels.Num());
-		for (const FEnvelopeChannelEntry& ChannelEntry : EndChannels)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[STORE]   Channel %d, Policy %d"), (int32)ChannelEntry.Channel, (int32)ChannelEntry.Policy);
-
-			if (ChannelEntry.Policy == EChannelPolicy::Freeze)
-			{
-				// 1) Копируем статические снапшоты для этого канала
-				for (auto& Pair : MissionFloorSnapshots)
-				{
-					const FInteriorFloorKey& FloorKey = Pair.Key;
-					TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
-					if (!PerFloor.Contains(MissionId)) continue;
-					const TArray<FFloorSavedActorState>& MissionSnap = PerFloor[MissionId];
-					TArray<FFloorSavedActorState>& BaseSnap = FloorStateSnapshots.FindOrAdd(FloorKey);
-
-					for (const FFloorSavedActorState& ActorSnap : MissionSnap)
-					{
-						EEnvelopeChannel ActorChannel = EEnvelopeChannel::None;
-						if (UWorld* W = GetWorld())
-						{
-							for (TActorIterator<AActor> It(W); It; ++It)
-							{
-								AActor* Actor = *It;
-								if (!IsValid(Actor)) continue;
-								if (UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>())
-								{
-									if (FAC->SnapshotChannel == ESnapshotChannel::None) continue;
-
-									if (FAC->ItemId == ActorSnap.ItemId)
-									{
-										ActorChannel = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
-										break;
-									}
-								}
-							}
-						}
-
-						if (ActorChannel == EEnvelopeChannel::None) continue;
-
-						if (ActorChannel == ChannelEntry.Channel)
-						{
-							bool bUpdated = false;
-							for (FFloorSavedActorState& Existing : BaseSnap)
-							{
-								if (Existing.ItemId == ActorSnap.ItemId)
-								{
-									Existing = ActorSnap;
-									bUpdated = true;
-									break;
-								}
-							}
-							if (!bUpdated) BaseSnap.Add(ActorSnap);
-						}
-					}
-				}
-				
-				// 2) Копируем динамические карты для этого канала
-				for (auto& Pair : MissionFloorSnapshots)
-				{
-					const FInteriorFloorKey& FloorKey = Pair.Key;
-
-					if (FloorKey != CurrentKey)
-						continue;
-
-					FFloorPopulationBuckets& PersSpawned = SpawnedActorsByInteriorFloor.FindOrAdd(FloorKey);
-					FFloorPopulationBuckets& PersDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(FloorKey);
-
-					if (!IsSaving)
-					{
-						if (auto Temp = FloorStateSnapshots.Find(FloorKey))
-						{
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::Completed, false))
-							{
-								PersSpawned.HeavyFurniture.Empty();
-								//RemoveRecordsForChannel(PersSpawned.HeavyFurniture, ChannelEntry.Channel);
-							}
-
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::Completed, false))
-							{
-								PersSpawned.LightItems.Empty();
-								//RemoveRecordsForChannel(PersSpawned.LightItems, ChannelEntry.Channel);
-							}
-						
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::Completed, false))
-							{
-								PersSpawned.Terminals.Empty();
-								//RemoveRecordsForChannel(PersSpawned.Terminals, ChannelEntry.Channel);
-							}
-
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::Completed, false))
-							{
-								PersSpawned.NPCSpawners.Empty();
-								//RemoveRecordsForChannel(PersSpawned.NPCSpawners, ChannelEntry.Channel);
-							}
-
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::Completed, false))
-							{
-								PersSpawned.Debris.Empty();
-								//RemoveRecordsForChannel(PersSpawned.Debris, ChannelEntry.Channel);
-							}
-						}
-						if (const FFloorPopulationBuckets* TempDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
-						{
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::Completed, false))
-							{
-								PersDestroyed.HeavyFurniture.Empty();
-								//RemoveRecordsForChannel(PersDestroyed.HeavyFurniture, ChannelEntry.Channel);
-							}
-						
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::Completed, false))
-							{
-								PersDestroyed.LightItems.Empty();
-								//RemoveRecordsForChannel(PersDestroyed.LightItems, ChannelEntry.Channel);
-							}
-
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::Completed, false))
-							{
-								PersDestroyed.Terminals.Empty();
-								//RemoveRecordsForChannel(PersDestroyed.Terminals, ChannelEntry.Channel);
-							}
-
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::Completed, false))
-							{
-								PersDestroyed.NPCSpawners.Empty();
-								//RemoveRecordsForChannel(PersDestroyed.NPCSpawners, ChannelEntry.Channel);
-							}
-						
-							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::Completed, false))
-							{
-								PersDestroyed.Debris.Empty();
-								//RemoveRecordsForChannel(PersDestroyed.Debris, ChannelEntry.Channel);
-							}
-						}
-					}
-				}
-			}
-			else if (ChannelEntry.Policy == EChannelPolicy::Reset)
-			{
-				for (auto& Pair : MissionFloorSnapshots)
-				{
-					const FInteriorFloorKey& FloorKey = Pair.Key;
-					if (FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(FloorKey))
-					{
-						RemoveRecordsForChannel(PersSpawned->HeavyFurniture, ChannelEntry.Channel);
-						RemoveRecordsForChannel(PersSpawned->LightItems, ChannelEntry.Channel);
-						RemoveRecordsForChannel(PersSpawned->Terminals, ChannelEntry.Channel);
-						RemoveRecordsForChannel(PersSpawned->NPCSpawners, ChannelEntry.Channel);
-						RemoveRecordsForChannel(PersSpawned->Debris, ChannelEntry.Channel);
-					}
-					if (FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
-					{
-						RemoveRecordsForChannel(PersDestroyed->HeavyFurniture, ChannelEntry.Channel);
-						RemoveRecordsForChannel(PersDestroyed->LightItems, ChannelEntry.Channel);
-						RemoveRecordsForChannel(PersDestroyed->Terminals, ChannelEntry.Channel);
-						RemoveRecordsForChannel(PersDestroyed->NPCSpawners, ChannelEntry.Channel);
-						RemoveRecordsForChannel(PersDestroyed->Debris, ChannelEntry.Channel);
-					}
-				}
-			}
-		}
-		break;
-	}
-	case EJobSpacePolicy::None:
-	{
-		UE_LOG(LogTemp, Log, TEXT("[STORE] None policy, nothing stored"));
-		return;
-	}
-	}
-	*/
 }
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)

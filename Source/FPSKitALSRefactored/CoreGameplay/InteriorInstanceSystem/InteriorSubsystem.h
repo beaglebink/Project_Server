@@ -81,12 +81,24 @@ struct FActiveMissionInterior
     TObjectPtr<UMissionController> Controller;
 };
 
+USTRUCT()
 struct FDelayedClear
 {
+    GENERATED_BODY()
+
+    UPROPERTY()
     FName MissionId;
+
+    UPROPERTY()
     FMissionEnvelope Envelope;
+
+    UPROPERTY()
     EJobSpacePolicy Policy;
+
+    UPROPERTY()
     TArray<FEnvelopeChannelEntry> EndChannels;
+
+    UPROPERTY()
     bool IsValid = false;
 };
 
@@ -145,7 +157,7 @@ public:
     TArray<FFloorPopulationRecord> GetPlacedActorsForInteriorFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const;
 
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
-    void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason);
+    void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason, bool IsSaveAll = false);
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
     int32 RestoreFloorActorsState(const FGuid& InteriorSetId, int32 CurrentMissionStep, const FGuid& FloorId);
     int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope);
@@ -206,7 +218,7 @@ private:
     void HandleReleaseMissionSnapshot(const FOutcomeEventBase& Outcome);
     void HandleUpdateMissionList(const FOutcomeEventBase& Outcome);
     void HandleCompleteMission(const FOutcomeEventBase& Outcome);
-    void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
+    void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason, bool IsSaveAll = false);
     void StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EJobSpacePolicy Policy, TArray<FEnvelopeChannelEntry>& EndChannels);
 
     void SubscribeAll();
@@ -241,10 +253,7 @@ private:
     FInteriorFloorKey CurrentKey;
     UPROPERTY()
     UInteriorTransitionPayload* TransitionPayloadCache = nullptr;
-
-    UPROPERTY()
-    TArray<AActor*> TestAllActors;
-
+    
     UPROPERTY()
     bool bHasPendingSpawn = false;
     UPROPERTY()
@@ -286,6 +295,7 @@ private:
     UOutcomeConditionAsset* CompleteMissionConditionAsset = nullptr;
 
 	bool IsLoadingFromSave = false;
+	bool IsSaveing = false;
 
     FDelayedClear DelayedClear;
 
