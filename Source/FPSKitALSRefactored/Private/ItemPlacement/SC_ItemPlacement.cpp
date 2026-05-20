@@ -16,8 +16,6 @@ USC_ItemPlacement::USC_ItemPlacement()
 
 	DropZoneSearcherSphere->SetCollisionProfileName(TEXT("DropZoneInteractObject"));
 	DropZoneCheckerSphere->SetCollisionProfileName(TEXT("DropZoneInteractObject"));
-
-	DropZoneSearcherSphere->SetSphereRadius(500.0f);
 }
 
 void USC_ItemPlacement::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -132,7 +130,7 @@ void USC_ItemPlacement::OnCheckerSphereOverlapEnd(UPrimitiveComponent* Overlappe
 	}
 }
 
-void USC_ItemPlacement::AttachReleaseItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching)
+void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching)
 {
 	if (bIsAttaching)
 	{
@@ -150,14 +148,24 @@ void USC_ItemPlacement::AttachReleaseItemToDropZone(AA_InteractableActor* Item, 
 					ChoosenDropZone = DropZone;
 				}
 			}
-
-			if (UStaticMeshComponent* StaticMeshComponent = Item->FindComponentByClass<UStaticMeshComponent>())
+			if (UFunction* Function = Item->FindFunction(FName("GetMesh")))
 			{
-				StaticMeshComponent->SetSimulatePhysics(false);
-				Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-				Item->AttachingDropZone = ChoosenDropZone;
-				ChoosenDropZone->bIsOccupied = true;
-				ChoosenDropZone->SetMeshMaterialAndState(0, false);
+				struct FParams
+				{
+					UStaticMeshComponent* ReturnValue;
+				};
+
+				FParams Params;
+				Item->ProcessEvent(Function, &Params);
+
+				if (UStaticMeshComponent* StaticMeshComponent = Params.ReturnValue)
+				{
+					StaticMeshComponent->SetSimulatePhysics(false);
+					Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					Item->AttachingDropZone = ChoosenDropZone;
+					ChoosenDropZone->bIsOccupied = true;
+					ChoosenDropZone->SetMeshMaterialAndState(0, false);
+				}
 			}
 		}
 	}
@@ -165,13 +173,24 @@ void USC_ItemPlacement::AttachReleaseItemToDropZone(AA_InteractableActor* Item, 
 	{
 		if (Item->AttachingDropZone)
 		{
-			if (UStaticMeshComponent* StaticMeshComponent = Item->FindComponentByClass<UStaticMeshComponent>())
+			if (UFunction* Function = Item->FindFunction(FName("GetMesh")))
 			{
-				StaticMeshComponent->SetSimulatePhysics(true);
-				Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-				Item->AttachingDropZone->bIsOccupied = false;
-				Item->AttachingDropZone->SetMeshMaterialAndState(3, false);
-				Item->AttachingDropZone = nullptr;
+				struct FParams
+				{
+					UStaticMeshComponent* ReturnValue;
+				};
+
+				FParams Params;
+				Item->ProcessEvent(Function, &Params);
+
+				if (UStaticMeshComponent* StaticMeshComponent = Params.ReturnValue)
+				{
+					StaticMeshComponent->SetSimulatePhysics(true);
+					Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+					Item->AttachingDropZone->bIsOccupied = false;
+					Item->AttachingDropZone->SetMeshMaterialAndState(3, false);
+					Item->AttachingDropZone = nullptr;
+				}
 			}
 		}
 	}

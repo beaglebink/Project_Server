@@ -36,4 +36,8 @@ public:
 	bool ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName);
 
 	virtual void PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform) override;
+
+protected:
+	UPROPERTY(VisibleDefaultsOnly, Category = "ForWireActor")
+	FName CurrentConnectorType;
 };

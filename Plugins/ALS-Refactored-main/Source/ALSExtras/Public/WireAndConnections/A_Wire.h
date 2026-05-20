@@ -24,13 +24,44 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-private:
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UStaticMeshComponent* FemaleMeshComponent;
 
+	UFUNCTION(BlueprintCallable, Category = "Wire")
+	void SetConnectorType(bool bIsMale);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
+	void GetConnectorType(UStaticMeshComponent*& ConnectorMesh, FName& ConnectorType, bool& bIsMale) const { ConnectorMesh = CurrentConnectorMeshComponent; ConnectorType = CurrentConnectorType; bIsMale = bIsMaleUsed; }
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Wire")
+	void OnConnectorTypeChanged(bool bIsMale);
+
+	UFUNCTION(BlueprintCallable, Category = "Wire")
+	void SetPower(bool OnPower);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
+	bool GetPower() const { return bIsOnPower; }
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Wire")
+	void OnPowerChanged(bool OnPower);
+
+private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UCableComponent* CableComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UPhysicsConstraintComponent* Constraint;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
+	UStaticMeshComponent* CurrentConnectorMeshComponent;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
+	uint8 bIsMaleUsed : 1{true};
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
+	uint8 bIsOnPower : 1{false};
+
+	UPROPERTY()
+	FName DefaultName;
 };

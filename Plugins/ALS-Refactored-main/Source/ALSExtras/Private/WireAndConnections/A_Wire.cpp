@@ -47,6 +47,8 @@ void AA_Wire::OnConstruction(const FTransform& Transform)
 	Constraint->SetLinearXLimit(ELinearConstraintMotion::LCM_Limited, CableComponent->CableLength);
 	Constraint->SetLinearYLimit(ELinearConstraintMotion::LCM_Limited, CableComponent->CableLength);
 	Constraint->SetLinearZLimit(ELinearConstraintMotion::LCM_Limited, CableComponent->CableLength);
+
+	DefaultName = Name;
 }
 
 void AA_Wire::Tick(float DeltaTime)
@@ -60,4 +62,31 @@ void AA_Wire::BeginPlay()
 	Super::BeginPlay();
 
 	CableComponent->SetAttachEndToComponent(FemaleMeshComponent, "CableEnd");
+}
+
+void AA_Wire::SetConnectorType(bool bIsMale)
+{
+	CurrentConnectorMeshComponent = StaticMesh;
+	CurrentConnectorType = TEXT("male");
+	bIsMaleUsed = bIsMale;
+
+	if (!bIsMale)
+	{
+		CurrentConnectorType = TEXT("female");
+		CurrentConnectorMeshComponent = FemaleMeshComponent;
+	}
+
+	Name = FName(*(DefaultName.ToString() + " " + CurrentConnectorType.ToString()));
+	OnConnectorTypeChanged(bIsMale);
+}
+
+void AA_Wire::SetPower(bool OnPower)
+{
+	bIsOnPower = OnPower;
+	OnPowerChanged(bIsOnPower);
+}
+
+void AA_Wire::OnPowerChanged_Implementation(bool OnPower)
+{
+
 }
