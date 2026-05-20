@@ -93,7 +93,7 @@ auto ContainsActorIdInSpawnedNew = [](const TMap<FInteriorFloorKey, FFloorPopula
 				{
 					return Arr.ContainsByPredicate([&TargetActorId](const FFloorPopulationRecord& Record)
 						{
-							return Record.ActorId == TargetActorId && Record.IsNewObject;
+							return Record.ActorId == TargetActorId/* && Record.IsNewObject*/;
 						});
 				};
 			if (CheckArray(Buckets.HeavyFurniture)) return true;
@@ -1736,6 +1736,269 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 		OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
 		return;
 	}
+	/*
+	FMissionEnvelope CurrEnvelope;
+	EJobSpacePolicy RuntimePolicy;
+	FName CurrMissionId;
+	TArray<FEnvelopeChannelEntry> EndChannels;
+	bool IsFinded = false;
+
+	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+
+	for (auto& Mission : ActiveMissions)
+	{
+		int32 MissionStep = Mission.Value.MissionStep;
+		UMissionController* Controller = Mission.Value.Controller.Get();
+		UMissionAsset* MissionAsset = Controller->GetMissionAsset();
+		FMissionEnvelope& Envelope = MissionAsset->Envelopes[MissionStep];
+		FMissionEnvelopeScope Scope = Envelope.Scope;
+
+		TArray<TSoftObjectPtr<class UFloorAsset>> InteriorScopes = Scope.InteriorScopes;
+		for (auto IS : InteriorScopes)
+		{
+			UInteriorSetAsset* LoadedSet = IS->ParentInteriorSet.LoadSynchronous();
+			if (!LoadedSet) continue;
+
+			FString ScopeLevelName = IS->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+			FString NormTarget = NormalizeLevelName(ScopeLevelName);
+			FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+			if (NormTarget == NormCurrent)
+			{
+				CurrEnvelope = Envelope;
+				RuntimePolicy = Envelope.RuntimePolicy;
+				CurrMissionId = FName(MissionAsset->DisplayName.ToString());
+				EndChannels = Envelope.RuntimePolicyChannels;
+				IsFinded = true;
+			}
+		}
+	}
+	*/
+
+	if (P->IsUseDoor && DelayedClear.IsValid)
+	{
+		switch (DelayedClear.Policy)
+		{
+		case EJobSpacePolicy::Reset:
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[STORE] Reset policy: clearing persistent maps for all floors in MissionFloorSnapshots"));
+			if (auto Map = MissionFloorSnapshots.Find(CurrentKey))
+			{
+				Map->Remove(DelayedClear.MissionId);
+			}
+
+			if (auto Array = FloorStateSnapshots.Find(CurrentKey))
+			{
+				Array->Empty();
+			}
+
+			if (FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(CurrentKey))
+			{
+				RemoveRecordsForChannel(PersSpawned->HeavyFurniture, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture));
+				RemoveRecordsForChannel(PersSpawned->LightItems, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem));
+				RemoveRecordsForChannel(PersSpawned->Terminals, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal));
+				RemoveRecordsForChannel(PersSpawned->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
+				RemoveRecordsForChannel(PersSpawned->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
+			}
+			if (FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(CurrentKey))
+			{
+				RemoveRecordsForChannel(PersDestroyed->HeavyFurniture, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture));
+				RemoveRecordsForChannel(PersDestroyed->LightItems, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem));
+				RemoveRecordsForChannel(PersDestroyed->Terminals, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal));
+				RemoveRecordsForChannel(PersDestroyed->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
+				RemoveRecordsForChannel(PersDestroyed->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
+			}
+			break;
+		}
+		case EJobSpacePolicy::Freeze:
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[STORE] Freeze policy: copying mission snapshots and dynamic maps to persistent storage"));
+
+			// Статические снапшоты свойств
+			for (auto& Pair : MissionFloorSnapshots)
+			{
+				const FInteriorFloorKey& FloorKey = Pair.Key;
+				TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
+				if (!PerFloor.Contains(DelayedClear.MissionId)) continue;
+				FloorStateSnapshots.Add(FloorKey, PerFloor[DelayedClear.MissionId]);
+				//UE_LOG(LogTemp, Warning, TEXT("[STORE]   Copied actor state snapshots for floor %s/%s, count=%d"),
+				//	*FloorKey.InteriorSetId.ToString(), *FloorKey.FloorId.ToString(), PerFloor[MissionId].Num());
+			}
+			break;
+		}
+		case EJobSpacePolicy::Partial:
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("[STORE] Partial policy: processing %d channels"), EndChannels.Num());
+			for (const FEnvelopeChannelEntry& ChannelEntry : DelayedClear.EndChannels)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[STORE]   Channel %d, Policy %d"), (int32)ChannelEntry.Channel, (int32)ChannelEntry.Policy);
+
+				if (ChannelEntry.Policy == EChannelPolicy::Freeze)
+				{
+					// 1) Копируем статические снапшоты для этого канала
+					for (auto& Pair : MissionFloorSnapshots)
+					{
+						const FInteriorFloorKey& FloorKey = Pair.Key;
+						TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
+						if (!PerFloor.Contains(DelayedClear.MissionId)) continue;
+						const TArray<FFloorSavedActorState>& MissionSnap = PerFloor[DelayedClear.MissionId];
+						TArray<FFloorSavedActorState>& BaseSnap = FloorStateSnapshots.FindOrAdd(FloorKey);
+
+						for (const FFloorSavedActorState& ActorSnap : MissionSnap)
+						{
+							EEnvelopeChannel ActorChannel = EEnvelopeChannel::None;
+							if (UWorld* W = GetWorld())
+							{
+								for (TActorIterator<AActor> It(W); It; ++It)
+								{
+									AActor* Actor = *It;
+									if (!IsValid(Actor)) continue;
+									if (UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+									{
+										if (FAC->SnapshotChannel == ESnapshotChannel::None) continue;
+
+										if (FAC->ItemId == ActorSnap.ItemId)
+										{
+											ActorChannel = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
+											break;
+										}
+									}
+								}
+							}
+
+							if (ActorChannel == EEnvelopeChannel::None) continue;
+
+							if (ActorChannel == ChannelEntry.Channel)
+							{
+								bool bUpdated = false;
+								for (FFloorSavedActorState& Existing : BaseSnap)
+								{
+									if (Existing.ItemId == ActorSnap.ItemId)
+									{
+										Existing = ActorSnap;
+										bUpdated = true;
+										break;
+									}
+								}
+								if (!bUpdated) BaseSnap.Add(ActorSnap);
+							}
+						}
+					}
+
+					// 2) Копируем динамические карты для этого канала
+					for (auto& Pair : MissionFloorSnapshots)
+					{
+						const FInteriorFloorKey& FloorKey = Pair.Key;
+
+						if (FloorKey != CurrentKey)
+							continue;
+
+						FFloorPopulationBuckets& PersSpawned = SpawnedActorsByInteriorFloor.FindOrAdd(FloorKey);
+						FFloorPopulationBuckets& PersDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(FloorKey);
+
+						if (auto Temp = FloorStateSnapshots.Find(FloorKey))
+						{
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.HeavyFurniture.Empty();
+								//RemoveRecordsForChannel(PersSpawned.HeavyFurniture, ChannelEntry.Channel);
+							}
+
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.LightItems.Empty();
+								//RemoveRecordsForChannel(PersSpawned.LightItems, ChannelEntry.Channel);
+							}
+
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.Terminals.Empty();
+								//RemoveRecordsForChannel(PersSpawned.Terminals, ChannelEntry.Channel);
+							}
+
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.NPCSpawners.Empty();
+								//RemoveRecordsForChannel(PersSpawned.NPCSpawners, ChannelEntry.Channel);
+							}
+
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.Debris.Empty();
+								//RemoveRecordsForChannel(PersSpawned.Debris, ChannelEntry.Channel);
+							}
+						}
+						if (const FFloorPopulationBuckets* TempDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
+						{
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.HeavyFurniture.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.HeavyFurniture, ChannelEntry.Channel);
+							}
+
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.LightItems.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.LightItems, ChannelEntry.Channel);
+							}
+
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.Terminals.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.Terminals, ChannelEntry.Channel);
+							}
+
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.NPCSpawners.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.NPCSpawners, ChannelEntry.Channel);
+							}
+
+							if (!ShouldSkipActor(DelayedClear.Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.Debris.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.Debris, ChannelEntry.Channel);
+							}
+						}
+					}
+				}
+				else if (ChannelEntry.Policy == EChannelPolicy::Reset)
+				{
+					for (auto& Pair : MissionFloorSnapshots)
+					{
+						const FInteriorFloorKey& FloorKey = Pair.Key;
+						if (FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(FloorKey))
+						{
+							RemoveRecordsForChannel(PersSpawned->HeavyFurniture, ChannelEntry.Channel);
+							RemoveRecordsForChannel(PersSpawned->LightItems, ChannelEntry.Channel);
+							RemoveRecordsForChannel(PersSpawned->Terminals, ChannelEntry.Channel);
+							RemoveRecordsForChannel(PersSpawned->NPCSpawners, ChannelEntry.Channel);
+							RemoveRecordsForChannel(PersSpawned->Debris, ChannelEntry.Channel);
+						}
+						if (FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
+						{
+							RemoveRecordsForChannel(PersDestroyed->HeavyFurniture, ChannelEntry.Channel);
+							RemoveRecordsForChannel(PersDestroyed->LightItems, ChannelEntry.Channel);
+							RemoveRecordsForChannel(PersDestroyed->Terminals, ChannelEntry.Channel);
+							RemoveRecordsForChannel(PersDestroyed->NPCSpawners, ChannelEntry.Channel);
+							RemoveRecordsForChannel(PersDestroyed->Debris, ChannelEntry.Channel);
+						}
+					}
+				}
+			}
+			break;
+		}
+		case EJobSpacePolicy::None:
+		{
+			UE_LOG(LogTemp, Log, TEXT("[STORE] None policy, nothing stored"));
+			return;
+		}
+		}
+
+	}
+
+
+
 
 	// Если переход без якоря – помечаем объекты, которые уже были в снапшотах
 	if (!P->IsUseAnchor)
@@ -2380,6 +2643,8 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		return;
 	}
 
+	DelayedClear.IsValid = false;
+
 	const FGuid AnchorID = GetPendingAnchorID();
 
 	UE_LOG(LogTemp, Log,
@@ -2682,6 +2947,7 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		if (!Record.SourceClass) continue;
 		EEnvelopeChannel Channel = FloorActorTypeToEnvelopeChannel(Record.ActorType);
 
+		/*
 		if (!Record.IsNewObject)
 		{
 			RemoveRecordByItemId(SpawnedActorsByInteriorFloor, Record.ActorId);
@@ -2690,6 +2956,7 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		}
 		else
 		{
+		*/
 			if (!IsLoadingFromSave)
 			{
 				if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
@@ -2700,7 +2967,7 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 				}
 
 			}
-		}
+		//}
 
 		bool IsAlreadySpawned = false;
 		TArray<AActor*> AllActors;
@@ -3248,6 +3515,8 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 
 	// Проверяем, есть ли снапшоты для этой миссии
 	bool bHasSnapshotsForMission = false;
+
+
 	for (const auto& Pair : MissionFloorSnapshots)
 	{
 		if (Pair.Value.Contains(MissionId))
@@ -3261,6 +3530,14 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 		UE_LOG(LogTemp, Error, TEXT("[STORE] WARNING: No MissionFloorSnapshots found for mission %s! Nothing to persist."), *MissionId.ToString());
 
 	}
+
+	DelayedClear.MissionId = MissionId;
+	DelayedClear.Envelope = Envelope;
+	DelayedClear.Policy = Policy;
+	DelayedClear.EndChannels = EndChannels;
+	DelayedClear.IsValid = true;
+
+	/*
 	switch (Policy)
 	{
 	case EJobSpacePolicy::Reset:
@@ -3292,17 +3569,6 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 			RemoveRecordsForChannel(PersDestroyed->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
 			RemoveRecordsForChannel(PersDestroyed->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
 		}
-
-		/*
-		for (auto& Pair : MissionFloorSnapshots)
-		{
-			const FInteriorFloorKey& FloorKey = Pair.Key;
-			SpawnedActorsByInteriorFloor.Remove(FloorKey);
-			DestroyedActorsByInteriorFloor.Remove(FloorKey);
-			MissionFloorSnapshots.Find(FloorKey)->Remove(MissionId);
-			FloorStateSnapshots.Remove(FloorKey);
-		}
-		*/
 		break;
 	}
 	case EJobSpacePolicy::Freeze:
@@ -3391,68 +3657,71 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 					FFloorPopulationBuckets& PersSpawned = SpawnedActorsByInteriorFloor.FindOrAdd(FloorKey);
 					FFloorPopulationBuckets& PersDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(FloorKey);
 
-					if (auto Temp = FloorStateSnapshots.Find(FloorKey))
+					if (!IsSaving)
 					{
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::Completed, false))
+						if (auto Temp = FloorStateSnapshots.Find(FloorKey))
 						{
-							PersSpawned.HeavyFurniture.Empty();
-							//RemoveRecordsForChannel(PersSpawned.HeavyFurniture, ChannelEntry.Channel);
-						}
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.HeavyFurniture.Empty();
+								//RemoveRecordsForChannel(PersSpawned.HeavyFurniture, ChannelEntry.Channel);
+							}
 
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::Completed, false))
-						{
-							PersSpawned.LightItems.Empty();
-							//RemoveRecordsForChannel(PersSpawned.LightItems, ChannelEntry.Channel);
-						}
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.LightItems.Empty();
+								//RemoveRecordsForChannel(PersSpawned.LightItems, ChannelEntry.Channel);
+							}
 						
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::Completed, false))
-						{
-							PersSpawned.Terminals.Empty();
-							//RemoveRecordsForChannel(PersSpawned.Terminals, ChannelEntry.Channel);
-						}
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.Terminals.Empty();
+								//RemoveRecordsForChannel(PersSpawned.Terminals, ChannelEntry.Channel);
+							}
 
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::Completed, false))
-						{
-							PersSpawned.NPCSpawners.Empty();
-							//RemoveRecordsForChannel(PersSpawned.NPCSpawners, ChannelEntry.Channel);
-						}
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.NPCSpawners.Empty();
+								//RemoveRecordsForChannel(PersSpawned.NPCSpawners, ChannelEntry.Channel);
+							}
 
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::Completed, false))
-						{
-							PersSpawned.Debris.Empty();
-							//RemoveRecordsForChannel(PersSpawned.Debris, ChannelEntry.Channel);
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::Completed, false))
+							{
+								PersSpawned.Debris.Empty();
+								//RemoveRecordsForChannel(PersSpawned.Debris, ChannelEntry.Channel);
+							}
 						}
-					}
-					if (const FFloorPopulationBuckets* TempDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
-					{
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::Completed, false))
+						if (const FFloorPopulationBuckets* TempDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
 						{
-							PersDestroyed.HeavyFurniture.Empty();
-							//RemoveRecordsForChannel(PersDestroyed.HeavyFurniture, ChannelEntry.Channel);
-						}
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.HeavyFurniture.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.HeavyFurniture, ChannelEntry.Channel);
+							}
 						
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::Completed, false))
-						{
-							PersDestroyed.LightItems.Empty();
-							//RemoveRecordsForChannel(PersDestroyed.LightItems, ChannelEntry.Channel);
-						}
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.LightItems.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.LightItems, ChannelEntry.Channel);
+							}
 
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::Completed, false))
-						{
-							PersDestroyed.Terminals.Empty();
-							//RemoveRecordsForChannel(PersDestroyed.Terminals, ChannelEntry.Channel);
-						}
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.Terminals.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.Terminals, ChannelEntry.Channel);
+							}
 
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::Completed, false))
-						{
-							PersDestroyed.NPCSpawners.Empty();
-							//RemoveRecordsForChannel(PersDestroyed.NPCSpawners, ChannelEntry.Channel);
-						}
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.NPCSpawners.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.NPCSpawners, ChannelEntry.Channel);
+							}
 						
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::Completed, false))
-						{
-							PersDestroyed.Debris.Empty();
-							//RemoveRecordsForChannel(PersDestroyed.Debris, ChannelEntry.Channel);
+							if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::Completed, false))
+							{
+								PersDestroyed.Debris.Empty();
+								//RemoveRecordsForChannel(PersDestroyed.Debris, ChannelEntry.Channel);
+							}
 						}
 					}
 				}
@@ -3489,6 +3758,7 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 		return;
 	}
 	}
+	*/
 }
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)

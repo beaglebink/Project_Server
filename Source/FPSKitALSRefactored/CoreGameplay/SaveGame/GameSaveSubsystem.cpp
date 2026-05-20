@@ -115,6 +115,7 @@ void UGameSaveSubsystem::SaveGame()
             P1->IsUseAnchor = false;
             P1->IsUseTravel = false;
 			P1->SourceFloor = OwnerFloor;
+            P1->IsUseDoor = false;
             FOutcomeEventBase Ev;
             Ev.OutcomeType = EOutcomeType::Interior;
             Ev.OutcomeInterior = EOutcomeInterior::FloorTransition;

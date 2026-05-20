@@ -80,6 +80,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "InteriorTransition")
 	bool IsUseTravel = true;
 
+	bool IsUseDoor = true;
+
 	/** Простой Setup из уже собранной FLocationAnchorLink (совместимость) */
 	UFUNCTION(BlueprintCallable, Category = "InteriorTransition")
 	UInteriorTransitionPayload* Setup(const FLocationAnchorLink& InDestinationLink);

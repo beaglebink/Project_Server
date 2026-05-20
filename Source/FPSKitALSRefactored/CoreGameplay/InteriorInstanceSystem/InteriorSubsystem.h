@@ -81,6 +81,15 @@ struct FActiveMissionInterior
     TObjectPtr<UMissionController> Controller;
 };
 
+struct FDelayedClear
+{
+    FName MissionId;
+    FMissionEnvelope Envelope;
+    EJobSpacePolicy Policy;
+    TArray<FEnvelopeChannelEntry> EndChannels;
+    bool IsValid = false;
+};
+
 UCLASS()
 class FPSKITALSREFACTORED_API UInteriorSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods, public ISaveableSubsystem
 {
@@ -277,6 +286,8 @@ private:
     UOutcomeConditionAsset* CompleteMissionConditionAsset = nullptr;
 
 	bool IsLoadingFromSave = false;
+
+    FDelayedClear DelayedClear;
 
     FOutcomeHandlerHandle SpawnRegisterHandle;
     FOutcomeHandlerHandle DespawnRegisterHandle;
