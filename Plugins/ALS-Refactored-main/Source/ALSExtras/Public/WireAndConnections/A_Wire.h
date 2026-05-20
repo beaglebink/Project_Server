@@ -24,10 +24,14 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-private:
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UStaticMeshComponent* FemaleMeshComponent;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
+	uint8 bIsMaleUsed : 1{true};
+
+private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UCableComponent* CableComponent;
 

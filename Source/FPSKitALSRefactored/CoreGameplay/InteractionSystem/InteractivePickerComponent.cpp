@@ -7,6 +7,7 @@
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "InteractCommandPayload.h"
 #include "Components/ChildActorComponent.h"
+#include "WireAndConnections/A_Wire.h"
 
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
@@ -171,7 +172,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		float SquareDistance = FVector::DistSquared(Location, InteractiveItem->GetOwner()->GetActorLocation());
 		float Radius = InteractiveItem->InteractionRange;
 
-		if(SquareDistance > Radius * Radius)
+		if (SquareDistance > Radius * Radius)
 		{
 			continue;
 		}
@@ -182,7 +183,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		}
 
 		SelectedInteractiveItems.Add(InteractiveItem);
-		
+
 		if (SquareDistance < NearestDistance)
 		{
 			NearestDistance = SquareDistance;
@@ -246,11 +247,11 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 	bLineTraceHit = World->LineTraceMultiByChannel(OutHits, LineStart, LineEnd, ECollisionChannel::ECC_Camera);
 	if (bLineTraceHit)
 	{
-		for(auto& Hit : OutHits)
+		for (auto& Hit : OutHits)
 		{
 			if (!Hit.GetActor()) continue;
 			AActor* HitActor = Hit.GetActor();
-			
+
 			UInteractiveItemComponent* ItemFromHit = HitActor ? HitActor->FindComponentByClass<UInteractiveItemComponent>() : nullptr;
 			if (ItemFromHit)
 			{
@@ -262,14 +263,28 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 			}
 		}
 	}
+	FVector DebugSphereLocation{ FVector::ZeroVector };
 	if (SelectedItem)
 	{
 		float InteractionSquareDistance = FVector::DistSquared(Location, SelectedItem->GetOwner()->GetActorLocation());
 		float InteractionRadius = SelectedItem->InteractionRange;
+		DebugSphereLocation = SelectedItem->GetOwner()->GetActorLocation();
+
+		//Wire - check what connnector is closer to the linetrace
+		if (AA_Wire* Wire = Cast<AA_Wire>(SelectedItem->GetOwner()))
+		{
+			Wire->bIsMaleUsed = true;
+			if (FVector::DistSquared(Location, Wire->GetActorLocation()) > FVector::DistSquared(Location, Wire->FemaleMeshComponent->GetComponentLocation()))
+			{
+				InteractionSquareDistance = FVector::DistSquared(Location, Wire->FemaleMeshComponent->GetComponentLocation());
+				DebugSphereLocation = Wire->FemaleMeshComponent->GetComponentLocation();
+				Wire->bIsMaleUsed = false;
+			}
+		}
 
 		if (DebugDraw)
 		{
-			DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), InteractionRadius, 32, InteractionSquareDistance > FMath::Square(InteractionRadius) ? FColor::Cyan : FColor::Yellow, false, 0.5f);
+			DrawDebugSphere(World, DebugSphereLocation, InteractionRadius, 32, InteractionSquareDistance > FMath::Square(InteractionRadius) ? FColor::Cyan : FColor::Yellow, false, 0.5f);
 		}
 
 		if (InteractionSquareDistance > InteractionRadius * InteractionRadius)
@@ -283,7 +298,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		UE_LOG(LogTemp, Warning, TEXT("NearestItem: %s %f"), *SelectedItem->GetOwner()->GetName(), NearestDistance);
 
 		DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, SelectedItem->GetOwner()->GetActorLocation(), FColor::Blue, false, 1.f, 0, .5f);
-		DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), 6.f, 8, FColor::Yellow, false, .5f);
+		DrawDebugSphere(World, DebugSphereLocation, 6.f, 8, FColor::Yellow, false, .5f);
 	}
 
 	return SelectedItem;
@@ -376,21 +391,21 @@ UInteractiveItemComponent* UInteractivePickerComponent::DoInteractiveUse()
 
 			switch (CurrentItem->SubsystemType)
 			{
-				case EInteractiveSubsystem::Interior:
-					Outcome.OutcomeType = EOutcomeType::Interior;
-					break;
-				case EInteractiveSubsystem::ActorNPC:
-					Outcome.OutcomeType = EOutcomeType::Actor;
-					break;
-				case EInteractiveSubsystem::Inventory:
-					Outcome.OutcomeType = EOutcomeType::Inventory;
-					break;
-				case EInteractiveSubsystem::Terminal:
-					Outcome.OutcomeType = EOutcomeType::Terminal;
-					break;
-				default:
-					Outcome.OutcomeType = EOutcomeType::Default;
-					break;
+			case EInteractiveSubsystem::Interior:
+				Outcome.OutcomeType = EOutcomeType::Interior;
+				break;
+			case EInteractiveSubsystem::ActorNPC:
+				Outcome.OutcomeType = EOutcomeType::Actor;
+				break;
+			case EInteractiveSubsystem::Inventory:
+				Outcome.OutcomeType = EOutcomeType::Inventory;
+				break;
+			case EInteractiveSubsystem::Terminal:
+				Outcome.OutcomeType = EOutcomeType::Terminal;
+				break;
+			default:
+				Outcome.OutcomeType = EOutcomeType::Default;
+				break;
 			}
 
 			EventBus->PublishOutcome(Outcome);
