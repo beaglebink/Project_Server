@@ -273,12 +273,12 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		//Wire - check what connnector is closer to the linetrace
 		if (AA_Wire* Wire = Cast<AA_Wire>(SelectedItem->GetOwner()))
 		{
-			Wire->bIsMaleUsed = true;
+			Wire->SetConnectorType(true);
 			if (FVector::DistSquared(Location, Wire->GetActorLocation()) > FVector::DistSquared(Location, Wire->FemaleMeshComponent->GetComponentLocation()))
 			{
 				InteractionSquareDistance = FVector::DistSquared(Location, Wire->FemaleMeshComponent->GetComponentLocation());
 				DebugSphereLocation = Wire->FemaleMeshComponent->GetComponentLocation();
-				Wire->bIsMaleUsed = false;
+				Wire->SetConnectorType(false);
 			}
 		}
 

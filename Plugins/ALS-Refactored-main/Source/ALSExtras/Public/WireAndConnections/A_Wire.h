@@ -28,13 +28,21 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UStaticMeshComponent* FemaleMeshComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
-	uint8 bIsMaleUsed : 1{true};
+	UFUNCTION(BlueprintCallable, Category = "Wire")
+	void SetConnectorType(bool bIsMale);
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
+	bool GetConnectorType() const { return bIsMaleUsed; }
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Wire")
+	void OnConnectorTypeChanged(bool bIsMale);
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UCableComponent* CableComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UPhysicsConstraintComponent* Constraint;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Components")
+	uint8 bIsMaleUsed : 1{true};
 };

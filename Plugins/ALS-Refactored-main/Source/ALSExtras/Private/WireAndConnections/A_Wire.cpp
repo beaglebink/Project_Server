@@ -61,3 +61,9 @@ void AA_Wire::BeginPlay()
 
 	CableComponent->SetAttachEndToComponent(FemaleMeshComponent, "CableEnd");
 }
+
+void AA_Wire::SetConnectorType(bool bIsMale)
+{
+	bIsMaleUsed = bIsMale;
+	OnConnectorTypeChanged(bIsMaleUsed);
+}
