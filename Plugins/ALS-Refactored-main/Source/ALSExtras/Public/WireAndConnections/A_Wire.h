@@ -32,7 +32,7 @@ public:
 	void SetConnectorType(bool bIsMale);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
-	bool GetConnectorType(UStaticMeshComponent*& ConnectorMesh) const { ConnectorMesh = CurrentConnectorMeshComponent; return bIsMaleUsed; }
+	void GetConnectorType(UStaticMeshComponent*& ConnectorMesh, FName& ConnectorType, bool& bIsMale) const { ConnectorMesh = CurrentConnectorMeshComponent; ConnectorType = CurrentConnectorType; bIsMale = bIsMaleUsed; }
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Wire")
 	void OnConnectorTypeChanged(bool bIsMale);
@@ -61,4 +61,7 @@ private:
 
 	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
 	uint8 bIsOnPower : 1{false};
+
+	UPROPERTY()
+	FName DefaultName;
 };

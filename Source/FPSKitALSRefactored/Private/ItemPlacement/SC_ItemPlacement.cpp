@@ -148,14 +148,24 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 					ChoosenDropZone = DropZone;
 				}
 			}
-
-			if (UStaticMeshComponent* StaticMeshComponent = Item->FindComponentByClass<UStaticMeshComponent>())
+			if (UFunction* Function = Item->FindFunction(FName("GetMesh")))
 			{
-				StaticMeshComponent->SetSimulatePhysics(false);
-				Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-				Item->AttachingDropZone = ChoosenDropZone;
-				ChoosenDropZone->bIsOccupied = true;
-				ChoosenDropZone->SetMeshMaterialAndState(0, false);
+				struct FParams
+				{
+					UStaticMeshComponent* ReturnValue;
+				};
+
+				FParams Params;
+				Item->ProcessEvent(Function, &Params);
+
+				if (UStaticMeshComponent* StaticMeshComponent = Params.ReturnValue)
+				{
+					StaticMeshComponent->SetSimulatePhysics(false);
+					Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					Item->AttachingDropZone = ChoosenDropZone;
+					ChoosenDropZone->bIsOccupied = true;
+					ChoosenDropZone->SetMeshMaterialAndState(0, false);
+				}
 			}
 		}
 	}
@@ -163,13 +173,24 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 	{
 		if (Item->AttachingDropZone)
 		{
-			if (UStaticMeshComponent* StaticMeshComponent = Item->FindComponentByClass<UStaticMeshComponent>())
+			if (UFunction* Function = Item->FindFunction(FName("GetMesh")))
 			{
-				StaticMeshComponent->SetSimulatePhysics(true);
-				Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-				Item->AttachingDropZone->bIsOccupied = false;
-				Item->AttachingDropZone->SetMeshMaterialAndState(3, false);
-				Item->AttachingDropZone = nullptr;
+				struct FParams
+				{
+					UStaticMeshComponent* ReturnValue;
+				};
+
+				FParams Params;
+				Item->ProcessEvent(Function, &Params);
+
+				if (UStaticMeshComponent* StaticMeshComponent = Params.ReturnValue)
+				{
+					StaticMeshComponent->SetSimulatePhysics(true);
+					Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+					Item->AttachingDropZone->bIsOccupied = false;
+					Item->AttachingDropZone->SetMeshMaterialAndState(3, false);
+					Item->AttachingDropZone = nullptr;
+				}
 			}
 		}
 	}

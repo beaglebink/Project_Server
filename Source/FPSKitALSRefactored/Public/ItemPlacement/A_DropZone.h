@@ -26,10 +26,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Item")
 	TSubclassOf<AA_InteractableActor> ItemClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|WireConnector")
+	FName WirePlugInConnectorType;
+
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "DropZone|ItemCollision")
 	USphereComponent* ItemSphereCollision;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DropZone|ItemMesh")
+	UPROPERTY()
 	UStaticMeshComponent* DropZoneMesh;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DropZone|ItemMaterial")

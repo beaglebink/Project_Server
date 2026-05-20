@@ -47,5 +47,4 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ItemPlacement")
 	void AttachReleasedItemToDropZone(AA_InteractableActor* Item, bool bIsAttaching);
-
 };
