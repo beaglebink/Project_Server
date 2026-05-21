@@ -175,7 +175,7 @@ public:
 
     void SaveMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey);
     void RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey);
-    void SpawnFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope);
+    void SpawnFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope, FInteriorFloorKey Key);
     void RestoreSpawnedActorsForCurrentFloor(const FMissionEnvelope& Envelope);
     void ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion = false);
     const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* GetMissionSnapshots(FName MissionId) const;
@@ -204,6 +204,7 @@ private:
     void UnsubscribeAll();
 
     void ApplyPersistentPopulation(const FInteriorFloorKey& FloorKey);
+    //TArray<EFloorActorType> GetActorTypesForEnvelopeChannel(EEnvelopeChannel Channel);
     void SpawnRecords(const TArray<FFloorPopulationRecord>& Records);
     void DestroyRecords(const TArray<FFloorPopulationRecord>& Records);
     AActor* FindActorByItemId(const FGuid& ItemId) const;
