@@ -30,7 +30,7 @@ public:
 	FName Name;
 
 	UPROPERTY()
-	AA_DropZone* AttachingDropZone;
+	TMap<UStaticMeshComponent*, AA_DropZone*> AttachingDropZone;
 
     UFUNCTION(BlueprintCallable, Category = "TextParsing")
 	bool ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName);
@@ -39,5 +39,5 @@ public:
 
 protected:
 	UPROPERTY(VisibleDefaultsOnly, Category = "ForWireActor")
-	FName CurrentConnectorType;
+	FString CurrentConnectorType{""};
 };

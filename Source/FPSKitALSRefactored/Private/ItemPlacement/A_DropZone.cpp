@@ -4,7 +4,7 @@
 
 AA_DropZone::AA_DropZone()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
@@ -25,7 +25,7 @@ void AA_DropZone::OnConstruction(const FTransform& Transform)
 	{
 		if (AA_InteractableActor* Item = ItemClass->GetDefaultObject<AA_InteractableActor>())
 		{
-			ItemName = FName(*(Item->Name.ToString() + " " + WirePlugInConnectorType.ToString()));
+			ItemName = FName(*(Item->Name.ToString() + WirePlugInConnectorType));
 			const UStaticMeshComponent* SourceMesh = Item->FindComponentByClass<UStaticMeshComponent>();
 			if (SourceMesh && SourceMesh->GetStaticMesh())
 			{

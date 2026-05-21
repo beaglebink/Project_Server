@@ -32,7 +32,7 @@ public:
 	void SetConnectorType(bool bIsMale);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
-	void GetConnectorType(UStaticMeshComponent*& ConnectorMesh, FName& ConnectorType, bool& bIsMale) const { ConnectorMesh = CurrentConnectorMeshComponent; ConnectorType = CurrentConnectorType; bIsMale = bIsMaleUsed; }
+	void GetConnectorType(UStaticMeshComponent*& ConnectorMesh, FString& ConnectorType, bool& bIsMale) const { ConnectorMesh = CurrentConnectorMeshComponent; ConnectorType = CurrentConnectorType; bIsMale = bIsMaleUsed; }
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Wire")
 	void OnConnectorTypeChanged(bool bIsMale);

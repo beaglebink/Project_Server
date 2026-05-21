@@ -76,7 +76,7 @@ void AA_Wire::SetConnectorType(bool bIsMale)
 		CurrentConnectorMeshComponent = FemaleMeshComponent;
 	}
 
-	Name = FName(*(DefaultName.ToString() + " " + CurrentConnectorType.ToString()));
+	Name = FName(*(DefaultName.ToString() + CurrentConnectorType));
 	OnConnectorTypeChanged(bIsMale);
 }
 

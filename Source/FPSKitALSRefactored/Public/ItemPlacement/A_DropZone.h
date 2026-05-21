@@ -27,7 +27,7 @@ public:
 	TSubclassOf<AA_InteractableActor> ItemClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|WireConnector")
-	FName WirePlugInConnectorType;
+	FString WirePlugInConnectorType{""};
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "DropZone|ItemCollision")
 	USphereComponent* ItemSphereCollision;
