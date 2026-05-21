@@ -7,7 +7,6 @@
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "InteractCommandPayload.h"
 #include "Components/ChildActorComponent.h"
-#include "WireAndConnections/A_Wire.h"
 
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
@@ -263,28 +262,14 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 			}
 		}
 	}
-	FVector DebugSphereLocation{ FVector::ZeroVector };
 	if (SelectedItem)
 	{
 		float InteractionSquareDistance = FVector::DistSquared(Location, SelectedItem->GetOwner()->GetActorLocation());
 		float InteractionRadius = SelectedItem->InteractionRange;
-		DebugSphereLocation = SelectedItem->GetOwner()->GetActorLocation();
-
-		//Wire - check what connnector is closer to the linetrace
-		if (AA_Wire* Wire = Cast<AA_Wire>(SelectedItem->GetOwner()))
-		{
-			Wire->SetConnectorType(true);
-			if (FVector::DistSquared(Location, Wire->GetActorLocation()) > FVector::DistSquared(Location, Wire->FemaleMeshComponent->GetComponentLocation()))
-			{
-				InteractionSquareDistance = FVector::DistSquared(Location, Wire->FemaleMeshComponent->GetComponentLocation());
-				DebugSphereLocation = Wire->FemaleMeshComponent->GetComponentLocation();
-				Wire->SetConnectorType(false);
-			}
-		}
 
 		if (DebugDraw)
 		{
-			DrawDebugSphere(World, DebugSphereLocation, InteractionRadius, 32, InteractionSquareDistance > FMath::Square(InteractionRadius) ? FColor::Cyan : FColor::Yellow, false, 0.5f);
+			DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), InteractionRadius, 32, InteractionSquareDistance > FMath::Square(InteractionRadius) ? FColor::Cyan : FColor::Yellow, false, 0.5f);
 		}
 
 		if (InteractionSquareDistance > InteractionRadius * InteractionRadius)
@@ -298,7 +283,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		UE_LOG(LogTemp, Warning, TEXT("NearestItem: %s %f"), *SelectedItem->GetOwner()->GetName(), NearestDistance);
 
 		DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, SelectedItem->GetOwner()->GetActorLocation(), FColor::Blue, false, 1.f, 0, .5f);
-		DrawDebugSphere(World, DebugSphereLocation, 6.f, 8, FColor::Yellow, false, .5f);
+		DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), 6.f, 8, FColor::Yellow, false, .5f);
 	}
 
 	return SelectedItem;

@@ -26,10 +26,9 @@ void AA_DropZone::OnConstruction(const FTransform& Transform)
 		if (AA_InteractableActor* Item = ItemClass->GetDefaultObject<AA_InteractableActor>())
 		{
 			ItemName = FName(*(Item->Name.ToString() + WirePlugInConnectorType));
-			const UStaticMeshComponent* SourceMesh = Item->FindComponentByClass<UStaticMeshComponent>();
-			if (SourceMesh && SourceMesh->GetStaticMesh())
+			if (Item->StaticMesh)
 			{
-				DropZoneMesh->SetStaticMesh(SourceMesh->GetStaticMesh());
+				DropZoneMesh->SetStaticMesh(Item->StaticMesh->GetStaticMesh());
 			}
 		}
 	}

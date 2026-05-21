@@ -30,14 +30,10 @@ public:
 	FName Name;
 
 	UPROPERTY()
-	TMap<UStaticMeshComponent*, AA_DropZone*> AttachingDropZone;
+	AA_DropZone* AttachingDropZone;
 
     UFUNCTION(BlueprintCallable, Category = "TextParsing")
 	bool ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName);
 
 	virtual void PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform) override;
-
-protected:
-	UPROPERTY(VisibleDefaultsOnly, Category = "ForWireActor")
-	FString CurrentConnectorType{""};
 };

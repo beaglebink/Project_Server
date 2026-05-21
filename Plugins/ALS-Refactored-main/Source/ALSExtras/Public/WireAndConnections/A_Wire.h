@@ -1,8 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
-#include "PythonContainers/A_InteractableActor.h"
+#include "WireAndConnections/A_WireConnector.h"
 #include "A_Wire.generated.h"
 
 class UCableComponent;
@@ -10,7 +9,7 @@ class UPhysicsConstraintComponent;
 class UStaticMesh;
 
 UCLASS()
-class ALSEXTRAS_API AA_Wire : public AA_InteractableActor
+class ALSEXTRAS_API AA_Wire : public AA_WireConnector
 {
 	GENERATED_BODY()
 
@@ -24,44 +23,13 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
-	UStaticMeshComponent* FemaleMeshComponent;
-
-	UFUNCTION(BlueprintCallable, Category = "Wire")
-	void SetConnectorType(bool bIsMale);
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
-	void GetConnectorType(UStaticMeshComponent*& ConnectorMesh, FString& ConnectorType, bool& bIsMale) const { ConnectorMesh = CurrentConnectorMeshComponent; ConnectorType = CurrentConnectorType; bIsMale = bIsMaleUsed; }
-
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Wire")
-	void OnConnectorTypeChanged(bool bIsMale);
-
-	UFUNCTION(BlueprintCallable, Category = "Wire")
-	void SetPower(bool OnPower);
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
-	bool GetPower() const { return bIsOnPower; }
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Wire")
-	void OnPowerChanged(bool OnPower);
-
 private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
+	UStaticMesh* OppositeConnectorMesh;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UCableComponent* CableComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UPhysicsConstraintComponent* Constraint;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
-	UStaticMeshComponent* CurrentConnectorMeshComponent;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
-	uint8 bIsMaleUsed : 1{true};
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
-	uint8 bIsOnPower : 1{false};
-
-	UPROPERTY()
-	FName DefaultName;
 };
