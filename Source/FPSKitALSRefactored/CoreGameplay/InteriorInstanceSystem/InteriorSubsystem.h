@@ -81,27 +81,6 @@ struct FActiveMissionInterior
     TObjectPtr<UMissionController> Controller;
 };
 
-USTRUCT()
-struct FDelayedClear
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    FName MissionId;
-
-    UPROPERTY()
-    FMissionEnvelope Envelope;
-
-    UPROPERTY()
-    EJobSpacePolicy Policy;
-
-    UPROPERTY()
-    TArray<FEnvelopeChannelEntry> EndChannels;
-
-    UPROPERTY()
-    bool IsValid = false;
-};
-
 UCLASS()
 class FPSKITALSREFACTORED_API UInteriorSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods, public ISaveableSubsystem
 {
@@ -157,7 +136,7 @@ public:
     TArray<FFloorPopulationRecord> GetPlacedActorsForInteriorFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const;
 
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
-    void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason, bool IsSaveAll = false);
+    void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason);
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
     int32 RestoreFloorActorsState(const FGuid& InteriorSetId, int32 CurrentMissionStep, const FGuid& FloorId);
     int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope);
@@ -218,8 +197,8 @@ private:
     void HandleReleaseMissionSnapshot(const FOutcomeEventBase& Outcome);
     void HandleUpdateMissionList(const FOutcomeEventBase& Outcome);
     void HandleCompleteMission(const FOutcomeEventBase& Outcome);
-    void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason, bool IsSaveAll = false);
-    void StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EJobSpacePolicy Policy, TArray<FEnvelopeChannelEntry>& EndChannels);
+    void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
+    void StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EMissionEndReason EndReason);
 
     void SubscribeAll();
     void UnsubscribeAll();
@@ -239,17 +218,26 @@ private:
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloor;
     UPROPERTY()
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> DestroyedActorsByInteriorFloor;
+    //UPROPERTY()
+    //TMap<FInteriorFloorKey, FFloorPopulationBuckets> PersistentSpawnedActors;
+    //UPROPERTY()
+    //TMap<FInteriorFloorKey, FFloorPopulationBuckets> PersistentDestroyedActors;
 
     TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> FloorStateSnapshots;
     TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
     mutable TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> MissionSnapshotQueryCache;
 
+    UPROPERTY()
     TMap<FName, FActiveMissionInterior> ActiveMissions;
+
     UPROPERTY()
     FInteriorFloorKey CurrentKey;
     UPROPERTY()
     UInteriorTransitionPayload* TransitionPayloadCache = nullptr;
-    
+
+    UPROPERTY()
+    TArray<AActor*> TestAllActors;
+
     UPROPERTY()
     bool bHasPendingSpawn = false;
     UPROPERTY()
@@ -290,10 +278,7 @@ private:
     UPROPERTY()
     UOutcomeConditionAsset* CompleteMissionConditionAsset = nullptr;
 
-	bool IsLoadingFromSave = false;
-	bool IsSaveing = false;
-
-    FDelayedClear DelayedClear;
+	//bool IsLoadingFromSave = false;
 
     FOutcomeHandlerHandle SpawnRegisterHandle;
     FOutcomeHandlerHandle DespawnRegisterHandle;
