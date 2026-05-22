@@ -956,6 +956,16 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 	{
 		return;
 	}
+
+	if (Reason != EMissionEndReason::None)
+	{
+		auto* PerFloor = MissionFloorSnapshots.Find(CurrentKey);
+		if (PerFloor)
+		{
+			PerFloor->Remove(MissionId);
+		}
+	}
+
     // существующая логика: сохраняем в MissionFloorSnapshots[Key][MissionId]
     TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionFloorSnapshots.FindOrAdd(Key);
     TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
@@ -967,7 +977,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
     int32 AddedCount   = 0;
     int32 UpdatedCount = 0;
 
-    for (TActorIterator<AActor> It(W); It; ++It)
+	for (TActorIterator<AActor> It(W); It; ++It)
     {
         AActor* Actor = *It;
         if (!IsValid(Actor)) continue;
@@ -2979,12 +2989,13 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 			}
 		}
 
+		/*
 		if (P->IsUpdateSnapshots)
 		{
 			StoreCurrentLevel(Envelope, P->CurrentMissionId, EMissionEndReason::Completed);
 			StoreSnapshot(P->CurrentMissionId, Envelope, EMissionEndReason::Completed);
 		}
-
+		*/
 	}
 }
 
@@ -3087,6 +3098,7 @@ void UInteriorSubsystem::StoreCurrentLevel(FMissionEnvelope Envelope, FName Miss
 
 void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EMissionEndReason EndReason)
 {
+	FloorStateSnapshots.Empty();
 	for (auto& Pair : MissionFloorSnapshots)
 	{
 		const FInteriorFloorKey& FloorKey = Pair.Key;
