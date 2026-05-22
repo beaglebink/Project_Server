@@ -1067,6 +1067,7 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 	}
 
 	// Apply JobSpacePolicy only for the top-priority mission
+	/*
 	if (!TopMissionId.IsNone())
 	{
 		if (FActiveMissionEntry* TopEntry = ActiveMissions.Find(TopMissionId))
@@ -1091,5 +1092,6 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 			}
 		}
 	}
+	*/
 }
 

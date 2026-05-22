@@ -15,7 +15,8 @@ enum class EFloorActorType : uint8
 	Terminal			UMETA(DisplayName = "Terminal"),
 	InventoryItems 		UMETA(DisplayName = "Inventory Items"),
 	NPC_Spawner 		UMETA(DisplayName = "NPC Spawner"),
-	LocationTriggers    UMETA(DisplayName = "Location Triggers")
+	LocationTriggers    UMETA(DisplayName = "Location Triggers"),
+	MAX
 };
 
 // Key: specific building (InteriorSetId) + floor (FloorId)
