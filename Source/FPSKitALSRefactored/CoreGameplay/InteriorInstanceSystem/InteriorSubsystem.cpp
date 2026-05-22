@@ -942,11 +942,13 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 	auto MissionInterior = ActiveMissions.Find(MissionId);
 	FMissionEnvelope Envelope = FMissionEnvelope();
+	TArray<FMissionEnvelope> Envelopes;
+	int32 MissionStep;
 	if (MissionInterior)
 	{
-		int32 MissionStep = MissionInterior->MissionStep;
+		MissionStep = MissionInterior->MissionStep;
 		auto Controller = MissionInterior->Controller;
-		TArray<FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
+		Envelopes = Controller->GetEnvelopes();
 		if(Envelopes.IsValidIndex(MissionStep))
 		{
 			Envelope = Envelopes[MissionStep];
@@ -990,6 +992,12 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 		if (Reason != EMissionEndReason::None)
 		{
+			if (!Envelopes.IsValidIndex(MissionStep + 1))
+			{
+				RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
+				RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
+			}
+
 			/*
 			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
 			{
@@ -1293,28 +1301,36 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 		{
 			AActor* ChildActor = *ActorPtr;
 			if (!IsValid(ChildActor)) continue;
-
-			AActor* ParentActor = ChildActor->GetAttachParentActor();
-			bool bAppliedRelative = false;
-			if (IsValid(ParentActor))
+			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
 			{
-				TArray<UChildActorComponent*> ParentChildComps;
-				ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
-				for (UChildActorComponent* ParentChildComp : ParentChildComps)
+				AActor* ParentActor = ChildActor->GetAttachParentActor();
+				bool bAppliedRelative = false;
+				if (IsValid(ParentActor))
 				{
-					if (IsValid(ParentChildComp) && ParentChildComp->GetChildActor() == ChildActor)
+					TArray<UChildActorComponent*> ParentChildComps;
+					ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
+					for (UChildActorComponent* ParentChildComp : ParentChildComps)
 					{
-						ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
-						bAppliedRelative = true;
-						break;
+						if (IsValid(ParentChildComp) && ParentChildComp->GetChildActor() == ChildActor)
+						{
+							ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
+							bAppliedRelative = true;
+							break;
+						}
+					}
+				}
+				if (!bAppliedRelative)
+					ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+
+				if (IsCurrentWorldMissionConst(Envelope))
+				{
+					if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
+					{
+						RestoreActorSnapshot(ChildActor, Snapshot, false);
+						++Restored;
 					}
 				}
 			}
-			if (!bAppliedRelative)
-				ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
-
-			RestoreActorSnapshot(ChildActor, Snapshot, false);
-			++Restored;
 		}
 	}
 
