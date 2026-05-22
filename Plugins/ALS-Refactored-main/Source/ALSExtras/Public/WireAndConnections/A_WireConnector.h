@@ -28,6 +28,12 @@ public:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
 	AA_WireConnector* OppositeConnector;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Wire")
+	TSubclassOf<AA_DropZone> OppositeConnectionClass;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
+	AA_DropZone* OppositeConnection;
+
 	UFUNCTION(BlueprintCallable, Category = "Wire")
 	void SetPower(bool OnPower);
 
