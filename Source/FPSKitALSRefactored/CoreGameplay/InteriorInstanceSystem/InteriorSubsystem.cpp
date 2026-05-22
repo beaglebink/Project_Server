@@ -2941,6 +2941,26 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 {
 	if (UUpdateMissionListPayload* P = Cast<UUpdateMissionListPayload>(Outcome.Payload))
 	{
+		// Обновляем список активных миссий
+		ActiveMissions.Empty();
+		TArray<FName> Keys;
+		TMap<FName, FActiveMissionEntry> Map = P->ActiveMissions;
+		Map.GetKeys(Keys);
+
+		for (const FName& MissionId : Keys)
+		{
+			if (!MissionId.IsNone())
+			{
+				FActiveMissionInterior MissionInterior;
+				MissionInterior.MissionId = MissionId;
+				MissionInterior.MissionStep = Map[MissionId].MissionStep;
+				MissionInterior.Controller = Map[MissionId].Controller;
+				MissionInterior.Controller->MissionStep = MissionInterior.MissionStep;
+				ActiveMissions.Add(MissionId, MissionInterior);
+			}
+		}
+
+
 		// Определяем текущий Envelope для сохранения snapshot (если требуется)
 		FMissionEnvelope Envelope;
 		if (P->IsUpdateSnapshots)
@@ -2965,24 +2985,6 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 			StoreSnapshot(P->CurrentMissionId, Envelope, EMissionEndReason::Completed);
 		}
 
-		// Обновляем список активных миссий
-		ActiveMissions.Empty();
-		TArray<FName> Keys;
-		TMap<FName, FActiveMissionEntry> Map = P->ActiveMissions;
-		Map.GetKeys(Keys);
-
-		for (const FName& MissionId : Keys)
-		{
-			if (!MissionId.IsNone())
-			{
-				FActiveMissionInterior MissionInterior;
-				MissionInterior.MissionId = MissionId;
-				MissionInterior.MissionStep = Map[MissionId].MissionStep;
-				MissionInterior.Controller = Map[MissionId].Controller;
-				MissionInterior.Controller->MissionStep = MissionInterior.MissionStep;
-				ActiveMissions.Add(MissionId, MissionInterior);
-			}
-		}
 	}
 }
 
