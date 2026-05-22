@@ -163,7 +163,7 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 				{
 					StaticMeshComponent->SetSimulatePhysics(false);
 					Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-					Item->AttachingDropZone.Add(StaticMeshComponent, ChoosenDropZone);
+					Item->AttachingDropZone = ChoosenDropZone;
 					ChoosenDropZone->bIsOccupied = true;
 					ChoosenDropZone->SetMeshMaterialAndState(0, false);
 				}
@@ -184,13 +184,13 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 
 			if (UStaticMeshComponent* StaticMeshComponent = Params.ReturnValue)
 			{
-				if (Item->AttachingDropZone.Find(StaticMeshComponent) != nullptr)
+				if (Item->AttachingDropZone)
 				{
 					StaticMeshComponent->SetSimulatePhysics(true);
 					Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-					Item->AttachingDropZone[StaticMeshComponent]->bIsOccupied = false;
-					Item->AttachingDropZone[StaticMeshComponent]->SetMeshMaterialAndState(3, false);
-					Item->AttachingDropZone.Remove(StaticMeshComponent);
+					Item->AttachingDropZone->bIsOccupied = false;
+					Item->AttachingDropZone->SetMeshMaterialAndState(3, false);
+					Item->AttachingDropZone = nullptr;
 				}
 			}
 		}
