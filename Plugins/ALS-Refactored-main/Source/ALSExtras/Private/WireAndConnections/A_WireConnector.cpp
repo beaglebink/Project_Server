@@ -29,6 +29,12 @@ void AA_WireConnector::Destroyed()
 
 	if (IsValid(OppositeConnector))
 	{
+		if (IsValid(OppositeConnection))
+		{
+			OppositeConnector->OppositeConnection = nullptr;
+			OppositeConnection->Destroy();
+		}
+
 		OppositeConnector->OppositeConnector = nullptr;
 		OppositeConnector->Destroy();
 	}

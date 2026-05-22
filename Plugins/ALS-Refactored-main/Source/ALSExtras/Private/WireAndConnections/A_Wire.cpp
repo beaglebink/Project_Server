@@ -35,15 +35,17 @@ void AA_Wire::OnConstruction(const FTransform& Transform)
 	{
 		if (OppositeConnectorClass)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("Spawning OppositeConnector"));
 			OppositeConnector = GetWorld()->SpawnActor<AA_WireConnector>(OppositeConnectorClass, GetActorLocation() + GetActorForwardVector() * 250.0f, GetActorRotation());
 		}
 	}
 
 	if (!IsValid(OppositeConnection))
 	{
-		if (OppositeConnectorClass)
+		if (OppositeConnectionClass)
 		{
-			OppositeConnection = GetWorld()->SpawnActor<AA_DropZone>(OppositeConnectionClass, OppositeConnector->GetActorLocation(),OppositeConnector->GetActorRotation());
+			UE_LOG(LogTemp, Warning, TEXT("Spawning OppositeConnection"));
+			OppositeConnection = GetWorld()->SpawnActor<AA_DropZone>(OppositeConnectionClass, OppositeConnector->GetActorTransform());
 		}
 	}
 #endif
@@ -67,6 +69,7 @@ void AA_Wire::OnConstruction(const FTransform& Transform)
 
 	if (IsValid(OppositeConnection))
 	{
+		OppositeConnector->OppositeConnection = OppositeConnection;
 		OppositeConnection->AttachToActor(OppositeConnector, FAttachmentTransformRules::SnapToTargetIncludingScale, "ConnectorSocket");
 	}
 }

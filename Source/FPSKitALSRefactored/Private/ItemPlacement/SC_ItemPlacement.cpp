@@ -84,7 +84,6 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 	{
 		if (!DropZone->bIsOccupied)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%s --- %s"), *DropZone->ItemName.ToString(), *ItemName.ToString()));
 			if (DropZone->ItemName == ItemName)
 			{
 				ChoosenDropZones.Add(DropZone);
