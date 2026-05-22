@@ -34,27 +34,7 @@
 #include "../SaveGame/GameSaveSubsystem.h"
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
-/*
-static TArray<EFloorActorType> GetActorTypesForEnvelopeChannel(EEnvelopeChannel Channel)
-{
-	static TMap<EEnvelopeChannel, TArray<EFloorActorType>> ChannelToTypes = []()
-		{
-			TMap<EEnvelopeChannel, TArray<EFloorActorType>> Result;
 
-			// Перебираем все допустимые значения перечисления (0 .. MAX-1)
-			for (int32 i = 0; i < static_cast<int32>(EFloorActorType::MAX); ++i)
-			{
-				EFloorActorType ActorType = static_cast<EFloorActorType>(i);
-				EEnvelopeChannel Channel = FloorActorTypeToEnvelopeChannel(ActorType);
-				Result.FindOrAdd(Channel).Add(ActorType);
-			}
-			return Result;
-		}();
-
-	return ChannelToTypes.FindRef(Channel);
-
-}
-*/
 auto RemoveActorsOfTypeForFloor = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap,
 	const FGuid& InteriorSetId,
 	const FGuid& FloorId,
@@ -85,15 +65,6 @@ auto RemoveActorsOfTypeForFloor = [](TMap<FInteriorFloorKey, FFloorPopulationBuc
 		default:
 			return false; // неизвестный тип, ничего не делаем
 		}
-		/*
-		// Если после удаления все массивы пусты — удаляем ключ из карты
-		if (Buckets->HeavyFurniture.IsEmpty() && Buckets->LightItems.IsEmpty() &&
-			Buckets->Terminals.IsEmpty() && Buckets->NPCSpawners.IsEmpty() &&
-			Buckets->Debris.IsEmpty())
-		{
-			SpawnedMap.Remove(Key);
-		}
-		*/
 		return true;
 	};
 
@@ -182,24 +153,6 @@ auto RemoveRecordByItemId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>&
 			if (Pair.Key != Key)
 				continue;
 			
-			
-			/*
-			FFloorPopulationBuckets& Buckets = Pair.Value;
-
-			// Лямбда для удаления из массива
-			auto RemoveFromArray = [&](TArray<FFloorPopulationRecord>& Arr)
-				{
-					int32 OldCount = Arr.Num();
-					Arr.RemoveAll([&ItemId](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ItemId; });
-					if (OldCount != Arr.Num()) bRemoved = true;
-				};
-
-			RemoveFromArray(Buckets.HeavyFurniture);
-			RemoveFromArray(Buckets.LightItems);
-			RemoveFromArray(Buckets.Terminals);
-			RemoveFromArray(Buckets.NPCSpawners);
-			RemoveFromArray(Buckets.Debris);
-			*/
 		}
 
 		return bRemoved;
@@ -1001,13 +954,6 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 				}
 			}
 
-			/*
-			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
-			{
-				RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
-				RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
-			}
-			*/
 			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
 				continue;
 		}
@@ -1579,7 +1525,7 @@ bool UInteriorSubsystem::IsCurrentWorldMission(FMissionEnvelope& Envelope)
 	bool IsMissionWorld = false;
 
 	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-	for (const auto Pair : ActiveMissions)
+	for (const auto& Pair : ActiveMissions)
 	{
 		const UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
@@ -2418,14 +2364,9 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						}
 					}
 
-
-
-
-
 					RestoreSpawnedActorsForCurrentFloor(FindedEnvelope);
 
 					RestoreFromSnapshotArray(World, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FindedEnvelope);
-
 				}
 			}
 
@@ -2958,7 +2899,6 @@ UMissionController* UInteriorSubsystem::CreateMission(UMissionAsset* MissionAsse
 	return Controller;
 }
 
-
 void UInteriorSubsystem::HandleReleaseMissionSnapshot(const FOutcomeEventBase& Outcome)
 {
 	if (UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(Outcome.Payload))
@@ -3035,32 +2975,9 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 			FMissionEnvelope Envelope = MissionAsset->Envelopes[MissionInterior->MissionStep];
 
 			EJobSpacePolicy Policy = EJobSpacePolicy::None;
-			
-			switch (P->EndReason)
-			{
-				case EMissionEndReason::Completed:
-				{
-					Policy =Envelope.NextStagePolicy;
-					EndChannels = Envelope.NextStagePolicyChannels;
-					break;
-				}
-				case EMissionEndReason::Failed:
-				{
-					Policy = Envelope.MissionFailedPolicy;
-					EndChannels = Envelope.MissionFailedPolicyChannels;
-					break;
-				}
-				case EMissionEndReason::Abandoned:
-				{
-					Policy = Envelope.MissionAbandonedPolicy;
-					EndChannels = Envelope.MissionAbandonedChannels;
-					break;
-				}
-			}
 
 			StoreCurrentLevel(Envelope, MissionId, P->EndReason);
 			StoreSnapshot(MissionId, Envelope, P->EndReason);
-
 
 			ActiveMissions.Remove(MissionId);
 			MissionFloorSnapshots.Find(CurrentKey)->Remove(MissionId);
@@ -3125,241 +3042,6 @@ void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelop
 		FloorStateSnapshots.Add(FloorKey, PerFloor[MissionId]);
 	}
 	return;
-
-	/*
-	EJobSpacePolicy Policy = EJobSpacePolicy::None;
-	TArray<FEnvelopeChannelEntry> EndChannels;
-
-	switch (EndReason)
-	{
-	case EMissionEndReason::None:
-	{
-		Policy = Envelope.RuntimePolicy;
-		break;
-	}
-	case EMissionEndReason::Completed:
-	{
-		Policy = Envelope.NextStagePolicy;
-		break;
-	}
-	case EMissionEndReason::Failed:
-	{
-		Policy = Envelope.MissionFailedPolicy;
-		break;
-	}
-	case EMissionEndReason::Abandoned:
-	{
-		Policy = Envelope.MissionAbandonedPolicy;
-		break;
-	}
-	}
-
-	switch (Policy)
-	{
-	case EJobSpacePolicy::Reset:
-	{
-		if(auto Map = MissionFloorSnapshots.Find(CurrentKey))
-		{
-			Map->Remove(MissionId);
-		}
-
-		if (auto Array = FloorStateSnapshots.Find(CurrentKey))
-		{
-			Array->Empty();
-		}
-		
-		if (FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(CurrentKey))
-		{
-			RemoveRecordsForChannel(PersSpawned->HeavyFurniture, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture));
-			RemoveRecordsForChannel(PersSpawned->LightItems, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem));
-			RemoveRecordsForChannel(PersSpawned->Terminals, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal));
-			RemoveRecordsForChannel(PersSpawned->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
-			RemoveRecordsForChannel(PersSpawned->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
-		}
-		if (FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(CurrentKey))
-		{
-			RemoveRecordsForChannel(PersDestroyed->HeavyFurniture, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture));
-			RemoveRecordsForChannel(PersDestroyed->LightItems, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem));
-			RemoveRecordsForChannel(PersDestroyed->Terminals, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal));
-			RemoveRecordsForChannel(PersDestroyed->NPCSpawners, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner));
-			RemoveRecordsForChannel(PersDestroyed->Debris, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris));
-		}
-
-		break;
-	}
-	case EJobSpacePolicy::Freeze:
-	{
-		// Статические снапшоты свойств
-		for (auto& Pair : MissionFloorSnapshots)
-		{
-			const FInteriorFloorKey& FloorKey = Pair.Key;
-			TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
-			if (!PerFloor.Contains(MissionId)) continue;
-			FloorStateSnapshots.Add(FloorKey, PerFloor[MissionId]);
-		}
-		break;
-	}
-
-	
-
-	case EJobSpacePolicy::Partial:
-	{
-		switch (EndReason)
-		{
-		case EMissionEndReason::None:
-		{
-			EndChannels = Envelope.RuntimePolicyChannels;
-			break;
-		}
-		case EMissionEndReason::Completed:
-		{
-			EndChannels = Envelope.NextStagePolicyChannels;
-			break;
-		}
-		case EMissionEndReason::Failed:
-		{
-			EndChannels = Envelope.MissionFailedPolicyChannels;
-			break;
-		}
-		case EMissionEndReason::Abandoned:
-		{
-			EndChannels = Envelope.MissionAbandonedChannels;
-			break;
-		}
-	}
-			
-		for (const FEnvelopeChannelEntry& ChannelEntry : EndChannels)
-		{
-			if (ChannelEntry.Policy == EChannelPolicy::Freeze)
-			{
-				// 1) Копируем статические снапшоты для этого канала
-				for (auto& Pair : MissionFloorSnapshots)
-				{
-					const FInteriorFloorKey& FloorKey = Pair.Key;
-					TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
-					if (!PerFloor.Contains(MissionId)) continue;
-					const TArray<FFloorSavedActorState>& MissionSnap = PerFloor[MissionId];
-					TArray<FFloorSavedActorState>& BaseSnap = FloorStateSnapshots.FindOrAdd(FloorKey);
-
-					for (const FFloorSavedActorState& ActorSnap : MissionSnap)
-					{
-						FGuid FoundItemId;
-						EEnvelopeChannel ActorChannel = EEnvelopeChannel::None;
-						if (UWorld* W = GetWorld())
-						{
-							for (TActorIterator<AActor> It(W); It; ++It)
-							{
-								AActor* Actor = *It;
-								if (!IsValid(Actor)) continue;
-								if (UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>())
-								{
-									if (FAC->SnapshotChannel == ESnapshotChannel::None) continue;
-
-									if (FAC->ItemId == ActorSnap.ItemId)
-									{
-										FoundItemId = FAC->ItemId;
-										ActorChannel = FloorActorTypeToEnvelopeChannel(FAC->ActorType);
-										break;
-									}
-								}
-							}
-						}
-
-						if (ActorChannel == EEnvelopeChannel::None) continue;
-
-						if (ActorChannel == ChannelEntry.Channel)
-						{
-							BaseSnap.RemoveAll([&FoundItemId](const FFloorSavedActorState& State)
-								{
-									return State.ItemId == FoundItemId;
-								});
-
-							BaseSnap.Add(ActorSnap);
-						}
-					}
-				}
-				
-				// 2) Копируем динамические карты для этого канала
-				/*
-				for (auto& Pair : MissionFloorSnapshots)
-				{
-					const FInteriorFloorKey& FloorKey = Pair.Key;
-
-					if (FloorKey != CurrentKey)
-						continue;
-
-					FFloorPopulationBuckets& PersSpawned = SpawnedActorsByInteriorFloor.FindOrAdd(FloorKey);
-					FFloorPopulationBuckets& PersDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(FloorKey);
-
-					if (auto Temp = FloorStateSnapshots.Find(FloorKey))
-					{
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EndReason, true))
-						{
-							PersSpawned.HeavyFurniture.Empty();
-						}
-
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EndReason, true))
-						{
-							PersSpawned.LightItems.Empty();
-						}
-						
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EndReason, true))
-						{
-							PersSpawned.Terminals.Empty();
-						}
-
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EndReason, true))
-						{
-							PersSpawned.NPCSpawners.Empty();
-						}
-
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EndReason, true))
-						{
-							PersSpawned.Debris.Empty();
-						}
-					}
-					if (const FFloorPopulationBuckets* TempDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
-					{
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EndReason, true))
-						{
-							PersDestroyed.HeavyFurniture.Empty();
-						}
-						
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EndReason, true))
-						{
-							PersDestroyed.LightItems.Empty();
-						}
-
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EndReason, true))
-						{
-							PersDestroyed.Terminals.Empty();
-						}
-
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EndReason, true))
-						{
-							PersDestroyed.NPCSpawners.Empty();
-						}
-						
-						if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EndReason, true))
-						{
-							PersDestroyed.Debris.Empty();
-						}
-					}
-				}
-
-			}
-			else if (ChannelEntry.Policy == EChannelPolicy::Reset)
-			{
-			}
-		}
-		break;
-	}
-	case EJobSpacePolicy::None:
-	{
-		return;
-	}
-	}
-				*/
 }
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)
