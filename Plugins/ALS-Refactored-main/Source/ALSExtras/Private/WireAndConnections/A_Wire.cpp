@@ -2,6 +2,7 @@
 #include "CableComponent.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "WireAndConnections/A_WireConnector.h"
+#include "ItemPlacement/A_DropZone.h"
 
 AA_Wire::AA_Wire()
 {
@@ -34,7 +35,17 @@ void AA_Wire::OnConstruction(const FTransform& Transform)
 	{
 		if (OppositeConnectorClass)
 		{
-			OppositeConnector = GetWorld()->SpawnActor<AA_WireConnector>(OppositeConnectorClass, GetActorTransform());
+			UE_LOG(LogTemp, Warning, TEXT("Spawning OppositeConnector"));
+			OppositeConnector = GetWorld()->SpawnActor<AA_WireConnector>(OppositeConnectorClass, GetActorLocation() + GetActorForwardVector() * 250.0f, GetActorRotation());
+		}
+	}
+
+	if (!IsValid(OppositeConnection))
+	{
+		if (OppositeConnectionClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Spawning OppositeConnection"));
+			OppositeConnection = GetWorld()->SpawnActor<AA_DropZone>(OppositeConnectionClass, OppositeConnector->GetActorTransform());
 		}
 	}
 #endif
@@ -54,6 +65,12 @@ void AA_Wire::OnConstruction(const FTransform& Transform)
 		Constraint->SetLinearXLimit(ELinearConstraintMotion::LCM_Limited, CableComponent->CableLength);
 		Constraint->SetLinearYLimit(ELinearConstraintMotion::LCM_Limited, CableComponent->CableLength);
 		Constraint->SetLinearZLimit(ELinearConstraintMotion::LCM_Limited, CableComponent->CableLength);
+	}
+
+	if (IsValid(OppositeConnection))
+	{
+		OppositeConnector->OppositeConnection = OppositeConnection;
+		OppositeConnection->AttachToActor(OppositeConnector, FAttachmentTransformRules::SnapToTargetIncludingScale, "ConnectorSocket");
 	}
 }
 

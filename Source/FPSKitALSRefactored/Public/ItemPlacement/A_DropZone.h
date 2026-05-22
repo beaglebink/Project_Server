@@ -28,9 +28,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|WireConnector")
 	FString WirePlugInConnectorType{""};
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|WireConnector")
-	uint8 bShouldUseSecondMeshIfWireConnector : 1{false};
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "DropZone|ItemCollision")
 	USphereComponent* ItemSphereCollision;

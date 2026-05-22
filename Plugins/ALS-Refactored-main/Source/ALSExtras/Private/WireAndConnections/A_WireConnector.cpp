@@ -1,8 +1,11 @@
 #include "WireAndConnections/A_WireConnector.h"
+#include "ItemPlacement/A_DropZone.h"
 
 AA_WireConnector::AA_WireConnector()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	StaticMesh->SetCollisionResponseToChannel(ECC_GameTraceChannel4, ECR_Ignore);
 }
 
 void AA_WireConnector::OnConstruction(const FTransform& Transform)
@@ -26,6 +29,12 @@ void AA_WireConnector::Destroyed()
 
 	if (IsValid(OppositeConnector))
 	{
+		if (IsValid(OppositeConnection))
+		{
+			OppositeConnector->OppositeConnection = nullptr;
+			OppositeConnection->Destroy();
+		}
+
 		OppositeConnector->OppositeConnector = nullptr;
 		OppositeConnector->Destroy();
 	}
