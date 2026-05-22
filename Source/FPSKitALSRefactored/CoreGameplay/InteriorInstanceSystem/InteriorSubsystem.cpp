@@ -994,8 +994,11 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 		{
 			if (!Envelopes.IsValidIndex(MissionStep + 1))
 			{
-				RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
-				RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
+				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+				{
+					RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
+					RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
+				}
 			}
 
 			/*
