@@ -137,6 +137,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
     void SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason);
+    void SaveFloorActorsStateComplete(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason);
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Persistence")
     int32 RestoreFloorActorsState(const FGuid& InteriorSetId, int32 CurrentMissionStep, const FGuid& FloorId);
     int32 RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope);
@@ -198,6 +199,7 @@ private:
     void HandleUpdateMissionList(const FOutcomeEventBase& Outcome);
     void HandleCompleteMission(const FOutcomeEventBase& Outcome);
     void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
+    void StoreCurrentLevelComplete(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
     void StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EMissionEndReason EndReason);
 
     void SubscribeAll();

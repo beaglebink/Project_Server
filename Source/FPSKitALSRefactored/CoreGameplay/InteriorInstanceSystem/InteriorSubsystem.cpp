@@ -943,8 +943,8 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 		const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(Comp->ActorType);
 
-		if (Reason != EMissionEndReason::None)
-		{
+		//if (Reason != EMissionEndReason::None)
+		//{
 			if (!Envelopes.IsValidIndex(MissionStep + 1))
 			{
 				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
@@ -954,25 +954,26 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 				}
 			}
 
-			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
-				continue;
+			if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+			{
+				FFloorSavedActorState Snapshot;
+				Snapshot.ItemId = Comp->ItemId;
+				SnapshotActor(Actor, Snapshot);
+
+				if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
+				{
+					Bucket[*FoundIdx] = MoveTemp(Snapshot);
+					++UpdatedCount;
+				}
+				else
+				{
+					Bucket.Add(MoveTemp(Snapshot));
+					ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
+					++AddedCount;
+				}
+			//}
 		}
 
-        FFloorSavedActorState Snapshot;
-        Snapshot.ItemId = Comp->ItemId;
-        SnapshotActor(Actor, Snapshot);
-
-        if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
-        {
-            Bucket[*FoundIdx] = MoveTemp(Snapshot);
-            ++UpdatedCount;
-        }
-        else
-        {
-            Bucket.Add(MoveTemp(Snapshot));
-            ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
-            ++AddedCount;
-        }
 
         TArray<UChildActorComponent*> ChildComps;
         Actor->GetComponents<UChildActorComponent>(ChildComps);
@@ -1011,6 +1012,156 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
     }
 }
 
+void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason/*, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry>& Channels*/)
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	FInteriorFloorKey Key(InteriorSetId, FloorId);
+
+	auto MissionInterior = ActiveMissions.Find(MissionId);
+	FMissionEnvelope Envelope = FMissionEnvelope();
+	TArray<FMissionEnvelope> Envelopes;
+	int32 MissionStep;
+	if (MissionInterior)
+	{
+		MissionStep = MissionInterior->MissionStep;
+		auto Controller = MissionInterior->Controller;
+		Envelopes = Controller->GetEnvelopes();
+		if (Envelopes.IsValidIndex(MissionStep))
+		{
+			Envelope = Envelopes[MissionStep];
+		}
+	}
+	else
+	{
+		return;
+	}
+
+	if (Reason != EMissionEndReason::None)
+	{
+		auto* PerFloor = MissionFloorSnapshots.Find(CurrentKey);
+		if (PerFloor)
+		{
+			PerFloor->Remove(MissionId);
+		}
+	}
+
+	// существующая логика: сохраняем в MissionFloorSnapshots[Key][MissionId]
+	TMap<FName, TArray<FFloorSavedActorState>>& PerFloorMission = MissionFloorSnapshots.FindOrAdd(Key);
+	TArray<FFloorSavedActorState>& BucketMission = PerFloorMission.FindOrAdd(MissionId);
+
+	TMap<FGuid, int32> ExistingIndex;
+	for (int32 i = 0; i < BucketMission.Num(); ++i)
+		ExistingIndex.Add(BucketMission[i].ItemId, i);
+
+	TArray<FFloorSavedActorState> & BucketFloor = FloorStateSnapshots.FindOrAdd(Key);
+	//TArray<FFloorSavedActorState>& BucketMission = PerFloorMission.FindOrAdd(MissionId);
+
+	TMap<FGuid, int32> ExistingFloorIndex;
+	for (int32 i = 0; i < BucketFloor.Num(); ++i)
+		ExistingFloorIndex.Add(BucketFloor[i].ItemId, i);
+
+	int32 AddedCount = 0;
+	int32 UpdatedCount = 0;
+
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!IsValid(Actor)) continue;
+
+		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+		if (!Comp) continue;
+		if (Comp->SnapshotChannel == ESnapshotChannel::None) continue;
+
+		const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(Comp->ActorType);
+
+		//if (Reason != EMissionEndReason::None)
+		//{
+			if (!Envelopes.IsValidIndex(MissionStep + 1))
+			{
+				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+				{
+					RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
+					RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
+				}
+			}
+
+			FFloorSavedActorState Snapshot;
+			Snapshot.ItemId = Comp->ItemId;
+			SnapshotActor(Actor, Snapshot);
+
+			if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
+			{
+				BucketMission[*FoundIdx] = MoveTemp(Snapshot);
+				++UpdatedCount;
+			}
+			else
+			{
+				BucketMission.Add(MoveTemp(Snapshot));
+				ExistingIndex.Add(BucketMission.Last().ItemId, BucketMission.Num() - 1);
+				++AddedCount;
+			}
+
+			if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+			{
+				if (int32* FoundFloorIdx = ExistingFloorIndex.Find(Snapshot.ItemId))
+				{
+					BucketFloor[*FoundFloorIdx] = MoveTemp(Snapshot);
+
+				}
+				else
+				{
+					BucketFloor.Add(MoveTemp(Snapshot));
+					ExistingFloorIndex.Add(BucketFloor.Last().ItemId, BucketFloor.Num() - 1);
+				}
+			}
+		//}
+
+		//FFloorSavedActorState Snapshot;
+		//Snapshot.ItemId = Comp->ItemId;
+		//SnapshotActor(Actor, Snapshot);
+
+
+
+		TArray<UChildActorComponent*> ChildComps;
+		Actor->GetComponents<UChildActorComponent>(ChildComps);
+		for (UChildActorComponent* ChildComp : ChildComps)
+		{
+			if (!IsValid(ChildComp)) continue;
+			AActor* ChildActor = ChildComp->GetChildActor();
+			if (!IsValid(ChildActor)) continue;
+
+			UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
+			if (!ChildFloorComp) continue;
+			if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
+			if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
+
+			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+				continue;
+
+			FFloorSavedActorState ChildSnapshot;
+			ChildSnapshot.ItemId = ChildFloorComp->ItemId;
+			ChildSnapshot.RelativeTransform = ChildComp->GetRelativeTransform();
+			ChildSnapshot.bHasRelativeTransform = true;
+			SnapshotActor(ChildActor, ChildSnapshot);
+
+			if (int32* ChildIdx = ExistingIndex.Find(ChildSnapshot.ItemId))
+			{
+				BucketMission[*ChildIdx] = MoveTemp(ChildSnapshot);
+				++UpdatedCount;
+			}
+			else
+			{
+				BucketMission.Add(MoveTemp(ChildSnapshot));
+				ExistingIndex.Add(BucketMission.Last().ItemId, BucketMission.Num() - 1);
+				++AddedCount;
+			}
+		}
+	}
+}
+
+
 // -----------------------------------------------------------------------------
 // RestoreFloorActorsState
 // -----------------------------------------------------------------------------
@@ -1022,9 +1173,7 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
 
     FInteriorFloorKey Key(InteriorSetId, FloorId);
 
-    // Ищем все снимки миссий для данного этажа
-    const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(Key);
-    if (!PerFloor || PerFloor->Num() == 0) return 0;
+
 
     // Собираем актёров этажа в словарь по ItemId
     TMap<FGuid, AActor*> ActorByItemId;
@@ -1052,6 +1201,10 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
             }
         }
     }
+
+	// Ищем все снимки миссий для данного этажа
+	const TMap<FName, TArray<FFloorSavedActorState>>* PerFloor = MissionFloorSnapshots.Find(Key);
+	if (!PerFloor || PerFloor->Num() == 0) return 0;
 
     int32 TotalRestored = 0;
 
@@ -1122,6 +1275,40 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 
 	// Собираем всех акторов текущего уровня, имеющих FloorAssignmentComponent
 	TMap<FGuid, AActor*> ActorByItemId;
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!IsValid(Actor)) continue;
+		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+		{
+			if (C->SnapshotChannel != ESnapshotChannel::None)
+			{
+				if (ContainsActorIdInSpawnedNew(DestroyedActorsByInteriorFloor, C->ItemId))
+				{
+					Actor->Destroy();
+					continue;
+				}
+				ActorByItemId.Add(C->ItemId, Actor);
+			}
+		}
+
+		TArray<UChildActorComponent*> ChildComps;
+		Actor->GetComponents<UChildActorComponent>(ChildComps);
+		for (UChildActorComponent* ChildComp : ChildComps)
+		{
+			if (!IsValid(ChildComp)) continue;
+			AActor* ChildActor = ChildComp->GetChildActor();
+			if (!IsValid(ChildActor)) continue;
+			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
+			{
+			if (CC->SnapshotChannel != ESnapshotChannel::None)
+				ActorByItemId.Add(CC->ItemId, ChildActor);
+			}
+		}
+	}
+
+	/*
+	//TMap<FGuid, AActor*> ActorByItemId;
 	TArray<AActor*> AllActors;
 	UGameplayStatics::GetAllActorsOfClass(W, AActor::StaticClass(), AllActors);
 	for (AActor* Actor : AllActors)
@@ -1135,42 +1322,23 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 				{
 					if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
 					{
+						//ActorByItemId.Add(C->ItemId, Actor);
 						RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, C->ActorType);
 						RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, C->ActorType);
-						//RemoveRecordByItemId(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, C->ItemId);
-						//RemoveRecordByItemId(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, C->ItemId);
-						continue;
 					}
-				}
-				
-				// Проверяем, не помечен ли актор на удаление через DestroyedActorsByInteriorFloor
-				if (ContainsActorIdInSpawnedNew(DestroyedActorsByInteriorFloor, C->ItemId))
-				{
-					Actor->Destroy();
-					continue;
-				}
-
-				FInteriorFloorKey Key(InteriorSetId, FloorId);
-				TArray<FFloorSavedActorState>* ActorStates = FloorStateSnapshots.Find(Key);
-				
-				auto HasItemId = [](const TArray<FFloorSavedActorState>* ActorStates, const FGuid& ItemId) -> bool
-					{
-						return ActorStates && ActorStates->ContainsByPredicate([&ItemId](const FFloorSavedActorState& State)
-							{
-								return State.ItemId == ItemId;
-							});
-					};
-
-				if (Envelope.IsValid() && !IsCurrentWorldMissionConst(Envelope) /* && !IsLoadingFromSave*/)
-				{
-					if (HasItemId(ActorStates, C->ItemId))
-					{
-						ActorByItemId.Add(C->ItemId, Actor);
-					}
+					//if (ContainsActorIdInSpawnedNew(DestroyedActorsByInteriorFloor, C->ItemId))
+					//{
+					//	Actor->Destroy();
+					//	continue;
+					//}
 				}
 				else
 				{
-					ActorByItemId.Add(C->ItemId, Actor);
+					//if (ContainsActorIdInSpawnedNew(DestroyedActorsByInteriorFloor, C->ItemId))
+					//{
+					//	Actor->Destroy();
+					//	continue;
+					//}
 				}
 			}
 		}
@@ -1186,27 +1354,13 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 			{
 				if (CC->SnapshotChannel != ESnapshotChannel::None)
 				{
-					if (Envelope.IsValid() && !ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
-					{
-						RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, CC->ActorType);
-						RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, CC->ActorType);
-						//RemoveRecordByItemId(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, CC->ItemId);
-						//RemoveRecordByItemId(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, CC->ItemId);
-						continue;
-					}
-
-					if (ContainsActorIdInSpawnedNew(DestroyedActorsByInteriorFloor, CC->ItemId))
-					{
-						ChildActor->Destroy();
-						continue;
-					}
-
 					ActorByItemId.Add(CC->ItemId, ChildActor);
 				}
 			}
 		}
+		
 	}
-
+	*/
 	int32 Restored = 0;
 
 	// First pass: root actors (без относительного преобразования)
@@ -1220,6 +1374,12 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 			{
 				if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
 				{
+					if (Envelope.IsValid() && !ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
+					{
+						RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, C->ActorType);
+						RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, C->ActorType);
+					}
+
 					if (Envelope.IsValid())
 					{
 						if (IsCurrentWorldMissionConst(Envelope))
@@ -2313,6 +2473,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			//SubscribePlacementRegistration();
 			SubscribeToSpawnActor();
 			// 2. Восстанавливаем базовые снапшоты состояния (FloorStateSnapshots)
+			FMissionEnvelope FindedEnvelope;
 			if (const TArray<FFloorSavedActorState>* BaseSnap = FloorStateSnapshots.Find(CurrentKey))
 			{
 				if (BaseSnap && !BaseSnap->IsEmpty())
@@ -2325,7 +2486,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
 					FString MissionName;
 					FName FindedMissionId;
-					FMissionEnvelope FindedEnvelope;
+					
 					for (const auto& Pair : ActiveMissions)
 					{
 						const UMissionController* Ctrl = Pair.Value.Controller;
@@ -2366,7 +2527,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 
 					RestoreSpawnedActorsForCurrentFloor(FindedEnvelope);
 
-					RestoreFromSnapshotArray(World, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FindedEnvelope);
+					RestoreFromSnapshotArray(World, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FMissionEnvelope());
 				}
 			}
 
@@ -2375,9 +2536,57 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			{
 				if (PerFloor->Num() > 0)
 				{
+
+					bool IsMissionWorld = false;
+
+					FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+					FString MissionName;
+					FName FindedMissionId;
+
+					for (const auto& Pair : ActiveMissions)
+					{
+						const UMissionController* Ctrl = Pair.Value.Controller;
+						if (!Ctrl) continue;
+
+						const UMissionAsset* Asset = Ctrl->GetMissionAsset();
+						if (!Asset) continue;
+
+						MissionName = Asset->Description.ToString();
+						const EMissionStatus Status = Ctrl->GetStatus();
+						const EMissionEndReason EndReason = Ctrl->GetEndReason();
+						const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+						const EMissionResumeMode Resume = Envelope.ResumeMode;
+						const int32 MissionStep = Pair.Value.MissionStep;
+
+						FMissionEnvelopeScope Scope = Envelope.Scope;
+						for (auto Sc : Scope.InteriorScopes)
+						{
+							FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+							FString NormTarget = NormalizeLevelName(ScopeLevelName);
+							FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+							if (NormTarget == NormCurrent)
+							{
+								IsMissionWorld = true;
+								FindedMissionId = Pair.Key;
+								FindedEnvelope = Envelope;
+								break;
+							}
+						}
+
+						if (IsMissionWorld)
+						{
+							break;
+						}
+					}
+
+
 					for (const auto& MissionPair : *PerFloor)
 					{
+
 						const FName& MissionId = MissionPair.Key;
+					/*
 						if (!ActiveMissions.Contains(MissionId))
 						{
 							RestoreSpawnedActorsForCurrentFloor(FMissionEnvelope());
@@ -2389,15 +2598,16 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 									UWorld* LocalWorld = GetWorld();
 									if (LocalWorld)
 									{
-										RestoreFromSnapshotArray(LocalWorld, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FMissionEnvelope());
+										RestoreFromSnapshotArray(LocalWorld, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FindedEnvelope);
 									}
 								}
 							}
 
 							continue;
 						}
-
+						*/
 						//ApplyPersistentPopulation(CurrentKey);
+						RestoreSpawnedActorsForCurrentFloor(FindedEnvelope);
 
 						int32 CurrentMissionStep = ActiveMissions[MissionId].MissionStep;
 						RestoreMissionFloorState(MissionId, CurrentMissionStep, CurrentKey);
@@ -2528,7 +2738,7 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 			auto MissionAsset = Controller->GetMissionAsset();
 			auto& Envelope = MissionAsset->Envelopes[CurrentMissionStep];
 
-			RestoreSpawnedActorsForCurrentFloor(Envelope);
+			RestoreSpawnedActorsForCurrentFloor(Envelope);			
 			RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
 		}
 	}
@@ -2932,8 +3142,8 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 
 		if (P->IsUpdateSnapshots)
 		{
-			StoreCurrentLevel(Envelope, P->CurrentMissionId, EMissionEndReason::Completed);
-			StoreSnapshot(P->CurrentMissionId, Envelope, EMissionEndReason::Completed);
+			StoreCurrentLevelComplete(Envelope, P->CurrentMissionId, EMissionEndReason::Completed);
+			//StoreSnapshot(P->CurrentMissionId, Envelope, EMissionEndReason::Completed);
 		}
 
 		// Обновляем список активных миссий
@@ -3030,6 +3240,53 @@ void UInteriorSubsystem::StoreCurrentLevel(FMissionEnvelope Envelope, FName Miss
 		}
 	}
 }
+
+void UInteriorSubsystem::StoreCurrentLevelComplete(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	FMissionEnvelopeScope Scope = Envelope.Scope;
+
+	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+
+	for (const auto& S : Scope.InteriorScopes)
+	{
+		if (!S)
+		{
+			continue;
+		}
+
+		//ScopesFound++;
+		FGuid FloorGuid = S->FloorID;
+		FGuid InteriorSetID = S->InteriorSetID;
+		if (!InteriorSetID.IsValid())
+		{
+			UInteriorSetAsset* LoadedSet = S->ParentInteriorSet.LoadSynchronous();
+			if (LoadedSet) InteriorSetID = LoadedSet->InteriorSetID;
+			else
+			{
+				continue;
+			}
+		}
+
+		FString ScopeLevelName = S->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+		FString NormTarget = NormalizeLevelName(ScopeLevelName);
+
+		// Также нормализуем текущее имя уровня (на случай если оно с префиксом)
+		FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+		if (NormTarget == NormCurrent)
+		{
+			SaveFloorActorsStateComplete(InteriorSetID, FloorGuid, MissionId, EndReason);
+		}
+	}
+}
+
 
 void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EMissionEndReason EndReason)
 {
