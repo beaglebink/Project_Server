@@ -793,7 +793,7 @@ int32 FFloorAssignerEditorLibrary::SelectActorsByFloor(const FGuid& FloorGuid)
 }
 
 // -----------------------------------------------------------------------------
-// Unregister selected actors (editor-only)
+// Unregister selected actors and their children (editor-only)
 // -----------------------------------------------------------------------------
 int32 FFloorAssignerEditorLibrary::UnregisterSelectedActors()
 {
@@ -803,18 +803,48 @@ int32 FFloorAssignerEditorLibrary::UnregisterSelectedActors()
     USelection* Selected = GEditor->GetSelectedActors();
     if (!Selected) return 0;
 
-    TArray<AActor*> Actors;
-    Selected->GetSelectedObjects<AActor>(Actors);
+    TArray<AActor*> SelectedActors;
+    Selected->GetSelectedObjects<AActor>(SelectedActors);
 
-    for (AActor* A : Actors)
+    // Множество для уникальных акторов, чтобы не обрабатывать одного дважды
+    TSet<AActor*> ActorsToProcess;
+
+    // Рекурсивный сбор всех акторов, связанных с выделенными
+    TFunction<void(AActor*)> CollectActors = [&](AActor* Actor)
+        {
+            if (!IsValid(Actor)) return;
+            if (ActorsToProcess.Contains(Actor)) return;
+            ActorsToProcess.Add(Actor);
+
+            // 1) Все прикреплённые акторы
+            TArray<AActor*> AttachedActors;
+            Actor->GetAttachedActors(AttachedActors, true); // true = включая детей
+            for (AActor* Attached : AttachedActors)
+                CollectActors(Attached);
+
+            // 2) Дочерние акторы через ChildActorComponent
+            TArray<UChildActorComponent*> ChildComponents;
+            Actor->GetComponents<UChildActorComponent>(ChildComponents);
+            for (UChildActorComponent* ChildComp : ChildComponents)
+            {
+                if (AActor* ChildActor = ChildComp->GetChildActor())
+                    CollectActors(ChildActor);
+            }
+        };
+
+    for (AActor* A : SelectedActors)
+        CollectActors(A);
+
+    // Обработка собранных акторов
+    for (AActor* Actor : ActorsToProcess)
     {
-        if (!IsValid(A)) continue;
+        if (!IsValid(Actor)) continue;
 
-        UFloorAssignmentComponent* Comp = A->FindComponentByClass<UFloorAssignmentComponent>();
+        UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
         if (!Comp) continue;
 
         Comp->Modify();
-        A->Modify();
+        Actor->Modify();
 
 #if WITH_EDITOR
         Comp->SnapshotChannel = ESnapshotChannel::None;
@@ -823,15 +853,13 @@ int32 FFloorAssignerEditorLibrary::UnregisterSelectedActors()
         Comp->FloorId.Invalidate();
         Comp->FloorName = FText::GetEmpty();
 
-        if (UPackage* Pkg = A->GetOutermost())
-        {
+        if (UPackage* Pkg = Actor->GetOutermost())
             Pkg->MarkPackageDirty();
-        }
 
         ++Count;
     }
 
-    FText Msg = FText::Format(FText::FromString(TEXT("Unregistered and cleared floor for {0} selected actors.")), FText::AsNumber(Count));
+    FText Msg = FText::Format(FText::FromString(TEXT("Unregistered and cleared floor for {0} actors (including children).")), FText::AsNumber(Count));
     FMessageDialog::Open(EAppMsgType::Ok, Msg);
 
     return Count;
