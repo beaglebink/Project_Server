@@ -608,16 +608,26 @@ namespace
 			OutSnapshot.ComponentStates.Add(MoveTemp(CState));
 		}
 	}
+}
 
-	static void RestoreActorSnapshot(AActor* Actor, const FFloorSavedActorState& Snapshot, bool bApplyWorldTransform = true)
+	static void RestoreActorSnapshot(AActor* Actor, const FFloorSavedActorState& Snapshot, bool bApplyWorldTransform = true, bool bForceRelative = false)
 	{
 		if (!IsValid(Actor)) return;
 
+		// 1. Устанавливаем мировую трансформацию актора, если требуется
 		if (bApplyWorldTransform)
+		{
 			Actor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
+		else
+		{
+			Actor->SetActorRelativeTransform(Snapshot.RelativeTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
 
+		// 2. Восстанавливаем SaveGame-свойства самого актора
 		ApplySaveGameProperties(Actor, Snapshot.ActorProperties);
 
+		// 3. Строим карту компонентов по имени для быстрого доступа
 		TMap<FName, UActorComponent*> ComponentsByName;
 		for (UActorComponent* C : Actor->GetComponents())
 		{
@@ -625,6 +635,7 @@ namespace
 			ComponentsByName.Add(C->GetFName(), C);
 		}
 
+		// 4. Сначала восстанавливаем аттачмент (привязку) для компонентов, у которых bWasAttached == true
 		for (const FFloorSavedComponentState& CState : Snapshot.ComponentStates)
 		{
 			if (!CState.bWasAttached) continue;
@@ -632,6 +643,7 @@ namespace
 			if (!Found || !IsValid(*Found)) continue;
 			USceneComponent* TargetSC = Cast<USceneComponent>(*Found);
 			if (!TargetSC) continue;
+
 			UActorComponent** ParentFound = ComponentsByName.Find(CState.AttachParentName);
 			if (ParentFound && IsValid(*ParentFound))
 			{
@@ -640,23 +652,37 @@ namespace
 			}
 		}
 
+		// 5. Восстанавливаем свойства и трансформации компонентов
 		for (const FFloorSavedComponentState& CState : Snapshot.ComponentStates)
 		{
 			UActorComponent** Found = ComponentsByName.Find(CState.ComponentName);
 			if (!Found || !IsValid(*Found)) continue;
 			UActorComponent* Target = *Found;
 
+			// Восстанавливаем SaveGame-свойства компонента
 			ApplySaveGameProperties(Target, CState.Properties);
 
+			// Восстанавливаем активность
 			if (Target->IsActive() != CState.bWasActive)
 				CState.bWasActive ? Target->Activate(true) : Target->Deactivate();
 
+			// Восстанавливаем трансформацию для SceneComponent
 			if (USceneComponent* SC = Cast<USceneComponent>(Target))
-				RestoreSceneComponentTransform(SC, CState);
+			{
+				// Если принудительно требуем относительную трансформацию и она есть – используем её
+				if (bForceRelative && CState.bHasRelativeTransform)
+				{
+					SC->SetRelativeTransform(CState.RelativeTransform, false, nullptr, ETeleportType::TeleportPhysics);
+				}
+				else
+				{
+					// Иначе используем стандартную логику (которая может взять мировую трансформацию)
+					RestoreSceneComponentTransform(SC, CState);
+				}
+			}
 		}
 	}
-} // namespace
-// -----------------------------------------------------------------------------
+	// -----------------------------------------------------------------------------
 // JSON serialization helpers for population structures
 // -----------------------------------------------------------------------------
 
@@ -1241,7 +1267,7 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
             if (Snapshot.bHasRelativeTransform) continue;
             AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId);
             if (!ActorPtr || !IsValid(*ActorPtr)) continue;
-            RestoreActorSnapshot(*ActorPtr, Snapshot, true);
+            RestoreActorSnapshot(*ActorPtr, Snapshot, true, true);
             ++TotalRestored;
         }
 
@@ -1274,7 +1300,7 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
             if (!bAppliedRelative)
                 ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
 
-            RestoreActorSnapshot(ChildActor, Snapshot, false);
+            RestoreActorSnapshot(ChildActor, Snapshot, false, true);
             ++TotalRestored;
         }
     }
@@ -1411,8 +1437,22 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 						}
 					}
 				}
-				if (!bAppliedRelative)
-					ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+				if (Envelope.IsValid())
+				{
+					if (IsCurrentWorldMissionConst(Envelope))
+					{
+						if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
+						{
+							if (!bAppliedRelative)
+								ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+						}
+					}
+				}
+				else
+				{
+					if (!bAppliedRelative)
+						ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+				}
 
 				if (Envelope.IsValid())
 				{
@@ -1420,14 +1460,14 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 					{
 						if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
 						{
-							RestoreActorSnapshot(ChildActor, Snapshot, false);
+							RestoreActorSnapshot(ChildActor, Snapshot, false, true);
 							++Restored;
 						}
 					}
 				}
 				else
 				{
-					RestoreActorSnapshot(ChildActor, Snapshot, false);
+					RestoreActorSnapshot(ChildActor, Snapshot, false, true);
 					++Restored;
 				}
 			}
