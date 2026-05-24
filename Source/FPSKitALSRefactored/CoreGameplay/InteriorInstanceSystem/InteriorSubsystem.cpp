@@ -35,6 +35,17 @@
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
 
+auto FindByItemId = [](const TArray<FFloorSavedActorState>& Array, const FGuid& TargetId) -> const FFloorSavedActorState*
+	{
+		if (!TargetId.IsValid()) return nullptr;
+		for (const FFloorSavedActorState& State : Array)
+		{
+			if (State.ItemId == TargetId)
+				return &State;
+		}
+		return nullptr;
+	};
+
 auto RemoveActorsOfTypeForFloor = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap,
 	const FGuid& InteriorSetId,
 	const FGuid& FloorId,
@@ -1156,6 +1167,20 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 				BucketMission.Add(MoveTemp(ChildSnapshot));
 				ExistingIndex.Add(BucketMission.Last().ItemId, BucketMission.Num() - 1);
 				++AddedCount;
+			}
+
+			if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(ChildFloorComp->ActorType), Reason, false))
+			{
+				if (int32* FoundFloorIdx = ExistingFloorIndex.Find(Snapshot.ItemId))
+				{
+					BucketFloor[*FoundFloorIdx] = MoveTemp(Snapshot);
+
+				}
+				else
+				{
+					BucketFloor.Add(MoveTemp(Snapshot));
+					ExistingFloorIndex.Add(BucketFloor.Last().ItemId, BucketFloor.Num() - 1);
+				}
 			}
 		}
 	}
@@ -2738,7 +2763,7 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 			auto MissionAsset = Controller->GetMissionAsset();
 			auto& Envelope = MissionAsset->Envelopes[CurrentMissionStep];
 
-			RestoreSpawnedActorsForCurrentFloor(Envelope);			
+			//RestoreSpawnedActorsForCurrentFloor(Envelope);			
 			RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
 		}
 	}
@@ -2754,16 +2779,29 @@ void UInteriorSubsystem::SpawnFromType(TArray<FFloorPopulationRecord>& Array, co
 		if (!Record.SourceClass) continue;
 		EEnvelopeChannel Channel = FloorActorTypeToEnvelopeChannel(Record.ActorType);
 
-		if (Envelope.IsValid())
+		TArray<FFloorSavedActorState>* FloorArray = FloorStateSnapshots.Find(Key);
+		if (FloorArray)
 		{
-			if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
-			{
-				RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, Key.InteriorSetId, Key.FloorId, Record.ActorType);
-				RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, Key.InteriorSetId, Key.FloorId, Record.ActorType);
+			bool bExists = FloorArray->ContainsByPredicate([&](const FFloorSavedActorState& State)
+				{
+					return State.ItemId == Record.ActorId;
+				});
 
-				continue;
+			if(!bExists)
+			{
+				if (Envelope.IsValid())
+				{
+					if (!ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
+					{
+						RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, Key.InteriorSetId, Key.FloorId, Record.ActorType);
+						RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, Key.InteriorSetId, Key.FloorId, Record.ActorType);
+
+						return;
+					}
+				}
 			}
 		}
+
 		bool IsAlreadySpawned = false;
 		TArray<AActor*> AllActors;
 		UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), AllActors);
