@@ -40,13 +40,29 @@ void AA_WireConnector::Destroyed()
 	}
 }
 
-void AA_WireConnector::SetPower(bool OnPower)
+void AA_WireConnector::OnPowerConnected_Implementation(bool IsConnected)
 {
-	bIsOnPower = OnPower;
-	OnPowerChanged(bIsOnPower);
-}
+	if (bIsOnPower == IsConnected)
+	{
+		return;
+	}
 
-void AA_WireConnector::OnPowerChanged_Implementation(bool OnPower)
-{
+	bIsOnPower = IsConnected;
 
+	if (IsValid(OppositeConnector) && IsValid(OppositeConnection))
+	{
+		OppositeConnector->bIsOnPower = bIsOnPower;
+		if (OppositeConnector->AttachingDropZone)
+		{
+			if (OppositeConnector->AttachingDropZone->Implements<UI_PowerConnection>())
+			{
+				II_PowerConnection::Execute_OnPowerConnected(OppositeConnector->AttachingDropZone, bIsOnPower);
+			}
+		}
+		OppositeConnection->bIsPowerOn = bIsOnPower;
+		if (OppositeConnection->Implements<UI_PowerConnection>())
+		{
+			II_PowerConnection::Execute_OnPowerConnected(OppositeConnection, bIsOnPower);
+		}
+	}
 }

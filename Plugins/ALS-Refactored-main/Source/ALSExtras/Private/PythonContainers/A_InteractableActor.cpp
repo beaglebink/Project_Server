@@ -72,3 +72,7 @@ void AA_InteractableActor::PortalInteract_Implementation(const FHitResult& Hit, 
 		}
 	}
 }
+
+void AA_InteractableActor::OnPowerConnected_Implementation(bool IsConnected)
+{
+}

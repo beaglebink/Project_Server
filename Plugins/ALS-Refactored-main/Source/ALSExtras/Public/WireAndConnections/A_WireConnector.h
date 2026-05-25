@@ -34,16 +34,8 @@ public:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
 	AA_DropZone* OppositeConnection;
 
-	UFUNCTION(BlueprintCallable, Category = "Wire")
-	void SetPower(bool OnPower);
+	virtual void OnPowerConnected_Implementation(bool IsConnected) override;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Wire")
-	bool GetPower() const { return bIsOnPower; }
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Wire")
-	void OnPowerChanged(bool OnPower);
-
-private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Wire")
 	uint8 bIsOnPower : 1{false};
 };
