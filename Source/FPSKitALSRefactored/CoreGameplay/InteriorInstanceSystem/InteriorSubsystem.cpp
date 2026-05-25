@@ -1200,11 +1200,13 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 	if (Reason != EMissionEndReason::None)
 	{
+		/*
 		auto* PerFloor = MissionFloorSnapshots.Find(CurrentKey);
 		if (PerFloor)
 		{
 			PerFloor->Remove(MissionId);
 		}
+		*/
 	}
 
     TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionFloorSnapshots.FindOrAdd(Key);
@@ -3822,7 +3824,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 
 			EJobSpacePolicy Policy = EJobSpacePolicy::None;
 
-			StoreCurrentLevel(Envelope, MissionId, P->EndReason);
+			StoreCurrentLevelComplete(Envelope, MissionId, P->EndReason);
 			//StoreSnapshot(MissionId, Envelope, P->EndReason);
 
 			ActiveMissions.Remove(MissionId);
