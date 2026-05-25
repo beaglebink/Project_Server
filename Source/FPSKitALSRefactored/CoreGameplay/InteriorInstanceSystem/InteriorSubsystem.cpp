@@ -1396,39 +1396,11 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 
 		const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(Comp->ActorType);
 
-		if (!Envelopes.IsValidIndex(MissionStep + 1))
-		{
-			if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
-			{
-				//RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
-				//RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
-			}
-		}
 
 		FFloorSavedActorState Snapshot;
 		Snapshot.ItemId = Comp->ItemId;
 		SnapshotActor(Actor, Snapshot);
 
-		/*
-		// Добавляем в миссионное хранилище (копирование)
-if (int32* ChildIdx = ExistingIndex.Find(ChildSnapshot.ItemId))
-    BucketMission[*ChildIdx] = ChildSnapshot; // копирование
-else
-{
-    BucketMission.Add(ChildSnapshot); // копирование
-    ExistingIndex.Add(BucketMission.Last().ItemId, BucketMission.Num() - 1);
-    ++AddedCount;
-}
-	
-// Добавляем в базовое хранилище (копирование)
-if (int32* FoundFloorIdx = ExistingFloorIndex.Find(ChildSnapshot.ItemId))
-    BucketFloor[*FoundFloorIdx] = ChildSnapshot; // копирование
-else
-{
-    BucketFloor.Add(ChildSnapshot); // копирование
-    ExistingFloorIndex.Add(BucketFloor.Last().ItemId, BucketFloor.Num() - 1);
-}
-		*/
 		if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
 		{
 			BucketMission[*FoundIdx] = Snapshot;
@@ -1478,6 +1450,21 @@ else
 			ChildSnapshot.bHasRelativeTransform = true;
 			SnapshotActor(ChildActor, ChildSnapshot);
 
+			if (int32* ChildIdx = ExistingIndex.Find(ChildSnapshot.ItemId))
+			{
+				BucketMission[*ChildIdx] = ChildSnapshot;
+				++UpdatedCount;
+			}
+			else
+			{
+				BucketMission.Add(ChildSnapshot);
+				ExistingIndex.Add(BucketMission.Last().ItemId, BucketMission.Num() - 1);
+				++AddedCount;
+			}
+
+
+			if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(ChildFloorComp->ActorType), Reason, false))
+			{
 				if (int32* FoundFloorIdx = ExistingFloorIndex.Find(ChildSnapshot.ItemId))
 				{
 					BucketFloor[*FoundFloorIdx] = ChildSnapshot;
@@ -1489,20 +1476,6 @@ else
 					ExistingFloorIndex.Add(BucketFloor.Last().ItemId, BucketFloor.Num() - 1);
 				}
 
-			if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(ChildFloorComp->ActorType), Reason, false))
-			{
-
-				if (int32* ChildIdx = ExistingIndex.Find(ChildSnapshot.ItemId))
-				{
-					BucketMission[*ChildIdx] = ChildSnapshot;
-					++UpdatedCount;
-				}
-				else
-				{
-					BucketMission.Add(ChildSnapshot);
-					ExistingIndex.Add(BucketMission.Last().ItemId, BucketMission.Num() - 1);
-					++AddedCount;
-				}
 			}
 		}
 	}
@@ -1736,6 +1709,25 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 								bAppliedRelative = true;
 								break;
 							}
+
+							if (Envelope.IsValid())
+							{
+								if (IsCurrentWorldMissionConst(Envelope))
+								{
+									if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
+									{
+										RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+										++Restored;
+									}
+								}
+							}
+							else
+							{
+								RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+								++Restored;
+							}
+
+
 						}
 					}
 				}
@@ -1754,23 +1746,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 				{
 					if (!bAppliedRelative)
 						ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
-				}
-
-				if (Envelope.IsValid())
-				{
-					if (IsCurrentWorldMissionConst(Envelope))
-					{
-						if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
-						{
-							RestoreActorSnapshot(ChildActor, Snapshot, false, true);
-							++Restored;
-						}
-					}
-				}
-				else
-				{
-					RestoreActorSnapshot(ChildActor, Snapshot, false, true);
-					++Restored;
 				}
 			}
 		}
