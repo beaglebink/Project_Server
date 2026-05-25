@@ -216,6 +216,7 @@ FORCEINLINE EEnvelopeChannel FloorActorTypeToEnvelopeChannel(EFloorActorType Act
     {
     case EFloorActorType::LightItem:
     case EFloorActorType::HeavyFurniture:
+    case EFloorActorType::InventoryItems:
         return EEnvelopeChannel::InteriorObjects;
 
     case EFloorActorType::Debris:
@@ -235,9 +236,6 @@ FORCEINLINE EEnvelopeChannel FloorActorTypeToEnvelopeChannel(EFloorActorType Act
 
     case EFloorActorType::NPC_Spawner:
         return EEnvelopeChannel::SpawnGroups;
-
-    case EFloorActorType::InventoryItems:
-		return EEnvelopeChannel::InventoryItems;
 
     case EFloorActorType::LocationTriggers:
 		return EEnvelopeChannel::LocationTriggers;

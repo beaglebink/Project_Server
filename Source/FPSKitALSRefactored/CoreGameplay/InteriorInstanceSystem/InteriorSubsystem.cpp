@@ -35,6 +35,94 @@
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
 
+static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
+{
+	// ищем запись для канала
+	const FEnvelopeChannelEntry* FoundEntry = nullptr;
+	bool IsResetPolicy = false;
+	bool IsPartialPolicy = false;
+
+	switch (Reason)
+	{
+	case EMissionEndReason::None:
+	{
+		IsResetPolicy = Envelope.RuntimePolicy == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.RuntimePolicy == EJobSpacePolicy::Partial;
+		FoundEntry = Envelope.RuntimePolicyChannels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		break;
+	}
+	case EMissionEndReason::Completed:
+	{
+		IsResetPolicy = Envelope.NextStagePolicy == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.NextStagePolicy == EJobSpacePolicy::Partial;
+		FoundEntry = Envelope.NextStagePolicyChannels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		break;
+	}
+	case EMissionEndReason::Failed:
+	{
+		IsResetPolicy = Envelope.MissionFailedPolicy == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.MissionFailedPolicy == EJobSpacePolicy::Partial;
+		FoundEntry = Envelope.MissionFailedPolicyChannels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		break;
+	}
+	case EMissionEndReason::Abandoned:
+	{
+		IsResetPolicy = Envelope.MissionAbandonedPolicy == EJobSpacePolicy::Reset;
+		IsPartialPolicy = Envelope.MissionAbandonedPolicy == EJobSpacePolicy::Partial;
+		FoundEntry = Envelope.MissionAbandonedChannels.FindByPredicate(
+			[ActorChannel](const FEnvelopeChannelEntry& Entry)
+			{
+				return Entry.Channel == ActorChannel;
+			});
+		break;
+	}
+	}
+
+	if (IsRead || Reason != EMissionEndReason::None)
+	{
+		if (IsResetPolicy)
+		{
+			return false;
+		}
+
+		if (!FoundEntry)
+		{
+			if (IsPartialPolicy)
+			{
+				return false;
+			}
+			return true;
+		}
+
+		if (IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Freeze)
+		{
+			return true;
+		}
+		else
+		{
+			return !(IsResetPolicy || (IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Reset));
+		}
+	}
+	else
+	{
+		return true;
+	}
+
+}
+
+
 auto ContainsActorIdInMissionSpawnedForFloor = [](const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& MissionSpawnedMap,
 	const FInteriorFloorKey& FloorKey,
 	const FName& MissionId,
@@ -83,6 +171,8 @@ auto RemoveMissionFromPopulationMap = [](TMap<FInteriorFloorKey, TMap<FName, FFl
 
 auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& MissionSpawnedMap,
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets>& GlobalSpawnedMap,
+	FMissionEnvelope Envelope, 
+	EMissionEndReason Reason, 
 	const FInteriorFloorKey& FloorKey,
 	const FName& MissionId) -> bool
 	{
@@ -106,17 +196,28 @@ auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorP
 				}
 			};
 
-		AddUnique(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
-		AddUnique(Buckets->LightItems, GlobalBuckets.LightItems);
-		AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
-		AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
-		AddUnique(Buckets->Debris, GlobalBuckets.Debris);
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
+			AddUnique(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
+
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
+			AddUnique(Buckets->LightItems, GlobalBuckets.LightItems);
+
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
+			AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
+
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), Reason, false))
+			AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
+
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
+			AddUnique(Buckets->Debris, GlobalBuckets.Debris);
 
 		return bCopied;
 	};
 
 auto CopyMissionDestroyedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& MissionDestroyedMap,
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets>& GlobalDestroyedMap,
+	FMissionEnvelope Envelope,
+	EMissionEndReason Reason,
 	const FInteriorFloorKey& FloorKey,
 	const FName& MissionId) -> bool
 	{
@@ -140,11 +241,20 @@ auto CopyMissionDestroyedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloo
 				}
 			};
 
-		AddUnique(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
-		AddUnique(Buckets->LightItems, GlobalBuckets.LightItems);
-		AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
-		AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
-		AddUnique(Buckets->Debris, GlobalBuckets.Debris);
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
+			AddUnique(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
+
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
+			AddUnique(Buckets->LightItems, GlobalBuckets.LightItems);
+
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
+			AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
+
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), Reason, false))
+			AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
+
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
+			AddUnique(Buckets->Debris, GlobalBuckets.Debris);
 
 		return bCopied;
 	};
@@ -1085,93 +1195,6 @@ static void DeserializeMissionPopulationMap(const TSharedPtr<FJsonValue>& JsonVa
 // SaveFloorActorsState
 // -----------------------------------------------------------------------------
 
-static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
-{
-	// ищем запись для канала
-	const FEnvelopeChannelEntry* FoundEntry = nullptr;
-	bool IsResetPolicy = false;
-	bool IsPartialPolicy = false;
-
-	switch (Reason)
-	{
-	case EMissionEndReason::None:
-	{
-		IsResetPolicy = Envelope.RuntimePolicy == EJobSpacePolicy::Reset;
-		IsPartialPolicy = Envelope.RuntimePolicy == EJobSpacePolicy::Partial;
-		FoundEntry = Envelope.RuntimePolicyChannels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
-		break;
-	}
-	case EMissionEndReason::Completed:
-	{
-		IsResetPolicy = Envelope.NextStagePolicy == EJobSpacePolicy::Reset;
-		IsPartialPolicy = Envelope.NextStagePolicy == EJobSpacePolicy::Partial;
-		FoundEntry = Envelope.NextStagePolicyChannels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
-		break;
-	}
-	case EMissionEndReason::Failed:
-	{
-		IsResetPolicy = Envelope.MissionFailedPolicy == EJobSpacePolicy::Reset;
-		IsPartialPolicy = Envelope.MissionFailedPolicy == EJobSpacePolicy::Partial;
-		FoundEntry = Envelope.MissionFailedPolicyChannels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
-		break;
-	}
-	case EMissionEndReason::Abandoned:
-	{
-		IsResetPolicy = Envelope.MissionAbandonedPolicy == EJobSpacePolicy::Reset;
-		IsPartialPolicy = Envelope.MissionAbandonedPolicy == EJobSpacePolicy::Partial;
-		FoundEntry = Envelope.MissionAbandonedChannels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
-		break;
-	}
-	}
-
-	if (IsRead  || Reason != EMissionEndReason::None)
-	{
-		if (IsResetPolicy)
-		{
-			return false;
-		}
-
-		if (!FoundEntry)
-		{
-			if (IsPartialPolicy)
-			{
-				return false;
-			}
-			return true;
-		}
-
-		if (IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Freeze)
-		{
-			return true;
-		}
-		else
-		{
-			return !(IsResetPolicy || (IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Reset));
-		}
-	}
-	else
-	{
-		return true;
-	}
-
-}
-
 void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason/*, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry>& Channels*/)
 {
     UWorld* W = GetWorld();
@@ -1300,33 +1323,10 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 		}
     }
 
-	if (!Envelopes.IsValidIndex(MissionStep + 1))
+	if (!Envelopes.IsValidIndex(MissionStep))
 	{
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
-		{
-			CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-			CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-		}
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
-		{
-			CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-			CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-		}
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
-		{
-			CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-			CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-		}
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), Reason, false))
-		{
-			CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-			CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-		}
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
-		{
-			CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-			CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-		}
+			CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, Envelope, Reason, CurrentKey, MissionId);
+			CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, Envelope, Reason, CurrentKey, MissionId);
 	}
 }
 
@@ -1507,31 +1507,8 @@ else
 		}
 	}
 
-	if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
-	{
-		CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-		CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-	}
-	if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
-	{
-		CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-		CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-	}
-	if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
-	{
-		CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-		CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-	}
-	if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), Reason, false))
-	{
-		CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-		CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-	}
-	if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
-	{
-		CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, CurrentKey, MissionId);
-		CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, CurrentKey, MissionId);
-	}
+	CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, Envelope, Reason, CurrentKey, MissionId);
+	CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, Envelope, Reason, CurrentKey, MissionId);
 }
 
 
