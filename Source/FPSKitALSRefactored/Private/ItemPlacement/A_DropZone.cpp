@@ -39,6 +39,11 @@ void AA_DropZone::OnConstruction(const FTransform& Transform)
 	}
 
 	SetMeshMaterialAndState(0, IsPlacingOnScene);
+
+	if (IsValid(ParentActor))
+	{
+		AttachToActor(ParentActor, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	}
 }
 
 
@@ -74,6 +79,28 @@ void AA_DropZone::SetMeshMaterialAndState(int32 NewState, bool IsPlacing)
 		{
 			DMI_MeshMaterial->SetScalarParameterValue(FName("State"), NewState);
 			DMI_MeshMaterial->SetScalarParameterValue(FName("IsPlacingOnScene"), IsPlacingOnScene ? 1.0f : 0.0f);
+		}
+	}
+}
+
+void AA_DropZone::OnPowerConnected_Implementation(bool IsConnected)
+{
+	bIsPowerOn = IsConnected;
+	if (IsValid(ParentActor))
+	{
+		if (ParentActor->Implements<UI_PowerConnection>())
+		{
+			II_PowerConnection::Execute_OnPowerConnected(ParentActor, IsConnected);
+		}
+	}
+
+	TArray<AActor*> AttachedActors;
+	GetAttachedActors(AttachedActors);
+	for (AActor* AttachedActor : AttachedActors)
+	{
+		if (AttachedActor->Implements<UI_PowerConnection>())
+		{
+			II_PowerConnection::Execute_OnPowerConnected(AttachedActor, IsConnected);
 		}
 	}
 }

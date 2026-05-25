@@ -2,7 +2,7 @@
 #include "Components/SphereComponent.h"
 #include "ItemPlacement/A_DropZone.h"
 #include "ItemPlacement/A_AreaDropZone.h"
-#include "PythonContainers/A_InteractableActor.h"
+#include "WireAndConnections/A_WireConnector.h"
 
 USC_ItemPlacement::USC_ItemPlacement()
 {
@@ -166,6 +166,28 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 					Item->AttachingDropZone = ChoosenDropZone;
 					ChoosenDropZone->bIsOccupied = true;
 					ChoosenDropZone->SetMeshMaterialAndState(0, false);
+
+					// Power connection logic
+					if (ChoosenDropZone->WirePlugInConnectorType == " male")
+					{
+						if (ChoosenDropZone->bIsPowerOn)
+						{
+							if (Item->Implements<UI_PowerConnection>())
+							{
+								II_PowerConnection::Execute_OnPowerConnected(Item, true);
+							}
+						}
+					}
+					else if (AA_WireConnector* WireConnector = Cast<AA_WireConnector>(Item))
+					{
+						if (WireConnector->bIsOnPower)
+						{
+							if (ChoosenDropZone->Implements<UI_PowerConnection>())
+							{
+								II_PowerConnection::Execute_OnPowerConnected(ChoosenDropZone, true);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -190,6 +212,23 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 					Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 					Item->AttachingDropZone->bIsOccupied = false;
 					Item->AttachingDropZone->SetMeshMaterialAndState(3, false);
+
+					// Power disconnection logic
+					if (Item->AttachingDropZone->WirePlugInConnectorType == " male")
+					{
+						if (Item->Implements<UI_PowerConnection>())
+						{
+							II_PowerConnection::Execute_OnPowerConnected(Item, false);
+						}
+					}
+					else
+					{
+						if (Item->AttachingDropZone->Implements<UI_PowerConnection>())
+						{
+							II_PowerConnection::Execute_OnPowerConnected(Item->AttachingDropZone, false);
+						}
+					}
+
 					Item->AttachingDropZone = nullptr;
 				}
 			}

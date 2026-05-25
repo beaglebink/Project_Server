@@ -1,14 +1,15 @@
 #pragma once
 
-#include "Interfaces/I_PortalInteraction.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Interfaces/I_PortalInteraction.h"
+#include "Interfaces/I_PowerConnection.h"
 #include "A_InteractableActor.generated.h"
 
 class AA_DropZone;
 
 UCLASS()
-class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalInteraction
+class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalInteraction, public II_PowerConnection
 {
 	GENERATED_BODY()
 	
@@ -36,4 +37,6 @@ public:
 	bool ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName);
 
 	virtual void PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform) override;
+
+	virtual void OnPowerConnected_Implementation(bool IsConnected) override;
 };
