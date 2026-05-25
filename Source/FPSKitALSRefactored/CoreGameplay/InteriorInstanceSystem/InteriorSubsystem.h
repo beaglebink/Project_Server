@@ -176,7 +176,10 @@ public:
 
     void SaveMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey);
     void RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey);
-    void SpawnFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope, FInteriorFloorKey Key);
+    void FloorSpawnActorsFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope, FInteriorFloorKey Key);
+    void SpawnMissionActorsFromCurrentFloor(FName MissionId);
+    void SpawnMissionRecords(const TArray<FFloorPopulationRecord>& Records);
+    void DestroyMissionRecords(const TArray<FFloorPopulationRecord>& Records);
     void RestoreSpawnedActorsForCurrentFloor(const FMissionEnvelope& Envelope);
     void ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion = false);
     const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* GetMissionSnapshots(FName MissionId) const;
@@ -221,6 +224,10 @@ private:
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloor;
     UPROPERTY()
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> DestroyedActorsByInteriorFloor;
+
+    TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>> MissionSpawnedActorsByInteriorFloor;
+
+    TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>> MissionDestroyedActorsByInteriorFloor;
 
     TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> FloorStateSnapshots;
     TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
