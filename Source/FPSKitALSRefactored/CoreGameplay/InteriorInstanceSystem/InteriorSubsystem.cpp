@@ -1221,17 +1221,6 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 		return;
 	}
 
-	if (Reason != EMissionEndReason::None)
-	{
-		/*
-		auto* PerFloor = MissionFloorSnapshots.Find(CurrentKey);
-		if (PerFloor)
-		{
-			PerFloor->Remove(MissionId);
-		}
-		*/
-	}
-
     TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionFloorSnapshots.FindOrAdd(Key);
     TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
 
@@ -1255,35 +1244,23 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 		if (Actor->IsChildActor()) continue;
 
-		//if (Reason != EMissionEndReason::None)
-		//{
-			if (!Envelopes.IsValidIndex(MissionStep + 1))
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+		{
+			FFloorSavedActorState Snapshot;
+			Snapshot.ItemId = Comp->ItemId;
+			SnapshotActor(Actor, Snapshot);
+
+			if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
 			{
-				if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
-				{
-					//RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
-					//RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, Comp->ActorType);
-				}
+				Bucket[*FoundIdx] = MoveTemp(Snapshot);
+				++UpdatedCount;
 			}
-
-			if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+			else
 			{
-				FFloorSavedActorState Snapshot;
-				Snapshot.ItemId = Comp->ItemId;
-				SnapshotActor(Actor, Snapshot);
-
-				if (int32* FoundIdx = ExistingIndex.Find(Snapshot.ItemId))
-				{
-					Bucket[*FoundIdx] = MoveTemp(Snapshot);
-					++UpdatedCount;
-				}
-				else
-				{
-					Bucket.Add(MoveTemp(Snapshot));
-					ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
-					++AddedCount;
-				}
-			//}
+				Bucket.Add(MoveTemp(Snapshot));
+				ExistingIndex.Add(Bucket.Last().ItemId, Bucket.Num() - 1);
+				++AddedCount;
+			}
 		}
 
 
@@ -1299,9 +1276,6 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
             if (!ChildFloorComp) continue;
             if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
             if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
-
-			//if (!ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
-			//	continue;
 
             FFloorSavedActorState ChildSnapshot;
             ChildSnapshot.ItemId              = ChildFloorComp->ItemId;
@@ -1566,17 +1540,22 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
                     if (ParentChildComp->GetChildActor() == ChildActor)
                     {
                         ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
+						RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+						++TotalRestored;
                         bAppliedRelative = true;
                         break;
                     }
                 }
             }
 
-            if (!bAppliedRelative)
+			if (!bAppliedRelative)
+			{
                 ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
 
-            RestoreActorSnapshot(ChildActor, Snapshot, false, true);
-            ++TotalRestored;
+				RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+				++TotalRestored;
+			}
+
         }
     }
 
@@ -1643,12 +1622,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 			{
 				if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
 				{
-					if (Envelope.IsValid() && !ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
-					{
-						//RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, InteriorSetId, FloorId, C->ActorType);
-						//RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, InteriorSetId, FloorId, C->ActorType);
-					}
-
 					if (Envelope.IsValid())
 					{
 						if (IsCurrentWorldMissionConst(Envelope))
@@ -1698,6 +1671,8 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 									if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
 									{
 										ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
+										RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+
 										bAppliedRelative = true;
 										break;
 									}
@@ -1706,28 +1681,11 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 							else
 							{
 								ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
+								RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+
 								bAppliedRelative = true;
 								break;
 							}
-
-							if (Envelope.IsValid())
-							{
-								if (IsCurrentWorldMissionConst(Envelope))
-								{
-									if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
-									{
-										RestoreActorSnapshot(ChildActor, Snapshot, false, true);
-										++Restored;
-									}
-								}
-							}
-							else
-							{
-								RestoreActorSnapshot(ChildActor, Snapshot, false, true);
-								++Restored;
-							}
-
-
 						}
 					}
 				}
@@ -1739,6 +1697,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 						{
 							if (!bAppliedRelative)
 								ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+								RestoreActorSnapshot(ChildActor, Snapshot, false, true);
 						}
 					}
 				}
@@ -1746,6 +1705,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 				{
 					if (!bAppliedRelative)
 						ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+						RestoreActorSnapshot(ChildActor, Snapshot, false, true);
 				}
 			}
 		}
