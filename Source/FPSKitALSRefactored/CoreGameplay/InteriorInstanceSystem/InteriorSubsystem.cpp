@@ -1857,6 +1857,8 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 
 		if (IsMissionWorld)
 		{
+			if (MissionId.IsNone()) return;
+
 			TMap<FName, FFloorPopulationBuckets>& PerMissionSpawn = MissionSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 			FFloorPopulationBuckets& MissionBuckets = PerMissionSpawn.FindOrAdd(MissionId);
 			switch (P->ActorType)
@@ -1914,6 +1916,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
+		if (MissionId.IsNone()) return;
 
 		TMap<FName, FFloorPopulationBuckets>& PerMissionDestroy = MissionDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 		FFloorPopulationBuckets& MissionBuckets = PerMissionDestroy.FindOrAdd(MissionId);
@@ -3475,9 +3478,6 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
 	IsLoadComplete = false;
 	//IsLoadingFromSave = true;
-
-	if (InData.SerializedData.IsEmpty()) return;
-
 	TSharedPtr<FJsonObject> Root;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(InData.SerializedData);
 	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
@@ -3485,7 +3485,49 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
-	// --- 1. Восстановление списка активных миссий (сохраняем в контейнер для последующего использования) ---
+		// --- Восстановление FloorStateSnapshots ---
+	TSharedPtr<FJsonValue> FloorStateValue = Root->TryGetField(TEXT("FloorStateSnapshots"));
+	if (FloorStateValue.IsValid())
+	{
+		DeserializeFloorStateSnapshots(FloorStateValue, FloorStateSnapshots);
+	}
+
+	// --- Восстановление MissionFloorSnapshots ---
+	TSharedPtr<FJsonValue> MissionFloorValue = Root->TryGetField(TEXT("MissionFloorSnapshots"));
+	if (MissionFloorValue.IsValid())
+	{
+		MissionFloorSnapshots.Empty();
+		DeserializeMissionFloorSnapshots(MissionFloorValue, MissionFloorSnapshots);
+	}
+
+	// --- Десериализация SpawnedActorsByInteriorFloor и DestroyedActorsByInteriorFloor ---
+	TSharedPtr<FJsonValue> SpawnedValue = Root->TryGetField(TEXT("SpawnedActors"));
+	if (SpawnedValue.IsValid())
+	{
+		DeserializePopulationMap(SpawnedValue, SpawnedActorsByInteriorFloor);
+	}
+	TSharedPtr<FJsonValue> DestroyedValue = Root->TryGetField(TEXT("DestroyedActors"));
+
+	TSharedPtr<FJsonValue> MissionSpawnedValue = Root->TryGetField(TEXT("MissionSpawnedActors"));
+	if (MissionSpawnedValue.IsValid())
+		DeserializeMissionPopulationMap(MissionSpawnedValue, MissionSpawnedActorsByInteriorFloor);
+	TSharedPtr<FJsonValue> MissionDestroyedValue = Root->TryGetField(TEXT("MissionDestroyedActors"));
+	if (MissionDestroyedValue.IsValid())
+		DeserializeMissionPopulationMap(MissionDestroyedValue, MissionDestroyedActorsByInteriorFloor);
+
+	if (DestroyedValue.IsValid())
+	{
+		DeserializePopulationMap(DestroyedValue, DestroyedActorsByInteriorFloor);
+	}
+
+
+	if (InData.SerializedData.IsEmpty()) return;
+
+
+
+
+
+	// --- Восстановление списка активных миссий (сохраняем в контейнер для последующего использования) ---
 	// Здесь мы не восстанавливаем сами миссии, а только сохраняем информацию для MissionSubsystem.
 	// Само восстановление миссий выполнит MissionSubsystem при загрузке.
 	// Однако мы можем заполнить временный массив, который позже будет передан в MissionSubsystem.
@@ -3540,6 +3582,8 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
 
 					RemoveMissionSnapshots(MissionFloorSnapshots, MissionId);
+					RemoveMissionFromPopulationMap(MissionSpawnedActorsByInteriorFloor, MissionId);
+					RemoveMissionFromPopulationMap(MissionDestroyedActorsByInteriorFloor, MissionId);
 				}
 				continue;
 			}
@@ -3574,61 +3618,7 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		}
 	}
 
-	// --- 2. Восстановление FloorStateSnapshots ---
-	TSharedPtr<FJsonValue> FloorStateValue = Root->TryGetField(TEXT("FloorStateSnapshots"));
-	if (FloorStateValue.IsValid())
-	{
-		DeserializeFloorStateSnapshots(FloorStateValue, FloorStateSnapshots);
-	}
 
-	// --- 3. Восстановление MissionFloorSnapshots ---
-	TSharedPtr<FJsonValue> MissionFloorValue = Root->TryGetField(TEXT("MissionFloorSnapshots"));
-	if (MissionFloorValue.IsValid())
-	{
-		MissionFloorSnapshots.Empty();
-		DeserializeMissionFloorSnapshots(MissionFloorValue, MissionFloorSnapshots);
-	}
-
-	// --- Десериализация SpawnedActorsByInteriorFloor и DestroyedActorsByInteriorFloor ---
-	TSharedPtr<FJsonValue> SpawnedValue = Root->TryGetField(TEXT("SpawnedActors"));
-	if (SpawnedValue.IsValid())
-	{
-		DeserializePopulationMap(SpawnedValue, SpawnedActorsByInteriorFloor);
-	}
-	TSharedPtr<FJsonValue> DestroyedValue = Root->TryGetField(TEXT("DestroyedActors"));
-
-	TSharedPtr<FJsonValue> MissionSpawnedValue = Root->TryGetField(TEXT("MissionSpawnedActors"));
-	if (MissionSpawnedValue.IsValid())
-		DeserializeMissionPopulationMap(MissionSpawnedValue, MissionSpawnedActorsByInteriorFloor);
-	TSharedPtr<FJsonValue> MissionDestroyedValue = Root->TryGetField(TEXT("MissionDestroyedActors"));
-	if (MissionDestroyedValue.IsValid())
-		DeserializeMissionPopulationMap(MissionDestroyedValue, MissionDestroyedActorsByInteriorFloor);
-
-	if (DestroyedValue.IsValid())
-	{
-		DeserializePopulationMap(DestroyedValue, DestroyedActorsByInteriorFloor);
-	}
-
-	switch (RestoredResume)
-	{
-	case EMissionResumeMode::Resumable:
-	{
-		break;
-	}
-	case EMissionResumeMode::RestartOnLoad:
-	{
-		//if(MissionFloorSnapshots.Contains())
-
-		
-
-		break;
-	}
-	case EMissionResumeMode::FailOnLoad:
-	{
-
-		break;
-	}
-	}
 
 	IsLoadComplete = true;
 }
@@ -3770,6 +3760,7 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 					It.RemoveCurrent();
 			}
 		}
+		RemoveMissionSnapshots(MissionFloorSnapshots, MissionId);
 		RemoveMissionFromPopulationMap(MissionSpawnedActorsByInteriorFloor, MissionId);
 		RemoveMissionFromPopulationMap(MissionDestroyedActorsByInteriorFloor, MissionId);
 	}
