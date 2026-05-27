@@ -21,5 +21,8 @@ public:
 	FName CurrentMissionId;
 
 	UPROPERTY()
+	EMissionEndReason Reason = EMissionEndReason::Completed;
+
+	UPROPERTY()
 	bool IsUpdateSnapshots = true;
 };

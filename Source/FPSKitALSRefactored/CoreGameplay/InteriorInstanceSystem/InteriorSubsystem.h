@@ -58,6 +58,7 @@ struct FFloorSavedComponentState
 
 struct FFloorSavedActorState
 {
+    FString ActorName;
     FGuid      ItemId;
     FTransform ActorTransform;
     FTransform RelativeTransform;
@@ -188,6 +189,7 @@ public:
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
     UMissionController* CreateMission(UMissionAsset* MissionAsset);
     virtual FString GetSaveSubsystemName() const override { return TEXT("InteriorSubsystem"); }
+    virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
 
 private:
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -305,4 +307,6 @@ private:
     void OnPostLoadMap(UWorld* LoadedWorld);
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override;
+
+    bool IsLoadComplete = true;
 };

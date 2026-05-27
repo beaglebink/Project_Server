@@ -13,6 +13,7 @@
 #include "ReleaseMissionSnapshotPayload.h"
 #include <UpdateMissionListPayload.h>
 #include <ApplyMissionCompletionPolicyPayload.h>
+#include <UpdateActiveMissionId.h>
 
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -198,11 +199,12 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 				if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 				{
 					UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
-					EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
+					//EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
 					if (P1)
 					{
 						P1->ActiveMissions = ActiveMissions;
 						P1->CurrentMissionId = MissionName;
+						P1->Reason = EMissionEndReason::Completed;
 						FOutcomeEventBase Ev;
 						Ev.OutcomeType = EOutcomeType::Interior;
 						Ev.Payload = P1;
@@ -292,22 +294,27 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 		return;
 	}
 
+	Entry->Controller->Activate();
+
+
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
 		UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
-		EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
+		//EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
 		if (P1)
 		{
 			P1->ActiveMissions = ActiveMissions;
 			P1->CurrentMissionId = MissionId;
 			P1->IsUpdateSnapshots = IsUpdateSnapshots;
+			P1->Reason = EMissionEndReason::None;
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Interior;	
 			Ev.Payload = P1;
 			EventBus->PublishOutcome(Ev);
 		}
 	}
-	Entry->Controller->Activate();
+
+	
 }
 
 void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason)
@@ -456,8 +463,7 @@ void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionE
 	// InteriorSubsystem обработает Release согласно Policy.
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
-		UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(
-			EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
+		UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
 		if (P)
 		{
 			P->Setup(MissionId, Envelope, Policy);
@@ -590,9 +596,29 @@ void UMissionSubsystem::SubscribeMissionEnvelopeEvents()
 		}
 	}
 
-	UE_LOG(LogTemp, Log,
-		TEXT("MissionSubsystem: SubscribeMissionEnvelopeEvents (Activate=%d, Resolve=%d, Building=%d)"),
-		EnvelopeActivateHandle.IsValid(), EnvelopeResolveHandle.IsValid(), BuildingLeavingHandle.IsValid());
+	if (!UpdateActiveMissionIdHandle.IsValid())
+	{
+		// Если ассет не задан в редакторе — создаём его и настраиваем фильтр
+		if (!UpdateActiveMissionIdCondition)
+		{
+			UpdateActiveMissionIdCondition = NewObject<UOutcomeConditionAsset>(this);
+			UpdateActiveMissionIdCondition->OperatorType = EConditionOperator::Composite;
+			UpdateActiveMissionIdCondition->FilterRow.OutcomeType = EOutcomeType::Mission;
+			UpdateActiveMissionIdCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+			UpdateActiveMissionIdCondition->FilterRow.MissionType = EOutcomeMission::MissionUpdate;
+			UpdateActiveMissionIdCondition->FilterRow.MissionComparison = EConditionComparison::Equals;
+			UpdateActiveMissionIdCondition->CompileCondition();
+		}
+
+		if (UpdateActiveMissionIdCondition->GetCondition().IsValid())
+		{
+			EnvelopeActivateHandle = EventBus->RegisterHandler(
+				UpdateActiveMissionIdCondition,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::HandleUpdateActiveMissionId));
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: SubscribeActiveMissionId"));
 }
 
 // ----------------------------------------------------------------------------- 
@@ -731,6 +757,15 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 	}
 }
 
+void UMissionSubsystem::HandleUpdateActiveMissionId(const FOutcomeEventBase& Outcome)
+{
+	if (Outcome.OutcomeMission != EOutcomeMission::MissionUpdate) return;
+	if (UUpdateActiveMissionId* P = Cast<UUpdateActiveMissionId>(Outcome.Payload))
+	{
+		ActiveMissionId = P->ActiveMissionId;
+	}
+}
+
 void UMissionSubsystem::HandleEnvelopeResolve(const FOutcomeEventBase& Outcome)
 {
 	if (Outcome.OutcomeMission == EOutcomeMission::MissionActivated)
@@ -809,11 +844,12 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
 		UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
-		EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
+		//EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
 		if (P1)
 		{
 			P1->ActiveMissions = ActiveMissions;
 			P1->CurrentMissionId = MissionId;
+			P1->Reason = P->EndReason;
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Interior;
 			Ev.Payload = P1;
@@ -883,6 +919,8 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 	Root->SetArrayField(TEXT("Missions"), MissionArray);
 
+	Root->SetStringField(TEXT("ActiveMissionId"), ActiveMissionId.ToString());
+
 	FString Output;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
 	FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
@@ -892,6 +930,7 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
+	IsLoadComplete = false;
 	// Копируем данные в FString, чтобы лямбда владела своей копией
 	FString SerializedDataCopy = InData.SerializedData;
 
@@ -904,9 +943,22 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(SerializedDataCopy);
 			if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid()) return;
 
+			// --- Восстанавливаем ActiveMissionId ---
+			FString ActiveMissionIdStr;
+			if (Root->TryGetStringField(TEXT("ActiveMissionId"), ActiveMissionIdStr))
+			{
+				ActiveMissionId = FName(*ActiveMissionIdStr);
+				UE_LOG(LogTemp, Log, TEXT("MissionSubsystem::ApplySaveData: Restored ActiveMissionId = '%s'"), *ActiveMissionId.ToString());
+			}
+			else
+			{
+				ActiveMissionId = NAME_None;
+			}
+
 			const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
 			if (!Root->TryGetArrayField(TEXT("Missions"), MissionArray)) return;
 
+			//EMissionResumeMode RestoredResume = EMissionResumeMode::Resumable;
 			ActiveMissions.Empty();
 			for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
 			{
@@ -938,58 +990,54 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					continue;
 				}
 
-				switch (Resume)
-				{
-				case EMissionResumeMode::RestartOnLoad:
-				{
-					UMissionController* Ctrl = CreateMission(Asset);
-					if (Ctrl)
-					{
-						Ctrl->MissionStep = 0;
-						ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-						ActivateMission(MissionId, false);
-					}
-					break;
-				}
-				case EMissionResumeMode::Resumable:
-				{
-					UMissionController* Ctrl = CreateMission(Asset);
-					if (Ctrl)
-					{
-						Ctrl->MissionStep = MissionStep;
-						ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-						ActivateMission(MissionId, false);
-					}
-					break;
-				}
-				case EMissionResumeMode::FailOnLoad:
-				{
-					UMissionController* Ctrl = CreateMission(Asset);
-					if (!Ctrl) continue;
+				//RestoredResume = Resume;
 
-					if (Status == EMissionStatus::Active || Status == EMissionStatus::Suspended)
-					{
-						Ctrl->Activate();
-						if (Status == EMissionStatus::Suspended)
-						{
-							Ctrl->Suspend();
-						}
-					}
-					else if (Status == EMissionStatus::Resolved)
-					{
-						Ctrl->MissionStep = Asset->Envelopes.Num() - 1;
-						ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-						Ctrl->Activate();
-						Ctrl->RequestResolve(EndReason);
-					}
-					break;
+				UMissionController* Ctrl = CreateMission(Asset);
+
+				if (Ctrl)
+				{
+					Ctrl->MissionStep = MissionStep;
+					//ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+					//ActivateMission(MissionId, false);
 				}
-				}
+
 
 				UE_LOG(LogTemp, Log,
 					TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
 					*MissionIdStr, StatusInt, MissionStep);
 			}
+
+			TArray<FName> DeletedMissions;
+			for (auto& Mission : ActiveMissions)
+			{
+				EMissionResumeMode Resume = EMissionResumeMode::Resumable;
+				switch (Resume)
+				{
+				case EMissionResumeMode::Resumable:
+				{
+					break;
+				}
+				case EMissionResumeMode::RestartOnLoad:
+				{
+
+					break;
+				}
+				case EMissionResumeMode::FailOnLoad:
+				{
+					DeletedMissions.Add(Mission.Key);
+					break;
+				}
+				}
+			}
+
+			for (auto DelMissionName : DeletedMissions)
+			{
+				ActiveMissions.Remove(DelMissionName);
+			}
+
+			//ActivateMission(ActiveMissionId);
+
+			IsLoadComplete = true;
 		});
 
 	if (UWorld* World = GetWorld())

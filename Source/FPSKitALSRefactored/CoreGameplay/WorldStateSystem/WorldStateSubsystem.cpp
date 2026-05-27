@@ -358,6 +358,8 @@ void UWorldStateSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
+	IsLoadComplete = false;
+
 	if (InData.SerializedData.IsEmpty()) return;
 
 	TSharedPtr<FJsonObject> Root;
@@ -405,6 +407,8 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 	// Сразу применяем к миру если он доступен
 	ApplyRecordsToWorld();
+
+	IsLoadComplete = true;
 }
 
 

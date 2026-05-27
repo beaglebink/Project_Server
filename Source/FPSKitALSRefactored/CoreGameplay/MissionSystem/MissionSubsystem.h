@@ -113,10 +113,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions|Envelope")
 	TObjectPtr<UOutcomeConditionAsset> BuildingLeavingCondition;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions|Envelope")
+	TObjectPtr<UOutcomeConditionAsset> UpdateActiveMissionIdCondition;
+
 	// ===== ISaveableSubsystem =====
 	virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
 	virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
 	virtual FString GetSaveSubsystemName() const override { return TEXT("MissionSubsystem"); }
+	virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
 
 	// ===== LEGACY HANDLER MANAGEMENT (сохранено для совместимости) =====
 
@@ -141,6 +145,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	bool IsMissionProgressSubscribed() const { return MissionProgressHandle.IsValid(); }
 
+	void SetActiveMissionId(FName& MissionId) { ActiveMissionId = MissionId; }
+	FName GetActiveMissionId() const { return ActiveMissionId; }
+
 private:
 	// Helper to register runtime condition -> handler (реализовано в .cpp)
 	void TryRegisterCondition(
@@ -160,10 +167,12 @@ private:
 	FOutcomeHandlerHandle BuildingLeavingHandle;
 	// Handle для подтверждения релиза миссии (публикуется InteriorSubsystem)
 	FOutcomeHandlerHandle MissionReleasedHandle;
+	FOutcomeHandlerHandle UpdateActiveMissionIdHandle;
 	UPROPERTY()
 	TObjectPtr<UOutcomeConditionAsset> MissionReleasedCondition;
 
 	void HandleEnvelopeActivate(const FOutcomeEventBase& Outcome);
+	void HandleUpdateActiveMissionId(const FOutcomeEventBase& Outcome);
 	void HandleEnvelopeResolve(const FOutcomeEventBase& Outcome);
 	void HandleBuildingLeaving(const FOutcomeEventBase& Outcome);
 	void HandleMissionReleased(const FOutcomeEventBase& Outcome);
@@ -201,4 +210,8 @@ private:
 
 	void SubscribeFloorLeaving();
 	void UnsubscribeFloorLeaving();
+
+	FName ActiveMissionId;
+
+	bool IsLoadComplete = true;
 };

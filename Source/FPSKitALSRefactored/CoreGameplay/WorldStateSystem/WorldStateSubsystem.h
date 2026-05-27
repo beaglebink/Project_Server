@@ -88,6 +88,7 @@ public:
 	virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
 	virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
 	virtual FString GetSaveSubsystemName() const override { return TEXT("WorldStateSubsystem"); }
+	virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
 
 private:
 	void HandleChangingLocationAvailability(const FOutcomeEventBase& Outcome);
@@ -113,5 +114,7 @@ private:
 
 	// Применить одну запись к актору
 	void ApplyRecordToActor(AActor* Actor, const FWorldStateRecord& Record) const;
+
+	bool IsLoadComplete = true;
 };
 

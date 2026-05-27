@@ -34,6 +34,7 @@
 #include "../SaveGame/GameSaveSubsystem.h"
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
+#include <UpdateActiveMissionId.h>
 
 static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
 {
@@ -870,6 +871,7 @@ static void DeserializeMissionFloorSnapshots(const TSharedPtr<FJsonValue>& JsonV
 		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
 		if (!Comp) return;
 
+		OutSnapshot.ActorName = Actor->GetName();
 		OutSnapshot.ActorTransform = Actor->GetActorTransform();
 		CollectSaveGameProperties(Actor, OutSnapshot.ActorProperties);
 
@@ -1831,22 +1833,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		NewRecord.ActorId = P->ItemId;
 		NewRecord.bHasAnchor = P->AnchorId.IsValid();
 		NewRecord.SourceClass = P->ActorClass;
-		/*
-		FFloorPopulationBuckets& BucketsAdded = SpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 
-		FMissionEnvelope Envelope = FMissionEnvelope();
-		if (!IsCurrentWorldMission(Envelope)) return;
-
-		switch (P->ActorType)
-		{
-		case EFloorActorType::HeavyFurniture: BucketsAdded.HeavyFurniture.Add(NewRecord);  break;
-		case EFloorActorType::LightItem:      BucketsAdded.LightItems.Add(NewRecord);      break;
-		case EFloorActorType::Terminal:       BucketsAdded.Terminals.Add(NewRecord);       break;
-		case EFloorActorType::NPC_Spawner:    BucketsAdded.NPCSpawners.Add(NewRecord);     break;
-		case EFloorActorType::Debris:         BucketsAdded.Debris.Add(NewRecord);          break;
-		default:																	       break;
-		}
-		*/
 		if (IsMissionWorld)
 		{
 			TMap<FName, FFloorPopulationBuckets>& PerMissionSpawn = MissionSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
@@ -1864,75 +1851,6 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	}
 	else if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementUnregistered)
 	{
-		/*
-		// Добавляем запись в DestroyedActorsByInteriorFloor
-		FFloorPopulationBuckets& BucketsDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
-		FFloorPopulationRecord NewRecord;
-		NewRecord.ActorType = P->ActorType;
-		NewRecord.WorldTransform = P->WorldTransform;
-		NewRecord.ActorId = P->ItemId;
-		NewRecord.bHasAnchor = P->AnchorId.IsValid();
-
-		switch (P->ActorType)
-		{
-		case EFloorActorType::HeavyFurniture:
-		{
-			if (!BucketsDestroyed.HeavyFurniture.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecord.ActorId;
-				}))
-			{
-				BucketsDestroyed.HeavyFurniture.Add(NewRecord);
-			}
-			break;
-		}
-
-		case EFloorActorType::LightItem:
-		{
-			if (!BucketsDestroyed.LightItems.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecord.ActorId;
-				}))
-			{
-				BucketsDestroyed.LightItems.Add(NewRecord);
-			}
-			break;
-		}
-
-		case EFloorActorType::Terminal:
-		{
-			if (!BucketsDestroyed.Terminals.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecord.ActorId;
-				}))
-			{
-				BucketsDestroyed.Terminals.Add(NewRecord);
-			}
-			break;
-		}
-
-		case EFloorActorType::NPC_Spawner:
-		{
-			if (!BucketsDestroyed.NPCSpawners.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecord.ActorId;
-				}))
-			{
-				BucketsDestroyed.NPCSpawners.Add(NewRecord);
-			}
-			break;
-		}
-
-		case EFloorActorType::Debris:
-		{
-			if (!BucketsDestroyed.Debris.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecord.ActorId;
-				}))
-			{
-				BucketsDestroyed.Debris.Add(NewRecord);
-			}
-			break;
-		}
-
-		default: {}
-		}
-		*/
 		if (!World) return;
 
 		bool IsMissionWorld = false;
@@ -2238,7 +2156,6 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	if (!World) return;
 
 	UInteriorTransitionPayload* P = Cast<UInteriorTransitionPayload>(Outcome.Payload);
-	// Исправленная проверка: сначала проверяем P на валидность, потом условия
 	if (!P || (P->DestinationLink.IsValid() && !P->IsUseAnchor) || (!P->DestinationLink.IsValid() && P->IsUseAnchor))
 	{
 		OnTransitionCompleted.Broadcast(false, FLocationAnchorLink(), false);
@@ -2851,6 +2768,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		// Если нашли якорь — извлекаем связанный FloorAsset (если есть) и формируем CurrentKey
 		
 		bool bHaveKey = false;
+		/*
 		if (FoundAnchor)
 		{
 			UObject* OwnerAsset = FoundAnchor->GetOwnerRegistrationAsset();
@@ -2874,7 +2792,36 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 				}
 			}
 		}
+		*/
+		if (FoundAnchor)
+		{
+			UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
+			UInteriorSetAsset* InteriorAsset = FoundAnchor->OwnerInteriorSet.LoadSynchronous();
+			if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid())
+			{
+				FGuid InteriorSetId = InteriorAsset->InteriorSetID;
 
+				if (FloorAsset && FloorAsset->FloorID.IsValid())
+				{
+					FGuid FloorId = FloorAsset->FloorID;
+					CurrentKey = FInteriorFloorKey(InteriorSetId, FloorAsset->FloorID);
+					bHaveKey = true;
+				}
+			}
+			/*
+			if (FloorAsset && FloorAsset->FloorID.IsValid())
+			{
+				FGuid InteriorSetId = FloorAsset->InteriorSetID;
+				if (!InteriorSetId.IsValid() && !FloorAsset->ParentInteriorSet.IsNull())
+				{
+					UInteriorSetAsset* LoadedSet = FloorAsset->ParentInteriorSet.LoadSynchronous();
+					if (LoadedSet) InteriorSetId = LoadedSet->InteriorSetID;
+				}
+				CurrentKey = FInteriorFloorKey(InteriorSetId, FloorAsset->FloorID);
+				bHaveKey = true;
+			}
+			*/
+		}
 		// Внутри лямбды, после того как определили bHaveKey и CurrentKey
 		if (bHaveKey)
 		{
@@ -2936,6 +2883,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					RestoreSpawnedActorsForCurrentFloor(FMissionEnvelope());
 
 					RestoreFromSnapshotArray(World, *BaseSnap, CurrentKey.InteriorSetId, CurrentKey.FloorId, FMissionEnvelope());
+
 				}
 			}
 
@@ -3003,13 +2951,72 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 				}
 			}
 		}
+
+		bool IsMissionWorld = false;
+
+		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+		FString MissionName;
+		FName FindedMissionId;
+
+		for (const auto& Pair : ActiveMissions)
+		{
+			const UMissionController* Ctrl = Pair.Value.Controller;
+			if (!Ctrl) continue;
+
+			const UMissionAsset* Asset = Ctrl->GetMissionAsset();
+			if (!Asset) continue;
+
+			MissionName = Asset->Description.ToString();
+			const EMissionStatus Status = Ctrl->GetStatus();
+			const EMissionEndReason EndReason = Ctrl->GetEndReason();
+			const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+			const EMissionResumeMode Resume = Envelope.ResumeMode;
+			const int32 MissionStep = Pair.Value.MissionStep;
+
+			FMissionEnvelopeScope Scope = Envelope.Scope;
+			for (auto Sc : Scope.InteriorScopes)
+			{
+				FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+				FString NormTarget = NormalizeLevelName(ScopeLevelName);
+				FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+				if (NormTarget == NormCurrent)
+				{
+					IsMissionWorld = true;
+					FindedMissionId = Pair.Key;
+					break;
+				}
+			}
+
+			if (IsMissionWorld)
+			{
+				break;
+			}
+		}
+
+		if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
+		{
+			UUpdateActiveMissionId* Payload = EventBus->CreatePayload<UUpdateActiveMissionId>();
+			if (Payload)
+			{
+				Payload->ActiveMissionId = FindedMissionId;
+				FOutcomeEventBase Ev;
+				Ev.OutcomeType = EOutcomeType::Mission;
+				Ev.OutcomeMission = EOutcomeMission::MissionUpdate;
+				Ev.Payload = Payload;
+				EventBus->PublishOutcome(Ev);
+			}
+		}
+
+
 		// Финальная нотификация о завершении загрузки/перехода
 		OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 		ClearPendingAnchorID();
 		//IsLoadingFromSave = false;
 	});
 
-	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, false);
+	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
 }
 
 void UInteriorSubsystem::SubscribeInteractionRegistration() { SubscribeAll(); }
@@ -3488,6 +3495,7 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
+	IsLoadComplete = false;
 	//IsLoadingFromSave = true;
 
 	if (InData.SerializedData.IsEmpty()) return;
@@ -3506,6 +3514,8 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	// Пока просто прочитаем и залогируем.
 
 	const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
+	EMissionResumeMode RestoredResume = EMissionResumeMode::Resumable;
+
 	ActiveMissions.Empty();
 	if (Root->TryGetArrayField(TEXT("Missions"), MissionArray))
 	{
@@ -3537,6 +3547,8 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			{
 				continue;
 			}
+
+			RestoredResume = Resume;
 
 			switch (Resume)
 			{
@@ -3616,6 +3628,27 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	{
 		DeserializePopulationMap(DestroyedValue, DestroyedActorsByInteriorFloor);
 	}
+
+	switch (RestoredResume)
+	{
+	case EMissionResumeMode::Resumable:
+	{
+		
+		break;
+	}
+	case EMissionResumeMode::RestartOnLoad:
+	{
+
+		break;
+	}
+	case EMissionResumeMode::FailOnLoad:
+	{
+
+		break;
+	}
+	}
+
+	IsLoadComplete = true;
 }
 
 UMissionController* UInteriorSubsystem::CreateMission(UMissionAsset* MissionAsset)
@@ -3692,7 +3725,7 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 
 		if (P->IsUpdateSnapshots)
 		{
-			StoreCurrentLevelComplete(Envelope, P->CurrentMissionId, EMissionEndReason::Completed);
+			StoreCurrentLevelComplete(Envelope, P->CurrentMissionId, P->Reason);
 			//StoreSnapshot(P->CurrentMissionId, Envelope, EMissionEndReason::Completed);
 		}
 

@@ -32,4 +32,6 @@ public:
     // Имя подсистемы для идентификации блока в файле сохранения.
     // По умолчанию — имя UClass. Переопределять не обязательно.
     virtual FString GetSaveSubsystemName() const = 0;
+
+    virtual bool GetIsLoadComplete() const = 0;
 };
