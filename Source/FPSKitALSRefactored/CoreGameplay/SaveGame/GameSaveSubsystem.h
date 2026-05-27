@@ -71,6 +71,7 @@ public:
 private:
     // Зарегистрированные подсистемы (raw pointers — UObject подсистемы живут дольше)
     TArray<ISaveableSubsystem*> SaveableSubsystems;
-
+    
+    UPROPERTY()
     FTimerHandle TimerHandle;
 };

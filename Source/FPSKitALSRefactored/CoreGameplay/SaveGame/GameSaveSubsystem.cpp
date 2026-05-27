@@ -215,71 +215,32 @@ void UGameSaveSubsystem::LoadGame()
                 IsAllLoadComplete = IsAllLoadComplete && Subsystem->GetIsLoadComplete();
             }
 
-
-
             if (IsAllLoadComplete)
             {
-                /*
-                if(LoadedMapName != CurrentMapName)
+                if (World)
                 {
-                    if (World)
+                    APlayerController* PC = World->GetFirstPlayerController();
+                    if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
                     {
-                        APlayerController* PC = World->GetFirstPlayerController();
-                        if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
-                        {
-                            IPlayerController_I::Execute_StoreCharacterState(PC, PlayerTransform);
-                        }
-
-                        UGameInstance* GI = UGameplayStatics::GetGameInstance(World);
-                        if (GI && GI->GetClass()->ImplementsInterface(USceneDataProvider::StaticClass()))
-                        {
-                            ISceneDataProvider::Execute_SetNeedTeleportToAnchor(GI, false);
-                        }
-
-                        if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-                        {
-                            UInteriorTransitionPayload* P1 = Cast<UInteriorTransitionPayload>(EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass()));
-                            //EventBus->CreatePayload(UInteriorTransitionPayload::StaticClass());
-                            if (P1)
-                            {
-                                P1->IsUseAnchor = false;
-                                P1->TargetLevelPath = LoadedMapName;
-                                FOutcomeEventBase Ev;
-                                Ev.OutcomeType = EOutcomeType::Interior;
-                                Ev.OutcomeInterior = EOutcomeInterior::FloorTransition;
-                                Ev.Payload = P1;
-                                EventBus->PublishOutcome(Ev);
-                            }
-                        }
+                        IPlayerController_I::Execute_SetLoadScreen(PC, true);
+                        IPlayerController_I::Execute_StoreWeaponState(PC);
+                        IPlayerController_I::Execute_StoreCharacterState(PC, PlayerTransform);
                     }
+
+                    UGameInstance* GI = UGameplayStatics::GetGameInstance(World);
+                    if (GI && GI->GetClass()->ImplementsInterface(USceneDataProvider::StaticClass()))
+                    {
+                        ISceneDataProvider::Execute_SetNeedTeleportToAnchor(GI, false);
+                    }
+                    World->SeamlessTravel(LoadedMapName, true);
+                    World->GetTimerManager().ClearTimer(TimerHandle);
                 }
-                else
-                {
-                */
-                    if (World)
-                    {
-                        APlayerController* PC = World->GetFirstPlayerController();
-                        if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
-                        {
-                            IPlayerController_I::Execute_SetLoadScreen(PC, true);
-                            IPlayerController_I::Execute_StoreWeaponState(PC);
-                            IPlayerController_I::Execute_StoreCharacterState(PC, PlayerTransform);
-                        }
-
-                        UGameInstance* GI = UGameplayStatics::GetGameInstance(World);
-                        if (GI && GI->GetClass()->ImplementsInterface(USceneDataProvider::StaticClass()))
-                        {
-                            ISceneDataProvider::Execute_SetNeedTeleportToAnchor(GI, false);
-                        }
-                        World->SeamlessTravel(LoadedMapName, true);
-                    }
-                //}
             }
         });
 
         if (World == GetWorld())
         {
-            World->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, false);
+            World->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, true);
         }
 }
 
