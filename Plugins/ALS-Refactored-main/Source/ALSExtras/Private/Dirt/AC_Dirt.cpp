@@ -57,7 +57,7 @@ void UAC_Dirt::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 	}
 
 	FVector2D HitUV;
-	bool bHasUV = UGameplayStatics::FindCollisionUV(Hit, 0, HitUV);
+	bool bHasUV = UGameplayStatics::FindCollisionUV(Hit, 1, HitUV);
 
 	if (bHasUV)
 	{
