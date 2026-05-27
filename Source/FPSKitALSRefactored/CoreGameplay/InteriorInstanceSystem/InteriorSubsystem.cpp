@@ -36,6 +36,27 @@
 #include "SceneDataProvider.h"
 #include <UpdateActiveMissionId.h>
 
+auto RemoveMissionSnapshots = [](TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>>& MissionSnapshotsMap,
+	const FName& MissionId) -> bool
+	{
+		if (MissionId.IsNone()) return false;
+		bool bRemovedAny = false;
+
+		for (auto It = MissionSnapshotsMap.CreateIterator(); It; ++It)
+		{
+			TMap<FName, TArray<FFloorSavedActorState>>& PerFloorMap = It->Value;
+			if (PerFloorMap.Remove(MissionId) > 0)
+			{
+				bRemovedAny = true;
+				if (PerFloorMap.Num() == 0)
+				{
+					It.RemoveCurrent(); // Если для этажа не осталось миссий – удаляем этаж
+				}
+			}
+		}
+		return bRemovedAny;
+	};
+
 static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
 {
 	// ищем запись для канала
@@ -2768,31 +2789,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		// Если нашли якорь — извлекаем связанный FloorAsset (если есть) и формируем CurrentKey
 		
 		bool bHaveKey = false;
-		/*
-		if (FoundAnchor)
-		{
-			UObject* OwnerAsset = FoundAnchor->GetOwnerRegistrationAsset();
-			if (UFloorAsset* FloorAsset = Cast<UFloorAsset>(OwnerAsset))
-			{
-				if (FloorAsset->FloorID.IsValid())
-				{
-					FGuid InteriorSetId;
-					InteriorSetId = FloorAsset->InteriorSetID;
-					UInteriorSetAsset* LoadedSet = FloorAsset->ParentInteriorSet.LoadSynchronous();
-					if (!InteriorSetId.IsValid() && FloorAsset->ParentInteriorSet.IsValid())
-					{
-						// Обратная совместимость
-						if (LoadedSet)
-						{
-							InteriorSetId = LoadedSet->InteriorSetID;
-						}
-					}					
-					CurrentKey = FInteriorFloorKey(InteriorSetId, FloorAsset->FloorID);
-					bHaveKey = true;
-				}
-			}
-		}
-		*/
 		if (FoundAnchor)
 		{
 			UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
@@ -2804,23 +2800,10 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 				if (FloorAsset && FloorAsset->FloorID.IsValid())
 				{
 					FGuid FloorId = FloorAsset->FloorID;
-					CurrentKey = FInteriorFloorKey(InteriorSetId, FloorAsset->FloorID);
+					CurrentKey = FInteriorFloorKey(InteriorSetId, FloorId);
 					bHaveKey = true;
 				}
 			}
-			/*
-			if (FloorAsset && FloorAsset->FloorID.IsValid())
-			{
-				FGuid InteriorSetId = FloorAsset->InteriorSetID;
-				if (!InteriorSetId.IsValid() && !FloorAsset->ParentInteriorSet.IsNull())
-				{
-					UInteriorSetAsset* LoadedSet = FloorAsset->ParentInteriorSet.LoadSynchronous();
-					if (LoadedSet) InteriorSetId = LoadedSet->InteriorSetID;
-				}
-				CurrentKey = FInteriorFloorKey(InteriorSetId, FloorAsset->FloorID);
-				bHaveKey = true;
-			}
-			*/
 		}
 		// Внутри лямбды, после того как определили bHaveKey и CurrentKey
 		if (bHaveKey)
@@ -2945,8 +2928,11 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						//RestoreSpawnedActorsForCurrentFloor(FindedEnvelope);
 						SpawnMissionActorsFromCurrentFloor(MissionId);
 
-						int32 CurrentMissionStep = ActiveMissions[MissionId].MissionStep;
-						RestoreMissionFloorState(MissionId, CurrentMissionStep, CurrentKey);
+						if (ActiveMissions.Contains(MissionId))
+						{
+							int32 CurrentMissionStep = ActiveMissions[MissionId].MissionStep;
+							RestoreMissionFloorState(MissionId, CurrentMissionStep, CurrentKey);
+						}
 					}
 				}
 			}
@@ -3159,27 +3145,17 @@ void UInteriorSubsystem::FloorSpawnActorsFromType(TArray<FFloorPopulationRecord>
 
 			if(!bExists)
 			{
-				//if (Envelope.IsValid())
-				//{
-					//if (ShouldSkipActor(Envelope, Channel, EMissionEndReason::None, true))
-					//{
-						if (FindActorByItemId(Record.ActorId)) continue;
-						FActorSpawnParameters Params;
-						AActor* SpawnedActor = World->SpawnActor<AActor>(Record.SourceClass, Record.WorldTransform, Params);
-						if (!SpawnedActor) continue;
-						UFloorAssignmentComponent* Comp = SpawnedActor->FindComponentByClass<UFloorAssignmentComponent>();
-						if (Comp)
-						{
-							Comp->ItemId = Record.ActorId;
-							Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
-							Comp->ActorType = Record.ActorType;
-						}
-						//RemoveActorsOfTypeForFloor(SpawnedActorsByInteriorFloor, Key.InteriorSetId, Key.FloorId, Record.ActorType);
-						//RemoveActorsOfTypeForFloor(DestroyedActorsByInteriorFloor, Key.InteriorSetId, Key.FloorId, Record.ActorType);
-
-						break;
-					//}
-				//}
+				if (FindActorByItemId(Record.ActorId)) continue;
+				FActorSpawnParameters Params;
+				AActor* SpawnedActor = World->SpawnActor<AActor>(Record.SourceClass, Record.WorldTransform, Params);
+				if (!SpawnedActor) continue;
+				UFloorAssignmentComponent* Comp = SpawnedActor->FindComponentByClass<UFloorAssignmentComponent>();
+				if (Comp)
+				{
+					Comp->ItemId = Record.ActorId;
+					Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
+					Comp->ActorType = Record.ActorType;
+				}
 			}
 		}
 
@@ -3266,47 +3242,49 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 		}
 	}
 
-
-	// Применяем спавны, произошедшие во время миссии
-	if (const auto* SpawnedMapPerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
+	if (IsMissionWorld)
 	{
-		if (const auto* BucketsForMission = SpawnedMapPerFloor->Find(MissionId))
+		// Применяем спавны, произошедшие во время миссии
+		if (const auto* SpawnedMapPerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
 		{
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::None, true))
-				SpawnMissionRecords(BucketsForMission->HeavyFurniture);
+			if (const auto* BucketsForMission = SpawnedMapPerFloor->Find(MissionId))
+			{
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::None, true))
+					SpawnMissionRecords(BucketsForMission->HeavyFurniture);
 
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::None, true))
-				SpawnMissionRecords(BucketsForMission->LightItems);
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::None, true))
+					SpawnMissionRecords(BucketsForMission->LightItems);
 
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::None, true))
-				SpawnMissionRecords(BucketsForMission->Terminals);
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::None, true))
+					SpawnMissionRecords(BucketsForMission->Terminals);
 
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::None, true))
-				SpawnMissionRecords(BucketsForMission->NPCSpawners);
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::None, true))
+					SpawnMissionRecords(BucketsForMission->NPCSpawners);
 
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::None, true))
-				SpawnMissionRecords(BucketsForMission->Debris);
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::None, true))
+					SpawnMissionRecords(BucketsForMission->Debris);
+			}
 		}
-	}
-	// Применяем удаления, произошедшие во время миссии
-	if (const auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
-	{
-		if (const auto* BucketsForMission = DestroyedMapPerFloor->Find(MissionId))
+		// Применяем удаления, произошедшие во время миссии
+		if (const auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
 		{
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::None, true))
-				DestroyMissionRecords(BucketsForMission->HeavyFurniture);
+			if (const auto* BucketsForMission = DestroyedMapPerFloor->Find(MissionId))
+			{
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::None, true))
+					DestroyMissionRecords(BucketsForMission->HeavyFurniture);
 
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::None, true))
-				DestroyMissionRecords(BucketsForMission->LightItems);
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::None, true))
+					DestroyMissionRecords(BucketsForMission->LightItems);
 
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::None, true))
-				DestroyMissionRecords(BucketsForMission->Terminals);
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::None, true))
+					DestroyMissionRecords(BucketsForMission->Terminals);
 
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::None, true))
-				DestroyMissionRecords(BucketsForMission->NPCSpawners);
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::None, true))
+					DestroyMissionRecords(BucketsForMission->NPCSpawners);
 
-			if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::None, true))
-				DestroyMissionRecords(BucketsForMission->Debris);
+				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::None, true))
+					DestroyMissionRecords(BucketsForMission->Debris);
+			}
 		}
 	}
 }
@@ -3560,6 +3538,8 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					//ActivateMission(MissionId);
 					Ctrl->MissionStep = 0;
 					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
+
+					RemoveMissionSnapshots(MissionFloorSnapshots, MissionId);
 				}
 				continue;
 			}
@@ -3633,11 +3613,13 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	{
 	case EMissionResumeMode::Resumable:
 	{
-		
 		break;
 	}
 	case EMissionResumeMode::RestartOnLoad:
 	{
+		//if(MissionFloorSnapshots.Contains())
+
+		
 
 		break;
 	}
