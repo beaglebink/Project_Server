@@ -960,6 +960,7 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 			//EMissionResumeMode RestoredResume = EMissionResumeMode::Resumable;
 			ActiveMissions.Empty();
+			TArray<FName> DeletedMissions;
 			for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
 			{
 				const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
@@ -1001,16 +1002,6 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					//ActivateMission(MissionId, false);
 				}
 
-
-				UE_LOG(LogTemp, Log,
-					TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
-					*MissionIdStr, StatusInt, MissionStep);
-			}
-
-			TArray<FName> DeletedMissions;
-			for (auto& Mission : ActiveMissions)
-			{
-				EMissionResumeMode Resume = EMissionResumeMode::Resumable;
 				switch (Resume)
 				{
 				case EMissionResumeMode::Resumable:
@@ -1024,12 +1015,24 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				}
 				case EMissionResumeMode::FailOnLoad:
 				{
-					DeletedMissions.Add(Mission.Key);
+					DeletedMissions.Add(MissionId);
 					break;
 				}
 				}
+
+				UE_LOG(LogTemp, Log,
+					TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
+					*MissionIdStr, StatusInt, MissionStep);
 			}
 
+			
+			/*
+			for (auto& Mission : ActiveMissions)
+			{
+				EMissionResumeMode Resume = EMissionResumeMode::Resumable;
+
+			}
+			*/
 			for (auto DelMissionName : DeletedMissions)
 			{
 				ActiveMissions.Remove(DelMissionName);

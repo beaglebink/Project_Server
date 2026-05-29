@@ -60,6 +60,7 @@ struct FFloorSavedActorState
 {
     FString ActorName;
     FGuid      ItemId;
+    EFloorActorType ActorType;
     FTransform ActorTransform;
     FTransform RelativeTransform;
     bool       bHasRelativeTransform = false;

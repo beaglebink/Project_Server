@@ -36,6 +36,9 @@
 #include "SceneDataProvider.h"
 #include <UpdateActiveMissionId.h>
 
+static FString ActorTypeToString(EFloorActorType Type);
+static EFloorActorType StringToActorType(const FString& Str);
+
 auto RemoveMissionSnapshots = [](TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>>& MissionSnapshotsMap,
 	const FName& MissionId) -> bool
 	{
@@ -642,7 +645,9 @@ static FFloorSavedComponentState ComponentStateFromJson(const TSharedPtr<FJsonOb
 static TSharedPtr<FJsonObject> ActorStateToJson(const FFloorSavedActorState& State)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+	Obj->SetStringField(TEXT("ActorName"), State.ActorName);
 	Obj->SetStringField(TEXT("ItemId"), State.ItemId.ToString());
+	Obj->SetStringField(TEXT("ActorType"), ActorTypeToString(State.ActorType));
 	Obj->SetObjectField(TEXT("ActorTransform"), TransformToJsonObject(State.ActorTransform));
 	Obj->SetObjectField(TEXT("RelativeTransform"), TransformToJsonObject(State.RelativeTransform));
 	Obj->SetBoolField(TEXT("bHasRelativeTransform"), State.bHasRelativeTransform);
@@ -663,7 +668,14 @@ static FFloorSavedActorState ActorStateFromJson(const TSharedPtr<FJsonObject>& O
 {
 	FFloorSavedActorState State;
 	if (!Obj.IsValid()) return State;
+
+	Obj->TryGetStringField(TEXT("ActorName"), State.ActorName);
 	FGuid::Parse(Obj->GetStringField(TEXT("ItemId")), State.ItemId);
+
+	FString ActorTypeStr;
+	if (Obj->TryGetStringField(TEXT("ActorType"), ActorTypeStr))      
+		State.ActorType = StringToActorType(ActorTypeStr);	
+
 	if (Obj->HasField(TEXT("ActorTransform")))
 		State.ActorTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("ActorTransform")));
 	if (Obj->HasField(TEXT("RelativeTransform")))
@@ -893,6 +905,7 @@ static void DeserializeMissionFloorSnapshots(const TSharedPtr<FJsonValue>& JsonV
 		if (!Comp) return;
 
 		OutSnapshot.ActorName = Actor->GetName();
+		OutSnapshot.ActorType = Comp->ActorType;
 		OutSnapshot.ActorTransform = Actor->GetActorTransform();
 		CollectSaveGameProperties(Actor, OutSnapshot.ActorProperties);
 
@@ -1055,7 +1068,7 @@ static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationReco
 	if (Record.SourceClass)
 		Obj->SetStringField(TEXT("SourceClass"), Record.SourceClass->GetPathName());
 	Obj->SetStringField(TEXT("ActorId"), Record.ActorId.ToString());
-	Obj->SetBoolField(TEXT("IsNewObject"), Record.IsNewObject);           // <-- добавлено
+	Obj->SetBoolField(TEXT("IsNewObject"), Record.IsNewObject);
 	Obj->SetObjectField(TEXT("WorldTransform"), TransformToJsonObject(Record.WorldTransform));
 	Obj->SetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
 	return Obj;
@@ -3477,15 +3490,22 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
 	IsLoadComplete = false;
-	//IsLoadingFromSave = true;
+
+	if (InData.SerializedData.IsEmpty())
+	{
+		IsLoadComplete = true;
+		return;
+	}
+
 	TSharedPtr<FJsonObject> Root;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(InData.SerializedData);
 	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
 	{
+		IsLoadComplete = true;
 		return;
 	}
 
-		// --- Восстановление FloorStateSnapshots ---
+	// --- Восстановление FloorStateSnapshots ---
 	TSharedPtr<FJsonValue> FloorStateValue = Root->TryGetField(TEXT("FloorStateSnapshots"));
 	if (FloorStateValue.IsValid())
 	{
@@ -3507,36 +3527,26 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		DeserializePopulationMap(SpawnedValue, SpawnedActorsByInteriorFloor);
 	}
 	TSharedPtr<FJsonValue> DestroyedValue = Root->TryGetField(TEXT("DestroyedActors"));
-
-	TSharedPtr<FJsonValue> MissionSpawnedValue = Root->TryGetField(TEXT("MissionSpawnedActors"));
-	if (MissionSpawnedValue.IsValid())
-		DeserializeMissionPopulationMap(MissionSpawnedValue, MissionSpawnedActorsByInteriorFloor);
-	TSharedPtr<FJsonValue> MissionDestroyedValue = Root->TryGetField(TEXT("MissionDestroyedActors"));
-	if (MissionDestroyedValue.IsValid())
-		DeserializeMissionPopulationMap(MissionDestroyedValue, MissionDestroyedActorsByInteriorFloor);
-
 	if (DestroyedValue.IsValid())
 	{
 		DeserializePopulationMap(DestroyedValue, DestroyedActorsByInteriorFloor);
 	}
 
+	TSharedPtr<FJsonValue> MissionSpawnedValue = Root->TryGetField(TEXT("MissionSpawnedActors"));
+	if (MissionSpawnedValue.IsValid())
+	{
+		DeserializeMissionPopulationMap(MissionSpawnedValue, MissionSpawnedActorsByInteriorFloor);
+	}
+	TSharedPtr<FJsonValue> MissionDestroyedValue = Root->TryGetField(TEXT("MissionDestroyedActors"));
+	if (MissionDestroyedValue.IsValid())
+	{
+		DeserializeMissionPopulationMap(MissionDestroyedValue, MissionDestroyedActorsByInteriorFloor);
+	}
 
-	if (InData.SerializedData.IsEmpty()) return;
-
-
-
-
-
-	// --- Восстановление списка активных миссий (сохраняем в контейнер для последующего использования) ---
-	// Здесь мы не восстанавливаем сами миссии, а только сохраняем информацию для MissionSubsystem.
-	// Само восстановление миссий выполнит MissionSubsystem при загрузке.
-	// Однако мы можем заполнить временный массив, который позже будет передан в MissionSubsystem.
-	// Пока просто прочитаем и залогируем.
-
+	// --- Восстановление списка активных миссий ---
 	const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
-	EMissionResumeMode RestoredResume = EMissionResumeMode::Resumable;
-
 	ActiveMissions.Empty();
+
 	if (Root->TryGetArrayField(TEXT("Missions"), MissionArray))
 	{
 		for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
@@ -3556,19 +3566,12 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			Obj->TryGetNumberField(TEXT("MissionStep"), MissionStep);
 
 			const FName MissionId = FName(*MissionIdStr);
-			const EMissionStatus   Status = static_cast<EMissionStatus>(StatusInt);
 			const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
 			const EMissionResumeMode Resume = static_cast<EMissionResumeMode>(ResumeModeInt);
 
-			// Загрузить ассет
 			UMissionAsset* Asset = Cast<UMissionAsset>(
 				StaticLoadObject(UMissionAsset::StaticClass(), nullptr, *AssetPath));
-			if (!Asset)
-			{
-				continue;
-			}
-
-			RestoredResume = Resume;
+			if (!Asset) continue;
 
 			switch (Resume)
 			{
@@ -3577,48 +3580,116 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (Ctrl)
 				{
-					//ActivateMission(MissionId);
 					Ctrl->MissionStep = 0;
-					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-
+					FActiveMissionInterior* Entry = ActiveMissions.Find(MissionId);
+					if (Entry) Entry->MissionStep = Ctrl->MissionStep;
+					// Удаляем снепшоты перезапущенной миссии
 					RemoveMissionSnapshots(MissionFloorSnapshots, MissionId);
 					RemoveMissionFromPopulationMap(MissionSpawnedActorsByInteriorFloor, MissionId);
 					RemoveMissionFromPopulationMap(MissionDestroyedActorsByInteriorFloor, MissionId);
 				}
-				continue;
+				Ctrl->OnMissionStepProgress(0);
+				break;
 			}
 			case EMissionResumeMode::Resumable:
 			{
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (Ctrl)
 				{
-					//ActivateMission(MissionId);
 					Ctrl->MissionStep = MissionStep;
-					ActiveMissions.Find(MissionId)->MissionStep = MissionStep;
+					FActiveMissionInterior* Entry = ActiveMissions.Find(MissionId);
+					if (Entry) Entry->MissionStep = Ctrl->MissionStep;
 				}
-				continue;
+				break;
 			}
 			case EMissionResumeMode::FailOnLoad:
 			{
 				UMissionController* Ctrl = CreateMission(Asset);
 				if (!Ctrl) continue;
+				Ctrl->MissionStep = MissionStep;
+				FActiveMissionInterior* Entry = ActiveMissions.Find(MissionId);
+				if (Entry) Entry->MissionStep = Ctrl->MissionStep;
+				// Отложим обработку (перенос снепшотов) до конца
 
-				// Восстанавливаем статус из сохранения
-				if (Status == EMissionStatus::Active || Status == EMissionStatus::Suspended)
-				{
-				}
-				else if (Status == EMissionStatus::Resolved)
-				{
-					Ctrl->MissionStep = Asset->Envelopes.Num() - 1;
-					ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-				}
-				continue;
+				Ctrl->OnMissionCompleted(EMissionEndReason::Failed);
+				break;
 			}
 			}
 		}
+
+		// --- Обработка миссий с ResumeMode == FailOnLoad ---
+		for (auto& Pair : ActiveMissions)
+		{
+			const FName MissionId = Pair.Key;
+			UMissionController* Controller = Pair.Value.Controller;
+			if (!Controller) continue;
+
+			UMissionAsset* MissionAsset = Controller->GetMissionAsset();
+			if (!MissionAsset) continue;
+
+			FMissionEnvelope Envelope = MissionAsset->Envelopes[Pair.Value.MissionStep];
+			if (Envelope.ResumeMode != EMissionResumeMode::FailOnLoad) continue;
+
+			// Копируем снепшоты этой миссии в FloorStateSnapshots (с проверкой уникальности)
+			for (auto& MissionPair : MissionFloorSnapshots)
+			{
+				const FInteriorFloorKey& FloorKey = MissionPair.Key;
+				TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionPair.Value;
+
+				if (!PerFloor.Contains(MissionId)) continue;
+
+				TArray<FFloorSavedActorState>& Snapshots = PerFloor[MissionId];
+				TArray<FFloorSavedActorState>& FloorArray = FloorStateSnapshots.FindOrAdd(FloorKey);
+
+				for (const FFloorSavedActorState& Snapshot : Snapshots)
+				{
+					if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Snapshot.ActorType), EMissionEndReason::Failed, false))
+					{
+						// Обновляем или добавляем
+						bool bFound = false;
+						for (int32 i = 0; i < FloorArray.Num(); ++i)
+						{
+							if (FloorArray[i].ItemId == Snapshot.ItemId)
+							{
+								FloorArray[i] = Snapshot;
+								bFound = true;
+								break;
+							}
+						}
+						if (!bFound)
+							FloorArray.Add(Snapshot);
+					}
+				}
+
+				CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, Envelope, EMissionEndReason::Failed, FloorKey, MissionId);
+				CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, Envelope, EMissionEndReason::Failed, FloorKey, MissionId);
+			}
+
+			// Удаляем снепшоты миссии из временных хранилищ
+			RemoveMissionSnapshots(MissionFloorSnapshots, MissionId);
+			RemoveMissionFromPopulationMap(MissionSpawnedActorsByInteriorFloor, MissionId);
+			RemoveMissionFromPopulationMap(MissionDestroyedActorsByInteriorFloor, MissionId);
+		}
+
+		// --- Удаление миссий с FailOnLoad из ActiveMissions ---
+		TArray<FName> MissionsToRemove;
+		for (const auto& Pair : ActiveMissions)
+		{
+			UMissionController* Ctrl = Pair.Value.Controller;
+			if (!Ctrl) continue;
+			UMissionAsset* Asset = Ctrl->GetMissionAsset();
+			if (!Asset) continue;
+			FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+			if (Envelope.ResumeMode == EMissionResumeMode::FailOnLoad)
+			{
+				MissionsToRemove.Add(Pair.Key);
+			}
+		}
+		for (const FName& MissionId : MissionsToRemove)
+		{
+			ActiveMissions.Remove(MissionId);
+		}
 	}
-
-
 
 	IsLoadComplete = true;
 }
@@ -3729,36 +3800,19 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 		FName MissionId = P->MissionId;
 		if (MissionId.IsNone()) return;
 
-
 		// При завершении миссии — применить политику к сохранённым snapshot-ам для этой миссии
 		auto MissionInterior = ActiveMissions.Find(MissionId);
-		TArray<FEnvelopeChannelEntry> EndChannels;
+
 		if (MissionInterior)
 		{
 			TObjectPtr<UMissionController> Controller = MissionInterior->Controller;
 			UMissionAsset* MissionAsset = Controller->GetMissionAsset();
 			FMissionEnvelope Envelope = MissionAsset->Envelopes[MissionInterior->MissionStep];
 
-			EJobSpacePolicy Policy = EJobSpacePolicy::None;
-
 			StoreCurrentLevelComplete(Envelope, MissionId, P->EndReason);
-			//StoreSnapshot(MissionId, Envelope, P->EndReason);
 
 			ActiveMissions.Remove(MissionId);
 			MissionFloorSnapshots.Find(CurrentKey)->Remove(MissionId);
-
-			for (auto It = MissionSpawnedActorsByInteriorFloor.CreateIterator(); It; ++It)
-			{
-				It->Value.Remove(MissionId);
-				if (It->Value.Num() == 0)
-					It.RemoveCurrent();
-			}
-			for (auto It = MissionDestroyedActorsByInteriorFloor.CreateIterator(); It; ++It)
-			{
-				It->Value.Remove(MissionId);
-				if (It->Value.Num() == 0)
-					It.RemoveCurrent();
-			}
 		}
 		RemoveMissionSnapshots(MissionFloorSnapshots, MissionId);
 		RemoveMissionFromPopulationMap(MissionSpawnedActorsByInteriorFloor, MissionId);
