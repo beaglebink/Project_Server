@@ -1876,12 +1876,28 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			FFloorPopulationBuckets& MissionBuckets = PerMissionSpawn.FindOrAdd(MissionId);
 			switch (P->ActorType)
 			{
-			case EFloorActorType::HeavyFurniture: MissionBuckets.HeavyFurniture.Add(NewRecord);  break;
-			case EFloorActorType::LightItem:      MissionBuckets.LightItems.Add(NewRecord);      break;
-			case EFloorActorType::Terminal:       MissionBuckets.Terminals.Add(NewRecord);       break;
-			case EFloorActorType::NPC_Spawner:    MissionBuckets.NPCSpawners.Add(NewRecord);     break;
-			case EFloorActorType::Debris:         MissionBuckets.Debris.Add(NewRecord);          break;
-			default:																	         break;
+			case EFloorActorType::HeavyFurniture:
+				if (!MissionBuckets.HeavyFurniture.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
+					MissionBuckets.HeavyFurniture.Add(NewRecord);
+				break;
+			case EFloorActorType::LightItem:
+				if (!MissionBuckets.LightItems.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
+					MissionBuckets.LightItems.Add(NewRecord);
+				break;
+			case EFloorActorType::Terminal:
+				if (!MissionBuckets.Terminals.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
+					MissionBuckets.Terminals.Add(NewRecord);
+				break;
+			case EFloorActorType::NPC_Spawner:
+				if (!MissionBuckets.NPCSpawners.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
+					MissionBuckets.NPCSpawners.Add(NewRecord);
+				break;
+			case EFloorActorType::Debris:
+				if (!MissionBuckets.Debris.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
+					MissionBuckets.Debris.Add(NewRecord);
+				break;
+			default:
+				break;
 			}
 		}
 	}
@@ -3261,45 +3277,51 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 	if (IsMissionWorld)
 	{
 		// Применяем спавны, произошедшие во время миссии
-		if (const auto* SpawnedMapPerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
+		if (auto* SpawnedMapPerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
 		{
-			if (const auto* BucketsForMission = SpawnedMapPerFloor->Find(MissionId))
+			if (auto* BucketsForMission = SpawnedMapPerFloor->Find(MissionId))
 			{
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::None, true))
-					SpawnMissionRecords(BucketsForMission->HeavyFurniture);
+				auto RemoveRecordByActorId = [&](TArray<FFloorPopulationRecord>& Arr, const FGuid& ItemId)
+					{
+						Arr.RemoveAll([&ItemId](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ItemId; });
+					};
 
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::None, true))
-					SpawnMissionRecords(BucketsForMission->LightItems);
+				auto ProcessCategory = [&](TArray<FFloorPopulationRecord>& Records, EFloorActorType ActorType)
+					{
+						if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
+						{
+							SpawnMissionRecords(Records);
+						}
+						else
+						{
+							Records.Empty();
+						}
+					};
 
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::None, true))
-					SpawnMissionRecords(BucketsForMission->Terminals);
-
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::None, true))
-					SpawnMissionRecords(BucketsForMission->NPCSpawners);
-
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::None, true))
-					SpawnMissionRecords(BucketsForMission->Debris);
+				ProcessCategory(BucketsForMission->HeavyFurniture, EFloorActorType::HeavyFurniture);
+				ProcessCategory(BucketsForMission->LightItems, EFloorActorType::LightItem);
+				ProcessCategory(BucketsForMission->Terminals, EFloorActorType::Terminal);
+				ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::NPC_Spawner);
+				ProcessCategory(BucketsForMission->Debris, EFloorActorType::Debris);
 			}
-		}
-		// Применяем удаления, произошедшие во время миссии
-		if (const auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
+		}		
+		if (auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
 		{
-			if (const auto* BucketsForMission = DestroyedMapPerFloor->Find(MissionId))
+			if (auto* BucketsForMission = DestroyedMapPerFloor->Find(MissionId))
 			{
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), EMissionEndReason::None, true))
-					DestroyMissionRecords(BucketsForMission->HeavyFurniture);
+				auto ProcessCategory = [&](TArray<FFloorPopulationRecord>& Records, EFloorActorType ActorType)
+					{
+						if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
+							DestroyMissionRecords(Records);
+						else
+							Records.Empty();
+					};
 
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), EMissionEndReason::None, true))
-					DestroyMissionRecords(BucketsForMission->LightItems);
-
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), EMissionEndReason::None, true))
-					DestroyMissionRecords(BucketsForMission->Terminals);
-
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), EMissionEndReason::None, true))
-					DestroyMissionRecords(BucketsForMission->NPCSpawners);
-
-				if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), EMissionEndReason::None, true))
-					DestroyMissionRecords(BucketsForMission->Debris);
+				ProcessCategory(BucketsForMission->HeavyFurniture, EFloorActorType::HeavyFurniture);
+				ProcessCategory(BucketsForMission->LightItems, EFloorActorType::LightItem);
+				ProcessCategory(BucketsForMission->Terminals, EFloorActorType::Terminal);
+				ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::NPC_Spawner);
+				ProcessCategory(BucketsForMission->Debris, EFloorActorType::Debris);
 			}
 		}
 	}
