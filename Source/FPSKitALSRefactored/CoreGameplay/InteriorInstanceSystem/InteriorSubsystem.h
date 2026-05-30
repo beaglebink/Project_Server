@@ -172,11 +172,8 @@ public:
 
     void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
 
-    bool IsCurrentWorldMission(FMissionEnvelope& Envelope);
-
     bool IsCurrentWorldMissionConst(const FMissionEnvelope& Envelope);
 
-    void SaveMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey);
     void RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey);
     void FloorSpawnActorsFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope, FInteriorFloorKey Key);
     void SpawnMissionActorsFromCurrentFloor(FName MissionId);
@@ -184,7 +181,6 @@ public:
     void DestroyMissionRecords(const TArray<FFloorPopulationRecord>& Records);
     void RestoreSpawnedActorsForCurrentFloor(const FMissionEnvelope& Envelope);
     void ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion = false);
-    const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* GetMissionSnapshots(FName MissionId) const;
 
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
@@ -206,17 +202,13 @@ private:
     void HandleCompleteMission(const FOutcomeEventBase& Outcome);
     void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
     void StoreCurrentLevelComplete(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
-    void StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EMissionEndReason EndReason);
 
     void SubscribeAll();
     void UnsubscribeAll();
 
-    void ApplyPersistentPopulation(const FInteriorFloorKey& FloorKey);
-    //TArray<EFloorActorType> GetActorTypesForEnvelopeChannel(EEnvelopeChannel Channel);
     void SpawnRecords(const TArray<FFloorPopulationRecord>& Records);
     void DestroyRecords(const TArray<FFloorPopulationRecord>& Records);
     AActor* FindActorByItemId(const FGuid& ItemId) const;
-    void CopyRecordsForChannel(const TArray<FFloorPopulationRecord>& Source, TArray<FFloorPopulationRecord>& Dest, EEnvelopeChannel Channel);
     void RemoveRecordsForChannel(TArray<FFloorPopulationRecord>& Records, EEnvelopeChannel Channel);
 
     TMap<FGuid, FInteractItemRecord> RegisteredItems;

@@ -365,53 +365,6 @@ auto RemoveFromMissionDestroyedByActorIdForFloor = [](TMap<FInteriorFloorKey, TM
 		return bRemoved;
 	};
 
-
-auto FindByItemId = [](const TArray<FFloorSavedActorState>& Array, const FGuid& TargetId) -> const FFloorSavedActorState*
-	{
-		if (!TargetId.IsValid()) return nullptr;
-		for (const FFloorSavedActorState& State : Array)
-		{
-			if (State.ItemId == TargetId)
-				return &State;
-		}
-		return nullptr;
-	};
-
-auto RemoveActorsOfTypeForFloor = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap,
-	const FGuid& InteriorSetId,
-	const FGuid& FloorId,
-	EFloorActorType ActorType) -> bool
-	{
-		FInteriorFloorKey Key(InteriorSetId, FloorId);
-		FFloorPopulationBuckets* Buckets = SpawnedMap.Find(Key);
-		if (!Buckets) return false;
-
-		// Очищаем нужную категорию
-		switch (ActorType)
-		{
-		case EFloorActorType::HeavyFurniture:
-			Buckets->HeavyFurniture.Empty();
-			break;
-		case EFloorActorType::LightItem:
-			Buckets->LightItems.Empty();
-			break;
-		case EFloorActorType::Terminal:
-			Buckets->Terminals.Empty();
-			break;
-		case EFloorActorType::NPC_Spawner:
-			Buckets->NPCSpawners.Empty();
-			break;
-		case EFloorActorType::Debris:
-			Buckets->Debris.Empty();
-			break;
-		default:
-			return false; // неизвестный тип, ничего не делаем
-		}
-		return true;
-	};
-
-
-
 // -----------------------------------------------------------------------------
 // Helper functions for persistent population (channel filtering)
 // -----------------------------------------------------------------------------
@@ -483,22 +436,6 @@ auto ContainsActorIdInSpawnedNew = [](const TMap<FInteriorFloorKey, FFloorPopula
 
 	};
 
-auto RemoveRecordByItemId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& Map, const FGuid& InteriorSetId, const FGuid& FloorId, const FGuid& ItemId) -> bool
-	{
-		if (!ItemId.IsValid()) return false;
-		bool bRemoved = false;
-
-		// Проходим по всем этажам
-		for (auto& Pair : Map)
-		{
-			FInteriorFloorKey Key = FInteriorFloorKey(InteriorSetId, FloorId);
-			if (Pair.Key != Key)
-				continue;
-			
-		}
-
-		return bRemoved;
-	};
 // -----------------------------------------------------------------------------
 // JSON serialization helpers for snapshot structures
 // -----------------------------------------------------------------------------
@@ -795,28 +732,26 @@ static void DeserializeMissionFloorSnapshots(const TSharedPtr<FJsonValue>& JsonV
 // -----------------------------------------------------------------------------
 // Snapshot helpers
 // -----------------------------------------------------------------------------
-//namespace
-//{
 	// Нормализация: берём базовое имя файла без пути, убираем PIE-префиксы и приводим к нижнему регистру
 	static auto NormalizeLevelName = [](const FString& InPath) -> FString
+	{
+		if (InPath.IsEmpty()) return FString();
+		FString PackagePath = InPath;
+		if (PackagePath.Contains(TEXT(".")))
+			PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
+		FString Base = FPaths::GetBaseFilename(PackagePath);
+		// Убираем PIE-префиксы вида UEDPIE_0_
+		int32 PIEPos = Base.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
+		if (PIEPos != INDEX_NONE)
 		{
-			if (InPath.IsEmpty()) return FString();
-			FString PackagePath = InPath;
-			if (PackagePath.Contains(TEXT(".")))
-				PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
-			FString Base = FPaths::GetBaseFilename(PackagePath);
-			// Убираем PIE-префиксы вида UEDPIE_0_
-			int32 PIEPos = Base.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
-			if (PIEPos != INDEX_NONE)
-			{
-				int32 MPos = Base.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
-				if (MPos != INDEX_NONE && MPos + 3 < Base.Len())
-					Base = Base.Mid(MPos + 3);
-				else
-					Base = Base.Mid(PIEPos + 6);
-			}
-			return Base.ToLower();
-		};
+			int32 MPos = Base.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
+			if (MPos != INDEX_NONE && MPos + 3 < Base.Len())
+				Base = Base.Mid(MPos + 3);
+			else
+				Base = Base.Mid(PIEPos + 6);
+		}
+		return Base.ToLower();
+	};
 
 	static void CollectSaveGameProperties(UObject* Obj, TArray<FFloorSavedPropertyEntry>& OutProps)
 	{
@@ -950,7 +885,6 @@ static void DeserializeMissionFloorSnapshots(const TSharedPtr<FJsonValue>& JsonV
 			OutSnapshot.ComponentStates.Add(MoveTemp(CState));
 		}
 	}
-//}
 
 	static void RestoreActorSnapshot(AActor* Actor, const FFloorSavedActorState& Snapshot, bool bApplyWorldTransform = true, bool bForceRelative = false)
 	{
@@ -2019,32 +1953,26 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 
 		// Удаляем запись из SpawnedActorsByInteriorFloor
 		auto RemoveFromSpawnedByActorId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId)
-			{
-				if (!TargetActorId.IsValid()) return;
-				for (auto& Pair : SpawnedMap)
-				{
-					FFloorPopulationBuckets& Buckets = Pair.Value;
-					auto RemoveByActorId = [&TargetActorId](TArray<FFloorPopulationRecord>& Arr)
-						{
-							Arr.RemoveAll([&TargetActorId](const FFloorPopulationRecord& Record)
-								{
-									return Record.ActorId == TargetActorId;
-								});
-						};
-					RemoveByActorId(Buckets.HeavyFurniture);
-					RemoveByActorId(Buckets.LightItems);
-					RemoveByActorId(Buckets.Terminals);
-					RemoveByActorId(Buckets.NPCSpawners);
-					RemoveByActorId(Buckets.Debris);
-				}
-			};
-		/*
-		if (ContainsActorIdInSpawned(SpawnedActorsByInteriorFloor, P->ItemId))
 		{
-			RemoveFromSpawnedByActorId(DestroyedActorsByInteriorFloor, P->ItemId);
-		}
-		RemoveFromSpawnedByActorId(SpawnedActorsByInteriorFloor, P->ItemId);
-		*/
+			if (!TargetActorId.IsValid()) return;
+			for (auto& Pair : SpawnedMap)
+			{
+				FFloorPopulationBuckets& Buckets = Pair.Value;
+				auto RemoveByActorId = [&TargetActorId](TArray<FFloorPopulationRecord>& Arr)
+					{
+						Arr.RemoveAll([&TargetActorId](const FFloorPopulationRecord& Record)
+							{
+								return Record.ActorId == TargetActorId;
+							});
+					};
+				RemoveByActorId(Buckets.HeavyFurniture);
+				RemoveByActorId(Buckets.LightItems);
+				RemoveByActorId(Buckets.Terminals);
+				RemoveByActorId(Buckets.NPCSpawners);
+				RemoveByActorId(Buckets.Debris);
+			}
+		};
+
 		if (!MissionId.IsNone())
 		{
 			if (ContainsActorIdInMissionSpawnedForFloor(MissionSpawnedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId))
@@ -2054,52 +1982,6 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			RemoveFromMissionSpawnedByActorIdForFloor(MissionSpawnedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId);
 		}
 	}
-}
-
-bool UInteriorSubsystem::IsCurrentWorldMission(FMissionEnvelope& Envelope)
-{
-	UWorld* World = GetWorld();
-	if (!World) return false;
-
-	bool IsMissionWorld = false;
-
-	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-	for (const auto& Pair : ActiveMissions)
-	{
-		const UMissionController* Ctrl = Pair.Value.Controller;
-		if (!Ctrl) continue;
-
-		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
-		if (!Asset) continue;
-
-		const EMissionStatus Status = Ctrl->GetStatus();
-		const EMissionEndReason EndReason = Ctrl->GetEndReason();
-		Envelope = Asset->Envelopes[Pair.Value.MissionStep];
-		const EMissionResumeMode Resume = Envelope.ResumeMode;
-		const int32 MissionStep = Pair.Value.MissionStep;
-
-		FMissionEnvelopeScope Scope = Envelope.Scope;
-		for (auto Sc : Scope.InteriorScopes)
-		{
-			FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
-
-			FString NormTarget = NormalizeLevelName(ScopeLevelName);
-			FString NormCurrent = NormalizeLevelName(CurrentLevelName);
-
-			if (NormTarget == NormCurrent)
-			{
-				IsMissionWorld = true;
-				break;
-			}
-		}
-
-		if (IsMissionWorld)
-		{
-			break;
-		}
-	}
-
-	return IsMissionWorld;
 }
 
 bool UInteriorSubsystem::IsCurrentWorldMissionConst(const FMissionEnvelope& Envelope)
@@ -2706,14 +2588,10 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UInteriorSubsystem::OnPostLoadMap);
 
 	SubscribeAll();
-
-	//SubscribeToSpawnActor();
 }
 
 void UInteriorSubsystem::SubscribeToSpawnActor()
 {
-
-
 	if (UWorld* World = GetWorld())
 	{
 		ActorSpawnedHandle = World->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateUObject(this, &UInteriorSubsystem::OnActorSpawned));
@@ -2739,7 +2617,6 @@ void UInteriorSubsystem::Deinitialize()
 	RegisteredItems.Empty();
 	RegistrationListeners.Empty();
 	SpawnedActorsByInteriorFloor.Empty();
-	//FloorStateSnapshots.Empty();
 	MissionFloorSnapshots.Empty();
 	CachedEventBus = nullptr;
 
@@ -2957,7 +2834,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					{
 
 						const FName& MissionId = MissionPair.Key;
-						//RestoreSpawnedActorsForCurrentFloor(FindedEnvelope);
 						SpawnMissionActorsFromCurrentFloor(MissionId);
 
 						if (ActiveMissions.Contains(MissionId))
@@ -3121,17 +2997,6 @@ void UInteriorSubsystem::UnsubscribeAll()
 // ─────────────────────────────────────────────────────────────────────────────
 // Mission Snapshot API
 // ─────────────────────────────────────────────────────────────────────────────
-
-void UInteriorSubsystem::SaveMissionFloorState(FName MissionId, const FInteriorFloorKey& FloorKey)
-{
-	if (MissionId.IsNone() || !FloorKey.FloorId.IsValid()) return;
-
-	EJobSpacePolicy Policy = EJobSpacePolicy::Freeze;
-	TArray<FEnvelopeChannelEntry> Channels;
-
-	SaveFloorActorsState(FloorKey.InteriorSetId, FloorKey.FloorId, MissionId, EMissionEndReason::None);
-}
-
 void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey)
 {
 	UWorld* World = GetWorld();
@@ -3151,7 +3016,6 @@ void UInteriorSubsystem::RestoreMissionFloorState(FName MissionId, int32 Current
 			auto MissionAsset = Controller->GetMissionAsset();
 			auto& Envelope = MissionAsset->Envelopes[CurrentMissionStep];
 
-			//RestoreSpawnedActorsForCurrentFloor(Envelope);			
 			RestoreFromSnapshotArray(World, *Snapshot, FloorKey.InteriorSetId, FloorKey.FloorId, Envelope);
 		}
 	}
@@ -3377,22 +3241,6 @@ void UInteriorSubsystem::RestoreSpawnedActorsForCurrentFloor(const FMissionEnvel
 	FloorSpawnActorsFromType(Buckets->Debris, Envelope, CurrentKey);
 
 	TestAllActors.Empty();
-}
-
-const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>* UInteriorSubsystem::GetMissionSnapshots(FName MissionId) const 
-{
-	// Сформировать временную карту этаж->snapshot для данной миссии и вернуть указатель на кеш
-	MissionSnapshotQueryCache.Reset();
-	for (const auto& Pair : MissionFloorSnapshots)
-	{
-		const FInteriorFloorKey& FloorKey = Pair.Key;
-		const TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
-		if (const TArray<FFloorSavedActorState>* Snap = PerFloor.Find(MissionId))
-		{
-			MissionSnapshotQueryCache.FindOrAdd(FloorKey) = *Snap;
-		}
-	}
-	return &MissionSnapshotQueryCache;
 }
 
 void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
@@ -3791,7 +3639,6 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 		if (P->IsUpdateSnapshots)
 		{
 			StoreCurrentLevelComplete(Envelope, P->CurrentMissionId, P->Reason);
-			//StoreSnapshot(P->CurrentMissionId, Envelope, EMissionEndReason::Completed);
 		}
 
 		// Обновляем список активных миссий
@@ -3932,20 +3779,6 @@ void UInteriorSubsystem::StoreCurrentLevelComplete(FMissionEnvelope Envelope, FN
 			SaveFloorActorsStateComplete(InteriorSetID, FloorGuid, MissionId, EndReason);
 		}
 	}
-}
-
-
-void UInteriorSubsystem::StoreSnapshot(FName MissionId, FMissionEnvelope Envelope, EMissionEndReason EndReason)
-{
-	FloorStateSnapshots.Empty();
-	for (auto& Pair : MissionFloorSnapshots)
-	{
-		const FInteriorFloorKey& FloorKey = Pair.Key;
-		TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = Pair.Value;
-		if (!PerFloor.Contains(MissionId)) continue;
-		FloorStateSnapshots.Add(FloorKey, PerFloor[MissionId]);
-	}
-	return;
 }
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)
@@ -4129,11 +3962,6 @@ void UInteriorSubsystem::TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLe
 	}
 }
 
-void UInteriorSubsystem::CopyRecordsForChannel(const TArray<FFloorPopulationRecord>& Source, TArray<FFloorPopulationRecord>& Dest, EEnvelopeChannel Channel)
-{
-	CopyRecordsForChannelHelper(Source, Dest, Channel);
-}
-
 void UInteriorSubsystem::RemoveRecordsForChannel(TArray<FFloorPopulationRecord>& Records, EEnvelopeChannel Channel)
 {
 	RemoveRecordsForChannelHelper(Records, Channel);
@@ -4183,39 +4011,3 @@ void UInteriorSubsystem::DestroyRecords(const TArray<FFloorPopulationRecord>& Re
 			Actor->Destroy();
 	}
 }
-
-void UInteriorSubsystem::ApplyPersistentPopulation(const FInteriorFloorKey& FloorKey)
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	// Спавним объекты из PersistentSpawnedActors
-	if (const FFloorPopulationBuckets* PersSpawned = SpawnedActorsByInteriorFloor.Find(FloorKey))
-	{
-		SpawnRecords(PersSpawned->HeavyFurniture);
-		SpawnRecords(PersSpawned->LightItems);
-		SpawnRecords(PersSpawned->Terminals);
-		SpawnRecords(PersSpawned->NPCSpawners);
-		SpawnRecords(PersSpawned->Debris);
-	}
-
-	// Уничтожаем объекты из PersistentDestroyedActors
-	if (const FFloorPopulationBuckets* PersDestroyed = DestroyedActorsByInteriorFloor.Find(FloorKey))
-	{
-		int32 TotalDestroyed = PersDestroyed->HeavyFurniture.Num() + PersDestroyed->LightItems.Num() +
-			PersDestroyed->Terminals.Num() + PersDestroyed->NPCSpawners.Num() + PersDestroyed->Debris.Num();
-		DestroyRecords(PersDestroyed->HeavyFurniture);
-		DestroyRecords(PersDestroyed->LightItems);
-		DestroyRecords(PersDestroyed->Terminals);
-		DestroyRecords(PersDestroyed->NPCSpawners);
-		DestroyRecords(PersDestroyed->Debris);
-	}
-
-	// Очищаем временные карты для этого этажа (чтобы повторно не спавнить)
-	SpawnedActorsByInteriorFloor.Remove(FloorKey);
-	DestroyedActorsByInteriorFloor.Remove(FloorKey);
-}
-
