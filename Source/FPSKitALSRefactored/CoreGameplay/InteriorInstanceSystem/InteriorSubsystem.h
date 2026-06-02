@@ -78,7 +78,7 @@ struct FActiveMissionInterior
     FName MissionId;
 
     UPROPERTY()
-    int32 MissionStep;
+    int32 MissionStep = 0;
 
     UPROPERTY()
     TObjectPtr<UMissionController> Controller;
