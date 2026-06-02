@@ -33,6 +33,22 @@ void USpawnGroupSubsystem::SetGhostClearedCondition(UOutcomeConditionAsset* NewC
 	SubscribeGhostCleared();
 }
 
+void USpawnGroupSubsystem::ActivateSpawnGroup(const FSpawnGroupId& GroupId, const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionContext)
+{
+
+}
+
+void USpawnGroupSubsystem::ReportGhostCleared(const FSpawnGroupId& GroupId, const FGuid& ActorId, ESpawnGroupResolutionReason Reason)
+{
+
+}
+
+EChannelPolicy USpawnGroupSubsystem::GetEffectivePolicyForGroup(const FSpawnGroupId& GroupId, EMissionEndReason EndReason) const
+{
+
+	return EChannelPolicy();
+}
+
 void USpawnGroupSubsystem::SubscribeGhostCleared()
 {
 	if (GhostClearedHandle.IsValid())

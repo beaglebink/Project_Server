@@ -4,6 +4,7 @@
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
+#include <SpawnGroupAsset.h>
 #include "SpawnGroupSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGhostClearedEvent, const FOutcomeEventBase&, Outcome);
@@ -40,9 +41,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
 	bool IsGhostClearedSubscribed() const { return GhostClearedHandle.IsValid(); }
 
+	// Применить группу (вызывается из миссии или автоматически при входе на этаж)
+	UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
+	void ActivateSpawnGroup(const FSpawnGroupId& GroupId, const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionContext);
+
+	// Отметить элемент группы как очищенный (уничтожен/захвачен)
+	UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
+	void ReportGhostCleared(const FSpawnGroupId& GroupId, const FGuid& ActorId, ESpawnGroupResolutionReason Reason);
+
+	// Получить политику для группы с учётом текущей активной миссии (через канал SpawnGroups)
+	EChannelPolicy GetEffectivePolicyForGroup(const FSpawnGroupId& GroupId, EMissionEndReason EndReason = EMissionEndReason::None) const;
+
 private:
 	void HandleGhostCleared(const FOutcomeEventBase& Outcome);
 
 	FOutcomeHandlerHandle GhostClearedHandle;
 	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
+
+	void HandleSpawnGroupActivationCommand(const FOutcomeEventBase& Outcome);
+	void HandleSpawnGroupClearCommand(const FOutcomeEventBase& Outcome);
+	void HandleSpawnGroupResetCommand(const FOutcomeEventBase& Outcome);
+	void HandleFloorTransition(const FOutcomeEventBase& Outcome); // для сохранения/сброса при уходе
+
+	// Кеш активных групп для текущего этажа
+	TMap<FSpawnGroupId, FSpawnGroupState> ActiveGroups;
 };
