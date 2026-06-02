@@ -35,6 +35,7 @@
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
 #include <UpdateActiveMissionId.h>
+#include "SpawnGroupSubsystem.h"
 
 /* Converts EFloorActorType to string (Преобразует EFloorActorType в строку) */
 static FString ActorTypeToString(EFloorActorType Type);
@@ -245,7 +246,7 @@ auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorP
 		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
 			AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), Reason, false))
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::SpawnGroupSpawner), Reason, false))
 			AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
 
 		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
@@ -292,7 +293,7 @@ auto CopyMissionDestroyedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloo
 		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
 			AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::NPC_Spawner), Reason, false))
+		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::SpawnGroupSpawner), Reason, false))
 			AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
 
 		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
@@ -1042,7 +1043,7 @@ static FString ActorTypeToString(EFloorActorType Type)
 	case EFloorActorType::DialogueAccess: return TEXT("DialogueAccess");
 	case EFloorActorType::Terminal:       return TEXT("Terminal");
 	case EFloorActorType::InventoryItems: return TEXT("InventoryItems");
-	case EFloorActorType::NPC_Spawner:    return TEXT("NPC_Spawner");
+	case EFloorActorType::SpawnGroupSpawner:    return TEXT("NPC_Spawner");
 	case EFloorActorType::LocationTriggers: return TEXT("LocationTriggers");
 	default: return TEXT("LightItem");
 	}
@@ -1059,7 +1060,7 @@ static EFloorActorType StringToActorType(const FString& Str)
 	if (Str == TEXT("DialogueAccess")) return EFloorActorType::DialogueAccess;
 	if (Str == TEXT("Terminal"))       return EFloorActorType::Terminal;
 	if (Str == TEXT("InventoryItems")) return EFloorActorType::InventoryItems;
-	if (Str == TEXT("NPC_Spawner"))    return EFloorActorType::NPC_Spawner;
+	if (Str == TEXT("NPC_Spawner"))    return EFloorActorType::SpawnGroupSpawner;
 	if (Str == TEXT("LocationTriggers"))return EFloorActorType::LocationTriggers;
 	return EFloorActorType::LightItem;
 }
@@ -1915,7 +1916,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 				if (!MissionBuckets.Terminals.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
 					MissionBuckets.Terminals.Add(NewRecord);
 				break;
-			case EFloorActorType::NPC_Spawner:
+			case EFloorActorType::SpawnGroupSpawner:
 				if (!MissionBuckets.NPCSpawners.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
 					MissionBuckets.NPCSpawners.Add(NewRecord);
 				break;
@@ -2019,7 +2020,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			break;
 		}
 
-		case EFloorActorType::NPC_Spawner:
+		case EFloorActorType::SpawnGroupSpawner:
 		{
 			if (!MissionBuckets.NPCSpawners.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
 				return Existing.ActorId == NewRecordMission.ActorId;
@@ -2181,6 +2182,21 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 // HandleFloorTransition
 // Обработка перехода между этажами
 // -----------------------------------------------------------------------------
+
+void USpawnGroupSubsystem::HandleSpawnGroupActivationCommand(const FOutcomeEventBase& Outcome)
+{
+
+}
+
+void USpawnGroupSubsystem::HandleSpawnGroupClearCommand(const FOutcomeEventBase& Outcome)
+{
+
+}
+
+void USpawnGroupSubsystem::HandleSpawnGroupResetCommand(const FOutcomeEventBase& Outcome)
+{
+
+}
 
 void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 {
@@ -2673,6 +2689,22 @@ void UInteriorSubsystem::UnsubscribePlacementRegistration()
 		Unreg(PlacementRegisterHandle, PlacementRegisterConditionAsset);
 		Unreg(PlacementUnregisterHandle, PlacementUnregisterConditionAsset);
 	}
+}
+
+void UInteriorSubsystem::ClearSpawnGroup(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason)
+{
+
+}
+
+void UInteriorSubsystem::ResetSpawnGroup(const FSpawnGroupId& GroupId)
+{
+
+}
+
+FSpawnGroupState UInteriorSubsystem::GetSpawnGroupState(const FSpawnGroupId& GroupId) const
+{
+
+	return FSpawnGroupState();
 }
 
 // -----------------------------------------------------------------------------
@@ -3295,7 +3327,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 				ProcessCategory(BucketsForMission->HeavyFurniture, EFloorActorType::HeavyFurniture);
 				ProcessCategory(BucketsForMission->LightItems, EFloorActorType::LightItem);
 				ProcessCategory(BucketsForMission->Terminals, EFloorActorType::Terminal);
-				ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::NPC_Spawner);
+				ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::SpawnGroupSpawner);
 				ProcessCategory(BucketsForMission->Debris, EFloorActorType::Debris);
 			}
 		}
@@ -3314,7 +3346,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 				ProcessCategory(BucketsForMission->HeavyFurniture, EFloorActorType::HeavyFurniture);
 				ProcessCategory(BucketsForMission->LightItems, EFloorActorType::LightItem);
 				ProcessCategory(BucketsForMission->Terminals, EFloorActorType::Terminal);
-				ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::NPC_Spawner);
+				ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::SpawnGroupSpawner);
 				ProcessCategory(BucketsForMission->Debris, EFloorActorType::Debris);
 			}
 		}
@@ -3935,6 +3967,11 @@ void UInteriorSubsystem::StoreCurrentLevelComplete(FMissionEnvelope Envelope, FN
 			SaveFloorActorsStateComplete(InteriorSetID, FloorGuid, MissionId, EndReason);
 		}
 	}
+}
+
+void UInteriorSubsystem::ApplySpawnGroupPolicy(const FSpawnGroupId& GroupId, EChannelPolicy Policy, EMissionEndReason Reason)
+{
+
 }
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)

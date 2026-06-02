@@ -120,7 +120,8 @@ enum class EOutcomeSpawnGroup : uint8
 	SpawnGroupDeactivated	UMETA(DisplayName = "Spawn Group Deactivated"),
 	SpawnGroupCleared		UMETA(DisplayName = "Spawn Group Cleared"),
 	SpawnGroupEnabled		UMETA(DisplayName = "Spawn Group Enabled"),
-	SpawnGroupDisabled		UMETA(DisplayName = "Spawn Group Disabled")
+	SpawnGroupDisabled		UMETA(DisplayName = "Spawn Group Disabled"),
+	SpawnGroupReset			UMETA(DisplayName = "Spawn Group Reset")
 };
 
 UENUM(BlueprintType)

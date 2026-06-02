@@ -234,7 +234,7 @@ FORCEINLINE EEnvelopeChannel FloorActorTypeToEnvelopeChannel(EFloorActorType Act
     case EFloorActorType::Terminal:
         return EEnvelopeChannel::TerminalState;
 
-    case EFloorActorType::NPC_Spawner:
+    case EFloorActorType::SpawnGroupSpawner:
         return EEnvelopeChannel::SpawnGroups;
 
     case EFloorActorType::LocationTriggers:
