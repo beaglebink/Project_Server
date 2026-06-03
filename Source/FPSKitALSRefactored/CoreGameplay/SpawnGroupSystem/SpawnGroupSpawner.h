@@ -6,6 +6,7 @@
 #include "../SpawnGroupSystem/GhostClearedPayload.h"
 #include "../SpawnGroupSystem/SpawnVolume.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
+#include <AlsCharacterExample.h>
 #include "SpawnGroupSpawner.generated.h"
 
 class UFloorAssignmentComponent;
@@ -28,7 +29,7 @@ public:
     TObjectPtr<USpawnGroupAsset> SpawnGroupAsset;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    bool bSpawnOnBeginPlay = true;
+    bool bSpawnOnBeginPlay = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     bool bDestroyOnClear = false;
@@ -60,8 +61,8 @@ public:
 
     // ===== Состояние (доступно через геттеры) =====
 private:
-    UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
-    TArray<TObjectPtr<AActor>> SpawnedGhosts;  // Сильные ссылки, но следим за уничтожением
+    UPROPERTY(VisibleAnywhere, SaveGame, Category = "SpawnGroup|State")
+    TArray<TObjectPtr<AAlsCharacter>> SpawnedGhosts;  // Сильные ссылки, но следим за уничтожением
 
     UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
     FSpawnGroupId RuntimeGroupId;
@@ -71,6 +72,11 @@ private:
 
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
     bool bHasPublishedClear = false;
+
+    UPROPERTY(VisibleAnywhere, SaveGame, Category = "SpawnGroup|State")
+	int32 SpawnedCount = 0; // Количество спавнов, для генерации уникальных RuntimeGroupId
+
+    FTimerHandle TimerHandle;
 
 public:
     // Геттеры для Blueprint

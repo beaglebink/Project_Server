@@ -30,16 +30,18 @@ void ASpawnGroupSpawner::BeginPlay()
 #endif
 
     CachedEventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-
+    /*
     if (bAutoGatherSpawnLocations && SpawnLocations.Num() == 0)
     {
         GatherSpawnLocationsFromChildren();
     }
-
+    */
+    /*
     if (bSpawnOnBeginPlay && SpawnGroupAsset)
     {
         SpawnGroup();
     }
+    */
 }
 
 void ASpawnGroupSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -88,6 +90,13 @@ FTransform ASpawnGroupSpawner::GetTransformFromLocation(ASpawnVolume* Volume) co
 
 void ASpawnGroupSpawner::SpawnGroup()
 {
+    UWorld* World = GetWorld();
+    if(!World)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: World is null"), *GetName());
+        return;
+	}
+
     if (!SpawnGroupAsset)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: SpawnGroupAsset is null"), *GetName());
@@ -101,7 +110,7 @@ void ASpawnGroupSpawner::SpawnGroup()
     }
 
     // Определяем классы для спавна
-    TArray<TSubclassOf<AActor>> ClassesToSpawn;
+    TArray<TSubclassOf<AAlsCharacter>> ClassesToSpawn;
     int32 DesiredCount = 0;
 
     if (SpawnGroupAsset->Composition.bUsePool)
@@ -133,23 +142,40 @@ void ASpawnGroupSpawner::SpawnGroup()
     SpawnedGhosts.Empty();
     bHasPublishedClear = false;
 
-    for (int32 i = 0; i < FinalClasses.Num(); ++i)
+    //for (int32 i = 0; i < FinalClasses.Num(); ++i)
+   //{
+    FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, FinalClasses, World, DesiredCount]()
     {
+
         ASpawnVolume* Location = GetRandomSpawnLocation();
         const FTransform SpawnTransform = GetTransformFromLocation(Location);
-        AActor* Ghost = SpawnSingleGhost(FinalClasses[i], SpawnTransform);
+        AActor* Ghost = SpawnSingleGhost(FinalClasses[SpawnedCount], SpawnTransform);
         if (Ghost)
         {
-            SpawnedGhosts.Add(Ghost);
+            SpawnedCount++;
+            SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
             Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
         }
-    }
+
+        if(SpawnedCount == DesiredCount)
+        {
+            // Все призраки заспавнены
+			World->GetTimerManager().ClearTimer(TimerHandle);
+
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts (GroupId: %s)"),
+                *GetName(), SpawnedGhosts.Num(), *RuntimeGroupId.ToString());
+        }
+    });
+    //}
 
     CurrentStatus = ESpawnGroupStatus::Active;
     RuntimeGroupId = SpawnGroupAsset->GroupId;
 
-    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts (GroupId: %s)"),
-        *GetName(), SpawnedGhosts.Num(), *RuntimeGroupId.ToString());
+
+
+    World->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, true);
+
+
 }
 
 void ASpawnGroupSpawner::ClearGroup(ESpawnGroupResolutionReason Reason)
@@ -240,7 +266,7 @@ void ASpawnGroupSpawner::UpdateGroupStatus()
 
 void ASpawnGroupSpawner::OnGhostDestroyed(AActor* DestroyedActor)
 {
-    SpawnedGhosts.Remove(DestroyedActor);
+    SpawnedGhosts.Remove(Cast<AAlsCharacter>(DestroyedActor));
     UpdateGroupStatus();
 }
 
@@ -252,7 +278,7 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
     }
 
     FActorSpawnParameters SpawnParams;
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
     AActor* Ghost = GetWorld()->SpawnActor<AActor>(ActorClass, Transform, SpawnParams);
     if (!Ghost)
     {
@@ -260,7 +286,7 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
             *GetName(), *ActorClass->GetName());
         return nullptr;
     }
-
+    /*
     // Привязываем к InteriorSubsystem через FloorAssignmentComponent
     UFloorAssignmentComponent* FloorComp = Ghost->FindComponentByClass<UFloorAssignmentComponent>();
     if (!FloorComp)
@@ -286,7 +312,7 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
             }
         }
     }
-
+    */
     return Ghost;
 }
 

@@ -4,6 +4,7 @@
 #include "Engine/DataAsset.h"
 #include "SpawnGroupTypes.h"
 #include "../MissionSystem/MissionEnvelopeTypes.h"
+#include <AlsCharacterExample.h>
 #include "SpawnGroupAsset.generated.h"
 
 // Определение состава группы: либо явный список, либо ссылка на пул.
@@ -22,7 +23,7 @@ struct FSpawnGroupComposition
 
     // Явный список классов акторов с параметрами (для авторских групп)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "!bUsePool"))
-    TArray<TSubclassOf<AActor>> ActorClasses;
+    TArray<TSubclassOf<AAlsCharacter>> ActorClasses;
 
     // Количество спавнов (если пул, то может быть диапазон)
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
