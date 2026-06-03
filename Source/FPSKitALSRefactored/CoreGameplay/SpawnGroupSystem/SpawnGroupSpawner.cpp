@@ -200,7 +200,14 @@ void ASpawnGroupSpawner::SpawnGroup()
             OnGhostSpawned.Broadcast(Ghost);
         }
 
-        if(SpawnedCount == DesiredCount)
+        if (DesiredCount <= KilledCount)
+        {
+            KilledCount = DesiredCount;
+            World->GetTimerManager().ClearTimer(TimerHandle);
+            return;
+        }
+
+        if(SpawnedCount >= DesiredCount - KilledCount)
         {
             // Все призраки заспавнены
 			World->GetTimerManager().ClearTimer(TimerHandle);
@@ -281,6 +288,11 @@ bool ASpawnGroupSpawner::IsGroupCleared() const
     return CurrentStatus == ESpawnGroupStatus::Cleared && GetAliveGhostCount() == 0;
 }
 
+void ASpawnGroupSpawner::RespawnGroup()
+{
+
+}
+
 TArray<AActor*> ASpawnGroupSpawner::GetSpawnedGhosts() const
 {
     TArray<AActor*> Result;
@@ -314,6 +326,7 @@ void ASpawnGroupSpawner::OnGhostDestroyed(AActor* DestroyedActor)
     {
         OnGhostKilled.Broadcast(DestroyedActor, ESpawnGroupResolutionReason::Eliminated);
         SpawnedGhosts.Remove(Cast<AAlsCharacter>(DestroyedActor));
+        KilledCount++;
     }
     UpdateGroupStatus();
 }

@@ -2182,22 +2182,6 @@ void UInteriorSubsystem::HandleFloorStateRestore(const FOutcomeEventBase& Outcom
 // HandleFloorTransition
 // Обработка перехода между этажами
 // -----------------------------------------------------------------------------
-/*
-void USpawnGroupSubsystem::HandleSpawnGroupActivationCommand(const FOutcomeEventBase& Outcome)
-{
-
-}
-
-void USpawnGroupSubsystem::HandleSpawnGroupClearCommand(const FOutcomeEventBase& Outcome)
-{
-
-}
-
-void USpawnGroupSubsystem::HandleSpawnGroupResetCommand(const FOutcomeEventBase& Outcome)
-{
-
-}
-*/
 void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 {
 	UWorld* World = GetWorld();

@@ -83,7 +83,7 @@ public:
 
     // ===== Состояние =====
 private:
-    UPROPERTY(VisibleAnywhere, SaveGame, Category = "SpawnGroup|State")
+    UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
     TArray<TObjectPtr<AAlsCharacter>> SpawnedGhosts;
 
     UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
@@ -92,8 +92,11 @@ private:
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
     bool bHasPublishedClear = false;
 
-    UPROPERTY(VisibleAnywhere, SaveGame, Category = "SpawnGroup|State")
+    UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
     int32 SpawnedCount = 0;
+
+    UPROPERTY(VisibleAnywhere, SaveGame, Category = "SpawnGroup|State")
+    int32 KilledCount = 0;
 
     FTimerHandle TimerHandle;
 
@@ -121,6 +124,8 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
     bool IsGroupCleared() const;
+
+    void RespawnGroup();
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;
