@@ -9,6 +9,11 @@
 #include <AlsCharacterExample.h>
 #include "SpawnGroupSpawner.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGroupGhostSpawned, AActor*, Ghost);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSpawnGroupGhostKilled, AActor*, Ghost, ESpawnGroupResolutionReason, Reason);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSpawnGroupAllSpawned);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGroupAllCleared, ESpawnGroupResolutionReason, Reason);
+
 class UFloorAssignmentComponent;
 
 UCLASS(BlueprintType, Blueprintable)
@@ -37,21 +42,38 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     bool bAllowRespawn = false;
 
-    /** Список локаций спавна (объёмы ASpawnVolume или простые точки-акторы) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+	float SpawnInterval = 0.1f; 
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Placement")
     TArray<TObjectPtr<ASpawnVolume>> SpawnLocations;
 
-    /** Автоматически собирать дочерние акторы, помеченные тегом "SpawnPoint" или наследников ASpawnVolume */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Placement")
     bool bAutoGatherSpawnLocations = true;
 
-    /** Глобальное смещение позиции спавна относительно выбранной локации */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Placement")
     FVector SpawnOffset = FVector::ZeroVector;
 
-    /** Поворот по умолчанию, если локация не задаёт свой */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Placement")
     FRotator DefaultSpawnRotation = FRotator::ZeroRotator;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SpawnGroup")
+    TObjectPtr<UFloorAssignmentComponent> FloorAssignmentComp;
+
+    UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
+    ESpawnGroupStatus CurrentStatus = ESpawnGroupStatus::Inactive;
+
+    UPROPERTY(BlueprintAssignable, Category = "SpawnGroup|Events")
+    FOnSpawnGroupGhostSpawned OnGhostSpawned;
+
+    UPROPERTY(BlueprintAssignable, Category = "SpawnGroup|Events")
+    FOnSpawnGroupGhostKilled OnGhostKilled;
+
+    UPROPERTY(BlueprintAssignable, Category = "SpawnGroup|Events")
+    FOnSpawnGroupAllSpawned OnAllSpawned;
+
+    UPROPERTY(BlueprintAssignable, Category = "SpawnGroup|Events")
+    FOnSpawnGroupAllCleared OnAllCleared;
 
 #if WITH_EDITOR
     virtual void Tick(float DeltaTime) override;
@@ -59,27 +81,23 @@ public:
     void DrawEditorLines() const;
 #endif
 
-    // ===== Состояние (доступно через геттеры) =====
+    // ===== Состояние =====
 private:
     UPROPERTY(VisibleAnywhere, SaveGame, Category = "SpawnGroup|State")
-    TArray<TObjectPtr<AAlsCharacter>> SpawnedGhosts;  // Сильные ссылки, но следим за уничтожением
+    TArray<TObjectPtr<AAlsCharacter>> SpawnedGhosts;
 
     UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
     FSpawnGroupId RuntimeGroupId;
-
-    UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
-    ESpawnGroupStatus CurrentStatus = ESpawnGroupStatus::Inactive;
 
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
     bool bHasPublishedClear = false;
 
     UPROPERTY(VisibleAnywhere, SaveGame, Category = "SpawnGroup|State")
-	int32 SpawnedCount = 0; // Количество спавнов, для генерации уникальных RuntimeGroupId
+    int32 SpawnedCount = 0;
 
     FTimerHandle TimerHandle;
 
 public:
-    // Геттеры для Blueprint
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
     TArray<AActor*> GetSpawnedGhosts() const;
 
@@ -89,7 +107,6 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
     ESpawnGroupStatus GetCurrentStatus() const { return CurrentStatus; }
 
-    // ===== Методы =====
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
     void SpawnGroup();
 

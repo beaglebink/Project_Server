@@ -22,27 +22,27 @@ public:
     UFloorAssignmentComponent();
 
     // Имя интерьера (для визуализации)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    //UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FText InteriorSetName;
 
     // GUID интерьера (сохраняется в экземпляре уровня)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    //UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid InteriorSetId;
 
     // Отображаемое имя этажа
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    //UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FText FloorName;
 
     // GUID этажа (сохраняется в экземпляре уровня)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    //UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid FloorId;
 
     // Тип актора на этаже
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
     EFloorActorType ActorType = EFloorActorType::LightItem;
 
     // Опциональный якорь (GUID)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FloorAssignment")
     FGuid AnchorId;
 
     // Стабильный идентификатор экземпляра для сопоставления с snapshot (сохраняется в .umap)

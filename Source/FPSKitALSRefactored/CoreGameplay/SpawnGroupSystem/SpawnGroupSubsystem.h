@@ -1,68 +1,67 @@
 ﻿#pragma once
+
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
-#include <SpawnGroupAsset.h>
+#include "SpawnGroupAsset.h"
+#include "SpawnGroupTypes.h"
+#include "ISaveableSubsystem.h"
 #include "SpawnGroupSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGhostClearedEvent, const FOutcomeEventBase&, Outcome);
+class ASpawnGroupSpawner;
 
 UCLASS()
-class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UGameInstanceSubsystem
+class USpawnGroupSubsystem : public UGameInstanceSubsystem, public ISaveableSubsystem
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    virtual void Deinitialize() override;
 
-    // Subsystem listens for GhostCleared outcomes and broadcasts them via Blueprint events.
-    // (Подсистема слушает исходы GhostCleared и ретранслирует их через Blueprint-события.)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-    TObjectPtr<UOutcomeConditionAsset> GhostClearedCondition;
-
-	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
-	FOnSpawnGhostClearedEvent OnGhostCleared;
-
-	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
-	void SubscribeGhostCleared();
-
-	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
-	void UnsubscribeGhostCleared();
-
-	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
-	void UnsubscribeAll();
-
-	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
-	void SetGhostClearedCondition(UOutcomeConditionAsset* NewCondition);
-
-	UFUNCTION(BlueprintCallable, Category = "SpawnGroupSubsystem|Handlers")
-	bool IsGhostClearedSubscribed() const { return GhostClearedHandle.IsValid(); }
-
-	// Применить группу (вызывается из миссии или автоматически при входе на этаж)
-	UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
-	void ActivateSpawnGroup(const FSpawnGroupId& GroupId, const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionContext);
-
-	// Отметить элемент группы как очищенный (уничтожен/захвачен)
-	UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
-	void ReportGhostCleared(const FSpawnGroupId& GroupId, const FGuid& ActorId, ESpawnGroupResolutionReason Reason);
-
-	// Получить политику для группы с учётом текущей активной миссии (через канал SpawnGroups)
-	EChannelPolicy GetEffectivePolicyForGroup(const FSpawnGroupId& GroupId, EMissionEndReason EndReason = EMissionEndReason::None) const;
+    // ----- ISaveableSubsystem -----
+    virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
+    virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
+    virtual FString GetSaveSubsystemName() const override { return TEXT("SpawnGroupSubsystem"); }
+    virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
 
 private:
-	void HandleGhostCleared(const FOutcomeEventBase& Outcome);
+    // ----- Подписка на события EventBus -----
+    void SubscribeEvents();
+    void UnsubscribeEvents();
 
-	FOutcomeHandlerHandle GhostClearedHandle;
-	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
+    // Обработчики событий
+    void HandleSpawnGroupRegister(const FOutcomeEventBase& Outcome);
+    void HandleSpawnGroupUnregister(const FOutcomeEventBase& Outcome);
+    void HandleSpawnGroupActivated(const FOutcomeEventBase& Outcome);
+    void HandleSpawnGroupCleared(const FOutcomeEventBase& Outcome);
+    void HandleSpawnGroupReset(const FOutcomeEventBase& Outcome);
 
-	void HandleSpawnGroupActivationCommand(const FOutcomeEventBase& Outcome);
-	void HandleSpawnGroupClearCommand(const FOutcomeEventBase& Outcome);
-	void HandleSpawnGroupResetCommand(const FOutcomeEventBase& Outcome);
-	void HandleFloorTransition(const FOutcomeEventBase& Outcome); // для сохранения/сброса при уходе
+    // Вспомогательные методы для работы с реестром
+    ASpawnGroupSpawner* FindSpawnerByItemId(const FGuid& ItemId) const;
+    ASpawnGroupSpawner* FindSpawnerByGroupId(const FSpawnGroupId& GroupId) const;
 
-	// Кеш активных групп для текущего этажа
-	TMap<FSpawnGroupId, FSpawnGroupState> ActiveGroups;
+    // Внутренние методы управления (вызываются из обработчиков)
+    void ActivateSpawnGroupInternal(const FSpawnGroupId& GroupId);
+    void ClearSpawnGroupInternal(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason);
+    void ResetSpawnGroupInternal(const FSpawnGroupId& GroupId);
+
+    // ----- Хранилища -----
+    TMap<FGuid, TWeakObjectPtr<ASpawnGroupSpawner>> SpawnerByItemId;      // ItemId -> спавнер
+    TMap<FSpawnGroupId, FGuid> GroupIdToItemId;                           // GroupId -> ItemId
+    TMap<FSpawnGroupId, FSpawnGroupState> ActiveGroupStates;              // временные состояния
+    TMap<FInteriorFloorKey, TMap<FSpawnGroupId, FSpawnGroupState>> PersistentGroupStates; // сохранённые
+
+    TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
+
+    // Хэндлы подписки
+    FOutcomeHandlerHandle RegisterHandle;
+    FOutcomeHandlerHandle UnregisterHandle;
+    FOutcomeHandlerHandle ActivateHandle;
+    FOutcomeHandlerHandle ClearHandle;
+    FOutcomeHandlerHandle ResetHandle;
+
+    bool bIsLoadComplete = true;
 };

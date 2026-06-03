@@ -115,13 +115,15 @@ enum class EOutcomeInterior : uint8
 UENUM(BlueprintType)
 enum class EOutcomeSpawnGroup : uint8
 {
-	Default					UMETA(DisplayName = "Default"),
+	Default					UMETA(Hidden, DisplayName = "Default"),
 	SpawnGroupActivated		UMETA(DisplayName = "Spawn Group Activated"),
 	SpawnGroupDeactivated	UMETA(DisplayName = "Spawn Group Deactivated"),
 	SpawnGroupCleared		UMETA(DisplayName = "Spawn Group Cleared"),
 	SpawnGroupEnabled		UMETA(DisplayName = "Spawn Group Enabled"),
 	SpawnGroupDisabled		UMETA(DisplayName = "Spawn Group Disabled"),
-	SpawnGroupReset			UMETA(DisplayName = "Spawn Group Reset")
+	SpawnGroupReset			UMETA(DisplayName = "Spawn Group Reset"),
+	SpawnGroupRegister		UMETA(DisplayName = "Spawn Group Register"),
+	SpawnGroupUnregister	UMETA(DisplayName = "Spawn Group Unregister")
 };
 
 UENUM(BlueprintType)

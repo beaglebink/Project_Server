@@ -9,6 +9,8 @@
 #include "../InteriorInstanceSystem/InteriorSubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../SpawnGroupSystem/GhostClearedPayload.h"
+#include "SpawnGroupRegistrationPayload.h"
+#include "FloorAssignmentComponent.h"
 
 ASpawnGroupSpawner::ASpawnGroupSpawner()
 {
@@ -18,43 +20,76 @@ ASpawnGroupSpawner::ASpawnGroupSpawner()
     PrimaryActorTick.bTickEvenWhenPaused = true;
 #endif
     RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+
+    FloorAssignmentComp = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignment"));
+    if (FloorAssignmentComp)
+    {
+        FloorAssignmentComp->SnapshotChannel = ESnapshotChannel::Snapshot;
+        FloorAssignmentComp->ActorType = EFloorActorType::SpawnGroupSpawner;
+        // InteriorSetId, FloorId, ItemId будут заполнены в редакторе или автоматически при спавне
+    }
 }
 
 void ASpawnGroupSpawner::BeginPlay()
 {
     Super::BeginPlay();
 
-#if !WITH_EDITOR
-    // В игре отключаем тик, если не нужен для другой логики
-    SetActorTickEnabled(false);
-#endif
+    // Убеждаемся, что есть FloorAssignmentComponent
+    UFloorAssignmentComponent* FloorComp = FindComponentByClass<UFloorAssignmentComponent>();
+    if (!FloorComp)
+    {
+        FloorComp = NewObject<UFloorAssignmentComponent>(this);
+        FloorComp->RegisterComponent();
+    }
 
-    CachedEventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-    /*
-    if (bAutoGatherSpawnLocations && SpawnLocations.Num() == 0)
+    // Генерируем ItemId, если отсутствует
+    if (!FloorComp->ItemId.IsValid())
     {
-        GatherSpawnLocationsFromChildren();
+        FloorComp->ItemId = FGuid::NewGuid();
     }
-    */
-    /*
-    if (bSpawnOnBeginPlay && SpawnGroupAsset)
+    FloorComp->SnapshotChannel = ESnapshotChannel::Snapshot;
+    FloorComp->ActorType = EFloorActorType::SpawnGroupSpawner;
+
+    // Регистрация через EventBus
+    if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
     {
-        SpawnGroup();
+        if (SpawnGroupAsset)
+        {
+            USpawnGroupRegistrationPayload* Payload = EventBus->CreatePayload<USpawnGroupRegistrationPayload>();
+            Payload->Setup(FloorComp->ItemId, SpawnGroupAsset->GroupId);
+
+            FOutcomeEventBase Ev;
+            Ev.OutcomeType = EOutcomeType::SpawnGroup;
+            Ev.OutcomeSpawnGroup = EOutcomeSpawnGroup::SpawnGroupRegister;
+            Ev.Payload = Payload;
+            EventBus->PublishOutcome(Ev);
+        }
     }
-    */
+
+    // Остальной код BeginPlay (автоспавн и т.д.)
 }
 
 void ASpawnGroupSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    // Отписываемся от всех призраков
-    for (AActor* Ghost : SpawnedGhosts)
+    // Дерегистрация через EventBus
+    if (UFloorAssignmentComponent* FloorComp = FindComponentByClass<UFloorAssignmentComponent>())
     {
-        if (Ghost)
+        if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
         {
-            Ghost->OnDestroyed.RemoveDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+            if (SpawnGroupAsset)
+            {
+                USpawnGroupRegistrationPayload* Payload = EventBus->CreatePayload<USpawnGroupRegistrationPayload>();
+                Payload->Setup(FloorComp->ItemId, SpawnGroupAsset->GroupId);
+
+                FOutcomeEventBase Ev;
+                Ev.OutcomeType = EOutcomeType::SpawnGroup;
+                Ev.OutcomeSpawnGroup = EOutcomeSpawnGroup::SpawnGroupUnregister;
+                Ev.Payload = Payload;
+                EventBus->PublishOutcome(Ev);
+            }
         }
     }
-    ClearGroup(ESpawnGroupResolutionReason::Other);
+
     Super::EndPlay(EndPlayReason);
 }
 
@@ -142,40 +177,46 @@ void ASpawnGroupSpawner::SpawnGroup()
     SpawnedGhosts.Empty();
     bHasPublishedClear = false;
 
-    //for (int32 i = 0; i < FinalClasses.Num(); ++i)
-   //{
     FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, FinalClasses, World, DesiredCount]()
     {
 
         ASpawnVolume* Location = GetRandomSpawnLocation();
         const FTransform SpawnTransform = GetTransformFromLocation(Location);
-        AActor* Ghost = SpawnSingleGhost(FinalClasses[SpawnedCount], SpawnTransform);
+
+        if(FinalClasses.Num() == 0)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: FinalClasses is empty, cannot spawn"), *GetName());
+            World->GetTimerManager().ClearTimer(TimerHandle);
+            return;
+		}
+
+        AActor* Ghost = SpawnSingleGhost(FinalClasses[SpawnedCount % FinalClasses.Num()], SpawnTransform);
         if (Ghost)
         {
             SpawnedCount++;
             SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
             Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+
+            OnGhostSpawned.Broadcast(Ghost);
         }
 
         if(SpawnedCount == DesiredCount)
         {
             // Все призраки заспавнены
 			World->GetTimerManager().ClearTimer(TimerHandle);
+            OnAllSpawned.Broadcast();
 
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts (GroupId: %s)"),
-                *GetName(), SpawnedGhosts.Num(), *RuntimeGroupId.ToString());
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
+                *GetName(), SpawnedGhosts.Num());
         }
     });
-    //}
 
     CurrentStatus = ESpawnGroupStatus::Active;
     RuntimeGroupId = SpawnGroupAsset->GroupId;
 
 
 
-    World->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, true);
-
-
+    World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
 }
 
 void ASpawnGroupSpawner::ClearGroup(ESpawnGroupResolutionReason Reason)
@@ -200,6 +241,9 @@ void ASpawnGroupSpawner::ClearGroup(ESpawnGroupResolutionReason Reason)
     CurrentStatus = ESpawnGroupStatus::Cleared;
     PublishGhostClearedEvent(Reason);
     bHasPublishedClear = true;
+
+    // Уведомить Blueprint
+    OnAllCleared.Broadcast(Reason);
 
     if (bDestroyOnClear)
     {
@@ -266,7 +310,11 @@ void ASpawnGroupSpawner::UpdateGroupStatus()
 
 void ASpawnGroupSpawner::OnGhostDestroyed(AActor* DestroyedActor)
 {
-    SpawnedGhosts.Remove(Cast<AAlsCharacter>(DestroyedActor));
+    if (DestroyedActor)
+    {
+        OnGhostKilled.Broadcast(DestroyedActor, ESpawnGroupResolutionReason::Eliminated);
+        SpawnedGhosts.Remove(Cast<AAlsCharacter>(DestroyedActor));
+    }
     UpdateGroupStatus();
 }
 
@@ -286,33 +334,7 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
             *GetName(), *ActorClass->GetName());
         return nullptr;
     }
-    /*
-    // Привязываем к InteriorSubsystem через FloorAssignmentComponent
-    UFloorAssignmentComponent* FloorComp = Ghost->FindComponentByClass<UFloorAssignmentComponent>();
-    if (!FloorComp)
-    {
-        // Если у призрака нет компонента, возможно, он не участвует в snapshot-системе – предупреждение
-        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Spawned ghost %s has no FloorAssignmentComponent!"),
-            *GetName(), *Ghost->GetName());
-    }
-    else
-    {
-        // Получаем текущий этаж/интерьер из спавнера (или из мира)
-        UWorld* World = GetWorld();
-        if (World)
-        {
-            UInteriorSubsystem* Interior = World->GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
-            if (Interior)
-            {
-                // Устанавливаем свойства компонента, чтобы спавн зарегистрировался в InteriorSubsystem
-                FloorComp->SnapshotChannel = ESnapshotChannel::Snapshot;
-                FloorComp->ActorType = EFloorActorType::SpawnGroupSpawner; // или другой тип, если нужно
-                // FloorComp->ItemId сгенерится автоматически
-                // InteriorSetId и FloorId можно получить из текущего контекста – пока не трогаем
-            }
-        }
-    }
-    */
+
     return Ghost;
 }
 

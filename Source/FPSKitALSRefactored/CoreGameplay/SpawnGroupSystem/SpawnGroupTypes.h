@@ -47,7 +47,7 @@ enum class ESpawnGroupResolutionReason : uint8
 {
     None,
     Eliminated,     // Уничтожены все враги
-    Captured,       // Захвачены (например, пленные)
+    Captured,       // Захвачены
     ScriptedRemoval,// Сюжетное удаление
     Other
 };
