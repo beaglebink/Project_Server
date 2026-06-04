@@ -6,6 +6,8 @@
 #include "../InteriorInstanceSystem/FloorAssignmentComponent.h"
 #include "EngineUtils.h"
 #include "JsonObjectConverter.h"
+#include <LevelLoadedPayload.h>
+#include <Kismet/GameplayStatics.h>
 
 void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -39,16 +41,28 @@ void USpawnGroupSubsystem::SubscribeEvents()
     if (!EventBus) return;
 
     auto CreateCondition = [&](EOutcomeSpawnGroup EventType) -> UOutcomeConditionAsset*
-        {
-            UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
-            Asset->OperatorType = EConditionOperator::Composite;
-            Asset->FilterRow.OutcomeType = EOutcomeType::SpawnGroup;
-            Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-            Asset->FilterRow.SpawnGroupType = EventType;
-            Asset->FilterRow.SpawnGroupComparison = EConditionComparison::Equals;
-            Asset->CompileCondition();
-            return Asset;
-        };
+    {
+        UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+        Asset->OperatorType = EConditionOperator::Composite;
+        Asset->FilterRow.OutcomeType = EOutcomeType::SpawnGroup;
+        Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+        Asset->FilterRow.SpawnGroupType = EventType;
+        Asset->FilterRow.SpawnGroupComparison = EConditionComparison::Equals;
+        Asset->CompileCondition();
+        return Asset;
+    };
+
+    auto CreateInteriorCondition = [&](EOutcomeInterior EventType) -> UOutcomeConditionAsset*
+    {
+        UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+        Asset->OperatorType = EConditionOperator::Composite;
+        Asset->FilterRow.OutcomeType = EOutcomeType::Interior;
+        Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+        Asset->FilterRow.InteriorType = EventType;
+        Asset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+        Asset->CompileCondition();
+        return Asset;
+    };
 
     if (!RegisterHandle.IsValid())
     {
@@ -80,6 +94,12 @@ void USpawnGroupSubsystem::SubscribeEvents()
         if (Cond->GetCondition().IsValid())
             ResetHandle = EventBus->RegisterHandler(Cond, FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleSpawnGroupReset));
     }
+    if (!LevelLoadedHandle.IsValid())
+    {
+        UOutcomeConditionAsset* Cond = CreateInteriorCondition(EOutcomeInterior::LevelLoaded);
+        if (Cond->GetCondition().IsValid())
+            LevelLoadedHandle = EventBus->RegisterHandler(Cond, FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleLevelLoaded));
+    }
 }
 
 void USpawnGroupSubsystem::UnsubscribeEvents()
@@ -105,63 +125,83 @@ void USpawnGroupSubsystem::UnsubscribeEvents()
 
 void USpawnGroupSubsystem::HandleSpawnGroupRegister(const FOutcomeEventBase& Outcome)
 {
-    USpawnGroupRegistrationPayload* P = Cast<USpawnGroupRegistrationPayload>(Outcome.Payload);
-    if (!P) return;
-
-    ASpawnGroupSpawner* Spawner = nullptr;
-    for (TActorIterator<ASpawnGroupSpawner> It(GetWorld()); It; ++It)
+    if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
+        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupRegister)
     {
-        if (UFloorAssignmentComponent* Comp = It->FindComponentByClass<UFloorAssignmentComponent>())
+        USpawnGroupRegistrationPayload* P = Cast<USpawnGroupRegistrationPayload>(Outcome.Payload);
+        if (!P) return;
+
+        ASpawnGroupSpawner* Spawner = nullptr;
+        for (TActorIterator<ASpawnGroupSpawner> It(GetWorld()); It; ++It)
         {
-            if (Comp->ItemId == P->SpawnerId)
+            if (UFloorAssignmentComponent* Comp = It->FindComponentByClass<UFloorAssignmentComponent>())
             {
-                Spawner = *It;
-                break;
+                if (Comp->ItemId == P->SpawnerId)
+                {
+                    Spawner = *It;
+                    break;
+                }
             }
         }
-    }
-    if (Spawner)
-    {
-        SpawnerByItemId.Add(P->SpawnerId, Spawner);
-        GroupIdToItemId.Add(P->GroupId, P->SpawnerId);
-        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: Registered spawner for group %s"), *P->GroupId.ToString());
+        if (Spawner)
+        {
+            SpawnerByItemId.Add(P->SpawnerId, Spawner);
+            GroupIdToItemId.Add(P->GroupId, P->SpawnerId);
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: Registered spawner for group %s"), *P->GroupId.ToString());
+        }
     }
 }
 
 void USpawnGroupSubsystem::HandleSpawnGroupUnregister(const FOutcomeEventBase& Outcome)
 {
-    USpawnGroupRegistrationPayload* P = Cast<USpawnGroupRegistrationPayload>(Outcome.Payload);
-    if (!P) return;
-    SpawnerByItemId.Remove(P->SpawnerId);
-    for (auto It = GroupIdToItemId.CreateIterator(); It; ++It)
+    if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
+        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupRegister)
     {
-        if (It->Value == P->SpawnerId)
+        USpawnGroupRegistrationPayload* P = Cast<USpawnGroupRegistrationPayload>(Outcome.Payload);
+        if (!P) return;
+        SpawnerByItemId.Remove(P->SpawnerId);
+        for (auto It = GroupIdToItemId.CreateIterator(); It; ++It)
         {
-            It.RemoveCurrent();
-            break;
+            if (It->Value == P->SpawnerId)
+            {
+                It.RemoveCurrent();
+                break;
+            }
         }
     }
 }
 
 void USpawnGroupSubsystem::HandleSpawnGroupActivated(const FOutcomeEventBase& Outcome)
 {
-    USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
-    if (!P) return;
-    ActivateSpawnGroupInternal(P->GroupId);
+    if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
+        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupActivated)
+    {
+        USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
+        if (!P) return;
+        ActivateSpawnGroupInternal(P->GroupId);
+    }
 }
 
 void USpawnGroupSubsystem::HandleSpawnGroupCleared(const FOutcomeEventBase& Outcome)
 {
-    USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
-    if (!P) return;
-    ClearSpawnGroupInternal(P->GroupId, P->Reason);
+    if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
+        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupCleared)
+    {
+        USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
+        if (!P) return;
+        ClearSpawnGroupInternal(P->GroupId, P->Reason);
+    }
 }
 
 void USpawnGroupSubsystem::HandleSpawnGroupReset(const FOutcomeEventBase& Outcome)
 {
-    USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
-    if (!P) return;
-    ResetSpawnGroupInternal(P->GroupId);
+    if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
+        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupReset)
+    {
+        USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
+        if (!P) return;
+        ResetSpawnGroupInternal(P->GroupId);
+    }
 }
 
 void USpawnGroupSubsystem::ActivateSpawnGroupInternal(const FSpawnGroupId& GroupId)
@@ -195,6 +235,40 @@ ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByGroupId(const FSpawnGroup
 {
     const FGuid* ItemId = GroupIdToItemId.Find(GroupId);
     return ItemId ? FindSpawnerByItemId(*ItemId) : nullptr;
+}
+
+void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    if (Outcome.OutcomeType == EOutcomeType::Interior &&
+        Outcome.OutcomeInterior == EOutcomeInterior::LevelLoaded)
+    {
+        ULevelLoadedPayload* Payload = Cast<ULevelLoadedPayload>(Outcome.Payload);
+        if (Payload)
+        {
+            TArray<AActor*> AllActors;
+            UGameplayStatics::GetAllActorsOfClass(World, ASpawnGroupSpawner::StaticClass(), AllActors);
+            for (AActor* Actor : AllActors)
+            {
+                if (!IsValid(Actor)) continue;
+                if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+                {
+                    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(C->ItemId);
+                    if (Spawner->CurrentStatus == ESpawnGroupStatus::Suppressed)
+                    {
+                        continue;
+                    }
+
+                    if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared && Spawner->CurrentStatus != ESpawnGroupStatus::Inactive)
+                    {
+                        Spawner->SpawnGroup();
+                    }
+                }
+            }
+        }
+    }
 }
 
 void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)

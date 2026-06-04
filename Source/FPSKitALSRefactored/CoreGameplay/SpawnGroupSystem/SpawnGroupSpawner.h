@@ -60,7 +60,7 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SpawnGroup")
     TObjectPtr<UFloorAssignmentComponent> FloorAssignmentComp;
 
-    UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
+    UPROPERTY(VisibleAnywhere, SaveGame, Category = "SpawnGroup|State")
     ESpawnGroupStatus CurrentStatus = ESpawnGroupStatus::Inactive;
 
     UPROPERTY(BlueprintAssignable, Category = "SpawnGroup|Events")
@@ -125,7 +125,7 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
     bool IsGroupCleared() const;
 
-    void RespawnGroup();
+    void ResetKilledCount();
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;

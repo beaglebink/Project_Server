@@ -36,6 +36,8 @@
 #include "SceneDataProvider.h"
 #include <UpdateActiveMissionId.h>
 #include "SpawnGroupSubsystem.h"
+#include <LevelLoadedPayload.h>
+#include "SpawnGroupSpawner.h"
 
 /* Converts EFloorActorType to string (Преобразует EFloorActorType в строку) */
 static FString ActorTypeToString(EFloorActorType Type);
@@ -69,7 +71,7 @@ auto RemoveMissionSnapshots = [](TMap<FInteriorFloorKey, TMap<FName, TArray<FFlo
 
 // Determines whether an actor should be skipped based on envelope policy
 // Определяет, нужно ли пропустить актора на основе политики конверта
-static bool ShouldSkipActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
+static bool ShouldUseActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
 {
 	// Look for entry by channel / Ищем запись для канала
 	const FEnvelopeChannelEntry* FoundEntry = nullptr;
@@ -237,19 +239,19 @@ auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorP
 				}
 			};
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
 			AddUnique(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
 			AddUnique(Buckets->LightItems, GlobalBuckets.LightItems);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
 			AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::SpawnGroupSpawner), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::SpawnGroupSpawner), Reason, false))
 			AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
 			AddUnique(Buckets->Debris, GlobalBuckets.Debris);
 
 		return bCopied;
@@ -284,19 +286,19 @@ auto CopyMissionDestroyedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloo
 				}
 			};
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
 			AddUnique(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
 			AddUnique(Buckets->LightItems, GlobalBuckets.LightItems);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
 			AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::SpawnGroupSpawner), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::SpawnGroupSpawner), Reason, false))
 			AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
 			AddUnique(Buckets->Debris, GlobalBuckets.Debris);
 
 		return bCopied;
@@ -1242,6 +1244,15 @@ static void DeserializeMissionPopulationMap(const TSharedPtr<FJsonValue>& JsonVa
 	}
 }
 
+auto HasChannelWithPolicy = [](const TArray<FEnvelopeChannelEntry>& Channels, EEnvelopeChannel Channel, EChannelPolicy Policy) -> bool
+	{
+		for (const FEnvelopeChannelEntry& Entry : Channels)
+		{
+			if (Entry.Channel == Channel && Entry.Policy == Policy)
+				return true;
+		}
+		return false;
+	};
 
 // -----------------------------------------------------------------------------
 // SaveFloorActorsState
@@ -1297,7 +1308,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 		if (Actor->IsChildActor()) continue;
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
 		{
 			FFloorSavedActorState Snapshot;
 			Snapshot.ItemId = Comp->ItemId;
@@ -1440,7 +1451,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 			++AddedCount;
 		}
 
-		if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
+		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
 		{
 			if (int32* FoundFloorIdx = ExistingFloorIndex.Find(Snapshot.ItemId))
 			{
@@ -1487,7 +1498,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 			}
 
 
-			if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(ChildFloorComp->ActorType), Reason, false))
+			if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(ChildFloorComp->ActorType), Reason, false))
 			{
 				if (int32* FoundFloorIdx = ExistingFloorIndex.Find(ChildSnapshot.ItemId))
 				{
@@ -1685,10 +1696,31 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 					{
 						if (IsCurrentWorldMissionConst(Envelope))
 						{
-							if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
+							if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
 							{
 								RestoreActorSnapshot(Actor, Snapshot, true);
 								++Restored;
+
+								switch (FloorActorTypeToEnvelopeChannel(C->ActorType))
+								{
+									case EEnvelopeChannel::SpawnGroups:
+									{
+										if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
+										{
+											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+											if (Spawner)
+											{
+												if(Spawner->CurrentStatus != ESpawnGroupStatus::Cleared)
+													Spawner->ResetKilledCount();
+											}
+										}
+										break;
+									}
+									case EEnvelopeChannel::ActorPlacement:
+									{
+										break;
+									}
+								}
 							}
 						}
 					}
@@ -1728,7 +1760,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 							{
 								if (IsCurrentWorldMissionConst(Envelope))
 								{
-									if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
+									if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
 									{
 										ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
 										RestoreActorSnapshot(ChildActor, Snapshot, false, true);
@@ -1753,7 +1785,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 				{
 					if (IsCurrentWorldMissionConst(Envelope))
 					{
-						if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
+						if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
 						{
 							if (!bAppliedRelative)
 								ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -3042,6 +3074,24 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 				}
 			}
 
+			// После завершения загрузки, перед вызовом OnTransitionCompleted
+			if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
+			{
+				ULevelLoadedPayload* Payload = EventBus->CreatePayload<ULevelLoadedPayload>();
+				if (Payload)
+				{
+					FString LevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+					FString PackageName = LoadedWorld->GetOutermost()->GetName();
+					Payload->Setup(LevelName, PackageName);
+
+					FOutcomeEventBase Ev;
+					Ev.OutcomeType = EOutcomeType::Interior;
+					Ev.OutcomeInterior = EOutcomeInterior::LevelLoaded;
+					Ev.Payload = Payload;
+					EventBus->PublishOutcome(Ev);
+					UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Published LevelLoaded event for level %s"), *LevelName);
+				}
+			}
 
 			// Final notification about completion of loading/transition
 			// Финальная нотификация о завершении загрузки/перехода
@@ -3298,7 +3348,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 
 				auto ProcessCategory = [&](TArray<FFloorPopulationRecord>& Records, EFloorActorType ActorType)
 					{
-						if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
+						if (ShouldUseActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
 						{
 							SpawnMissionRecords(Records);
 						}
@@ -3321,7 +3371,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 			{
 				auto ProcessCategory = [&](TArray<FFloorPopulationRecord>& Records, EFloorActorType ActorType)
 					{
-						if (ShouldSkipActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
+						if (ShouldUseActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
 							DestroyMissionRecords(Records);
 						else
 							Records.Empty();
@@ -3674,7 +3724,7 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 				for (const FFloorSavedActorState& Snapshot : Snapshots)
 				{
-					if (ShouldSkipActor(Envelope, FloorActorTypeToEnvelopeChannel(Snapshot.ActorType), EMissionEndReason::Failed, false))
+					if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(Snapshot.ActorType), EMissionEndReason::Failed, false))
 					{
 						// Update or add
 						// Обновляем или добавляем

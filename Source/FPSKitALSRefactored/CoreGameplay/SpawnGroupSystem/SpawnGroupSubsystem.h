@@ -38,6 +38,7 @@ private:
     void HandleSpawnGroupActivated(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupCleared(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupReset(const FOutcomeEventBase& Outcome);
+    void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
 
     // Вспомогательные методы для работы с реестром
     ASpawnGroupSpawner* FindSpawnerByItemId(const FGuid& ItemId) const;
@@ -62,6 +63,7 @@ private:
     FOutcomeHandlerHandle ActivateHandle;
     FOutcomeHandlerHandle ClearHandle;
     FOutcomeHandlerHandle ResetHandle;
+    FOutcomeHandlerHandle LevelLoadedHandle;
 
     bool bIsLoadComplete = true;
 };

@@ -28,15 +28,15 @@ enum class EEnvelopeChannel : uint8
 UENUM(BlueprintType)
 enum class EChannelPolicy : uint8
 {
-    // Сбросить объекты к исходному состоянию
+    // Reset objects to their initial state. (Сбросить объекты к исходному состоянию)
     Reset               UMETA(DisplayName = "Reset"),
-    // Заморозить — не изменять состояние при входе/выходе
+    // Freeze — do not change state on enter/exit. (Заморозить — не изменять состояние при входе/выходе)
     Freeze              UMETA(DisplayName = "Freeze"),
-    // Сохранить только идентификатор (для StableActors)
+    // Save only the identifier (for StableActors) (Сохранить только идентификатор (для StableActors))
     PersistIdentityOnly UMETA(DisplayName = "Persist Identity Only"),
-    // Сброс если не зачищено (для SpawnGroups)
+    // Reset if not cleared (for SpawnGroups) (Сброс если не зачищено (для SpawnGroups))
     ResetUnlessCleared  UMETA(DisplayName = "Reset Unless Cleared"),
-    // Поведение определяется скриптом миссии
+    // Behavior is determined by the mission script. (Поведение определяется скриптом миссии)
     MissionScripted     UMETA(DisplayName = "Mission Scripted")
 };
 

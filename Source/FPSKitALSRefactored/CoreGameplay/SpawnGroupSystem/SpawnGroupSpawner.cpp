@@ -65,8 +65,6 @@ void ASpawnGroupSpawner::BeginPlay()
             EventBus->PublishOutcome(Ev);
         }
     }
-
-    // Остальной код BeginPlay (автоспавн и т.д.)
 }
 
 void ASpawnGroupSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -138,10 +136,16 @@ void ASpawnGroupSpawner::SpawnGroup()
         return;
     }
 
-    if (CurrentStatus == ESpawnGroupStatus::Active || CurrentStatus == ESpawnGroupStatus::PartiallyCleared)
+    if (CurrentStatus == ESpawnGroupStatus::Suppressed)
     {
-        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group already active, skip spawn"), *GetName());
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());
         return;
+    }
+
+    if (CurrentStatus == ESpawnGroupStatus::Cleared)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group already Cleared, skip spawn"), *GetName());
+		return;
     }
 
     // Определяем классы для спавна
@@ -160,6 +164,12 @@ void ASpawnGroupSpawner::SpawnGroup()
         DesiredCount = SpawnGroupAsset->Composition.Count;
     }
 
+    if(DesiredCount == SpawnedCount)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: DesiredCount equals SpawnedCount (%d), skip spawn"), *GetName(), DesiredCount);
+        return;
+	}
+
     if (ClassesToSpawn.Num() == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: No actor classes to spawn"), *GetName());
@@ -176,6 +186,7 @@ void ASpawnGroupSpawner::SpawnGroup()
     // Спавним
     SpawnedGhosts.Empty();
     bHasPublishedClear = false;
+    CurrentStatus = ESpawnGroupStatus::Active;
 
     FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, FinalClasses, World, DesiredCount]()
     {
@@ -193,6 +204,7 @@ void ASpawnGroupSpawner::SpawnGroup()
         AActor* Ghost = SpawnSingleGhost(FinalClasses[SpawnedCount % FinalClasses.Num()], SpawnTransform);
         if (Ghost)
         {
+            CurrentStatus = KilledCount > 0 ? ESpawnGroupStatus::PartiallyCleared : ESpawnGroupStatus::Active;
             SpawnedCount++;
             SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
             Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
@@ -212,6 +224,8 @@ void ASpawnGroupSpawner::SpawnGroup()
             // Все призраки заспавнены
 			World->GetTimerManager().ClearTimer(TimerHandle);
             OnAllSpawned.Broadcast();
+
+            //CurrentStatus = ESpawnGroupStatus::Active;
 
             UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
                 *GetName(), SpawnedGhosts.Num());
@@ -245,7 +259,6 @@ void ASpawnGroupSpawner::ClearGroup(ESpawnGroupResolutionReason Reason)
     }
     SpawnedGhosts.Empty();
 
-    CurrentStatus = ESpawnGroupStatus::Cleared;
     PublishGhostClearedEvent(Reason);
     bHasPublishedClear = true;
 
@@ -256,6 +269,8 @@ void ASpawnGroupSpawner::ClearGroup(ESpawnGroupResolutionReason Reason)
     {
         Destroy();
     }
+
+    CurrentStatus = ESpawnGroupStatus::Cleared;
 }
 
 void ASpawnGroupSpawner::ResetGroup()
@@ -288,9 +303,9 @@ bool ASpawnGroupSpawner::IsGroupCleared() const
     return CurrentStatus == ESpawnGroupStatus::Cleared && GetAliveGhostCount() == 0;
 }
 
-void ASpawnGroupSpawner::RespawnGroup()
+void ASpawnGroupSpawner::ResetKilledCount()
 {
-
+	KilledCount = 0;
 }
 
 TArray<AActor*> ASpawnGroupSpawner::GetSpawnedGhosts() const
@@ -314,7 +329,7 @@ void ASpawnGroupSpawner::UpdateGroupStatus()
         // Группа полностью очищена
         ClearGroup(ESpawnGroupResolutionReason::Eliminated);
     }
-    else if (Alive > 0 && Alive < SpawnedGhosts.Num() && CurrentStatus == ESpawnGroupStatus::Active)
+    else if (Alive > 0 && KilledCount > 0)
     {
         CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
     }
@@ -326,9 +341,16 @@ void ASpawnGroupSpawner::OnGhostDestroyed(AActor* DestroyedActor)
     {
         OnGhostKilled.Broadcast(DestroyedActor, ESpawnGroupResolutionReason::Eliminated);
         SpawnedGhosts.Remove(Cast<AAlsCharacter>(DestroyedActor));
-        KilledCount++;
+        
     }
+    KilledCount++;
     UpdateGroupStatus();
+    /*
+    if (SpawnedCount - KilledCount != 0 && SpawnedCount > 0)
+    {
+        CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
+    }
+    */
 }
 
 AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, const FTransform& Transform)
