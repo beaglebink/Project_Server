@@ -1434,6 +1434,77 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 
 		const EEnvelopeChannel ActorChannel = FloorActorTypeToEnvelopeChannel(Comp->ActorType);
 
+		EJobSpacePolicy CurrentPolicy = EJobSpacePolicy::None;
+		TArray<FEnvelopeChannelEntry> CurrentPolicyChannels;
+
+		switch (Reason)
+		{
+			case EMissionEndReason::None:
+			{
+				//CurrentPolicy = Envelope.RuntimePolicy;
+				//CurrentPolicyChannels = Envelope.RuntimePolicyChannels;
+				break;
+			}
+			case EMissionEndReason::Completed:
+			{
+				CurrentPolicy = Envelope.NextStagePolicy;
+				CurrentPolicyChannels = Envelope.NextStagePolicyChannels;
+				break;
+			}
+			case EMissionEndReason::Failed:
+			{
+				CurrentPolicy = Envelope.MissionFailedPolicy;
+				CurrentPolicyChannels = Envelope.MissionFailedPolicyChannels;
+				break;
+			}
+			case EMissionEndReason::Abandoned:
+			{
+				CurrentPolicy = Envelope.MissionAbandonedPolicy;
+				CurrentPolicyChannels = Envelope.MissionAbandonedChannels;
+				break;
+			}
+		}
+
+		switch (Comp->ActorType)
+		{
+			case EFloorActorType::SpawnGroupSpawner :
+			{
+				if (!Envelopes.IsValidIndex(MissionStep + 1))
+				{
+					ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+					switch (CurrentPolicy)
+					{
+						case EJobSpacePolicy::Reset:
+						{
+							// в этом случае данные не будут сохранены
+							break;
+						}
+						case EJobSpacePolicy::Freeze:
+						{
+							Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+							Spawner->ResetKilledCount();
+							break;
+						}
+						case EJobSpacePolicy::Partial:
+						{
+							if (!HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
+							{
+								Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+								Spawner->ResetKilledCount();
+							}
+							break;
+						}
+					}
+				}
+
+				break;
+			}
+			case EFloorActorType::StableActor:
+			{
+				// будет реализовано позже
+				break;
+			}
+		}
 
 		FFloorSavedActorState Snapshot;
 		Snapshot.ItemId = Comp->ItemId;
@@ -1705,13 +1776,16 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 								{
 									case EEnvelopeChannel::SpawnGroups:
 									{
-										if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
+										if (Envelope.RuntimePolicy == EJobSpacePolicy::Partial)
 										{
-											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-											if (Spawner)
+											if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
 											{
-												if(Spawner->CurrentStatus != ESpawnGroupStatus::Cleared)
-													Spawner->ResetKilledCount();
+												ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+												if (Spawner)
+												{
+													if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared)
+														Spawner->ResetKilledCount();
+												}
 											}
 										}
 										break;
@@ -3074,7 +3148,8 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 				}
 			}
 
-			// После завершения загрузки, перед вызовом OnTransitionCompleted
+			// Notification about the end of level loading 
+			// Оповещение о конце загрузки уровня
 			if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
 			{
 				ULevelLoadedPayload* Payload = EventBus->CreatePayload<ULevelLoadedPayload>();
@@ -3097,7 +3172,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			// Финальная нотификация о завершении загрузки/перехода
 			OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 			ClearPendingAnchorID();
-			//IsLoadingFromSave = false;
 		});
 
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
