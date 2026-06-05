@@ -1472,28 +1472,166 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 				if (!Envelopes.IsValidIndex(MissionStep + 1))
 				{
 					ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-					switch (CurrentPolicy)
+					if (Spawner)
 					{
-						case EJobSpacePolicy::Reset:
+						switch (CurrentPolicy)
 						{
-							// в этом случае данные не будут сохранены
-							break;
-						}
-						case EJobSpacePolicy::Freeze:
-						{
-							Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
-							Spawner->ResetKilledCount();
-							break;
-						}
-						case EJobSpacePolicy::Partial:
-						{
-							if (!HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
+							case EJobSpacePolicy::Reset:
+							{
+								// в этом случае данные не будут сохранены
+								break;
+							}
+							case EJobSpacePolicy::Freeze:
 							{
 								Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
 								Spawner->ResetKilledCount();
+								break;
 							}
+							case EJobSpacePolicy::Partial:
+							{
+								if (!HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
+								{
+									Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+									Spawner->ResetKilledCount();
+								}
+								break;
+							}
+						}
+					}
+				}
+				else
+				{
+					FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(W, true);
+					FMissionEnvelopeScope Scope = Envelopes[MissionStep + 1].Scope;
+					bool NextStageIsCurrentFloor = false;
+					for (auto Sc : Scope.InteriorScopes)
+					{
+						FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+						FString NormTarget = NormalizeLevelName(ScopeLevelName);
+						FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+						if (NormTarget == NormCurrent)
+						{
+							NextStageIsCurrentFloor = true;
 							break;
 						}
+					}
+					if (!NextStageIsCurrentFloor)
+					{
+						ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+						if (Spawner)
+						{
+							switch (CurrentPolicy)
+							{
+								case EJobSpacePolicy::Reset:
+								{
+									// в этом случае данные не будут сохранены
+									break;
+								}
+								case EJobSpacePolicy::Freeze:
+								{
+									Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+									Spawner->ResetKilledCount();
+									break;
+								}
+								case EJobSpacePolicy::Partial:
+								{
+									if (!HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
+									{
+										Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+										Spawner->ResetKilledCount();
+									}
+									break;
+								}
+							}
+						}
+					}
+					else
+					{
+						if (Reason == EMissionEndReason::Completed)
+						{
+							switch (CurrentPolicy)
+							{
+							case EJobSpacePolicy::Reset:
+							{
+								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+								if (Spawner)
+								{
+									Spawner->ResetKilledCount();
+									Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
+									Spawner->BlockNewSpawn = false;
+								}
+								break;
+							}
+							case EJobSpacePolicy::Freeze:
+							{
+								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+								if (Spawner)
+								{
+									Spawner->BlockNewSpawn = true;
+								}
+								break;
+							}
+							case EJobSpacePolicy::Partial:
+							{
+								if (HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
+								{
+									ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+									if (Spawner)
+									{
+										Spawner->BlockNewSpawn = true;
+
+										if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
+										{
+											Spawner->ResetKilledCount();
+											Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+										}
+										else
+										{
+											Spawner->ResetKilledCount();
+											Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+										}
+									}
+								}
+								else
+								{
+									if (HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
+									{
+										ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+										if (Spawner)
+										{
+											Spawner->ResetKilledCount();
+											Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
+											Spawner->BlockNewSpawn = false;
+										}
+									}
+									else
+									{
+										ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+										if (Spawner)
+										{
+											Spawner->BlockNewSpawn = true;
+										}
+									}
+								}
+
+								break;
+							}
+							}
+						}
+						/*
+						ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+						if (Spawner)
+						{
+							Spawner->BlockNewSpawn = true;
+
+							if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
+							{
+
+							}
+						}
+						*/
 					}
 				}
 
@@ -1787,6 +1925,16 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 														Spawner->ResetKilledCount();
 												}
 											}
+										}
+										else
+										{
+											/*
+											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+											if (Spawner)
+											{
+												Spawner->BlockNewSpawn = true;
+											}
+											*/
 										}
 										break;
 									}

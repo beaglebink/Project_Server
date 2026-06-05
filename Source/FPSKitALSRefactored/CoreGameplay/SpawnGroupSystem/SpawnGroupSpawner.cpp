@@ -121,6 +121,17 @@ FTransform ASpawnGroupSpawner::GetTransformFromLocation(ASpawnVolume* Volume) co
     return FTransform(SpawnRotation, SpawnLocation, FVector::OneVector);
 }
 
+void ASpawnGroupSpawner::SpawnGroupInternal()
+{
+    if (BlockNewSpawn)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Mission New Stage Disable Spawn"), *GetName());
+        return;
+    }
+
+    SpawnGroup();
+}
+
 void ASpawnGroupSpawner::SpawnGroup()
 {
     UWorld* World = GetWorld();
@@ -224,6 +235,7 @@ void ASpawnGroupSpawner::SpawnGroup()
             // Все призраки заспавнены
 			World->GetTimerManager().ClearTimer(TimerHandle);
             OnAllSpawned.Broadcast();
+            BlockNewSpawn = true;
 
             //CurrentStatus = ESpawnGroupStatus::Active;
 

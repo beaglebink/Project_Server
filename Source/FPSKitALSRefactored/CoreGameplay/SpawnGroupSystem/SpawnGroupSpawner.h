@@ -75,6 +75,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "SpawnGroup|Events")
     FOnSpawnGroupAllCleared OnAllCleared;
 
+    UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup|Placement")
+    bool BlockNewSpawn = false;
+
 #if WITH_EDITOR
     virtual void Tick(float DeltaTime) override;
     virtual bool ShouldTickIfViewportsOnly() const override { return true; }
@@ -126,10 +129,15 @@ public:
     bool IsGroupCleared() const;
 
     void ResetKilledCount();
+    void SpawnGroupInternal();
+
+    int32 GetSpawnedCount() { return SpawnedCount; }
+    int32 GetKilledCount() { return KilledCount; }
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;
     FTransform GetTransformFromLocation(ASpawnVolume* Location) const;
+
     AActor* SpawnSingleGhost(TSubclassOf<AActor> ActorClass, const FTransform& Transform);
     void PublishGhostClearedEvent(ESpawnGroupResolutionReason Reason);
     void UpdateGroupStatus();

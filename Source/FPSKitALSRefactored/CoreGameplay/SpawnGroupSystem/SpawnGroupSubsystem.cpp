@@ -208,7 +208,7 @@ void USpawnGroupSubsystem::ActivateSpawnGroupInternal(const FSpawnGroupId& Group
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
     if (Spawner)
-        Spawner->SpawnGroup();
+        Spawner->SpawnGroupInternal();
 }
 
 void USpawnGroupSubsystem::ClearSpawnGroupInternal(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason)
