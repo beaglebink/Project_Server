@@ -35,3 +35,19 @@ bool UCoreBlueprintFunctionLibrary::IsPIE()
 	return false;
 #endif
 }
+
+USceneComponent* UCoreBlueprintFunctionLibrary::GetSceneComponentCopy(USceneComponent* Component, AActor* Outer, FText Name)
+{
+	if (!Component || !Outer)
+	{
+		return nullptr;
+	}
+
+	USceneComponent* NewComponent = DuplicateObject<USceneComponent>(Component, Outer, *Name.ToString());
+
+	Outer->AddInstanceComponent(NewComponent);
+	NewComponent->RegisterComponent();
+	NewComponent->AttachToComponent(Outer->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+
+	return NewComponent;
+}

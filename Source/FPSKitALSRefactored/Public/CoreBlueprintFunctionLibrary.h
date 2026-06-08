@@ -23,4 +23,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "General")
 	static bool IsPIE();
+
+	UFUNCTION(BlueprintCallable, Category = "Objects")
+	static USceneComponent* GetSceneComponentCopy(USceneComponent* Object, AActor* Outer, FText Name);
 };
+
+ 
