@@ -319,6 +319,7 @@ bool ASpawnGroupSpawner::IsGroupCleared() const
 void ASpawnGroupSpawner::ResetKilledCount()
 {
 	KilledCount = 0;
+    TypeKilled.Empty();
 }
 
 TArray<AActor*> ASpawnGroupSpawner::GetSpawnedGhosts() const

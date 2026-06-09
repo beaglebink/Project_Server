@@ -38,7 +38,7 @@ public:
     FGuid FloorId;
 
     // Тип актора на этаже
-    //UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
     EFloorActorType ActorType = EFloorActorType::LightItem;
 
     // Опциональный якорь (GUID)
