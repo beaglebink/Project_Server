@@ -7,6 +7,18 @@
 #include <AlsCharacterExample.h>
 #include "SpawnGroupAsset.generated.h"
 
+USTRUCT(BlueprintType)
+struct FSpawnTypeCount
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TSubclassOf<AAlsCharacter> ActorClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 Count;
+};
+
 // Определение состава группы: либо явный список, либо ссылка на пул.
 USTRUCT(BlueprintType)
 struct FSpawnGroupComposition
@@ -18,18 +30,20 @@ struct FSpawnGroupComposition
     bool bUsePool = false;
 
     // Идентификатор пула (например, "Bandits.Melee")
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bUsePool"))
-    FName PoolId;
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bUsePool"))
+    //FName PoolId;
 
     // Явный список классов акторов с параметрами (для авторских групп)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "!bUsePool"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "!bUsePool", EditConditionHides))
     TArray<TSubclassOf<AAlsCharacter>> ActorClasses;
 
     // Количество спавнов (если пул, то может быть диапазон)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "!bUsePool", EditConditionHides))
     int32 Count = 1;
 
     // Доп. параметры: веса, уровни сложности и т.д. (опционально)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bUsePool", EditConditionHides))
+    TArray<FSpawnTypeCount> ActorsPool;
 };
 
 // Описание точки спавна (якорь, зона, относительные координаты)

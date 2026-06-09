@@ -103,6 +103,9 @@ private:
 
     FTimerHandle TimerHandle;
 
+    UPROPERTY(SaveGame)
+    TMap<FName, int32> TypeKilled;
+
 public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
     TArray<AActor*> GetSpawnedGhosts() const;

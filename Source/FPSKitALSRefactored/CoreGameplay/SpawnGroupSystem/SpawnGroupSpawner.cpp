@@ -135,11 +135,11 @@ void ASpawnGroupSpawner::SpawnGroupInternal()
 void ASpawnGroupSpawner::SpawnGroup()
 {
     UWorld* World = GetWorld();
-    if(!World)
+    if (!World)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: World is null"), *GetName());
         return;
-	}
+    }
 
     if (!SpawnGroupAsset)
     {
@@ -156,98 +156,94 @@ void ASpawnGroupSpawner::SpawnGroup()
     if (CurrentStatus == ESpawnGroupStatus::Cleared)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group already Cleared, skip spawn"), *GetName());
-		return;
+        return;
     }
 
-    // Определяем классы для спавна
-    TArray<TSubclassOf<AAlsCharacter>> ClassesToSpawn;
-    int32 DesiredCount = 0;
-
+    // 1. Желаемое количество каждого класса
+    TMap<UClass*, int32> DesiredCounts;
     if (SpawnGroupAsset->Composition.bUsePool)
     {
-        // TODO: реализовать пулы позже – пока заглушка
-        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Pool spawning not implemented yet"), *GetName());
-        return;
+        for (const FSpawnTypeCount& TypeCount : SpawnGroupAsset->Composition.ActorsPool)
+        {
+            DesiredCounts.Add(TypeCount.ActorClass, TypeCount.Count);
+        }
     }
     else
     {
-        ClassesToSpawn = SpawnGroupAsset->Composition.ActorClasses;
-        DesiredCount = SpawnGroupAsset->Composition.Count;
+        int32 DesiredCount = SpawnGroupAsset->Composition.Count;
+        TArray<TSubclassOf<AAlsCharacter>> ClassesToSpawn = SpawnGroupAsset->Composition.ActorClasses;
+
+        for (int32 i = 0; i < DesiredCount; ++i)
+        //for (TSubclassOf<AActor> Class : SpawnGroupAsset->Composition.ActorClasses)
+        {
+            //FinalClasses.Add(ClassesToSpawn[i % ClassesToSpawn.Num()]);
+            UClass* Class = ClassesToSpawn[i % ClassesToSpawn.Num()];
+            if (Class)
+                DesiredCounts.FindOrAdd(Class)++;
+        }
     }
 
-    if(DesiredCount == SpawnedCount)
+    // 2. Вычитаем уже убитых (TypeKilled)
+    TArray<TSubclassOf<AActor>> ClassesToSpawn;
+    for (const auto& Pair : DesiredCounts)
     {
-        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: DesiredCount equals SpawnedCount (%d), skip spawn"), *GetName(), DesiredCount);
-        return;
-	}
+        UClass* Class = Pair.Key;
+        int32 Desired = Pair.Value;
+        int32 Killed = TypeKilled.FindRef(Class->GetFName());
+        int32 Need = FMath::Max(0, Desired - Killed);
+        for (int32 i = 0; i < Need; ++i)
+        {
+            ClassesToSpawn.Add(Class);
+        }
+    }
 
     if (ClassesToSpawn.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: No actor classes to spawn"), *GetName());
+        // Все враги уже убиты
+        CurrentStatus = ESpawnGroupStatus::Cleared;
+        OnAllCleared.Broadcast(ESpawnGroupResolutionReason::Eliminated);
         return;
     }
 
-    // Если указано больше Count, чем классов, циклически повторяем классы
-    TArray<TSubclassOf<AActor>> FinalClasses;
-    for (int32 i = 0; i < DesiredCount; ++i)
+    // Очищаем предыдущих призраков (если есть)
+    for (AActor* Ghost : SpawnedGhosts)
     {
-        FinalClasses.Add(ClassesToSpawn[i % ClassesToSpawn.Num()]);
-    }
-
-    // Спавним
-    SpawnedGhosts.Empty();
-    bHasPublishedClear = false;
-    CurrentStatus = ESpawnGroupStatus::Active;
-
-    FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, FinalClasses, World, DesiredCount]()
-    {
-
-        ASpawnVolume* Location = GetRandomSpawnLocation();
-        const FTransform SpawnTransform = GetTransformFromLocation(Location);
-
-        if(FinalClasses.Num() == 0)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: FinalClasses is empty, cannot spawn"), *GetName());
-            World->GetTimerManager().ClearTimer(TimerHandle);
-            return;
-		}
-
-        AActor* Ghost = SpawnSingleGhost(FinalClasses[SpawnedCount % FinalClasses.Num()], SpawnTransform);
         if (Ghost)
         {
-            CurrentStatus = KilledCount > 0 ? ESpawnGroupStatus::PartiallyCleared : ESpawnGroupStatus::Active;
-            SpawnedCount++;
-            SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
-            Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
-
-            OnGhostSpawned.Broadcast(Ghost);
+            Ghost->OnDestroyed.RemoveDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+            Ghost->Destroy();
         }
-
-        if (DesiredCount <= KilledCount)
-        {
-            KilledCount = DesiredCount;
-            World->GetTimerManager().ClearTimer(TimerHandle);
-            return;
-        }
-
-        if(SpawnedCount >= DesiredCount - KilledCount)
-        {
-            // Все призраки заспавнены
-			World->GetTimerManager().ClearTimer(TimerHandle);
-            OnAllSpawned.Broadcast();
-            BlockNewSpawn = true;
-
-            //CurrentStatus = ESpawnGroupStatus::Active;
-
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
-                *GetName(), SpawnedGhosts.Num());
-        }
-    });
+    }
+    SpawnedGhosts.Empty();
+    SpawnedCount = 0;
+    bHasPublishedClear = false;
 
     CurrentStatus = ESpawnGroupStatus::Active;
     RuntimeGroupId = SpawnGroupAsset->GroupId;
 
+    // Таймер последовательного спавна
+    FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, World]()
+        {
+            if (SpawnedCount >= ClassesToSpawn.Num())
+            {
+                World->GetTimerManager().ClearTimer(TimerHandle);
+                OnAllSpawned.Broadcast();
+                BlockNewSpawn = true;
+                UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"), *GetName(), SpawnedGhosts.Num());
+                return;
+            }
 
+            ASpawnVolume* Location = GetRandomSpawnLocation();
+            const FTransform SpawnTransform = GetTransformFromLocation(Location);
+            AActor* Ghost = SpawnSingleGhost(ClassesToSpawn[SpawnedCount], SpawnTransform);
+            if (Ghost)
+            {
+                SpawnedCount++;
+                SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
+                Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+                OnGhostSpawned.Broadcast(Ghost);
+            }
+        });
 
     World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
 }
@@ -293,6 +289,11 @@ void ASpawnGroupSpawner::ResetGroup()
         return;
     }
 
+    // Сбрасываем статистику убитых
+    TypeKilled.Empty();
+    KilledCount = 0;
+    SpawnedCount = 0;
+
     ClearGroup(ESpawnGroupResolutionReason::Other);
     SpawnGroup();
 }
@@ -336,12 +337,19 @@ TArray<AActor*> ASpawnGroupSpawner::GetSpawnedGhosts() const
 void ASpawnGroupSpawner::UpdateGroupStatus()
 {
     const int32 Alive = GetAliveGhostCount();
-    if (Alive == 0 && (CurrentStatus == ESpawnGroupStatus::Active || CurrentStatus == ESpawnGroupStatus::PartiallyCleared))
+    if (Alive == 0)
     {
-        // Группа полностью очищена
-        ClearGroup(ESpawnGroupResolutionReason::Eliminated);
+        // Проверяем, все ли запланированные враги убиты (через TypeKilled)
+        bool bAllKilled = false;
+        // (опциональная проверка, можно оставить только по Alive)
+        // Если нет живых, но ещё не все убиты, то не переводим в Cleared.
+        // Для простоты переводим в Cleared только при Alive == 0 и если SpawnedGhosts пуст.
+        if (SpawnedGhosts.Num() == 0)
+        {
+            ClearGroup(ESpawnGroupResolutionReason::Eliminated);
+        }
     }
-    else if (Alive > 0 && KilledCount > 0)
+    else if (Alive > 0 && KilledCount > 0 && CurrentStatus == ESpawnGroupStatus::Active)
     {
         CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
     }
@@ -351,18 +359,20 @@ void ASpawnGroupSpawner::OnGhostDestroyed(AActor* DestroyedActor)
 {
     if (DestroyedActor)
     {
+        UClass* ActorClass = DestroyedActor->GetClass();
+        if (ActorClass)
+        {
+            FName ClassName = ActorClass->GetFName();
+            int32& CountRef = TypeKilled.FindOrAdd(ClassName);
+            CountRef++;
+        }
+
         OnGhostKilled.Broadcast(DestroyedActor, ESpawnGroupResolutionReason::Eliminated);
         SpawnedGhosts.Remove(Cast<AAlsCharacter>(DestroyedActor));
-        
     }
+
     KilledCount++;
     UpdateGroupStatus();
-    /*
-    if (SpawnedCount - KilledCount != 0 && SpawnedCount > 0)
-    {
-        CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
-    }
-    */
 }
 
 AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, const FTransform& Transform)

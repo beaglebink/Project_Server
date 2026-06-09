@@ -269,7 +269,7 @@ private:
     UPROPERTY()
     FGuid PendingAnchorID;
 
-    FTimerHandle TravelTimerHandle;  // <-- добавлено!
+    FTimerHandle TravelTimerHandle;
 
     UPROPERTY()
     UOutcomeConditionAsset* SpawnConditionAsset = nullptr;

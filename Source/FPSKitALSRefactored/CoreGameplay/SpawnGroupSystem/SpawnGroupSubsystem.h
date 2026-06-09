@@ -50,9 +50,15 @@ private:
     void ResetSpawnGroupInternal(const FSpawnGroupId& GroupId);
 
     // ----- Хранилища -----
+    UPROPERTY()
     TMap<FGuid, TWeakObjectPtr<ASpawnGroupSpawner>> SpawnerByItemId;      // ItemId -> спавнер
+
+    UPROPERTY()
     TMap<FSpawnGroupId, FGuid> GroupIdToItemId;                           // GroupId -> ItemId
+
+    UPROPERTY()
     TMap<FSpawnGroupId, FSpawnGroupState> ActiveGroupStates;              // временные состояния
+
     TMap<FInteriorFloorKey, TMap<FSpawnGroupId, FSpawnGroupState>> PersistentGroupStates; // сохранённые
 
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
