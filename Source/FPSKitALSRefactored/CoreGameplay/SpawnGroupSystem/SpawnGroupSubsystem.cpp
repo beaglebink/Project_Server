@@ -24,7 +24,6 @@ void USpawnGroupSubsystem::Deinitialize()
     UnsubscribeEvents();
     SpawnerByItemId.Empty();
     GroupIdToItemId.Empty();
-    ActiveGroupStates.Empty();
     PersistentGroupStates.Empty();
     CachedEventBus.Reset();
 
@@ -155,7 +154,7 @@ void USpawnGroupSubsystem::HandleSpawnGroupRegister(const FOutcomeEventBase& Out
 void USpawnGroupSubsystem::HandleSpawnGroupUnregister(const FOutcomeEventBase& Outcome)
 {
     if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
-        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupRegister)
+        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupUnregister)
     {
         USpawnGroupRegistrationPayload* P = Cast<USpawnGroupRegistrationPayload>(Outcome.Payload);
         if (!P) return;
