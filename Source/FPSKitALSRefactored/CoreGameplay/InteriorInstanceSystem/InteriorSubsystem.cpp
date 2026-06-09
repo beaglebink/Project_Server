@@ -1339,7 +1339,6 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 			UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
 			if (!ChildFloorComp) continue;
 			if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
-			if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
 
 			FFloorSavedActorState ChildSnapshot;
 			ChildSnapshot.ItemId = ChildFloorComp->ItemId;
@@ -1686,7 +1685,6 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 			UFloorAssignmentComponent* ChildFloorComp = ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
 			if (!ChildFloorComp) continue;
 			if (ChildFloorComp->SnapshotChannel == ESnapshotChannel::None) continue;
-			if (ChildFloorComp->GetInteriorSetId() != InteriorSetId) continue;
 
 			FFloorSavedActorState ChildSnapshot;
 			ChildSnapshot.ItemId = ChildFloorComp->ItemId;
