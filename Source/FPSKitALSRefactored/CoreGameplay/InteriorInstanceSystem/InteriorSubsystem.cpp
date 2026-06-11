@@ -1478,12 +1478,14 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 							case EJobSpacePolicy::Reset:
 							{
 								// в этом случае данные не будут сохранены
+								Spawner->IsUseStoreSpawnParameters = false;
 								break;
 							}
 							case EJobSpacePolicy::Freeze:
 							{
 								Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
 								Spawner->ResetKilledCount();
+								Spawner->IsUseStoreSpawnParameters = true;
 								break;
 							}
 							case EJobSpacePolicy::Partial:
@@ -1492,6 +1494,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 								{
 									Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
 									Spawner->ResetKilledCount();
+									Spawner->IsUseStoreSpawnParameters = false;
 								}
 								break;
 							}
@@ -1526,12 +1529,14 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 								case EJobSpacePolicy::Reset:
 								{
 									// в этом случае данные не будут сохранены
+									Spawner->IsUseStoreSpawnParameters = false;
 									break;
 								}
 								case EJobSpacePolicy::Freeze:
 								{
 									Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
 									Spawner->ResetKilledCount();
+									Spawner->IsUseStoreSpawnParameters = true;
 									break;
 								}
 								case EJobSpacePolicy::Partial:
@@ -1540,6 +1545,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 									{
 										Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
 										Spawner->ResetKilledCount();
+										Spawner->IsUseStoreSpawnParameters = false;
 									}
 									break;
 								}
@@ -1552,85 +1558,76 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 						{
 							switch (CurrentPolicy)
 							{
-							case EJobSpacePolicy::Reset:
-							{
-								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-								if (Spawner)
+								case EJobSpacePolicy::Reset:
 								{
-									Spawner->ResetKilledCount();
-									Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
-									Spawner->BlockNewSpawn = false;
+									ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+									if (Spawner)
+									{
+										Spawner->ResetKilledCount();
+										Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
+										Spawner->BlockNewSpawn = false;
+										Spawner->IsUseStoreSpawnParameters = false;
+									}
+									break;
 								}
-								break;
-							}
-							case EJobSpacePolicy::Freeze:
-							{
-								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-								if (Spawner)
-								{
-									Spawner->BlockNewSpawn = true;
-								}
-								break;
-							}
-							case EJobSpacePolicy::Partial:
-							{
-								if (HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
+								case EJobSpacePolicy::Freeze:
 								{
 									ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 									if (Spawner)
 									{
 										Spawner->BlockNewSpawn = true;
-
-										if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
-										{
-											Spawner->ResetKilledCount();
-											Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
-										}
-										else
-										{
-											Spawner->ResetKilledCount();
-											Spawner->CurrentStatus = ESpawnGroupStatus::Active;
-										}
+										Spawner->IsUseStoreSpawnParameters = true;
 									}
+									break;
 								}
-								else
+								case EJobSpacePolicy::Partial:
 								{
-									if (HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
-									{
-										ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-										if (Spawner)
-										{
-											Spawner->ResetKilledCount();
-											Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
-											Spawner->BlockNewSpawn = false;
-										}
-									}
-									else
+									if (HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
 									{
 										ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 										if (Spawner)
 										{
 											Spawner->BlockNewSpawn = true;
+											Spawner->IsUseStoreSpawnParameters = false;
+
+											if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
+											{
+												Spawner->ResetKilledCount();
+												Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+											}
+											else
+											{
+												Spawner->ResetKilledCount();
+												Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+											}
 										}
 									}
+									else
+									{
+										if (HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
+										{
+											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+											if (Spawner)
+											{
+												Spawner->ResetKilledCount();
+												Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
+												Spawner->BlockNewSpawn = false;
+												Spawner->IsUseStoreSpawnParameters = false;
+											}
+										}
+										else
+										{
+											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+											if (Spawner)
+											{
+												Spawner->BlockNewSpawn = false;
+											}
+										}
+									}
+									break;
 								}
-
-								break;
-							}
 							}
 						}
-						/*
-						ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-						if (Spawner)
-						{
-							Spawner->BlockNewSpawn = true;
-
-							if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
-							{
-
-							}
-						}
-						*/
 					}
 				}
 
@@ -1912,27 +1909,42 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 								{
 									case EEnvelopeChannel::SpawnGroups:
 									{
-										if (Envelope.RuntimePolicy == EJobSpacePolicy::Partial)
+										switch (Envelope.RuntimePolicy)
+										{
+										case EJobSpacePolicy::Freeze:
+										{
+											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+											if (Spawner)
+											{
+												Spawner->IsUseStoreSpawnParameters = true;
+											}
+
+											break;
+										}
+										case EJobSpacePolicy::Reset:
+										{
+											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+											if (Spawner)
+											{
+												Spawner->IsUseStoreSpawnParameters = false;
+											}
+
+											break;
+										}
+										case EJobSpacePolicy::Partial:
 										{
 											if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
 											{
 												ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 												if (Spawner)
 												{
+													Spawner->IsUseStoreSpawnParameters = false;
 													if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared)
 														Spawner->ResetKilledCount();
 												}
 											}
+											break;
 										}
-										else
-										{
-											/*
-											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-											if (Spawner)
-											{
-												Spawner->BlockNewSpawn = true;
-											}
-											*/
 										}
 										break;
 									}

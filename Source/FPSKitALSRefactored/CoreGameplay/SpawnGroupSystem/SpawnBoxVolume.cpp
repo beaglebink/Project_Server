@@ -30,7 +30,7 @@ FVector ASpawnBoxVolume::GetRandomSpawnPoint_Implementation() const
     );
 }
 
-FRotator ASpawnBoxVolume::GetDefaultRotation_Implementation() const
+FRotator ASpawnBoxVolume::GetRandomRotation_Implementation() const
 {
     return GetActorRotation();
 }

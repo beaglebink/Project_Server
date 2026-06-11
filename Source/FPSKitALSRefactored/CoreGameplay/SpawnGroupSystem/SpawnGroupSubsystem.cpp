@@ -332,10 +332,13 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         // Восстанавливаем флаг спавнера (если изменился в рантайме)
         Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
 
+        /*
         if (State->bStoreSpawnParameters)
             Spawner->RestoreFromSlots(State->Slots);
         else
             Spawner->RestoreFromState(*State);
+        */
+        Spawner->SetStates(*State); 
 
         ESpawnGroupStatus Status = Spawner->GetCurrentStatus();
         if (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared)

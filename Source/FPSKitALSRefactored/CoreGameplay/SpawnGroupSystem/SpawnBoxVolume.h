@@ -13,7 +13,7 @@ class FPSKITALSREFACTORED_API ASpawnBoxVolume : public ASpawnVolume
 public:
     ASpawnBoxVolume();
     virtual FVector GetRandomSpawnPoint_Implementation() const override;
-    virtual FRotator GetDefaultRotation_Implementation() const override;
+    virtual FRotator GetRandomRotation_Implementation() const override;
     UFUNCTION(BlueprintCallable, Category = "SpawnVolume")
     void SetBoxExtent(const FVector& Extent);
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

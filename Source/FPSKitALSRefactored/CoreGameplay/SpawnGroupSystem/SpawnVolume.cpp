@@ -11,7 +11,7 @@ FVector ASpawnVolume::GetRandomSpawnPoint_Implementation() const
     return GetActorLocation();
 }
 
-FRotator ASpawnVolume::GetDefaultRotation_Implementation() const
+FRotator ASpawnVolume::GetRandomRotation_Implementation() const
 {
     return GetActorRotation();
 }

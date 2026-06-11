@@ -17,6 +17,6 @@ public:
     virtual FVector GetRandomSpawnPoint_Implementation() const;
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SpawnVolume")
-    FRotator GetDefaultRotation() const;
-    virtual FRotator GetDefaultRotation_Implementation() const;
+    FRotator GetRandomRotation() const;
+    virtual FRotator GetRandomRotation_Implementation() const;
 };

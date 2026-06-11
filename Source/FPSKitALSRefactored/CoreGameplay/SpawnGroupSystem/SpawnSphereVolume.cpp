@@ -28,7 +28,7 @@ FVector ASpawnSphereVolume::GetRandomSpawnPoint_Implementation() const
     return Origin + RandomDir * RandomRadius;
 }
 
-FRotator ASpawnSphereVolume::GetDefaultRotation_Implementation() const
+FRotator ASpawnSphereVolume::GetRandomRotation_Implementation() const
 {
     return GetActorRotation();
 }

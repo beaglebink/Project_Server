@@ -82,6 +82,9 @@ public:
     UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup")
     bool IsStoreSpawnParameters = false;
 
+    UPROPERTY(SaveGame)
+    bool IsUseStoreSpawnParameters = false;
+
     const TMap<FName, int32>& GetTypeKilled() const { return TypeKilled; }
     void RestoreFromState(const FSpawnGroupState& State);
     void RestoreFromSlots(const TArray<FSpawnSlotState>& Slots);
@@ -113,6 +116,8 @@ private:
 
     UPROPERTY(SaveGame)
     TMap<FName, int32> TypeKilled;
+
+    FSpawnGroupState StoredState;
 
 public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
@@ -157,6 +162,8 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
 	FSpawnGroupId GetGroupId() const { return SpawnGroupAsset ? SpawnGroupAsset->GroupId : FSpawnGroupId(); }
+
+	void SetStates(const FSpawnGroupState& State);
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;

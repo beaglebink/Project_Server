@@ -20,7 +20,7 @@ public:
     void SetSphereRadius(float Radius);
 
     virtual FVector GetRandomSpawnPoint_Implementation() const override;
-    virtual FRotator GetDefaultRotation_Implementation() const override;
+    virtual FRotator GetRandomRotation_Implementation() const override;
 
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnVolume")
