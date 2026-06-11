@@ -14,7 +14,8 @@ enum class EFloorActorType : uint8
 	DialogueAccess 		UMETA(DisplayName = "Dialogue Access"),
 	Terminal			UMETA(DisplayName = "Terminal"),
 	InventoryItems 		UMETA(DisplayName = "Inventory Items"),
-	SpawnGroupSpawner 		UMETA(DisplayName = "NPC Spawner"),
+	SpawnGroupSpawner 	UMETA(DisplayName = "NPC Spawner"),
+	SpawnItems 			UMETA(DisplayName = "Spawn Items"),
 	LocationTriggers    UMETA(DisplayName = "Location Triggers"),
 	MAX
 };

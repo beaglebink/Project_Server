@@ -26,7 +26,7 @@ public:
     FText InteriorSetName;
 
     // GUID интерьера (сохраняется в экземпляре уровня)
-    //UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid InteriorSetId;
 
     // Отображаемое имя этажа
@@ -34,7 +34,7 @@ public:
     FText FloorName;
 
     // GUID этажа (сохраняется в экземпляре уровня)
-    //UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid FloorId;
 
     // Тип актора на этаже

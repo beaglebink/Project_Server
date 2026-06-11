@@ -32,12 +32,15 @@ private:
     void SubscribeEvents();
     void UnsubscribeEvents();
 
+    FInteriorFloorKey GetFloorKeyFromSpawner(ASpawnGroupSpawner* Spawner) const;
+
     // Обработчики событий
     void HandleSpawnGroupRegister(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupUnregister(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupActivated(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupCleared(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupReset(const FOutcomeEventBase& Outcome);
+    void HandleFloorLeaving(const FOutcomeEventBase& Outcome);
     void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
 
     // Вспомогательные методы для работы с реестром
@@ -48,6 +51,8 @@ private:
     void ActivateSpawnGroupInternal(const FSpawnGroupId& GroupId);
     void ClearSpawnGroupInternal(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason);
     void ResetSpawnGroupInternal(const FSpawnGroupId& GroupId);
+
+    void UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner);
 
     // ----- Хранилища -----
     UPROPERTY()
@@ -67,6 +72,7 @@ private:
     FOutcomeHandlerHandle ClearHandle;
     FOutcomeHandlerHandle ResetHandle;
     FOutcomeHandlerHandle LevelLoadedHandle;
+    FOutcomeHandlerHandle FloorLeavingHandle;
 
     bool bIsLoadComplete = true;
 };

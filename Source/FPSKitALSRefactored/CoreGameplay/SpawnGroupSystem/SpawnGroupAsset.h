@@ -80,7 +80,7 @@ public:
     FText DisplayName;
 
     // Область действия: этаж (по умолчанию) или здание
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Scope")
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Scope")
     bool bBuildingWide = false;
 
     // Если !bBuildingWide, то привязка к конкретному этажу (опционально, иначе наследуется от контекста)
@@ -111,4 +111,9 @@ public:
     {
         return FPrimaryAssetId("SpawnGroup", GetFName());
     }
+
+#if WITH_EDITOR
+    virtual void PostInitProperties() override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };

@@ -7,6 +7,7 @@
 #include "../SpawnGroupSystem/SpawnVolume.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include <AlsCharacterExample.h>
+#include "FloorAssignmentComponent.h"
 #include "SpawnGroupSpawner.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnGroupGhostSpawned, AActor*, Ghost);
@@ -78,6 +79,13 @@ public:
     UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup|Placement")
     bool BlockNewSpawn = false;
 
+    UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup")
+    bool IsStoreSpawnParameters = false;
+
+    const TMap<FName, int32>& GetTypeKilled() const { return TypeKilled; }
+    void RestoreFromState(const FSpawnGroupState& State);
+    void RestoreFromSlots(const TArray<FSpawnSlotState>& Slots);
+    TArray<FSpawnSlotState> CaptureCurrentSlots() const;
 #if WITH_EDITOR
     virtual void Tick(float DeltaTime) override;
     virtual bool ShouldTickIfViewportsOnly() const override { return true; }
@@ -111,7 +119,17 @@ public:
     TArray<AActor*> GetSpawnedGhosts() const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
-    FSpawnGroupId GetRuntimeGroupId() const { return RuntimeGroupId; }
+    FSpawnGroupId GetRuntimeGroupId() const 
+    { 
+        if (!RuntimeGroupId.IsValid() && FloorAssignmentComp)
+        {
+            FSpawnGroupId Id;
+            Id.Id = FloorAssignmentComp->ItemId;
+            return Id;
+        }
+
+        return RuntimeGroupId; 
+    }
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
     ESpawnGroupStatus GetCurrentStatus() const { return CurrentStatus; }
@@ -136,6 +154,9 @@ public:
 
     int32 GetSpawnedCount() { return SpawnedCount; }
     int32 GetKilledCount() { return KilledCount; }
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
+	FSpawnGroupId GetGroupId() const { return SpawnGroupAsset ? SpawnGroupAsset->GroupId : FSpawnGroupId(); }
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;

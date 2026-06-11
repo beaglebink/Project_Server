@@ -2926,7 +2926,7 @@ void UInteriorSubsystem::UnsubscribePlacementRegistration()
 		Unreg(PlacementUnregisterHandle, PlacementUnregisterConditionAsset);
 	}
 }
-
+/*
 void UInteriorSubsystem::ClearSpawnGroup(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason)
 {
 
@@ -2942,7 +2942,7 @@ FSpawnGroupState UInteriorSubsystem::GetSpawnGroupState(const FSpawnGroupId& Gro
 
 	return FSpawnGroupState();
 }
-
+*/
 // -----------------------------------------------------------------------------
 // Initialize / Deinitialize
 // Инициализация / деинициализация

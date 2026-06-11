@@ -1,11 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/NoExportTypes.h"  // для FTransform, FGuid
 #include "SpawnGroupTypes.generated.h"
 
 // Уникальный идентификатор спавн-группы.
-// Для авторских групп дизайнер задаёт стабильный GUID.
-// Для сгенерированных из пула он вычисляется детерминированно.
 USTRUCT(BlueprintType)
 struct FSpawnGroupId
 {
@@ -34,78 +33,99 @@ FORCEINLINE uint32 GetTypeHash(const FSpawnGroupId& Key)
 UENUM(BlueprintType)
 enum class ESpawnGroupStatus : uint8
 {
-    Inactive,           // Не применена к текущему интерьеру
-    Active,             // Применена, спавны присутствуют
-    PartiallyCleared,   // Часть целей выполнена
-    Cleared,            // Полностью зачищена
-    Suppressed          // Временно отключена (например, сюжетом)
+    Inactive,
+    Active,
+    PartiallyCleared,
+    Cleared,
+    Suppressed
 };
 
-// Причина зачистки (ResolutionReason)
+// Причина зачистки
 UENUM(BlueprintType)
 enum class ESpawnGroupResolutionReason : uint8
 {
     None,
-    Eliminated,     // Уничтожены все враги
-    Captured,       // Захвачены
-    ScriptedRemoval,// Сюжетное удаление
+    Eliminated,
+    Captured,
+    ScriptedRemoval,
     Other
 };
 
-// Группировка записей о спавнах в группе
+// Запись о спавне (не используется в основном потоке, но оставим)
 USTRUCT(BlueprintType)
 struct FSpawnGroupRecord
 {
     GENERATED_BODY()
 
-    // Актор, который был заспавнен (для отслеживания существования)
     UPROPERTY()
     TWeakObjectPtr<AActor> SpawnedActor;
 
-    // Исходный класс/шаблон (для респавна)
     UPROPERTY()
     TSubclassOf<AActor> ActorClass;
 
-    // Трансформ при спавне (для респавна)
     UPROPERTY()
     FTransform SpawnTransform;
 
-    // Флаг, что этот элемент уже "очищен" (уничтожен/захвачен)
     UPROPERTY()
     bool bIsResolved = false;
 
-    // Причина очистки этого конкретного элемента (опционально)
     UPROPERTY()
     ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::None;
 };
 
-// Полное состояние спавн-группы для одного этажа/здания
+// Структура слота для полного сохранения (ДО FSpawnGroupState)
+USTRUCT(BlueprintType)
+struct FSpawnSlotState
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    FGuid ItemId;
+
+    UPROPERTY()
+    TSubclassOf<AActor> ActorClass;
+
+    UPROPERTY()
+    FTransform SpawnTransform = FTransform::Identity;
+
+    UPROPERTY()
+    bool bIsAlive = true;
+
+    // Можно расширить для хранения SaveGame-свойств
+    // UPROPERTY()
+    // FString ActorPropertiesJSON;
+};
+
+// Полное состояние спавн-группы
 USTRUCT(BlueprintType)
 struct FSpawnGroupState
 {
     GENERATED_BODY()
 
-    // Идентификатор группы
     UPROPERTY()
     FSpawnGroupId GroupId;
 
-    // Статус группы
     UPROPERTY()
     ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
 
-    // Причина зачистки (если Status == Cleared)
     UPROPERTY()
     ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::None;
 
-    // Последний визит / метка миссии (для политик)
     UPROPERTY()
     FName LastMissionContext;
 
-    // Индекс посещения (например, 0,1,2...)
     UPROPERTY()
     int32 VisitIndex = 0;
 
-    // Детальное состояние каждого элемента (опционально, только если требуется точное отслеживание)
+    // Для режима по умолчанию (IsStoreSpawnParameters == false)
     UPROPERTY()
-    TArray<FSpawnGroupRecord> SpawnedRecords;
+    TMap<FName, int32> TypeKilled;
+
+    // Для режима полного сохранения (IsStoreSpawnParameters == true)
+    UPROPERTY()
+    TArray<FSpawnSlotState> Slots;
+
+    // Сохранённое значение флага спавнера
+    UPROPERTY()
+    bool bStoreSpawnParameters = false;
 };

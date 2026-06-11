@@ -8,6 +8,9 @@
 #include "JsonObjectConverter.h"
 #include <LevelLoadedPayload.h>
 #include <Kismet/GameplayStatics.h>
+#include <InteriorTransitionPayload.h>
+#include "FloorAsset.h"
+#include "InteriorSetAsset.h"
 
 void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -98,6 +101,12 @@ void USpawnGroupSubsystem::SubscribeEvents()
         UOutcomeConditionAsset* Cond = CreateInteriorCondition(EOutcomeInterior::LevelLoaded);
         if (Cond->GetCondition().IsValid())
             LevelLoadedHandle = EventBus->RegisterHandler(Cond, FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleLevelLoaded));
+    }
+    if (!FloorLeavingHandle.IsValid())
+    {
+        UOutcomeConditionAsset* Cond = CreateInteriorCondition(EOutcomeInterior::FloorLeaving);
+        if (Cond->GetCondition().IsValid())
+            FloorLeavingHandle = EventBus->RegisterHandler(Cond, FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleFloorLeaving));
     }
 }
 
@@ -203,6 +212,46 @@ void USpawnGroupSubsystem::HandleSpawnGroupReset(const FOutcomeEventBase& Outcom
     }
 }
 
+void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType != EOutcomeType::Interior ||
+        Outcome.OutcomeInterior != EOutcomeInterior::FloorLeaving)
+        return;
+
+    UInteriorTransitionPayload* Payload = Cast<UInteriorTransitionPayload>(Outcome.Payload);
+    if (!Payload) return;
+
+    // Загружаем ассет этажа, с которого уходим
+    UFloorAsset* SourceFloorAsset = Payload->SourceFloor.LoadSynchronous();
+    if (!SourceFloorAsset) return;
+
+    FGuid FloorId = SourceFloorAsset->FloorID;
+    FGuid InteriorSetId = SourceFloorAsset->InteriorSetID;
+    if (!InteriorSetId.IsValid())
+    {
+        // Если InteriorSetID не задан, пробуем взять из родительского ассета
+        if (UInteriorSetAsset* Parent = SourceFloorAsset->ParentInteriorSet.LoadSynchronous())
+            InteriorSetId = Parent->InteriorSetID;
+    }
+    if (!FloorId.IsValid() || !InteriorSetId.IsValid()) return;
+
+    FInteriorFloorKey LeavingKey(InteriorSetId, FloorId);
+
+    // Обновляем состояние всех спавнеров, принадлежащих этому этажу
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+
+        FInteriorFloorKey SpawnerKey = GetFloorKeyFromSpawner(Spawner);
+        if (SpawnerKey == LeavingKey)
+        {
+            UpdateSpawnerStateInCache(Spawner);
+        }
+    }
+}
+
+
 void USpawnGroupSubsystem::ActivateSpawnGroupInternal(const FSpawnGroupId& GroupId)
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
@@ -224,6 +273,27 @@ void USpawnGroupSubsystem::ResetSpawnGroupInternal(const FSpawnGroupId& GroupId)
         Spawner->ResetGroup();
 }
 
+void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner)
+{
+    if (!Spawner || !IsValid(Spawner)) return;
+
+    FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
+    if (!FloorKey.FloorId.IsValid()) return;
+
+    FSpawnGroupState State;
+    State.GroupId = Spawner->GetRuntimeGroupId();
+    State.Status = Spawner->GetCurrentStatus();
+    State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
+
+    if (State.bStoreSpawnParameters)
+        State.Slots = Spawner->CaptureCurrentSlots();
+    else
+        State.TypeKilled = Spawner->GetTypeKilled();
+
+    TMap<FSpawnGroupId, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
+    FloorStates.Add(State.GroupId, State);
+}
+
 ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByItemId(const FGuid& ItemId) const
 {
     const TWeakObjectPtr<ASpawnGroupSpawner>* Found = SpawnerByItemId.Find(ItemId);
@@ -241,31 +311,36 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
     UWorld* World = GetWorld();
     if (!World) return;
 
-    if (Outcome.OutcomeType == EOutcomeType::Interior &&
-        Outcome.OutcomeInterior == EOutcomeInterior::LevelLoaded)
-    {
-        ULevelLoadedPayload* Payload = Cast<ULevelLoadedPayload>(Outcome.Payload);
-        if (Payload)
-        {
-            TArray<AActor*> AllActors;
-            UGameplayStatics::GetAllActorsOfClass(World, ASpawnGroupSpawner::StaticClass(), AllActors);
-            for (AActor* Actor : AllActors)
-            {
-                if (!IsValid(Actor)) continue;
-                if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
-                {
-                    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(C->ItemId);
-                    if (Spawner->CurrentStatus == ESpawnGroupStatus::Suppressed)
-                    {
-                        continue;
-                    }
+    if (Outcome.OutcomeType != EOutcomeType::Interior ||
+        Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
+        return;
 
-                    if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared && Spawner->CurrentStatus != ESpawnGroupStatus::Inactive)
-                    {
-                        Spawner->SpawnGroup();
-                    }
-                }
-            }
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+
+        FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
+        if (!FloorKey.FloorId.IsValid()) continue;
+
+        const TMap<FSpawnGroupId, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
+        if (!FloorStates) continue;
+
+        const FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
+        if (!State) continue;
+
+        // Восстанавливаем флаг спавнера (если изменился в рантайме)
+        Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
+
+        if (State->bStoreSpawnParameters)
+            Spawner->RestoreFromSlots(State->Slots);
+        else
+            Spawner->RestoreFromState(*State);
+
+        ESpawnGroupStatus Status = Spawner->GetCurrentStatus();
+        if (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared)
+        {
+            Spawner->SpawnGroup();
         }
     }
 }
@@ -273,8 +348,36 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
     OutData.SubsystemName = GetSaveSubsystemName();
-    TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
+    PersistentGroupStates.Empty();
 
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+
+        FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
+        if (!FloorKey.FloorId.IsValid()) continue;
+
+        FSpawnGroupState State;
+        State.GroupId = Spawner->GetRuntimeGroupId();
+        State.Status = Spawner->GetCurrentStatus();
+        State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
+
+        if (Spawner->IsStoreSpawnParameters)
+        {
+            State.Slots = Spawner->CaptureCurrentSlots();
+        }
+        else
+        {
+            State.TypeKilled = Spawner->GetTypeKilled();
+        }
+
+        TMap<FSpawnGroupId, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
+        FloorStates.Add(State.GroupId, State);
+    }
+
+    // --- Сериализация в JSON (как ранее, с добавлением поля bStoreSpawnParameters и Slots) ---
+    TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
     TSharedPtr<FJsonObject> GroupsObj = MakeShared<FJsonObject>();
     for (const auto& FloorPair : PersistentGroupStates)
     {
@@ -286,8 +389,36 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetStringField(TEXT("GroupId"), GroupPair.Key.Id.ToString());
             StateObj->SetNumberField(TEXT("Status"), static_cast<uint8>(GroupPair.Value.Status));
             StateObj->SetNumberField(TEXT("ResolutionReason"), static_cast<uint8>(GroupPair.Value.ResolutionReason));
-            StateObj->SetStringField(TEXT("LastMissionContext"), GroupPair.Value.LastMissionContext.ToString());
-            StateObj->SetNumberField(TEXT("VisitIndex"), GroupPair.Value.VisitIndex);
+            StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
+
+            if (GroupPair.Value.bStoreSpawnParameters)
+            {
+                // Сериализация Slots
+                TArray<TSharedPtr<FJsonValue>> SlotsArray;
+                for (const FSpawnSlotState& Slot : GroupPair.Value.Slots)
+                {
+                    TSharedPtr<FJsonObject> SlotObj = MakeShared<FJsonObject>();
+                    SlotObj->SetStringField(TEXT("ItemId"), Slot.ItemId.ToString());
+                    SlotObj->SetStringField(TEXT("ActorClass"), Slot.ActorClass ? Slot.ActorClass->GetPathName() : TEXT(""));
+                    // Сериализация трансформа
+                    FVector Loc = Slot.SpawnTransform.GetLocation();
+                    FRotator Rot = Slot.SpawnTransform.Rotator();
+                    SlotObj->SetArrayField(TEXT("Location"), { MakeShared<FJsonValueNumber>(Loc.X), MakeShared<FJsonValueNumber>(Loc.Y), MakeShared<FJsonValueNumber>(Loc.Z) });
+                    SlotObj->SetArrayField(TEXT("Rotation"), { MakeShared<FJsonValueNumber>(Rot.Pitch), MakeShared<FJsonValueNumber>(Rot.Yaw), MakeShared<FJsonValueNumber>(Rot.Roll) });
+                    SlotObj->SetBoolField(TEXT("bIsAlive"), Slot.bIsAlive);
+                    SlotsArray.Add(MakeShared<FJsonValueObject>(SlotObj));
+                }
+                StateObj->SetArrayField(TEXT("Slots"), SlotsArray);
+            }
+            else
+            {
+                // Сериализация TypeKilled
+                TSharedPtr<FJsonObject> TypeKilledObj = MakeShared<FJsonObject>();
+                for (const auto& TypePair : GroupPair.Value.TypeKilled)
+                    TypeKilledObj->SetNumberField(TypePair.Key.ToString(), TypePair.Value);
+                StateObj->SetObjectField(TEXT("TypeKilled"), TypeKilledObj);
+            }
+
             FloorGroups->SetObjectField(GroupPair.Key.Id.ToString(), StateObj);
         }
         GroupsObj->SetObjectField(KeyStr, FloorGroups);
@@ -324,6 +455,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     {
         for (const auto& FloorPair : (*GroupsObjPtr)->Values)
         {
+            // Ключ: "InteriorSetId|FloorId"
             TArray<FString> Parts;
             FloorPair.Key.ParseIntoArray(Parts, TEXT("|"), false);
             if (Parts.Num() != 2) continue;
@@ -337,23 +469,90 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             {
                 for (const auto& GroupPair : (*FloorGroupsObj)->Values)
                 {
+                    // Ключ: GroupId (GUID строкой)
                     FGuid GroupGuid;
                     if (!FGuid::Parse(GroupPair.Key, GroupGuid)) continue;
                     FSpawnGroupId GroupId(GroupGuid);
+
                     const TSharedPtr<FJsonObject>* StateObj = nullptr;
-                    if (GroupPair.Value->TryGetObject(StateObj))
+                    if (!GroupPair.Value->TryGetObject(StateObj)) continue;
+
+                    FSpawnGroupState State;
+                    State.GroupId = GroupId;
+
+                    // Статус
+                    if ((*StateObj)->HasField(TEXT("Status")))
+                        State.Status = static_cast<ESpawnGroupStatus>((*StateObj)->GetIntegerField(TEXT("Status")));
+                    // ResolutionReason
+                    if ((*StateObj)->HasField(TEXT("ResolutionReason")))
+                        State.ResolutionReason = static_cast<ESpawnGroupResolutionReason>((*StateObj)->GetIntegerField(TEXT("ResolutionReason")));
+                    // LastMissionContext
+                    if ((*StateObj)->HasField(TEXT("LastMissionContext")))
+                        State.LastMissionContext = FName(*(*StateObj)->GetStringField(TEXT("LastMissionContext")));
+                    // VisitIndex
+                    if ((*StateObj)->HasField(TEXT("VisitIndex")))
+                        State.VisitIndex = (*StateObj)->GetIntegerField(TEXT("VisitIndex"));
+                    // bStoreSpawnParameters
+                    if ((*StateObj)->HasField(TEXT("bStoreSpawnParameters")))
+                        State.bStoreSpawnParameters = (*StateObj)->GetBoolField(TEXT("bStoreSpawnParameters"));
+                    else
+                        State.bStoreSpawnParameters = false; // совместимость со старыми сохранениями
+
+                    if (State.bStoreSpawnParameters)
                     {
-                        FSpawnGroupState State;
-                        if ((*StateObj)->HasField(TEXT("Status")))
-                            State.Status = static_cast<ESpawnGroupStatus>((*StateObj)->GetIntegerField(TEXT("Status")));
-                        if ((*StateObj)->HasField(TEXT("ResolutionReason")))
-                            State.ResolutionReason = static_cast<ESpawnGroupResolutionReason>((*StateObj)->GetIntegerField(TEXT("ResolutionReason")));
-                        if ((*StateObj)->HasField(TEXT("LastMissionContext")))
-                            State.LastMissionContext = FName(*(*StateObj)->GetStringField(TEXT("LastMissionContext")));
-                        if ((*StateObj)->HasField(TEXT("VisitIndex")))
-                            State.VisitIndex = (*StateObj)->GetIntegerField(TEXT("VisitIndex"));
-                        FloorGroups.Add(GroupId, State);
+                        // Десериализация Slots
+                        const TArray<TSharedPtr<FJsonValue>>* SlotsArray = nullptr;
+                        if ((*StateObj)->TryGetArrayField(TEXT("Slots"), SlotsArray))
+                        {
+                            for (const TSharedPtr<FJsonValue>& SlotVal : *SlotsArray)
+                            {
+                                const TSharedPtr<FJsonObject>* SlotObj = nullptr;
+                                if (!SlotVal->TryGetObject(SlotObj)) continue;
+                                FSpawnSlotState Slot;
+                                // ItemId
+                                FString ItemIdStr;
+                                if ((*SlotObj)->TryGetStringField(TEXT("ItemId"), ItemIdStr))
+                                    FGuid::Parse(ItemIdStr, Slot.ItemId);
+                                // ActorClass
+                                FString ClassPath;
+                                if ((*SlotObj)->TryGetStringField(TEXT("ActorClass"), ClassPath) && !ClassPath.IsEmpty())
+                                    Slot.ActorClass = LoadClass<AActor>(nullptr, *ClassPath);
+                                // SpawnTransform
+                                const TArray<TSharedPtr<FJsonValue>>* LocArr = nullptr;
+                                if ((*SlotObj)->TryGetArrayField(TEXT("Location"), LocArr) && LocArr->Num() >= 3)
+                                {
+                                    FVector Loc((*LocArr)[0]->AsNumber(), (*LocArr)[1]->AsNumber(), (*LocArr)[2]->AsNumber());
+                                    Slot.SpawnTransform.SetLocation(Loc);
+                                }
+                                const TArray<TSharedPtr<FJsonValue>>* RotArr = nullptr;
+                                if ((*SlotObj)->TryGetArrayField(TEXT("Rotation"), RotArr) && RotArr->Num() >= 3)
+                                {
+                                    FRotator Rot((*RotArr)[0]->AsNumber(), (*RotArr)[1]->AsNumber(), (*RotArr)[2]->AsNumber());
+                                    Slot.SpawnTransform.SetRotation(Rot.Quaternion());
+                                }
+                                // bIsAlive
+                                (*SlotObj)->TryGetBoolField(TEXT("bIsAlive"), Slot.bIsAlive);
+                                // Доп. поля можно добавить позже (например, ActorPropertiesJSON)
+                                State.Slots.Add(Slot);
+                            }
+                        }
                     }
+                    else
+                    {
+                        // Десериализация TypeKilled
+                        const TSharedPtr<FJsonObject>* TypeKilledObj = nullptr;
+                        if ((*StateObj)->TryGetObjectField(TEXT("TypeKilled"), TypeKilledObj))
+                        {
+                            for (const auto& TypePair : (*TypeKilledObj)->Values)
+                            {
+                                FName ClassName(*TypePair.Key);
+                                int32 Count = static_cast<int32>(TypePair.Value->AsNumber());
+                                State.TypeKilled.Add(ClassName, Count);
+                            }
+                        }
+                    }
+
+                    FloorGroups.Add(GroupId, State);
                 }
             }
             PersistentGroupStates.Add(Key, FloorGroups);
@@ -362,3 +561,12 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
     bIsLoadComplete = true;
 }
+
+FInteriorFloorKey USpawnGroupSubsystem::GetFloorKeyFromSpawner(ASpawnGroupSpawner* Spawner) const
+{
+    if (!Spawner) return FInteriorFloorKey();
+    UFloorAssignmentComponent* Comp = Spawner->FindComponentByClass<UFloorAssignmentComponent>();
+    if (!Comp) return FInteriorFloorKey();
+    return FInteriorFloorKey(Comp->InteriorSetId, Comp->FloorId);
+}
+

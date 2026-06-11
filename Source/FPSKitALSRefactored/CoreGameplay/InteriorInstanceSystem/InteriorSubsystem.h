@@ -171,14 +171,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Placement")
     void UnsubscribePlacementRegistration();
 
-    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
-    void ClearSpawnGroup(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason);
+    //UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
+    //void ClearSpawnGroup(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason);
 
-    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
-    void ResetSpawnGroup(const FSpawnGroupId& GroupId);
+    //UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
+    //void ResetSpawnGroup(const FSpawnGroupId& GroupId);
 
-    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
-    FSpawnGroupState GetSpawnGroupState(const FSpawnGroupId& GroupId) const;
+    //UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
+    //FSpawnGroupState GetSpawnGroupState(const FSpawnGroupId& GroupId) const;
 
     void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
 
@@ -240,12 +240,12 @@ private:
     TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
 
     // Хранилище состояний спавн-групп для текущего этажа/здания
-    UPROPERTY()
-    TMap<FSpawnGroupId, FSpawnGroupState> SpawnGroupStates;
+    //UPROPERTY()
+    //TMap<FSpawnGroupId, FSpawnGroupState> SpawnGroupStates;
 
     // Сохранённые состояния групп (персистентные, используются для сброса)
     //UPROPERTY()
-    TMap<FInteriorFloorKey, TMap<FSpawnGroupId, FSpawnGroupState>> PersistentSpawnGroupStates;
+    //TMap<FInteriorFloorKey, TMap<FSpawnGroupId, FSpawnGroupState>> PersistentSpawnGroupStates;
 
     mutable TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> MissionSnapshotQueryCache;
 
