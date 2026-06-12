@@ -26,6 +26,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Objects")
 	static USceneComponent* GetSceneComponentCopy(USceneComponent* Object, AActor* Outer, FText Name);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Objects")
+	static void RemoveSceneComponent(USceneComponent* Component);
 };
 
  

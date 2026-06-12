@@ -51,3 +51,20 @@ USceneComponent* UCoreBlueprintFunctionLibrary::GetSceneComponentCopy(USceneComp
 
 	return NewComponent;
 }
+
+void UCoreBlueprintFunctionLibrary::RemoveSceneComponent(USceneComponent* Component)
+{
+	if (!Component)
+	{
+		return;
+	}
+
+	AActor* Owner = Component->GetOwner();
+	if (!Owner)
+	{
+		return;
+	}
+
+	Owner->RemoveInstanceComponent(Component);
+	Component->DestroyComponent();
+}
