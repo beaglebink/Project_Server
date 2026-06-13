@@ -252,21 +252,21 @@ void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
 }
 
 
-void USpawnGroupSubsystem::ActivateSpawnGroupInternal(const FSpawnGroupId& GroupId)
+void USpawnGroupSubsystem::ActivateSpawnGroupInternal(const FGuid& GroupId)
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
     if (Spawner)
         Spawner->SpawnGroupInternal();
 }
 
-void USpawnGroupSubsystem::ClearSpawnGroupInternal(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason)
+void USpawnGroupSubsystem::ClearSpawnGroupInternal(const FGuid& GroupId, ESpawnGroupResolutionReason Reason)
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
     if (Spawner)
         Spawner->ClearGroup(Reason);
 }
 
-void USpawnGroupSubsystem::ResetSpawnGroupInternal(const FSpawnGroupId& GroupId)
+void USpawnGroupSubsystem::ResetSpawnGroupInternal(const FGuid& GroupId)
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
     if (Spawner)
@@ -290,7 +290,9 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     else
         State.TypeKilled = Spawner->GetTypeKilled();
 
-    TMap<FSpawnGroupId, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
+
+
+    TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
     FloorStates.Add(State.GroupId, State);
 }
 
@@ -300,7 +302,7 @@ ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByItemId(const FGuid& ItemI
     return (Found && Found->IsValid()) ? Found->Get() : nullptr;
 }
 
-ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByGroupId(const FSpawnGroupId& GroupId) const
+ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByGroupId(const FGuid& GroupId) const
 {
     const FGuid* ItemId = GroupIdToItemId.Find(GroupId);
     return ItemId ? FindSpawnerByItemId(*ItemId) : nullptr;
@@ -323,27 +325,45 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
         if (!FloorKey.FloorId.IsValid()) continue;
 
-        const TMap<FSpawnGroupId, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
+        const TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
         if (!FloorStates) continue;
 
-        const FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
-        if (!State) continue;
-
-        // Восстанавливаем флаг спавнера (если изменился в рантайме)
-        Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
-
-        /*
-        if (State->bStoreSpawnParameters)
-            Spawner->RestoreFromSlots(State->Slots);
-        else
-            Spawner->RestoreFromState(*State);
-        */
-        Spawner->SetStates(*State); 
-
-        ESpawnGroupStatus Status = Spawner->GetCurrentStatus();
-        if (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared)
+        if (Spawner->SpawnGroupAsset)
         {
-            Spawner->SpawnGroup();
+            const FSpawnGroupState* State = FloorStates->Find(Spawner->SpawnGroupAsset->GroupId);
+            if (!State) continue;
+
+            // Восстанавливаем флаг спавнера (если изменился в рантайме)
+            Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
+
+
+            if (State->bStoreSpawnParameters)
+            {
+                Spawner->RestoreFromSlots(State->Slots);
+                return;
+            }
+            else
+            {
+                Spawner->RestoreFromState(*State);
+            }
+
+            
+    
+            /*
+            if (State->bStoreSpawnParameters)
+            {
+                Spawner->RestoreFromSlots(State->Slots);
+                return;
+            }
+            //Spawner->SetStates(*State); 
+            */
+            ESpawnGroupStatus Status = Spawner->GetCurrentStatus();
+            if (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared)
+            {
+                Spawner->IsRestored = false;
+                Spawner->SpawnGroup();
+                Spawner->IsRestored = true;
+            }
         }
     }
 }
@@ -375,7 +395,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             State.TypeKilled = Spawner->GetTypeKilled();
         }
 
-        TMap<FSpawnGroupId, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
+        TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
         FloorStates.Add(State.GroupId, State);
     }
 
@@ -389,7 +409,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         for (const auto& GroupPair : FloorPair.Value)
         {
             TSharedPtr<FJsonObject> StateObj = MakeShared<FJsonObject>();
-            StateObj->SetStringField(TEXT("GroupId"), GroupPair.Key.Id.ToString());
+            StateObj->SetStringField(TEXT("GroupId"), GroupPair.Key.ToString());
             StateObj->SetNumberField(TEXT("Status"), static_cast<uint8>(GroupPair.Value.Status));
             StateObj->SetNumberField(TEXT("ResolutionReason"), static_cast<uint8>(GroupPair.Value.ResolutionReason));
             StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
@@ -422,7 +442,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
                 StateObj->SetObjectField(TEXT("TypeKilled"), TypeKilledObj);
             }
 
-            FloorGroups->SetObjectField(GroupPair.Key.Id.ToString(), StateObj);
+            FloorGroups->SetObjectField(GroupPair.Key.ToString(), StateObj);
         }
         GroupsObj->SetObjectField(KeyStr, FloorGroups);
     }
@@ -466,7 +486,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             if (!FGuid::Parse(Parts[0], InteriorSetId) || !FGuid::Parse(Parts[1], FloorId)) continue;
             FInteriorFloorKey Key(InteriorSetId, FloorId);
 
-            TMap<FSpawnGroupId, FSpawnGroupState> FloorGroups;
+            TMap<FGuid, FSpawnGroupState> FloorGroups;
             const TSharedPtr<FJsonObject>* FloorGroupsObj = nullptr;
             if (FloorPair.Value->TryGetObject(FloorGroupsObj))
             {
@@ -475,7 +495,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     // Ключ: GroupId (GUID строкой)
                     FGuid GroupGuid;
                     if (!FGuid::Parse(GroupPair.Key, GroupGuid)) continue;
-                    FSpawnGroupId GroupId(GroupGuid);
+                    FGuid GroupId(GroupGuid);
 
                     const TSharedPtr<FJsonObject>* StateObj = nullptr;
                     if (!GroupPair.Value->TryGetObject(StateObj)) continue;

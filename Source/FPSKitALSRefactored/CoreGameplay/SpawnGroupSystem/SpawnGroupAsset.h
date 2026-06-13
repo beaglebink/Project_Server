@@ -73,7 +73,7 @@ class USpawnGroupAsset : public UPrimaryDataAsset
 public:
     // Стабильный идентификатор группы (задаётся дизайнером)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Identity")
-    FSpawnGroupId GroupId;
+    FGuid GroupId;
 
     // Отображаемое имя (для дебага)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Identity")
@@ -96,8 +96,8 @@ public:
     TArray<FSpawnPoint> SpawnPoints;
 
     // Политика сброса по умолчанию (может быть переопределена миссией через канал SpawnGroups)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Policy")
-    EChannelPolicy DefaultResetPolicy = EChannelPolicy::Reset;
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Policy")
+    //EChannelPolicy DefaultResetPolicy = EChannelPolicy::Reset;
 
     // Может ли группа быть "частично зачищена"
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Policy")

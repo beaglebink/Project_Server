@@ -85,6 +85,11 @@ public:
     UPROPERTY(SaveGame)
     bool IsUseStoreSpawnParameters = false;
 
+    UPROPERTY(SaveGame)
+	TMap< TSubclassOf<AActor>, FTransform> StoredSpawnParameters;
+
+    bool IsRestored = false;
+
     const TMap<FName, int32>& GetTypeKilled() const { return TypeKilled; }
     void RestoreFromState(const FSpawnGroupState& State);
     void RestoreFromSlots(const TArray<FSpawnSlotState>& Slots);
@@ -101,7 +106,7 @@ private:
     TArray<TObjectPtr<AAlsCharacter>> SpawnedGhosts;
 
     UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
-    FSpawnGroupId RuntimeGroupId;
+    FGuid RuntimeGroupId;
 
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
     bool bHasPublishedClear = false;
@@ -124,13 +129,15 @@ public:
     TArray<AActor*> GetSpawnedGhosts() const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
-    FSpawnGroupId GetRuntimeGroupId() const 
+    FGuid GetRuntimeGroupId()
     { 
         if (!RuntimeGroupId.IsValid() && FloorAssignmentComp)
         {
-            FSpawnGroupId Id;
-            Id.Id = FloorAssignmentComp->ItemId;
-            return Id;
+            //FSpawnGroupId Id;
+            //Id.Id = 
+            RuntimeGroupId = FloorAssignmentComp->ItemId;
+                //Id;
+            return RuntimeGroupId;//Id;
         }
 
         return RuntimeGroupId; 
@@ -161,9 +168,12 @@ public:
     int32 GetKilledCount() { return KilledCount; }
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
-	FSpawnGroupId GetGroupId() const { return SpawnGroupAsset ? SpawnGroupAsset->GroupId : FSpawnGroupId(); }
+    FGuid GetGroupId() const { return SpawnGroupAsset ? SpawnGroupAsset->GroupId : FGuid(); }
 
 	void SetStates(const FSpawnGroupState& State);
+
+    void StoreSpawnParameters();
+
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;

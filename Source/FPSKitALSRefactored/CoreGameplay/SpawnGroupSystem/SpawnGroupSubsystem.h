@@ -45,12 +45,12 @@ private:
 
     // Вспомогательные методы для работы с реестром
     ASpawnGroupSpawner* FindSpawnerByItemId(const FGuid& ItemId) const;
-    ASpawnGroupSpawner* FindSpawnerByGroupId(const FSpawnGroupId& GroupId) const;
+    ASpawnGroupSpawner* FindSpawnerByGroupId(const FGuid& GroupId) const;
 
     // Внутренние методы управления (вызываются из обработчиков)
-    void ActivateSpawnGroupInternal(const FSpawnGroupId& GroupId);
-    void ClearSpawnGroupInternal(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason);
-    void ResetSpawnGroupInternal(const FSpawnGroupId& GroupId);
+    void ActivateSpawnGroupInternal(const FGuid& GroupId);
+    void ClearSpawnGroupInternal(const FGuid& GroupId, ESpawnGroupResolutionReason Reason);
+    void ResetSpawnGroupInternal(const FGuid& GroupId);
 
     void UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner);
 
@@ -59,9 +59,9 @@ private:
     TMap<FGuid, TWeakObjectPtr<ASpawnGroupSpawner>> SpawnerByItemId;      // ItemId -> спавнер
 
     UPROPERTY()
-    TMap<FSpawnGroupId, FGuid> GroupIdToItemId;                           // GroupId -> ItemId
+    TMap<FGuid, FGuid> GroupIdToItemId;                           // GroupId -> ItemId
 
-    TMap<FInteriorFloorKey, TMap<FSpawnGroupId, FSpawnGroupState>> PersistentGroupStates; // сохранённые
+    TMap<FInteriorFloorKey, TMap<FGuid, FSpawnGroupState>> PersistentGroupStates; // сохранённые
 
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
 

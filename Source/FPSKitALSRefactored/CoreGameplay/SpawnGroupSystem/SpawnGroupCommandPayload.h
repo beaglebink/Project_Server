@@ -12,13 +12,13 @@ class FPSKITALSREFACTORED_API USpawnGroupCommandPayload : public UOutcomePayload
 
 public:
     UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup")
-    FSpawnGroupId GroupId;
+    FGuid GroupId;
 
     UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup")
     ESpawnGroupResolutionReason Reason = ESpawnGroupResolutionReason::None;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
-    USpawnGroupCommandPayload* Setup(const FSpawnGroupId& InGroupId, ESpawnGroupResolutionReason InReason = ESpawnGroupResolutionReason::None)
+    USpawnGroupCommandPayload* Setup(const FGuid& InGroupId, ESpawnGroupResolutionReason InReason = ESpawnGroupResolutionReason::None)
     {
         GroupId = InGroupId;
         Reason = InReason;

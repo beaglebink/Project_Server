@@ -6,7 +6,7 @@ void USpawnGroupAsset::PostInitProperties()
     Super::PostInitProperties();
     if (!GroupId.IsValid())
     {
-        GroupId = FSpawnGroupId::New();
+        GroupId = FGuid::NewGuid();
     }
 }
 
@@ -18,7 +18,7 @@ void USpawnGroupAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
     //{
         if (!GroupId.IsValid())
         {
-            GroupId = FSpawnGroupId::New();
+            GroupId = FGuid::NewGuid();
         }
     //}
 }

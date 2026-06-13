@@ -1310,6 +1310,27 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(Comp->ActorType), Reason, false))
 		{
+			switch (Comp->ActorType)
+			{
+			case EFloorActorType::SpawnGroupSpawner:
+			{
+				/*
+				ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+				if (Spawner)
+				{
+					Spawner->StoreSpawnParameters();
+				}
+				*/
+				break;
+			}
+
+			case EFloorActorType::StableActor:
+			{
+
+				break;
+			}
+			}
+
 			FFloorSavedActorState Snapshot;
 			Snapshot.ItemId = Comp->ItemId;
 			SnapshotActor(Actor, Snapshot);
@@ -1473,6 +1494,8 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 					ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 					if (Spawner)
 					{
+						Spawner->StoreSpawnParameters();
+
 						switch (CurrentPolicy)
 						{
 							case EJobSpacePolicy::Reset:
@@ -1566,7 +1589,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 										Spawner->ResetKilledCount();
 										Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
 										Spawner->BlockNewSpawn = false;
-										Spawner->IsUseStoreSpawnParameters = false;
+										Spawner->IsUseStoreSpawnParameters = true;
 									}
 									break;
 								}

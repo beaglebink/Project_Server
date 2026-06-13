@@ -15,10 +15,10 @@ public:
     FGuid SpawnerId;
 
     UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup")
-    FSpawnGroupId GroupId;
+    FGuid GroupId;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
-    USpawnGroupRegistrationPayload* Setup(const FGuid& InSpawnerId, const FSpawnGroupId& InGroupId)
+    USpawnGroupRegistrationPayload* Setup(const FGuid& InSpawnerId, const FGuid& InGroupId)
     {
         SpawnerId = InSpawnerId;
         GroupId = InGroupId;

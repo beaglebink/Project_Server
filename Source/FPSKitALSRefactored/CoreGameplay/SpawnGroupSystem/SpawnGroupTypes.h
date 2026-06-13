@@ -73,7 +73,7 @@ struct FSpawnGroupRecord
     ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::None;
 };
 
-// Структура слота для полного сохранения (ДО FSpawnGroupState)
+// Структура слота для полного сохранения
 USTRUCT(BlueprintType)
 struct FSpawnSlotState
 {
@@ -103,7 +103,7 @@ struct FSpawnGroupState
     GENERATED_BODY()
 
     UPROPERTY()
-    FSpawnGroupId GroupId;
+    FGuid GroupId;
 
     UPROPERTY()
     ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
