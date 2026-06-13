@@ -141,7 +141,7 @@ void ASpawnGroupSpawner::SpawnGroupInternal()
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Mission New Stage Disable Spawn"), *GetName());
         return;
     }
-    IsRestored = false;
+    //IsRestored = false;
     SpawnGroup();
 }
 
@@ -202,11 +202,12 @@ void ASpawnGroupSpawner::SpawnGroup()
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: SpawnGroupAsset is null"), *GetName());
         return;
     }
-
+    /*
     if (IsRestored)
     {
         return;
     }
+    */
     /*
     if (CurrentStatus == ESpawnGroupStatus::Active || CurrentStatus == ESpawnGroupStatus::PartiallyCleared)
     {
@@ -306,7 +307,7 @@ void ASpawnGroupSpawner::SpawnGroup()
             });
 
         CurrentStatus = ESpawnGroupStatus::Active;
-        RuntimeGroupId = SpawnGroupAsset->GroupId;
+        //RuntimeGroupId = SpawnGroupAsset->GroupId;
 
         World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
     }

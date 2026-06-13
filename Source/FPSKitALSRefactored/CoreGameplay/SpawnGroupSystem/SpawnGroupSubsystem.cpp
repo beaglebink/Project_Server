@@ -293,7 +293,7 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
 
 
     TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
-    FloorStates.Add(State.GroupId, State);
+    FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
 }
 
 ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByItemId(const FGuid& ItemId) const
@@ -328,9 +328,9 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         const TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
         if (!FloorStates) continue;
 
-        if (Spawner->SpawnGroupAsset)
+        if (Spawner->FloorAssignmentComp)
         {
-            const FSpawnGroupState* State = FloorStates->Find(Spawner->SpawnGroupAsset->GroupId);
+            const FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
             if (!State) continue;
 
             // Восстанавливаем флаг спавнера (если изменился в рантайме)
@@ -339,11 +339,16 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 
             if (State->bStoreSpawnParameters)
             {
+				Spawner->BlockNewSpawn = true;
+                //Spawner->IsRestored = false;
                 Spawner->RestoreFromSlots(State->Slots);
+                //Spawner->IsRestored = true;
                 return;
             }
             else
             {
+                Spawner->BlockNewSpawn = true;
+                //Spawner->IsRestored = false;
                 Spawner->RestoreFromState(*State);
             }
 
@@ -360,9 +365,10 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
             ESpawnGroupStatus Status = Spawner->GetCurrentStatus();
             if (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared)
             {
-                Spawner->IsRestored = false;
+                Spawner->BlockNewSpawn = true;
+                //Spawner->IsRestored = false;
                 Spawner->SpawnGroup();
-                Spawner->IsRestored = true;
+                //Spawner->IsRestored = true;
             }
         }
     }
@@ -396,7 +402,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         }
 
         TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
-        FloorStates.Add(State.GroupId, State);
+        FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
     }
 
     // --- Сериализация в JSON (как ранее, с добавлением поля bStoreSpawnParameters и Slots) ---
