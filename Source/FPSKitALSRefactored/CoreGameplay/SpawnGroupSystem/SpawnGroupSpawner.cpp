@@ -136,11 +136,13 @@ FTransform ASpawnGroupSpawner::GetTransformFromLocation(ASpawnVolume* Volume) co
 
 void ASpawnGroupSpawner::SpawnGroupInternal()
 {
+    /*
     if (BlockNewSpawn)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Mission New Stage Disable Spawn"), *GetName());
         return;
     }
+    */
     //IsRestored = false;
     SpawnGroup();
 }
@@ -176,6 +178,18 @@ TArray<FSpawnSlotState> ASpawnGroupSpawner::CaptureCurrentSlots() const
 
 void ASpawnGroupSpawner::RestoreFromState(const FSpawnGroupState& State)
 {
+    if (CurrentStatus == ESpawnGroupStatus::Suppressed || CurrentStatus == ESpawnGroupStatus::Inactive)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());
+        return;
+    }
+
+    if (CurrentStatus == ESpawnGroupStatus::Cleared)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group already Cleared, skip spawn"), *GetName());
+        return;
+    }
+
     TypeKilled = State.TypeKilled;
     KilledCount = 0;
     for (const auto& Pair : TypeKilled) KilledCount += Pair.Value;
@@ -215,6 +229,18 @@ void ASpawnGroupSpawner::SpawnGroup()
         return;
     }
     */
+    if (CurrentStatus == ESpawnGroupStatus::Suppressed)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());
+        return;
+    }
+
+    if (CurrentStatus == ESpawnGroupStatus::Cleared)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group already Cleared, skip spawn"), *GetName());
+        return;
+    }
+
 
 
 
@@ -827,6 +853,25 @@ void ASpawnGroupSpawner::GatherSpawnLocationsFromChildren()
 
 void ASpawnGroupSpawner::RestoreFromSlots(const TArray<FSpawnSlotState>& Slots)
 {
+    if (CurrentStatus == ESpawnGroupStatus::Suppressed || CurrentStatus == ESpawnGroupStatus::Inactive)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());
+        return;
+    }
+
+    if (CurrentStatus == ESpawnGroupStatus::Cleared)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group already Cleared, skip spawn"), *GetName());
+        return;
+    }
+
+    if (Restore)
+    {
+        Restore = false;
+        SpawnGroup();
+        return;
+    }
+
     if (!IsStoreSpawnParameters) return;
 
     // Очищаем старых призраков

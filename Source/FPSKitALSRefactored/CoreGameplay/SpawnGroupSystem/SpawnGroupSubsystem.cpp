@@ -328,6 +328,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         const TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
         if (!FloorStates) continue;
 
+
         if (Spawner->FloorAssignmentComp)
         {
             const FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());

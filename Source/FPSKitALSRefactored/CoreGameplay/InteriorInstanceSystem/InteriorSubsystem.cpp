@@ -1314,19 +1314,11 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 			{
 			case EFloorActorType::SpawnGroupSpawner:
 			{
-				/*
-				ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-				if (Spawner)
-				{
-					Spawner->StoreSpawnParameters();
-				}
-				*/
 				break;
 			}
 
 			case EFloorActorType::StableActor:
 			{
-
 				break;
 			}
 			}
@@ -1489,7 +1481,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 		{
 			case EFloorActorType::SpawnGroupSpawner :
 			{
-				if (!Envelopes.IsValidIndex(MissionStep + 1))
+				if (!Envelopes.IsValidIndex(MissionStep + 1) || Reason != EMissionEndReason::Completed)
 				{
 					ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 					if (Spawner)
@@ -1598,6 +1590,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 									ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 									if (Spawner)
 									{
+										Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
 										Spawner->BlockNewSpawn = true;
 										Spawner->IsUseStoreSpawnParameters = true;
 									}
@@ -1620,8 +1613,13 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 											}
 											else
 											{
+												/*
 												Spawner->ResetKilledCount();
 												Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+												*/
+												Spawner->ResetKilledCount();
+												Spawner->CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
+												Spawner->Restore = true;
 											}
 										}
 									}
@@ -1940,6 +1938,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 											if (Spawner)
 											{
 												Spawner->IsUseStoreSpawnParameters = true;
+												//Spawner->Restore = false;
 											}
 
 											break;
@@ -1950,6 +1949,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 											if (Spawner)
 											{
 												Spawner->IsUseStoreSpawnParameters = false;
+												Spawner->Restore = false;
 											}
 
 											break;
@@ -1963,7 +1963,10 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 												{
 													Spawner->IsUseStoreSpawnParameters = false;
 													if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared)
+													{
 														Spawner->ResetKilledCount();
+														Spawner->Restore = true;
+													}
 												}
 											}
 											break;

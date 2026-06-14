@@ -88,7 +88,8 @@ public:
     UPROPERTY(SaveGame)
 	TMap< TSubclassOf<AActor>, FTransform> StoredSpawnParameters;
 
-    bool IsRestored = false;
+    UPROPERTY(SaveGame)
+    bool Restore = false;
 
     const TMap<FName, int32>& GetTypeKilled() const { return TypeKilled; }
     void RestoreFromState(const FSpawnGroupState& State);
