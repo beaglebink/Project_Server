@@ -377,7 +377,9 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 
 void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
+
     OutData.SubsystemName = GetSaveSubsystemName();
+
     PersistentGroupStates.Empty();
 
     for (const auto& Pair : SpawnerByItemId)
