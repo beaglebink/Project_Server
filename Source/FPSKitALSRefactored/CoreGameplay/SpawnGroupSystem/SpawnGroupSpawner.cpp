@@ -270,7 +270,7 @@ void ASpawnGroupSpawner::SpawnGroup()
             }
         }
 
-        FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, World]()
+        FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, DesiredCounts, World]()
             {
                 ASpawnVolume* Location = GetRandomSpawnLocation();
                 /*
@@ -312,15 +312,15 @@ void ASpawnGroupSpawner::SpawnGroup()
 
                     OnGhostSpawned.Broadcast(Ghost);
                 }
-                /*
-                if (DesiredCount <= KilledCount)
+
+                if (SpawnGroupAsset->Composition.Count <= KilledCount)
                 {
-                    KilledCount = DesiredCount;
+                    KilledCount = DesiredCounts.Num();
                     World->GetTimerManager().ClearTimer(TimerHandle);
                     return;
                 }
-
-                if (SpawnedCount >= DesiredCount - KilledCount)
+                /*
+                if (SpawnedCount >= SpawnGroupAsset->Composition.Count - KilledCount)
                 {
                     // Все призраки заспавнены
                     World->GetTimerManager().ClearTimer(TimerHandle);

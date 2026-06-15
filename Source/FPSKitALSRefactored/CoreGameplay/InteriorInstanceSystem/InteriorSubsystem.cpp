@@ -1285,6 +1285,41 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 		return;
 	}
 
+	EJobSpacePolicy JobSpacePolicy;
+	TArray<FEnvelopeChannelEntry> PolicyChannels;
+
+	switch (Reason)
+	{
+		case EMissionEndReason::None:
+		{
+			// Normal save during mission step
+			JobSpacePolicy = Envelope.RuntimePolicy;
+			PolicyChannels = Envelope.RuntimePolicyChannels;
+			break;
+		}
+		case EMissionEndReason::Completed:
+		{
+			// Handle mission completed
+			JobSpacePolicy = Envelope.NextStagePolicy;
+			PolicyChannels = Envelope.NextStagePolicyChannels;
+			break;
+		}
+		case EMissionEndReason::Failed:
+		{
+			// Handle mission failed
+			JobSpacePolicy = Envelope.MissionFailedPolicy;
+			PolicyChannels = Envelope.MissionFailedPolicyChannels;
+			break;
+		}
+		case EMissionEndReason::Abandoned:
+		{
+			// Handle mission restarted
+			JobSpacePolicy = Envelope.MissionAbandonedPolicy;
+			PolicyChannels = Envelope.MissionAbandonedChannels;
+			break;
+		}
+	}
+
 	TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionFloorSnapshots.FindOrAdd(Key);
 	TArray<FFloorSavedActorState>& Bucket = PerFloor.FindOrAdd(MissionId);
 
@@ -1314,6 +1349,49 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 			{
 			case EFloorActorType::SpawnGroupSpawner:
 			{
+				ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+				switch (JobSpacePolicy)
+				{
+					case EJobSpacePolicy::Reset:
+					{
+						Spawner->ResetKilledCount();
+						break;
+					}
+					case EJobSpacePolicy::Freeze:
+					{
+
+						break;
+					}
+					case EJobSpacePolicy::Partial:
+					{
+						if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
+						{
+							Spawner->ResetKilledCount();
+							break;
+						}
+
+						if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Freeze))
+						{
+
+							break;
+						}
+
+						if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
+						{
+							if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
+							{
+								Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+							}
+							else
+							{
+								Spawner->CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
+							}
+
+							Spawner->ResetKilledCount();
+							break;
+						}
+					}
+				}
 				break;
 			}
 
@@ -1498,8 +1576,12 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 							}
 							case EJobSpacePolicy::Freeze:
 							{
-								Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
-								Spawner->ResetKilledCount();
+								if (Reason != EMissionEndReason::None)
+								{
+									Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+									Spawner->ResetKilledCount();
+								}
+
 								Spawner->IsUseStoreSpawnParameters = true;
 								break;
 							}
@@ -1590,7 +1672,14 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 									ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 									if (Spawner)
 									{
-										Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+										if (Spawner->GetKilledCount() > 0)
+										{
+											Spawner->CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
+										}
+										else
+										{
+											Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+										}
 										Spawner->BlockNewSpawn = true;
 										Spawner->IsUseStoreSpawnParameters = true;
 									}
