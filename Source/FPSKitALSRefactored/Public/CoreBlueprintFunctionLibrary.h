@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -10,9 +8,6 @@
 #include "InputModifiers.h"
 #include "CoreBlueprintFunctionLibrary.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class FPSKITALSREFACTORED_API UCoreBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
@@ -26,7 +21,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Objects")
 	static USceneComponent* GetSceneComponentCopy(USceneComponent* Object, AActor* Outer, FText Name);
-
 
 	UFUNCTION(BlueprintCallable, Category = "Objects")
 	static void RemoveSceneComponent(USceneComponent* Component);
