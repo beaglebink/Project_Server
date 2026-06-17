@@ -2032,6 +2032,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 											{
 												Spawner->IsUseStoreSpawnParameters = true;
 												//Spawner->Restore = false;
+												Spawner->Restore = true;
 											}
 
 											break;
@@ -2049,13 +2050,31 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 										}
 										case EJobSpacePolicy::Partial:
 										{
+											if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
+											{
+												ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+												if (Spawner)
+												{
+													Spawner->Restore = false;
+												}
+											}
+
+											if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Freeze))
+											{
+												ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+												if (Spawner)
+												{
+													Spawner->Restore = true;
+												}
+											}
+
 											if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
 											{
 												ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 												if (Spawner)
 												{
 													Spawner->IsUseStoreSpawnParameters = false;
-													if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared || Spawner->CurrentStatus != ESpawnGroupStatus::Suppressed)
+													if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared && Spawner->CurrentStatus != ESpawnGroupStatus::Suppressed)
 													{
 														int32 DesiredCount;
 														if (Spawner->SpawnGroupAsset->Composition.bUsePool)

@@ -176,6 +176,7 @@ public:
 
     void StoreSpawnParameters();
 
+    void SafeDestroyAllGhosts();
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;

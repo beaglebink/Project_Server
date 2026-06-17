@@ -337,6 +337,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
             // Восстанавливаем флаг спавнера (если изменился в рантайме)
             Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
 
+            Spawner->SafeDestroyAllGhosts();
 
             if (State->bStoreSpawnParameters)
             {

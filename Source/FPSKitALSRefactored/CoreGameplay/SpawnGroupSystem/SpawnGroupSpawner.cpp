@@ -118,6 +118,27 @@ void ASpawnGroupSpawner::StoreSpawnParameters()
 	}
 }
 
+void ASpawnGroupSpawner::SafeDestroyAllGhosts()
+{
+    for (int32 i = SpawnedGhosts.Num() - 1; i >= 0; --i)
+    {
+        AAlsCharacter* Ghost = SpawnedGhosts[i].Get();
+        if (IsValid(Ghost))
+        {
+            // Отписываемся от события уничтожения, чтобы не вызвать OnGhostDestroyed повторно
+            Ghost->OnDestroyed.RemoveDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+            // Уничтожаем актор
+            Ghost->Destroy();
+        }
+    }
+    // Очищаем массив
+    SpawnedGhosts.Empty();
+    SpawnedCount = 0;
+
+    if(GetWorld())
+        GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
+}
+
 ASpawnVolume* ASpawnGroupSpawner::GetRandomSpawnLocation() const
 {
     if (SpawnLocations.Num() == 0)
@@ -158,7 +179,20 @@ void ASpawnGroupSpawner::SpawnGroupInternal()
     }
     */
     //IsRestored = false;
-    SpawnGroup();
+    /*
+    UWorld* World = GetWorld();
+    if (!World)
+        return;
+
+    FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this]()
+    {
+
+    });
+
+    World->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.1f, true);
+    */
+    if (!Restore)
+        SpawnGroup();
 }
 
 TArray<FSpawnSlotState> ASpawnGroupSpawner::CaptureCurrentSlots() const
