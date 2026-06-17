@@ -26,7 +26,7 @@ public:
     FText InteriorSetName;
 
     // GUID интерьера (сохраняется в экземпляре уровня)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid InteriorSetId;
 
     // Отображаемое имя этажа
@@ -34,7 +34,7 @@ public:
     FText FloorName;
 
     // GUID этажа (сохраняется в экземпляре уровня)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid FloorId;
 
     // Тип актора на этаже
@@ -46,7 +46,7 @@ public:
     FGuid AnchorId;
 
     // Стабильный идентификатор экземпляра для сопоставления с snapshot (сохраняется в .umap)
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
     FGuid ItemId;
 
     // Канал снапшота — если != None, актор участвует в сохранении/восстановлении
@@ -67,14 +67,7 @@ public:
         ActorType = Type;
     }
 
-    //virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override
-    //{
-    //    Super::PostDuplicate(DuplicateMode);
-
-        //if (DuplicateMode == EDuplicateMode::Type::Normal) return;
-        
-        //ItemId = FGuid::NewGuid();
-    //}
+    //virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
 protected:
     virtual void BeginPlay() override;

@@ -90,6 +90,7 @@ class FPSKITALSREFACTORED_API UInteriorSubsystem : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
+
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 

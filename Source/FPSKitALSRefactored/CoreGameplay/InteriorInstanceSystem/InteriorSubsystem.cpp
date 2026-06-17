@@ -1378,16 +1378,20 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 						if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
 						{
-							if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
+							if (Spawner->GetSpawnedCount() > 0)
 							{
-								Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
-							}
-							else
-							{
-								Spawner->CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
+								if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
+								{
+									Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
+								}
+								else
+								{
+									Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+									Spawner->ResetKilledCount();
+								}
 							}
 
-							Spawner->ResetKilledCount();
+							//Spawner->ResetKilledCount();
 							break;
 						}
 					}
@@ -1578,7 +1582,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 							{
 								if (Reason != EMissionEndReason::None)
 								{
-									Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+									Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
 									Spawner->ResetKilledCount();
 								}
 
@@ -1589,7 +1593,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 							{
 								if (!HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
 								{
-									Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+									Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
 									Spawner->ResetKilledCount();
 									Spawner->IsUseStoreSpawnParameters = false;
 								}
@@ -1631,7 +1635,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 								}
 								case EJobSpacePolicy::Freeze:
 								{
-									Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+									Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
 									Spawner->ResetKilledCount();
 									Spawner->IsUseStoreSpawnParameters = true;
 									break;
@@ -1640,7 +1644,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 								{
 									if (!HasChannelWithPolicy(CurrentPolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
 									{
-										Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+										Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
 										Spawner->ResetKilledCount();
 										Spawner->IsUseStoreSpawnParameters = false;
 									}
@@ -1698,7 +1702,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 											if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
 											{
 												Spawner->ResetKilledCount();
-												Spawner->CurrentStatus = ESpawnGroupStatus::Suppressed;
+												Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
 											}
 											else
 											{
@@ -2051,9 +2055,31 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 												if (Spawner)
 												{
 													Spawner->IsUseStoreSpawnParameters = false;
-													if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared)
+													if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared || Spawner->CurrentStatus != ESpawnGroupStatus::Suppressed)
 													{
-														Spawner->ResetKilledCount();
+														int32 DesiredCount;
+														if (Spawner->SpawnGroupAsset->Composition.bUsePool)
+														{
+															for (auto Pool : Spawner->SpawnGroupAsset->Composition.ActorsPool)
+															{
+																DesiredCount += Pool.Count;
+															}
+														}
+														else
+														{
+															DesiredCount = Spawner->SpawnGroupAsset->Composition.Count;
+														}
+
+														if (Spawner->GetKilledCount() != DesiredCount)
+														{
+															Spawner->ResetKilledCount();
+															Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+														}
+														else
+														{
+															Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
+														}
+														//
 														Spawner->Restore = true;
 													}
 												}

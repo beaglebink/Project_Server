@@ -29,6 +29,20 @@ ASpawnGroupSpawner::ASpawnGroupSpawner()
     }
 }
 
+void ASpawnGroupSpawner::OnConstruction(const FTransform& Transform)
+{
+    Super::OnConstruction(Transform);
+
+    // Проверяем, что компонент существует и ItemId невалидный
+    if (FloorAssignmentComp && !FloorAssignmentComp->ItemId.IsValid())
+    {
+        FloorAssignmentComp->ItemId = FGuid::NewGuid();
+        FloorAssignmentComp->SnapshotChannel = ESnapshotChannel::Snapshot;
+        // Можно также установить другие значения по умолчанию, если нужно
+        UE_LOG(LogTemp, Verbose, TEXT("SpawnGroupSpawner [%s]: Generated new ItemId for duplicate"), *GetName());
+    }
+}
+
 void ASpawnGroupSpawner::BeginPlay()
 {
     Super::BeginPlay();
@@ -254,6 +268,8 @@ void ASpawnGroupSpawner::SpawnGroup()
             }
         }
 
+        SpawnedCount = SpawnedGhosts.Num();
+
         FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, DesiredCounts, World]()
             {
                 ASpawnVolume* Location = GetRandomSpawnLocation();
@@ -262,6 +278,15 @@ void ASpawnGroupSpawner::SpawnGroup()
                 {
                     UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
                     World->GetTimerManager().ClearTimer(TimerHandle);
+                    return;
+                }
+
+                if (SpawnGroupAsset->Composition.Count <= SpawnedCount - KilledCount)
+                {
+                    //KilledCount = SpawnGroupAsset->Composition.Count;//DesiredCounts.Num();
+                    World->GetTimerManager().ClearTimer(TimerHandle);
+                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
+                        *GetName(), SpawnedGhosts.Num());
                     return;
                 }
 
@@ -289,18 +314,11 @@ void ASpawnGroupSpawner::SpawnGroup()
                     OnGhostSpawned.Broadcast(Ghost);
                 }
 
-                if (SpawnGroupAsset->Composition.Count <= SpawnedCount - KilledCount)
-                {
-                    KilledCount = DesiredCounts.Num();
-                    World->GetTimerManager().ClearTimer(TimerHandle);
-                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
-                        *GetName(), SpawnedGhosts.Num());
-                    return;
-                }
+                UpdateGroupStatus();
 
             });
 
-        CurrentStatus = ESpawnGroupStatus::Active;
+        //CurrentStatus = ESpawnGroupStatus::Active;
 
         World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
     }
@@ -340,8 +358,25 @@ void ASpawnGroupSpawner::SpawnGroup()
             {
                 UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
                 World->GetTimerManager().ClearTimer(TimerHandle);
-                KilledCount = DesiredCount;
+                //KilledCount = DesiredCount;
 				return;
+            }
+
+            if (DesiredCount <= KilledCount)
+            {
+                KilledCount = DesiredCount;
+                World->GetTimerManager().ClearTimer(TimerHandle);
+                return;
+            }
+
+            if (SpawnedCount >= DesiredCount - KilledCount)
+            {
+                // Все призраки заспавнены
+                World->GetTimerManager().ClearTimer(TimerHandle);
+                OnAllSpawned.Broadcast();
+
+                UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
+                    *GetName(), SpawnedGhosts.Num());
             }
 
             TSubclassOf<AActor> SpawnedClass = FinalClasses[SpawnedCount % FinalClasses.Num()];
@@ -374,22 +409,7 @@ void ASpawnGroupSpawner::SpawnGroup()
                 OnGhostSpawned.Broadcast(Ghost);
             }
 
-            if (DesiredCount <= KilledCount)
-            {
-                KilledCount = DesiredCount;
-                World->GetTimerManager().ClearTimer(TimerHandle);
-                return;
-            }
-
-            if (SpawnedCount >= DesiredCount - KilledCount)
-            {
-                // Все призраки заспавнены
-                World->GetTimerManager().ClearTimer(TimerHandle);
-                OnAllSpawned.Broadcast();
-
-                UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
-                    *GetName(), SpawnedGhosts.Num());
-            }
+            UpdateGroupStatus();
         });
 
         CurrentStatus = ESpawnGroupStatus::Active;
@@ -495,14 +515,43 @@ void ASpawnGroupSpawner::UpdateGroupStatus()
         // (опциональная проверка, можно оставить только по Alive)
         // Если нет живых, но ещё не все убиты, то не переводим в Cleared.
         // Для простоты переводим в Cleared только при Alive == 0 и если SpawnedGhosts пуст.
-        if (SpawnedGhosts.Num() == 0)
+        if (SpawnedCount == 0)
         {
-            ClearGroup(ESpawnGroupResolutionReason::Eliminated);
+            if (KilledCount > 0)
+            {
+				CurrentStatus = ESpawnGroupStatus::Cleared;
+            }
+            else
+            {
+                CurrentStatus = ESpawnGroupStatus::Suppressed;
+                ClearGroup(ESpawnGroupResolutionReason::Eliminated);
+            }
+        }
+        else
+        {
+            if (KilledCount == SpawnedCount)
+            {
+                CurrentStatus = ESpawnGroupStatus::Cleared;
+            }
+            else
+            {
+                KilledCount == 0 ? CurrentStatus = ESpawnGroupStatus::Active : CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
+            }
+
+			//ClearGroup(ESpawnGroupResolutionReason::Eliminated);
         }
     }
-    else if (Alive > 0 && KilledCount > 0 && CurrentStatus == ESpawnGroupStatus::Active)
+    else if (Alive > 0/* && KilledCount >= 0 && CurrentStatus == ESpawnGroupStatus::Active*/)
     {
-        CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
+        if (KilledCount == SpawnedCount)
+        {
+            CurrentStatus = ESpawnGroupStatus::Cleared;
+        }
+        else
+        {
+            KilledCount == 0 ? CurrentStatus = ESpawnGroupStatus::Active : CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
+        }
+        //CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
     }
 }
 
@@ -686,8 +735,8 @@ void ASpawnGroupSpawner::RestoreFromSlots(const TArray<FSpawnSlotState>& Slots)
 
     CurrentStatus = ESpawnGroupStatus::Active;
     SpawnedCount = SpawnedGhosts.Num();
-    TypeKilled.Empty();
-    KilledCount = 0;
+    //TypeKilled.Empty();
+    //KilledCount = 0;
 }
 
 #if WITH_EDITOR

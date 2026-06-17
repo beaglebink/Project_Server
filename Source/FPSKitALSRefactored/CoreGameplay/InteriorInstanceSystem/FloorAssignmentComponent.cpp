@@ -7,52 +7,12 @@
 UFloorAssignmentComponent::UFloorAssignmentComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	//ItemId = FGuid::NewGuid();
 }
 
 void UFloorAssignmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-    // If ItemId is absent — generate a runtime GUID.
-    // (Если ItemId отсутствует — генерируем runtime GUID.)
-    // In editor the ItemId is set by the tool and saved to .umap, so we don't modify assets here.
-    // (В редакторе ItemId ставится инструментом и сохраняется в .umap, поэтому здесь не модифицируем пакеты.)
-	/*
-	if (!ItemId.IsValid())
-	{
-		ItemId = FGuid::NewGuid();
-	}
-	*/
-
-    // Publish placement registration via EventBus
-    // (Публикуем регистрацию размещения через EventBus)
-	/*
-	if (SnapshotChannel == ESnapshotChannel::None || !ItemId.IsValid())
-		return;
-
-	if (UWorld* W = GetWorld())
-	{
-		if (UGameInstance* GI = W->GetGameInstance())
-		{
-			if (UEventBusSubsystem* Bus = GI->GetSubsystem<UEventBusSubsystem>())
-			{
-				UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
-				if (Payload)
-				{
-					Payload->Setup(InteriorSetId, FloorId, ActorType, AnchorId, GetOwner()->GetActorTransform(), ItemId);
-
-					FOutcomeEventBase Ev;
-					Ev.OutcomeType = EOutcomeType::Interior;
-					Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementRegistered;
-					Ev.Payload = Payload;
-
-					Bus->PublishOutcome(Ev);
-				}
-			}
-		}
-	}
-	*/
 }
 
 void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -88,3 +48,17 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 	Super::EndPlay(EndPlayReason);
 }
+/*
+void UFloorAssignmentComponent::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	// При дублировании в редакторе (Ctrl+D) генерируем новый ItemId для дубликата
+	if (DuplicateMode == EDuplicateMode::Normal)
+	{
+		ItemId = FGuid::NewGuid();
+		// Можно также сбросить SnapshotChannel, если нужно:
+		// SnapshotChannel = ESnapshotChannel::None;
+	}
+}
+*/
