@@ -2032,7 +2032,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 											{
 												Spawner->IsUseStoreSpawnParameters = true;
 												//Spawner->Restore = false;
-												Spawner->Restore = true;
+												Spawner->Restore = false;
 											}
 
 											break;
@@ -2064,7 +2064,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 												ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 												if (Spawner)
 												{
-													Spawner->Restore = true;
+													Spawner->Restore = false;
 												}
 											}
 
@@ -2076,7 +2076,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 													Spawner->IsUseStoreSpawnParameters = false;
 													if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared && Spawner->CurrentStatus != ESpawnGroupStatus::Suppressed)
 													{
-														int32 DesiredCount;
+														int32 DesiredCount = 0;
 														if (Spawner->SpawnGroupAsset->Composition.bUsePool)
 														{
 															for (auto Pool : Spawner->SpawnGroupAsset->Composition.ActorsPool)
@@ -2093,13 +2093,15 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 														{
 															Spawner->ResetKilledCount();
 															Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+															Spawner->Restore = false;
 														}
 														else
 														{
 															Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
+															Spawner->Restore = true;
 														}
 														//
-														Spawner->Restore = true;
+														
 													}
 												}
 											}

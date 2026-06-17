@@ -117,6 +117,9 @@ struct FSpawnGroupState
     UPROPERTY()
     int32 VisitIndex = 0;
 
+    UPROPERTY()
+    int32 KilledCount = 0;
+
     // Для режима по умолчанию (IsStoreSpawnParameters == false)
     UPROPERTY()
     TMap<FName, int32> TypeKilled;

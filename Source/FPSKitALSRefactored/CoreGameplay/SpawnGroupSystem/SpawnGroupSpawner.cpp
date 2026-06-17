@@ -226,6 +226,8 @@ TArray<FSpawnSlotState> ASpawnGroupSpawner::CaptureCurrentSlots() const
 
 void ASpawnGroupSpawner::RestoreFromState(const FSpawnGroupState& State)
 {
+    SafeDestroyAllGhosts();
+
     if (CurrentStatus == ESpawnGroupStatus::Suppressed || CurrentStatus == ESpawnGroupStatus::Inactive)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());

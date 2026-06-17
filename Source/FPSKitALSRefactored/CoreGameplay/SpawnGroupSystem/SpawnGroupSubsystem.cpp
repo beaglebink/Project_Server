@@ -395,6 +395,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.GroupId = Spawner->GetRuntimeGroupId();
         State.Status = Spawner->GetCurrentStatus();
         State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
+        State.KilledCount = Spawner->GetSpawnedCount();
 
         if (Spawner->IsStoreSpawnParameters)
         {
@@ -525,6 +526,8 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     // VisitIndex
                     if ((*StateObj)->HasField(TEXT("VisitIndex")))
                         State.VisitIndex = (*StateObj)->GetIntegerField(TEXT("VisitIndex"));
+                    if ((*StateObj)->HasField(TEXT("KilledCount")))
+                        State.KilledCount = (*StateObj)->GetIntegerField(TEXT("KilledCount"));
                     // bStoreSpawnParameters
                     if ((*StateObj)->HasField(TEXT("bStoreSpawnParameters")))
                         State.bStoreSpawnParameters = (*StateObj)->GetBoolField(TEXT("bStoreSpawnParameters"));
