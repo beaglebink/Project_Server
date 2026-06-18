@@ -753,6 +753,9 @@ void ASpawnGroupSpawner::GatherSpawnLocationsFromChildren()
 
 void ASpawnGroupSpawner::RestoreFromSlots(const TArray<FSpawnSlotState>& Slots)
 {
+    // Очищаем старых призраков
+    SafeDestroyAllGhosts();
+
     if (CurrentStatus == ESpawnGroupStatus::Suppressed || CurrentStatus == ESpawnGroupStatus::Inactive)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());
@@ -765,8 +768,7 @@ void ASpawnGroupSpawner::RestoreFromSlots(const TArray<FSpawnSlotState>& Slots)
         return;
     }
 
-    // Очищаем старых призраков
-    SafeDestroyAllGhosts();
+
     /*
     if (Restore)
     {
