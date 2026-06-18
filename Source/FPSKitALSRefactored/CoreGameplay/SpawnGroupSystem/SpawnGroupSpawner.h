@@ -92,6 +92,9 @@ public:
     UPROPERTY(SaveGame)
     bool Restore = false;
 
+    bool IsFullRespawn = false;
+    bool AllSpawned = false;
+
     const TMap<FName, int32>& GetTypeKilled() const { return TypeKilled; }
     void RestoreFromState(const FSpawnGroupState& State);
     void RestoreFromSlots(const TArray<FSpawnSlotState>& Slots);
@@ -177,6 +180,8 @@ public:
     void StoreSpawnParameters();
 
     void SafeDestroyAllGhosts();
+
+    int32 GetNeedSpasnedCount();
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;

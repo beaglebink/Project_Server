@@ -1354,7 +1354,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 				{
 					case EJobSpacePolicy::Reset:
 					{
-						Spawner->ResetKilledCount();
+						//Spawner->ResetKilledCount();
 						break;
 					}
 					case EJobSpacePolicy::Freeze:
@@ -1366,7 +1366,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 					{
 						if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
 						{
-							Spawner->ResetKilledCount();
+							//Spawner->ResetKilledCount();
 							break;
 						}
 
@@ -1387,7 +1387,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 								else
 								{
 									Spawner->CurrentStatus = ESpawnGroupStatus::Active;
-									Spawner->ResetKilledCount();
+									//Spawner->ResetKilledCount();
 								}
 							}
 
@@ -2044,6 +2044,14 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 											{
 												Spawner->IsUseStoreSpawnParameters = false;
 												Spawner->Restore = false;
+												if (Spawner->GetAliveGhostCount() == Spawner->GetNeedSpasnedCount())
+												{
+													Spawner->IsFullRespawn = true;
+												}
+												else
+												{
+													Spawner->IsFullRespawn = false;
+												}
 											}
 
 											break;
@@ -2056,6 +2064,15 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 												if (Spawner)
 												{
 													Spawner->Restore = false;
+													
+													if (Spawner->GetAliveGhostCount() == Spawner->GetNeedSpasnedCount())
+													{
+														Spawner->IsFullRespawn = true;
+													}
+													else
+													{
+														Spawner->IsFullRespawn = false;
+													}
 												}
 											}
 
@@ -2100,8 +2117,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 															Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
 															Spawner->Restore = true;
 														}
-														//
-														
 													}
 												}
 											}
@@ -2113,6 +2128,21 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 									case EEnvelopeChannel::ActorPlacement:
 									{
 										break;
+									}
+								}
+							}
+							else
+							{
+								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+								if (Spawner)
+								{
+									if (Spawner->GetAliveGhostCount() > 0)
+									{
+										Spawner->IsFullRespawn = true;
+									}
+									else
+									{
+										Spawner->IsFullRespawn = false;
 									}
 								}
 							}

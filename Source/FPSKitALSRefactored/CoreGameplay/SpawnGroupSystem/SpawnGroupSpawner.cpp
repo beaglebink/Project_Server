@@ -139,6 +139,25 @@ void ASpawnGroupSpawner::SafeDestroyAllGhosts()
         GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
 }
 
+int32 ASpawnGroupSpawner::GetNeedSpasnedCount()
+{
+    int32 NeedSpawnCount = 0;
+
+    if (SpawnGroupAsset->Composition.bUsePool)
+    {
+        for (auto Pool : SpawnGroupAsset->Composition.ActorsPool)
+        {
+            NeedSpawnCount = NeedSpawnCount + Pool.Count;
+        }
+    }
+    else
+    {
+        NeedSpawnCount = SpawnGroupAsset->Composition.Count;
+    }
+
+    return NeedSpawnCount;
+}
+
 ASpawnVolume* ASpawnGroupSpawner::GetRandomSpawnLocation() const
 {
     if (SpawnLocations.Num() == 0)
@@ -226,8 +245,6 @@ TArray<FSpawnSlotState> ASpawnGroupSpawner::CaptureCurrentSlots() const
 
 void ASpawnGroupSpawner::RestoreFromState(const FSpawnGroupState& State)
 {
-    SafeDestroyAllGhosts();
-
     if (CurrentStatus == ESpawnGroupStatus::Suppressed || CurrentStatus == ESpawnGroupStatus::Inactive)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());
@@ -240,15 +257,23 @@ void ASpawnGroupSpawner::RestoreFromState(const FSpawnGroupState& State)
         return;
     }
 
-    TypeKilled = State.TypeKilled;
-    KilledCount = 0;
-    for (const auto& Pair : TypeKilled) KilledCount += Pair.Value;
+    if (!IsFullRespawn)
+    {
+        SafeDestroyAllGhosts();
+
+        TypeKilled = State.TypeKilled;
+        KilledCount = 0;
+        for (const auto& Pair : TypeKilled) KilledCount += Pair.Value;
+    }
 
     CurrentStatus = State.Status;
     if (CurrentStatus == ESpawnGroupStatus::Cleared)
+    {
         ClearGroup(State.ResolutionReason);
 
-    SpawnedCount = 0;
+        SpawnedCount = 0;
+    }
+
     UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Restored from state (TypeKilled: %d)"), *GetName(), TypeKilled.Num());
 }
 
@@ -305,8 +330,21 @@ void ASpawnGroupSpawner::SpawnGroup()
         }
 
         SpawnedCount = SpawnedGhosts.Num();
+        int32 NeedSpawnCount = 0;
 
-        FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, DesiredCounts, World]()
+        if (SpawnGroupAsset->Composition.bUsePool)
+        {
+            for (auto Pool : SpawnGroupAsset->Composition.ActorsPool)
+            {
+                NeedSpawnCount = NeedSpawnCount + Pool.Count;
+            }
+        }
+        else
+        {
+            NeedSpawnCount = SpawnGroupAsset->Composition.Count;
+        }
+
+        FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, DesiredCounts, NeedSpawnCount, World]()
             {
                 ASpawnVolume* Location = GetRandomSpawnLocation();
 
@@ -314,15 +352,17 @@ void ASpawnGroupSpawner::SpawnGroup()
                 {
                     UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
                     World->GetTimerManager().ClearTimer(TimerHandle);
+                    AllSpawned = true;
                     return;
                 }
 
-                if (SpawnGroupAsset->Composition.Count <= SpawnedCount - KilledCount)
+                if (NeedSpawnCount <= SpawnedCount - KilledCount)
                 {
                     //KilledCount = SpawnGroupAsset->Composition.Count;//DesiredCounts.Num();
                     World->GetTimerManager().ClearTimer(TimerHandle);
                     UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
                         *GetName(), SpawnedGhosts.Num());
+                    AllSpawned = true;
                     return;
                 }
 
@@ -555,7 +595,7 @@ void ASpawnGroupSpawner::UpdateGroupStatus()
         {
             if (KilledCount > 0)
             {
-				CurrentStatus = ESpawnGroupStatus::Cleared;
+                CurrentStatus = ESpawnGroupStatus::Cleared;
             }
             else
             {
@@ -574,10 +614,10 @@ void ASpawnGroupSpawner::UpdateGroupStatus()
                 KilledCount == 0 ? CurrentStatus = ESpawnGroupStatus::Active : CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
             }
 
-			//ClearGroup(ESpawnGroupResolutionReason::Eliminated);
+            //ClearGroup(ESpawnGroupResolutionReason::Eliminated);
         }
     }
-    else if (Alive > 0/* && KilledCount >= 0 && CurrentStatus == ESpawnGroupStatus::Active*/)
+    else if (Alive > 0)
     {
         if (KilledCount == SpawnedCount)
         {
@@ -589,6 +629,7 @@ void ASpawnGroupSpawner::UpdateGroupStatus()
         }
         //CurrentStatus = ESpawnGroupStatus::PartiallyCleared;
     }
+    //}
 }
 
 void ASpawnGroupSpawner::OnGhostDestroyed(AActor* DestroyedActor)
@@ -724,55 +765,74 @@ void ASpawnGroupSpawner::RestoreFromSlots(const TArray<FSpawnSlotState>& Slots)
         return;
     }
 
+    // Очищаем старых призраков
+    SafeDestroyAllGhosts();
+    /*
     if (Restore)
     {
         Restore = false;
         SpawnGroup();
         return;
     }
-
+    */
     if (!IsStoreSpawnParameters) return;
 
-    // Очищаем старых призраков
-    ClearGroup(ESpawnGroupResolutionReason::Other);
-
-    // Спавним новых по слотам
-    for (const FSpawnSlotState& Slot : Slots)
+    if (!IsFullRespawn)
     {
-        if (!Slot.ActorClass) continue;
-
-        FActorSpawnParameters SpawnParams;
-        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        AActor* Ghost = GetWorld()->SpawnActor<AActor>(Slot.ActorClass, FTransform(Slot.SpawnTransform.GetRotation(), Slot.SpawnTransform.GetLocation(), FVector(1.0, 1.0, 1.0)), SpawnParams);
-        if (!Ghost) continue;
-
-        // Принудительно устанавливаем ItemId в компоненте
-        if (UFloorAssignmentComponent* Comp = Ghost->FindComponentByClass<UFloorAssignmentComponent>())
+        if (SpawnGroupAsset->Composition.bUsePool)
         {
-            Comp->ItemId = Slot.ItemId;
-            Comp->SnapshotChannel = ESnapshotChannel::None;
-            Comp->ActorType = EFloorActorType::SpawnItems; // или другой тип
+            for (auto Pool : SpawnGroupAsset->Composition.ActorsPool)
+            {
+                SpawnedCount = SpawnedCount + Pool.Count;
+            }
         }
         else
         {
-            // Если компонента нет, создаём его (чтобы спавнер мог отслеживать призрака)
-            UFloorAssignmentComponent* NewComp = NewObject<UFloorAssignmentComponent>(Ghost);
-            NewComp->RegisterComponent();
-            Ghost->AddInstanceComponent(NewComp);
-            NewComp->ItemId = Slot.ItemId;
-            NewComp->SnapshotChannel = ESnapshotChannel::None;
-            NewComp->ActorType = EFloorActorType::SpawnItems;
+            SpawnedCount = SpawnGroupAsset->Composition.Count;
         }
 
-        SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
-        Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
-        OnGhostSpawned.Broadcast(Ghost);
-    }
+        KilledCount = SpawnedCount - Slots.Num();
 
-    CurrentStatus = ESpawnGroupStatus::Active;
-    SpawnedCount = SpawnedGhosts.Num();
-    //TypeKilled.Empty();
-    //KilledCount = 0;
+        // Спавним новых по слотам
+        for (const FSpawnSlotState& Slot : Slots)
+        {
+            if (!Slot.ActorClass) continue;
+
+            FActorSpawnParameters SpawnParams;
+            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            AActor* Ghost = GetWorld()->SpawnActor<AActor>(Slot.ActorClass, FTransform(Slot.SpawnTransform.GetRotation(), Slot.SpawnTransform.GetLocation(), FVector(1.0, 1.0, 1.0)), SpawnParams);
+            if (!Ghost) continue;
+
+            // Принудительно устанавливаем ItemId в компоненте
+            if (UFloorAssignmentComponent* Comp = Ghost->FindComponentByClass<UFloorAssignmentComponent>())
+            {
+                Comp->ItemId = Slot.ItemId;
+                Comp->SnapshotChannel = ESnapshotChannel::None;
+                Comp->ActorType = EFloorActorType::SpawnItems; // или другой тип
+            }
+            else
+            {
+                // Если компонента нет, создаём его (чтобы спавнер мог отслеживать призрака)
+                UFloorAssignmentComponent* NewComp = NewObject<UFloorAssignmentComponent>(Ghost);
+                NewComp->RegisterComponent();
+                Ghost->AddInstanceComponent(NewComp);
+                NewComp->ItemId = Slot.ItemId;
+                NewComp->SnapshotChannel = ESnapshotChannel::None;
+                NewComp->ActorType = EFloorActorType::SpawnItems;
+            }
+
+            SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
+            Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+            //OnGhostSpawned.Broadcast(Ghost);
+
+        
+        }
+        UpdateGroupStatus();
+    }
+    else
+    {
+		SpawnGroup();
+    }
 }
 
 #if WITH_EDITOR
