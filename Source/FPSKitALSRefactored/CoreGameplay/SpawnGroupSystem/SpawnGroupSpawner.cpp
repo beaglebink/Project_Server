@@ -245,6 +245,9 @@ TArray<FSpawnSlotState> ASpawnGroupSpawner::CaptureCurrentSlots() const
 
 void ASpawnGroupSpawner::RestoreFromState(const FSpawnGroupState& State)
 {
+    // Очищаем старых призраков
+    SafeDestroyAllGhosts();
+
     if (CurrentStatus == ESpawnGroupStatus::Suppressed || CurrentStatus == ESpawnGroupStatus::Inactive)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());
@@ -297,7 +300,7 @@ void ASpawnGroupSpawner::SpawnGroup()
         return;
     }
 
-    if (CurrentStatus == ESpawnGroupStatus::Cleared)
+    if (Restore && CurrentStatus == ESpawnGroupStatus::Cleared)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group already Cleared, skip spawn"), *GetName());
         return;
@@ -453,6 +456,7 @@ void ASpawnGroupSpawner::SpawnGroup()
 
                 UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
                     *GetName(), SpawnedGhosts.Num());
+                return;
             }
 
             TSubclassOf<AActor> SpawnedClass = FinalClasses[SpawnedCount % FinalClasses.Num()];
@@ -488,7 +492,7 @@ void ASpawnGroupSpawner::SpawnGroup()
             UpdateGroupStatus();
         });
 
-        CurrentStatus = ESpawnGroupStatus::Active;
+        //CurrentStatus = ESpawnGroupStatus::Active;
 
         World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
     }

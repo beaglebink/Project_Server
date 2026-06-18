@@ -354,7 +354,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
                 Spawner->RestoreFromState(*State);
             }
 
-            
+
     
             /*
             if (State->bStoreSpawnParameters)
@@ -365,7 +365,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
             //Spawner->SetStates(*State); 
             */
             ESpawnGroupStatus Status = Spawner->GetCurrentStatus();
-            if (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared)
+            if (Spawner->IsFullRespawn || (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared))
             {
                 Spawner->BlockNewSpawn = true;
                 //Spawner->IsRestored = false;

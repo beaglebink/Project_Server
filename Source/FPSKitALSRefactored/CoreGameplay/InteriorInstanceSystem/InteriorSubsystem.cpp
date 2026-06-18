@@ -2109,7 +2109,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 														if (Spawner->GetKilledCount() != DesiredCount)
 														{
 															Spawner->ResetKilledCount();
-															Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+															//Spawner->CurrentStatus = ESpawnGroupStatus::Active;
 															Spawner->Restore = false;
 															Spawner->IsFullRespawn = true;
 														}
@@ -2137,15 +2137,37 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 								if (Spawner)
 								{
+									Spawner->IsUseStoreSpawnParameters = false;
+									
+									Spawner->ResetGroup();
 									if (Spawner->GetAliveGhostCount() > 0)
 									{
 										Spawner->IsFullRespawn = true;
+										Spawner->Restore = false;
 									}
 									else
 									{
 										Spawner->IsFullRespawn = false;
+										Spawner->Restore = false;
 									}
 								}
+								/*
+								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+								if (Spawner)
+								{
+									if (Spawner->GetAliveGhostCount() > 0)
+									{
+										//Spawner->IsFullRespawn = true;
+									}
+									else
+									{
+										//Spawner->IsFullRespawn = false;
+										Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+									}
+									Spawner->IsFullRespawn = true;
+									Spawner->Restore = false;
+								}
+								*/
 							}
 						}
 					}

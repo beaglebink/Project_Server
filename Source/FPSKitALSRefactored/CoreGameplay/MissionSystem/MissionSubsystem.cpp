@@ -998,8 +998,6 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				if (Ctrl)
 				{
 					Ctrl->MissionStep = MissionStep;
-					//ActiveMissions.Find(MissionId)->MissionStep = Ctrl->MissionStep;
-					//ActivateMission(MissionId, false);
 				}
 
 				switch (Resume)
@@ -1026,19 +1024,10 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			}
 
 			
-			/*
-			for (auto& Mission : ActiveMissions)
-			{
-				EMissionResumeMode Resume = EMissionResumeMode::Resumable;
-
-			}
-			*/
 			for (auto DelMissionName : DeletedMissions)
 			{
 				ActiveMissions.Remove(DelMissionName);
 			}
-
-			//ActivateMission(ActiveMissionId);
 
 			IsLoadComplete = true;
 		});
