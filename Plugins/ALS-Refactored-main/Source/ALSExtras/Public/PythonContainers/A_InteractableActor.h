@@ -4,12 +4,13 @@
 #include "GameFramework/Actor.h"
 #include "Interfaces/I_PortalInteraction.h"
 #include "Interfaces/I_PowerConnection.h"
+#include "Scanning/I_ScannableObject.h"
 #include "A_InteractableActor.generated.h"
 
 class AA_DropZone;
 
 UCLASS()
-class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalInteraction, public II_PowerConnection
+class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalInteraction, public II_PowerConnection, public II_ScannableObject
 {
 	GENERATED_BODY()
 	
