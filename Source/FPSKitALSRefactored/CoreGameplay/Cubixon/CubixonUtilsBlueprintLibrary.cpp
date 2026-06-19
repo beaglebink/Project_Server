@@ -19,6 +19,8 @@
 
 #include "Math/UnrealMathUtility.h"
 
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+
 
 FString UCubixonUtilsBlueprintLibrary::TruncateTextWithEllipsis(const FString& InputText, const FSlateFontInfo& FontInfo, float MaxWidth, float FontScale)
 {
@@ -398,5 +400,62 @@ TArray<UWidget*> UCubixonUtilsBlueprintLibrary::GetWidgetsAtScreenPosition(UUser
 	return Result;
 }
 
+FCubixonFileData UCubixonUtilsBlueprintLibrary::CreateCubixonFileData(FText FileName, USceneComponent* CubixonFile)
+{
+	FCubixonFileData Result;
 
+	if (!CubixonFile)
+	{
+		return Result;
+	}
 
+	Result.FileName = FileName;
+
+	Result.ComponentClass = CubixonFile->GetClass();
+
+	FMemoryWriter Writer(Result.SerializedData, true);
+
+	FObjectAndNameAsStringProxyArchive Ar(Writer, true);
+	Ar.ArIsSaveGame = true;
+
+	CubixonFile->Serialize(Ar);
+
+	return Result;
+}
+
+USceneComponent* UCubixonUtilsBlueprintLibrary::CreateCubixonFileFromData(const FCubixonFileData& CubixonFileData, UObject* Outer, USceneComponent* ParentComponent)
+{
+
+	if (!Outer || !CubixonFileData.ComponentClass)
+	{
+		return nullptr;
+	}
+
+	USceneComponent* NewComponent = NewObject<USceneComponent>(Outer, CubixonFileData.ComponentClass, *CubixonFileData.FileName.ToString());
+
+	if (!NewComponent)
+	{
+		return nullptr;
+	}
+
+	FMemoryReader Reader(CubixonFileData.SerializedData, true);
+
+	FObjectAndNameAsStringProxyArchive Ar(Reader, true);
+	Ar.ArIsSaveGame = true;
+
+	NewComponent->Serialize(Ar);
+
+	NewComponent->RegisterComponent();
+
+	if (AActor* OwnerActor = Cast<AActor>(Outer))
+	{
+		OwnerActor->AddInstanceComponent(NewComponent);
+
+		if (OwnerActor->GetRootComponent())
+		{
+			NewComponent->AttachToComponent(ParentComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		}
+	}
+
+	return NewComponent;
+}
