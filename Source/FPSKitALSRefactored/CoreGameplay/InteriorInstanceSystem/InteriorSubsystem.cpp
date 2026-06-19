@@ -2111,7 +2111,16 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 															Spawner->ResetKilledCount();
 															//Spawner->CurrentStatus = ESpawnGroupStatus::Active;
 															Spawner->Restore = false;
-															Spawner->IsFullRespawn = true;
+															if (Spawner->GetSpawnedCount() > 0)
+															{
+																Spawner->IsFullRespawn = true;
+															}
+															else
+															{
+																Spawner->IsFullRespawn = false;
+																Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
+															}
+															
 														}
 														else
 														{

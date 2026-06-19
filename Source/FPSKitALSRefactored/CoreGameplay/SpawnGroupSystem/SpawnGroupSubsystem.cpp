@@ -337,40 +337,23 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
             // Восстанавливаем флаг спавнера (если изменился в рантайме)
             Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
 
-            //Spawner->SafeDestroyAllGhosts();
-
             if (State->bStoreSpawnParameters)
             {
 				Spawner->BlockNewSpawn = true;
-                //Spawner->IsRestored = false;
                 Spawner->RestoreFromSlots(State->Slots);
-                //Spawner->IsRestored = true;
                 return;
             }
             else
             {
                 Spawner->BlockNewSpawn = true;
-                //Spawner->IsRestored = false;
                 Spawner->RestoreFromState(*State);
             }
 
-
-    
-            /*
-            if (State->bStoreSpawnParameters)
-            {
-                Spawner->RestoreFromSlots(State->Slots);
-                return;
-            }
-            //Spawner->SetStates(*State); 
-            */
             ESpawnGroupStatus Status = Spawner->GetCurrentStatus();
             if (Spawner->IsFullRespawn || (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared))
             {
                 Spawner->BlockNewSpawn = true;
-                //Spawner->IsRestored = false;
                 Spawner->SpawnGroup();
-                //Spawner->IsRestored = true;
             }
         }
     }
