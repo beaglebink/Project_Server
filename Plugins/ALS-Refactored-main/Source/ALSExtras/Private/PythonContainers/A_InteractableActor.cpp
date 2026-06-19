@@ -76,3 +76,13 @@ void AA_InteractableActor::PortalInteract_Implementation(const FHitResult& Hit, 
 void AA_InteractableActor::OnPowerConnected_Implementation(bool IsConnected)
 {
 }
+
+FScannableActorData AA_InteractableActor::GetScannableObjectInfo_Implementation(AActor* ScannableActor)
+{
+	return ScannableData;
+}
+
+void AA_InteractableActor::SetScannableObjectInfo_Implementation(const FScannableActorData& NewData)
+{
+	ScannableData = NewData;
+}

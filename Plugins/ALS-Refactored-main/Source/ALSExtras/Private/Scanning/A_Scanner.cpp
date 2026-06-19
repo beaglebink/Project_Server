@@ -4,6 +4,7 @@
 #include "Components/WidgetComponent.h"
 #include "Scanning/I_ScannableObject.h"
 #include "Scanning/W_ScannerSummary.h"
+#include "PythonContainers/A_InteractableActor.h"
 
 AA_Scanner::AA_Scanner()
 {
@@ -84,12 +85,17 @@ void AA_Scanner::ScanningTimelineFinished()
 {
 	AudioComponent->SetSound(ScanningFailSound);
 
+	LastScannedItem = CurrentlyScannedActor;
+
 	if (CurrentlyScannedActor->GetClass()->ImplementsInterface(UI_ScannableObject::StaticClass()))
 	{
-		if (CheckIfNotInRestrictedList(CurrentlyScannedActor) && CheckIfByOrderList(CurrentlyScannedActor))
+		FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(CurrentlyScannedActor, CurrentlyScannedActor);
+		if (!ScannableData.bHasBeenScanned && CheckIfInAcceptedList(CurrentlyScannedActor) && CheckIfByOrderList(CurrentlyScannedActor))
 		{
 			AudioComponent->SetSound(ScanningSuccessSound);
 			ScannedActors.Add(CurrentlyScannedActor);
+			ScannableData.bHasBeenScanned = true;
+			II_ScannableObject::Execute_SetScannableObjectInfo(CurrentlyScannedActor, ScannableData);
 			ShowScanningSummary();
 		}
 	}
@@ -104,6 +110,12 @@ void AA_Scanner::OnScannerBeginOverlap(UPrimitiveComponent* OverlappedComp, AAct
 	{
 		return;
 	}
+
+	if (GetWorldTimerManager().IsTimerActive(ScanCooldownTimerHandle))
+	{
+		return;
+	}
+	GetWorldTimerManager().SetTimer(ScanCooldownTimerHandle, ScanCooldown, false);
 
 	CurrentlyScannedActor = OtherActor;
 
@@ -151,10 +163,14 @@ void AA_Scanner::ShowScanningSummary()
 	}
 }
 
-bool AA_Scanner::CheckIfNotInRestrictedList(AActor* ActorToScan)
+bool AA_Scanner::CheckIfInAcceptedList(AActor* ActorToScan)
 {
-	//add logic by later request
-	return true;
+	if (ActorToScan->GetClass()->ImplementsInterface(UI_ScannableObject::StaticClass()))
+	{
+		FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(ActorToScan, ActorToScan);
+		return AcceptedItemTypes.Contains(ScannableData.ItemTypeTag);
+	}
+	return false;
 }
 
 bool AA_Scanner::CheckIfByOrderList(AActor* ActorToScan)

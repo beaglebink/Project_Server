@@ -5,6 +5,7 @@
 #include "Interfaces/I_PortalInteraction.h"
 #include "Interfaces/I_PowerConnection.h"
 #include "Scanning/I_ScannableObject.h"
+#include "Scanning/ScannableActorData.h"
 #include "A_InteractableActor.generated.h"
 
 class AA_DropZone;
@@ -13,8 +14,8 @@ UCLASS()
 class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalInteraction, public II_PowerConnection, public II_ScannableObject
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	AA_InteractableActor();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -22,7 +23,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-public:	
+public:
 	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "StaticMesh")
@@ -31,13 +32,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Name")
 	FName Name;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScanningData")
+	FScannableActorData ScannableData;
+
 	UPROPERTY()
 	AA_DropZone* AttachingDropZone;
 
-    UFUNCTION(BlueprintCallable, Category = "TextParsing")
+	UFUNCTION(BlueprintCallable, Category = "TextParsing")
 	bool ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName);
 
 	virtual void PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform) override;
 
 	virtual void OnPowerConnected_Implementation(bool IsConnected) override;
+
+	virtual FScannableActorData GetScannableObjectInfo_Implementation(AActor* ScannableActor) override;
+
+	virtual void SetScannableObjectInfo_Implementation(const FScannableActorData& NewData) override;
 };

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/TimelineComponent.h"
+#include "Utility/AlsGameplayTags.h"
 #include "A_Scanner.generated.h"
 
 class USphereComponent;
@@ -82,11 +83,25 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Scanning")
 	TArray<AActor*> ScannedActors;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scanning")
+	uint8 bScannerEnabled : 1{true};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scanning", meta = (ClampMin = "0.0"))
+	float ScanCooldown = 2.0f;
+
+	FTimerHandle ScanCooldownTimerHandle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scanning")
+	TArray<FGameplayTag> AcceptedItemTypes;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Scanning")
+	AActor* LastScannedItem;
+
 	UFUNCTION(BlueprintCallable, Category = "Scanning")
 	void ShowScanningSummary();
 
 	UFUNCTION(BlueprintCallable, Category = "Scanning")
-	bool CheckIfNotInRestrictedList(AActor* ActorToScan);
+	bool CheckIfInAcceptedList(AActor* ActorToScan);
 
 	UFUNCTION(BlueprintCallable, Category = "Scanning")
 	bool CheckIfByOrderList(AActor* ActorToScan);

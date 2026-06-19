@@ -338,3 +338,16 @@ namespace ClothesEffectTags
 		UE_DEFINE_GAMEPLAY_TAG(AnandsTurtleneck, FName{ TEXTVIEW("Clothes.Effect.AnandsTurtleneck") })
 		UE_DEFINE_GAMEPLAY_TAG(GamerGear, FName{ TEXTVIEW("Clothes.Effect.GamerGear") })
 }
+
+namespace ScannableObjectsTags
+{
+	UE_DEFINE_GAMEPLAY_TAG(Default, FName{ TEXTVIEW("ScannableObjects.Default") })
+		UE_DEFINE_GAMEPLAY_TAG(Pen, FName{ TEXTVIEW("ScannableObjects.Pen") })
+		UE_DEFINE_GAMEPLAY_TAG(PrinterInk, FName{ TEXTVIEW("ScannableObjects.PrinterInk") })
+		UE_DEFINE_GAMEPLAY_TAG(SoftwareBox, FName{ TEXTVIEW("ScannableObjects.SoftwareBox") })
+		UE_DEFINE_GAMEPLAY_TAG(Notebook, FName{ TEXTVIEW("ScannableObjects.Notebook") })
+		UE_DEFINE_GAMEPLAY_TAG(Tool, FName{ TEXTVIEW("ScannableObjects.Tool") })
+		UE_DEFINE_GAMEPLAY_TAG(FoodItem, FName{ TEXTVIEW("ScannableObjects.FoodItem") })
+		UE_DEFINE_GAMEPLAY_TAG(FragileItem, FName{ TEXTVIEW("ScannableObjects.FragileItem") })
+		UE_DEFINE_GAMEPLAY_TAG(Electronics, FName{ TEXTVIEW("ScannableObjects.Electronics") })
+}
