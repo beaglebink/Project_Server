@@ -89,7 +89,7 @@ void AA_Scanner::ScanningTimelineFinished()
 
 	if (CurrentlyScannedActor->GetClass()->ImplementsInterface(UI_ScannableObject::StaticClass()))
 	{
-		FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(CurrentlyScannedActor, CurrentlyScannedActor);
+		FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(CurrentlyScannedActor);
 		if (!ScannableData.bHasBeenScanned && CheckIfInAcceptedList(CurrentlyScannedActor) && CheckIfByOrderList(CurrentlyScannedActor))
 		{
 			AudioComponent->SetSound(ScanningSuccessSound);
@@ -167,7 +167,7 @@ bool AA_Scanner::CheckIfInAcceptedList(AActor* ActorToScan)
 {
 	if (ActorToScan->GetClass()->ImplementsInterface(UI_ScannableObject::StaticClass()))
 	{
-		FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(ActorToScan, ActorToScan);
+		FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(ActorToScan);
 		return AcceptedItemTypes.Contains(ScannableData.ItemTypeTag);
 	}
 	return false;

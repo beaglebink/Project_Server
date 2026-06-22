@@ -1,4 +1,5 @@
 #include "ItemPlacement/SC_ItemPlacement.h"
+#include "PythonContainers/A_InteractableActor.h"
 #include "Components/SphereComponent.h"
 #include "ItemPlacement/A_DropZone.h"
 #include "ItemPlacement/A_AreaDropZone.h"
@@ -75,7 +76,7 @@ void USC_ItemPlacement::OnSearcherSphereOverlapEnd(UPrimitiveComponent* Overlapp
 
 void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!OtherActor || ItemName.IsNone())
+	if (!OtherActor || !HoldItem)
 	{
 		return;
 	}
@@ -84,7 +85,7 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 	{
 		if (!DropZone->bIsOccupied)
 		{
-			if (DropZone->ItemName == ItemName)
+			if (DropZone->ItemName == HoldItem->Name)
 			{
 				ChoosenDropZones.Add(DropZone);
 				DropZone->SetMeshMaterialAndState(3, false);
@@ -98,13 +99,31 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 
 	if (AA_AreaDropZone* AreaDropZone = Cast<AA_AreaDropZone>(OtherActor))
 	{
-		if (AreaDropZone->ItemsNames.Find(ItemName) != INDEX_NONE)
+		if (AreaDropZone->bShouldCheckItemsByTag)
 		{
-			AreaDropZone->SetMeshMaterialAndState(3, false);
+			if (HoldItem->GetClass()->ImplementsInterface(UI_ScannableObject::StaticClass()))
+			{
+				FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(HoldItem);
+				if (AreaDropZone->ItemsTags.Contains(ScannableData.ItemTypeTag) && ScannableData.bHasBeenScanned)
+				{
+					AreaDropZone->SetMeshMaterialAndState(3, false);
+				}
+				else
+				{
+					AreaDropZone->SetMeshMaterialAndState(2, false);
+				}
+			}
 		}
 		else
 		{
-			AreaDropZone->SetMeshMaterialAndState(2, false);
+			if (AreaDropZone->ItemsNames.Contains(HoldItem->Name))
+			{
+				AreaDropZone->SetMeshMaterialAndState(3, false);
+			}
+			else
+			{
+				AreaDropZone->SetMeshMaterialAndState(2, false);
+			}
 		}
 	}
 }

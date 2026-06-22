@@ -45,7 +45,7 @@ public:
 
 	virtual void OnPowerConnected_Implementation(bool IsConnected) override;
 
-	virtual FScannableActorData GetScannableObjectInfo_Implementation(AActor* ScannableActor) override;
+	virtual FScannableActorData GetScannableObjectInfo_Implementation() override;
 
 	virtual void SetScannableObjectInfo_Implementation(const FScannableActorData& NewData) override;
 };

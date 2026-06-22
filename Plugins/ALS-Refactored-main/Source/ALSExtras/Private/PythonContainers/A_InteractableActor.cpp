@@ -77,7 +77,7 @@ void AA_InteractableActor::OnPowerConnected_Implementation(bool IsConnected)
 {
 }
 
-FScannableActorData AA_InteractableActor::GetScannableObjectInfo_Implementation(AActor* ScannableActor)
+FScannableActorData AA_InteractableActor::GetScannableObjectInfo_Implementation()
 {
 	return ScannableData;
 }

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "Utility/AlsGameplayTags.h"
 #include "SC_ItemPlacement.generated.h"
 
 class USphereComponent;
@@ -25,7 +26,7 @@ public:
 	USphereComponent* DropZoneCheckerSphere;
 
 	UPROPERTY(BlueprintReadWrite, Category = "ItemPlacement")
-	FName ItemName;
+	AA_InteractableActor* HoldItem;
 
 protected:
 	virtual void BeginPlay() override;

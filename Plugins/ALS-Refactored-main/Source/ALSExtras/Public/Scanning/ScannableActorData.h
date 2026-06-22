@@ -5,7 +5,7 @@
 #include "ScannableActorData.generated.h"
 
 USTRUCT(BlueprintType)
-struct FScannableActorData
+struct ALSEXTRAS_API FScannableActorData
 {
 	GENERATED_BODY()
 

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Utility/AlsGameplayTags.h"
 #include "A_AreaDropZone.generated.h"
 
 class AA_InteractableActor;
@@ -23,6 +24,12 @@ protected:
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Items")
+	uint8 bShouldCheckItemsByTag : 1{false};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Items", meta = (EditCondition = "bShouldCheckItemsByTag", EditConditionHides))
+	TArray<FGameplayTag> ItemsTags;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Items", meta = (EditCondition = "!bShouldCheckItemsByTag", EditConditionHides))
 	TArray<TSubclassOf<AA_InteractableActor>> ItemsClasses;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DropZone|AreaMesh")

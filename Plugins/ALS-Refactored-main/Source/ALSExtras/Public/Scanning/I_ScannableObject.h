@@ -12,13 +12,13 @@ class ALSEXTRAS_API UI_ScannableObject : public UInterface
 
 };
 
-class II_ScannableObject
+class ALSEXTRAS_API II_ScannableObject
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Scanning")
-	FScannableActorData GetScannableObjectInfo(AActor* ScannableActor);
+	FScannableActorData GetScannableObjectInfo();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Scanning")
 	void SetScannableObjectInfo(const FScannableActorData& NewData);
