@@ -86,3 +86,8 @@ void AA_InteractableActor::SetScannableObjectInfo_Implementation(const FScannabl
 {
 	ScannableData = NewData;
 }
+
+UStaticMeshComponent* AA_InteractableActor::GetMeshComponent_Implementation()
+{
+	return StaticMesh;
+}

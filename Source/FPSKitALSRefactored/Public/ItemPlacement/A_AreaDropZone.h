@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Utility/AlsGameplayTags.h"
+#include "NativeGameplayTags.h"
 #include "A_AreaDropZone.generated.h"
 
 class AA_InteractableActor;

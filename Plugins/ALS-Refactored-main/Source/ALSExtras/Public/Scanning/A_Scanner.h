@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/TimelineComponent.h"
-#include "Utility/AlsGameplayTags.h"
+#include "NativeGameplayTags.h"
 #include "A_Scanner.generated.h"
 
 class USphereComponent;
