@@ -1,172 +1,363 @@
 ﻿#pragma once
+
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../InteractionSystem/InteractiveSubsystemMethods.h"
+#include "ISaveableSubsystem.h"
 #include "TerminalSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTerminalTaskEvent, const FOutcomeEventBase&, Outcome);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
+class UInteractiveItemComponent;
+class UBookfaceSubsystem;
+class UInstantMessengerSubsystem;
+class ITerminalProfileProvider;
 
-class UInteractiveItemComponent; // forward-declare
+// ----------------------------------------------------------------------------
+// Data structures (unchanged)
+// ----------------------------------------------------------------------------
 
-// Record stored for each registered interactive item (Terminal)
-USTRUCT()
-struct FTerminalInteractItemRecord
+UENUM(BlueprintType)
+enum class ETerminalCapability : uint8
 {
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FGuid ItemId;
-
-	UPROPERTY()
-	TObjectPtr<AActor> OwnerActor = nullptr;
-
-	UPROPERTY()
-	float InteractionRange = 0.f;
+    None                    UMETA(DisplayName = "None"),
+    CanReadLocalFiles       UMETA(DisplayName = "Can Read Local Files"),
+    CanWriteLocalFiles      UMETA(DisplayName = "Can Write Local Files"),
+    CanAccessGlobalEmail    UMETA(DisplayName = "Can Access Global Email"),
+    CanAccessSharedSites    UMETA(DisplayName = "Can Access Shared Sites"),
+    CanRunMinigames         UMETA(DisplayName = "Can Run Minigames"),
+    CanModifyBuildingSecurity UMETA(DisplayName = "Can Modify Building Security"),
+    CanStoreCapturedGhosts  UMETA(DisplayName = "Can Store Captured Ghosts"),
+    RequiresPassword        UMETA(DisplayName = "Requires Password"),
+    RequiresAccountLogin    UMETA(DisplayName = "Requires Account Login"),
+    ContextualAccessOnly    UMETA(DisplayName = "Contextual Access Only")
 };
 
-UCLASS()
-class FPSKITALSREFACTORED_API UTerminalSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods
+USTRUCT(BlueprintType)
+struct FTerminalFileEntry
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadWrite)
+    FString FileName;
+    UPROPERTY(BlueprintReadWrite)
+    FString Content;
+    UPROPERTY(BlueprintReadWrite)
+    FDateTime LastModified;
+    UPROPERTY(BlueprintReadWrite)
+    FString ParentPath; // empty = root
+};
+
+USTRUCT(BlueprintType)
+struct FTerminalLogEntry
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadWrite)
+    FDateTime Timestamp;
+    UPROPERTY(BlueprintReadWrite)
+    FString Message;
+};
+
+USTRUCT(BlueprintType)
+struct FTerminalState
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadWrite)
+    FGuid TerminalId;
+    UPROPERTY(BlueprintReadWrite)
+    bool bIsLocked = true;
+    UPROPERTY(BlueprintReadWrite)
+    FString PasswordHash;
+    UPROPERTY(BlueprintReadWrite)
+    bool bIsAccountLoggedIn = false;
+    UPROPERTY(BlueprintReadWrite)
+    FString CurrentAccountName;
+    UPROPERTY(BlueprintReadWrite)
+    TArray<ETerminalCapability> Capabilities;
+    UPROPERTY(BlueprintReadWrite)
+    TArray<FTerminalFileEntry> LocalFiles;
+    UPROPERTY(BlueprintReadWrite)
+    TArray<FTerminalLogEntry> LocalLogs;
+    UPROPERTY(BlueprintReadWrite)
+    bool bIsOpen = false;
+    UPROPERTY(BlueprintReadWrite)
+    FString ProfileName; // for debug/info
+};
+
+USTRUCT(BlueprintType)
+struct FTerminalGlobalState
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadWrite)
+    TMap<FString, FString> EmailBoxes;
+    UPROPERTY(BlueprintReadWrite)
+    TMap<FString, FString> Websites;
+    UPROPERTY(BlueprintReadWrite)
+    TMap<FString, FString> SharedData;
+};
+
+// ----------------------------------------------------------------------------
+// Internal record for registered interactive items
+// ----------------------------------------------------------------------------
+
+USTRUCT()
+struct FTerminalInteractRecord
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    FGuid ItemId;
+
+    UPROPERTY()
+    TWeakObjectPtr<AActor> OwnerActor;
+
+    UPROPERTY()
+    float InteractionRange = 0.f;
+};
+
+// ----------------------------------------------------------------------------
+// Delegates
+// ----------------------------------------------------------------------------
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTerminalEvent, const FOutcomeEventBase&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTerminalStateChanged, const FGuid&, TerminalId, const FTerminalState&, NewState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTerminalGlobalStateChanged, const FTerminalGlobalState&, NewGlobalState);
+
+// ----------------------------------------------------------------------------
+// Subsystem class
+// ----------------------------------------------------------------------------
+
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalSubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods, public ISaveableSubsystem
+{
+    GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    virtual void Deinitialize() override;
 
-	// Condition used to filter terminal task events (set in editor or runtime)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-	TObjectPtr<UOutcomeConditionAsset> TerminalTaskCondition;
+    // ------------------------------------------------------------------------
+    // Registration (from interactive items)
+    // ------------------------------------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Registration")
+    void SubscribeRegistration();
 
-	// Broadcast when a matching terminal task outcome is handled
-	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
-	FOnTerminalTaskEvent OnTerminalTaskCompleted;
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Registration")
+    void UnsubscribeRegistration();
 
-	// Broadcast when an interactive item is registered/unregistered
-	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
-	FOnInteractItemRegistrationEvent OnInteractItemRegistered;
+    // Per-item listener API (from FInteractiveSubsystemMethods)
+    void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
+    void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 
-	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
-	FOnInteractItemRegistrationEvent OnInteractItemUnregistered;
+    // ------------------------------------------------------------------------
+    // Terminal management
+    // ------------------------------------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Management")
+    bool RegisterTerminal(const FGuid& TerminalId, AActor* ProfileActor = nullptr);
 
-	// Subscribe/unsubscribe task handling
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void SubscribeTerminalTask();
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Management")
+    bool UnregisterTerminal(const FGuid& TerminalId);
 
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void UnsubscribeTerminalTask();
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Management")
+    bool IsTerminalRegistered(const FGuid& TerminalId) const;
 
-	// Subscribe/unsubscribe registration (InteractRegistered / InteractUnregistered) listeners
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void SubscribeRegistration();
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Management")
+    FTerminalState GetTerminalState(const FGuid& TerminalId) const;
 
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void UnsubscribeRegistration();
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Management")
+    void SetTerminalCapabilities(const FGuid& TerminalId, const TArray<ETerminalCapability>& NewCapabilities);
 
-	// Unsubscribe everything
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void UnsubscribeAll();
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Management")
+    void ApplyProfileToTerminal(const FGuid& TerminalId, AActor* ProfileActor);
 
-	// Set task condition at runtime (compiles condition and (re)subscribes)
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void SetTerminalTaskCondition(UOutcomeConditionAsset* NewCondition);
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Management")
+    void ResetTerminalToDefault(const FGuid& TerminalId);
 
-	// Subscribe/unsubscribe interact command handling
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void SubscribeInteractCommand();
+    // ------------------------------------------------------------------------
+    // Access / Authentication
+    // ------------------------------------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Access")
+    bool OpenTerminal(const FGuid& TerminalId);
 
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void UnsubscribeInteractCommand();
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Access")
+    bool CloseTerminal(const FGuid& TerminalId);
 
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void SubscribeSetEnabled();
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Access")
+    bool LoginWithPassword(const FGuid& TerminalId, const FString& Password);
 
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void UnsubscribeSetEnabled();
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Access")
+    bool LoginWithAccount(const FGuid& TerminalId, const FString& AccountName);
 
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void SubscribeSetRange();
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Access")
+    bool ContextualAccess(const FGuid& TerminalId, const FString& ContextToken);
 
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void UnsubscribeSetRange();
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Access")
+    bool IsTerminalAccessible(const FGuid& TerminalId) const;
 
-public:
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void SubscribeSetTooltip();
+    // ------------------------------------------------------------------------
+    // Local file operations
+    // ------------------------------------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Files")
+    bool ReadLocalFile(const FGuid& TerminalId, const FString& FileName, FString& OutContent) const;
 
-	UFUNCTION(BlueprintCallable, Category = "TerminalSubsystem|Handlers")
-	void UnsubscribeSetTooltip();
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Files")
+    bool WriteLocalFile(const FGuid& TerminalId, const FString& FileName, const FString& Content);
 
-	// Per-item listener API: components register a listener for their ItemId.
-	// The subsystem will call the listener only for that specific item (prevents notifying all components).
-	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
-	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Files")
+    bool DeleteLocalFile(const FGuid& TerminalId, const FString& FileName);
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Files")
+    TArray<FString> GetLocalFileNames(const FGuid& TerminalId) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Files")
+    TArray<FTerminalFileEntry> GetFilesInDirectory(const FGuid& TerminalId, const FString& DirectoryPath) const;
+
+    // ------------------------------------------------------------------------
+    // Global services (email, websites, etc.)
+    // ------------------------------------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Global")
+    bool GetEmailContent(const FString& Account, FString& OutContent) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Global")
+    bool SetEmailContent(const FString& Account, const FString& Content);
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Global")
+    bool GetWebsiteContent(const FString& Url, FString& OutContent) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Global")
+    bool SetWebsiteContent(const FString& Url, const FString& Content);
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Global")
+    bool GetGlobalData(const FString& Key, FString& OutValue) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Global")
+    bool SetGlobalData(const FString& Key, const FString& Value);
+
+    // ------------------------------------------------------------------------
+    // Logging
+    // ------------------------------------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Logs")
+    void AddLocalLogEntry(const FGuid& TerminalId, const FString& Message);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Logs")
+    TArray<FTerminalLogEntry> GetLocalLogs(const FGuid& TerminalId) const;
+
+    // ------------------------------------------------------------------------
+    // Event publishing helpers
+    // ------------------------------------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Events")
+    void PublishTerminalOutcome(const FGuid& TerminalId, EOutcomeTerminal OutcomeType, UOutcomePayload* Payload = nullptr);
+
+    // ------------------------------------------------------------------------
+    // Delegates
+    // ------------------------------------------------------------------------
+    UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
+    FOnTerminalEvent OnTerminalEvent;
+
+    UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
+    FOnTerminalStateChanged OnTerminalStateChanged;
+
+    UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
+    FOnTerminalGlobalStateChanged OnTerminalGlobalStateChanged;
+
+    // ------------------------------------------------------------------------
+    // ISaveableSubsystem interface
+    // ------------------------------------------------------------------------
+    virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
+    virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
+    virtual FString GetSaveSubsystemName() const override { return TEXT("TerminalSubsystem"); }
+    virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
+
+    // Default profile actor (Blueprint instance) – set in editor or at runtime
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal|Default")
+    TObjectPtr<AActor> DefaultProfileActor;
 
 private:
-	// Handler for terminal task outcomes (bound when TerminalTaskCondition is set)
-	void HandleTerminalTask(const FOutcomeEventBase& Outcome);
+    // ------------------------------------------------------------------------
+    // EventBus handlers
+    // ------------------------------------------------------------------------
+    void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
+    void HandleInteractCommand(const FOutcomeEventBase& Outcome);
+    void HandleSetEnabled(const FOutcomeEventBase& Outcome);
+    void HandleSetRange(const FOutcomeEventBase& Outcome);
+    void HandleSetTooltip(const FOutcomeEventBase& Outcome);
 
-	// Handler for registration/unregistration of interactive items for terminal subsystem
-	void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
+    // ------------------------------------------------------------------------
+    // Internal helpers
+    // ------------------------------------------------------------------------
+    bool IsTerminalCapable(const FGuid& TerminalId, ETerminalCapability Capability) const;
+    void UpdateTerminalState(const FGuid& TerminalId, const FTerminalState& NewState);
+    void BroadcastTerminalState(const FGuid& TerminalId);
+    void BroadcastGlobalState();
 
-	// Handler for interact command
-	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
+    // Initialize terminal state from a profile actor (implements ITerminalProfileProvider)
+    void InitializeTerminalFromProfile(FTerminalState& State, AActor* ProfileActor);
+    // Helper to get interface from actor
+    static ITerminalProfileProvider* GetProfileInterface(AActor* Actor);
 
-	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
-	void HandleSetRange(const FOutcomeEventBase& Outcome);
-	void HandleSetTooltip(const FOutcomeEventBase& Outcome);
+    // ------------------------------------------------------------------------
+    // Subscriptions
+    // ------------------------------------------------------------------------
+    void SubscribeAll();
+    void UnsubscribeAll();
 
-	// Handler descriptor for task condition
-	FOutcomeHandlerHandle TerminalTaskHandle;
+    void SubscribeInteractCommand();
+    void UnsubscribeInteractCommand();
 
-	// Handles for registration listeners
-	FOutcomeHandlerHandle RegisteredRegisterHandle;
-	FOutcomeHandlerHandle UnregisteredRegisterHandle;
+    void SubscribeSetEnabled();
+    void UnsubscribeSetEnabled();
 
-	// Runtime condition assets used to listen for registration/unregistration (kept as UPROPERTY so GC is safe)
-	UPROPERTY()
-	UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
+    void SubscribeSetRange();
+    void UnsubscribeSetRange();
 
-	UPROPERTY()
-	UOutcomeConditionAsset* UnregisteredConditionAsset = nullptr;
+    void SubscribeSetTooltip();
+    void UnsubscribeSetTooltip();
 
-	// For interact command
-	UPROPERTY()
-	UOutcomeConditionAsset* InteractCommandConditionAsset = nullptr;
-	FOutcomeHandlerHandle InteractCommandHandle;
+    // ------------------------------------------------------------------------
+    // Data
+    // ------------------------------------------------------------------------
+    UPROPERTY()
+    TMap<FGuid, FTerminalState> Terminals;
 
-	UPROPERTY()
-	UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
+    UPROPERTY()
+    FTerminalGlobalState GlobalState;
 
-	FOutcomeHandlerHandle SetEnabledHandle;
+    UPROPERTY()
+    TMap<FGuid, FTerminalInteractRecord> RegisteredItems;
 
-	UPROPERTY()
-	UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
+    // Per-item registration listeners
+    TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
-	FOutcomeHandlerHandle SetRangeHandle;
+    // Cached subsystems
+    TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
+    TWeakObjectPtr<UBookfaceSubsystem> CachedBookface;
+    TWeakObjectPtr<UInstantMessengerSubsystem> CachedMessenger;
 
-	UPROPERTY()
-	UOutcomeConditionAsset* SetTooltipConditionAsset = nullptr;
+    // Handles
+    FOutcomeHandlerHandle RegisteredRegisterHandle;
+    FOutcomeHandlerHandle UnregisteredRegisterHandle;
+    FOutcomeHandlerHandle InteractCommandHandle;
+    FOutcomeHandlerHandle SetEnabledHandle;
+    FOutcomeHandlerHandle SetRangeHandle;
+    FOutcomeHandlerHandle SetTooltipHandle;
 
-	FOutcomeHandlerHandle SetTooltipHandle;
+    // Condition assets
+    UPROPERTY()
+    UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
+    UPROPERTY()
+    UOutcomeConditionAsset* UnregisteredConditionAsset = nullptr;
+    UPROPERTY()
+    UOutcomeConditionAsset* InteractCommandConditionAsset = nullptr;
+    UPROPERTY()
+    UOutcomeConditionAsset* SetEnabledConditionAsset = nullptr;
+    UPROPERTY()
+    UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
+    UPROPERTY()
+    UOutcomeConditionAsset* SetTooltipConditionAsset = nullptr;
 
-	// Registry of interactive items (key = ItemId)
-	UPROPERTY()
-	TMap<FGuid, FTerminalInteractItemRecord> RegisteredItems;
+    bool bIsLoadComplete = true;
 
-	// Per-item listeners (only invoked for matching ItemId)
-	// Not a UPROPERTY because it holds weak refs to components
-	TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
-
-	// Cached EventBus subsystem pointer
-	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
-
-private:
-    // Implementation required by FInteractiveSubsystemMethods
-    // (Реализация, необходимая для FInteractiveSubsystemMethods)
+    // Implementation of FInteractiveSubsystemMethods
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
     {
         return RegistrationListeners;

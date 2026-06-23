@@ -76,6 +76,12 @@ enum class EOutcomeTerminal : uint8
 	TerminalTaskCompleted	UMETA(DisplayName = "Terminal Task Completed"),
 	TerminalTaskFailed		UMETA(DisplayName = "Terminal Task Failed"),
 	TerminalClosed			UMETA(DisplayName = "Terminal Closed"),
+
+	TerminalLoginFailed		UMETA(DisplayName = "Terminal Login Failed"),
+	TerminalLoginSucceeded	UMETA(DisplayName = "Terminal Login Succeeded"),
+	TerminalFileModified	UMETA(DisplayName = "Terminal File Modified"),
+	TerminalGlobalServiceModified UMETA(DisplayName = "Terminal Global Service Modified"),
+
 	InteractSetEnabled		UMETA(DisplayName = "Interact Set Enabled"),
 	InteractSetRange		UMETA(DisplayName = "Interact Set Range"),
 	InteractSetTooltip		UMETA(DisplayName = "Interact Set Tooltip"),
@@ -83,7 +89,6 @@ enum class EOutcomeTerminal : uint8
 	InteractRegistered		UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
-
 UENUM(BlueprintType)
 enum class EOutcomeInterior : uint8
 {
