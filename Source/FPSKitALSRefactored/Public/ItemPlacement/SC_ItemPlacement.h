@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
-#include "Utility/AlsGameplayTags.h"
+#include "NativeGameplayTags.h"
 #include "SC_ItemPlacement.generated.h"
 
 class USphereComponent;

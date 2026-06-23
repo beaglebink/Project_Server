@@ -168,17 +168,9 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 					ChoosenDropZone = DropZone;
 				}
 			}
-			if (UFunction* Function = Item->FindFunction(FName("GetMesh")))
+			if (Item->Implements<UInteractiveActorInterface>())
 			{
-				struct FParams
-				{
-					UStaticMeshComponent* ReturnValue;
-				};
-
-				FParams Params;
-				Item->ProcessEvent(Function, &Params);
-
-				if (UStaticMeshComponent* StaticMeshComponent = Params.ReturnValue)
+				if (UStaticMeshComponent* StaticMeshComponent = IInteractiveActorInterface::Execute_GetMeshComponent(Item))
 				{
 					StaticMeshComponent->SetSimulatePhysics(false);
 					Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
@@ -213,17 +205,9 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 	}
 	else
 	{
-		if (UFunction* Function = Item->FindFunction(FName("GetMesh")))
+		if (Item->Implements<UInteractiveActorInterface>())
 		{
-			struct FParams
-			{
-				UStaticMeshComponent* ReturnValue;
-			};
-
-			FParams Params;
-			Item->ProcessEvent(Function, &Params);
-
-			if (UStaticMeshComponent* StaticMeshComponent = Params.ReturnValue)
+			if (UStaticMeshComponent* StaticMeshComponent = IInteractiveActorInterface::Execute_GetMeshComponent(Item))
 			{
 				if (Item->AttachingDropZone)
 				{

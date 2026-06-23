@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Utility/AlsGameplayTags.h"
+#include "NativeGameplayTags.h"
 #include "ScannableActorData.generated.h"
 
 USTRUCT(BlueprintType)
@@ -16,6 +16,9 @@ struct ALSEXTRAS_API FScannableActorData
 	FGameplayTag ItemTypeTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScannableActor")
+	FGameplayTag ItemPropertyTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScannableActor")
 	FName DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScannableActor")
@@ -28,3 +31,15 @@ struct ALSEXTRAS_API FScannableActorData
 	uint8 bHasBeenBagged : 1{false};
 };
 
+
+USTRUCT(BlueprintType)
+struct ALSEXTRAS_API FPropertyCompatibilityRule : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTag PropertyTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTagContainer IncompatibleProperties;
+};

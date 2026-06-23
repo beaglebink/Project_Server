@@ -28,4 +28,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interactive")
 	void EnableHighlight(bool bEnable);
 	virtual void EnableHighlight_Implementation(bool bEnable) {}
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interactive")
+	UStaticMeshComponent* GetMeshComponent();
 };
