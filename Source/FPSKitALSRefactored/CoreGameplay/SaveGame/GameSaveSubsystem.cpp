@@ -63,6 +63,9 @@ TArray<FSaveSlotInfo> UGameSaveSubsystem::GetSaveSlotsForUI() const
 
     for (const FString& File : Files)
     {
+        if (File.Left(5) != "Save_")
+            continue;
+
         FString FullPath = SaveDir / File;
         FSaveSlotInfo Info;
         Info.SlotName = FPaths::GetBaseFilename(File);
