@@ -3,9 +3,10 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/Texture2D.h"
-#include "BookfaceMessageObject.h" // найдён в CoreGameplay/Cubixon/
-#include "BookfaceDataTypes.h"     // должен лежать там же
-#include "BookfaceSaveGame.h"      // должен лежать там же
+#include "BookfaceMessageObject.h" 
+#include "BookfaceDataTypes.h"     
+#include "BookfaceSaveGame.h"      
+#include "ISaveableSubsystem.h"
 #include "BookfaceSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnlineStatusChange, const FString&, UserId, bool, bIsOnline);
@@ -18,7 +19,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBookfaceMessageNotice, FBookfaceM
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBFMessageAdded, const FBF_MessageStructure&, Message);
 
 UCLASS()
-class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem
+class FPSKITALSREFACTORED_API UBookfaceSubsystem : public UGameInstanceSubsystem, public ISaveableSubsystem
 {
     GENERATED_BODY()
 
@@ -130,6 +131,11 @@ public:
     UFUNCTION(BlueprintCallable)
     int32 GetUnreadMessageCountForUser(const FString& FromUserId, const FString& ToUserId) const;
 
+    virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
+    virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
+    virtual FString GetSaveSubsystemName() const override { return TEXT("BookfaceSubsystem"); }
+    virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
+
 private:
     UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
 
@@ -168,6 +174,7 @@ private:
     TArray<FBookfaceFriendRequestStructure> FriendRequests;
 
     bool bHasLoadedSave = false;
+    bool bIsLoadComplete = false;
 
     UPROPERTY()
     TArray<FBF_MessageStructure> Messages;

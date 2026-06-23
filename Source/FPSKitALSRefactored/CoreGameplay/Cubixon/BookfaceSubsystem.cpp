@@ -1,12 +1,16 @@
 ﻿#include "BookfaceSubsystem.h"
 #include "BookfaceSaveGame.h"
 #include "Kismet/GameplayStatics.h"
+#include <GameSaveSubsystem.h>
 
 void UBookfaceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
     UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem initialized"));
+
+    if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+        SaveSys->RegisterSaveableSubsystem(this);
 }
 
 void UBookfaceSubsystem::Deinitialize()
@@ -898,4 +902,192 @@ int32 UBookfaceSubsystem::GetUnreadMessageCountForUser(const FString& FromUserId
     }
 
     return UnreadCount;
+}
+
+void UBookfaceSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
+{
+    OutData.SubsystemName = GetSaveSubsystemName();
+
+    TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
+
+    // Сериализуем UserProfiles
+    TArray<TSharedPtr<FJsonValue>> ProfilesArray;
+    for (const FBookfaceProfileStructure& Profile : UserProfiles)
+    {
+        TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+        Obj->SetStringField(TEXT("UserId"), Profile.UserId);
+        Obj->SetStringField(TEXT("DisplayName"), Profile.DisplayName.ToString());
+        Obj->SetStringField(TEXT("AvatarImagePath"), Profile.AvatarImage.ToSoftObjectPath().ToString());
+        Obj->SetStringField(TEXT("CoverImagePath"), Profile.CoverImage.ToSoftObjectPath().ToString());
+        Obj->SetStringField(TEXT("Bio"), Profile.Bio.ToString());
+        Obj->SetNumberField(TEXT("ReputationScore"), Profile.ReputationScore);
+        Obj->SetStringField(TEXT("BIO_Privacy"), UEnum::GetValueAsString(Profile.BIO_Privacy));
+        Obj->SetBoolField(TEXT("IsOnline"), Profile.IsOnline);
+
+        // AboutInfo
+        TArray<TSharedPtr<FJsonValue>> AboutArray;
+        for (const FAboutInfoStructure& Info : Profile.AboutInfo)
+        {
+            TSharedPtr<FJsonObject> InfoObj = MakeShared<FJsonObject>();
+            InfoObj->SetStringField(TEXT("InfoCaption"), Info.InfoCaption.ToString());
+            InfoObj->SetStringField(TEXT("InfoDescription"), Info.InfoDescription.ToString());
+            InfoObj->SetStringField(TEXT("PrivacyVisibility"), UEnum::GetValueAsString(Info.PrivacyVisibility));
+            AboutArray.Add(MakeShared<FJsonValueObject>(InfoObj));
+        }
+        Obj->SetArrayField(TEXT("AboutInfo"), AboutArray);
+
+        // FriendsList
+        TArray<TSharedPtr<FJsonValue>> FriendsArray;
+        for (const FString& FriendId : Profile.FriendsList)
+            FriendsArray.Add(MakeShared<FJsonValueString>(FriendId));
+        Obj->SetArrayField(TEXT("FriendsList"), FriendsArray);
+
+        // SavedMessages и UserMessages – пропускаем (сохраняются отдельно)
+
+        ProfilesArray.Add(MakeShared<FJsonValueObject>(Obj));
+    }
+    Root->SetArrayField(TEXT("UserProfiles"), ProfilesArray);
+
+    // Сериализуем FriendRequests
+    TArray<TSharedPtr<FJsonValue>> RequestsArray;
+    for (const FBookfaceFriendRequestStructure& Req : FriendRequests)
+    {
+        TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+        Obj->SetStringField(TEXT("FromUserId"), Req.FromUserId);
+        Obj->SetStringField(TEXT("ToUserId"), Req.ToUserId);
+        RequestsArray.Add(MakeShared<FJsonValueObject>(Obj));
+    }
+    Root->SetArrayField(TEXT("FriendRequests"), RequestsArray);
+
+    // Сериализуем Messages (FBF_MessageStructure)
+    TArray<TSharedPtr<FJsonValue>> MessagesArray;
+    for (const FBF_MessageStructure& Msg : Messages)
+    {
+        TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+        Obj->SetStringField(TEXT("FromContact"), Msg.FromContact);
+        Obj->SetStringField(TEXT("ToContact"), Msg.ToContact);
+        Obj->SetStringField(TEXT("Message"), Msg.Message.ToString());
+        Obj->SetBoolField(TEXT("bIsRead"), Msg.bIsRead);
+        MessagesArray.Add(MakeShared<FJsonValueObject>(Obj));
+    }
+    Root->SetArrayField(TEXT("Messages"), MessagesArray);
+
+    FString Output;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
+    FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
+    OutData.SerializedData = Output;
+}
+
+void UBookfaceSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
+{
+    bIsLoadComplete = false;
+
+    if (InData.SerializedData.IsEmpty())
+    {
+        bIsLoadComplete = true;
+        return;
+    }
+
+    TSharedPtr<FJsonObject> Root;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(InData.SerializedData);
+    if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+    {
+        bIsLoadComplete = true;
+        return;
+    }
+
+    UserProfiles.Empty();
+    FriendRequests.Empty();
+    Messages.Empty();
+
+    // Восстанавливаем UserProfiles
+    const TArray<TSharedPtr<FJsonValue>>* ProfilesArray = nullptr;
+    if (Root->TryGetArrayField(TEXT("UserProfiles"), ProfilesArray))
+    {
+        for (const TSharedPtr<FJsonValue>& Val : *ProfilesArray)
+        {
+            const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+            if (!Val->TryGetObject(ObjPtr)) continue;
+            const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+
+            FBookfaceProfileStructure Profile;
+            Profile.UserId = Obj->GetStringField(TEXT("UserId"));
+            Profile.DisplayName = FText::FromString(Obj->GetStringField(TEXT("DisplayName")));
+            Profile.AvatarImage = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(Obj->GetStringField(TEXT("AvatarImagePath"))));
+            Profile.CoverImage = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(Obj->GetStringField(TEXT("CoverImagePath"))));
+            Profile.Bio = FText::FromString(Obj->GetStringField(TEXT("Bio")));
+            Profile.ReputationScore = Obj->GetIntegerField(TEXT("ReputationScore"));
+            FString PrivacyStr = Obj->GetStringField(TEXT("BIO_Privacy"));
+            UEnum* EnumPtr = StaticEnum<EPrivacyVisibility>();
+            int64 EnumVal = EnumPtr->GetValueByNameString(PrivacyStr);
+            Profile.BIO_Privacy = (EPrivacyVisibility)EnumVal;
+            Profile.IsOnline = Obj->GetBoolField(TEXT("IsOnline"));
+
+            // AboutInfo
+            const TArray<TSharedPtr<FJsonValue>>* AboutArray = nullptr;
+            if (Obj->TryGetArrayField(TEXT("AboutInfo"), AboutArray))
+            {
+                for (const TSharedPtr<FJsonValue>& InfoVal : *AboutArray)
+                {
+                    const TSharedPtr<FJsonObject>* InfoObjPtr = nullptr;
+                    if (!InfoVal->TryGetObject(InfoObjPtr)) continue;
+                    const TSharedPtr<FJsonObject>& InfoObj = *InfoObjPtr;
+                    FAboutInfoStructure Info;
+                    Info.InfoCaption = FText::FromString(InfoObj->GetStringField(TEXT("InfoCaption")));
+                    Info.InfoDescription = FText::FromString(InfoObj->GetStringField(TEXT("InfoDescription")));
+                    FString PrivStr = InfoObj->GetStringField(TEXT("PrivacyVisibility"));
+                    int64 PrivVal = StaticEnum<EPrivacyVisibility>()->GetValueByNameString(PrivStr);
+                    Info.PrivacyVisibility = (EPrivacyVisibility)PrivVal;
+                    Profile.AboutInfo.Add(Info);
+                }
+            }
+
+            // FriendsList
+            const TArray<TSharedPtr<FJsonValue>>* FriendsArray = nullptr;
+            if (Obj->TryGetArrayField(TEXT("FriendsList"), FriendsArray))
+            {
+                for (const TSharedPtr<FJsonValue>& FVal : *FriendsArray)
+                    Profile.FriendsList.Add(FVal->AsString());
+            }
+
+            UserProfiles.Add(Profile);
+        }
+    }
+
+    // Восстанавливаем FriendRequests
+    const TArray<TSharedPtr<FJsonValue>>* RequestsArray = nullptr;
+    if (Root->TryGetArrayField(TEXT("FriendRequests"), RequestsArray))
+    {
+        for (const TSharedPtr<FJsonValue>& Val : *RequestsArray)
+        {
+            const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+            if (!Val->TryGetObject(ObjPtr)) continue;
+            const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+            FBookfaceFriendRequestStructure Req;
+            Req.FromUserId = Obj->GetStringField(TEXT("FromUserId"));
+            Req.ToUserId = Obj->GetStringField(TEXT("ToUserId"));
+            FriendRequests.Add(Req);
+        }
+    }
+
+    // Восстанавливаем Messages
+    const TArray<TSharedPtr<FJsonValue>>* MessagesArray = nullptr;
+    if (Root->TryGetArrayField(TEXT("Messages"), MessagesArray))
+    {
+        for (const TSharedPtr<FJsonValue>& Val : *MessagesArray)
+        {
+            const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+            if (!Val->TryGetObject(ObjPtr)) continue;
+            const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+            FBF_MessageStructure Msg;
+            Msg.FromContact = Obj->GetStringField(TEXT("FromContact"));
+            Msg.ToContact = Obj->GetStringField(TEXT("ToContact"));
+            Msg.Message = FText::FromString(Obj->GetStringField(TEXT("Message")));
+            Msg.bIsRead = Obj->GetBoolField(TEXT("bIsRead"));
+            Messages.Add(Msg);
+        }
+    }
+
+    bIsLoadComplete = true;
+    bHasLoadedSave = true;
 }

@@ -4,6 +4,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Styling/SlateBrush.h"
 #include "Delegates/DelegateCombinations.h"
+#include "ISaveableSubsystem.h"
 #include "InstantMessengerSubsystem.generated.h"
 
 UENUM(BlueprintType)
@@ -60,7 +61,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageAdded, const FMessageStruc
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageChangeActive, const FContactsStructure&, Contact);
 
 UCLASS()
-class FPSKITALSREFACTORED_API UInstantMessengerSubsystem : public UGameInstanceSubsystem
+class FPSKITALSREFACTORED_API UInstantMessengerSubsystem : public UGameInstanceSubsystem, public ISaveableSubsystem
 {
     GENERATED_BODY()
 
@@ -88,6 +89,11 @@ public:
     UFUNCTION(BlueprintCallable)
     void EditMessage(int32 Index, const FMessageStructure& NewData);
 
+    virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
+    virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
+    virtual FString GetSaveSubsystemName() const override { return TEXT("InstantMessengerSubsystem"); }
+    virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
+
 public:
     UPROPERTY(BlueprintAssignable, Category = "Messenger|Events")
     FOnMessageAdded OnChangeMessages;
@@ -101,4 +107,6 @@ private:
 
     UPROPERTY()
     TArray<FMessageStructure> Messages;
+
+    bool bIsLoadComplete = false;
 };
