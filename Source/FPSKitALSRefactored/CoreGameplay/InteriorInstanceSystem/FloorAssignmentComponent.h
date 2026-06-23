@@ -60,16 +60,18 @@ public:
     FGuid GetFloorId() const { return FloorId; }
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
-	void Registrate(EFloorActorType Type)
-    { 
-        ItemId = FGuid::NewGuid(); 
-		SnapshotChannel = ESnapshotChannel::Snapshot;
+    void Registrate(EFloorActorType Type)
+    {
+        ItemId = FGuid::NewGuid();
+        SnapshotChannel = ESnapshotChannel::Snapshot;
         ActorType = Type;
     }
-
-    //virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    // Переопределяем для корректной генерации GUID
+    virtual void PostInitProperties() override;
+    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 };
