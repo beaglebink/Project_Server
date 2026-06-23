@@ -32,7 +32,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY()
-	TSet<AA_DropZone*> ChoosenDropZones;
+	TSet<AActor*> ChoosenDropZones;
 
 	UFUNCTION()
 	void OnSearcherSphereOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
