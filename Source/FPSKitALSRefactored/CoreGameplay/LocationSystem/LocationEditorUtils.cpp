@@ -434,6 +434,7 @@ TMap<FGuid, FText> ULocationEditorUtils::GetFloors(const FGuid& InteriorSetGuid)
 int32 ULocationEditorUtils::ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid)
 {
 #if WITH_EDITOR
+    
     return FFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(FloorGuid, InteriorSetGuid);
 #else
     return 0;

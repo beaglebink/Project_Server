@@ -13,7 +13,7 @@ enum class ESnapshotChannel : uint8
     Snapshot UMETA(DisplayName = "Snapshot"),
 };
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UFloorAssignmentComponent : public UActorComponent
 {
     GENERATED_BODY()
@@ -67,11 +67,10 @@ public:
         ActorType = Type;
     }
 
+    //virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-    // Переопределяем для корректной генерации GUID
-    virtual void PostInitProperties() override;
     virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 };

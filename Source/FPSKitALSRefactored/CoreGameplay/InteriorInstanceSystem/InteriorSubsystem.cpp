@@ -1285,7 +1285,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 		return;
 	}
 
-	EJobSpacePolicy JobSpacePolicy;
+	EJobSpacePolicy JobSpacePolicy = Envelope.RuntimePolicy;
 	TArray<FEnvelopeChannelEntry> PolicyChannels;
 
 	switch (Reason)

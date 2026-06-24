@@ -20,7 +20,7 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 	if (SnapshotChannel == ESnapshotChannel::None || !ItemId.IsValid())
 		return;
 
-	if(EndPlayReason != EEndPlayReason::Destroyed)
+	if (EndPlayReason != EEndPlayReason::Destroyed)
 		return;
 
 	// Publish unregistration via EventBus
@@ -49,26 +49,16 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Super::EndPlay(EndPlayReason);
 }
 
-void UFloorAssignmentComponent::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	// Генерируем GUID только для экземпляров (не CDO) и только если он ещё не задан
-	if (!HasAnyFlags(RF_ClassDefaultObject) && !ItemId.IsValid())
-	{
-		ItemId = FGuid::NewGuid();
-	}
-}
-
 void UFloorAssignmentComponent::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 {
 	Super::PostDuplicate(DuplicateMode);
-
-	// При дублировании актора (Ctrl+D) создаём новый GUID для копии
+	/*
+	// При дублировании в редакторе (Ctrl+D) генерируем новый ItemId для дубликата
 	if (DuplicateMode == EDuplicateMode::Normal)
 	{
 		ItemId = FGuid::NewGuid();
-		// По желанию можно сбросить SnapshotChannel, если нужно
+		// Можно также сбросить SnapshotChannel, если нужно:
 		// SnapshotChannel = ESnapshotChannel::None;
 	}
+	*/
 }

@@ -30,6 +30,7 @@ public:
     static int32 ValidateRegionTransitionsCascade(const FGuid& RegionGuid);
     static int32 ValidateStreetTransitionsCascade(const FGuid& StreetGuid);
     static int32 ValidateInteriorSetTransitionsCascade(const FGuid& InteriorSetGuid);
+    static int32 FixDuplicateItemIds();
 };
 
 #endif // WITH_EDITOR
