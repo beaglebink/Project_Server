@@ -5,6 +5,7 @@
 #include "Interfaces/I_PortalInteraction.h"
 #include "Interfaces/I_PowerConnection.h"
 #include "Scanning/I_ScannableObject.h"
+#include "Interfaces/I_WeaponInteraction.h"
 #include "InteractiveActorInterface.h"
 #include "Scanning/ScannableActorData.h"
 #include "A_InteractableActor.generated.h"
@@ -12,7 +13,7 @@
 class AA_DropZone;
 
 UCLASS()
-class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalInteraction, public II_PowerConnection, public II_ScannableObject, public IInteractiveActorInterface
+class ALSEXTRAS_API AA_InteractableActor : public AActor, public II_PortalInteraction, public II_PowerConnection, public II_ScannableObject, public IInteractiveActorInterface, public II_WeaponInteraction
 {
 	GENERATED_BODY()
 
@@ -51,4 +52,6 @@ public:
 	virtual void SetScannableObjectInfo_Implementation(const FScannableActorData& NewData) override;
 
 	virtual UStaticMeshComponent* GetMeshComponent_Implementation() override;
+
+	virtual void HandleTextFromWeapon_Implementation(const FText& TextCommand);
 };

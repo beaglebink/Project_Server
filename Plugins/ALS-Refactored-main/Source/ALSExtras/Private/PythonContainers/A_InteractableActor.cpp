@@ -91,3 +91,9 @@ UStaticMeshComponent* AA_InteractableActor::GetMeshComponent_Implementation()
 {
 	return StaticMesh;
 }
+
+void AA_InteractableActor::HandleTextFromWeapon_Implementation(const FText& TextCommand)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("AA_InteractableActor::HandleTextFromWeapon: %s"), *TextCommand.ToString()));
+	UE_LOG(LogTemp, Log, TEXT("AA_InteractableActor::HandleTextFromWeapon: %s"), *TextCommand.ToString());
+}
