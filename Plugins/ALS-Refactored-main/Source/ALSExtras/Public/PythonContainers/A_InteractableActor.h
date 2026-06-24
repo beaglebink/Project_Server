@@ -53,5 +53,7 @@ public:
 
 	virtual UStaticMeshComponent* GetMeshComponent_Implementation() override;
 
+	virtual void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
+
 	virtual void HandleTextFromWeapon_Implementation(const FText& TextCommand);
 };
