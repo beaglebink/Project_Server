@@ -1,8 +1,15 @@
 #include "Scanning/A_BagDropZone.h"
+#include "Components/SphereComponent.h"
 
 AA_BagDropZone::AA_BagDropZone()
 {
+	ItemSphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("ItemSphereCollision"));
 
+	ItemSphereCollision->SetupAttachment(RootComponent);
+
+	ItemSphereCollision->SetCollisionProfileName(TEXT("DropZoneObject"));
+	ItemSphereCollision->SetSphereRadius(20.0f);
+	ItemSphereCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
 }
 
 void AA_BagDropZone::OnConstruction(const FTransform& Transform)
@@ -24,22 +31,65 @@ void AA_BagDropZone::BeginPlay()
 }
 void AA_BagDropZone::SetMeshMaterialAndState(int32 NewState, bool IsPlacing)
 {
-	if (BagDropZoneMesh && BagDropZoneMeshOverlayMaterial)
+	if (StaticMesh)
 	{
-		if (!DMI_MeshOverlayMaterial)
+		if (!DMI_MeshMaterial)
 		{
-			DMI_MeshOverlayMaterial = UMaterialInstanceDynamic::Create(BagDropZoneMeshOverlayMaterial, this);
-			if (DMI_MeshOverlayMaterial)
+			DMI_MeshMaterial = UMaterialInstanceDynamic::Create(StaticMesh->GetMaterial(0), this);
+			if (DMI_MeshMaterial)
 			{
-				BagDropZoneMesh->SetMaterial(0, DMI_MeshOverlayMaterial);
-				DMI_MeshOverlayMaterial->SetScalarParameterValue(FName("State"), NewState);
-				DMI_MeshOverlayMaterial->SetScalarParameterValue(FName("IsPlacingOnScene"), IsPlacingOnScene ? 1.0f : 0.0f);
+				StaticMesh->SetMaterial(0, DMI_MeshMaterial);
+				DMI_MeshMaterial->SetScalarParameterValue(FName("State"), NewState);
 			}
 		}
 		else
 		{
-			DMI_MeshOverlayMaterial->SetScalarParameterValue(FName("State"), NewState);
-			DMI_MeshOverlayMaterial->SetScalarParameterValue(FName("IsPlacingOnScene"), IsPlacingOnScene ? 1.0f : 0.0f);
+			DMI_MeshMaterial->SetScalarParameterValue(FName("State"), NewState);
 		}
 	}
+}
+
+void AA_BagDropZone::PackItemIntoBag(AA_InteractableActor* Item)
+{
+	if (Item->Implements<UInteractiveActorInterface>())
+	{
+		if (UStaticMeshComponent* StaticMeshComponent = IInteractiveActorInterface::Execute_GetMeshComponent(Item))
+		{
+			StaticMeshComponent->SetSimulatePhysics(false);
+			StaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			StaticMeshComponent->SetVisibility(false);
+			PackedItems.Add(Item);
+		}
+	}
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Packing item: %s into bag drop zone: %s"), *Item->GetName(), *GetName()));
+}
+
+bool AA_BagDropZone::CheckItemProperty(AA_InteractableActor* Item)
+{
+	if (Item->Implements<UI_ScannableObject>())
+	{
+		FScannableActorData HoldItemScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(Item);
+		if (!HoldItemScannableData.bHasBeenScanned || !HoldItemScannableData.bHasBeenBagged)
+		{
+			return false;
+		}
+
+		for (AA_InteractableActor* PackedItem : PackedItems)
+		{
+			if (PackedItem->Implements<UI_ScannableObject>())
+			{
+				FScannableActorData PackedItemScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(PackedItem);
+				FPropertyCompatibilityRule Rule;
+
+				ensureMsgf(CompatibilityData->GetRule(PackedItemScannableData.ItemPropertyTag, Rule), TEXT("Missing compatibility rule for %s"), *PackedItemScannableData.ItemPropertyTag.ToString());
+
+				if (Rule.IncompatibleProperties.HasTag(HoldItemScannableData.ItemPropertyTag))
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
 }

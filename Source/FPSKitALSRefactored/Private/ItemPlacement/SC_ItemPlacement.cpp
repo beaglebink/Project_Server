@@ -3,6 +3,7 @@
 #include "Components/SphereComponent.h"
 #include "ItemPlacement/A_DropZone.h"
 #include "ItemPlacement/A_AreaDropZone.h"
+#include "Scanning/A_BagDropZone.h"
 #include "WireAndConnections/A_WireConnector.h"
 
 USC_ItemPlacement::USC_ItemPlacement()
@@ -54,6 +55,11 @@ void USC_ItemPlacement::OnSearcherSphereOverlapBegin(UPrimitiveComponent* Overla
 	{
 		AreaDropZone->SetMeshMaterialAndState(1, false);
 	}
+
+	if (AA_BagDropZone* BagDropZone = Cast<AA_BagDropZone>(OtherActor))
+	{
+		BagDropZone->SetMeshMaterialAndState(1, false);
+	}
 }
 
 void USC_ItemPlacement::OnSearcherSphereOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
@@ -71,6 +77,11 @@ void USC_ItemPlacement::OnSearcherSphereOverlapEnd(UPrimitiveComponent* Overlapp
 	if (AA_AreaDropZone* AreaDropZone = Cast<AA_AreaDropZone>(OtherActor))
 	{
 		AreaDropZone->SetMeshMaterialAndState(0, false);
+	}
+
+	if (AA_BagDropZone* BagDropZone = Cast<AA_BagDropZone>(OtherActor))
+	{
+		BagDropZone->SetMeshMaterialAndState(0, false);
 	}
 }
 
@@ -101,11 +112,12 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 	{
 		if (AreaDropZone->bShouldCheckItemsByTag)
 		{
-			if (HoldItem->GetClass()->ImplementsInterface(UI_ScannableObject::StaticClass()))
+			if (HoldItem->Implements<UI_ScannableObject>())
 			{
 				FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(HoldItem);
 				if (AreaDropZone->ItemsTags.Contains(ScannableData.ItemTypeTag) && ScannableData.bHasBeenScanned)
 				{
+					ChoosenDropZones.Add(AreaDropZone);
 					AreaDropZone->SetMeshMaterialAndState(3, false);
 				}
 				else
@@ -124,6 +136,19 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 			{
 				AreaDropZone->SetMeshMaterialAndState(2, false);
 			}
+		}
+	}
+
+	if (AA_BagDropZone* BagDropZone = Cast<AA_BagDropZone>(OtherActor))
+	{
+		if (BagDropZone->CheckItemProperty(HoldItem))
+		{
+			ChoosenDropZones.Add(BagDropZone);
+			BagDropZone->SetMeshMaterialAndState(3, false);
+		}
+		else
+		{
+			BagDropZone->SetMeshMaterialAndState(2, false);
 		}
 	}
 }
@@ -146,7 +171,14 @@ void USC_ItemPlacement::OnCheckerSphereOverlapEnd(UPrimitiveComponent* Overlappe
 
 	if (AA_AreaDropZone* AreaDropZone = Cast<AA_AreaDropZone>(OtherActor))
 	{
+		ChoosenDropZones.Remove(AreaDropZone);
 		AreaDropZone->SetMeshMaterialAndState(1, false);
+	}
+
+	if (AA_BagDropZone* BagDropZone = Cast<AA_BagDropZone>(OtherActor))
+	{
+		ChoosenDropZones.Remove(BagDropZone);
+		BagDropZone->SetMeshMaterialAndState(1, false);
 	}
 }
 
@@ -157,9 +189,9 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 		if (ChoosenDropZones.Num() > 0)
 		{
 			float DistanceToClosestDropZone = TNumericLimits<float>::Max();
-			AA_DropZone* ChoosenDropZone = nullptr;
+			AActor* ChoosenDropZone = nullptr;
 
-			for (AA_DropZone* DropZone : ChoosenDropZones)
+			for (AActor* DropZone : ChoosenDropZones)
 			{
 				float DistanceToDropZone = FVector::Dist(DropZone->GetActorLocation(), Item->GetActorLocation());
 				if (DistanceToDropZone < DistanceToClosestDropZone)
@@ -168,36 +200,56 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 					ChoosenDropZone = DropZone;
 				}
 			}
+
 			if (Item->Implements<UInteractiveActorInterface>())
 			{
 				if (UStaticMeshComponent* StaticMeshComponent = IInteractiveActorInterface::Execute_GetMeshComponent(Item))
 				{
 					StaticMeshComponent->SetSimulatePhysics(false);
-					Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-					Item->AttachingDropZone = ChoosenDropZone;
-					ChoosenDropZone->bIsOccupied = true;
-					ChoosenDropZone->SetMeshMaterialAndState(0, false);
 
-					// Power connection logic
-					if (ChoosenDropZone->WirePlugInConnectorType == " male")
+					if (AA_DropZone* DropZone = Cast<AA_DropZone>(ChoosenDropZone))
 					{
-						if (ChoosenDropZone->bIsPowerOn)
+						Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+						Item->AttachingDropZone = DropZone;
+						DropZone->bIsOccupied = true;
+						DropZone->SetMeshMaterialAndState(0, false);
+
+						// Power connection logic
+						if (DropZone->WirePlugInConnectorType == " male")
 						{
-							if (Item->Implements<UI_PowerConnection>())
+							if (DropZone->bIsPowerOn)
 							{
-								II_PowerConnection::Execute_OnPowerConnected(Item, true);
+								if (Item->Implements<UI_PowerConnection>())
+								{
+									II_PowerConnection::Execute_OnPowerConnected(Item, true);
+								}
+							}
+						}
+						else if (AA_WireConnector* WireConnector = Cast<AA_WireConnector>(Item))
+						{
+							if (WireConnector->bIsOnPower)
+							{
+								if (DropZone->Implements<UI_PowerConnection>())
+								{
+									II_PowerConnection::Execute_OnPowerConnected(DropZone, true);
+								}
 							}
 						}
 					}
-					else if (AA_WireConnector* WireConnector = Cast<AA_WireConnector>(Item))
+
+					if (AA_AreaDropZone* AreaDropZone = Cast<AA_AreaDropZone>(ChoosenDropZone))
 					{
-						if (WireConnector->bIsOnPower)
-						{
-							if (ChoosenDropZone->Implements<UI_PowerConnection>())
-							{
-								II_PowerConnection::Execute_OnPowerConnected(ChoosenDropZone, true);
-							}
-						}
+						Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::KeepWorldTransform);
+						Item->Implements<UI_ScannableObject>();
+						FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(Item);
+						ScannableData.bHasBeenBagged = true;
+						II_ScannableObject::Execute_SetScannableObjectInfo(Item, ScannableData);
+					}
+
+					if (AA_BagDropZone* BagDropZone = Cast<AA_BagDropZone>(ChoosenDropZone))
+					{
+						Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+						BagDropZone->PackItemIntoBag(Item);
 					}
 				}
 			}
@@ -233,6 +285,12 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 					}
 
 					Item->AttachingDropZone = nullptr;
+				}
+
+				if (Item->GetAttachParentActor())
+				{
+					StaticMeshComponent->SetSimulatePhysics(true);
+					Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 				}
 			}
 		}

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "PythonContainers/A_InteractableActor.h"
+#include "DA_PropertyCompatibility.h"
 #include "A_BagDropZone.generated.h"
 
 class USphereComponent;
@@ -22,20 +23,23 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "DropZone|ItemCollision")
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Bag|Collision")
 	USphereComponent* ItemSphereCollision;
 
 	UPROPERTY()
-	UStaticMeshComponent* BagDropZoneMesh;
+	UMaterialInstanceDynamic* DMI_MeshMaterial;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DropZone|ItemMaterial")
-	UMaterialInterface* BagDropZoneMeshOverlayMaterial;
-
-	UPROPERTY()
-	UMaterialInstanceDynamic* DMI_MeshOverlayMaterial;
+	UPROPERTY(EditDefaultsOnly, Category = "Bag")
+	UDA_PropertyCompatibility* CompatibilityData;
 
 	void SetMeshMaterialAndState(int32 NewState, bool IsPlacing);
 
-private:
-	uint8 IsPlacingOnScene : 1{true};
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bag|PackedItems")
+	TArray<AA_InteractableActor*> PackedItems;
+
+	UFUNCTION(BlueprintCallable, Category = "Bag|PackedItems")
+	void PackItemIntoBag(AA_InteractableActor* Item);
+
+	UFUNCTION(BlueprintCallable, Category = "Bag|PackedItems")
+	bool CheckItemProperty(AA_InteractableActor* Item);
 };

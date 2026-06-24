@@ -33,13 +33,13 @@ struct ALSEXTRAS_API FScannableActorData
 
 
 USTRUCT(BlueprintType)
-struct ALSEXTRAS_API FPropertyCompatibilityRule : public FTableRowBase
+struct ALSEXTRAS_API FPropertyCompatibilityRule
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTag PropertyTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagContainer IncompatibleProperties;
 };
