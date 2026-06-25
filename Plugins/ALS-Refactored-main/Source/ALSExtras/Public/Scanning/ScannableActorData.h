@@ -22,6 +22,9 @@ struct ALSEXTRAS_API FScannableActorData
 	FName DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScannableActor")
+	uint8 bIsStickerable : 1{true};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScannableActor")
 	uint8 bCanBeScanned : 1{true};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ScannableActor")
