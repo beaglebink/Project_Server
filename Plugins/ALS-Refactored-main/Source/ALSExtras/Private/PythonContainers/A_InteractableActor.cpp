@@ -94,10 +94,10 @@ UStaticMeshComponent* AA_InteractableActor::GetMeshComponent_Implementation()
 
 void AA_InteractableActor::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
+	UE_LOG(LogTemp, Log, TEXT("AA_InteractableActor::HandleWeaponShot: Hit Actor: %s"), *GetNameSafe(Hit.GetActor()));
 }
 
 void AA_InteractableActor::HandleTextFromWeapon_Implementation(const FText& TextCommand)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("AA_InteractableActor::HandleTextFromWeapon: %s"), *TextCommand.ToString()));
 	UE_LOG(LogTemp, Log, TEXT("AA_InteractableActor::HandleTextFromWeapon: %s"), *TextCommand.ToString());
 }
