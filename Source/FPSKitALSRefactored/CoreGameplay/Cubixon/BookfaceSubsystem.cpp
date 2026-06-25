@@ -8,13 +8,80 @@ void UBookfaceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     Super::Initialize(Collection);
 
     UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem initialized"));
+    
+    TryRegisterBookfaceSubsystem();
 
+    /*
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
         SaveSys->RegisterSaveableSubsystem(this);
+        */
+}
+
+void UBookfaceSubsystem::TryRegisterBookfaceSubsystem()
+{
+    // Если уже зарегистрированы, очищаем таймер и выходим
+    if (bIsRegistered)
+    {
+        if (RegistrationTimerHandle.IsValid())
+        {
+            GetWorld()->GetTimerManager().ClearTimer(RegistrationTimerHandle);
+        }
+        return;
+    }
+
+    UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>();
+    if (SaveSys)
+    {
+        // Регистрируем подсистему
+        SaveSys->RegisterSaveableSubsystem(this);
+        bIsRegistered = true;
+
+        // Очищаем таймер, если он был запущен
+        if (RegistrationTimerHandle.IsValid())
+        {
+            GetWorld()->GetTimerManager().ClearTimer(RegistrationTimerHandle);
+        }
+
+        UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem successfully registered in GameSaveSubsystem"));
+    }
+    else
+    {
+        // Если SaveSys ещё не доступен, запускаем таймер (если ещё не запущен)
+        if (!RegistrationTimerHandle.IsValid())
+        {
+            UWorld* World = GetWorld();
+            if (World)
+            {
+                World->GetTimerManager().SetTimer(
+                    RegistrationTimerHandle,
+                    this,
+                    &UBookfaceSubsystem::TryRegisterBookfaceSubsystem,
+                    0.1f,
+                    true // циклический
+                );
+                UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem: registration timer started (0.1s interval)"));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("BookfaceSubsystem: no World available, cannot start timer"));
+            }
+        }
+    }
 }
 
 void UBookfaceSubsystem::Deinitialize()
 {
+    Super::Deinitialize();
+
+    if (RegistrationTimerHandle.IsValid())
+    {
+        if (UWorld* World = GetWorld())
+        {
+            World->GetTimerManager().ClearTimer(RegistrationTimerHandle);
+        }
+    }
+    bIsRegistered = false;
+
     Super::Deinitialize();
 
     UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem deinitialized"));
@@ -26,7 +93,7 @@ void UBookfaceSubsystem::AddUserProfile(const FBookfaceProfileStructure& NewProf
     {
         if (UserProfiles[i].UserId == NewProfile.UserId)
         {
-            UserProfiles[i] = NewProfile;
+            //UserProfiles[i] = NewProfile;
             return;
         }
     }
@@ -42,7 +109,8 @@ FBookfaceProfileStructure UBookfaceSubsystem::GetUserProfileById(const FString& 
 {
     for (const auto& P : UserProfiles)
     {
-        if (P.UserId == UserId) return P;
+        if (P.UserId == UserId) 
+            return P;
     }
     return FBookfaceProfileStructure();
 }
@@ -373,6 +441,81 @@ void UBookfaceSubsystem::ProcessingSubscriptions(UBookfaceMessageObject* Message
     return;
 }
 
+void UBookfaceSubsystem::ApplyLoadedSaveData(UBookfaceSaveGame* LoadedGame)
+{
+    if (!LoadedGame) return;
+
+    // Загружаем простые данные
+    UserProfiles = LoadedGame->SavedProfiles;
+    FriendRequests = LoadedGame->SavedFriendRequests;
+    Messages = LoadedGame->SavedMessages;
+
+    // Восстанавливаем иерархию сообщений
+    TMap<FString, UBookfaceMessageObject*> GlobalIdToMessage;
+
+    for (auto& Profile : UserProfiles)
+    {
+        Profile.UserMessages.Empty();
+        TMap<FString, UBookfaceMessageObject*> IdToMessage;
+
+        for (const FBookfaceMessageData& Data : Profile.SavedMessages)
+        {
+            UBookfaceMessageObject* Msg = NewObject<UBookfaceMessageObject>(this);
+            Msg->MessageId = Data.MessageId;
+            Msg->FromUserId = Data.FromUserId;
+            Msg->ToUserId = Data.ToUserId;
+            Msg->MessageContent = Data.MessageContent;
+            Msg->Timestamp = Data.Timestamp;
+            Msg->LikesUserIds = Data.LikesUserIds;
+            Msg->SubscribedUserIDs = Data.SubscribedUserIDs;
+            Msg->UnSubscribedUserIDs = Data.UnSubscribedUserIDs;
+            Msg->ParentMessage = nullptr;
+            Msg->ReplyMessages.Reset();
+
+            IdToMessage.Add(Msg->MessageId, Msg);
+            GlobalIdToMessage.Add(Msg->MessageId, Msg);
+        }
+
+        for (const FBookfaceMessageData& Data : Profile.SavedMessages)
+        {
+            UBookfaceMessageObject* Msg = IdToMessage.FindRef(Data.MessageId);
+            if (!Msg) continue;
+
+            if (!Data.ParentMessageId.IsEmpty())
+            {
+                if (UBookfaceMessageObject* Parent = IdToMessage.FindRef(Data.ParentMessageId))
+                {
+                    Msg->ParentMessage = Parent;
+                    Parent->ReplyMessages.Add(Msg);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("Missing parent '%s' for message '%s'"),
+                        *Data.ParentMessageId, *Data.MessageId);
+                }
+            }
+            else
+            {
+                Profile.UserMessages.Add(Msg);
+            }
+        }
+    }
+
+    // Восстанавливаем уведомления
+    for (auto& Profile : UserProfiles)
+    {
+        for (auto& Notice : Profile.MessageNotices)
+        {
+            Notice.Message = GlobalIdToMessage.FindRef(Notice.MessageId);
+            Notice.RootMessage = GlobalIdToMessage.FindRef(Notice.RootMessageId);
+            Notice.ParentMessage = GlobalIdToMessage.FindRef(Notice.ParentMessageId);
+        }
+    }
+
+    bHasLoadedSave = true;
+    UE_LOG(LogTemp, Log, TEXT("Applied loaded save data: %d profiles, %d requests, %d messages"),
+        UserProfiles.Num(), FriendRequests.Num(), Messages.Num());
+}
 
 void UBookfaceSubsystem::StoreMessageNotice(const FString& ProfileID, const FBookfaceMessageNoticeStructure& Notice)
 {
@@ -630,8 +773,8 @@ void UBookfaceSubsystem::UpdateUserProfile(const FBookfaceProfileStructure& Upda
 
 void UBookfaceSubsystem::SaveBookfaceDataAsync()
 {
+    // Загружаем или создаём объект сохранения
     UBookfaceSaveGame* SaveGame = nullptr;
-
     if (UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
     {
         SaveGame = Cast<UBookfaceSaveGame>(
@@ -644,54 +787,24 @@ void UBookfaceSubsystem::SaveBookfaceDataAsync()
             UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
     }
 
-    SaveGame->SavedProfiles = UserProfiles;
-    SaveGame->SavedFriendRequests = FriendRequests;
+    // Заполняем объект общими данными (используя FillSaveGameObject)
+    FillSaveGameObject(SaveGame);
 
-    // сериализация сообщений в SavedMessages каждого профиля
-    for (int32 i = 0; i < UserProfiles.Num(); ++i)
-    {
-        SaveGame->SavedProfiles[i].SavedMessages.Empty();
-
-        auto SaveMessageRecursive = [&](UBookfaceMessageObject* Msg, const FString& ParentId, auto&& Self) -> void
-            {
-                if (!Msg) return;
-
-                if (Msg->MessageId.IsEmpty())
-                {
-                    Msg->MessageId = FGuid::NewGuid().ToString();
-                }
-
-                FBookfaceMessageData Data;
-                Data.MessageId = Msg->MessageId;
-                Data.FromUserId = Msg->FromUserId;
-                Data.ToUserId = Msg->ToUserId;
-                Data.MessageContent = Msg->MessageContent;
-                Data.Timestamp = Msg->Timestamp;
-                Data.LikesUserIds = Msg->LikesUserIds;
-                Data.ParentMessageId = ParentId;
-                Data.SubscribedUserIDs = Msg->SubscribedUserIDs;
-                Data.UnSubscribedUserIDs = Msg->UnSubscribedUserIDs;
-
-                SaveGame->SavedProfiles[i].SavedMessages.Add(Data);
-
-                for (UBookfaceMessageObject* Reply : Msg->ReplyMessages)
-                {
-                    Self(Reply, Msg->MessageId, Self);
-                }
-            };
-
-        for (UBookfaceMessageObject* RootPost : UserProfiles[i].UserMessages)
-        {
-            SaveMessageRecursive(RootPost, TEXT(""), SaveMessageRecursive);
-        }
-    }
-
+    // Асинхронное сохранение
     UGameplayStatics::AsyncSaveGameToSlot(
-        SaveGame, TEXT("BookfaceSlot"), 0,
-        FAsyncSaveGameToSlotDelegate::CreateLambda([](const FString& SlotName, const int32, bool bSuccess)
+        SaveGame,
+        TEXT("BookfaceSlot"),
+        0,
+        FAsyncSaveGameToSlotDelegate::CreateLambda([](const FString& SlotName, const int32 UserIndex, bool bSuccess)
             {
-                UE_LOG(LogTemp, Log, TEXT("Profiles/requests/messages save %s for slot '%s'"),
-                    bSuccess ? TEXT("succeeded") : TEXT("failed"), *SlotName);
+                if (bSuccess)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("Async save to BookfaceSlot succeeded"));
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("Async save to BookfaceSlot failed"));
+                }
             })
     );
 }
@@ -700,100 +813,26 @@ void UBookfaceSubsystem::LoadBookfaceDataAsync()
 {
     if (!UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
     {
+        UE_LOG(LogTemp, Warning, TEXT("BookfaceSlot does not exist, async load skipped"));
         return;
     }
 
     UGameplayStatics::AsyncLoadGameFromSlot(
         TEXT("BookfaceSlot"), 0,
-        FAsyncLoadGameFromSlotDelegate::CreateLambda([this](const FString&, const int32, USaveGame* LoadedGame)
+        FAsyncLoadGameFromSlotDelegate::CreateLambda([this](const FString& SlotName, const int32 UserIndex, USaveGame* LoadedGame)
             {
                 UBookfaceSaveGame* Loaded = Cast<UBookfaceSaveGame>(LoadedGame);
-                if (!Loaded) return;
-
-                // Загружаем профили и заявки
-                UserProfiles = Loaded->SavedProfiles;
-                FriendRequests = Loaded->SavedFriendRequests;
-
-                // Глобальная карта всех сообщений по ID
-                TMap<FString, UBookfaceMessageObject*> GlobalIdToMessage;
-
-                // Восстанавливаем сообщения для каждого профиля
-                for (auto& Profile : UserProfiles)
+                if (!Loaded)
                 {
-                    Profile.UserMessages.Empty();
-
-                    TMap<FString, UBookfaceMessageObject*> IdToMessage;
-
-                    // Создаём объекты сообщений из сериализованных данных
-                    for (const FBookfaceMessageData& Data : Profile.SavedMessages)
-                    {
-                        UBookfaceMessageObject* Msg = NewObject<UBookfaceMessageObject>(this);
-                        Msg->MessageId = Data.MessageId;
-                        Msg->FromUserId = Data.FromUserId;
-                        Msg->ToUserId = Data.ToUserId;
-                        Msg->MessageContent = Data.MessageContent;
-                        Msg->Timestamp = Data.Timestamp;
-                        Msg->LikesUserIds = Data.LikesUserIds;
-                        Msg->SubscribedUserIDs = Data.SubscribedUserIDs;
-                        Msg->UnSubscribedUserIDs = Data.UnSubscribedUserIDs;
-                        Msg->ParentMessage = nullptr;
-                        Msg->ReplyMessages.Reset();
-
-                        IdToMessage.Add(Msg->MessageId, Msg);
-                        GlobalIdToMessage.Add(Msg->MessageId, Msg);
-                    }
-
-                    // Восстанавливаем связи родитель ↔ ответы
-                    for (const FBookfaceMessageData& Data : Profile.SavedMessages)
-                    {
-                        UBookfaceMessageObject* Msg = IdToMessage.FindRef(Data.MessageId);
-                        if (!Msg) continue;
-
-                        if (!Data.ParentMessageId.IsEmpty())
-                        {
-                            if (UBookfaceMessageObject* Parent = IdToMessage.FindRef(Data.ParentMessageId))
-                            {
-                                Msg->ParentMessage = Parent;
-                                Parent->ReplyMessages.Add(Msg);
-                            }
-                            else
-                            {
-                                UE_LOG(LogTemp, Warning, TEXT("Missing parent '%s' for message '%s'"),
-                                    *Data.ParentMessageId, *Data.MessageId);
-                            }
-                        }
-                        else
-                        {
-                            Profile.UserMessages.Add(Msg);
-                        }
-                    }
+                    UE_LOG(LogTemp, Warning, TEXT("Failed to load BookfaceSlot async"));
+                    return;
                 }
 
-                // 🔹 Восстанавливаем уведомления для всех профилей
-                for (auto& Profile : UserProfiles)
-                {
-                    for (auto& Notice : Profile.MessageNotices)
-                    {
-                        if (Notice.MessageId.IsEmpty())
-                        {
-                            UE_LOG(LogTemp, Warning, TEXT("Notice for profile '%s' has empty MessageId"),
-                                *Profile.UserId);
-                            continue;
-                        }
+                // Используем общую логику применения загруженных данных
+                ApplyLoadedSaveData(Loaded);
 
-                        Notice.Message = GlobalIdToMessage.FindRef(Notice.MessageId);
-                        Notice.RootMessage = GlobalIdToMessage.FindRef(Notice.RootMessageId);
-                        Notice.ParentMessage = GlobalIdToMessage.FindRef(Notice.ParentMessageId);
-                    }
-                }
-
-                bHasLoadedSave = true;
-
-                int32 RootCount = 0;
-                for (const auto& P : UserProfiles) RootCount += P.UserMessages.Num();
-
-                UE_LOG(LogTemp, Log, TEXT("Loaded %d profiles, %d requests, %d root posts"),
-                    UserProfiles.Num(), FriendRequests.Num(), RootCount);
+                UE_LOG(LogTemp, Log, TEXT("Async loaded BookfaceSlot: %d profiles, %d requests"),
+                    UserProfiles.Num(), FriendRequests.Num());
             })
     );
 }
@@ -906,11 +945,16 @@ int32 UBookfaceSubsystem::GetUnreadMessageCountForUser(const FString& FromUserId
 
 void UBookfaceSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
-    OutData.SubsystemName = GetSaveSubsystemName();
+    // Если данные не загружены из слота, загружаем их синхронно
+    //if (!bHasLoadedSave)
+    //{
+        LoadBookfaceDataSync(); // использует ApplyLoadedSaveData
+    //}
 
+    OutData.SubsystemName = GetSaveSubsystemName();
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
-    // Сериализуем UserProfiles
+    // --- UserProfiles (включая SavedMessages и MessageNotices) ---
     TArray<TSharedPtr<FJsonValue>> ProfilesArray;
     for (const FBookfaceProfileStructure& Profile : UserProfiles)
     {
@@ -942,13 +986,59 @@ void UBookfaceSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             FriendsArray.Add(MakeShared<FJsonValueString>(FriendId));
         Obj->SetArrayField(TEXT("FriendsList"), FriendsArray);
 
-        // SavedMessages и UserMessages – пропускаем (сохраняются отдельно)
+        // --- SavedMessages (иерархия сообщений) ---
+        TArray<TSharedPtr<FJsonValue>> SavedMessagesArray;
+        for (const FBookfaceMessageData& MsgData : Profile.SavedMessages)
+        {
+            TSharedPtr<FJsonObject> MsgObj = MakeShared<FJsonObject>();
+            MsgObj->SetStringField(TEXT("MessageId"), MsgData.MessageId);
+            MsgObj->SetStringField(TEXT("FromUserId"), MsgData.FromUserId);
+            MsgObj->SetStringField(TEXT("ToUserId"), MsgData.ToUserId);
+            MsgObj->SetStringField(TEXT("MessageContent"), MsgData.MessageContent.ToString());
+            MsgObj->SetStringField(TEXT("Timestamp"), MsgData.Timestamp.ToString());
+            MsgObj->SetStringField(TEXT("ParentMessageId"), MsgData.ParentMessageId);
+
+            // Массивы
+            TArray<TSharedPtr<FJsonValue>> LikesArray;
+            for (const FString& LikeId : MsgData.LikesUserIds)
+                LikesArray.Add(MakeShared<FJsonValueString>(LikeId));
+            MsgObj->SetArrayField(TEXT("LikesUserIds"), LikesArray);
+
+            TArray<TSharedPtr<FJsonValue>> SubscribedArray;
+            for (const FString& SubId : MsgData.SubscribedUserIDs)
+                SubscribedArray.Add(MakeShared<FJsonValueString>(SubId));
+            MsgObj->SetArrayField(TEXT("SubscribedUserIDs"), SubscribedArray);
+
+            TArray<TSharedPtr<FJsonValue>> UnSubscribedArray;
+            for (const FString& UnsubId : MsgData.UnSubscribedUserIDs)
+                UnSubscribedArray.Add(MakeShared<FJsonValueString>(UnsubId));
+            MsgObj->SetArrayField(TEXT("UnSubscribedUserIDs"), UnSubscribedArray);
+
+            SavedMessagesArray.Add(MakeShared<FJsonValueObject>(MsgObj));
+        }
+        Obj->SetArrayField(TEXT("SavedMessages"), SavedMessagesArray);
+
+        // --- MessageNotices (уведомления) ---
+        TArray<TSharedPtr<FJsonValue>> NoticesArray;
+        for (const FBookfaceMessageNoticeStructure& Notice : Profile.MessageNotices)
+        {
+            TSharedPtr<FJsonObject> NoticeObj = MakeShared<FJsonObject>();
+            NoticeObj->SetStringField(TEXT("MessageType"), UEnum::GetValueAsString(Notice.MessageType));
+            NoticeObj->SetStringField(TEXT("LikeUserId"), Notice.LikeUserId);
+            NoticeObj->SetStringField(TEXT("ProfileID"), Notice.ProfileID);
+            NoticeObj->SetStringField(TEXT("RootMessageId"), Notice.RootMessageId);
+            NoticeObj->SetStringField(TEXT("ParentMessageId"), Notice.ParentMessageId);
+            NoticeObj->SetStringField(TEXT("MessageId"), Notice.MessageId);
+            // Указатели RootMessage, ParentMessage, Message не сериализуем — восстанавливаются по ID
+            NoticesArray.Add(MakeShared<FJsonValueObject>(NoticeObj));
+        }
+        Obj->SetArrayField(TEXT("MessageNotices"), NoticesArray);
 
         ProfilesArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
     Root->SetArrayField(TEXT("UserProfiles"), ProfilesArray);
 
-    // Сериализуем FriendRequests
+    // --- FriendRequests ---
     TArray<TSharedPtr<FJsonValue>> RequestsArray;
     for (const FBookfaceFriendRequestStructure& Req : FriendRequests)
     {
@@ -959,7 +1049,7 @@ void UBookfaceSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     }
     Root->SetArrayField(TEXT("FriendRequests"), RequestsArray);
 
-    // Сериализуем Messages (FBF_MessageStructure)
+    // --- Messages (FBF_MessageStructure) ---
     TArray<TSharedPtr<FJsonValue>> MessagesArray;
     for (const FBF_MessageStructure& Msg : Messages)
     {
@@ -976,6 +1066,8 @@ void UBookfaceSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
     FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
     OutData.SerializedData = Output;
+
+    UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem: CollectSaveData done"));
 }
 
 void UBookfaceSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
@@ -993,14 +1085,277 @@ void UBookfaceSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
     {
         bIsLoadComplete = true;
+        UE_LOG(LogTemp, Warning, TEXT("BookfaceSubsystem: Failed to parse JSON"));
         return;
     }
 
+    // Очищаем текущие данные
     UserProfiles.Empty();
     FriendRequests.Empty();
     Messages.Empty();
 
-    // Восстанавливаем UserProfiles
+    // --- Десериализация UserProfiles ---
+    const TArray<TSharedPtr<FJsonValue>>* ProfilesArray = nullptr;
+    if (Root->TryGetArrayField(TEXT("UserProfiles"), ProfilesArray))
+    {
+        for (const TSharedPtr<FJsonValue>& Val : *ProfilesArray)
+        {
+            const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+            if (!Val->TryGetObject(ObjPtr)) continue;
+            const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+
+            FBookfaceProfileStructure Profile;
+            Profile.UserId = Obj->GetStringField(TEXT("UserId"));
+            Profile.DisplayName = FText::FromString(Obj->GetStringField(TEXT("DisplayName")));
+            Profile.AvatarImage = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(Obj->GetStringField(TEXT("AvatarImagePath"))));
+            Profile.CoverImage = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(Obj->GetStringField(TEXT("CoverImagePath"))));
+            Profile.Bio = FText::FromString(Obj->GetStringField(TEXT("Bio")));
+            Profile.ReputationScore = Obj->GetIntegerField(TEXT("ReputationScore"));
+            FString PrivacyStr = Obj->GetStringField(TEXT("BIO_Privacy"));
+            UEnum* PrivacyEnumPtr = StaticEnum<EPrivacyVisibility>();  // <-- уникальное имя
+            int64 EnumVal = PrivacyEnumPtr->GetValueByNameString(PrivacyStr);
+            Profile.BIO_Privacy = (EPrivacyVisibility)EnumVal;
+            Profile.IsOnline = Obj->GetBoolField(TEXT("IsOnline"));
+
+            // AboutInfo
+            const TArray<TSharedPtr<FJsonValue>>* AboutArray = nullptr;
+            if (Obj->TryGetArrayField(TEXT("AboutInfo"), AboutArray))
+            {
+                for (const TSharedPtr<FJsonValue>& InfoVal : *AboutArray)
+                {
+                    const TSharedPtr<FJsonObject>* InfoObjPtr = nullptr;
+                    if (!InfoVal->TryGetObject(InfoObjPtr)) continue;
+                    const TSharedPtr<FJsonObject>& InfoObj = *InfoObjPtr;
+                    FAboutInfoStructure Info;
+                    Info.InfoCaption = FText::FromString(InfoObj->GetStringField(TEXT("InfoCaption")));
+                    Info.InfoDescription = FText::FromString(InfoObj->GetStringField(TEXT("InfoDescription")));
+                    FString PrivStr = InfoObj->GetStringField(TEXT("PrivacyVisibility"));
+                    UEnum* PrivEnumPtr = StaticEnum<EPrivacyVisibility>(); // тоже можно переименовать
+                    int64 PrivVal = PrivEnumPtr->GetValueByNameString(PrivStr);
+                    Info.PrivacyVisibility = (EPrivacyVisibility)PrivVal;
+                    Profile.AboutInfo.Add(Info);
+                }
+            }
+
+            // FriendsList
+            const TArray<TSharedPtr<FJsonValue>>* FriendsArray = nullptr;
+            if (Obj->TryGetArrayField(TEXT("FriendsList"), FriendsArray))
+            {
+                for (const TSharedPtr<FJsonValue>& FVal : *FriendsArray)
+                    Profile.FriendsList.Add(FVal->AsString());
+            }
+
+            // --- Десериализация SavedMessages ---
+            const TArray<TSharedPtr<FJsonValue>>* SavedMessagesArray = nullptr;
+            if (Obj->TryGetArrayField(TEXT("SavedMessages"), SavedMessagesArray))
+            {
+                for (const TSharedPtr<FJsonValue>& MsgVal : *SavedMessagesArray)
+                {
+                    const TSharedPtr<FJsonObject>* MsgObjPtr = nullptr;
+                    if (!MsgVal->TryGetObject(MsgObjPtr)) continue;
+                    const TSharedPtr<FJsonObject>& MsgObj = *MsgObjPtr;
+
+                    FBookfaceMessageData Data;
+                    Data.MessageId = MsgObj->GetStringField(TEXT("MessageId"));
+                    Data.FromUserId = MsgObj->GetStringField(TEXT("FromUserId"));
+                    Data.ToUserId = MsgObj->GetStringField(TEXT("ToUserId"));
+                    Data.MessageContent = FText::FromString(MsgObj->GetStringField(TEXT("MessageContent")));
+                    FString TimestampStr = MsgObj->GetStringField(TEXT("Timestamp"));
+                    FDateTime::ParseIso8601(*TimestampStr, Data.Timestamp);
+                    Data.ParentMessageId = MsgObj->GetStringField(TEXT("ParentMessageId"));
+
+                    // Массивы
+                    const TArray<TSharedPtr<FJsonValue>>* LikesArray = nullptr;
+                    if (MsgObj->TryGetArrayField(TEXT("LikesUserIds"), LikesArray))
+                    {
+                        for (const TSharedPtr<FJsonValue>& LVal : *LikesArray)
+                            Data.LikesUserIds.Add(LVal->AsString());
+                    }
+
+                    const TArray<TSharedPtr<FJsonValue>>* SubArray = nullptr;
+                    if (MsgObj->TryGetArrayField(TEXT("SubscribedUserIDs"), SubArray))
+                    {
+                        for (const TSharedPtr<FJsonValue>& SVal : *SubArray)
+                            Data.SubscribedUserIDs.Add(SVal->AsString());
+                    }
+
+                    const TArray<TSharedPtr<FJsonValue>>* UnsubArray = nullptr;
+                    if (MsgObj->TryGetArrayField(TEXT("UnSubscribedUserIDs"), UnsubArray))
+                    {
+                        for (const TSharedPtr<FJsonValue>& UVal : *UnsubArray)
+                            Data.UnSubscribedUserIDs.Add(UVal->AsString());
+                    }
+
+                    Profile.SavedMessages.Add(Data);
+                }
+            }
+
+            // --- Десериализация MessageNotices ---
+            const TArray<TSharedPtr<FJsonValue>>* NoticesArray = nullptr;
+            if (Obj->TryGetArrayField(TEXT("MessageNotices"), NoticesArray))
+            {
+                for (const TSharedPtr<FJsonValue>& NoticeVal : *NoticesArray)
+                {
+                    const TSharedPtr<FJsonObject>* NoticeObjPtr = nullptr;
+                    if (!NoticeVal->TryGetObject(NoticeObjPtr)) continue;
+                    const TSharedPtr<FJsonObject>& NoticeObj = *NoticeObjPtr;
+
+                    FBookfaceMessageNoticeStructure Notice;
+                    FString TypeStr = NoticeObj->GetStringField(TEXT("MessageType"));
+                    UEnum* NotifyEnumPtr = StaticEnum<ENotifyType>();  // <-- уникальное имя
+                    int64 TypeVal = NotifyEnumPtr->GetValueByNameString(TypeStr);
+                    Notice.MessageType = (ENotifyType)TypeVal;
+                    Notice.LikeUserId = NoticeObj->GetStringField(TEXT("LikeUserId"));
+                    Notice.ProfileID = NoticeObj->GetStringField(TEXT("ProfileID"));
+                    Notice.RootMessageId = NoticeObj->GetStringField(TEXT("RootMessageId"));
+                    Notice.ParentMessageId = NoticeObj->GetStringField(TEXT("ParentMessageId"));
+                    Notice.MessageId = NoticeObj->GetStringField(TEXT("MessageId"));
+
+                    Profile.MessageNotices.Add(Notice);
+                }
+            }
+
+            UserProfiles.Add(Profile);
+        }
+    }
+
+    // --- Десериализация FriendRequests ---
+    const TArray<TSharedPtr<FJsonValue>>* RequestsArray = nullptr;
+    if (Root->TryGetArrayField(TEXT("FriendRequests"), RequestsArray))
+    {
+        for (const TSharedPtr<FJsonValue>& Val : *RequestsArray)
+        {
+            const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+            if (!Val->TryGetObject(ObjPtr)) continue;
+            const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+            FBookfaceFriendRequestStructure Req;
+            Req.FromUserId = Obj->GetStringField(TEXT("FromUserId"));
+            Req.ToUserId = Obj->GetStringField(TEXT("ToUserId"));
+            FriendRequests.Add(Req);
+        }
+    }
+
+    // --- Десериализация Messages (FBF_MessageStructure) ---
+    const TArray<TSharedPtr<FJsonValue>>* MessagesArray = nullptr;
+    if (Root->TryGetArrayField(TEXT("Messages"), MessagesArray))
+    {
+        for (const TSharedPtr<FJsonValue>& Val : *MessagesArray)
+        {
+            const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+            if (!Val->TryGetObject(ObjPtr)) continue;
+            const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+            FBF_MessageStructure Msg;
+            Msg.FromContact = Obj->GetStringField(TEXT("FromContact"));
+            Msg.ToContact = Obj->GetStringField(TEXT("ToContact"));
+            Msg.Message = FText::FromString(Obj->GetStringField(TEXT("Message")));
+            Msg.bIsRead = Obj->GetBoolField(TEXT("bIsRead"));
+            Messages.Add(Msg);
+        }
+    }
+
+    // --- Восстановление иерархии UBookfaceMessageObject и указателей в уведомлениях ---
+    UBookfaceSaveGame* TempSave = NewObject<UBookfaceSaveGame>();
+    TempSave->SavedProfiles = UserProfiles;
+    ApplyLoadedSaveData(TempSave); // заполняет UserMessages и MessageNotices указателями
+
+    // --- Синхронизация слота с загруженными данными ---
+    SyncSaveBookfaceData(); // использует FillSaveGameObject для обновления слота
+
+    bIsLoadComplete = true;
+    bHasLoadedSave = true;
+
+    UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem: ApplySaveData completed"));
+}
+
+/*
+void UBookfaceSubsystem::SyncSaveBookfaceData()
+{
+    UBookfaceSaveGame* SaveGame = nullptr;
+
+    if (UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
+    {
+        SaveGame = Cast<UBookfaceSaveGame>(
+            UGameplayStatics::LoadGameFromSlot(TEXT("BookfaceSlot"), 0));
+    }
+
+    if (!SaveGame)
+    {
+        SaveGame = Cast<UBookfaceSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
+    }
+
+    SaveGame->SavedProfiles = UserProfiles;
+    SaveGame->SavedFriendRequests = FriendRequests;
+    SaveGame->SavedMessages = Messages;
+
+    // Рекурсивная сериализация сообщений профилей (как в SaveBookfaceDataAsync)
+    for (int32 i = 0; i < UserProfiles.Num(); ++i)
+    {
+        SaveGame->SavedProfiles[i].SavedMessages.Empty();
+
+        auto SaveMessageRecursive = [&](UBookfaceMessageObject* Msg, const FString& ParentId, auto&& Self) -> void
+            {
+                if (!Msg) return;
+
+                if (Msg->MessageId.IsEmpty())
+                {
+                    Msg->MessageId = FGuid::NewGuid().ToString();
+                }
+
+                FBookfaceMessageData Data;
+                Data.MessageId = Msg->MessageId;
+                Data.FromUserId = Msg->FromUserId;
+                Data.ToUserId = Msg->ToUserId;
+                Data.MessageContent = Msg->MessageContent;
+                Data.Timestamp = Msg->Timestamp;
+                Data.LikesUserIds = Msg->LikesUserIds;
+                Data.ParentMessageId = ParentId;
+                Data.SubscribedUserIDs = Msg->SubscribedUserIDs;
+                Data.UnSubscribedUserIDs = Msg->UnSubscribedUserIDs;
+
+                SaveGame->SavedProfiles[i].SavedMessages.Add(Data);
+
+                for (UBookfaceMessageObject* Reply : Msg->ReplyMessages)
+                {
+                    Self(Reply, Msg->MessageId, Self);
+                }
+            };
+
+        for (UBookfaceMessageObject* RootPost : UserProfiles[i].UserMessages)
+        {
+            SaveMessageRecursive(RootPost, TEXT(""), SaveMessageRecursive);
+        }
+    }
+
+    UGameplayStatics::SaveGameToSlot(SaveGame, TEXT("BookfaceSlot"), 0);
+    UE_LOG(LogTemp, Log, TEXT("BookfaceSlot synced synchronously"));
+}
+
+void UBookfaceSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
+{
+    bIsLoadComplete = false;
+
+    if (InData.SerializedData.IsEmpty())
+    {
+        bIsLoadComplete = true;
+        return;
+    }
+
+    TSharedPtr<FJsonObject> Root;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(InData.SerializedData);
+    if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+    {
+        bIsLoadComplete = true;
+        UE_LOG(LogTemp, Warning, TEXT("BookfaceSubsystem: Failed to parse JSON"));
+        return;
+    }
+
+    // Очищаем текущие данные
+    UserProfiles.Empty();
+    FriendRequests.Empty();
+    Messages.Empty();
+
+    // --- Десериализация UserProfiles ---
     const TArray<TSharedPtr<FJsonValue>>* ProfilesArray = nullptr;
     if (Root->TryGetArrayField(TEXT("UserProfiles"), ProfilesArray))
     {
@@ -1054,7 +1409,7 @@ void UBookfaceSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
-    // Восстанавливаем FriendRequests
+    // --- Десериализация FriendRequests ---
     const TArray<TSharedPtr<FJsonValue>>* RequestsArray = nullptr;
     if (Root->TryGetArrayField(TEXT("FriendRequests"), RequestsArray))
     {
@@ -1070,7 +1425,7 @@ void UBookfaceSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
-    // Восстанавливаем Messages
+    // --- Десериализация Messages (FBF_MessageStructure) ---
     const TArray<TSharedPtr<FJsonValue>>* MessagesArray = nullptr;
     if (Root->TryGetArrayField(TEXT("Messages"), MessagesArray))
     {
@@ -1088,6 +1443,159 @@ void UBookfaceSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
+    // --- Восстановление иерархии сообщений из SavedMessages (внутри профилей) ---
+    // Это необходимо, потому что JSON содержит SavedMessages каждого профиля,
+    // а мы должны построить объекты UBookfaceMessageObject в памяти.
+    // Используем ту же логику, что и в ApplyLoadedSaveData.
+    TMap<FString, UBookfaceMessageObject*> GlobalIdToMessage;
+    for (auto& Profile : UserProfiles)
+    {
+        Profile.UserMessages.Empty();
+        TMap<FString, UBookfaceMessageObject*> IdToMessage;
+
+        for (const FBookfaceMessageData& Data : Profile.SavedMessages)
+        {
+            UBookfaceMessageObject* Msg = NewObject<UBookfaceMessageObject>(this);
+            Msg->MessageId = Data.MessageId;
+            Msg->FromUserId = Data.FromUserId;
+            Msg->ToUserId = Data.ToUserId;
+            Msg->MessageContent = Data.MessageContent;
+            Msg->Timestamp = Data.Timestamp;
+            Msg->LikesUserIds = Data.LikesUserIds;
+            Msg->SubscribedUserIDs = Data.SubscribedUserIDs;
+            Msg->UnSubscribedUserIDs = Data.UnSubscribedUserIDs;
+            Msg->ParentMessage = nullptr;
+            Msg->ReplyMessages.Reset();
+
+            IdToMessage.Add(Msg->MessageId, Msg);
+            GlobalIdToMessage.Add(Msg->MessageId, Msg);
+        }
+
+        for (const FBookfaceMessageData& Data : Profile.SavedMessages)
+        {
+            UBookfaceMessageObject* Msg = IdToMessage.FindRef(Data.MessageId);
+            if (!Msg) continue;
+
+            if (!Data.ParentMessageId.IsEmpty())
+            {
+                if (UBookfaceMessageObject* Parent = IdToMessage.FindRef(Data.ParentMessageId))
+                {
+                    Msg->ParentMessage = Parent;
+                    Parent->ReplyMessages.Add(Msg);
+                }
+            }
+            else
+            {
+                Profile.UserMessages.Add(Msg);
+            }
+        }
+    }
+
+    // Восстанавливаем уведомления
+    for (auto& Profile : UserProfiles)
+    {
+        for (auto& Notice : Profile.MessageNotices)
+        {
+            Notice.Message = GlobalIdToMessage.FindRef(Notice.MessageId);
+            Notice.RootMessage = GlobalIdToMessage.FindRef(Notice.RootMessageId);
+            Notice.ParentMessage = GlobalIdToMessage.FindRef(Notice.ParentMessageId);
+        }
+    }
+
+    // --- Синхронизация слота с загруженными данными ---
+    // Перезаписываем слот, чтобы он соответствовал текущему состоянию подсистемы
+    SyncSaveBookfaceData(); // внутри вызывает FillSaveGameObject
+
     bIsLoadComplete = true;
     bHasLoadedSave = true;
+
+    UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem: ApplySaveData completed"));
+}
+*/
+void UBookfaceSubsystem::FillSaveGameObject(UBookfaceSaveGame* SaveGame)
+{
+    if (!SaveGame) return;
+
+    SaveGame->SavedProfiles = UserProfiles;
+    SaveGame->SavedFriendRequests = FriendRequests;
+    SaveGame->SavedMessages = Messages;
+
+    // Сериализация иерархии сообщений в SavedMessages каждого профиля
+    for (int32 i = 0; i < UserProfiles.Num(); ++i)
+    {
+        SaveGame->SavedProfiles[i].SavedMessages.Empty();
+
+        auto SaveMessageRecursive = [&](UBookfaceMessageObject* Msg, const FString& ParentId, auto&& Self) -> void
+            {
+                if (!Msg) return;
+
+                if (Msg->MessageId.IsEmpty())
+                {
+                    Msg->MessageId = FGuid::NewGuid().ToString();
+                }
+
+                FBookfaceMessageData Data;
+                Data.MessageId = Msg->MessageId;
+                Data.FromUserId = Msg->FromUserId;
+                Data.ToUserId = Msg->ToUserId;
+                Data.MessageContent = Msg->MessageContent;
+                Data.Timestamp = Msg->Timestamp;
+                Data.LikesUserIds = Msg->LikesUserIds;
+                Data.ParentMessageId = ParentId;
+                Data.SubscribedUserIDs = Msg->SubscribedUserIDs;
+                Data.UnSubscribedUserIDs = Msg->UnSubscribedUserIDs;
+
+                SaveGame->SavedProfiles[i].SavedMessages.Add(Data);
+
+                for (UBookfaceMessageObject* Reply : Msg->ReplyMessages)
+                {
+                    Self(Reply, Msg->MessageId, Self);
+                }
+            };
+
+        for (UBookfaceMessageObject* RootPost : UserProfiles[i].UserMessages)
+        {
+            SaveMessageRecursive(RootPost, TEXT(""), SaveMessageRecursive);
+        }
+    }
+}
+
+void UBookfaceSubsystem::LoadBookfaceDataSync()
+{
+    if (!UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("BookfaceSlot not exist, sync load skipped"));
+        return;
+    }
+
+    UBookfaceSaveGame* Loaded = Cast<UBookfaceSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(TEXT("BookfaceSlot"), 0));
+    if (Loaded)
+    {
+        ApplyLoadedSaveData(Loaded);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Failed to load BookfaceSlot sync"));
+    }
+}
+
+void UBookfaceSubsystem::SyncSaveBookfaceData()
+{
+    UBookfaceSaveGame* SaveGame = nullptr;
+    if (UGameplayStatics::DoesSaveGameExist(TEXT("BookfaceSlot"), 0))
+    {
+        SaveGame = Cast<UBookfaceSaveGame>(
+            UGameplayStatics::LoadGameFromSlot(TEXT("BookfaceSlot"), 0));
+    }
+
+    if (!SaveGame)
+    {
+        SaveGame = Cast<UBookfaceSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UBookfaceSaveGame::StaticClass()));
+    }
+
+    FillSaveGameObject(SaveGame);
+    UGameplayStatics::SaveGameToSlot(SaveGame, TEXT("BookfaceSlot"), 0);
+    UE_LOG(LogTemp, Log, TEXT("BookfaceSlot synced synchronously"));
 }

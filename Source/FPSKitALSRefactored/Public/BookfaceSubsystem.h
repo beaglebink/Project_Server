@@ -133,13 +133,32 @@ public:
 
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
+    void SyncSaveBookfaceData();
     virtual FString GetSaveSubsystemName() const override { return TEXT("BookfaceSubsystem"); }
     virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
+
+protected:
+    // Флаг, указывающий, что подсистема уже зарегистрирована в GameSaveSubsystem
+    bool bIsRegistered = false;
+
+    // Таймер для периодических попыток регистрации
+    FTimerHandle RegistrationTimerHandle;
+
+    // Функция, вызываемая по таймеру для попытки регистрации
+    void TryRegisterBookfaceSubsystem();
 
 private:
     UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
 
     void ProcessingSubscriptions(UBookfaceMessageObject* Message, const FString& UserId);
+
+    // Применяет данные из загруженного SaveGame к структурам подсистемы
+    void ApplyLoadedSaveData(UBookfaceSaveGame* LoadedGame);
+
+    // Заполняет объект SaveGame текущими данными подсистемы
+    void FillSaveGameObject(UBookfaceSaveGame* SaveGame);
+
+    void LoadBookfaceDataSync();
 
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
