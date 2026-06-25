@@ -4,6 +4,17 @@
 #include "NativeGameplayTags.h"
 #include "ScannableActorData.generated.h"
 
+UENUM(BlueprintType)
+enum class EStickerType : uint8
+{
+	Price UMETA(DisplayName = "Price Sticker"),
+	Sale UMETA(DisplayName = "Sale Sticker"),
+	Clearance UMETA(DisplayName = "Clearance Sticker"),
+	Warning UMETA(DisplayName = "Warning Sticker"),
+	Barcode UMETA(DisplayName = "Barcode Sticker"),
+	MissionSpecific UMETA(DisplayName = "Mission - Specific Sticker")
+};
+
 USTRUCT(BlueprintType)
 struct ALSEXTRAS_API FScannableActorData
 {
@@ -22,6 +33,9 @@ struct ALSEXTRAS_API FScannableActorData
 	FName DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScannableActor")
+	EStickerType StickerType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScannableActor")
 	uint8 bIsStickerable : 1{true};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScannableActor")
@@ -32,6 +46,9 @@ struct ALSEXTRAS_API FScannableActorData
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ScannableActor")
 	uint8 bHasBeenBagged : 1{false};
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ScannableActor")
+	uint8 bHasBeenStickered : 1{false};
 };
 
 
