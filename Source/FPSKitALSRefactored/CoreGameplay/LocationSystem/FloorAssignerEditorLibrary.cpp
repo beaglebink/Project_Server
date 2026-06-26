@@ -219,12 +219,14 @@ int32 FFloorAssignerEditorLibrary::FixDuplicateItemIds()
             if (!IsValid(Actor)) continue;
             UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
             if (!Comp) continue;
+            Comp->ProtectedItemId = Comp->ItemId;
             if (Comp->SnapshotChannel != ESnapshotChannel::Snapshot) continue;
             if (!Comp->ItemId.IsValid())
             {
 				Comp->ItemId.NewGuid(); 
-                Comp->ProtectedItemId = Comp->ItemId;
             }
+
+            Comp->ProtectedItemId = Comp->ItemId;
 
             FCompEntry Entry;
             Entry.Comp = Comp;
