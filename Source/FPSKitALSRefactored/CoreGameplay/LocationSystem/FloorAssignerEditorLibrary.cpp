@@ -223,6 +223,7 @@ int32 FFloorAssignerEditorLibrary::FixDuplicateItemIds()
             if (!Comp->ItemId.IsValid())
             {
 				Comp->ItemId.NewGuid(); 
+                Comp->ProtectedItemId = Comp->ItemId;
             }
 
             FCompEntry Entry;
@@ -268,6 +269,7 @@ int32 FFloorAssignerEditorLibrary::FixDuplicateItemIds()
             Owner->Modify();
             Comp->Modify();
             Comp->ItemId = NewId;
+            Comp->ProtectedItemId = Comp->ItemId;
 
             // Отмечаем пакет грязным
             if (UPackage* Pkg = Owner->GetOutermost())
@@ -735,8 +737,10 @@ static void ApplyFloorToComponent(
     //{
 #if WITH_EDITOR
         Comp->ItemId = FGuid::NewGuid();//FGuid::NewDeterministicGuid(Owner->GetPathName(), 0);
+        Comp->ProtectedItemId = Comp->ItemId;
 #else
         Comp->ItemId = FGuid::NewGuid();
+        Comp->ProtectedItemId = Comp->ItemId;
 #endif
     //}
 
@@ -963,6 +967,7 @@ int32 FFloorAssignerEditorLibrary::UnregisterSelectedActors()
 #if WITH_EDITOR
         Comp->SnapshotChannel = ESnapshotChannel::None;
         Comp->ItemId.Invalidate();
+        Comp->ProtectedItemId = Comp->ItemId;
 #endif
 
         Comp->FloorId.Invalidate();

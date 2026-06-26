@@ -49,8 +49,11 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
     FGuid ItemId;
 
-    // Канал снапшота — если != None, актор участвует в сохранении/восстановлении
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    FGuid ProtectedItemId;
+
+    // Заменяем SnapshotChannel на свойство с сеттером
+    UPROPERTY(EditInstanceOnly, BlueprintReadWrite, DuplicateTransient, SaveGame, Category = "FloorAssignment")
     ESnapshotChannel SnapshotChannel = ESnapshotChannel::None;
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
@@ -63,8 +66,15 @@ public:
     void Registrate(EFloorActorType Type)
     {
         ItemId = FGuid::NewGuid();
+        ProtectedItemId = ItemId; 
         SnapshotChannel = ESnapshotChannel::Snapshot;
         ActorType = Type;
+    }
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "FloorAssignment")
+    FGuid GetItemId() 
+    { 
+        return ProtectedItemId; 
     }
 
     //virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
@@ -72,5 +82,4 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 };

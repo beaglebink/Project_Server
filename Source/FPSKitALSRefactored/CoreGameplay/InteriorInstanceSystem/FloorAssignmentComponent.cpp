@@ -12,7 +12,6 @@ UFloorAssignmentComponent::UFloorAssignmentComponent()
 void UFloorAssignmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
 }
 
 void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -23,7 +22,6 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 	if (EndPlayReason != EEndPlayReason::Destroyed)
 		return;
 
-	// Publish unregistration via EventBus
 	if (UWorld* W = GetWorld())
 	{
 		if (UGameInstance* GI = W->GetGameInstance())
@@ -33,13 +31,11 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 				UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
 				if (Payload)
 				{
-					Payload->Setup(ActorType, GetOwner()->GetActorTransform(), ItemId/*, GetOwner()*/);
-
+					Payload->Setup(ActorType, GetOwner()->GetActorTransform(), ItemId);
 					FOutcomeEventBase Ev;
 					Ev.OutcomeType = EOutcomeType::Interior;
 					Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementUnregistered;
 					Ev.Payload = Payload;
-
 					Bus->PublishOutcome(Ev);
 				}
 			}
@@ -49,16 +45,3 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Super::EndPlay(EndPlayReason);
 }
 
-void UFloorAssignmentComponent::PostDuplicate(EDuplicateMode::Type DuplicateMode)
-{
-	Super::PostDuplicate(DuplicateMode);
-	/*
-	// При дублировании в редакторе (Ctrl+D) генерируем новый ItemId для дубликата
-	if (DuplicateMode == EDuplicateMode::Normal)
-	{
-		ItemId = FGuid::NewGuid();
-		// Можно также сбросить SnapshotChannel, если нужно:
-		// SnapshotChannel = ESnapshotChannel::None;
-	}
-	*/
-}
