@@ -46,6 +46,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Utility")
 	static FString IntToChar(int32 Value);
 
+	UFUNCTION(BlueprintPure, Category = "Utility")
+	static bool IsChildActor(const AActor* Actor);
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "Widgets")
 	static TArray<UWidget*> GetWidgetsAtScreenPosition(UUserWidget* RootUserWidget, const FVector2D& ScreenPosition);

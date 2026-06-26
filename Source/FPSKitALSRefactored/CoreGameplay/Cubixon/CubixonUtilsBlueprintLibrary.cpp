@@ -459,3 +459,26 @@ USceneComponent* UCubixonUtilsBlueprintLibrary::CreateCubixonFileFromData(const 
 
 	return NewComponent;
 }
+
+bool UCubixonUtilsBlueprintLibrary::IsChildActor(const AActor* Actor)
+{
+	if (!Actor) return false;
+
+	// Проверка на прикреплённого актора
+	if (Actor->GetAttachParentActor() != nullptr)
+		return true;
+
+	// Проверка на актора, созданного через ChildActorComponent
+	AActor* Owner = Actor->GetOwner();
+	if (Owner)
+	{
+		TArray<UChildActorComponent*> ChildComps;
+		Owner->GetComponents<UChildActorComponent>(ChildComps);
+		for (UChildActorComponent* Comp : ChildComps)
+		{
+			if (Comp->GetChildActor() == Actor)
+				return true;
+		}
+	}
+	return false;
+}

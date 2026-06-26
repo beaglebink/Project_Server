@@ -63,9 +63,9 @@ public:
     FGuid GetFloorId() const { return FloorId; }
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
-    void Registrate(EFloorActorType Type)
+    void Registrate(EFloorActorType Type, FGuid ForceItemId = FGuid())
     {
-        ItemId = FGuid::NewGuid();
+        ItemId = ForceItemId.IsValid() ? ForceItemId : FGuid::NewGuid();
         ProtectedItemId = ItemId; 
         SnapshotChannel = ESnapshotChannel::Snapshot;
         ActorType = Type;
