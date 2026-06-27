@@ -44,4 +44,3 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 	Super::EndPlay(EndPlayReason);
 }
-

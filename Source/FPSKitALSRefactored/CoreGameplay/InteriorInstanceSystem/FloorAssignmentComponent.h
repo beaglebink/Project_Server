@@ -49,13 +49,12 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
     FGuid ItemId;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "FloorAssignment")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid ProtectedItemId;
 
     // Заменяем SnapshotChannel на свойство с сеттером
-    UPROPERTY(EditInstanceOnly, BlueprintReadWrite, DuplicateTransient, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(EditInstanceOnly, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
     ESnapshotChannel SnapshotChannel = ESnapshotChannel::None;
-
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
     FGuid GetInteriorSetId() const { return InteriorSetId; }
 
@@ -76,8 +75,6 @@ public:
     { 
         return ProtectedItemId; 
     }
-
-    //virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
 protected:
     virtual void BeginPlay() override;
