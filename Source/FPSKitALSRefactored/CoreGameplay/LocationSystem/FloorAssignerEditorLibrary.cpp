@@ -189,21 +189,13 @@ int32 FFloorAssignerEditorLibrary::ValidateInteriorSetTransitionsCascade(const F
     return Total;
 }
 
-// -----------------------------------------------------------------------------
-// FixDuplicateItemIds: ensure all snapshot components have unique ItemId
-// -----------------------------------------------------------------------------
-int32 FFloorAssignerEditorLibrary::FixDuplicateItemIds()
-{
-    if (!GEngine)
-        return 0;
 
-    // Собираем все компоненты с SnapshotChannel == Snapshot
-    struct FCompEntry
-    {
-        UFloorAssignmentComponent* Comp;
-        AActor* Owner;
-    };
-    TMap<FGuid, TArray<FCompEntry>> GuidToComps;
+int32 FFloorAssignerEditorLibrary::CleanInvalidItemIds()
+{
+    if (!GEngine) return 0;
+
+    int32 CleanedCount = 0;
+    TSet<UPackage*> PackagesToMark;
 
     const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
     for (const FWorldContext& WC : WorldContexts)
@@ -219,72 +211,23 @@ int32 FFloorAssignerEditorLibrary::FixDuplicateItemIds()
             if (!IsValid(Actor)) continue;
             UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
             if (!Comp) continue;
-            Comp->ProtectedItemId = Comp->ItemId;
             if (Comp->SnapshotChannel != ESnapshotChannel::Snapshot) continue;
-            if (!Comp->ItemId.IsValid())
-            {
-				Comp->ItemId.NewGuid(); 
-            }
+            if (Comp->ItemId.IsValid()) continue; // валидный – пропускаем
 
-            Comp->ProtectedItemId = Comp->ItemId;
-
-            FCompEntry Entry;
-            Entry.Comp = Comp;
-            Entry.Owner = Actor;
-            GuidToComps.FindOrAdd(Comp->ItemId).Add(Entry);
-        }
-    }
-
-    int32 FixedCount = 0;
-    TSet<UPackage*> PackagesToMark;
-
-    // Проходим по всем группам, где больше одного компонента
-    for (auto& Pair : GuidToComps)
-    {
-        const FGuid& DuplicateGuid = Pair.Key;
-        TArray<FCompEntry>& Entries = Pair.Value;
-        if (Entries.Num() <= 1) continue;
-
-        // Оставляем первый без изменений, остальным генерируем новый GUID
-        bool bFirst = true;
-        for (FCompEntry& Entry : Entries)
-        {
-            if (bFirst)
-            {
-                bFirst = false;
-                continue;
-            }
-
-            UFloorAssignmentComponent* Comp = Entry.Comp;
-            AActor* Owner = Entry.Owner;
-            if (!IsValid(Comp) || !IsValid(Owner)) continue;
-
-            // Генерируем новый уникальный ID
-            FGuid NewId = FGuid::NewGuid();
-            // Проверяем, что новый ID не конфликтует с уже существующими (на всякий случай)
-            while (GuidToComps.Contains(NewId))
-            {
-                NewId = FGuid::NewGuid();
-            }
-
-            // Модифицируем компонент и актор
-            Owner->Modify();
+            Actor->Modify();
             Comp->Modify();
-            Comp->ItemId = NewId;
+            Comp->SnapshotChannel = ESnapshotChannel::None;
             Comp->ProtectedItemId = Comp->ItemId;
+            // ItemId остаётся невалидным (можно дополнительно обнулить, но он уже невалиден)
 
-            // Отмечаем пакет грязным
-            if (UPackage* Pkg = Owner->GetOutermost())
+            if (UPackage* Pkg = Actor->GetOutermost())
                 PackagesToMark.Add(Pkg);
 
-            ++FixedCount;
-
-            UE_LOG(LogTemp, Log, TEXT("FixDuplicateItemIds: Reassigned ItemId for component on actor %s (old: %s, new: %s)"),
-                *Owner->GetName(), *DuplicateGuid.ToString(), *NewId.ToString());
+            ++CleanedCount;
+            UE_LOG(LogTemp, Log, TEXT("CleanInvalidItemIds: Disabled snapshot for actor %s (invalid ItemId)"), *Actor->GetName());
         }
     }
 
-    // Отмечаем все пакеты грязными
     for (UPackage* Pkg : PackagesToMark)
     {
         if (Pkg)
@@ -294,14 +237,16 @@ int32 FFloorAssignerEditorLibrary::FixDuplicateItemIds()
         }
     }
 
-    // Сообщаем пользователю
-    FText Msg = FText::Format(
-        NSLOCTEXT("FloorAssigner", "FixDuplicateItemIdsResult", "Fixed {0} duplicate ItemId(s) in snapshot components."),
-        FText::AsNumber(FixedCount)
-    );
-    //FMessageDialog::Open(EAppMsgType::Ok, Msg);
+    if (CleanedCount > 0)
+    {
+        FText Msg = FText::Format(
+            NSLOCTEXT("FloorAssigner", "CleanInvalidItemIdsResult", "Cleaned {0} component(s) with invalid ItemId (set SnapshotChannel to None)."),
+            FText::AsNumber(CleanedCount)
+        );
+        FMessageDialog::Open(EAppMsgType::Ok, Msg);
+    }
 
-    return FixedCount;
+    return CleanedCount;
 }
 
 // Forward declaration: implemented further below
@@ -733,18 +678,11 @@ static void ApplyFloorToComponent(
     Owner->Modify();
     Comp->Modify();
 
-    // пересоздаем GUID Comp->ItemId в любом случае для уникальности
-    // чтобы компонент можно было потом идентифицировать при сохранении/восстановлении.
-    //if (!Comp->ItemId.IsValid())
-    //{
-#if WITH_EDITOR
-        Comp->ItemId = FGuid::NewGuid();//FGuid::NewDeterministicGuid(Owner->GetPathName(), 0);
-        Comp->ProtectedItemId = Comp->ItemId;
-#else
+    if (!Comp->ItemId.IsValid())
+    {
         Comp->ItemId = FGuid::NewGuid();
         Comp->ProtectedItemId = Comp->ItemId;
-#endif
-    //}
+    }
 
     Comp->FloorId         = FloorGuid;
     Comp->InteriorSetId   = InteriorSetGuid;
@@ -770,7 +708,8 @@ static void ApplyFloorToComponent(
 
 int32 FFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& FloorGuid, const FGuid& InteriorSetGuid)
 {
-    FixDuplicateItemIds();
+    //FixDuplicateItemIds();
+    CleanInvalidItemIds();
     int32 ModifiedCount = 0;
     if (!GEditor) return 0;
     USelection* Selected = GEditor->GetSelectedActors();
@@ -869,7 +808,8 @@ int32 FFloorAssignerEditorLibrary::ApplyFloorToSelectedActors(const FGuid& Floor
 // -----------------------------------------------------------------------------
 int32 FFloorAssignerEditorLibrary::SelectActorsByFloor(const FGuid& FloorGuid)
 {
-    FixDuplicateItemIds();
+    //FixDuplicateItemIds();
+    CleanInvalidItemIds();
     int32 Count = 0;
     if (!GEditor || !GEngine) return 0;
 
@@ -916,7 +856,8 @@ int32 FFloorAssignerEditorLibrary::SelectActorsByFloor(const FGuid& FloorGuid)
 // -----------------------------------------------------------------------------
 int32 FFloorAssignerEditorLibrary::UnregisterSelectedActors()
 {
-    FixDuplicateItemIds();
+    //FixDuplicateItemIds();
+    CleanInvalidItemIds();
     int32 Count = 0;
     if (!GEditor) return 0;
 
