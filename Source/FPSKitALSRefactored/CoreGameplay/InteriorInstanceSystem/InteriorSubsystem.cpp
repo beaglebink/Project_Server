@@ -3699,6 +3699,7 @@ void UInteriorSubsystem::FloorSpawnActorsFromType(TArray<FFloorPopulationRecord>
 				if (Comp)
 				{
 					Comp->ItemId = Record.ActorId;
+					Comp->ProtectedItemId = Comp->ItemId;
 					Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
 					Comp->ActorType = Record.ActorType;
 				}
@@ -3733,6 +3734,7 @@ void UInteriorSubsystem::FloorSpawnActorsFromType(TArray<FFloorPopulationRecord>
 		if (Comp)
 		{
 			Comp->ItemId = Record.ActorId;
+			Comp->ProtectedItemId = Comp->ItemId;
 			Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
 			Comp->ActorType = Record.ActorType;
 		}
@@ -3860,6 +3862,7 @@ void UInteriorSubsystem::SpawnMissionRecords(const TArray<FFloorPopulationRecord
 		if (Comp)
 		{
 			Comp->ItemId = Record.ActorId;
+			Comp->ProtectedItemId = Comp->ItemId;
 			Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
 			Comp->ActorType = Record.ActorType;
 		}
@@ -4686,6 +4689,7 @@ void UInteriorSubsystem::SpawnRecords(const TArray<FFloorPopulationRecord>& Reco
 		if (UFloorAssignmentComponent* Comp = Spawned->FindComponentByClass<UFloorAssignmentComponent>())
 		{
 			Comp->ItemId = Rec.ActorId;
+			Comp->ProtectedItemId = Comp->ItemId;
 			Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
 			Comp->ActorType = Rec.ActorType;
 		}

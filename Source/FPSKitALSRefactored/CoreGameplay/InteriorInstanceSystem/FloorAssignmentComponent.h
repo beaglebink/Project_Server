@@ -49,7 +49,7 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
     FGuid ItemId;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid ProtectedItemId;
 
     // Заменяем SnapshotChannel на свойство с сеттером
@@ -79,4 +79,5 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 };

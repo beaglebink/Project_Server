@@ -37,6 +37,7 @@ void ASpawnGroupSpawner::OnConstruction(const FTransform& Transform)
     if (FloorAssignmentComp && !FloorAssignmentComp->ItemId.IsValid())
     {
         FloorAssignmentComp->ItemId = FGuid::NewGuid();
+		FloorAssignmentComp->ProtectedItemId = FloorAssignmentComp->ItemId;
         FloorAssignmentComp->SnapshotChannel = ESnapshotChannel::Snapshot;
         // Можно также установить другие значения по умолчанию, если нужно
         UE_LOG(LogTemp, Verbose, TEXT("SpawnGroupSpawner [%s]: Generated new ItemId for duplicate"), *GetName());
@@ -59,6 +60,7 @@ void ASpawnGroupSpawner::BeginPlay()
     if (!FloorComp->ItemId.IsValid())
     {
         FloorComp->ItemId = FGuid::NewGuid();
+		FloorComp->ProtectedItemId = FloorComp->ItemId;
     }
     FloorComp->SnapshotChannel = ESnapshotChannel::Snapshot;
     FloorComp->ActorType = EFloorActorType::SpawnGroupSpawner;

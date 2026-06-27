@@ -217,7 +217,7 @@ int32 FFloorAssignerEditorLibrary::CleanInvalidItemIds()
             Actor->Modify();
             Comp->Modify();
             Comp->SnapshotChannel = ESnapshotChannel::None;
-            Comp->ProtectedItemId = Comp->ItemId;
+			Comp->ProtectedItemId.Invalidate();
             // ItemId остаётся невалидным (можно дополнительно обнулить, но он уже невалиден)
 
             if (UPackage* Pkg = Actor->GetOutermost())
@@ -909,8 +909,8 @@ int32 FFloorAssignerEditorLibrary::UnregisterSelectedActors()
 
 #if WITH_EDITOR
         Comp->SnapshotChannel = ESnapshotChannel::None;
-        Comp->ItemId.Invalidate();
-        Comp->ProtectedItemId = Comp->ItemId;
+        //Comp->ItemId.Invalidate();
+        //Comp->ProtectedItemId = Comp->ItemId;
 #endif
 
         Comp->FloorId.Invalidate();

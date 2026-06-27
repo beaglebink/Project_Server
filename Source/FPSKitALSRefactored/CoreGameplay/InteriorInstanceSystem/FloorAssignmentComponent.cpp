@@ -44,3 +44,20 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 	Super::EndPlay(EndPlayReason);
 }
+
+void UFloorAssignmentComponent::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	if(DuplicateMode != EDuplicateMode::Normal)
+		return;
+
+	Modify();
+	if(GetOwner())
+	{
+		GetOwner()->Modify();
+	}
+	SnapshotChannel = ESnapshotChannel::None;
+	ItemId = FGuid::NewGuid();
+	ProtectedItemId = ItemId;
+}
+
+
