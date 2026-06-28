@@ -7,6 +7,7 @@
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../InteractionSystem/InteractiveSubsystemMethods.h"
 #include "ISaveableSubsystem.h"
+#include <FloorAssignmentComponent.h>
 #include "TerminalSubsystem.generated.h"
 
 class UInteractiveItemComponent;
@@ -268,6 +269,7 @@ public:
     virtual FString GetSaveSubsystemName() const override { return TEXT("TerminalSubsystem"); }
     virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
 
+
     // Default profile actor (Blueprint instance) – set in editor or at runtime
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal|Default")
     TObjectPtr<AActor> DefaultProfileActor;
@@ -281,6 +283,7 @@ private:
     void HandleSetEnabled(const FOutcomeEventBase& Outcome);
     void HandleSetRange(const FOutcomeEventBase& Outcome);
     void HandleSetTooltip(const FOutcomeEventBase& Outcome);
+    void HandleTestInteractCommand(const FOutcomeEventBase& Outcome);
 
     // ------------------------------------------------------------------------
     // Internal helpers
@@ -313,6 +316,9 @@ private:
     void SubscribeSetTooltip();
     void UnsubscribeSetTooltip();
 
+    void SubscribeTestInteractCommand();
+    void UnsubscribeTestInteractCommand();
+
     // ------------------------------------------------------------------------
     // Data
     // ------------------------------------------------------------------------
@@ -340,6 +346,7 @@ private:
     FOutcomeHandlerHandle SetEnabledHandle;
     FOutcomeHandlerHandle SetRangeHandle;
     FOutcomeHandlerHandle SetTooltipHandle;
+    FOutcomeHandlerHandle TerminalCommandHandle;
 
     // Condition assets
     UPROPERTY()
@@ -354,6 +361,8 @@ private:
     UOutcomeConditionAsset* SetRangeConditionAsset = nullptr;
     UPROPERTY()
     UOutcomeConditionAsset* SetTooltipConditionAsset = nullptr;
+    UPROPERTY()
+    UOutcomeConditionAsset* TerminalCommandConditionAsset = nullptr;
 
     bool bIsLoadComplete = true;
 

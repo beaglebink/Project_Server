@@ -1,11 +1,11 @@
 ﻿#/***********************************************
  * EventBus subsystem implementation
  *
- * English: Core implementation of a lightweight EventBus used to publish
+ * Core implementation of a lightweight EventBus used to publish
  * and subscribe to Outcome events. Handlers can be registered with
  * condition assets; dispatching evaluates conditions and invokes handlers.
  *
- * Русский: Реализация подсистемы EventBus для публикации и подписки
+ * Реализация подсистемы EventBus для публикации и подписки
  * на события Outcome. Обработчики регистрируются с помощью ассетов
  * условий; при рассылке выполняются условия и вызываются обработчики.
  ***********************************************/

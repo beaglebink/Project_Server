@@ -13,6 +13,7 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "Misc/Base64.h"
+#include "TerminalCommandPayload.h"
 
 // ============================================================================
 // Helper to get interface
@@ -666,6 +667,87 @@ void UTerminalSubsystem::SubscribeSetTooltip()
     }
 }
 
+void UTerminalSubsystem::SubscribeTestInteractCommand()
+{
+    if (!CachedEventBus.IsValid() || TerminalCommandHandle.IsValid()) return;
+    TerminalCommandConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+    TerminalCommandConditionAsset->OperatorType = EConditionOperator::Composite;
+    TerminalCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Terminal;
+    TerminalCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+    TerminalCommandConditionAsset->FilterRow.TerminalType = EOutcomeTerminal::TerminalCommand;
+    TerminalCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+    TerminalCommandConditionAsset->CompileCondition();
+    if (TerminalCommandConditionAsset->GetCondition().IsValid())
+    {
+        TerminalCommandHandle = CachedEventBus->RegisterHandler(
+            TerminalCommandConditionAsset,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UTerminalSubsystem::HandleTestInteractCommand)
+        );
+    }
+}
+
+void UTerminalSubsystem::UnsubscribeTestInteractCommand()
+{
+    if (!CachedEventBus.IsValid() || !TerminalCommandHandle.IsValid()) return;
+    CachedEventBus->UnregisterHandler(TerminalCommandHandle);
+    TerminalCommandHandle.Invalidate();
+    TerminalCommandConditionAsset = nullptr;
+}
+
+void UTerminalSubsystem::HandleTestInteractCommand(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType == EOutcomeType::Terminal)
+    {
+        if(Outcome.OutcomeTerminal == EOutcomeTerminal::TerminalCommand)
+        {
+            const UTerminalCommandPayload* P = Cast<UTerminalCommandPayload>(Outcome.Payload);
+            if (!P) return;
+
+            FGuid ObjectItemId = P->ObjectItemId;
+            AActor* OwnerActor = P->OwnerActor;
+            bool IsEnable = P->IsEnable;
+
+            UInteractiveItemComponent* InteractiveComp = OwnerActor->FindComponentByClass<UInteractiveItemComponent>();
+
+            if (InteractiveComp)
+            {
+                InteractiveComp->SetActive(IsEnable);
+            }
+            /*
+			UFloorAssignmentComponent* FloorComp = OwnerActor->FindComponentByClass<UFloorAssignmentComponent>();
+            if(!FloorComp)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("TerminalSubsystem: OwnerActor %s does not have a FloorAssignmentComponent"), *OwnerActor->GetName());
+                return;
+			}
+			EFloorActorType ActorType = FloorComp->ActorType;
+
+            switch (ActorType)
+            {
+                case EFloorActorType::LightItem:
+                {
+
+                    break;
+                }
+                case EFloorActorType::DoorLocks:
+                {
+                    break;
+                }
+                case EFloorActorType::Terminal:
+                {
+
+					break;
+                }
+            }
+            */
+
+            //if (const FTerminalInteractRecord* Rec = RegisteredItems.Find(P->ObjectItemId))
+            //    ExecuteTestInteractCommandOnOwner(P->ObjectItemId, Rec->OwnerActor.Get(), P->IsEnable);
+
+        }
+    }
+}
+
 void UTerminalSubsystem::UnsubscribeSetTooltip()
 {
     if (!CachedEventBus.IsValid() || !SetTooltipHandle.IsValid()) return;
@@ -693,6 +775,7 @@ void UTerminalSubsystem::SubscribeAll()
     SubscribeSetEnabled();
     SubscribeSetRange();
     SubscribeSetTooltip();
+    SubscribeTestInteractCommand();
 }
 
 void UTerminalSubsystem::UnsubscribeAll()
@@ -702,6 +785,7 @@ void UTerminalSubsystem::UnsubscribeAll()
     UnsubscribeSetEnabled();
     UnsubscribeSetRange();
     UnsubscribeSetTooltip();
+	UnsubscribeTestInteractCommand();
 }
 
 // ============================================================================
@@ -936,3 +1020,4 @@ void UTerminalSubsystem::BroadcastGlobalState()
 {
     OnTerminalGlobalStateChanged.Broadcast(GlobalState);
 }
+

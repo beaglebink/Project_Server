@@ -86,6 +86,8 @@ enum class EOutcomeTerminal : uint8
 	InteractSetRange		UMETA(DisplayName = "Interact Set Range"),
 	InteractSetTooltip		UMETA(DisplayName = "Interact Set Tooltip"),
 
+	TerminalCommand			UMETA(DisplayName = "Terminal command"),
+
 	InteractRegistered		UMETA(Hidden, DisplayName = "Interact Registered"),
 	InteractUnregistered	UMETA(Hidden, DisplayName = "Interact Unregistered")
 };
