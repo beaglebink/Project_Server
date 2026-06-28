@@ -34,8 +34,7 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
     FGuid ItemId;
 
-    // ProtectedItemId — тоже не копируется при дублировании (для надёжности)
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid ProtectedItemId;
 
     UPROPERTY(EditInstanceOnly, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
