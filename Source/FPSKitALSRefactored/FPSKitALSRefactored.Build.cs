@@ -38,7 +38,8 @@ public class FPSKitALSRefactored : ModuleRules
                 "EditorStyle",
                 "PropertyEditor",
                 "UnrealEd",
-                "MoviePlayer"
+                "MoviePlayer",
+                "EditorSubsystem"
             });
         }
 
