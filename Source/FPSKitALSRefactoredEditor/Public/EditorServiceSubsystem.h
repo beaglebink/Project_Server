@@ -5,7 +5,7 @@
 #include "EditorServiceSubsystem.generated.h"
 
 UCLASS()
-class FPSKITALSREFACTORED_API UEditorServiceSubsystem : public UEditorSubsystem
+class UEditorServiceSubsystem : public UEditorSubsystem
 {
     GENERATED_BODY()
 

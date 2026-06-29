@@ -6,14 +6,15 @@ public class FPSKitALSRefactoredEditor : ModuleRules
 {
     public FPSKitALSRefactoredEditor(ReadOnlyTargetRules Target) : base(Target)
     {
-	OptimizeCode = CodeOptimization.Never;
+        OptimizeCode = CodeOptimization.Never;
 
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         PrivateDependencyModuleNames.AddRange(new string[] {
             "Core", "CoreUObject", "Engine", "InputCore",
             "UnrealEd", "PropertyEditor", "Slate", "SlateCore", "AssetRegistry",
-            "FPSKitALSRefactored"
+            "FPSKitALSRefactored",
+            "EditorSubsystem"
         });
 
         string RuntimeModuleBase = Path.GetFullPath(Path.Combine(ModuleDirectory, "..", "FPSKitALSRefactored"));

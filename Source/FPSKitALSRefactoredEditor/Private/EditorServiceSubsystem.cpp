@@ -2,7 +2,6 @@
 #include "Editor.h"
 #include "CoreGameplay/InteriorInstanceSystem/FloorAssignmentComponent.h"
 
-#if WITH_EDITOR
 void UEditorServiceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
@@ -19,7 +18,9 @@ void UEditorServiceSubsystem::OnNewActorsPlaced(UObject* Context, const TArray<A
 {
     for (AActor* NewActor : NewActors)
     {
-        if (!NewActor) continue;
+        if (!NewActor)
+            continue;
+
         UFloorAssignmentComponent* FloorComp = NewActor->FindComponentByClass<UFloorAssignmentComponent>();
         if (FloorComp)
         {
@@ -29,4 +30,3 @@ void UEditorServiceSubsystem::OnNewActorsPlaced(UObject* Context, const TArray<A
         }
     }
 }
-#endif
