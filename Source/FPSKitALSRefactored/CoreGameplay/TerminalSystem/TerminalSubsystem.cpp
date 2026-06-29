@@ -707,39 +707,51 @@ void UTerminalSubsystem::HandleTestInteractCommand(const FOutcomeEventBase& Outc
             AActor* OwnerActor = P->OwnerActor;
             bool IsEnable = P->IsEnable;
 
+
             UInteractiveItemComponent* InteractiveComp = OwnerActor->FindComponentByClass<UInteractiveItemComponent>();
 
             if (InteractiveComp)
             {
-                InteractiveComp->SetActive(IsEnable);
+                FGuid InteractiveId = InteractiveComp->GetItemId();
+
+                if (UEventBusSubsystem* EventBus = GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+                {
+                    if (UInteractSetEnabledPayload* P1 = EventBus->CreatePayload<UInteractSetEnabledPayload>())
+                    {
+                        P1->Setup(InteractiveId, IsEnable);
+
+                        FOutcomeEventBase Outcome;
+                        Outcome.Payload = P1;
+
+                        UFloorAssignmentComponent* FloorComp = OwnerActor->FindComponentByClass<UFloorAssignmentComponent>();
+                        if (!FloorComp)
+                        {
+                            UE_LOG(LogTemp, Warning, TEXT("TerminalSubsystem: OwnerActor %s does not have a FloorAssignmentComponent"), *OwnerActor->GetName());
+                            return;
+                        }
+                        EFloorActorType ActorType = FloorComp->ActorType;
+
+                        switch (ActorType)
+                        {
+                        case EFloorActorType::LightItem:
+                        case EFloorActorType::DoorLocks:
+                        {
+                            Outcome.OutcomeType = EOutcomeType::Interior;
+                            Outcome.OutcomeInterior = EOutcomeInterior::InteractSetEnabled;
+                            break;
+                        }
+                        case EFloorActorType::Terminal:
+                        {
+                            Outcome.OutcomeType = EOutcomeType::Terminal;
+                            Outcome.OutcomeTerminal = EOutcomeTerminal::InteractSetEnabled;
+                            break;
+                        }
+                        }
+
+                        EventBus->PublishOutcome(Outcome);
+                    }
+                }
             }
-            /*
-			UFloorAssignmentComponent* FloorComp = OwnerActor->FindComponentByClass<UFloorAssignmentComponent>();
-            if(!FloorComp)
-            {
-                UE_LOG(LogTemp, Warning, TEXT("TerminalSubsystem: OwnerActor %s does not have a FloorAssignmentComponent"), *OwnerActor->GetName());
-                return;
-			}
-			EFloorActorType ActorType = FloorComp->ActorType;
-
-            switch (ActorType)
-            {
-                case EFloorActorType::LightItem:
-                {
-
-                    break;
-                }
-                case EFloorActorType::DoorLocks:
-                {
-                    break;
-                }
-                case EFloorActorType::Terminal:
-                {
-
-					break;
-                }
-            }
-            */
 
             //if (const FTerminalInteractRecord* Rec = RegisteredItems.Find(P->ObjectItemId))
             //    ExecuteTestInteractCommandOnOwner(P->ObjectItemId, Rec->OwnerActor.Get(), P->IsEnable);
