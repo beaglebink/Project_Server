@@ -25,8 +25,9 @@ public:
     
     virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
 
-private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveableObject")
     UObject* SaveableObject;
 
+private:
     bool bIsLoadComplete = false;
 };
