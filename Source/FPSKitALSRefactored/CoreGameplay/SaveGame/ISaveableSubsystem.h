@@ -29,6 +29,10 @@ public:
     // Подсистема читает InData.SerializedData и восстанавливает своё состояние.
     virtual void ApplySaveData(const FSubsystemSaveData& InData) = 0;
 
+	// Метод для очистки временных данных, которые не должны сохраняться между сессиями.
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Save")
+	void ClearTransientData();
+
     // Имя подсистемы для идентификации блока в файле сохранения.
     // По умолчанию — имя UClass. Переопределять не обязательно.
     virtual FString GetSaveSubsystemName() const = 0;
