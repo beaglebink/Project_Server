@@ -98,6 +98,14 @@ void UGIS_TextFiles::ClearTransientData_Implementation()
 	UE_LOG(LogTemp, Log, TEXT("TextFilesSubsystem transient data cleared"));
 }
 
+void UGIS_TextFiles::AddSaveableObject(UObject* NewSaveableObject)
+{
+	if (NewSaveableObject && NewSaveableObject->Implements<UI_SaveableObject>())
+	{
+		SaveableObjects.AddUnique(NewSaveableObject);
+	}
+}
+
 void UGIS_TextFiles::ApplyProfileTextFilesData_Implementation(UObject* ProfileObject)
 {
 	if (!ProfileObject || !ProfileObject->Implements<UI_SaveableObject>())
@@ -115,12 +123,4 @@ void UGIS_TextFiles::ApplyProfileTextFilesData_Implementation(UObject* ProfileOb
 	}
 
 	II_SaveableObject::Execute_ApplyTextFilesSaveData(ProfileObject, *FoundData);
-}
-
-void UGIS_TextFiles::AddSaveableObject(UObject* NewSaveableObject)
-{
-	if (NewSaveableObject && NewSaveableObject->Implements<UI_SaveableObject>())
-	{
-		SaveableObjects.AddUnique(NewSaveableObject);
-	}
 }
