@@ -3,6 +3,10 @@
 #include "CheckCoordinatorComponent.h"
 #include "OutcomeConditionAsset.h"
 #include "EventBusSubsystem.h"
+#include "MissionSubsystem.h"       // для получения активной миссии
+#include "Engine/GameInstance.h"
+
+// ---- Базовый класс ----
 
 UOutcomeConditionAsset* UMissionCheckCondition::CreateSubscriptionCondition() const
 {
@@ -16,9 +20,33 @@ UOutcomeConditionAsset* UMissionCheckCondition::CreateSubscriptionCondition() co
     return Asset;
 }
 
+FName UMissionCheckCondition::GetActiveMissionId() const
+{
+    if (!EventBus) return NAME_None;
+    // Получаем GameInstance через EventBus (он находится в мире)
+    UGameInstance* GI = EventBus->GetGameInstance();
+    if (!GI) return NAME_None;
+    UMissionSubsystem* MissionSub = GI->GetSubsystem<UMissionSubsystem>();
+    if (!MissionSub) return NAME_None;
+    return MissionSub->GetActiveMissionId();
+}
+
 void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     if (!EventBus) return;
+
+    // Определяем текущую активную миссию
+    FName ActiveMissionId = GetActiveMissionId();
+    if (ActiveMissionId.IsNone())
+    {
+        // Если активной миссии нет – проверка немедленно считается проваленной (или можно пропустить)
+        UE_LOG(LogTemp, Warning, TEXT("MissionCheck: No active mission, check failed."));
+        bCompleted = true;
+        bApproved = false;
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -26,11 +54,11 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     UMissionCheckRequestPayload* Payload = CreateRequestPayload();
     if (!Payload)
     {
-        UE_LOG(LogTemp, Error, TEXT("MissionCheck: Failed to create payload for MissionId=%s"), *MissionId.ToString());
+        UE_LOG(LogTemp, Error, TEXT("MissionCheck: Failed to create payload"));
         return;
     }
     Payload->TransactionId = TransactionId;
-    Payload->MissionId = MissionId;
+    Payload->MissionId = ActiveMissionId;           // автоматически подставляем активную миссию
     Payload->PropertyToCheck = PropertyToCheck;
 
     FOutcomeEventBase Event;
@@ -40,7 +68,7 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     EventBus->PublishOutcome(Event);
 
     UE_LOG(LogTemp, Log, TEXT("MissionCheck: Sent request for MissionId=%s, Property=%d, Txn=%s"),
-        *MissionId.ToString(), (int32)PropertyToCheck, *TransactionId.ToString());
+        *ActiveMissionId.ToString(), (int32)PropertyToCheck, *TransactionId.ToString());
 
     StartTimeoutTimer(TransactionId);
 }
@@ -59,11 +87,11 @@ void UMissionCheckCondition::OnCheckResponse(const FOutcomeEventBase& Event)
 
     if (bApproved)
     {
-        UE_LOG(LogTemp, Log, TEXT("MissionCheck: Approved for MissionId=%s"), *MissionId.ToString());
+        UE_LOG(LogTemp, Log, TEXT("MissionCheck: Approved"));
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("MissionCheck: Rejected for MissionId=%s. Reason: %s"), *MissionId.ToString(), *Resp->Reason);
+        UE_LOG(LogTemp, Warning, TEXT("MissionCheck: Rejected. Reason: %s"), *Resp->Reason);
     }
 
     OnComplete.ExecuteIfBound(this);
@@ -71,10 +99,11 @@ void UMissionCheckCondition::OnCheckResponse(const FOutcomeEventBase& Event)
 
 FString UMissionCheckCondition::GetDescription() const
 {
-    return FString::Printf(TEXT("Mission check (ID: %s, property: %d)"), *MissionId.ToString(), (int32)PropertyToCheck);
+    return FString::Printf(TEXT("Mission check (property: %d)"), (int32)PropertyToCheck);
 }
 
-// ---- Остальные методы без изменений, кроме использования FName в логах ----
+// ---- Реализации CreateRequestPayload для каждого типа ----
+
 UMissionCheckRequestPayload* UMissionCheckCondition_Bool::CreateRequestPayload() const
 {
     if (!EventBus) return nullptr;

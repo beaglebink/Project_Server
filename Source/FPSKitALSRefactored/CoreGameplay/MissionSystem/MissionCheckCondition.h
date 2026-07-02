@@ -8,19 +8,15 @@
 
 /**
  * Базовый класс условия проверки для подсистемы миссий.
- * Содержит идентификатор миссии и виртуальный метод для создания запроса.
+ * Условие автоматически использует текущую активную миссию.
+ * Содержит настройки: какое свойство проверять и ожидаемое значение.
  */
 UCLASS(Abstract, Blueprintable, EditInlineNew, DefaultToInstanced)
 class FPSKITALSREFACTORED_API UMissionCheckCondition : public UCheckCondition
 {
     GENERATED_BODY()
 public:
-    // Идентификатор миссии, которую проверяем
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission")
-    FName MissionId;
-
-    // Какое свойство миссии проверять (активность, шаг, прогресс, время, статус)
-    // Теперь в основной категории, чтобы отображаться перед Value
+    // Какое свойство активной миссии проверять (активность, шаг, прогресс, время, статус)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission")
     EMissionCheckProperty PropertyToCheck = EMissionCheckProperty::IsActive;
 
@@ -32,11 +28,14 @@ public:
     virtual bool IsApproved() const override { return bApproved; }
     virtual bool IsCompleted() const override { return bCompleted; }
     virtual FString GetDescription() const override;
+
+protected:
+    // Вспомогательный метод для получения активной миссии (через MissionSubsystem)
+    FName GetActiveMissionId() const;
 };
 
 // ---- Конкретные проверки для разных типов данных ----
 
-// Проверка bool
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UMissionCheckCondition_Bool : public UMissionCheckCondition
 {
@@ -51,22 +50,20 @@ public:
     virtual UMissionCheckRequestPayload* CreateRequestPayload() const override;
 };
 
-// Проверка int32
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UMissionCheckCondition_Int : public UMissionCheckCondition
 {
     GENERATED_BODY()
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission|Value")
-    ECheckCompareOp Operator = ECheckCompareOp::Equal;
+    int32 ExpectedValue = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission|Value")
-    int32 ExpectedValue = 0;
+    ECheckCompareOp Operator = ECheckCompareOp::Equal;
 
     virtual UMissionCheckRequestPayload* CreateRequestPayload() const override;
 };
 
-// Проверка float
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UMissionCheckCondition_Float : public UMissionCheckCondition
 {
@@ -81,7 +78,6 @@ public:
     virtual UMissionCheckRequestPayload* CreateRequestPayload() const override;
 };
 
-// Проверка FString
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UMissionCheckCondition_String : public UMissionCheckCondition
 {
