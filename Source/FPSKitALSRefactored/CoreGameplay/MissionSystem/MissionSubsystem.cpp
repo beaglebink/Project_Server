@@ -644,12 +644,18 @@ void UMissionSubsystem::SubscribeMissionEnvelopeEvents()
 
 void UMissionSubsystem::OnCheckRequest(const FOutcomeEventBase& Event)
 {
+	// 1. Получаем Payload запроса
 	UMissionCheckRequestPayload* Req = Cast<UMissionCheckRequestPayload>(Event.Payload);
-	if (!Req) return;
+	if (!Req)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: OnCheckRequest - invalid payload"));
+		return;
+	}
 
 	bool bApproved = false;
 	FString Reason;
 
+	// 2. Получаем контроллер миссии по ID
 	UMissionController* Ctrl = GetMissionController(Req->MissionId);
 	if (!Ctrl)
 	{
@@ -665,87 +671,112 @@ void UMissionSubsystem::OnCheckRequest(const FOutcomeEventBase& Event)
 		}
 		else
 		{
-			switch (Req->DataType)
+			// 3. Получаем текущее значение запрошенного свойства
+			// Используем switch по PropertyToCheck, чтобы определить, какое свойство проверять
+			switch (Req->PropertyToCheck)
 			{
-			case ECheckDataType::Bool:
+			case EMissionCheckProperty::IsActive:
 			{
+				// Проверка типа bool
+				if (Req->DataType != ECheckDataType::Bool)
+				{
+					Reason = TEXT("DataType mismatch: IsActive expects bool");
+					break;
+				}
 				bool Expected = Req->StringValue.ToBool();
-				bool Current = false;
-				if (Req->PropertyToCheck == EMissionCheckProperty::IsActive)
-				{
-					Current = IsMissionActive(Req->MissionId);
-				}
-				else
-				{
-					Reason = TEXT("Unsupported property for bool check");
-				}
+				bool Current = IsMissionActive(Req->MissionId);
 				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Bool condition not met");
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission active state mismatch");
 				break;
 			}
-			case ECheckDataType::Int32:
+
+			case EMissionCheckProperty::CurrentStep:
 			{
+				if (Req->DataType != ECheckDataType::Int32)
+				{
+					Reason = TEXT("DataType mismatch: CurrentStep expects int");
+					break;
+				}
 				int32 Expected = FCString::Atoi(*Req->StringValue);
-				int32 Current = 0;
-				switch (Req->PropertyToCheck)
-				{
-				case EMissionCheckProperty::CurrentStep:
-					Current = Ctrl->MissionStep;
-					break;
-				case EMissionCheckProperty::Progress:
-					// Current = Ctrl->GetProgress();
-					break;
-				default:
-					Reason = TEXT("Unsupported property for int check");
-					break;
-				}
+				int32 Current = Ctrl->MissionStep; // публичное поле
 				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Int condition not met");
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission step mismatch");
 				break;
 			}
-			case ECheckDataType::Float:
+
+			case EMissionCheckProperty::Progress:
 			{
+				if (Req->DataType != ECheckDataType::Int32)
+				{
+					Reason = TEXT("DataType mismatch: Progress expects int");
+					break;
+				}
+				int32 Expected = FCString::Atoi(*Req->StringValue);
+				// TODO: добавить метод GetProgress() в UMissionController
+				int32 Current = 0; // заглушка, пока нет реализации
+				bApproved = CompareValues(Current, Expected, Req->Operator);
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission progress mismatch");
+				break;
+			}
+
+			case EMissionCheckProperty::Time:
+			{
+				if (Req->DataType != ECheckDataType::Float)
+				{
+					Reason = TEXT("DataType mismatch: Time expects float");
+					break;
+				}
 				float Expected = FCString::Atof(*Req->StringValue);
-				float Current = 0.0f;
-				if (Req->PropertyToCheck == EMissionCheckProperty::Time)
-				{
-					// Current = Ctrl->GetMissionTime();
-				}
-				else
-				{
-					Reason = TEXT("Unsupported property for float check");
-				}
+				// TODO: добавить метод GetMissionTime() в UMissionController
+				float Current = 0.0f; // заглушка
 				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Float condition not met");
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission time mismatch");
 				break;
 			}
-			case ECheckDataType::String:
+
+			case EMissionCheckProperty::Status:
 			{
+				if (Req->DataType != ECheckDataType::String)
+				{
+					Reason = TEXT("DataType mismatch: Status expects string");
+					break;
+				}
 				FString Expected = Req->StringValue;
-				FString Current;
-				if (Req->PropertyToCheck == EMissionCheckProperty::Status)
-				{
-					// Если есть метод GetStatusString, используем его
-					// Current = Ctrl->GetStatusString();
-					Current = TEXT(""); // Заглушка
-				}
-				else
-				{
-					Reason = TEXT("Unsupported property for string check");
-				}
+				// TODO: добавить метод GetStatusString() в UMissionController
+				FString Current = TEXT(""); // заглушка
 				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("String condition not met");
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission status mismatch");
 				break;
 			}
+
+			case EMissionCheckProperty::Name:
+			{
+				if (Req->DataType != ECheckDataType::String)
+				{
+					Reason = TEXT("DataType mismatch: Name expects string");
+					break;
+				}
+				FString Expected = Req->StringValue;
+				FString Current = Req->MissionId.ToString(); // имя миссии – это её ID
+				bApproved = CompareValues(Current, Expected, Req->Operator);
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission name mismatch");
+				break;
+			}
+
 			default:
-				Reason = TEXT("Unsupported data type");
+				Reason = TEXT("Unsupported property");
 				break;
 			}
 		}
 	}
 
+	// 4. Формируем и отправляем ответ
 	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-	if (!EventBus) return;
+	if (!EventBus)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MissionSubsystem: EventBus not available for response"));
+		return;
+	}
 
 	UCheckResponsePayload* Resp = EventBus->CreatePayload<UCheckResponsePayload>();
 	Resp->TransactionId = Req->TransactionId;

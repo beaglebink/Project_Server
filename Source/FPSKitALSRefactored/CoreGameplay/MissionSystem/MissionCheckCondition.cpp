@@ -3,7 +3,7 @@
 #include "CheckCoordinatorComponent.h"
 #include "OutcomeConditionAsset.h"
 #include "EventBusSubsystem.h"
-#include "MissionSubsystem.h"       // для получения активной миссии
+#include "MissionSubsystem.h"
 #include "Engine/GameInstance.h"
 
 // ---- Базовый класс ----
@@ -23,7 +23,6 @@ UOutcomeConditionAsset* UMissionCheckCondition::CreateSubscriptionCondition() co
 FName UMissionCheckCondition::GetActiveMissionId() const
 {
     if (!EventBus) return NAME_None;
-    // Получаем GameInstance через EventBus (он находится в мире)
     UGameInstance* GI = EventBus->GetGameInstance();
     if (!GI) return NAME_None;
     UMissionSubsystem* MissionSub = GI->GetSubsystem<UMissionSubsystem>();
@@ -35,11 +34,9 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     if (!EventBus) return;
 
-    // Определяем текущую активную миссию
     FName ActiveMissionId = GetActiveMissionId();
     if (ActiveMissionId.IsNone())
     {
-        // Если активной миссии нет – проверка немедленно считается проваленной (или можно пропустить)
         UE_LOG(LogTemp, Warning, TEXT("MissionCheck: No active mission, check failed."));
         bCompleted = true;
         bApproved = false;
@@ -58,8 +55,8 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
     Payload->TransactionId = TransactionId;
-    Payload->MissionId = ActiveMissionId;           // автоматически подставляем активную миссию
-    Payload->PropertyToCheck = PropertyToCheck;
+    Payload->MissionId = ActiveMissionId;
+    Payload->PropertyToCheck = GetCheckedProperty();   // используем метод
 
     FOutcomeEventBase Event;
     Event.OutcomeType = EOutcomeType::Mission;
@@ -68,7 +65,7 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     EventBus->PublishOutcome(Event);
 
     UE_LOG(LogTemp, Log, TEXT("MissionCheck: Sent request for MissionId=%s, Property=%d, Txn=%s"),
-        *ActiveMissionId.ToString(), (int32)PropertyToCheck, *TransactionId.ToString());
+        *ActiveMissionId.ToString(), (int32)GetCheckedProperty(), *TransactionId.ToString());
 
     StartTimeoutTimer(TransactionId);
 }
@@ -99,12 +96,22 @@ void UMissionCheckCondition::OnCheckResponse(const FOutcomeEventBase& Event)
 
 FString UMissionCheckCondition::GetDescription() const
 {
-    return FString::Printf(TEXT("Mission check (property: %d)"), (int32)PropertyToCheck);
+    const TCHAR* PropertyName = TEXT("Unknown");
+    switch (GetCheckedProperty())
+    {
+    case EMissionCheckProperty::IsActive:    PropertyName = TEXT("Active"); break;
+    case EMissionCheckProperty::CurrentStep: PropertyName = TEXT("Step"); break;
+    case EMissionCheckProperty::Progress:    PropertyName = TEXT("Progress"); break;
+    case EMissionCheckProperty::Time:        PropertyName = TEXT("Time"); break;
+    case EMissionCheckProperty::Status:      PropertyName = TEXT("Status"); break;
+    case EMissionCheckProperty::Name:        PropertyName = TEXT("Name"); break;
+    }
+    return FString::Printf(TEXT("Mission check (%s)"), PropertyName);
 }
 
-// ---- Реализации CreateRequestPayload для каждого типа ----
+// ---- Конкретные реализации CreateRequestPayload ----
 
-UMissionCheckRequestPayload* UMissionCheckCondition_Bool::CreateRequestPayload() const
+UMissionCheckRequestPayload* UMissionCheckCondition_IsActive::CreateRequestPayload() const
 {
     if (!EventBus) return nullptr;
     UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
@@ -114,7 +121,7 @@ UMissionCheckRequestPayload* UMissionCheckCondition_Bool::CreateRequestPayload()
     return Payload;
 }
 
-UMissionCheckRequestPayload* UMissionCheckCondition_Int::CreateRequestPayload() const
+UMissionCheckRequestPayload* UMissionCheckCondition_Step::CreateRequestPayload() const
 {
     if (!EventBus) return nullptr;
     UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
@@ -124,7 +131,17 @@ UMissionCheckRequestPayload* UMissionCheckCondition_Int::CreateRequestPayload() 
     return Payload;
 }
 
-UMissionCheckRequestPayload* UMissionCheckCondition_Float::CreateRequestPayload() const
+UMissionCheckRequestPayload* UMissionCheckCondition_Progress::CreateRequestPayload() const
+{
+    if (!EventBus) return nullptr;
+    UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
+    Payload->DataType = ECheckDataType::Int32;
+    Payload->Operator = Operator;
+    Payload->StringValue = FString::FromInt(ExpectedValue);
+    return Payload;
+}
+
+UMissionCheckRequestPayload* UMissionCheckCondition_Time::CreateRequestPayload() const
 {
     if (!EventBus) return nullptr;
     UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
@@ -134,7 +151,17 @@ UMissionCheckRequestPayload* UMissionCheckCondition_Float::CreateRequestPayload(
     return Payload;
 }
 
-UMissionCheckRequestPayload* UMissionCheckCondition_String::CreateRequestPayload() const
+UMissionCheckRequestPayload* UMissionCheckCondition_Status::CreateRequestPayload() const
+{
+    if (!EventBus) return nullptr;
+    UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
+    Payload->DataType = ECheckDataType::String;
+    Payload->Operator = Operator;
+    Payload->StringValue = ExpectedValue;
+    return Payload;
+}
+
+UMissionCheckRequestPayload* UMissionCheckCondition_Name::CreateRequestPayload() const
 {
     if (!EventBus) return nullptr;
     UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
