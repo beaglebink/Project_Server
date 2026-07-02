@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "Core/CubixonCoreData.h"
 #include "I_SaveableObject.generated.h"
 
 USTRUCT(BlueprintType)
@@ -38,5 +39,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplySpreadsheetSaveData(const TMap<FString, FSpreadsheetCells>& SaveData);
 
+	// File tree save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	TMap<FString, FCubixonFileData> CollectFileTreeSaveData();
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyFileTreeSaveData(const TMap<FString, FCubixonFileData>& SaveData);
 };

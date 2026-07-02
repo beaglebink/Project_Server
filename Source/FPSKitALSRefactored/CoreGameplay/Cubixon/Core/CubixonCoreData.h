@@ -9,6 +9,9 @@ struct FCubixonFileData
 	GENERATED_BODY()
 
 	UPROPERTY(SaveGame, BlueprintReadWrite)
+	USceneComponent* File = nullptr;
+
+	UPROPERTY(SaveGame, BlueprintReadWrite)
 	FText FileName;
 
 	UPROPERTY(SaveGame, BlueprintReadWrite)
