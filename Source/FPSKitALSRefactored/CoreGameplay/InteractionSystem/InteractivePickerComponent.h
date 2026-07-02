@@ -32,6 +32,11 @@ public:
 	UFUNCTION()
 	void SetCurrentItem(UInteractiveItemComponent* FoundItem);
 
+	void CheckFoundComponent(AActor* Owner, UInteractiveItemComponent* InteractiveComponent);
+
+	UFUNCTION()
+	void StartFoundComponent();
+
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	void ResetCurrentItem();
 
@@ -111,4 +116,10 @@ private:
 
 	UPROPERTY(SaveGame)
 	bool CurrentIItemIsValid = false;
+
+	UPROPERTY()
+	AActor* StoredOwner = nullptr;
+
+	UPROPERTY()
+	UInteractiveItemComponent* StoredInteractiveComponent = nullptr;
 };

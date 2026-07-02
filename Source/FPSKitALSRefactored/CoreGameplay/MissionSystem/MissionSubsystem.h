@@ -11,7 +11,9 @@
 #include "ISaveableSubsystem.h"
 #include "FloorPopulationTypes.h"
 #include "../LocationSystem/FloorAsset.h"
+#include "CheckRequestPayload.h"
 #include "MissionSubsystem.generated.h"
+
 
 // ─── FActiveMissionEntry ──────────────────────────────────────────────────────
 // Запись об активной миссии в MissionSubsystem.
@@ -148,6 +150,10 @@ public:
 	void SetActiveMissionId(FName& MissionId) { ActiveMissionId = MissionId; }
 	FName GetActiveMissionId() const { return ActiveMissionId; }
 
+	void OnCheckRequest(const FOutcomeEventBase& Event);
+	void SubscribeRequests();
+	void UnsubscribeRequests();
+
 private:
 	// Helper to register runtime condition -> handler (реализовано в .cpp)
 	void TryRegisterCondition(
@@ -168,6 +174,7 @@ private:
 	// Handle для подтверждения релиза миссии (публикуется InteriorSubsystem)
 	FOutcomeHandlerHandle MissionReleasedHandle;
 	FOutcomeHandlerHandle UpdateActiveMissionIdHandle;
+	FOutcomeHandlerHandle CheckRequestHandle;
 	UPROPERTY()
 	TObjectPtr<UOutcomeConditionAsset> MissionReleasedCondition;
 

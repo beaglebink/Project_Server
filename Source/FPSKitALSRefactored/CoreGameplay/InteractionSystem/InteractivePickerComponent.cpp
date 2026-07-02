@@ -7,6 +7,7 @@
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "InteractCommandPayload.h"
 #include "Components/ChildActorComponent.h"
+#include <CheckCoordinatorComponent.h>
 
 UInteractivePickerComponent::UInteractivePickerComponent()
 {
@@ -47,13 +48,15 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 			CurrentItem = FoundItem;
 			CurrentIItemIsValid = true;
 
-			FoundComponentNow(Owner, FoundItem);
+			CheckFoundComponent(Owner, FoundItem);
+			//FoundComponentNow(Owner, FoundItem);
 		}
 		else if (FoundItem != CurrentItem)
 		{
 			LostComponentNow(Owner, CurrentItem);
 
-			FoundComponentNow(Owner, FoundItem);
+			CheckFoundComponent(Owner, FoundItem);
+			//FoundComponentNow(Owner, FoundItem);
 
 			CurrentItem = FoundItem;
 			CurrentIItemIsValid = true;
@@ -64,6 +67,40 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 	{
 		LostComponentNow(Owner, CurrentItem);
 	}
+}
+
+void UInteractivePickerComponent::CheckFoundComponent(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
+{
+	AActor* InteractiveActor = InteractiveComponent->GetOwner();
+	UCheckCoordinatorComponent* Coordinator = InteractiveActor->GetComponentByClass<UCheckCoordinatorComponent>();
+	if (!Coordinator)
+	{
+		FoundComponentNow(Owner, InteractiveComponent);
+		return;
+	}
+	else
+	{
+		StoredOwner = Owner;
+		StoredInteractiveComponent = InteractiveComponent;
+
+		Coordinator->OnAllApproved.AddUniqueDynamic(this, &UInteractivePickerComponent::StartFoundComponent);
+		Coordinator->StartCheck();
+	}
+}
+
+void UInteractivePickerComponent::StartFoundComponent()
+{
+	FoundComponentNow(StoredOwner, StoredInteractiveComponent);
+	if (StoredInteractiveComponent)
+	{
+		UCheckCoordinatorComponent* Coordinator = StoredInteractiveComponent->GetOwner()->GetComponentByClass<UCheckCoordinatorComponent>();
+		if (Coordinator)
+		{
+			Coordinator->OnAllApproved.RemoveDynamic(this, &UInteractivePickerComponent::StartFoundComponent);
+		}
+	}
+	StoredOwner = nullptr;
+	StoredInteractiveComponent = nullptr;
 }
 
 void UInteractivePickerComponent::ResetCurrentItem()
@@ -282,7 +319,7 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 	{
 		UE_LOG(LogTemp, Warning, TEXT("NearestItem: %s %f"), *SelectedItem->GetOwner()->GetName(), NearestDistance);
 
-		DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, SelectedItem->GetOwner()->GetActorLocation(), FColor::Blue, false, 1.f, 0, .5f);
+		DrawDebugLine(World, LineStart + Direction * Depth * 0.03f, LineStart + Direction * Depth * 1.0f, FColor::Blue, false, 1.f, 0, .5f);
 		DrawDebugSphere(World, SelectedItem->GetOwner()->GetActorLocation(), 6.f, 8, FColor::Yellow, false, .5f);
 	}
 

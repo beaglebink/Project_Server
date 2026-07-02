@@ -14,7 +14,27 @@
 #include <UpdateMissionListPayload.h>
 #include <ApplyMissionCompletionPolicyPayload.h>
 #include <UpdateActiveMissionId.h>
+#include <CheckRequestPayload.h>
+#include <CheckResponsePayload.h>
 
+// Анонимное пространство имён для вспомогательных функций
+namespace
+{
+	template<typename T>
+	bool CompareValues(T Current, T Expected, ECheckCompareOp Op)
+	{
+		switch (Op)
+		{
+		case ECheckCompareOp::Equal:          return Current == Expected;
+		case ECheckCompareOp::NotEqual:       return Current != Expected;
+		case ECheckCompareOp::Less:           return Current < Expected;
+		case ECheckCompareOp::LessOrEqual:    return Current <= Expected;
+		case ECheckCompareOp::Greater:        return Current > Expected;
+		case ECheckCompareOp::GreaterOrEqual: return Current >= Expected;
+		default: return false;
+		}
+	}
+}
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -30,6 +50,7 @@ void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	SubscribeMissionProgress();
 	// Подписка на уведомления о покидании этажа (Interior -> Mission coordination)
 	SubscribeFloorLeaving();
+	SubscribeRequests();
 }
 
 void UMissionSubsystem::Deinitialize()
@@ -619,6 +640,165 @@ void UMissionSubsystem::SubscribeMissionEnvelopeEvents()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: SubscribeActiveMissionId"));
+}
+
+void UMissionSubsystem::OnCheckRequest(const FOutcomeEventBase& Event)
+{
+	UMissionCheckRequestPayload* Req = Cast<UMissionCheckRequestPayload>(Event.Payload);
+	if (!Req) return;
+
+	bool bApproved = false;
+	FString Reason;
+
+	UMissionController* Ctrl = GetMissionController(Req->MissionId);
+	if (!Ctrl)
+	{
+		Reason = FString::Printf(TEXT("Mission %s not active or not found"), *Req->MissionId.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: %s"), *Reason);
+	}
+	else
+	{
+		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
+		if (!Asset)
+		{
+			Reason = TEXT("Mission asset is null");
+		}
+		else
+		{
+			switch (Req->DataType)
+			{
+			case ECheckDataType::Bool:
+			{
+				bool Expected = Req->StringValue.ToBool();
+				bool Current = false;
+				if (Req->PropertyToCheck == EMissionCheckProperty::IsActive)
+				{
+					Current = IsMissionActive(Req->MissionId);
+				}
+				else
+				{
+					Reason = TEXT("Unsupported property for bool check");
+				}
+				bApproved = CompareValues(Current, Expected, Req->Operator);
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Bool condition not met");
+				break;
+			}
+			case ECheckDataType::Int32:
+			{
+				int32 Expected = FCString::Atoi(*Req->StringValue);
+				int32 Current = 0;
+				switch (Req->PropertyToCheck)
+				{
+				case EMissionCheckProperty::CurrentStep:
+					Current = Ctrl->MissionStep;
+					break;
+				case EMissionCheckProperty::Progress:
+					// Current = Ctrl->GetProgress();
+					break;
+				default:
+					Reason = TEXT("Unsupported property for int check");
+					break;
+				}
+				bApproved = CompareValues(Current, Expected, Req->Operator);
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Int condition not met");
+				break;
+			}
+			case ECheckDataType::Float:
+			{
+				float Expected = FCString::Atof(*Req->StringValue);
+				float Current = 0.0f;
+				if (Req->PropertyToCheck == EMissionCheckProperty::Time)
+				{
+					// Current = Ctrl->GetMissionTime();
+				}
+				else
+				{
+					Reason = TEXT("Unsupported property for float check");
+				}
+				bApproved = CompareValues(Current, Expected, Req->Operator);
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Float condition not met");
+				break;
+			}
+			case ECheckDataType::String:
+			{
+				FString Expected = Req->StringValue;
+				FString Current;
+				if (Req->PropertyToCheck == EMissionCheckProperty::Status)
+				{
+					// Если есть метод GetStatusString, используем его
+					// Current = Ctrl->GetStatusString();
+					Current = TEXT(""); // Заглушка
+				}
+				else
+				{
+					Reason = TEXT("Unsupported property for string check");
+				}
+				bApproved = CompareValues(Current, Expected, Req->Operator);
+				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("String condition not met");
+				break;
+			}
+			default:
+				Reason = TEXT("Unsupported data type");
+				break;
+			}
+		}
+	}
+
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
+
+	UCheckResponsePayload* Resp = EventBus->CreatePayload<UCheckResponsePayload>();
+	Resp->TransactionId = Req->TransactionId;
+	Resp->bApproved = bApproved;
+	Resp->Reason = Reason;
+
+	FOutcomeEventBase Reply;
+	Reply.OutcomeType = EOutcomeType::Mission;
+	Reply.OutcomeMission = EOutcomeMission::CheckResponse;
+	Reply.Payload = Resp;
+	EventBus->PublishOutcome(Reply);
+
+	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Responded to check for MissionId=%s, Property=%d, Approved=%s"),
+		*Req->MissionId.ToString(), (int32)Req->PropertyToCheck, bApproved ? TEXT("true") : TEXT("false"));
+}
+
+void UMissionSubsystem::SubscribeRequests()
+{
+	if (CheckRequestHandle.IsValid()) return; // уже подписаны
+
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
+
+	// Создаём ConditionAsset для фильтрации запросов
+	UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+	Asset->OperatorType = EConditionOperator::Composite;
+	Asset->FilterRow.OutcomeType = EOutcomeType::Mission;
+	Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	Asset->FilterRow.MissionType = EOutcomeMission::CheckRequest;
+	Asset->FilterRow.MissionComparison = EConditionComparison::Equals;
+	Asset->CompileCondition();
+
+	// Регистрируем обработчик и сохраняем хендл
+	CheckRequestHandle = EventBus->RegisterHandler(Asset,
+		FOutcomeHandlerDelegate::CreateUObject(this, &UMissionSubsystem::OnCheckRequest));
+
+	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Subscribed to CheckRequest (handle=%u)"),
+		CheckRequestHandle.IsValid() ? CheckRequestHandle.GetId() : 0);
+}
+
+// --- Исправленный UnsubscribeRequests ---
+void UMissionSubsystem::UnsubscribeRequests()
+{
+	if (!CheckRequestHandle.IsValid()) return;
+
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (EventBus)
+	{
+		EventBus->UnregisterHandler(CheckRequestHandle);
+		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Unsubscribed CheckRequest (handle=%u)"),
+			CheckRequestHandle.GetId());
+	}
+	CheckRequestHandle.Invalidate();
 }
 
 // ----------------------------------------------------------------------------- 

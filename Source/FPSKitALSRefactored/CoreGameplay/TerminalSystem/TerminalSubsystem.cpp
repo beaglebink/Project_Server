@@ -721,8 +721,8 @@ void UTerminalSubsystem::HandleTestInteractCommand(const FOutcomeEventBase& Outc
 					{
 						P1->Setup(InteractiveId, IsEnable);
 
-						FOutcomeEventBase Outcome;
-						Outcome.Payload = P1;
+						FOutcomeEventBase Outcome1;
+						Outcome1.Payload = P1;
 
 						UFloorAssignmentComponent* FloorComp = OwnerActor->FindComponentByClass<UFloorAssignmentComponent>();
 						if (!FloorComp)
@@ -737,19 +737,19 @@ void UTerminalSubsystem::HandleTestInteractCommand(const FOutcomeEventBase& Outc
 						case EFloorActorType::LightItem:
 						case EFloorActorType::DoorLocks:
 						{
-							Outcome.OutcomeType = EOutcomeType::Interior;
-							Outcome.OutcomeInterior = EOutcomeInterior::InteractSetEnabled;
+							Outcome1.OutcomeType = EOutcomeType::Interior;
+							Outcome1.OutcomeInterior = EOutcomeInterior::InteractSetEnabled;
 							break;
 						}
 						case EFloorActorType::Terminal:
 						{
-							Outcome.OutcomeType = EOutcomeType::Terminal;
-							Outcome.OutcomeTerminal = EOutcomeTerminal::InteractSetEnabled;
+							Outcome1.OutcomeType = EOutcomeType::Terminal;
+							Outcome1.OutcomeTerminal = EOutcomeTerminal::InteractSetEnabled;
 							break;
 						}
 						}
 
-						EventBus->PublishOutcome(Outcome);
+						EventBus->PublishOutcome(Outcome1);
 					}
 				}
 			}
