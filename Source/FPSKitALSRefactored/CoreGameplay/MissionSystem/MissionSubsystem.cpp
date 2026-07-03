@@ -16,6 +16,8 @@
 #include <UpdateActiveMissionId.h>
 #include <CheckRequestPayload.h>
 #include <CheckResponsePayload.h>
+#include "Kismet/GameplayStatics.h"
+#include "Engine/World.h"
 
 // Анонимное пространство имён для вспомогательных функций
 namespace
@@ -33,6 +35,26 @@ namespace
 		case ECheckCompareOp::GreaterOrEqual: return Current >= Expected;
 		default: return false;
 		}
+	}
+
+	// Функция нормализации имени уровня (убирает PIE-префиксы, приводит к нижнему регистру)
+	FString NormalizeLevelName(const FString& InPath)
+	{
+		if (InPath.IsEmpty()) return FString();
+		FString PackagePath = InPath;
+		if (PackagePath.Contains(TEXT(".")))
+			PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
+		FString Base = FPaths::GetBaseFilename(PackagePath);
+		int32 PIEPos = Base.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
+		if (PIEPos != INDEX_NONE)
+		{
+			int32 MPos = Base.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
+			if (MPos != INDEX_NONE && MPos + 3 < Base.Len())
+				Base = Base.Mid(MPos + 3);
+			else
+				Base = Base.Mid(PIEPos + 6);
+		}
+		return Base.ToLower();
 	}
 }
 void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -644,7 +666,6 @@ void UMissionSubsystem::SubscribeMissionEnvelopeEvents()
 
 void UMissionSubsystem::OnCheckRequest(const FOutcomeEventBase& Event)
 {
-	// 1. Получаем Payload запроса
 	UMissionCheckRequestPayload* Req = Cast<UMissionCheckRequestPayload>(Event.Payload);
 	if (!Req)
 	{
@@ -655,122 +676,81 @@ void UMissionSubsystem::OnCheckRequest(const FOutcomeEventBase& Event)
 	bool bApproved = false;
 	FString Reason;
 
-	// 2. Получаем контроллер миссии по ID
-	UMissionController* Ctrl = GetMissionController(Req->MissionId);
-	if (!Ctrl)
+	// Определяем, действует ли миссия на текущем уровне
+	bool bIsActiveOnLevel = IsMissionActiveOnCurrentLevel(Req->MissionId);
+
+	switch (Req->PropertyToCheck)
 	{
-		Reason = FString::Printf(TEXT("Mission %s not active or not found"), *Req->MissionId.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: %s"), *Reason);
-	}
-	else
+	case EMissionCheckProperty::IsActive:
 	{
-		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
-		if (!Asset)
+		if (Req->DataType != ECheckDataType::Bool)
 		{
-			Reason = TEXT("Mission asset is null");
+			Reason = TEXT("DataType mismatch: IsActive expects bool");
+			break;
 		}
-		else
-		{
-			// 3. Получаем текущее значение запрошенного свойства
-			// Используем switch по PropertyToCheck, чтобы определить, какое свойство проверять
-			switch (Req->PropertyToCheck)
-			{
-			case EMissionCheckProperty::IsActive:
-			{
-				// Проверка типа bool
-				if (Req->DataType != ECheckDataType::Bool)
-				{
-					Reason = TEXT("DataType mismatch: IsActive expects bool");
-					break;
-				}
-				bool Expected = Req->StringValue.ToBool();
-				bool Current = IsMissionActive(Req->MissionId);
-				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission active state mismatch");
-				break;
-			}
-
-			case EMissionCheckProperty::CurrentStep:
-			{
-				if (Req->DataType != ECheckDataType::Int32)
-				{
-					Reason = TEXT("DataType mismatch: CurrentStep expects int");
-					break;
-				}
-				int32 Expected = FCString::Atoi(*Req->StringValue);
-				int32 Current = Ctrl->MissionStep; // публичное поле
-				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission step mismatch");
-				break;
-			}
-
-			case EMissionCheckProperty::Progress:
-			{
-				if (Req->DataType != ECheckDataType::Int32)
-				{
-					Reason = TEXT("DataType mismatch: Progress expects int");
-					break;
-				}
-				int32 Expected = FCString::Atoi(*Req->StringValue);
-				// TODO: добавить метод GetProgress() в UMissionController
-				int32 Current = 0; // заглушка, пока нет реализации
-				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission progress mismatch");
-				break;
-			}
-
-			case EMissionCheckProperty::Time:
-			{
-				if (Req->DataType != ECheckDataType::Float)
-				{
-					Reason = TEXT("DataType mismatch: Time expects float");
-					break;
-				}
-				float Expected = FCString::Atof(*Req->StringValue);
-				// TODO: добавить метод GetMissionTime() в UMissionController
-				float Current = 0.0f; // заглушка
-				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission time mismatch");
-				break;
-			}
-
-			case EMissionCheckProperty::Status:
-			{
-				if (Req->DataType != ECheckDataType::String)
-				{
-					Reason = TEXT("DataType mismatch: Status expects string");
-					break;
-				}
-				FString Expected = Req->StringValue;
-				// TODO: добавить метод GetStatusString() в UMissionController
-				FString Current = TEXT(""); // заглушка
-				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission status mismatch");
-				break;
-			}
-
-			case EMissionCheckProperty::Name:
-			{
-				if (Req->DataType != ECheckDataType::String)
-				{
-					Reason = TEXT("DataType mismatch: Name expects string");
-					break;
-				}
-				FString Expected = Req->StringValue;
-				FString Current = Req->MissionId.ToString(); // имя миссии – это её ID
-				bApproved = CompareValues(Current, Expected, Req->Operator);
-				if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission name mismatch");
-				break;
-			}
-
-			default:
-				Reason = TEXT("Unsupported property");
-				break;
-			}
-		}
+		bool Expected = Req->StringValue.ToBool();
+		bool Current = bIsActiveOnLevel; // true только если миссия действует на уровне
+		bApproved = CompareValues(Current, Expected, Req->Operator);
+		if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission active state mismatch");
+		break;
 	}
 
-	// 4. Формируем и отправляем ответ
+	case EMissionCheckProperty::CurrentStep:
+	{
+		if (Req->DataType != ECheckDataType::Int32)
+		{
+			Reason = TEXT("DataType mismatch: CurrentStep expects int");
+			break;
+		}
+		// Если миссия не действует на уровне – условие не выполнено
+		if (!bIsActiveOnLevel)
+		{
+			bApproved = false;
+			Reason = TEXT("Mission not active on current level");
+			break;
+		}
+		// Миссия действует – проверяем шаг
+		UMissionController* Ctrl = GetMissionController(Req->MissionId);
+		if (!Ctrl)
+		{
+			Reason = TEXT("Mission controller not found");
+			break;
+		}
+		int32 Expected = FCString::Atoi(*Req->StringValue);
+		int32 Current = Ctrl->MissionStep;
+		bApproved = CompareValues(Current, Expected, Req->Operator);
+		if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission step mismatch");
+		break;
+	}
+
+	case EMissionCheckProperty::Name:
+	{
+		if (Req->DataType != ECheckDataType::String)
+		{
+			Reason = TEXT("DataType mismatch: Name expects string");
+			break;
+		}
+		// Если миссия не действует на уровне – условие не выполнено
+		if (!bIsActiveOnLevel)
+		{
+			bApproved = false;
+			Reason = TEXT("Mission not active on current level");
+			break;
+		}
+		// Миссия действует – сравниваем имя
+		FString Expected = Req->StringValue;
+		FString Current = Req->MissionId.ToString();
+		bApproved = CompareValues(Current, Expected, Req->Operator);
+		if (!bApproved && Reason.IsEmpty()) Reason = TEXT("Mission name mismatch");
+		break;
+	}
+
+	default:
+		Reason = TEXT("Unsupported property");
+		break;
+	}
+
+	// Отправляем ответ
 	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 	if (!EventBus)
 	{
@@ -792,6 +772,42 @@ void UMissionSubsystem::OnCheckRequest(const FOutcomeEventBase& Event)
 	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Responded to check for MissionId=%s, Property=%d, Approved=%s"),
 		*Req->MissionId.ToString(), (int32)Req->PropertyToCheck, bApproved ? TEXT("true") : TEXT("false"));
 }
+
+bool UMissionSubsystem::IsMissionActiveOnCurrentLevel(FName MissionId) const
+{
+	if (MissionId.IsNone()) return false;
+
+	const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
+	if (!Entry || !Entry->Controller) return false;
+
+	if (!IsMissionActive(MissionId)) return false;
+
+	UMissionAsset* MissionAsset = Entry->Controller->GetMissionAsset();
+	if (!MissionAsset || !MissionAsset->Envelopes.IsValidIndex(Entry->MissionStep)) return false;
+
+	const FMissionEnvelope& Envelope = MissionAsset->Envelopes[Entry->MissionStep];
+
+	UWorld* World = GetWorld();
+	if (!World) return false;
+
+	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+	FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+	for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelope.Scope.InteriorScopes)
+	{
+		if (UFloorAsset* Floor = FloorRef.Get())
+		{
+			FString ScopeLevelPath = Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+			FString NormTarget = NormalizeLevelName(ScopeLevelPath);
+			if (NormTarget == NormCurrent)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 
 void UMissionSubsystem::SubscribeRequests()
 {

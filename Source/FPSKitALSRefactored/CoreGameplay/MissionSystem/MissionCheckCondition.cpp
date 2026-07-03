@@ -34,15 +34,8 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     if (!EventBus) return;
 
+    // Получаем активную миссию (может быть NAME_None)
     FName ActiveMissionId = GetActiveMissionId();
-    if (ActiveMissionId.IsNone())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("MissionCheck: No active mission, check failed."));
-        bCompleted = true;
-        bApproved = false;
-        OnComplete.ExecuteIfBound(this);
-        return;
-    }
 
     CurrentTransactionId = TransactionId;
     bCompleted = false;
@@ -55,8 +48,8 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
     Payload->TransactionId = TransactionId;
-    Payload->MissionId = ActiveMissionId;
-    Payload->PropertyToCheck = GetCheckedProperty();   // используем метод
+    Payload->MissionId = ActiveMissionId; // может быть NAME_None
+    Payload->PropertyToCheck = GetCheckedProperty();
 
     FOutcomeEventBase Event;
     Event.OutcomeType = EOutcomeType::Mission;
@@ -101,15 +94,12 @@ FString UMissionCheckCondition::GetDescription() const
     {
     case EMissionCheckProperty::IsActive:    PropertyName = TEXT("Active"); break;
     case EMissionCheckProperty::CurrentStep: PropertyName = TEXT("Step"); break;
-    case EMissionCheckProperty::Progress:    PropertyName = TEXT("Progress"); break;
-    case EMissionCheckProperty::Time:        PropertyName = TEXT("Time"); break;
-    case EMissionCheckProperty::Status:      PropertyName = TEXT("Status"); break;
     case EMissionCheckProperty::Name:        PropertyName = TEXT("Name"); break;
     }
     return FString::Printf(TEXT("Mission check (%s)"), PropertyName);
 }
 
-// ---- Конкретные реализации CreateRequestPayload ----
+// ---- Реализации CreateRequestPayload ----
 
 UMissionCheckRequestPayload* UMissionCheckCondition_IsActive::CreateRequestPayload() const
 {
@@ -128,36 +118,6 @@ UMissionCheckRequestPayload* UMissionCheckCondition_Step::CreateRequestPayload()
     Payload->DataType = ECheckDataType::Int32;
     Payload->Operator = Operator;
     Payload->StringValue = FString::FromInt(ExpectedValue);
-    return Payload;
-}
-
-UMissionCheckRequestPayload* UMissionCheckCondition_Progress::CreateRequestPayload() const
-{
-    if (!EventBus) return nullptr;
-    UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
-    Payload->DataType = ECheckDataType::Int32;
-    Payload->Operator = Operator;
-    Payload->StringValue = FString::FromInt(ExpectedValue);
-    return Payload;
-}
-
-UMissionCheckRequestPayload* UMissionCheckCondition_Time::CreateRequestPayload() const
-{
-    if (!EventBus) return nullptr;
-    UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
-    Payload->DataType = ECheckDataType::Float;
-    Payload->Operator = Operator;
-    Payload->StringValue = FString::SanitizeFloat(ExpectedValue);
-    return Payload;
-}
-
-UMissionCheckRequestPayload* UMissionCheckCondition_Status::CreateRequestPayload() const
-{
-    if (!EventBus) return nullptr;
-    UMissionCheckRequestPayload* Payload = EventBus->CreatePayload<UMissionCheckRequestPayload>();
-    Payload->DataType = ECheckDataType::String;
-    Payload->Operator = Operator;
-    Payload->StringValue = ExpectedValue;
     return Payload;
 }
 

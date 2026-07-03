@@ -40,7 +40,7 @@ public:
     FGuid GetCurrentTransactionId() const { return CurrentTransactionId; }
 
     // Таймаут в секундах (можно настраивать в редакторе)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check")
     float TimeoutSeconds = 3.0f;
 
 protected:

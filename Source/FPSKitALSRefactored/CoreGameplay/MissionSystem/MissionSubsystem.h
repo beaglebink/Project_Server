@@ -178,6 +178,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UOutcomeConditionAsset> MissionReleasedCondition;
 
+	bool IsMissionActiveOnCurrentLevel(FName MissionId) const;
+
 	void HandleEnvelopeActivate(const FOutcomeEventBase& Outcome);
 	void HandleUpdateActiveMissionId(const FOutcomeEventBase& Outcome);
 	void HandleEnvelopeResolve(const FOutcomeEventBase& Outcome);

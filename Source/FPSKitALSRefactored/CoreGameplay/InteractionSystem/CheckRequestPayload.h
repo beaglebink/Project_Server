@@ -30,9 +30,6 @@ enum class EMissionCheckProperty : uint8
 {
     IsActive    UMETA(DisplayName = "Is Active"),
     CurrentStep UMETA(DisplayName = "Current Step"),
-    Progress    UMETA(DisplayName = "Progress"),
-    Time        UMETA(DisplayName = "Time"),
-    Status      UMETA(DisplayName = "Status"),
     Name        UMETA(DisplayName = "Mission Name")
 };
 

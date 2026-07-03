@@ -28,7 +28,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Check")
     void StartCheck();
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check")
     float GlobalTimeoutSeconds = 10.0f;
 
 protected:
