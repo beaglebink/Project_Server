@@ -27,14 +27,14 @@ public:
 
 	virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveableObject")
-	void ApplyProfileTextFilesData(UObject* ProfileObject);
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveableObject")
 	TArray<UObject*> SaveableObjects;
 
 	UFUNCTION(BlueprintCallable, Category = "SaveableObject")
 	void AddSaveableObject(UObject* NewSaveableObject);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveableObject")
+	void ApplyProfileTextFilesData(UObject* ProfileObject);
 
 private:
 	TMap<FName, TMap<FString, FText>> CachedProfilesTextFilesData;
