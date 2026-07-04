@@ -37,6 +37,9 @@ public:
 	UFUNCTION()
 	void StartFoundComponent();
 
+	UFUNCTION()
+	void StartRejectComponent();
+
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	void ResetCurrentItem();
 

@@ -44,12 +44,12 @@ private:
         FGuid TransactionId;
         int32 TotalConditions = 0;
         int32 CompletedCount = 0;
-        FTimerHandle GlobalTimeoutTimer;
+        //FTimerHandle GlobalTimeoutTimer;
         bool bFinalized = false;
     };
     TMap<FGuid, FPendingCheck> ActiveChecks;
 
     void FinalizeCheck(const FGuid& TransactionId, bool bSuccess);
-    void OnTimeout(FGuid TransactionId);   // метод для таймера
+    //void OnTimeout(FGuid TransactionId);   // метод для таймера
     void OnConditionComplete(UCheckCondition* Condition);
 };

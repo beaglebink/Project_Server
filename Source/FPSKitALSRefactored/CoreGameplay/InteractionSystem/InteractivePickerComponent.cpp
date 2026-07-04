@@ -43,19 +43,21 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 	}
 	else
 	{
+		CheckFoundComponent(Owner, FoundItem);
+
 		if (!CurrentItem && !CurrentIItemIsValid)
 		{
 			CurrentItem = FoundItem;
 			CurrentIItemIsValid = true;
 
-			CheckFoundComponent(Owner, FoundItem);
+			
 			//FoundComponentNow(Owner, FoundItem);
 		}
 		else if (FoundItem != CurrentItem)
 		{
 			LostComponentNow(Owner, CurrentItem);
 
-			CheckFoundComponent(Owner, FoundItem);
+			//CheckFoundComponent(Owner, FoundItem);
 			//FoundComponentNow(Owner, FoundItem);
 
 			CurrentItem = FoundItem;
@@ -71,6 +73,11 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 
 void UInteractivePickerComponent::CheckFoundComponent(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
 {
+	if(!InteractiveComponent)
+	{
+		return;
+	}
+
 	AActor* InteractiveActor = InteractiveComponent->GetOwner();
 	UCheckCoordinatorComponent* Coordinator = InteractiveActor->GetComponentByClass<UCheckCoordinatorComponent>();
 	if (!Coordinator)
@@ -84,6 +91,7 @@ void UInteractivePickerComponent::CheckFoundComponent(AActor* Owner, UInteractiv
 		StoredInteractiveComponent = InteractiveComponent;
 
 		Coordinator->OnAllApproved.AddUniqueDynamic(this, &UInteractivePickerComponent::StartFoundComponent);
+		Coordinator->OnAnyRejected.AddUniqueDynamic(this, &UInteractivePickerComponent::StartRejectComponent);
 		Coordinator->StartCheck();
 	}
 }
@@ -101,6 +109,17 @@ void UInteractivePickerComponent::StartFoundComponent()
 	}
 	StoredOwner = nullptr;
 	StoredInteractiveComponent = nullptr;
+}
+
+void UInteractivePickerComponent::StartRejectComponent()
+{
+	UCheckCoordinatorComponent* Coordinator = StoredInteractiveComponent->GetOwner()->GetComponentByClass<UCheckCoordinatorComponent>();
+	if (Coordinator)
+	{
+		Coordinator->OnAnyRejected.RemoveDynamic(this, &UInteractivePickerComponent::StartRejectComponent);
+	}
+
+	SetCurrentItem(nullptr);
 }
 
 void UInteractivePickerComponent::ResetCurrentItem()
@@ -336,6 +355,11 @@ void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* 
 		return;
 	}
 	SetCurrentItem(FoundItem);
+
+	if(FoundItem)
+	{
+		CheckFoundComponent(Owner, FoundItem);
+	}
 }
 
 void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
@@ -376,6 +400,9 @@ void UInteractivePickerComponent::LostComponentNow(AActor* Owner, UInteractiveIt
 
 void UInteractivePickerComponent::FoundComponentNow(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
 {
+	if (InteractiveComponent == CurrentItem)
+		return;
+
 	if (InteractiveComponent)
 	{
 		InteractiveComponent->SetIsInteractiveNow(Owner);

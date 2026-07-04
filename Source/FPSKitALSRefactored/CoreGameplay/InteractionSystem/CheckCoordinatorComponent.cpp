@@ -31,10 +31,12 @@ void UCheckCoordinatorComponent::BeginPlay()
 
 void UCheckCoordinatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    /*
     for (auto& Pair : ActiveChecks)
     {
         GetWorld()->GetTimerManager().ClearTimer(Pair.Value.GlobalTimeoutTimer);
     }
+    */
     ActiveChecks.Empty();
     Super::EndPlay(EndPlayReason);
 }
@@ -71,11 +73,11 @@ void UCheckCoordinatorComponent::StartCheck()
     {
         Cond->ExecuteCheck(Txn);
     }
-
+    /*
     GetWorld()->GetTimerManager().SetTimer(Check.GlobalTimeoutTimer,
         FTimerDelegate::CreateUObject(this, &UCheckCoordinatorComponent::OnTimeout, Txn),
         GlobalTimeoutSeconds, false);
-
+    */
     UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: Started check with Txn=%s, %d conditions."), *Txn.ToString(), ValidConditions.Num());
 }
 
@@ -115,7 +117,7 @@ void UCheckCoordinatorComponent::FinalizeCheck(const FGuid& TransactionId, bool 
     if (!Check || Check->bFinalized) return;
 
     Check->bFinalized = true;
-    GetWorld()->GetTimerManager().ClearTimer(Check->GlobalTimeoutTimer);
+    //GetWorld()->GetTimerManager().ClearTimer(Check->GlobalTimeoutTimer);
 
     if (bSuccess)
     {
@@ -130,7 +132,7 @@ void UCheckCoordinatorComponent::FinalizeCheck(const FGuid& TransactionId, bool 
 
     ActiveChecks.Remove(TransactionId);
 }
-
+/*
 void UCheckCoordinatorComponent::OnTimeout(FGuid TransactionId)
 {
     FPendingCheck* Check = ActiveChecks.Find(TransactionId);
@@ -140,3 +142,4 @@ void UCheckCoordinatorComponent::OnTimeout(FGuid TransactionId)
         *TransactionId.ToString(), Check->TotalConditions - Check->CompletedCount);
     FinalizeCheck(TransactionId, false);
 }
+*/
