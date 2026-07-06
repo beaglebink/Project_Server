@@ -45,4 +45,11 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyFileTreeSaveData(const TMap<FString, FCubixonFileData>& SaveData);
+
+	// CMail save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	TMap<FString, FCubixonCMailConversationsWrap> CollectCMailSaveData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyCMailSaveData(const TMap<FString, FCubixonCMailConversationsWrap>& SaveData);
 };
