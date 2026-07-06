@@ -2314,6 +2314,95 @@ void UInteriorSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Out
 	}
 }
 
+int32 UInteriorSubsystem::GetActorCountForCurrentFloor(EInteriorActorCountType CountType, const TArray<EFloorActorType>& FilterTypes) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+		return 0;
+
+	// Функция проверки соответствия типу
+	auto MatchesFilter = [&FilterTypes](EFloorActorType Type) -> bool
+		{
+			if (FilterTypes.Num() == 0)
+				return true;
+			return FilterTypes.Contains(Type);
+		};
+
+	// Подсчёт записей в массиве с фильтром
+	auto CountRecords = [&MatchesFilter](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				if (MatchesFilter(Rec.ActorType))
+					Count++;
+			}
+			return Count;
+		};
+
+	int32 Total = 0;
+
+	switch (CountType)
+	{
+	case EInteriorActorCountType::Registered:
+	{
+		// Считаем все акторы на уровне с UFloorAssignmentComponent
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			AActor* Actor = *It;
+			if (!IsValid(Actor))
+				continue;
+			UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+			if (!Comp)
+				continue;
+			if (MatchesFilter(Comp->ActorType))
+				Total++;
+		}
+		break;
+	}
+
+	case EInteriorActorCountType::Spawned:
+	{
+		// Используем только миссионные спавны (MissionSpawnedActorsByInteriorFloor)
+		if (const TMap<FName, FFloorPopulationBuckets>* PerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
+		{
+			for (const auto& MissionPair : *PerFloor)
+			{
+				const FFloorPopulationBuckets& B = MissionPair.Value;
+				Total += CountRecords(B.HeavyFurniture);
+				Total += CountRecords(B.LightItems);
+				Total += CountRecords(B.Terminals);
+				Total += CountRecords(B.NPCSpawners);
+				Total += CountRecords(B.Debris);
+			}
+		}
+		break;
+	}
+
+	case EInteriorActorCountType::Destroyed:
+	{
+		// Используем только миссионные удаления (MissionDestroyedActorsByInteriorFloor)
+		if (const TMap<FName, FFloorPopulationBuckets>* PerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
+		{
+			for (const auto& MissionPair : *PerFloor)
+			{
+				const FFloorPopulationBuckets& B = MissionPair.Value;
+				Total += CountRecords(B.HeavyFurniture);
+				Total += CountRecords(B.LightItems);
+				Total += CountRecords(B.Terminals);
+				Total += CountRecords(B.NPCSpawners);
+				Total += CountRecords(B.Debris);
+			}
+		}
+		break;
+	}
+
+	default:
+		break;
+	}
+
+	return Total;
+}
 void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Outcome)
 {
 	UWorld* World = GetWorld();
@@ -4463,9 +4552,7 @@ void UInteriorSubsystem::StoreCurrentLevelComplete(FMissionEnvelope Envelope, FN
 }
 
 void UInteriorSubsystem::ApplySpawnGroupPolicy(const FSpawnGroupId& GroupId, EChannelPolicy Policy, EMissionEndReason Reason)
-{
-
-}
+{}
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)
 {

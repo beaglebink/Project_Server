@@ -31,10 +31,10 @@ class FPSKITALSREFACTORED_API UMissionCheckCondition_IsActive : public UMissionC
 {
     GENERATED_BODY()
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission|Value")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     ECheckCompareOp Operator = ECheckCompareOp::Equal;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission|Value")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     bool ExpectedValue = true;
 
     virtual EMissionCheckProperty GetCheckedProperty() const override { return EMissionCheckProperty::IsActive; }
@@ -47,10 +47,10 @@ class FPSKITALSREFACTORED_API UMissionCheckCondition_Step : public UMissionCheck
 {
     GENERATED_BODY()
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission|Value")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     ECheckCompareOp Operator = ECheckCompareOp::Equal;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission|Value")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     int32 ExpectedValue = 0;
 
     virtual EMissionCheckProperty GetCheckedProperty() const override { return EMissionCheckProperty::CurrentStep; }
@@ -63,10 +63,10 @@ class FPSKITALSREFACTORED_API UMissionCheckCondition_Name : public UMissionCheck
 {
     GENERATED_BODY()
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission|Value")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     ECheckCompareOp Operator = ECheckCompareOp::Equal;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Mission|Value")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     FString ExpectedValue;
 
     virtual EMissionCheckProperty GetCheckedProperty() const override { return EMissionCheckProperty::Name; }

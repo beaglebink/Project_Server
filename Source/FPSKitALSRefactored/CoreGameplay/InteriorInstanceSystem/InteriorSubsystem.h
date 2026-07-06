@@ -15,6 +15,7 @@
 #include "ISaveableSubsystem.h"
 #include "MissionAsset.h"
 #include <SpawnGroupAsset.h>
+#include "InteriorCheckTypes.h"
 #include "InteriorSubsystem.generated.h"
 
 class UMissionController;
@@ -172,14 +173,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Placement")
     void UnsubscribePlacementRegistration();
 
-    //UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
-    //void ClearSpawnGroup(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason);
-
-    //UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
-    //void ResetSpawnGroup(const FSpawnGroupId& GroupId);
-
-    //UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|SpawnGroups")
-    //FSpawnGroupState GetSpawnGroupState(const FSpawnGroupId& GroupId) const;
+    // Подсчёт акторов на текущем этаже по типу подсчёта и фильтру типов
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetActorCountForCurrentFloor(EInteriorActorCountType CountType, const TArray<EFloorActorType>& FilterTypes) const;
 
     void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
 
@@ -239,14 +235,6 @@ private:
 
     TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> FloorStateSnapshots;
     TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
-
-    // Хранилище состояний спавн-групп для текущего этажа/здания
-    //UPROPERTY()
-    //TMap<FSpawnGroupId, FSpawnGroupState> SpawnGroupStates;
-
-    // Сохранённые состояния групп (персистентные, используются для сброса)
-    //UPROPERTY()
-    //TMap<FInteriorFloorKey, TMap<FSpawnGroupId, FSpawnGroupState>> PersistentSpawnGroupStates;
 
     mutable TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> MissionSnapshotQueryCache;
 
