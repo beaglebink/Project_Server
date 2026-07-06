@@ -14,20 +14,20 @@ class FPSKITALSREFACTORED_API UInteriorCheckCondition : public UCheckCondition
 
 public:
     // Тип подсчёта
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     EInteriorActorCountType CountType = EInteriorActorCountType::Registered;
 
     // Какие типы акторов учитывать (пусто = все)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     TArray<EFloorActorType> FilterTypes;
 
-    // Ожидаемое значение
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior")
-    int32 ExpectedValue = 0;
-
     // Оператор сравнения
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     ECheckCompareOp Operator = ECheckCompareOp::Equal;
+
+    // Ожидаемое значение
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
+    int32 ExpectedValue = 0;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual bool IsApproved() const override { return bApproved; }
