@@ -170,12 +170,29 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Placement")
     void SubscribePlacementRegistration();
+
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Placement")
     void UnsubscribePlacementRegistration();
 
     // Подсчёт акторов на текущем этаже по типу подсчёта и фильтру типов
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
     int32 GetActorCountForCurrentFloor(EInteriorActorCountType CountType, const TArray<EFloorActorType>& FilterTypes) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorSubsystem")
+    FInteriorFloorKey GetCurrentKey() const { return CurrentKey; }
+
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetDestroyedActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const;
+
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetDestroyedTagCount(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetDestroyedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
+
+    // Public методы для доступа к картам (возвращаем const ссылки)
+    const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& GetMissionSpawnedActors() const { return MissionSpawnedActorsByInteriorFloor; }
+    const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& GetMissionDestroyedActors() const { return MissionDestroyedActorsByInteriorFloor; }
 
     void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
 
@@ -194,6 +211,7 @@ public:
     UMissionController* CreateMission(UMissionAsset* MissionAsset);
     virtual FString GetSaveSubsystemName() const override { return TEXT("InteriorSubsystem"); }
     virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
+    const FInteriorFloorKey& GetCurrentFloorKey() const { return CurrentKey; }
 
 private:
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -237,6 +255,8 @@ private:
     TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
 
     mutable TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> MissionSnapshotQueryCache;
+
+    TMap<FInteriorFloorKey, FFloorPopulationBuckets> AllDestroyedActorsByInteriorFloor;
 
     UPROPERTY()
     TMap<FName, FActiveMissionInterior> ActiveMissions;

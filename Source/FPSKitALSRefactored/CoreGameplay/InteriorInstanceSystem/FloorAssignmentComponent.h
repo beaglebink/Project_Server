@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "FloorPopulationTypes.h"
+#include "GameplayTagContainer.h"
 #include "FloorAssignmentComponent.generated.h"
 
 UENUM(BlueprintType)
@@ -24,11 +25,16 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid InteriorSetId;
     FText FloorName;
+
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid FloorId;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
     EFloorActorType ActorType = EFloorActorType::LightItem;
     FGuid AnchorId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
+    TArray<FGameplayTag> GameplayTags;   // изменено с FGameplayTagContainer
 
     // DuplicateTransient — ID не копируется при дублировании
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")

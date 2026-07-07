@@ -12,6 +12,42 @@ UFloorAssignmentComponent::UFloorAssignmentComponent()
 void UFloorAssignmentComponent::BeginPlay()
 {
     Super::BeginPlay();
+
+    if (SnapshotChannel == ESnapshotChannel::Snapshot && ItemId.IsValid())
+    {
+        if (UWorld* W = GetWorld())
+        {
+            if (UGameInstance* GI = W->GetGameInstance())
+            {
+                if (UEventBusSubsystem* Bus = GI->GetSubsystem<UEventBusSubsystem>())
+                {
+                    UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
+                    if (Payload)
+                    {
+                        AActor* Owner = GetOwner();
+                        TArray<FName> TextTags;
+                        if (Owner)
+                        {
+                            TextTags = Owner->Tags;
+                        }
+                        Payload->SetupWithTags(
+                            ActorType,
+                            Owner ? Owner->GetActorTransform() : FTransform::Identity,
+                            ItemId,
+                            Owner ? Owner->GetClass() : nullptr,
+                            this->GameplayTags,
+                            TextTags
+                        );
+                        FOutcomeEventBase Ev;
+                        Ev.OutcomeType = EOutcomeType::Interior;
+                        Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementRegistered;
+                        Ev.Payload = Payload;
+                        Bus->PublishOutcome(Ev);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -31,7 +67,20 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
                 UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
                 if (Payload)
                 {
-                    Payload->Setup(ActorType, GetOwner()->GetActorTransform(), ItemId);
+                    AActor* Owner = GetOwner();
+                    TArray<FName> TextTags;
+                    if (Owner)
+                    {
+                        TextTags = Owner->Tags;
+                    }
+                    Payload->SetupWithTags(
+                        ActorType,
+                        Owner ? Owner->GetActorTransform() : FTransform::Identity,
+                        ItemId,
+                        Owner ? Owner->GetClass() : nullptr,
+                        this->GameplayTags,
+                        TextTags
+                    );
                     FOutcomeEventBase Ev;
                     Ev.OutcomeType = EOutcomeType::Interior;
                     Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementUnregistered;
@@ -45,12 +94,10 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
     Super::EndPlay(EndPlayReason);
 }
 
-// ----- Обработка дублирования (Ctrl+D, Copy-Paste) -----
 void UFloorAssignmentComponent::PostEditImport()
 {
     Super::PostEditImport();
 
-    // Генерируем новый ID только для реальных экземпляров (не CDO)
     if (!HasAnyFlags(RF_ClassDefaultObject))
     {
         ItemId = FGuid::NewGuid();
@@ -59,7 +106,6 @@ void UFloorAssignmentComponent::PostEditImport()
     }
 }
 
-// ----- Пометка пакета грязным для сохранения -----
 void UFloorAssignmentComponent::MarkPackageDirty()
 {
 #if WITH_EDITOR

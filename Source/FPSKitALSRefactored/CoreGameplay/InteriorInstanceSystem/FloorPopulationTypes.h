@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "FloorPopulationTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -92,6 +93,12 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	bool bHasAnchor = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
+	TArray<FGameplayTag> GameplayTags;
+
+	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
+	TArray<FName> TextTags;
 };
 
 // Grouping of arrays by semantic categories for one key (InteriorSet + Floor).

@@ -2403,6 +2403,86 @@ int32 UInteriorSubsystem::GetActorCountForCurrentFloor(EInteriorActorCountType C
 
 	return Total;
 }
+
+int32 UInteriorSubsystem::GetDestroyedActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* Buckets = AllDestroyedActorsByInteriorFloor.Find(CurrentKey); // <-- изменено
+	if (!Buckets)
+		return 0;
+
+	int32 Total = 0;
+	auto CountFiltered = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				if (ActorClass && Rec.SourceClass != ActorClass)
+					continue;
+				if (ActorType != EFloorActorType::LightItem && Rec.ActorType != ActorType)
+					continue;
+				Count++;
+			}
+			return Count;
+		};
+
+	Total += CountFiltered(Buckets->HeavyFurniture);
+	Total += CountFiltered(Buckets->LightItems);
+	Total += CountFiltered(Buckets->Terminals);
+	Total += CountFiltered(Buckets->NPCSpawners);
+	Total += CountFiltered(Buckets->Debris);
+
+	return Total;
+}
+
+int32 UInteriorSubsystem::GetDestroyedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* Buckets = AllDestroyedActorsByInteriorFloor.Find(CurrentKey); 
+	if (!Buckets)
+		return 0;
+
+	int32 Total = 0;
+	auto CountRecords = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				bool bMatches = false;
+				if (TagType == ETagType::TextTag)
+				{
+					if (TextTag != NAME_None && Rec.TextTags.Contains(TextTag))
+						bMatches = true;
+				}
+				else // GameplayTag
+				{
+					if (GameplayTag.IsValid() && Rec.GameplayTags.Contains(GameplayTag))
+						bMatches = true;
+				}
+				if (bMatches)
+					Count++;
+			}
+			return Count;
+		};
+
+	Total += CountRecords(Buckets->HeavyFurniture);
+	Total += CountRecords(Buckets->LightItems);
+	Total += CountRecords(Buckets->Terminals);
+	Total += CountRecords(Buckets->NPCSpawners);
+	Total += CountRecords(Buckets->Debris);
+
+	return Total;
+}
+
+int32 UInteriorSubsystem::GetDestroyedTagCount(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const
+{
+	return GetDestroyedTagCountForCurrentFloor(TagType, TextTag, GameplayTag);
+}
+
 void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Outcome)
 {
 	UWorld* World = GetWorld();
@@ -2415,16 +2495,11 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		return;
 	}
 
-	// Use the current floor (CurrentKey) where spawn/destroy happened
-	// (in your code earlier CurrentKey was used, not the passed P->InteriorSetId/P->FloorId)
-	// Используем текущий этаж (CurrentKey), на котором произошёл спавн/удаление
-	// (в вашем коде ранее использовался CurrentKey, а не переданный P->InteriorSetId/P->FloorId)
 	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
 	{
 		bool IsMissionWorld = false;
 
 		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-		// FString MissionName;
 		FName MissionId;
 		for (const auto& Pair : ActiveMissions)
 		{
@@ -2434,7 +2509,6 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			const UMissionAsset* Asset = Ctrl->GetMissionAsset();
 			if (!Asset) continue;
 
-			// MissionName = Asset->Description.ToString();
 			const EMissionStatus Status = Ctrl->GetStatus();
 			const EMissionEndReason EndReason = Ctrl->GetEndReason();
 			const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
@@ -2463,15 +2537,15 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
-
 		// Add record to SpawnedActorsByInteriorFloor
-		// Добавляем запись в SpawnedActorsByInteriorFloor
 		FFloorPopulationRecord NewRecord;
 		NewRecord.ActorType = P->ActorType;
 		NewRecord.WorldTransform = P->WorldTransform;
 		NewRecord.ActorId = P->ItemId;
 		NewRecord.bHasAnchor = P->AnchorId.IsValid();
 		NewRecord.SourceClass = P->ActorClass;
+		NewRecord.GameplayTags = P->GameplayTags;
+		NewRecord.TextTags = P->TextTags;
 
 		if (IsMissionWorld)
 		{
@@ -2550,17 +2624,76 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
-		if (MissionId.IsNone()) return;
-
-		TMap<FName, FFloorPopulationBuckets>& PerMissionDestroy = MissionDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
-		FFloorPopulationBuckets& MissionBuckets = PerMissionDestroy.FindOrAdd(MissionId);
-
-		// FFloorPopulationBuckets& BucketsDestroyed = DestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+		// ===== СОЗДАНИЕ ЗАПИСИ ДЛЯ УНИЧТОЖЕНИЯ (используется и для миссий, и для глобальной карты) =====
 		FFloorPopulationRecord NewRecordMission;
 		NewRecordMission.ActorType = P->ActorType;
 		NewRecordMission.WorldTransform = P->WorldTransform;
 		NewRecordMission.ActorId = P->ItemId;
 		NewRecordMission.bHasAnchor = P->AnchorId.IsValid();
+		NewRecordMission.SourceClass = P->ActorClass;
+		NewRecordMission.GameplayTags = P->GameplayTags;
+		NewRecordMission.TextTags = P->TextTags;
+
+		// ===== НОВЫЙ БЛОК: добавление в глобальную карту уничтоженных (ВСЕГДА) =====
+		// Этот блок выполняется независимо от наличия миссии, чтобы условия уничтожения работали всегда.
+		{
+			FFloorPopulationBuckets& GlobalDestroyedBuckets = AllDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+			switch (P->ActorType)
+			{
+			case EFloorActorType::HeavyFurniture:
+				if (!GlobalDestroyedBuckets.HeavyFurniture.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
+					return Existing.ActorId == NewRecordMission.ActorId;
+					}))
+				{
+					GlobalDestroyedBuckets.HeavyFurniture.Add(NewRecordMission);
+				}
+				break;
+			case EFloorActorType::LightItem:
+				if (!GlobalDestroyedBuckets.LightItems.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
+					return Existing.ActorId == NewRecordMission.ActorId;
+					}))
+				{
+					GlobalDestroyedBuckets.LightItems.Add(NewRecordMission);
+				}
+				break;
+			case EFloorActorType::Terminal:
+				if (!GlobalDestroyedBuckets.Terminals.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
+					return Existing.ActorId == NewRecordMission.ActorId;
+					}))
+				{
+					GlobalDestroyedBuckets.Terminals.Add(NewRecordMission);
+				}
+				break;
+			case EFloorActorType::SpawnGroupSpawner:
+				if (!GlobalDestroyedBuckets.NPCSpawners.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
+					return Existing.ActorId == NewRecordMission.ActorId;
+					}))
+				{
+					GlobalDestroyedBuckets.NPCSpawners.Add(NewRecordMission);
+				}
+				break;
+			case EFloorActorType::Debris:
+				if (!GlobalDestroyedBuckets.Debris.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
+					return Existing.ActorId == NewRecordMission.ActorId;
+					}))
+				{
+					GlobalDestroyedBuckets.Debris.Add(NewRecordMission);
+				}
+				break;
+			default:
+				break;
+			}
+		}
+
+		// ===== МИССИОННАЯ ЛОГИКА (выполняется только при наличии миссии) =====
+		if (MissionId.IsNone())
+		{
+			// Миссии нет – дальше не идём, но глобальная карта уже обновлена.
+			return;
+		}
+
+		TMap<FName, FFloorPopulationBuckets>& PerMissionDestroy = MissionDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+		FFloorPopulationBuckets& MissionBuckets = PerMissionDestroy.FindOrAdd(MissionId);
 
 		switch (P->ActorType)
 		{
@@ -2623,7 +2756,6 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		}
 
 		// Remove record from SpawnedActorsByInteriorFloor
-		// Удаляем запись из SpawnedActorsByInteriorFloor
 		auto RemoveFromSpawnedByActorId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId)
 			{
 				if (!TargetActorId.IsValid()) return;

@@ -21,7 +21,8 @@ public class FPSKitALSRefactored : ModuleRules
             "SlateCore",
             "Json",
             "JsonUtilities",
-            "SlateRHIRenderer"
+            "SlateRHIRenderer",
+    	    "GameplayTags"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]

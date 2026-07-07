@@ -39,18 +39,43 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
 	TWeakObjectPtr<AActor> Actor;
 
+	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
+	TArray<FGameplayTag> GameplayTags;
+
+	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
+	TArray<FName> TextTags;
+
 	UFUNCTION(BlueprintCallable, Category = "FloorPlacement")
 	UFloorPlacementPayload* Setup(
 		EFloorActorType InActorType,
 			const FTransform& InWorldTransform,
 		const FGuid& InItemId,
-		UClass* Class = nullptr)
+		UClass* Class = nullptr,
+		UClass* InActorClass = nullptr)
 	{
 		ActorType = InActorType;
 		WorldTransform = InWorldTransform;
 		ItemId = InItemId;
 		ActorClass = Class;
 
+		return this;
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "FloorPlacement")
+	UFloorPlacementPayload* SetupWithTags(
+		EFloorActorType InActorType,
+		const FTransform& InWorldTransform,
+		const FGuid& InItemId,
+		UClass* Class,
+		const TArray<FGameplayTag>& InGameplayTags,
+		const TArray<FName>& InTextTags)
+	{
+		ActorType = InActorType;
+		WorldTransform = InWorldTransform;
+		ItemId = InItemId;
+		ActorClass = Class;
+		GameplayTags = InGameplayTags;
+		TextTags = InTextTags;
 		return this;
 	}
 };
