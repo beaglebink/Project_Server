@@ -30,7 +30,7 @@ int32 UInteriorClassTypeCheckCondition::GetFilteredObjectCount(UWorld* World) co
 
         // Фильтр по типу EFloorActorType
         // LightItem – дефолтное значение, означающее "все типы"
-        if (ActorType != EFloorActorType::LightItem && Comp->ActorType != ActorType)
+        if (Comp->ActorType != ActorType)
             continue;
 
         // Объект прошёл все фильтры

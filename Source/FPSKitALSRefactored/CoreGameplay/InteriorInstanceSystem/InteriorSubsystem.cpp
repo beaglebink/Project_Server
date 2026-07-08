@@ -2409,7 +2409,7 @@ int32 UInteriorSubsystem::GetDestroyedActorCountForCurrentFloor(TSubclassOf<AAct
 	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
 		return 0;
 
-	const FFloorPopulationBuckets* Buckets = AllDestroyedActorsByInteriorFloor.Find(CurrentKey); // <-- изменено
+	const FFloorPopulationBuckets* Buckets = AllDestroyedActorsByInteriorFloor.Find(CurrentKey);
 	if (!Buckets)
 		return 0;
 
@@ -2421,7 +2421,7 @@ int32 UInteriorSubsystem::GetDestroyedActorCountForCurrentFloor(TSubclassOf<AAct
 			{
 				if (ActorClass && Rec.SourceClass != ActorClass)
 					continue;
-				if (ActorType != EFloorActorType::LightItem && Rec.ActorType != ActorType)
+				if (Rec.ActorType != ActorType)
 					continue;
 				Count++;
 			}
@@ -2634,7 +2634,6 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		NewRecordMission.GameplayTags = P->GameplayTags;
 		NewRecordMission.TextTags = P->TextTags;
 
-		// ===== НОВЫЙ БЛОК: добавление в глобальную карту уничтоженных (ВСЕГДА) =====
 		// Этот блок выполняется независимо от наличия миссии, чтобы условия уничтожения работали всегда.
 		{
 			FFloorPopulationBuckets& GlobalDestroyedBuckets = AllDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
