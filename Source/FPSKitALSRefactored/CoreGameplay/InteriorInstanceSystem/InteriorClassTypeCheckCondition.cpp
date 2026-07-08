@@ -146,11 +146,8 @@ void UInteriorClassTypeRemainingCondition::ExecuteCheck(const FGuid& Transaction
         return;
     }
 
-    // Общее количество существующих
-    int32 Total = GetFilteredObjectCount(World);
-    // Уничтоженные
     int32 DestroyedCount = InteriorSub->GetDestroyedActorCountForCurrentFloor(ActorClass, ActorType);
-    int32 Remaining = Total - DestroyedCount;
+    int32 Remaining = GetFilteredObjectCount(World);
 
     switch (Operator)
     {
