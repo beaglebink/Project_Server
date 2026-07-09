@@ -19,25 +19,25 @@ class FPSKITALSREFACTORED_API UInteriorTagCheckCondition : public UCheckConditio
 
 public:
     // Тип тега
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior|Tag")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     ETagType TagType = ETagType::TextTag;
 
     // Текстовый тег (если TagType == TextTag)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior|Tag",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior",
         meta = (EditCondition = "TagType == ETagType::TextTag", EditConditionHides))
     FName TextTag;
 
     // GameplayTag (если TagType == GameplayTag)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior|Tag",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior",
         meta = (EditCondition = "TagType == ETagType::GameplayTag", EditConditionHides))
     FGameplayTag GameplayTag;
 
     // Оператор сравнения количества
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior|Tag")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     ECheckCompareOp Operator = ECheckCompareOp::Equal;
 
     // Ожидаемое количество
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Check|Interior|Tag")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     int32 ExpectedValue = 0;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
