@@ -2460,7 +2460,7 @@ int32 UInteriorSubsystem::GetDestroyedTagCountForCurrentFloor(ETagType TagType, 
 				}
 				else // GameplayTag
 				{
-					if (GameplayTag.IsValid() && Rec.GameplayTags.Contains(GameplayTag))
+					if (GameplayTag.IsValid() && Rec.GameplayTagContainer.HasTag(GameplayTag))
 						bMatches = true;
 				}
 				if (bMatches)
@@ -2544,7 +2544,8 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		NewRecord.ActorId = P->ItemId;
 		NewRecord.bHasAnchor = P->AnchorId.IsValid();
 		NewRecord.SourceClass = P->ActorClass;
-		NewRecord.GameplayTags = P->GameplayTags;
+		//NewRecord.GameplayTags = P->GameplayTags;
+		NewRecord.GameplayTagContainer.AppendTags(P->GameplayTagContainer);
 		NewRecord.TextTags = P->TextTags;
 
 		if (IsMissionWorld)
@@ -2631,7 +2632,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		NewRecordMission.ActorId = P->ItemId;
 		NewRecordMission.bHasAnchor = P->AnchorId.IsValid();
 		NewRecordMission.SourceClass = P->ActorClass;
-		NewRecordMission.GameplayTags = P->GameplayTags;
+		NewRecordMission.GameplayTagContainer = P->GameplayTagContainer;
 		NewRecordMission.TextTags = P->TextTags;
 
 		// Этот блок выполняется независимо от наличия миссии, чтобы условия уничтожения работали всегда.

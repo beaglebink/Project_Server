@@ -40,7 +40,7 @@ public:
 	TWeakObjectPtr<AActor> Actor;
 
 	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
-	TArray<FGameplayTag> GameplayTags;
+	FGameplayTagContainer GameplayTagContainer;
 
 	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
 	TArray<FName> TextTags;
@@ -67,14 +67,14 @@ public:
 		const FTransform& InWorldTransform,
 		const FGuid& InItemId,
 		UClass* Class,
-		const TArray<FGameplayTag>& InGameplayTags,
+		FGameplayTagContainer InGameplayTags,
 		const TArray<FName>& InTextTags)
 	{
 		ActorType = InActorType;
 		WorldTransform = InWorldTransform;
 		ItemId = InItemId;
 		ActorClass = Class;
-		GameplayTags = InGameplayTags;
+		GameplayTagContainer = InGameplayTags;
 		TextTags = InTextTags;
 		return this;
 	}

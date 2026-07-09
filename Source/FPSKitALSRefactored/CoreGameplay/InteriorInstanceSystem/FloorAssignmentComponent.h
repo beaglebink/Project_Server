@@ -34,7 +34,7 @@ public:
     FGuid AnchorId;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
-    TArray<FGameplayTag> GameplayTags;   // изменено с FGameplayTagContainer
+	FGameplayTagContainer GameplayTagContainer;
 
     // DuplicateTransient — ID не копируется при дублировании
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, DuplicateTransient, SaveGame, Category = "FloorAssignment")

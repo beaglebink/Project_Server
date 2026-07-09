@@ -35,7 +35,7 @@ void UFloorAssignmentComponent::BeginPlay()
                             Owner ? Owner->GetActorTransform() : FTransform::Identity,
                             ItemId,
                             Owner ? Owner->GetClass() : nullptr,
-                            this->GameplayTags,
+                            this->GameplayTagContainer,
                             TextTags
                         );
                         FOutcomeEventBase Ev;
@@ -78,7 +78,7 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
                         Owner ? Owner->GetActorTransform() : FTransform::Identity,
                         ItemId,
                         Owner ? Owner->GetClass() : nullptr,
-                        this->GameplayTags,
+                        this->GameplayTagContainer,
                         TextTags
                     );
                     FOutcomeEventBase Ev;

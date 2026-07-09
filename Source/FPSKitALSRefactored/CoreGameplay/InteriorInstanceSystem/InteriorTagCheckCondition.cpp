@@ -30,7 +30,7 @@ int32 UInteriorTagCheckCondition::GetTaggedObjectCount(UWorld* World) const
         }
         else // GameplayTag
         {
-            if (GameplayTag.IsValid() && Comp->GameplayTags.Contains(GameplayTag))  // <-- заменили HasTagExact на Contains
+            if (GameplayTag.IsValid() && Comp->GameplayTagContainer.HasTag(GameplayTag))
                 bMatches = true;
         }
 
@@ -153,8 +153,7 @@ void UInteriorTagRemainingCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
 
-    // Общее количество существующих объектов с тегом
-    int32 Total = GetTaggedObjectCount(World);
+    int32 Remaining = GetTaggedObjectCount(World);
 
     // Уничтоженные с тегом
     int32 DestroyedCount = 0;
@@ -166,8 +165,6 @@ void UInteriorTagRemainingCondition::ExecuteCheck(const FGuid& TransactionId)
     {
         DestroyedCount = InteriorSub->GetDestroyedTagCountForCurrentFloor(TagType, NAME_None, GameplayTag);
     }
-
-    int32 Remaining = Total - DestroyedCount;
 
     switch (Operator)
     {

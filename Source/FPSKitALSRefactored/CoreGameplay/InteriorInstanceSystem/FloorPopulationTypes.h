@@ -95,7 +95,7 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 	bool bHasAnchor = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
-	TArray<FGameplayTag> GameplayTags;
+	FGameplayTagContainer GameplayTagContainer;
 
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	TArray<FName> TextTags;
