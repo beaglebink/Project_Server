@@ -82,3 +82,40 @@ public:
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
+
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorClassTypeSpawnedCondition : public UInteriorClassTypeCheckCondition
+{
+    GENERATED_BODY()
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// InteriorClassTypeCheckCondition.h (дополнение)
+
+/**
+ * Подсчёт количества заспавненных объектов указанного класса и типа, которые были уничтожены.
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorClassTypeDestroyedSpawnedCondition : public UInteriorClassTypeCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+/**
+ * Подсчёт количества оригинальных (изначально существовавших на уровне) объектов указанного класса и типа, которые были уничтожены.
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorClassTypeDestroyedOriginalCondition : public UInteriorClassTypeCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};

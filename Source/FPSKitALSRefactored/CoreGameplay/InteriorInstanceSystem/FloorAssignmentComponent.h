@@ -53,17 +53,12 @@ public:
     FGuid GetFloorId() const { return FloorId; }
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
-    void Registrate(EFloorActorType Type, FGuid ForceItemId = FGuid())
-    {
-        ItemId = ForceItemId.IsValid() ? ForceItemId : FGuid::NewGuid();
-        ProtectedItemId = ItemId;
-        SnapshotChannel = ESnapshotChannel::Snapshot;
-        ActorType = Type;
-        MarkPackageDirty();
-    }
+    void Registrate(EFloorActorType Type, FGuid ForceItemId = FGuid());
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "FloorAssignment")
     FGuid GetItemId() const { return ProtectedItemId; }
+
+    void PublishRegistration();
 
     // Пометить уровень грязным (для сохранения)
     void MarkPackageDirty();
@@ -72,4 +67,7 @@ protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void PostEditImport() override;   // Обработка дублирования и копирования
+
+private:
+    bool IsRuntimeSpawned = false;
 };

@@ -89,3 +89,44 @@ public:
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
+
+/**
+ * Подсчёт количества заспавненных объектов с тегом, которые ещё живы (не уничтожены).
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorTagSpawnedCondition : public UInteriorTagCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// InteriorTagCheckCondition.h (дополнение)
+
+/**
+ * Подсчёт количества заспавненных объектов с тегом, которые были уничтожены.
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorTagDestroyedSpawnedCondition : public UInteriorTagCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+/**
+ * Подсчёт количества оригинальных (изначально существовавших на уровне) объектов с тегом, которые были уничтожены.
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorTagDestroyedOriginalCondition : public UInteriorTagCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};

@@ -37,7 +37,9 @@ void UFloorAssignmentComponent::BeginPlay()
                             Owner ? Owner->GetClass() : nullptr,
                             this->GameplayTagContainer,
                             TextTags
-                        );
+                            ,false);
+
+                        IsRuntimeSpawned = false;
                         FOutcomeEventBase Ev;
                         Ev.OutcomeType = EOutcomeType::Interior;
                         Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementRegistered;
@@ -79,7 +81,8 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
                         ItemId,
                         Owner ? Owner->GetClass() : nullptr,
                         this->GameplayTagContainer,
-                        TextTags
+                        TextTags,
+                        IsRuntimeSpawned
                     );
                     FOutcomeEventBase Ev;
                     Ev.OutcomeType = EOutcomeType::Interior;
@@ -115,4 +118,56 @@ void UFloorAssignmentComponent::MarkPackageDirty()
     if (AActor* Owner = GetOwner())
         Owner->MarkPackageDirty();
 #endif
+}
+
+void UFloorAssignmentComponent::PublishRegistration()
+{
+    if (SnapshotChannel != ESnapshotChannel::Snapshot || !ItemId.IsValid())
+        return;
+
+    UWorld* W = GetWorld();
+    if (!W) return;
+
+    UGameInstance* GI = W->GetGameInstance();
+    if (!GI) return;
+
+    UEventBusSubsystem* Bus = GI->GetSubsystem<UEventBusSubsystem>();
+    if (!Bus) return;
+
+    UFloorPlacementPayload* Payload = Bus->CreatePayload<UFloorPlacementPayload>();
+    if (!Payload) return;
+
+    AActor* Owner = GetOwner();
+    TArray<FName> TextTags;
+    if (Owner)
+        TextTags = Owner->Tags;
+
+    Payload->SetupWithTags(
+        ActorType,
+        Owner ? Owner->GetActorTransform() : FTransform::Identity,
+        ItemId,
+        Owner ? Owner->GetClass() : nullptr,
+        this->GameplayTagContainer,
+        TextTags,
+        true
+    );
+
+    IsRuntimeSpawned = true;
+    FOutcomeEventBase Ev;
+    Ev.OutcomeType = EOutcomeType::Interior;
+    Ev.OutcomeInterior = EOutcomeInterior::FloorPlacementRegistered;
+    Ev.Payload = Payload;
+    Bus->PublishOutcome(Ev);
+}
+
+void UFloorAssignmentComponent::Registrate(EFloorActorType Type, FGuid ForceItemId /*= FGuid()*/)
+{
+    ItemId = ForceItemId.IsValid() ? ForceItemId : FGuid::NewGuid();
+    ProtectedItemId = ItemId;
+    SnapshotChannel = ESnapshotChannel::Snapshot;
+    ActorType = Type;
+    MarkPackageDirty();
+
+    // Публикуем событие обновления регистрации (теги уже установлены в Blueprint)
+    PublishRegistration();
 }

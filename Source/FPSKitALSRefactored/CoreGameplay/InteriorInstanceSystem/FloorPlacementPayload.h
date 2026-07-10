@@ -45,6 +45,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
 	TArray<FName> TextTags;
 
+	UPROPERTY(BlueprintReadWrite, Category = "FloorPlacement")
+	bool bIsRuntimeSpawn = false;
+
 	UFUNCTION(BlueprintCallable, Category = "FloorPlacement")
 	UFloorPlacementPayload* Setup(
 		EFloorActorType InActorType,
@@ -68,7 +71,8 @@ public:
 		const FGuid& InItemId,
 		UClass* Class,
 		FGameplayTagContainer InGameplayTags,
-		const TArray<FName>& InTextTags)
+		const TArray<FName>& InTextTags,
+		bool bInIsRuntimeSpawn = false)
 	{
 		ActorType = InActorType;
 		WorldTransform = InWorldTransform;
@@ -76,6 +80,7 @@ public:
 		ActorClass = Class;
 		GameplayTagContainer = InGameplayTags;
 		TextTags = InTextTags;
+		bIsRuntimeSpawn = bInIsRuntimeSpawn;
 		return this;
 	}
 };

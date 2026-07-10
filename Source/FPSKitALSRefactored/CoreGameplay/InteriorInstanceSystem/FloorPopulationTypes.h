@@ -99,6 +99,9 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	TArray<FName> TextTags;
+
+	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
+	bool bIsRuntimeSpawn = false;
 };
 
 // Grouping of arrays by semantic categories for one key (InteriorSet + Floor).

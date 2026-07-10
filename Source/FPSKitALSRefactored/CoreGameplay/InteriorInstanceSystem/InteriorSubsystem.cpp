@@ -2478,6 +2478,113 @@ int32 UInteriorSubsystem::GetDestroyedTagCountForCurrentFloor(ETagType TagType, 
 	return Total;
 }
 
+int32 UInteriorSubsystem::GetSpawnedActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* SpawnedBuckets = AllSpawnedActorsByInteriorFloor.Find(CurrentKey);
+	if (!SpawnedBuckets)
+		return 0;
+
+	const FFloorPopulationBuckets* DestroyedBuckets = AllDestroyedActorsByInteriorFloor.Find(CurrentKey);
+
+	auto IsDestroyed = [&](const FGuid& ItemId) -> bool
+		{
+			if (!DestroyedBuckets) return false;
+			auto Contains = [&](const TArray<FFloorPopulationRecord>& Arr) -> bool
+				{
+					return Arr.ContainsByPredicate([&](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ItemId; });
+				};
+			return Contains(DestroyedBuckets->HeavyFurniture) ||
+				Contains(DestroyedBuckets->LightItems) ||
+				Contains(DestroyedBuckets->Terminals) ||
+				Contains(DestroyedBuckets->NPCSpawners) ||
+				Contains(DestroyedBuckets->Debris);
+		};
+
+	auto CountFiltered = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				// Фильтр по классу и типу
+				if (ActorClass && Rec.SourceClass != ActorClass)
+					continue;
+				if (Rec.ActorType != ActorType)
+					continue;
+				// Учитываем только живые спавны (не уничтоженные)
+				if (!IsDestroyed(Rec.ActorId))
+					Count++;
+			}
+			return Count;
+		};
+
+	int32 Total = 0;
+	Total += CountFiltered(SpawnedBuckets->HeavyFurniture);
+	Total += CountFiltered(SpawnedBuckets->LightItems);
+	Total += CountFiltered(SpawnedBuckets->Terminals);
+	Total += CountFiltered(SpawnedBuckets->NPCSpawners);
+	Total += CountFiltered(SpawnedBuckets->Debris);
+	return Total;
+}
+
+int32 UInteriorSubsystem::GetSpawnedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* SpawnedBuckets = AllSpawnedActorsByInteriorFloor.Find(CurrentKey);
+	if (!SpawnedBuckets)
+		return 0;
+
+	const FFloorPopulationBuckets* DestroyedBuckets = AllDestroyedActorsByInteriorFloor.Find(CurrentKey);
+
+	auto IsDestroyed = [&](const FGuid& ItemId) -> bool
+		{
+			if (!DestroyedBuckets) return false;
+			auto Contains = [&](const TArray<FFloorPopulationRecord>& Arr) -> bool
+				{
+					return Arr.ContainsByPredicate([&](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ItemId; });
+				};
+			return Contains(DestroyedBuckets->HeavyFurniture) ||
+				Contains(DestroyedBuckets->LightItems) ||
+				Contains(DestroyedBuckets->Terminals) ||
+				Contains(DestroyedBuckets->NPCSpawners) ||
+				Contains(DestroyedBuckets->Debris);
+		};
+
+	auto CountRecords = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				bool bMatches = false;
+				if (TagType == ETagType::TextTag)
+				{
+					if (TextTag != NAME_None && Rec.TextTags.Contains(TextTag))
+						bMatches = true;
+				}
+				else // GameplayTag
+				{
+					if (GameplayTag.IsValid() && Rec.GameplayTagContainer.HasTag(GameplayTag))
+						bMatches = true;
+				}
+				if (bMatches && !IsDestroyed(Rec.ActorId))
+					Count++;
+			}
+			return Count;
+		};
+
+	int32 Total = 0;
+	Total += CountRecords(SpawnedBuckets->HeavyFurniture);
+	Total += CountRecords(SpawnedBuckets->LightItems);
+	Total += CountRecords(SpawnedBuckets->Terminals);
+	Total += CountRecords(SpawnedBuckets->NPCSpawners);
+	Total += CountRecords(SpawnedBuckets->Debris);
+	return Total;
+}
+
 int32 UInteriorSubsystem::GetDestroyedTagCount(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const
 {
 	return GetDestroyedTagCountForCurrentFloor(TagType, TextTag, GameplayTag);
@@ -2495,12 +2602,26 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		return;
 	}
 
+	// Вспомогательная лямбда для удаления записи по ActorId из бакетов
+	auto RemoveByActorIdFromBuckets = [](FFloorPopulationBuckets& Buckets, const FGuid& ActorId)
+		{
+			auto RemoveFromArray = [&ActorId](TArray<FFloorPopulationRecord>& Arr)
+				{
+					Arr.RemoveAll([&ActorId](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ActorId; });
+				};
+			RemoveFromArray(Buckets.HeavyFurniture);
+			RemoveFromArray(Buckets.LightItems);
+			RemoveFromArray(Buckets.Terminals);
+			RemoveFromArray(Buckets.NPCSpawners);
+			RemoveFromArray(Buckets.Debris);
+		};
+
 	if (Outcome.OutcomeInterior == EOutcomeInterior::FloorPlacementRegistered)
 	{
 		bool IsMissionWorld = false;
+		FName MissionId;
 
 		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-		FName MissionId;
 		for (const auto& Pair : ActiveMissions)
 		{
 			const UMissionController* Ctrl = Pair.Value.Controller;
@@ -2537,47 +2658,63 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
-		// Add record to SpawnedActorsByInteriorFloor
+		// ---- Создаём запись для спавна ----
 		FFloorPopulationRecord NewRecord;
 		NewRecord.ActorType = P->ActorType;
 		NewRecord.WorldTransform = P->WorldTransform;
 		NewRecord.ActorId = P->ItemId;
 		NewRecord.bHasAnchor = P->AnchorId.IsValid();
 		NewRecord.SourceClass = P->ActorClass;
-		//NewRecord.GameplayTags = P->GameplayTags;
-		NewRecord.GameplayTagContainer.AppendTags(P->GameplayTagContainer);
+		NewRecord.GameplayTagContainer = P->GameplayTagContainer;
 		NewRecord.TextTags = P->TextTags;
+		NewRecord.bIsRuntimeSpawn = P->bIsRuntimeSpawn;   // <-- сохраняем флаг
 
+		// ---- Глобальная карта спавнов (для условий) ----
+		{
+			FFloorPopulationBuckets& GlobalSpawnedBuckets = AllSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+			RemoveByActorIdFromBuckets(GlobalSpawnedBuckets, P->ItemId);
+			switch (P->ActorType)
+			{
+			case EFloorActorType::HeavyFurniture: GlobalSpawnedBuckets.HeavyFurniture.Add(NewRecord); break;
+			case EFloorActorType::LightItem:      GlobalSpawnedBuckets.LightItems.Add(NewRecord); break;
+			case EFloorActorType::Terminal:       GlobalSpawnedBuckets.Terminals.Add(NewRecord); break;
+			case EFloorActorType::SpawnGroupSpawner: GlobalSpawnedBuckets.NPCSpawners.Add(NewRecord); break;
+			case EFloorActorType::Debris:         GlobalSpawnedBuckets.Debris.Add(NewRecord); break;
+			default: break;
+			}
+		}
+
+		// ---- Глобальная карта размещённых (для восстановления) ----
+		{
+			FFloorPopulationBuckets& SpawnedBuckets = SpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+			RemoveByActorIdFromBuckets(SpawnedBuckets, P->ItemId);
+			switch (P->ActorType)
+			{
+			case EFloorActorType::HeavyFurniture: SpawnedBuckets.HeavyFurniture.Add(NewRecord); break;
+			case EFloorActorType::LightItem:      SpawnedBuckets.LightItems.Add(NewRecord); break;
+			case EFloorActorType::Terminal:       SpawnedBuckets.Terminals.Add(NewRecord); break;
+			case EFloorActorType::SpawnGroupSpawner: SpawnedBuckets.NPCSpawners.Add(NewRecord); break;
+			case EFloorActorType::Debris:         SpawnedBuckets.Debris.Add(NewRecord); break;
+			default: break;
+			}
+		}
+
+		// ---- Миссионная карта спавнов (если миссия) ----
 		if (IsMissionWorld)
 		{
 			if (MissionId.IsNone()) return;
 
 			TMap<FName, FFloorPopulationBuckets>& PerMissionSpawn = MissionSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 			FFloorPopulationBuckets& MissionBuckets = PerMissionSpawn.FindOrAdd(MissionId);
+			RemoveByActorIdFromBuckets(MissionBuckets, P->ItemId);
 			switch (P->ActorType)
 			{
-			case EFloorActorType::HeavyFurniture:
-				if (!MissionBuckets.HeavyFurniture.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
-					MissionBuckets.HeavyFurniture.Add(NewRecord);
-				break;
-			case EFloorActorType::LightItem:
-				if (!MissionBuckets.LightItems.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
-					MissionBuckets.LightItems.Add(NewRecord);
-				break;
-			case EFloorActorType::Terminal:
-				if (!MissionBuckets.Terminals.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
-					MissionBuckets.Terminals.Add(NewRecord);
-				break;
-			case EFloorActorType::SpawnGroupSpawner:
-				if (!MissionBuckets.NPCSpawners.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
-					MissionBuckets.NPCSpawners.Add(NewRecord);
-				break;
-			case EFloorActorType::Debris:
-				if (!MissionBuckets.Debris.ContainsByPredicate([&NewRecord](const FFloorPopulationRecord& Existing) { return Existing.ActorId == NewRecord.ActorId; }))
-					MissionBuckets.Debris.Add(NewRecord);
-				break;
-			default:
-				break;
+			case EFloorActorType::HeavyFurniture: MissionBuckets.HeavyFurniture.Add(NewRecord); break;
+			case EFloorActorType::LightItem:      MissionBuckets.LightItems.Add(NewRecord); break;
+			case EFloorActorType::Terminal:       MissionBuckets.Terminals.Add(NewRecord); break;
+			case EFloorActorType::SpawnGroupSpawner: MissionBuckets.NPCSpawners.Add(NewRecord); break;
+			case EFloorActorType::Debris:         MissionBuckets.Debris.Add(NewRecord); break;
+			default: break;
 			}
 		}
 	}
@@ -2625,7 +2762,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
-		// ===== СОЗДАНИЕ ЗАПИСИ ДЛЯ УНИЧТОЖЕНИЯ (используется и для миссий, и для глобальной карты) =====
+		// ---- Создаём запись для удаления ----
 		FFloorPopulationRecord NewRecordMission;
 		NewRecordMission.ActorType = P->ActorType;
 		NewRecordMission.WorldTransform = P->WorldTransform;
@@ -2634,151 +2771,86 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		NewRecordMission.SourceClass = P->ActorClass;
 		NewRecordMission.GameplayTagContainer = P->GameplayTagContainer;
 		NewRecordMission.TextTags = P->TextTags;
+		NewRecordMission.bIsRuntimeSpawn = P->bIsRuntimeSpawn;   // <-- сохраняем флаг
 
-		// Этот блок выполняется независимо от наличия миссии, чтобы условия уничтожения работали всегда.
+		// ---- Глобальная карта удалённых (общая) ----
 		{
 			FFloorPopulationBuckets& GlobalDestroyedBuckets = AllDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+			RemoveByActorIdFromBuckets(GlobalDestroyedBuckets, P->ItemId);
 			switch (P->ActorType)
 			{
-			case EFloorActorType::HeavyFurniture:
-				if (!GlobalDestroyedBuckets.HeavyFurniture.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-					return Existing.ActorId == NewRecordMission.ActorId;
-					}))
-				{
-					GlobalDestroyedBuckets.HeavyFurniture.Add(NewRecordMission);
-				}
-				break;
-			case EFloorActorType::LightItem:
-				if (!GlobalDestroyedBuckets.LightItems.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-					return Existing.ActorId == NewRecordMission.ActorId;
-					}))
-				{
-					GlobalDestroyedBuckets.LightItems.Add(NewRecordMission);
-				}
-				break;
-			case EFloorActorType::Terminal:
-				if (!GlobalDestroyedBuckets.Terminals.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-					return Existing.ActorId == NewRecordMission.ActorId;
-					}))
-				{
-					GlobalDestroyedBuckets.Terminals.Add(NewRecordMission);
-				}
-				break;
-			case EFloorActorType::SpawnGroupSpawner:
-				if (!GlobalDestroyedBuckets.NPCSpawners.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-					return Existing.ActorId == NewRecordMission.ActorId;
-					}))
-				{
-					GlobalDestroyedBuckets.NPCSpawners.Add(NewRecordMission);
-				}
-				break;
-			case EFloorActorType::Debris:
-				if (!GlobalDestroyedBuckets.Debris.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-					return Existing.ActorId == NewRecordMission.ActorId;
-					}))
-				{
-					GlobalDestroyedBuckets.Debris.Add(NewRecordMission);
-				}
-				break;
-			default:
-				break;
+			case EFloorActorType::HeavyFurniture: GlobalDestroyedBuckets.HeavyFurniture.Add(NewRecordMission); break;
+			case EFloorActorType::LightItem:      GlobalDestroyedBuckets.LightItems.Add(NewRecordMission); break;
+			case EFloorActorType::Terminal:       GlobalDestroyedBuckets.Terminals.Add(NewRecordMission); break;
+			case EFloorActorType::SpawnGroupSpawner: GlobalDestroyedBuckets.NPCSpawners.Add(NewRecordMission); break;
+			case EFloorActorType::Debris:         GlobalDestroyedBuckets.Debris.Add(NewRecordMission); break;
+			default: break;
 			}
 		}
 
-		// ===== МИССИОННАЯ ЛОГИКА (выполняется только при наличии миссии) =====
-		if (MissionId.IsNone())
+		// ---- Глобальная карта удалённых спавненных (если объект был спавнен) ----
+		if (P->bIsRuntimeSpawn)
 		{
-			// Миссии нет – дальше не идём, но глобальная карта уже обновлена.
-			return;
-		}
-
-		TMap<FName, FFloorPopulationBuckets>& PerMissionDestroy = MissionDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
-		FFloorPopulationBuckets& MissionBuckets = PerMissionDestroy.FindOrAdd(MissionId);
-
-		switch (P->ActorType)
-		{
-		case EFloorActorType::HeavyFurniture:
-		{
-			if (!MissionBuckets.HeavyFurniture.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecordMission.ActorId;
-				}))
+			FFloorPopulationBuckets& DestroyedSpawnedBuckets = AllDestroyedSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+			RemoveByActorIdFromBuckets(DestroyedSpawnedBuckets, P->ItemId);
+			switch (P->ActorType)
 			{
-				MissionBuckets.HeavyFurniture.Add(NewRecordMission);
+			case EFloorActorType::HeavyFurniture: DestroyedSpawnedBuckets.HeavyFurniture.Add(NewRecordMission); break;
+			case EFloorActorType::LightItem:      DestroyedSpawnedBuckets.LightItems.Add(NewRecordMission); break;
+			case EFloorActorType::Terminal:       DestroyedSpawnedBuckets.Terminals.Add(NewRecordMission); break;
+			case EFloorActorType::SpawnGroupSpawner: DestroyedSpawnedBuckets.NPCSpawners.Add(NewRecordMission); break;
+			case EFloorActorType::Debris:         DestroyedSpawnedBuckets.Debris.Add(NewRecordMission); break;
+			default: break;
 			}
-			break;
 		}
-
-		case EFloorActorType::LightItem:
+		else
 		{
-			if (!MissionBuckets.LightItems.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecordMission.ActorId;
-				}))
+			// ---- Глобальная карта удалённых оригинальных (изначальные объекты) ----
+			FFloorPopulationBuckets& DestroyedOriginalBuckets = AllDestroyedOriginalActorsByInteriorFloor.FindOrAdd(CurrentKey);
+			RemoveByActorIdFromBuckets(DestroyedOriginalBuckets, P->ItemId);
+			switch (P->ActorType)
 			{
-				MissionBuckets.LightItems.Add(NewRecordMission);
+			case EFloorActorType::HeavyFurniture: DestroyedOriginalBuckets.HeavyFurniture.Add(NewRecordMission); break;
+			case EFloorActorType::LightItem:      DestroyedOriginalBuckets.LightItems.Add(NewRecordMission); break;
+			case EFloorActorType::Terminal:       DestroyedOriginalBuckets.Terminals.Add(NewRecordMission); break;
+			case EFloorActorType::SpawnGroupSpawner: DestroyedOriginalBuckets.NPCSpawners.Add(NewRecordMission); break;
+			case EFloorActorType::Debris:         DestroyedOriginalBuckets.Debris.Add(NewRecordMission); break;
+			default: break;
 			}
-			break;
 		}
 
-		case EFloorActorType::Terminal:
+		// ---- Удаляем запись из глобальной карты спавнов (AllSpawnedActorsByInteriorFloor) ----
 		{
-			if (!MissionBuckets.Terminals.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecordMission.ActorId;
-				}))
-			{
-				MissionBuckets.Terminals.Add(NewRecordMission);
-			}
-			break;
+			FFloorPopulationBuckets* SpawnedBuckets = AllSpawnedActorsByInteriorFloor.Find(CurrentKey);
+			if (SpawnedBuckets)
+				RemoveByActorIdFromBuckets(*SpawnedBuckets, P->ItemId);
 		}
 
-		case EFloorActorType::SpawnGroupSpawner:
+		// ---- Удаляем запись из SpawnedActorsByInteriorFloor (карта размещённых) ----
 		{
-			if (!MissionBuckets.NPCSpawners.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecordMission.ActorId;
-				}))
-			{
-				MissionBuckets.NPCSpawners.Add(NewRecordMission);
-			}
-			break;
+			FFloorPopulationBuckets* SpawnedBuckets = SpawnedActorsByInteriorFloor.Find(CurrentKey);
+			if (SpawnedBuckets)
+				RemoveByActorIdFromBuckets(*SpawnedBuckets, P->ItemId);
 		}
 
-		case EFloorActorType::Debris:
-		{
-			if (!MissionBuckets.Debris.ContainsByPredicate([&NewRecordMission](const FFloorPopulationRecord& Existing) {
-				return Existing.ActorId == NewRecordMission.ActorId;
-				}))
-			{
-				MissionBuckets.Debris.Add(NewRecordMission);
-			}
-			break;
-		}
-
-		default: {}
-		}
-
-		// Remove record from SpawnedActorsByInteriorFloor
-		auto RemoveFromSpawnedByActorId = [](TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId)
-			{
-				if (!TargetActorId.IsValid()) return;
-				for (auto& Pair : SpawnedMap)
-				{
-					FFloorPopulationBuckets& Buckets = Pair.Value;
-					auto RemoveByActorId = [&TargetActorId](TArray<FFloorPopulationRecord>& Arr)
-						{
-							Arr.RemoveAll([&TargetActorId](const FFloorPopulationRecord& Record)
-								{
-									return Record.ActorId == TargetActorId;
-								});
-						};
-					RemoveByActorId(Buckets.HeavyFurniture);
-					RemoveByActorId(Buckets.LightItems);
-					RemoveByActorId(Buckets.Terminals);
-					RemoveByActorId(Buckets.NPCSpawners);
-					RemoveByActorId(Buckets.Debris);
-				}
-			};
-
+		// ---- Миссионная логика (только если есть миссия) ----
 		if (!MissionId.IsNone())
 		{
+			// Добавляем в миссионную карту удалённых
+			TMap<FName, FFloorPopulationBuckets>& PerMissionDestroy = MissionDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+			FFloorPopulationBuckets& MissionBuckets = PerMissionDestroy.FindOrAdd(MissionId);
+			RemoveByActorIdFromBuckets(MissionBuckets, P->ItemId);
+			switch (P->ActorType)
+			{
+			case EFloorActorType::HeavyFurniture: MissionBuckets.HeavyFurniture.Add(NewRecordMission); break;
+			case EFloorActorType::LightItem:      MissionBuckets.LightItems.Add(NewRecordMission); break;
+			case EFloorActorType::Terminal:       MissionBuckets.Terminals.Add(NewRecordMission); break;
+			case EFloorActorType::SpawnGroupSpawner: MissionBuckets.NPCSpawners.Add(NewRecordMission); break;
+			case EFloorActorType::Debris:         MissionBuckets.Debris.Add(NewRecordMission); break;
+			default: break;
+			}
+
+			// Удаляем из миссионной карты спавнов (если объект был в ней)
 			if (ContainsActorIdInMissionSpawnedForFloor(MissionSpawnedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId))
 			{
 				RemoveFromMissionDestroyedByActorIdForFloor(MissionDestroyedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId);
@@ -4923,4 +4995,159 @@ void UInteriorSubsystem::DestroyRecords(const TArray<FFloorPopulationRecord>& Re
 		if (Actor && IsValid(Actor))
 			Actor->Destroy();
 	}
+}
+
+// ============================================================================
+// Раздельный подсчёт удалённых объектов (спавненные vs оригинальные)
+// ============================================================================
+
+int32 UInteriorSubsystem::GetDestroyedSpawnedActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* Buckets = AllDestroyedSpawnedActorsByInteriorFloor.Find(CurrentKey);
+	if (!Buckets)
+		return 0;
+
+	int32 Total = 0;
+	auto CountFiltered = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				// Проверка класса (если задан)
+				if (ActorClass && Rec.SourceClass != ActorClass)
+					continue;
+				// Проверка типа
+				if (Rec.ActorType != ActorType)
+					continue;
+				// Все записи в этой карте – заспавненные, поэтому дополнительный флаг не требуется
+				Count++;
+			}
+			return Count;
+		};
+
+	Total += CountFiltered(Buckets->HeavyFurniture);
+	Total += CountFiltered(Buckets->LightItems);
+	Total += CountFiltered(Buckets->Terminals);
+	Total += CountFiltered(Buckets->NPCSpawners);
+	Total += CountFiltered(Buckets->Debris);
+
+	return Total;
+}
+
+int32 UInteriorSubsystem::GetDestroyedOriginalActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* Buckets = AllDestroyedOriginalActorsByInteriorFloor.Find(CurrentKey);
+	if (!Buckets)
+		return 0;
+
+	int32 Total = 0;
+	auto CountFiltered = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				if (ActorClass && Rec.SourceClass != ActorClass)
+					continue;
+				if (Rec.ActorType != ActorType)
+					continue;
+				Count++;
+			}
+			return Count;
+		};
+
+	Total += CountFiltered(Buckets->HeavyFurniture);
+	Total += CountFiltered(Buckets->LightItems);
+	Total += CountFiltered(Buckets->Terminals);
+	Total += CountFiltered(Buckets->NPCSpawners);
+	Total += CountFiltered(Buckets->Debris);
+
+	return Total;
+}
+
+int32 UInteriorSubsystem::GetDestroyedSpawnedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* Buckets = AllDestroyedSpawnedActorsByInteriorFloor.Find(CurrentKey);
+	if (!Buckets)
+		return 0;
+
+	int32 Total = 0;
+	auto CountRecords = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				bool bMatches = false;
+				if (TagType == ETagType::TextTag)
+				{
+					if (TextTag != NAME_None && Rec.TextTags.Contains(TextTag))
+						bMatches = true;
+				}
+				else // GameplayTag
+				{
+					if (GameplayTag.IsValid() && Rec.GameplayTagContainer.HasTag(GameplayTag))
+						bMatches = true;
+				}
+				if (bMatches)
+					Count++;
+			}
+			return Count;
+		};
+
+	Total += CountRecords(Buckets->HeavyFurniture);
+	Total += CountRecords(Buckets->LightItems);
+	Total += CountRecords(Buckets->Terminals);
+	Total += CountRecords(Buckets->NPCSpawners);
+	Total += CountRecords(Buckets->Debris);
+
+	return Total;
+}
+
+int32 UInteriorSubsystem::GetDestroyedOriginalTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* Buckets = AllDestroyedOriginalActorsByInteriorFloor.Find(CurrentKey);
+	if (!Buckets)
+		return 0;
+
+	int32 Total = 0;
+	auto CountRecords = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				bool bMatches = false;
+				if (TagType == ETagType::TextTag)
+				{
+					if (TextTag != NAME_None && Rec.TextTags.Contains(TextTag))
+						bMatches = true;
+				}
+				else // GameplayTag
+				{
+					if (GameplayTag.IsValid() && Rec.GameplayTagContainer.HasTag(GameplayTag))
+						bMatches = true;
+				}
+				if (bMatches)
+					Count++;
+			}
+			return Count;
+		};
+
+	Total += CountRecords(Buckets->HeavyFurniture);
+	Total += CountRecords(Buckets->LightItems);
+	Total += CountRecords(Buckets->Terminals);
+	Total += CountRecords(Buckets->NPCSpawners);
+	Total += CountRecords(Buckets->Debris);
+
+	return Total;
 }

@@ -190,6 +190,24 @@ public:
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
     int32 GetDestroyedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
 
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetSpawnedActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const;
+
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetSpawnedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetDestroyedSpawnedActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const;
+
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetDestroyedOriginalActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const;
+
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetDestroyedSpawnedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetDestroyedOriginalTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
+
     // Public методы для доступа к картам (возвращаем const ссылки)
     const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& GetMissionSpawnedActors() const { return MissionSpawnedActorsByInteriorFloor; }
     const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& GetMissionDestroyedActors() const { return MissionDestroyedActorsByInteriorFloor; }
@@ -256,7 +274,10 @@ private:
 
     mutable TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> MissionSnapshotQueryCache;
 
+    TMap<FInteriorFloorKey, FFloorPopulationBuckets> AllSpawnedActorsByInteriorFloor;
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> AllDestroyedActorsByInteriorFloor;
+    TMap<FInteriorFloorKey, FFloorPopulationBuckets> AllDestroyedSpawnedActorsByInteriorFloor;
+    TMap<FInteriorFloorKey, FFloorPopulationBuckets> AllDestroyedOriginalActorsByInteriorFloor;
 
     UPROPERTY()
     TMap<FName, FActiveMissionInterior> ActiveMissions;
