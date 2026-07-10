@@ -3,12 +3,12 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ISaveableSubsystem.h"
-#include "SaveSubsystems/I_SaveableObject.h"
 #include "Core/CubixonCoreData.h"
-#include "GIS_SpreadsheetFiles.generated.h"
+#include "SaveSubsystems/I_SaveableObject.h"
+#include "GIS_Backup.generated.h"
 
 UCLASS()
-class FPSKITALSREFACTORED_API UGIS_SpreadsheetFiles : public UGameInstanceSubsystem, public ISaveableSubsystem
+class FPSKITALSREFACTORED_API UGIS_Backup : public UGameInstanceSubsystem, public ISaveableSubsystem
 {
 	GENERATED_BODY()
 
@@ -24,7 +24,7 @@ public:
 
 	void ClearTransientData_Implementation();
 
-	virtual FString GetSaveSubsystemName() const override { return TEXT("SpreadsheetFilesSubsystem"); }
+	virtual FString GetSaveSubsystemName() const override { return TEXT("BackupSubsystem"); }
 
 	virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
 
@@ -34,11 +34,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveableObject")
 	void AddSaveableObject(UObject* NewSaveableObject);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveableObject")
-	void ApplyProfileSpreadsheetFilesData(UObject* ProfileObject);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Backup")
+	void ApplyBackupData(UObject* ProfileObject);
 
 private:
-	TMap<FName, TMap<FString, FSpreadsheetCells>> CachedProfilesSpreadsheetFilesData;
+	TMap<FString, FCubixonCMailConversationsWrap> CachedBackupData;
 
 	bool bIsLoadComplete = false;
 };
