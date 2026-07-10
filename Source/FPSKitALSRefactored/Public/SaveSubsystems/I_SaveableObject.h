@@ -5,15 +5,6 @@
 #include "Core/CubixonCoreData.h"
 #include "I_SaveableObject.generated.h"
 
-USTRUCT(BlueprintType)
-struct FSpreadsheetCells
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpreadSheet")
-	TMap<FIntPoint, FText> Cells;
-};
-
 UINTERFACE(MinimalAPI, BlueprintType)
 class UI_SaveableObject : public UInterface
 {

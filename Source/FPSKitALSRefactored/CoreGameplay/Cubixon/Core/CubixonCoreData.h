@@ -5,6 +5,17 @@
 
 class UO_CubixonCMailContact;
 
+// Spreadsheet structs
+
+USTRUCT(BlueprintType)
+struct FSpreadsheetCells
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpreadSheet")
+	TMap<FIntPoint, FText> Cells;
+};
+
 // File tree structs
 
 USTRUCT(BlueprintType)
@@ -93,7 +104,7 @@ struct FCubixonCMailConversation
 	uint8 bFrom_Deleted : 1{false};
 
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "CMail")
-	uint8 bFrom_PermanentlyDeleted: 1{false};
+	uint8 bFrom_PermanentlyDeleted : 1{false};
 
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "CMail")
 	TSubclassOf<UO_CubixonCMailContact> DefaultToContact;
@@ -128,11 +139,39 @@ struct FCubixonCMailConversationsWrap
 
 //Backup structs
 
-//USTRUCT(BlueprintType)
-//struct FCubixonCMailConversationsWrap
-//{
-//	GENERATED_BODY()
-//
-//	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "CMail")
-//	TArray<FCubixonCMailConversation> Conversations;
-//};
+USTRUCT(BlueprintType)
+struct FTextBackupTimeStamp
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	float BackupSize;
+
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	TMap<FString, FText> TimeStamps;
+};
+
+USTRUCT(BlueprintType)
+struct FSheetBackupTimeStamp
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	float BackupSize;
+
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	TMap<FString, FSpreadsheetCells> TimeStamps;
+};
+
+USTRUCT(BlueprintType)
+struct FScheduledBackupData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	int32 TimePeriod;
+
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	FDateTime NextTimeAutoBackup;
+};
+

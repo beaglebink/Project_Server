@@ -4,6 +4,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ISaveableSubsystem.h"
 #include "SaveSubsystems/I_SaveableObject.h"
+#include "Core/CubixonCoreData.h"
 #include "GIS_SpreadsheetFiles.generated.h"
 
 UCLASS()
