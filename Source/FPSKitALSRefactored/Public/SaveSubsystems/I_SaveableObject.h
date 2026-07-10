@@ -52,4 +52,11 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyCMailSaveData(const TMap<FString, FCubixonCMailConversationsWrap>& SaveData);
+
+	// Backup save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	TMap<FString, FCubixonCMailConversationsWrap> CollectBackupSaveData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyBackupSaveData(const TMap<FString, FCubixonCMailConversationsWrap>& SaveData);
 };

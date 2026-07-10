@@ -5,6 +5,8 @@
 
 class UO_CubixonCMailContact;
 
+// File tree structs
+
 USTRUCT(BlueprintType)
 struct FCubixonFileData
 {
@@ -22,6 +24,8 @@ struct FCubixonFileData
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "File")
 	TArray<uint8> SerializedData;
 };
+
+// CMail structs
 
 USTRUCT(BlueprintType)
 struct FCubixonCMailAnswer
@@ -121,3 +125,14 @@ struct FCubixonCMailConversationsWrap
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "CMail")
 	TArray<FCubixonCMailConversation> Conversations;
 };
+
+//Backup structs
+
+//USTRUCT(BlueprintType)
+//struct FCubixonCMailConversationsWrap
+//{
+//	GENERATED_BODY()
+//
+//	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "CMail")
+//	TArray<FCubixonCMailConversation> Conversations;
+//};

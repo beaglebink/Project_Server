@@ -337,4 +337,3 @@ void UGIS_CMail::ApplyCMailData_Implementation(UObject* ProfileObject)
 
 	II_SaveableObject::Execute_ApplyCMailSaveData(ProfileObject, CachedCMailData);
 }
-
