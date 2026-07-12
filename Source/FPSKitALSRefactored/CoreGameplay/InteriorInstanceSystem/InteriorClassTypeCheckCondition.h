@@ -140,3 +140,18 @@ public:
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
+
+/**
+ * Count of spawned objects of the specified class and type that remain (not destroyed by spawn-kill).
+ *
+ * Подсчёт количества заспавненных объектов указанного класса и типа, которые остались (не уничтожены как спавненные).
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorClassTypeRemainingSpawnedCondition : public UInteriorClassTypeCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};

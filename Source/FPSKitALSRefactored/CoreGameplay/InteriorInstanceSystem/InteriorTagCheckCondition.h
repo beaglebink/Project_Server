@@ -150,3 +150,18 @@ public:
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
+
+/**
+ * Count of spawned objects with the tag that remain (not destroyed by spawn-kill).
+ *
+ * Подсчёт количества заспавненных объектов с тегом, которые остались (не уничтожены как спавненные).
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorTagRemainingSpawnedCondition : public UInteriorTagCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};

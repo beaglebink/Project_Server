@@ -5151,3 +5151,112 @@ int32 UInteriorSubsystem::GetDestroyedOriginalTagCountForCurrentFloor(ETagType T
 
 	return Total;
 }
+
+// ============================================================================
+// Оставшиеся (живые) заспавненные объекты
+// ============================================================================
+
+int32 UInteriorSubsystem::GetRemainingSpawnedActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* SpawnedBuckets = AllSpawnedActorsByInteriorFloor.Find(CurrentKey);
+	if (!SpawnedBuckets)
+		return 0;
+
+	const FFloorPopulationBuckets* DestroyedSpawnedBuckets = AllDestroyedSpawnedActorsByInteriorFloor.Find(CurrentKey);
+
+	auto IsDestroyedSpawned = [&](const FGuid& ItemId) -> bool
+		{
+			if (!DestroyedSpawnedBuckets) return false;
+			auto Contains = [&](const TArray<FFloorPopulationRecord>& Arr) -> bool
+				{
+					return Arr.ContainsByPredicate([&](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ItemId; });
+				};
+			return Contains(DestroyedSpawnedBuckets->HeavyFurniture) ||
+				Contains(DestroyedSpawnedBuckets->LightItems) ||
+				Contains(DestroyedSpawnedBuckets->Terminals) ||
+				Contains(DestroyedSpawnedBuckets->NPCSpawners) ||
+				Contains(DestroyedSpawnedBuckets->Debris);
+		};
+
+	auto CountFiltered = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				if (ActorClass && Rec.SourceClass != ActorClass)
+					continue;
+				if (Rec.ActorType != ActorType)
+					continue;
+				if (!IsDestroyedSpawned(Rec.ActorId))
+					Count++;
+			}
+			return Count;
+		};
+
+	int32 Total = 0;
+	Total += CountFiltered(SpawnedBuckets->HeavyFurniture);
+	Total += CountFiltered(SpawnedBuckets->LightItems);
+	Total += CountFiltered(SpawnedBuckets->Terminals);
+	Total += CountFiltered(SpawnedBuckets->NPCSpawners);
+	Total += CountFiltered(SpawnedBuckets->Debris);
+	return Total;
+}
+
+int32 UInteriorSubsystem::GetRemainingSpawnedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const
+{
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return 0;
+
+	const FFloorPopulationBuckets* SpawnedBuckets = AllSpawnedActorsByInteriorFloor.Find(CurrentKey);
+	if (!SpawnedBuckets)
+		return 0;
+
+	const FFloorPopulationBuckets* DestroyedSpawnedBuckets = AllDestroyedSpawnedActorsByInteriorFloor.Find(CurrentKey);
+
+	auto IsDestroyedSpawned = [&](const FGuid& ItemId) -> bool
+		{
+			if (!DestroyedSpawnedBuckets) return false;
+			auto Contains = [&](const TArray<FFloorPopulationRecord>& Arr) -> bool
+				{
+					return Arr.ContainsByPredicate([&](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ItemId; });
+				};
+			return Contains(DestroyedSpawnedBuckets->HeavyFurniture) ||
+				Contains(DestroyedSpawnedBuckets->LightItems) ||
+				Contains(DestroyedSpawnedBuckets->Terminals) ||
+				Contains(DestroyedSpawnedBuckets->NPCSpawners) ||
+				Contains(DestroyedSpawnedBuckets->Debris);
+		};
+
+	auto CountRecords = [&](const TArray<FFloorPopulationRecord>& Records) -> int32
+		{
+			int32 Count = 0;
+			for (const FFloorPopulationRecord& Rec : Records)
+			{
+				bool bMatches = false;
+				if (TagType == ETagType::TextTag)
+				{
+					if (TextTag != NAME_None && Rec.TextTags.Contains(TextTag))
+						bMatches = true;
+				}
+				else // GameplayTag
+				{
+					if (GameplayTag.IsValid() && Rec.GameplayTagContainer.HasTag(GameplayTag))
+						bMatches = true;
+				}
+				if (bMatches && !IsDestroyedSpawned(Rec.ActorId))
+					Count++;
+			}
+			return Count;
+		};
+
+	int32 Total = 0;
+	Total += CountRecords(SpawnedBuckets->HeavyFurniture);
+	Total += CountRecords(SpawnedBuckets->LightItems);
+	Total += CountRecords(SpawnedBuckets->Terminals);
+	Total += CountRecords(SpawnedBuckets->NPCSpawners);
+	Total += CountRecords(SpawnedBuckets->Debris);
+	return Total;
+}

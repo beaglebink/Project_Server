@@ -197,15 +197,17 @@ void UInteriorClassTypeSpawnedCondition::ExecuteCheck(const FGuid& TransactionId
         return;
     }
 
-    int32 SpawnedCount = InteriorSub->GetSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
+    int32 SpawnedRemainingCount = InteriorSub->GetSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
+    int32 DestroyedSpawnedCount = InteriorSub->GetDestroyedSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
+    int32 SpawnCount = SpawnedRemainingCount + DestroyedSpawnedCount;
     switch (Operator)
     {
-    case ECheckCompareOp::Equal:          bApproved = (SpawnedCount == ExpectedValue); break;
-    case ECheckCompareOp::NotEqual:       bApproved = (SpawnedCount != ExpectedValue); break;
-    case ECheckCompareOp::Less:           bApproved = (SpawnedCount < ExpectedValue); break;
-    case ECheckCompareOp::LessOrEqual:    bApproved = (SpawnedCount <= ExpectedValue); break;
-    case ECheckCompareOp::Greater:        bApproved = (SpawnedCount > ExpectedValue); break;
-    case ECheckCompareOp::GreaterOrEqual: bApproved = (SpawnedCount >= ExpectedValue); break;
+    case ECheckCompareOp::Equal:          bApproved = (SpawnCount == ExpectedValue); break;
+    case ECheckCompareOp::NotEqual:       bApproved = (SpawnCount != ExpectedValue); break;
+    case ECheckCompareOp::Less:           bApproved = (SpawnCount < ExpectedValue); break;
+    case ECheckCompareOp::LessOrEqual:    bApproved = (SpawnCount <= ExpectedValue); break;
+    case ECheckCompareOp::Greater:        bApproved = (SpawnCount > ExpectedValue); break;
+    case ECheckCompareOp::GreaterOrEqual: bApproved = (SpawnCount >= ExpectedValue); break;
     default: bApproved = false; break;
     }
     bCompleted = true;
@@ -311,4 +313,50 @@ FString UInteriorClassTypeDestroyedOriginalCondition::GetDescription() const
 {
     FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
     return FString::Printf(TEXT("ClassType destroyed original [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
+}
+
+void UInteriorClassTypeRemainingSpawnedCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        bCompleted = true;
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    UGameInstance* GI = World->GetGameInstance();
+    UInteriorSubsystem* InteriorSub = GI ? GI->GetSubsystem<UInteriorSubsystem>() : nullptr;
+    if (!InteriorSub)
+    {
+        bCompleted = true;
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 RemainingSpawnedCount = InteriorSub->GetRemainingSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
+
+    switch (Operator)
+    {
+    case ECheckCompareOp::Equal:          bApproved = (RemainingSpawnedCount == ExpectedValue); break;
+    case ECheckCompareOp::NotEqual:       bApproved = (RemainingSpawnedCount != ExpectedValue); break;
+    case ECheckCompareOp::Less:           bApproved = (RemainingSpawnedCount < ExpectedValue); break;
+    case ECheckCompareOp::LessOrEqual:    bApproved = (RemainingSpawnedCount <= ExpectedValue); break;
+    case ECheckCompareOp::Greater:        bApproved = (RemainingSpawnedCount > ExpectedValue); break;
+    case ECheckCompareOp::GreaterOrEqual: bApproved = (RemainingSpawnedCount >= ExpectedValue); break;
+    default: bApproved = false; break;
+    }
+
+    bCompleted = true;
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString UInteriorClassTypeRemainingSpawnedCondition::GetDescription() const
+{
+    FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
+    return FString::Printf(TEXT("ClassType remaining spawned [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
