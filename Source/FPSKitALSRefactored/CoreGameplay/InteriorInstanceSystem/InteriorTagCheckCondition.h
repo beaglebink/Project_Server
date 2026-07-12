@@ -1,4 +1,3 @@
-// InteriorTagCheckCondition.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,6 +7,10 @@
 #include "InteriorTagCheckCondition.generated.h"
 
 /**
+ * Base class for checks by tags (text or GameplayTag).
+ * Counts objects on the current level with UFloorAssignmentComponent,
+ * that have the specified tag.
+ *
  * Базовый класс для проверок по тегам (текстовым или GameplayTag).
  * Подсчитывает объекты на текущем уровне с UFloorAssignmentComponent,
  * имеющие указанный тег.
@@ -18,24 +21,29 @@ class FPSKITALSREFACTORED_API UInteriorTagCheckCondition : public UCheckConditio
     GENERATED_BODY()
 
 public:
+    // Tag type
     // Тип тега
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     ETagType TagType = ETagType::TextTag;
 
+    // Text tag (if TagType == TextTag)
     // Текстовый тег (если TagType == TextTag)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior",
         meta = (EditCondition = "TagType == ETagType::TextTag", EditConditionHides))
     FName TextTag;
 
+    // GameplayTag (if TagType == GameplayTag)
     // GameplayTag (если TagType == GameplayTag)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior",
         meta = (EditCondition = "TagType == ETagType::GameplayTag", EditConditionHides))
     FGameplayTag GameplayTag;
 
+    // Quantity comparison operator
     // Оператор сравнения количества
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     ECheckCompareOp Operator = ECheckCompareOp::Equal;
 
+    // Expected quantity
     // Ожидаемое количество
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
     int32 ExpectedValue = 0;
@@ -47,6 +55,7 @@ public:
     virtual UOutcomeConditionAsset* CreateSubscriptionCondition() const override { return nullptr; }
 
 protected:
+    // Returns the number of objects with the tag on the current level
     // Возвращает количество объектов с тегом на текущем уровне
     int32 GetTaggedObjectCount(UWorld* World) const;
 
@@ -55,6 +64,8 @@ protected:
 };
 
 /**
+ * Count of objects with the tag (all existing).
+ *
  * Подсчёт количества объектов с тегом (все существующие).
  */
 UCLASS(BlueprintType)
@@ -64,6 +75,8 @@ class FPSKITALSREFACTORED_API UInteriorTagCountCondition : public UInteriorTagCh
 };
 
 /**
+ * Count of objects with the tag that have been destroyed (recorded in the Destroyed maps).
+ *
  * Подсчёт количества объектов с тегом, которые были уничтожены (записаны в Destroyed карты).
  */
 UCLASS(BlueprintType)
@@ -77,6 +90,9 @@ public:
 };
 
 /**
+ * Count of objects with the tag that remain (not destroyed).
+ * This is the difference between the total and destroyed.
+ *
  * Подсчёт количества объектов с тегом, которые остались (не уничтожены).
  * Это разница между общим количеством и уничтоженными.
  */
@@ -91,6 +107,8 @@ public:
 };
 
 /**
+ * Count of spawned objects with the tag that are still alive (not destroyed).
+ *
  * Подсчёт количества заспавненных объектов с тегом, которые ещё живы (не уничтожены).
  */
 UCLASS(BlueprintType)
@@ -103,9 +121,9 @@ public:
     virtual FString GetDescription() const override;
 };
 
-// InteriorTagCheckCondition.h (дополнение)
-
 /**
+ * Count of spawned objects with the tag that have been destroyed.
+ *
  * Подсчёт количества заспавненных объектов с тегом, которые были уничтожены.
  */
 UCLASS(BlueprintType)
@@ -119,6 +137,8 @@ public:
 };
 
 /**
+ * Count of original (initially existing on the level) objects with the tag that have been destroyed.
+ *
  * Подсчёт количества оригинальных (изначально существовавших на уровне) объектов с тегом, которые были уничтожены.
  */
 UCLASS(BlueprintType)

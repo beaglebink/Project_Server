@@ -1,4 +1,3 @@
-// InteriorTagCheckCondition.cpp
 #include "InteriorTagCheckCondition.h"
 #include "FloorAssignmentComponent.h"
 #include "EngineUtils.h"
@@ -155,6 +154,7 @@ void UInteriorTagRemainingCondition::ExecuteCheck(const FGuid& TransactionId)
 
     int32 Remaining = GetTaggedObjectCount(World);
 
+    // Destroyed with the tag
     // Уничтоженные с тегом
     int32 DestroyedCount = 0;
     if (TagType == ETagType::TextTag)
@@ -187,7 +187,6 @@ FString UInteriorTagRemainingCondition::GetDescription() const
     return FString::Printf(TEXT("Tag remaining count [%s] %s %d"), *TagStr, *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
-// ----- UInteriorTagSpawnedCondition -----
 void UInteriorTagSpawnedCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     CurrentTransactionId = TransactionId;
@@ -242,9 +241,6 @@ FString UInteriorTagSpawnedCondition::GetDescription() const
     return FString::Printf(TEXT("Tag spawned (alive) count [%s] %s %d"), *TagStr, *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
-// InteriorTagCheckCondition.cpp (дополнение)
-
-// ----- UInteriorTagDestroyedSpawnedCondition -----
 void UInteriorTagDestroyedSpawnedCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     CurrentTransactionId = TransactionId;
@@ -299,7 +295,6 @@ FString UInteriorTagDestroyedSpawnedCondition::GetDescription() const
     return FString::Printf(TEXT("Tag destroyed spawned count [%s] %s %d"), *TagStr, *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
-// ----- UInteriorTagDestroyedOriginalCondition -----
 void UInteriorTagDestroyedOriginalCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     CurrentTransactionId = TransactionId;

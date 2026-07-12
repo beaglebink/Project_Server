@@ -1,4 +1,3 @@
-// InteriorClassTypeCheckCondition.cpp
 #include "InteriorClassTypeCheckCondition.h"
 #include "FloorAssignmentComponent.h"
 #include "EngineUtils.h"
@@ -12,6 +11,7 @@ int32 UInteriorClassTypeCheckCondition::GetFilteredObjectCount(UWorld* World) co
 
     int32 Count = 0;
 
+    // Iterate over all actors in the world
     // Перебор всех акторов в мире
     for (TActorIterator<AActor> It(World); It; ++It)
     {
@@ -19,20 +19,25 @@ int32 UInteriorClassTypeCheckCondition::GetFilteredObjectCount(UWorld* World) co
         if (!IsValid(Actor))
             continue;
 
+        // Filter by class (if set)
         // Фильтр по классу (если задан)
         if (ActorClass && !Actor->IsA(ActorClass))
             continue;
 
+        // Check for FloorAssignment component
         // Проверяем наличие компонента FloorAssignment
         UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
         if (!Comp)
             continue;
 
+        // Filter by EFloorActorType
+        // LightItem – default value meaning "all types"
         // Фильтр по типу EFloorActorType
         // LightItem – дефолтное значение, означающее "все типы"
         if (Comp->ActorType != ActorType)
             continue;
 
+        // Object passed all filters
         // Объект прошёл все фильтры
         Count++;
     }
@@ -57,13 +62,13 @@ void UInteriorClassTypeCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     int32 CurrentCount = GetFilteredObjectCount(World);
     switch (Operator)
     {
-        case ECheckCompareOp::Equal:          bApproved = (CurrentCount == ExpectedValue); break;
-        case ECheckCompareOp::NotEqual:       bApproved = (CurrentCount != ExpectedValue); break;
-        case ECheckCompareOp::Less:           bApproved = (CurrentCount < ExpectedValue); break;
-        case ECheckCompareOp::LessOrEqual:    bApproved = (CurrentCount <= ExpectedValue); break;
-        case ECheckCompareOp::Greater:        bApproved = (CurrentCount > ExpectedValue); break;
-        case ECheckCompareOp::GreaterOrEqual: bApproved = (CurrentCount >= ExpectedValue); break;
-        default: bApproved = false; break;
+    case ECheckCompareOp::Equal:          bApproved = (CurrentCount == ExpectedValue); break;
+    case ECheckCompareOp::NotEqual:       bApproved = (CurrentCount != ExpectedValue); break;
+    case ECheckCompareOp::Less:           bApproved = (CurrentCount < ExpectedValue); break;
+    case ECheckCompareOp::LessOrEqual:    bApproved = (CurrentCount <= ExpectedValue); break;
+    case ECheckCompareOp::Greater:        bApproved = (CurrentCount > ExpectedValue); break;
+    case ECheckCompareOp::GreaterOrEqual: bApproved = (CurrentCount >= ExpectedValue); break;
+    default: bApproved = false; break;
     }
 
     bCompleted = true;
@@ -122,7 +127,6 @@ FString UInteriorClassTypeDestroyedCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType destroyed [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
-// ----- UInteriorClassTypeRemainingCondition -----
 void UInteriorClassTypeRemainingCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     CurrentTransactionId = TransactionId;
@@ -214,9 +218,9 @@ FString UInteriorClassTypeSpawnedCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType spawned [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
-// InteriorClassTypeCheckCondition.cpp (дополнение)
+// Addition
+// дополнение
 
-// ----- UInteriorClassTypeDestroyedSpawnedCondition -----
 void UInteriorClassTypeDestroyedSpawnedCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     CurrentTransactionId = TransactionId;
@@ -263,7 +267,6 @@ FString UInteriorClassTypeDestroyedSpawnedCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType destroyed spawned [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
-// ----- UInteriorClassTypeDestroyedOriginalCondition -----
 void UInteriorClassTypeDestroyedOriginalCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     CurrentTransactionId = TransactionId;

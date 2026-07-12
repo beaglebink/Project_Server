@@ -1,4 +1,3 @@
-// MissionCheckCondition.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -25,6 +24,7 @@ protected:
     FName GetActiveMissionId() const;
 };
 
+// 1. Activity check (bool)
 // 1. Проверка активности (bool)
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UMissionCheckCondition_IsActive : public UMissionCheckCondition
@@ -41,6 +41,7 @@ public:
     virtual UMissionCheckRequestPayload* CreateRequestPayload() const override;
 };
 
+// 2. Current step check (int)
 // 2. Проверка текущего шага (int)
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UMissionCheckCondition_Step : public UMissionCheckCondition
@@ -57,6 +58,7 @@ public:
     virtual UMissionCheckRequestPayload* CreateRequestPayload() const override;
 };
 
+// 3. Name check (string)
 // 3. Проверка названия (string)
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UMissionCheckCondition_Name : public UMissionCheckCondition

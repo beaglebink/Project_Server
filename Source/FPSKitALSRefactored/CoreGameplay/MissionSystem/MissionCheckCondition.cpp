@@ -1,4 +1,3 @@
-// MissionCheckCondition.cpp
 #include "MissionCheckCondition.h"
 #include "CheckCoordinatorComponent.h"
 #include "OutcomeConditionAsset.h"
@@ -6,7 +5,8 @@
 #include "MissionSubsystem.h"
 #include "Engine/GameInstance.h"
 
-// ---- Базовый класс ----
+// Base class
+// Базовый класс
 
 UOutcomeConditionAsset* UMissionCheckCondition::CreateSubscriptionCondition() const
 {
@@ -34,6 +34,7 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     if (!EventBus) return;
 
+    // Get the active mission (may be NAME_None)
     // Получаем активную миссию (может быть NAME_None)
     FName ActiveMissionId = GetActiveMissionId();
 
@@ -48,7 +49,7 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
     Payload->TransactionId = TransactionId;
-    Payload->MissionId = ActiveMissionId; // может быть NAME_None
+    Payload->MissionId = ActiveMissionId; // may be NAME_None
     Payload->PropertyToCheck = GetCheckedProperty();
 
     FOutcomeEventBase Event;
@@ -99,7 +100,8 @@ FString UMissionCheckCondition::GetDescription() const
     return FString::Printf(TEXT("Mission check (%s)"), PropertyName);
 }
 
-// ---- Реализации CreateRequestPayload ----
+// Implementations of CreateRequestPayload
+// Реализации CreateRequestPayload
 
 UMissionCheckRequestPayload* UMissionCheckCondition_IsActive::CreateRequestPayload() const
 {
