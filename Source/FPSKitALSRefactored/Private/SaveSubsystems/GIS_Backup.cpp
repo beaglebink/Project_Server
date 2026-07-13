@@ -29,65 +29,60 @@ void UGIS_Backup::CollectSaveData(FSubsystemSaveData& OutData)
 			continue;
 		}
 
-		TMap<FString, FCubixonCMailConversationsWrap> SaveDataMap = II_SaveableObject::Execute_CollectBackupSaveData(SaveableObject);
+		FGlobalBackupData SaveData = II_SaveableObject::Execute_CollectBackupSaveData(SaveableObject);
 
-		for (const auto& Pair : SaveDataMap)
+		TSharedPtr<FJsonObject> GlobalBackupDataJson = MakeShared<FJsonObject>();
+
+		// Serialize TextBackupData
+		TSharedPtr<FJsonObject> TextFilesBackupJson = MakeShared<FJsonObject>();
+		for (const auto& PairFile_Data : SaveData.TextBackupData)
 		{
-			//const FCubixonCMailConversationsWrap& CMailData = Pair.Value;
-			//TArray<TSharedPtr<FJsonValue>> ConversationsArrayJson;
+			TSharedPtr<FJsonObject> TextDataBackupJson = MakeShared<FJsonObject>();
+			TextDataBackupJson->SetNumberField(TEXT("BackupSize"), PairFile_Data.Value.BackupSize);
 
-			//for (const FCubixonCMailConversation& Conversation : CMailData.Conversations)
-			//{
-			//	TSharedPtr<FJsonObject> ConversationJson = MakeShared<FJsonObject>();
+			for (const auto& PairTime_Text : PairFile_Data.Value.TimeStamps)
+			{
+				TextDataBackupJson->SetStringField(PairTime_Text.Key, PairTime_Text.Value.ToString());
+			}
 
-			//	ConversationJson->SetNumberField(TEXT("ID"), Conversation.ID);
-			//	ConversationJson->SetStringField(TEXT("Subject"), Conversation.Subject.ToString());
-
-			//	TArray<TSharedPtr<FJsonValue>> MessagesArrayJson;
-			//	for (const FCubixonCMailMessage& Message : Conversation.Messages)
-			//	{
-			//		TSharedPtr<FJsonObject> MessageJson = MakeShared<FJsonObject>();
-			//		MessageJson->SetStringField(TEXT("FromClass"), Message.From ? Message.From->GetPathName() : TEXT(""));
-			//		MessageJson->SetStringField(TEXT("ToClass"), Message.To ? Message.To->GetPathName() : TEXT(""));
-			//		MessageJson->SetStringField(TEXT("Message"), Message.Message.ToString());
-			//		MessageJson->SetStringField(TEXT("Time"), Message.Time.ToString());
-
-			//		TSharedPtr<FJsonObject> AttachedFileJson = MakeShared<FJsonObject>();
-			//		MessageJson->SetBoolField(TEXT("bHasAttachedFileData"), Message.AttachedFileData.ComponentClass != nullptr);
-			//		if (Message.AttachedFileData.ComponentClass)
-			//		{
-			//			AttachedFileJson->SetStringField(TEXT("FileName"), Message.AttachedFileData.FileName.ToString());
-			//			AttachedFileJson->SetStringField(TEXT("ComponentClass"), Message.AttachedFileData.ComponentClass->GetPathName());
-			//			AttachedFileJson->SetStringField(TEXT("SerializedData"), FBase64::Encode(Message.AttachedFileData.SerializedData));
-			//		}
-
-			//		MessageJson->SetObjectField(TEXT("AttachedFileData"), AttachedFileJson);
-			//		MessagesArrayJson.Add(MakeShared<FJsonValueObject>(MessageJson));
-			//	}
-			//	ConversationJson->SetArrayField(TEXT("Messages"), MessagesArrayJson);
-
-			//	ConversationJson->SetStringField(TEXT("DefaultFromContact"), Conversation.DefaultFromContact ? Conversation.DefaultFromContact->GetPathName() : TEXT(""));
-			//	ConversationJson->SetBoolField(TEXT("bFrom_IsRead"), Conversation.bFrom_IsRead);
-			//	ConversationJson->SetBoolField(TEXT("bFrom_Inbox"), Conversation.bFrom_Inbox);
-			//	ConversationJson->SetBoolField(TEXT("bFrom_Sent"), Conversation.bFrom_Sent);
-			//	ConversationJson->SetBoolField(TEXT("bFrom_Spam"), Conversation.bFrom_Spam);
-			//	ConversationJson->SetBoolField(TEXT("bFrom_Deleted"), Conversation.bFrom_Deleted);
-			//	ConversationJson->SetBoolField(TEXT("bFrom_PermanentlyDeleted"), Conversation.bFrom_PermanentlyDeleted);
-
-			//	ConversationJson->SetStringField(TEXT("DefaultToContact"), Conversation.DefaultToContact ? Conversation.DefaultToContact->GetPathName() : TEXT(""));
-			//	ConversationJson->SetBoolField(TEXT("bTo_IsRead"), Conversation.bTo_IsRead);
-			//	ConversationJson->SetBoolField(TEXT("bTo_Inbox"), Conversation.bTo_Inbox);
-			//	ConversationJson->SetBoolField(TEXT("bTo_Sent"), Conversation.bTo_Sent);
-			//	ConversationJson->SetBoolField(TEXT("bTo_Spam"), Conversation.bTo_Spam);
-			//	ConversationJson->SetBoolField(TEXT("bTo_Deleted"), Conversation.bTo_Deleted);
-			//	ConversationJson->SetBoolField(TEXT("bTo_PermanentlyDeleted"), Conversation.bTo_PermanentlyDeleted);
-
-			//	ConversationsArrayJson.Add(MakeShared<FJsonValueObject>(ConversationJson));
-			//}
-
-			//Root->SetArrayField(Pair.Key, ConversationsArrayJson);
+			TextFilesBackupJson->SetObjectField(PairFile_Data.Key, TextDataBackupJson);
 		}
-		break;
+		GlobalBackupDataJson->SetObjectField(TEXT("TextFilesBackupData"), TextFilesBackupJson);
+
+		// Serialize SpreadsheetBackupData
+		TSharedPtr<FJsonObject> SpreadsheetFilesBackupJson = MakeShared<FJsonObject>();
+		for (const auto& PairFile_Data : SaveData.SheetBackupData)
+		{
+			TSharedPtr<FJsonObject> SpreadsheetDataBackupJson = MakeShared<FJsonObject>();
+			SpreadsheetDataBackupJson->SetNumberField(TEXT("BackupSize"), PairFile_Data.Value.BackupSize);
+
+			for (const auto& PairTime_Cell : PairFile_Data.Value.TimeStamps)
+			{
+				TSharedPtr<FJsonObject> SpreadsheetCellsJson = MakeShared<FJsonObject>();
+				for (const auto& PairCoord_Text : PairTime_Cell.Value.Cells)
+				{
+					SpreadsheetCellsJson->SetStringField(FString::Printf(TEXT("%d,%d"), PairCoord_Text.Key.X, PairCoord_Text.Key.Y), PairCoord_Text.Value.ToString());
+				}
+				SpreadsheetDataBackupJson->SetObjectField(PairTime_Cell.Key, SpreadsheetCellsJson);
+			}
+
+			SpreadsheetFilesBackupJson->SetObjectField(PairFile_Data.Key, SpreadsheetDataBackupJson);
+		}
+		GlobalBackupDataJson->SetObjectField(TEXT("SpreadsheetFilesBackupData"), SpreadsheetFilesBackupJson);
+
+		// Serialize ScheduledBackupData
+		TSharedPtr<FJsonObject> ScheduledFilesBackupJson = MakeShared<FJsonObject>();
+		for (const auto& PairFile_Data : SaveData.ScheduledBackupData)
+		{
+			TSharedPtr<FJsonObject> ScheduledBackupDataJson = MakeShared<FJsonObject>();
+			ScheduledBackupDataJson->SetNumberField(TEXT("TimePeriod"), PairFile_Data.Value.TimePeriod);
+			ScheduledBackupDataJson->SetStringField(TEXT("NextTimeAutoBackup"), PairFile_Data.Value.NextTimeAutoBackup.ToString());
+
+			ScheduledFilesBackupJson->SetObjectField(PairFile_Data.Key, ScheduledBackupDataJson);
+		}
+		GlobalBackupDataJson->SetObjectField(TEXT("ScheduledBackupData"), ScheduledFilesBackupJson);
+
+		Root->SetObjectField(SaveableObject->GetName(), GlobalBackupDataJson);
 	}
 
 	FString JsonString;
@@ -120,195 +115,151 @@ void UGIS_Backup::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
-	//for (const auto& AccountPair : Root->Values)
-	//{
-	//	const TArray<TSharedPtr<FJsonValue>>* ConversationsArrayJson;
+	for (const auto& ProfilePair : Root->Values)
+	{
+		const TSharedPtr<FJsonObject>* GlobalBackupDataJson = nullptr;
 
-	//	if (!Root->TryGetArrayField(AccountPair.Key, ConversationsArrayJson))
-	//	{
-	//		continue;
-	//	}
+		if (!Root->TryGetObjectField(ProfilePair.Key, GlobalBackupDataJson))
+		{
+			continue;
+		}
 
-	//	FCubixonCMailConversationsWrap ConversationsData;
+		FGlobalBackupData GlobalBackupData;
 
-	//	for (const auto& ConversationJson : *ConversationsArrayJson)
-	//	{
-	//		FCubixonCMailConversation Conversation;
+		// Deserialize TextBackupData
+		const TSharedPtr<FJsonObject>* TextFilesBackupJson;
+		if (!(*GlobalBackupDataJson)->TryGetObjectField(TEXT("TextFilesBackupData"), TextFilesBackupJson))
+		{
+			continue;
+		}
 
-	//		TSharedPtr<FJsonObject> ConversationJsonObject = ConversationJson->AsObject();
-	//		if (!ConversationJsonObject.IsValid())
-	//		{
-	//			continue;
-	//		}
+		for (const auto& PairFile_Data : (*TextFilesBackupJson)->Values)
+		{
+			FTextBackupTimeStamp TextBackupTimeStamp;
 
-	//		double ID;
-	//		if (ConversationJsonObject->TryGetNumberField(TEXT("ID"), ID))
-	//		{
-	//			Conversation.ID = static_cast<int32>(ID);
-	//		}
+			TSharedPtr<FJsonObject> TextDataBackupJson = PairFile_Data.Value->AsObject();
 
-	//		FString Subject;
-	//		if (ConversationJsonObject->TryGetStringField(TEXT("Subject"), Subject))
-	//		{
-	//			Conversation.Subject = FText::FromString(Subject);
-	//		}
+			if (!TextDataBackupJson.IsValid())
+			{
+				continue;
+			}
 
+			double BackupSize;
+			if (TextDataBackupJson->TryGetNumberField(TEXT("BackupSize"), BackupSize))
+			{
+				TextBackupTimeStamp.BackupSize = static_cast<float>(BackupSize);
+			}
 
-	//		const TArray<TSharedPtr<FJsonValue>>* MessagesArrayJson;
-	//		if (ConversationJsonObject->TryGetArrayField(TEXT("Messages"), MessagesArrayJson))
-	//		{
-	//			for (const auto& MessageJson : *MessagesArrayJson)
-	//			{
-	//				FCubixonCMailMessage Message;
+			for (const auto& PairTime_Text : TextDataBackupJson->Values)
+			{
+				if (PairTime_Text.Key == TEXT("BackupSize"))
+				{
+					continue;
+				}
 
-	//				TSharedPtr<FJsonObject> MessageJsonObject = MessageJson->AsObject();
-	//				if (!MessageJsonObject.IsValid())
-	//				{
-	//					continue;
-	//				}
+				FString TextValue;
+				if (PairTime_Text.Value->TryGetString(TextValue))
+				{
+					TextBackupTimeStamp.TimeStamps.Add(PairTime_Text.Key, FText::FromString(TextValue));
+				}
+			}
 
-	//				FString FromClassPath;
-	//				if (MessageJsonObject->TryGetStringField(TEXT("FromClass"), FromClassPath) && !FromClassPath.IsEmpty())
-	//				{
-	//					Message.From = LoadClass<UO_CubixonCMailContact>(nullptr, *FromClassPath);
-	//				}
+			GlobalBackupData.TextBackupData.Add(PairFile_Data.Key, TextBackupTimeStamp);
+		}
 
-	//				FString ToClassPath;
-	//				if (MessageJsonObject->TryGetStringField(TEXT("ToClass"), ToClassPath) && !ToClassPath.IsEmpty())
-	//				{
-	//					Message.To = LoadClass<UO_CubixonCMailContact>(nullptr, *ToClassPath);
-	//				}
+		// Deserialize SpreadsheetBackupData
+		const TSharedPtr<FJsonObject>* SpreadsheetFilesBackupJson;
+		if (!(*GlobalBackupDataJson)->TryGetObjectField(TEXT("SpreadsheetFilesBackupData"), SpreadsheetFilesBackupJson))
+		{
+			continue;
+		}
 
-	//				FString MessageText;
-	//				if (MessageJsonObject->TryGetStringField(TEXT("Message"), MessageText))
-	//				{
-	//					Message.Message = FText::FromString(MessageText);
-	//				}
+		for (const auto& PairFile_Data : (*SpreadsheetFilesBackupJson)->Values)
+		{
+			FSheetBackupTimeStamp SheetBackupTimeStamp;
 
-	//				FString TimeText;
-	//				if (MessageJsonObject->TryGetStringField(TEXT("Time"), TimeText))
-	//				{
-	//					Message.Time = FText::FromString(TimeText);
-	//				}
+			TSharedPtr<FJsonObject> SheetDataBackupJson = PairFile_Data.Value->AsObject();
 
-	//				bool bHasAttachedFileData = false;
+			if (!SheetDataBackupJson.IsValid())
+			{
+				continue;
+			}
 
-	//				if (MessageJsonObject->TryGetBoolField(TEXT("bHasAttachedFileData"), bHasAttachedFileData) && bHasAttachedFileData)
-	//				{
-	//					const TSharedPtr<FJsonObject>* AttachedFileJson;
-	//					if (MessageJsonObject->TryGetObjectField(TEXT("AttachedFileData"), AttachedFileJson))
-	//					{
-	//						FString FileName;
-	//						if ((*AttachedFileJson)->TryGetStringField(TEXT("FileName"), FileName))
-	//						{
-	//							Message.AttachedFileData.FileName = FText::FromString(FileName);
-	//						}
+			double BackupSize;
+			if (SheetDataBackupJson->TryGetNumberField(TEXT("BackupSize"), BackupSize))
+			{
+				SheetBackupTimeStamp.BackupSize = static_cast<float>(BackupSize);
+			}
 
-	//						FString ComponentClassPath;
-	//						if ((*AttachedFileJson)->TryGetStringField(TEXT("ComponentClass"), ComponentClassPath) && !ComponentClassPath.IsEmpty())
-	//						{
-	//							Message.AttachedFileData.ComponentClass = LoadClass<USceneComponent>(nullptr, *ComponentClassPath);
-	//						}
+			for (const auto& PairTime_Sheet : SheetDataBackupJson->Values)
+			{
+				if (PairTime_Sheet.Key == TEXT("BackupSize"))
+				{
+					continue;
+				}
 
-	//						FString EncodedData;
-	//						if ((*AttachedFileJson)->TryGetStringField(TEXT("SerializedData"), EncodedData))
-	//						{
-	//							FBase64::Decode(EncodedData, Message.AttachedFileData.SerializedData);
-	//						}
-	//					}
-	//				}
-	//				Conversation.Messages.Add(Message);
-	//			}
-	//		}
+				FSpreadsheetCells Cells;
+				TSharedPtr<FJsonObject> SheetCellsJson = PairTime_Sheet.Value->AsObject();
+				for (const auto& PairCoord_Text : SheetCellsJson->Values)
+				{
+					FIntPoint CellKey;
+					FString XString;
+					FString YString;
 
-	//		FString DefaultFromContactPath;
-	//		if (ConversationJsonObject->TryGetStringField(TEXT("DefaultFromContact"), DefaultFromContactPath) && !DefaultFromContactPath.IsEmpty())
-	//		{
-	//			Conversation.DefaultFromContact = LoadClass<UO_CubixonCMailContact>(nullptr, *DefaultFromContactPath);
-	//		}
+					if (PairCoord_Text.Key.Split(TEXT(","), &XString, &YString))
+					{
+						CellKey.X = FCString::Atoi(*XString);
+						CellKey.Y = FCString::Atoi(*YString);
 
-	//		bool bFrom_IsRead = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bFrom_IsRead"), bFrom_IsRead))
-	//		{
-	//			Conversation.bFrom_IsRead = bFrom_IsRead;
-	//		}
+						FString TextValue;
+						if (PairCoord_Text.Value->TryGetString(TextValue))
+						{
+							Cells.Cells.Add(CellKey, FText::FromString(TextValue));
+						}
+					}
+				}
 
-	//		bool bFrom_Inbox = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bFrom_Inbox"), bFrom_Inbox))
-	//		{
-	//			Conversation.bFrom_Inbox = bFrom_Inbox;
-	//		}
+				SheetBackupTimeStamp.TimeStamps.Add(PairTime_Sheet.Key, Cells);
+			}
 
-	//		bool bFrom_Sent = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bFrom_Sent"), bFrom_Sent))
-	//		{
-	//			Conversation.bFrom_Sent = bFrom_Sent;
-	//		}
+			GlobalBackupData.SheetBackupData.Add(PairFile_Data.Key, SheetBackupTimeStamp);
+		}
 
-	//		bool bFrom_Spam = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bFrom_Spam"), bFrom_Spam))
-	//		{
-	//			Conversation.bFrom_Spam = bFrom_Spam;
-	//		}
+		// Deserialize ScheduledBackupData
+		const TSharedPtr<FJsonObject>* ScheduledFilesBackupJson;
+		if (!(*GlobalBackupDataJson)->TryGetObjectField(TEXT("ScheduledBackupData"), ScheduledFilesBackupJson))
+		{
+			continue;
+		}
 
-	//		bool bFrom_Deleted = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bFrom_Deleted"), bFrom_Deleted))
-	//		{
-	//			Conversation.bFrom_Deleted = bFrom_Deleted;
-	//		}
+		for (const auto& PairFile_Data : (*ScheduledFilesBackupJson)->Values)
+		{
+			FScheduledBackupData ScheduledBackupData;
 
-	//		bool bFrom_PermanentlyDeleted = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bFrom_PermanentlyDeleted"), bFrom_PermanentlyDeleted))
-	//		{
-	//			Conversation.bFrom_PermanentlyDeleted = bFrom_PermanentlyDeleted;
-	//		}
+			TSharedPtr<FJsonObject> ScheduledBackupDataJson = PairFile_Data.Value->AsObject();
 
-	//		FString DefaultToContactPath;
-	//		if (ConversationJsonObject->TryGetStringField(TEXT("DefaultToContact"), DefaultToContactPath) && !DefaultToContactPath.IsEmpty())
-	//		{
-	//			Conversation.DefaultToContact = LoadClass<UO_CubixonCMailContact>(nullptr, *DefaultToContactPath);
-	//		}
+			if (!ScheduledBackupDataJson.IsValid())
+			{
+				continue;
+			}
 
-	//		bool bTo_IsRead = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bTo_IsRead"), bTo_IsRead))
-	//		{
-	//			Conversation.bTo_IsRead = bTo_IsRead;
-	//		}
+			double TimePeriod;
+			if (ScheduledBackupDataJson->TryGetNumberField(TEXT("TimePeriod"), TimePeriod))
+			{
+				ScheduledBackupData.TimePeriod = static_cast<int32>(TimePeriod);
+			}
 
-	//		bool bTo_Inbox = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bTo_Inbox"), bTo_Inbox))
-	//		{
-	//			Conversation.bTo_Inbox = bTo_Inbox;
-	//		}
+			FString NextTimeAutoBackupString;
+			if (ScheduledBackupDataJson->TryGetStringField(TEXT("NextTimeAutoBackup"), NextTimeAutoBackupString))
+			{
+				FDateTime::Parse(NextTimeAutoBackupString, ScheduledBackupData.NextTimeAutoBackup);
+			}
 
-	//		bool bTo_Sent = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bTo_Sent"), bTo_Sent))
-	//		{
-	//			Conversation.bTo_Sent = bTo_Sent;
-	//		}
+			GlobalBackupData.ScheduledBackupData.Add(PairFile_Data.Key, ScheduledBackupData);
+		}
 
-	//		bool bTo_Spam = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bTo_Spam"), bTo_Spam))
-	//		{
-	//			Conversation.bTo_Spam = bTo_Spam;
-	//		}
-
-	//		bool bTo_Deleted = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bTo_Deleted"), bTo_Deleted))
-	//		{
-	//			Conversation.bTo_Deleted = bTo_Deleted;
-	//		}
-
-	//		bool bTo_PermanentlyDeleted = false;
-	//		if (ConversationJsonObject->TryGetBoolField(TEXT("bTo_PermanentlyDeleted"), bTo_PermanentlyDeleted))
-	//		{
-	//			Conversation.bTo_PermanentlyDeleted = bTo_PermanentlyDeleted;
-	//		}
-
-	//		ConversationsData.Conversations.Add(Conversation);
-	//	}
-	//	CachedCMailData.Add(AccountPair.Key, MoveTemp(ConversationsData));
-	//}
+		CachedBackupData.Add(FName(ProfilePair.Key), MoveTemp(GlobalBackupData));
+	}
 
 	bIsLoadComplete = true;
 }
@@ -334,6 +285,15 @@ void UGIS_Backup::ApplyBackupData_Implementation(UObject* ProfileObject)
 		return;
 	}
 
-	II_SaveableObject::Execute_ApplyBackupSaveData(ProfileObject, CachedBackupData);
+	const FName ProfileName(*ProfileObject->GetName());
+
+	const FGlobalBackupData* FoundData = CachedBackupData.Find(ProfileName);
+
+	if (!FoundData)
+	{
+		return;
+	}
+
+	II_SaveableObject::Execute_ApplyBackupSaveData(ProfileObject, *FoundData);
 }
 

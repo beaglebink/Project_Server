@@ -175,3 +175,17 @@ struct FScheduledBackupData
 	FDateTime NextTimeAutoBackup;
 };
 
+USTRUCT(BlueprintType)
+struct FGlobalBackupData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	TMap<FString, FTextBackupTimeStamp> TextBackupData;
+	
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	TMap<FString, FSheetBackupTimeStamp> SheetBackupData;
+	
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	TMap<FString, FScheduledBackupData> ScheduledBackupData;
+};

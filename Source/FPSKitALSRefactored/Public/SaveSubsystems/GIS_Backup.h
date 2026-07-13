@@ -38,7 +38,7 @@ public:
 	void ApplyBackupData(UObject* ProfileObject);
 
 private:
-	TMap<FString, FCubixonCMailConversationsWrap> CachedBackupData;
+	TMap<FName, FGlobalBackupData> CachedBackupData;
 
 	bool bIsLoadComplete = false;
 };
