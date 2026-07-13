@@ -214,6 +214,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
     int32 GetRemainingSpawnedTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
 
+    // Получить количество оставшихся оригинальных объектов (не заспавненных) с фильтром по классу и типу
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetRemainingOriginalActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const;
+
+    // Получить количество оставшихся оригинальных объектов (не заспавненных) с тегом
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
+    int32 GetRemainingOriginalTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
+
     // Public методы для доступа к картам (возвращаем const ссылки)
     const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& GetMissionSpawnedActors() const { return MissionSpawnedActorsByInteriorFloor; }
     const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& GetMissionDestroyedActors() const { return MissionDestroyedActorsByInteriorFloor; }

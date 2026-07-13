@@ -360,3 +360,49 @@ FString UInteriorClassTypeRemainingSpawnedCondition::GetDescription() const
     FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
     return FString::Printf(TEXT("ClassType remaining spawned [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
+
+void UInteriorClassTypeRemainingOriginalCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        bCompleted = true;
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    UGameInstance* GI = World->GetGameInstance();
+    UInteriorSubsystem* InteriorSub = GI ? GI->GetSubsystem<UInteriorSubsystem>() : nullptr;
+    if (!InteriorSub)
+    {
+        bCompleted = true;
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 RemainingOriginalCount = InteriorSub->GetRemainingOriginalActorCountForCurrentFloor(ActorClass, ActorType);
+
+    switch (Operator)
+    {
+    case ECheckCompareOp::Equal:          bApproved = (RemainingOriginalCount == ExpectedValue); break;
+    case ECheckCompareOp::NotEqual:       bApproved = (RemainingOriginalCount != ExpectedValue); break;
+    case ECheckCompareOp::Less:           bApproved = (RemainingOriginalCount < ExpectedValue); break;
+    case ECheckCompareOp::LessOrEqual:    bApproved = (RemainingOriginalCount <= ExpectedValue); break;
+    case ECheckCompareOp::Greater:        bApproved = (RemainingOriginalCount > ExpectedValue); break;
+    case ECheckCompareOp::GreaterOrEqual: bApproved = (RemainingOriginalCount >= ExpectedValue); break;
+    default: bApproved = false; break;
+    }
+
+    bCompleted = true;
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString UInteriorClassTypeRemainingOriginalCondition::GetDescription() const
+{
+    FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
+    return FString::Printf(TEXT("ClassType remaining original [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
+}

@@ -155,3 +155,18 @@ public:
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
+
+/**
+ * Count of original (initially existing on the level) objects of the specified class and type that remain (not destroyed).
+ *
+ * Подсчёт количества оригинальных (изначально существовавших на уровне) объектов указанного класса и типа, которые остались (не уничтожены).
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorClassTypeRemainingOriginalCondition : public UInteriorClassTypeCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};

@@ -165,3 +165,18 @@ public:
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
+
+/**
+ * Count of original (initially existing on the level) objects with the tag that remain (not destroyed).
+ *
+ * Подсчёт количества оригинальных (изначально существовавших на уровне) объектов с тегом, которые остались (не уничтожены).
+ */
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UInteriorTagRemainingOriginalCondition : public UInteriorTagCheckCondition
+{
+    GENERATED_BODY()
+
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};

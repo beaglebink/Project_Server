@@ -409,3 +409,57 @@ FString UInteriorTagRemainingSpawnedCondition::GetDescription() const
     FString TagStr = (TagType == ETagType::TextTag) ? TextTag.ToString() : GameplayTag.ToString();
     return FString::Printf(TEXT("Tag remaining spawned count [%s] %s %d"), *TagStr, *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
+
+void UInteriorTagRemainingOriginalCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        bCompleted = true;
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    UGameInstance* GI = World->GetGameInstance();
+    UInteriorSubsystem* InteriorSub = GI ? GI->GetSubsystem<UInteriorSubsystem>() : nullptr;
+    if (!InteriorSub)
+    {
+        bCompleted = true;
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 RemainingOriginalCount = 0;
+    if (TagType == ETagType::TextTag)
+    {
+        RemainingOriginalCount = InteriorSub->GetRemainingOriginalTagCountForCurrentFloor(TagType, TextTag, FGameplayTag());
+    }
+    else
+    {
+        RemainingOriginalCount = InteriorSub->GetRemainingOriginalTagCountForCurrentFloor(TagType, NAME_None, GameplayTag);
+    }
+
+    switch (Operator)
+    {
+    case ECheckCompareOp::Equal:          bApproved = (RemainingOriginalCount == ExpectedValue); break;
+    case ECheckCompareOp::NotEqual:       bApproved = (RemainingOriginalCount != ExpectedValue); break;
+    case ECheckCompareOp::Less:           bApproved = (RemainingOriginalCount < ExpectedValue); break;
+    case ECheckCompareOp::LessOrEqual:    bApproved = (RemainingOriginalCount <= ExpectedValue); break;
+    case ECheckCompareOp::Greater:        bApproved = (RemainingOriginalCount > ExpectedValue); break;
+    case ECheckCompareOp::GreaterOrEqual: bApproved = (RemainingOriginalCount >= ExpectedValue); break;
+    default: bApproved = false; break;
+    }
+
+    bCompleted = true;
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString UInteriorTagRemainingOriginalCondition::GetDescription() const
+{
+    FString TagStr = (TagType == ETagType::TextTag) ? TextTag.ToString() : GameplayTag.ToString();
+    return FString::Printf(TEXT("Tag remaining original count [%s] %s %d"), *TagStr, *UEnum::GetValueAsString(Operator), ExpectedValue);
+}

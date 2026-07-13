@@ -5260,3 +5260,79 @@ int32 UInteriorSubsystem::GetRemainingSpawnedTagCountForCurrentFloor(ETagType Ta
 	Total += CountRecords(SpawnedBuckets->Debris);
 	return Total;
 }
+
+int32 UInteriorSubsystem::GetRemainingOriginalActorCountForCurrentFloor(TSubclassOf<AActor> ActorClass, EFloorActorType ActorType) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+		return 0;
+
+	// --- 1. Подсчёт общего количества существующих объектов (с компонентом и фильтрами) ---
+	int32 TotalExisting = 0;
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!IsValid(Actor))
+			continue;
+
+		// Фильтр по классу
+		if (ActorClass && !Actor->IsA(ActorClass))
+			continue;
+
+		// Проверка наличия компонента FloorAssignment
+		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+		if (!Comp)
+			continue;
+
+		// Фильтр по типу 
+		if (Comp->ActorType == ActorType)
+			TotalExisting++;
+	}
+
+	// --- 2. Количество живых заспавненных объектов (с теми же фильтрами) ---
+	int32 AliveSpawned = GetSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
+
+	// --- 3. Оригинальные существующие = общие - живые спавны ---
+	return TotalExisting - AliveSpawned;
+}
+
+int32 UInteriorSubsystem::GetRemainingOriginalTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+		return 0;
+
+	// --- 1. Общее количество существующих объектов с тегом ---
+	int32 TotalExisting = 0;
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!IsValid(Actor))
+			continue;
+
+		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+		if (!Comp)
+			continue;
+
+		bool bMatches = false;
+		if (TagType == ETagType::TextTag)
+		{
+			if (TextTag != NAME_None && Actor->Tags.Contains(TextTag))
+				bMatches = true;
+		}
+		else // GameplayTag
+		{
+			if (GameplayTag.IsValid() && Comp->GameplayTagContainer.HasTag(GameplayTag))
+				bMatches = true;
+		}
+
+		if (bMatches)
+			TotalExisting++;
+	}
+
+	// --- 2. Количество живых заспавненных объектов с тегом ---
+	int32 AliveSpawnedTag = GetSpawnedTagCountForCurrentFloor(TagType, TextTag, GameplayTag);
+
+	// --- 3. Оригинальные существующие с тегом = общие - живые спавны с тегом ---
+	return TotalExisting - AliveSpawnedTag;
+}
