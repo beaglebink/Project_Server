@@ -225,6 +225,7 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchWeapon);
 		EnhancedInput->BindAction(RemoveSticknessAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnRemoveStickness);
 		EnhancedInput->BindAction(GrappleRemoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRemoveGrapple);
+		EnhancedInput->BindAction(CookingModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchCookingMode);
 
 		if (Inventory)
 		{
@@ -720,6 +721,11 @@ void AAlsCharacterExample::Input_OnRemoveGrapple(const FInputActionValue& Action
 	float X = ActionValue.Get<FVector2D>().X;
 	float Y = ActionValue.Get<FVector2D>().Y;
 	PressTwoKeysRemoveGrappleEffect(X || Y ? true : false);
+}
+
+void AAlsCharacterExample::Input_OnSwitchCookingMode()
+{
+	SwitchCookingModeHandle();
 }
 
 void AAlsCharacterExample::SetLoopEffect(bool bIsSet)
