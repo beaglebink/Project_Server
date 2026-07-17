@@ -78,7 +78,7 @@ void UCheckCoordinatorComponent::StartCheck()
         FTimerDelegate::CreateUObject(this, &UCheckCoordinatorComponent::OnTimeout, Txn),
         GlobalTimeoutSeconds, false);
     */
-    UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: Started check with Txn=%s, %d conditions."), *Txn.ToString(), ValidConditions.Num());
+    //UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: Started check with Txn=%s, %d conditions."), *Txn.ToString(), ValidConditions.Num());
 }
 
 void UCheckCoordinatorComponent::OnConditionComplete(UCheckCondition* Condition)
@@ -121,12 +121,12 @@ void UCheckCoordinatorComponent::FinalizeCheck(const FGuid& TransactionId, bool 
 
     if (bSuccess)
     {
-        UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: All conditions approved! Txn=%s"), *TransactionId.ToString());
+        //UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: All conditions approved! Txn=%s"), *TransactionId.ToString());
         OnAllApproved.Broadcast();
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("CheckCoordinator: Check rejected. Txn=%s"), *TransactionId.ToString());
+        //UE_LOG(LogTemp, Warning, TEXT("CheckCoordinator: Check rejected. Txn=%s"), *TransactionId.ToString());
         OnAnyRejected.Broadcast();
     }
 

@@ -32,6 +32,9 @@ public:
     // Описание для отладки
     virtual FString GetDescription() const PURE_VIRTUAL(UCheckCondition::GetDescription, return TEXT(""); );
 
+    // Сбросить состояние условия (для повторного использования)
+    virtual void Reset();
+
     // Уведомление координатора о завершении
     DECLARE_DELEGATE_OneParam(FOnConditionComplete, UCheckCondition*);
     FOnConditionComplete OnComplete;
@@ -56,13 +59,13 @@ protected:
     virtual UOutcomeConditionAsset* CreateSubscriptionCondition() const PURE_VIRTUAL(UCheckCondition::CreateSubscriptionCondition, return nullptr;);
 
     // Запуск таймаута
-    void StartTimeoutTimer(const FGuid& TransactionId);
+    //void StartTimeoutTimer(const FGuid& TransactionId);
 
     // Остановка таймаута
-    void ClearTimeoutTimer();
+    //void ClearTimeoutTimer();
 
     // Обработчик таймаута
-    void OnTimeout(FGuid TransactionId);
+    //void OnTimeout(FGuid TransactionId);
 
     UWorld* GetWorld() const;
 

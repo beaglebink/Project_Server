@@ -18,7 +18,7 @@ void UCheckCondition::Initialize(UCheckCoordinatorComponent* InCoordinator, UEve
         }
     }
 }
-
+/*
 void UCheckCondition::StartTimeoutTimer(const FGuid& TransactionId)
 {
     if (UWorld* World = GetWorld())
@@ -47,7 +47,7 @@ void UCheckCondition::OnTimeout(FGuid TransactionId)
         OnComplete.ExecuteIfBound(this);
     }
 }
-
+*/
 UWorld* UCheckCondition::GetWorld() const
 {
     if (Coordinator)
@@ -55,4 +55,12 @@ UWorld* UCheckCondition::GetWorld() const
         return Coordinator->GetWorld();
     }
     return nullptr;
+}
+
+void UCheckCondition::Reset()
+{
+    bCompleted = false;
+    bApproved = false;
+    CurrentTransactionId.Invalidate();
+    //ClearTimeoutTimer();
 }

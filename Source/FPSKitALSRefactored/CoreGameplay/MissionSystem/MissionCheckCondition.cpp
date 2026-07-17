@@ -61,7 +61,7 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     UE_LOG(LogTemp, Log, TEXT("MissionCheck: Sent request for MissionId=%s, Property=%d, Txn=%s"),
         *ActiveMissionId.ToString(), (int32)GetCheckedProperty(), *TransactionId.ToString());
 
-    StartTimeoutTimer(TransactionId);
+    //StartTimeoutTimer(TransactionId);
 }
 
 void UMissionCheckCondition::OnCheckResponse(const FOutcomeEventBase& Event)
@@ -72,7 +72,7 @@ void UMissionCheckCondition::OnCheckResponse(const FOutcomeEventBase& Event)
     if (!Resp || Resp->TransactionId != CurrentTransactionId) return;
     if (Event.OutcomeMission != EOutcomeMission::CheckResponse) return;
 
-    ClearTimeoutTimer();
+    //ClearTimeoutTimer();
     bCompleted = true;
     bApproved = Resp->bApproved;
 

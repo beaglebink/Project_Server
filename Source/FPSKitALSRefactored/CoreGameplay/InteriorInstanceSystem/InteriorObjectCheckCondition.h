@@ -18,12 +18,12 @@ class FPSKITALSREFACTORED_API UInteriorObjectExistsCondition : public UCheckCond
 public:
     // Reference to the actor whose existence is being checked
     // Ссылка на актор, существование которого проверяется
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TSoftObjectPtr<AActor> ActorRef;
 
     // Expected state: true – object must exist, false – must not exist
     // Ожидаемое состояние: true – объект должен существовать, false – не должен существовать
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bShouldExist = true;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
@@ -50,12 +50,12 @@ class FPSKITALSREFACTORED_API UInteriorObjectDestroyedCondition : public UCheckC
 public:
     // Reference to the actor whose destruction is being checked
     // Ссылка на актор, уничтожение которого проверяется
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TSoftObjectPtr<AActor> ActorRef;
 
     // Expected state: true – object must be destroyed, false – must not be destroyed
     // Ожидаемое состояние: true – объект должен быть уничтожен, false – не должен быть уничтожен
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bShouldBeDestroyed = true;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
