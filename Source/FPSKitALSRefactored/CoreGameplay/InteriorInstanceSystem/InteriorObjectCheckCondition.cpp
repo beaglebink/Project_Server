@@ -7,6 +7,7 @@
 // ----- UInteriorObjectExistsCondition -----
 void UInteriorObjectExistsCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -15,43 +16,35 @@ void UInteriorObjectExistsCondition::ExecuteCheck(const FGuid& TransactionId)
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
     bool bFound = false;
-
-    AActor* Actor = ActorRef.LoadSynchronous();
-    if (IsValid(Actor))
-    {
-        // Проверяем, что актор находится в текущем мире и имеет компонент FloorAssignment (опционально)
-        // Можно просто проверить, что актор не помечен на удаление и находится в мире
-        // Для надёжности проверяем, что актор действительно принадлежит этому миру
-        if (Actor->GetWorld() == World && IsValid(Actor))
-        {
-            // Если нужна проверка наличия компонента FloorAssignment, можно раскомментировать:
-            // UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
-            // if (Comp)
-            //     bFound = true;
-            // Но проще считать, что любой актор, на который есть ссылка и он валиден – существует
-            bFound = true;
-        }
-    }
+    AActor* Actor = ActorRef.Get();
+    if (IsValid(Actor) && Actor->GetWorld() == World)
+        bFound = true;
 
     bApproved = (bFound == bShouldExist);
     bCompleted = true;
+
+    // Сначала закрывающая строка, потом OnComplete
+    LogVerbose(FString::Printf(TEXT("→ %s"), bApproved ? TEXT("true") : TEXT("false")), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString UInteriorObjectExistsCondition::GetDescription() const
 {
-    FString ActorName = ActorRef.IsValid() ? ActorRef->GetName() : ActorRef.ToString();
+    FString ActorName = ActorRef.IsValid() ? ActorRef->GetName() : TEXT("None");
     return FString::Printf(TEXT("Object %s exists: %s"), *ActorName, bShouldExist ? TEXT("true") : TEXT("false"));
 }
 
 // ----- UInteriorObjectDestroyedCondition -----
 void UInteriorObjectDestroyedCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -60,26 +53,27 @@ void UInteriorObjectDestroyedCondition::ExecuteCheck(const FGuid& TransactionId)
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
     bool bExists = false;
-
-    AActor* Actor = ActorRef.LoadSynchronous();
+    AActor* Actor = ActorRef.Get();
     if (IsValid(Actor) && Actor->GetWorld() == World)
-    {
         bExists = true;
-    }
 
     bool bIsDestroyed = !bExists;
     bApproved = (bIsDestroyed == bShouldBeDestroyed);
     bCompleted = true;
+
+    LogVerbose(FString::Printf(TEXT("→ %s"), bApproved ? TEXT("true") : TEXT("false")), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString UInteriorObjectDestroyedCondition::GetDescription() const
 {
-    FString ActorName = ActorRef.IsValid() ? ActorRef->GetName() : ActorRef.ToString();
+    FString ActorName = ActorRef.IsValid() ? ActorRef->GetName() : TEXT("None");
     return FString::Printf(TEXT("Object %s destroyed: %s"), *ActorName, bShouldBeDestroyed ? TEXT("true") : TEXT("false"));
 }

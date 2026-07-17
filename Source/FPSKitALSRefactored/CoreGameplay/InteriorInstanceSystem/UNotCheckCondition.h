@@ -5,21 +5,12 @@
 #include "CheckCondition.h"
 #include "UNotCheckCondition.generated.h"
 
-/**
- * Условие, которое инвертирует результат одного подчинённого условия (логическое НЕ).
- *
- * Работает асинхронно: запускает подчинённое условие и ждёт его завершения,
- * после чего возвращает инвертированный результат (true → false, false → true).
- *
- * Полезно для комбинаций: NOT( A ) ИЛИ NOT( B ) и т.п.
- */
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UNotCheckCondition : public UCheckCondition
 {
     GENERATED_BODY()
 
 public:
-    // Единственное подчинённое условие, результат которого инвертируется
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced)
     UCheckCondition* InnerCondition = nullptr;
 
@@ -32,9 +23,9 @@ public:
     virtual UOutcomeConditionAsset* CreateSubscriptionCondition() const override { return nullptr; }
 
 protected:
-    // Обработчик завершения подчинённого условия
     void OnInnerConditionComplete(UCheckCondition* Condition);
 
     bool bApproved = false;
     bool bCompleted = false;
+    bool bFinalized = false;
 };

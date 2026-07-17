@@ -5,7 +5,6 @@
 void UNotCheckCondition::Initialize(UCheckCoordinatorComponent* InCoordinator, UEventBusSubsystem* InEventBus)
 {
     Super::Initialize(InCoordinator, InEventBus);
-
     if (InnerCondition)
     {
         InnerCondition->Initialize(InCoordinator, InEventBus);
@@ -15,14 +14,13 @@ void UNotCheckCondition::Initialize(UCheckCoordinatorComponent* InCoordinator, U
 
 void UNotCheckCondition::ExecuteCheck(const FGuid& TransactionId)
 {
-    // Сбрасываем состояние
     Reset();
 
-    // Если нет подчинённого условия – считаем условие невыполненным (false)
     if (!InnerCondition)
     {
         bCompleted = true;
         bApproved = false;
+        LogVerbose(TEXT("→ false (no inner)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -30,27 +28,33 @@ void UNotCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
+    bFinalized = false;
 
-    // Запускаем подчинённое условие
+    LogVerbose(TEXT(""), true);
+    CurrentDepth++;
+
     InnerCondition->ExecuteCheck(TransactionId);
 }
 
 void UNotCheckCondition::Reset()
 {
     Super::Reset();
+    bFinalized = false;
     if (InnerCondition)
         InnerCondition->Reset();
 }
 
 void UNotCheckCondition::OnInnerConditionComplete(UCheckCondition* Condition)
 {
-    if (bCompleted)
+    if (bCompleted || bFinalized)
         return;
 
+    bFinalized = true;
     bCompleted = true;
-    // Инвертируем результат подчинённого условия
     bApproved = !Condition->IsApproved();
 
+    CurrentDepth--;
+    LogVerbose(FString::Printf(TEXT("→ %s"), bApproved ? TEXT("true") : TEXT("false")), false);
     OnComplete.ExecuteIfBound(this);
 }
 

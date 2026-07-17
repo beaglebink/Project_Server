@@ -4,6 +4,9 @@
 #include "Engine/World.h"
 #include "InteriorSubsystem.h"
 
+// ----------------------------------------------------------------------------
+// GetFilteredObjectCount
+// ----------------------------------------------------------------------------
 int32 UInteriorClassTypeCheckCondition::GetFilteredObjectCount(UWorld* World) const
 {
     if (!World)
@@ -11,42 +14,34 @@ int32 UInteriorClassTypeCheckCondition::GetFilteredObjectCount(UWorld* World) co
 
     int32 Count = 0;
 
-    // Iterate over all actors in the world
-    // Перебор всех акторов в мире
     for (TActorIterator<AActor> It(World); It; ++It)
     {
         AActor* Actor = *It;
         if (!IsValid(Actor))
             continue;
 
-        // Filter by class (if set)
-        // Фильтр по классу (если задан)
         if (ActorClass && !Actor->IsA(ActorClass))
             continue;
 
-        // Check for FloorAssignment component
-        // Проверяем наличие компонента FloorAssignment
         UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
         if (!Comp)
             continue;
 
-        // Filter by EFloorActorType
-        // LightItem – default value meaning "all types"
-        // Фильтр по типу EFloorActorType
-        // LightItem – дефолтное значение, означающее "все типы"
         if (Comp->ActorType != ActorType)
             continue;
 
-        // Object passed all filters
-        // Объект прошёл все фильтры
         Count++;
     }
 
     return Count;
 }
 
+// ----------------------------------------------------------------------------
+// Базовый ExecuteCheck (используется для UInteriorClassTypeCountCondition)
+// ----------------------------------------------------------------------------
 void UInteriorClassTypeCheckCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -55,6 +50,8 @@ void UInteriorClassTypeCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -72,17 +69,31 @@ void UInteriorClassTypeCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     }
 
     bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (count=%d, expected=%d)"), bApproved ? TEXT("true") : TEXT("false"), CurrentCount, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
+// ----------------------------------------------------------------------------
+// GetDescription для базового (если используется напрямую)
+// ----------------------------------------------------------------------------
 FString UInteriorClassTypeCheckCondition::GetDescription() const
 {
     FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
     return FString::Printf(TEXT("ClassType count [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
+// ============================================================================
+// Следующие классы наследуют ExecuteCheck и GetDescription,
+// но для каждого из них нужно переопределить ExecuteCheck и GetDescription,
+// чтобы использовать специфичные методы подсчёта.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// UInteriorClassTypeDestroyedCondition
+// ----------------------------------------------------------------------------
 void UInteriorClassTypeDestroyedCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -91,6 +102,8 @@ void UInteriorClassTypeDestroyedCondition::ExecuteCheck(const FGuid& Transaction
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -100,12 +113,13 @@ void UInteriorClassTypeDestroyedCondition::ExecuteCheck(const FGuid& Transaction
     if (!InteriorSub)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no InteriorSub)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
     int32 DestroyedCount = InteriorSub->GetDestroyedActorCountForCurrentFloor(ActorClass, ActorType);
-
     switch (Operator)
     {
     case ECheckCompareOp::Equal:          bApproved = (DestroyedCount == ExpectedValue); break;
@@ -118,6 +132,7 @@ void UInteriorClassTypeDestroyedCondition::ExecuteCheck(const FGuid& Transaction
     }
 
     bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (count=%d, expected=%d)"), bApproved ? TEXT("true") : TEXT("false"), DestroyedCount, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
@@ -127,8 +142,12 @@ FString UInteriorClassTypeDestroyedCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType destroyed [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
+// ----------------------------------------------------------------------------
+// UInteriorClassTypeRemainingCondition
+// ----------------------------------------------------------------------------
 void UInteriorClassTypeRemainingCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -137,6 +156,8 @@ void UInteriorClassTypeRemainingCondition::ExecuteCheck(const FGuid& Transaction
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -146,13 +167,14 @@ void UInteriorClassTypeRemainingCondition::ExecuteCheck(const FGuid& Transaction
     if (!InteriorSub)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no InteriorSub)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
     int32 DestroyedCount = InteriorSub->GetDestroyedActorCountForCurrentFloor(ActorClass, ActorType);
     int32 Remaining = GetFilteredObjectCount(World);
-
     switch (Operator)
     {
     case ECheckCompareOp::Equal:          bApproved = (Remaining == ExpectedValue); break;
@@ -165,6 +187,7 @@ void UInteriorClassTypeRemainingCondition::ExecuteCheck(const FGuid& Transaction
     }
 
     bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (remaining=%d, expected=%d)"), bApproved ? TEXT("true") : TEXT("false"), Remaining, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
@@ -174,8 +197,12 @@ FString UInteriorClassTypeRemainingCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType remaining [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
+// ----------------------------------------------------------------------------
+// UInteriorClassTypeSpawnedCondition
+// ----------------------------------------------------------------------------
 void UInteriorClassTypeSpawnedCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -184,6 +211,8 @@ void UInteriorClassTypeSpawnedCondition::ExecuteCheck(const FGuid& TransactionId
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -193,6 +222,8 @@ void UInteriorClassTypeSpawnedCondition::ExecuteCheck(const FGuid& TransactionId
     if (!InteriorSub)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no InteriorSub)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -200,6 +231,7 @@ void UInteriorClassTypeSpawnedCondition::ExecuteCheck(const FGuid& TransactionId
     int32 SpawnedRemainingCount = InteriorSub->GetSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
     int32 DestroyedSpawnedCount = InteriorSub->GetDestroyedSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
     int32 SpawnCount = SpawnedRemainingCount + DestroyedSpawnedCount;
+
     switch (Operator)
     {
     case ECheckCompareOp::Equal:          bApproved = (SpawnCount == ExpectedValue); break;
@@ -210,7 +242,9 @@ void UInteriorClassTypeSpawnedCondition::ExecuteCheck(const FGuid& TransactionId
     case ECheckCompareOp::GreaterOrEqual: bApproved = (SpawnCount >= ExpectedValue); break;
     default: bApproved = false; break;
     }
+
     bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (spawn_count=%d, expected=%d)"), bApproved ? TEXT("true") : TEXT("false"), SpawnCount, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
@@ -220,11 +254,12 @@ FString UInteriorClassTypeSpawnedCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType spawned [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
-// Addition
-// дополнение
-
+// ----------------------------------------------------------------------------
+// UInteriorClassTypeDestroyedSpawnedCondition
+// ----------------------------------------------------------------------------
 void UInteriorClassTypeDestroyedSpawnedCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -233,6 +268,8 @@ void UInteriorClassTypeDestroyedSpawnedCondition::ExecuteCheck(const FGuid& Tran
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -242,12 +279,13 @@ void UInteriorClassTypeDestroyedSpawnedCondition::ExecuteCheck(const FGuid& Tran
     if (!InteriorSub)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no InteriorSub)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
     int32 DestroyedSpawnedCount = InteriorSub->GetDestroyedSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
-
     switch (Operator)
     {
     case ECheckCompareOp::Equal:          bApproved = (DestroyedSpawnedCount == ExpectedValue); break;
@@ -260,6 +298,7 @@ void UInteriorClassTypeDestroyedSpawnedCondition::ExecuteCheck(const FGuid& Tran
     }
 
     bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (count=%d, expected=%d)"), bApproved ? TEXT("true") : TEXT("false"), DestroyedSpawnedCount, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
@@ -269,8 +308,12 @@ FString UInteriorClassTypeDestroyedSpawnedCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType destroyed spawned [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
+// ----------------------------------------------------------------------------
+// UInteriorClassTypeDestroyedOriginalCondition
+// ----------------------------------------------------------------------------
 void UInteriorClassTypeDestroyedOriginalCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -279,6 +322,8 @@ void UInteriorClassTypeDestroyedOriginalCondition::ExecuteCheck(const FGuid& Tra
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -288,12 +333,13 @@ void UInteriorClassTypeDestroyedOriginalCondition::ExecuteCheck(const FGuid& Tra
     if (!InteriorSub)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no InteriorSub)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
     int32 DestroyedOriginalCount = InteriorSub->GetDestroyedOriginalActorCountForCurrentFloor(ActorClass, ActorType);
-
     switch (Operator)
     {
     case ECheckCompareOp::Equal:          bApproved = (DestroyedOriginalCount == ExpectedValue); break;
@@ -306,6 +352,7 @@ void UInteriorClassTypeDestroyedOriginalCondition::ExecuteCheck(const FGuid& Tra
     }
 
     bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (count=%d, expected=%d)"), bApproved ? TEXT("true") : TEXT("false"), DestroyedOriginalCount, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
@@ -315,8 +362,12 @@ FString UInteriorClassTypeDestroyedOriginalCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType destroyed original [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
+// ----------------------------------------------------------------------------
+// UInteriorClassTypeRemainingSpawnedCondition
+// ----------------------------------------------------------------------------
 void UInteriorClassTypeRemainingSpawnedCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -325,6 +376,8 @@ void UInteriorClassTypeRemainingSpawnedCondition::ExecuteCheck(const FGuid& Tran
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -334,12 +387,13 @@ void UInteriorClassTypeRemainingSpawnedCondition::ExecuteCheck(const FGuid& Tran
     if (!InteriorSub)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no InteriorSub)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
     int32 RemainingSpawnedCount = InteriorSub->GetRemainingSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
-
     switch (Operator)
     {
     case ECheckCompareOp::Equal:          bApproved = (RemainingSpawnedCount == ExpectedValue); break;
@@ -352,6 +406,7 @@ void UInteriorClassTypeRemainingSpawnedCondition::ExecuteCheck(const FGuid& Tran
     }
 
     bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (count=%d, expected=%d)"), bApproved ? TEXT("true") : TEXT("false"), RemainingSpawnedCount, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
@@ -361,8 +416,12 @@ FString UInteriorClassTypeRemainingSpawnedCondition::GetDescription() const
     return FString::Printf(TEXT("ClassType remaining spawned [%s, %s] %s %d"), *ClassName, *UEnum::GetValueAsString(ActorType), *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
+// ----------------------------------------------------------------------------
+// UInteriorClassTypeRemainingOriginalCondition
+// ----------------------------------------------------------------------------
 void UInteriorClassTypeRemainingOriginalCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
     bCompleted = false;
     bApproved = false;
@@ -371,6 +430,8 @@ void UInteriorClassTypeRemainingOriginalCondition::ExecuteCheck(const FGuid& Tra
     if (!World)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no world)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -380,12 +441,13 @@ void UInteriorClassTypeRemainingOriginalCondition::ExecuteCheck(const FGuid& Tra
     if (!InteriorSub)
     {
         bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no InteriorSub)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
     int32 RemainingOriginalCount = InteriorSub->GetRemainingOriginalActorCountForCurrentFloor(ActorClass, ActorType);
-
     switch (Operator)
     {
     case ECheckCompareOp::Equal:          bApproved = (RemainingOriginalCount == ExpectedValue); break;
@@ -398,6 +460,7 @@ void UInteriorClassTypeRemainingOriginalCondition::ExecuteCheck(const FGuid& Tra
     }
 
     bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (count=%d, expected=%d)"), bApproved ? TEXT("true") : TEXT("false"), RemainingOriginalCount, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 

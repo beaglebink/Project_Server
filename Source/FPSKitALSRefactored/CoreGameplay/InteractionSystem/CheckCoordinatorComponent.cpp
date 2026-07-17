@@ -1,4 +1,4 @@
-// CheckCoordinatorComponent.cpp
+﻿// CheckCoordinatorComponent.cpp
 #include "CheckCoordinatorComponent.h"
 #include "CheckCondition.h"
 #include "Engine/World.h"
@@ -31,18 +31,22 @@ void UCheckCoordinatorComponent::BeginPlay()
 
 void UCheckCoordinatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    /*
     for (auto& Pair : ActiveChecks)
     {
-        GetWorld()->GetTimerManager().ClearTimer(Pair.Value.GlobalTimeoutTimer);
+        //GetWorld()->GetTimerManager().ClearTimer(Pair.Value.GlobalTimeoutTimer);
     }
-    */
     ActiveChecks.Empty();
     Super::EndPlay(EndPlayReason);
 }
 
 void UCheckCoordinatorComponent::StartCheck()
 {
+    // Сбрасываем глобальную глубину для нового дерева логов
+    UCheckCondition::CurrentDepth = 0;
+
+    UE_LOG(LogTemp, Log, TEXT(""));
+    UE_LOG(LogTemp, Log, TEXT("========== 🔍 CHECK START =========="));
+
     if (!EventBus)
     {
         UE_LOG(LogTemp, Error, TEXT("CheckCoordinator: Cannot start check, EventBus missing."));
@@ -73,12 +77,12 @@ void UCheckCoordinatorComponent::StartCheck()
     {
         Cond->ExecuteCheck(Txn);
     }
-    /*
+
     GetWorld()->GetTimerManager().SetTimer(Check.GlobalTimeoutTimer,
         FTimerDelegate::CreateUObject(this, &UCheckCoordinatorComponent::OnTimeout, Txn),
         GlobalTimeoutSeconds, false);
-    */
-    //UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: Started check with Txn=%s, %d conditions."), *Txn.ToString(), ValidConditions.Num());
+
+    UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: Started check with %d conditions."), ValidConditions.Num());
 }
 
 void UCheckCoordinatorComponent::OnConditionComplete(UCheckCondition* Condition)
@@ -117,22 +121,24 @@ void UCheckCoordinatorComponent::FinalizeCheck(const FGuid& TransactionId, bool 
     if (!Check || Check->bFinalized) return;
 
     Check->bFinalized = true;
-    //GetWorld()->GetTimerManager().ClearTimer(Check->GlobalTimeoutTimer);
+    GetWorld()->GetTimerManager().ClearTimer(Check->GlobalTimeoutTimer);
 
     if (bSuccess)
     {
-        //UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: All conditions approved! Txn=%s"), *TransactionId.ToString());
+        UE_LOG(LogTemp, Log, TEXT("========== ✅ CHECK PASSED =========="));
+        UE_LOG(LogTemp, Log, TEXT(""));
         OnAllApproved.Broadcast();
     }
     else
     {
-        //UE_LOG(LogTemp, Warning, TEXT("CheckCoordinator: Check rejected. Txn=%s"), *TransactionId.ToString());
+        UE_LOG(LogTemp, Log, TEXT("========== ❌ CHECK FAILED =========="));
+        UE_LOG(LogTemp, Log, TEXT(""));
         OnAnyRejected.Broadcast();
     }
 
     ActiveChecks.Remove(TransactionId);
 }
-/*
+
 void UCheckCoordinatorComponent::OnTimeout(FGuid TransactionId)
 {
     FPendingCheck* Check = ActiveChecks.Find(TransactionId);
@@ -142,4 +148,3 @@ void UCheckCoordinatorComponent::OnTimeout(FGuid TransactionId)
         *TransactionId.ToString(), Check->TotalConditions - Check->CompletedCount);
     FinalizeCheck(TransactionId, false);
 }
-*/

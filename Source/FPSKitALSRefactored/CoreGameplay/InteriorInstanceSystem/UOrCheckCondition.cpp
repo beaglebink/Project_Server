@@ -5,7 +5,6 @@
 void UOrCheckCondition::Initialize(UCheckCoordinatorComponent* InCoordinator, UEventBusSubsystem* InEventBus)
 {
     Super::Initialize(InCoordinator, InEventBus);
-
     for (UCheckCondition* Sub : SubConditions)
     {
         if (Sub)
@@ -28,6 +27,7 @@ void UOrCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     {
         bCompleted = true;
         bApproved = false;
+        LogVerbose(TEXT("→ false (empty OR)"), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
@@ -38,10 +38,11 @@ void UOrCheckCondition::ExecuteCheck(const FGuid& TransactionId)
     bCompleted = false;
     bApproved = false;
 
+    LogVerbose(TEXT(""), true);
+    CurrentDepth++;
+
     for (UCheckCondition* Sub : SubConditions)
         if (Sub) Sub->ExecuteCheck(TransactionId);
-
-    // Если все условия синхронно завершились, проверка произойдёт в OnSubConditionComplete
 }
 
 void UOrCheckCondition::Reset()
@@ -56,29 +57,19 @@ void UOrCheckCondition::Reset()
 
 void UOrCheckCondition::OnSubConditionComplete(UCheckCondition* SubCondition)
 {
-    // Если уже завершены – игнорируем
     if (bFinalized || bCompleted || !SubCondition)
         return;
 
-    // Если подусловие одобрено – завершаем OR с true немедленно
-    if (SubCondition->IsApproved())
-    {
-        bFinalized = true;
-        bCompleted = true;
-        bApproved = true;
-        OnComplete.ExecuteIfBound(this);
-        return;
-    }
-
-    // Иначе увеличиваем счётчик завершённых
     CompletedCount++;
+    if (SubCondition->IsApproved())
+        bApproved = true;
 
-    // Если все подусловия завершены и ни одно не одобрено – false
     if (CompletedCount >= TotalValidConditions)
     {
         bFinalized = true;
         bCompleted = true;
-        bApproved = false;
+        CurrentDepth--;
+        LogVerbose(FString::Printf(TEXT("→ %s"), bApproved ? TEXT("true") : TEXT("false")), false);
         OnComplete.ExecuteIfBound(this);
     }
 }

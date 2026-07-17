@@ -1,8 +1,9 @@
-// CheckCondition.cpp
+﻿// CheckCondition.cpp
 #include "CheckCondition.h"
 #include "CheckCoordinatorComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "HAL/IConsoleManager.h"
 
 void UCheckCondition::Initialize(UCheckCoordinatorComponent* InCoordinator, UEventBusSubsystem* InEventBus)
 {
@@ -18,42 +19,11 @@ void UCheckCondition::Initialize(UCheckCoordinatorComponent* InCoordinator, UEve
         }
     }
 }
-/*
-void UCheckCondition::StartTimeoutTimer(const FGuid& TransactionId)
-{
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().SetTimer(TimeoutTimerHandle,
-            FTimerDelegate::CreateUObject(this, &UCheckCondition::OnTimeout, TransactionId),
-            TimeoutSeconds, false);
-    }
-}
 
-void UCheckCondition::ClearTimeoutTimer()
-{
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(TimeoutTimerHandle);
-    }
-}
-
-void UCheckCondition::OnTimeout(FGuid TransactionId)
-{
-    if (!bCompleted && CurrentTransactionId == TransactionId)
-    {
-        bCompleted = true;
-        bApproved = false;
-        UE_LOG(LogTemp, Warning, TEXT("UCheckCondition: Timeout for Txn %s"), *TransactionId.ToString());
-        OnComplete.ExecuteIfBound(this);
-    }
-}
-*/
 UWorld* UCheckCondition::GetWorld() const
 {
     if (Coordinator)
-    {
         return Coordinator->GetWorld();
-    }
     return nullptr;
 }
 
@@ -62,5 +32,29 @@ void UCheckCondition::Reset()
     bCompleted = false;
     bApproved = false;
     CurrentTransactionId.Invalidate();
-    //ClearTimeoutTimer();
 }
+
+int32 UCheckCondition::CurrentDepth = 0;
+bool UCheckCondition::bEnableVerboseLogging = true;
+
+static FAutoConsoleVariableRef CVarCheckConditionLogging(
+    TEXT("CheckCondition.Logging"),
+    UCheckCondition::bEnableVerboseLogging,
+    TEXT("Enable verbose logging for CheckCondition (0=off, 1=on)")
+);
+
+void UCheckCondition::LogVerbose(const FString& Message, bool bIsStart)
+{
+    if (!bEnableVerboseLogging) return;
+    FString Indent = FString::ChrN(CurrentDepth * 2, ' ');
+    FString Prefix = bIsStart ? TEXT("┌─ ") : TEXT("└─ ");
+    UE_LOG(LogTemp, Log, TEXT("%s%s%s %s"), *Indent, *Prefix, *GetDescription(), *Message);
+}
+
+#if WITH_EDITOR
+void UCheckCondition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+    DebugDescription = GetDescription();
+}
+#endif

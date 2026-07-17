@@ -5,8 +5,7 @@
 #include "MissionSubsystem.h"
 #include "Engine/GameInstance.h"
 
-// Base class
-// Базовый класс
+// ---- Базовый класс UMissionCheckCondition ----
 
 UOutcomeConditionAsset* UMissionCheckCondition::CreateSubscriptionCondition() const
 {
@@ -32,10 +31,9 @@ FName UMissionCheckCondition::GetActiveMissionId() const
 
 void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
 {
+    LogVerbose(TEXT(""), true);
     if (!EventBus) return;
 
-    // Get the active mission (may be NAME_None)
-    // Получаем активную миссию (может быть NAME_None)
     FName ActiveMissionId = GetActiveMissionId();
 
     CurrentTransactionId = TransactionId;
@@ -49,7 +47,7 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
     Payload->TransactionId = TransactionId;
-    Payload->MissionId = ActiveMissionId; // may be NAME_None
+    Payload->MissionId = ActiveMissionId;
     Payload->PropertyToCheck = GetCheckedProperty();
 
     FOutcomeEventBase Event;
@@ -60,8 +58,6 @@ void UMissionCheckCondition::ExecuteCheck(const FGuid& TransactionId)
 
     UE_LOG(LogTemp, Log, TEXT("MissionCheck: Sent request for MissionId=%s, Property=%d, Txn=%s"),
         *ActiveMissionId.ToString(), (int32)GetCheckedProperty(), *TransactionId.ToString());
-
-    //StartTimeoutTimer(TransactionId);
 }
 
 void UMissionCheckCondition::OnCheckResponse(const FOutcomeEventBase& Event)
@@ -72,7 +68,6 @@ void UMissionCheckCondition::OnCheckResponse(const FOutcomeEventBase& Event)
     if (!Resp || Resp->TransactionId != CurrentTransactionId) return;
     if (Event.OutcomeMission != EOutcomeMission::CheckResponse) return;
 
-    //ClearTimeoutTimer();
     bCompleted = true;
     bApproved = Resp->bApproved;
 
@@ -85,6 +80,7 @@ void UMissionCheckCondition::OnCheckResponse(const FOutcomeEventBase& Event)
         UE_LOG(LogTemp, Warning, TEXT("MissionCheck: Rejected. Reason: %s"), *Resp->Reason);
     }
 
+    LogVerbose(FString::Printf(TEXT("→ %s"), bApproved ? TEXT("true") : TEXT("false")), false);
     OnComplete.ExecuteIfBound(this);
 }
 
@@ -96,12 +92,12 @@ FString UMissionCheckCondition::GetDescription() const
     case EMissionCheckProperty::IsActive:    PropertyName = TEXT("Active"); break;
     case EMissionCheckProperty::CurrentStep: PropertyName = TEXT("Step"); break;
     case EMissionCheckProperty::Name:        PropertyName = TEXT("Name"); break;
+    default: break;
     }
     return FString::Printf(TEXT("Mission check (%s)"), PropertyName);
 }
 
-// Implementations of CreateRequestPayload
-// Реализации CreateRequestPayload
+// ---- Конкретные реализации CreateRequestPayload ----
 
 UMissionCheckRequestPayload* UMissionCheckCondition_IsActive::CreateRequestPayload() const
 {
