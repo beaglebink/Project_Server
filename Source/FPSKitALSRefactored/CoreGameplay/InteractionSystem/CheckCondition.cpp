@@ -48,9 +48,15 @@ static FAutoConsoleVariableRef CVarCheckConditionLogging(
 void UCheckCondition::LogVerbose(const FString& Message, bool bIsStart)
 {
     if (!bEnableVerboseLogging) return;
-    FString Indent = FString::ChrN(CurrentDepth * 2, ' ');
-    FString Prefix = bIsStart ? TEXT("┌─ ") : TEXT("└─ ");
 
+    // Формируем отступ с вертикальными линиями для каждого уровня глубины
+    FString Indent;
+    for (int32 i = 0; i < CurrentDepth; ++i)
+    {
+        Indent += TEXT("│ ");
+    }
+
+    FString Prefix = bIsStart ? TEXT("┌─ ") : TEXT("└─ ");
     FString DisplayMessage = Message;
 
     // Заменяем текстовые true/false на символы
