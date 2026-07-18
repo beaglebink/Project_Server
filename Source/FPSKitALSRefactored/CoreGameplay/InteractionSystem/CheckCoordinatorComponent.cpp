@@ -33,7 +33,7 @@ void UCheckCoordinatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 {
     for (auto& Pair : ActiveChecks)
     {
-        //GetWorld()->GetTimerManager().ClearTimer(Pair.Value.GlobalTimeoutTimer);
+        GetWorld()->GetTimerManager().ClearTimer(Pair.Value.GlobalTimeoutTimer);
     }
     ActiveChecks.Empty();
     Super::EndPlay(EndPlayReason);
@@ -41,11 +41,15 @@ void UCheckCoordinatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 
 void UCheckCoordinatorComponent::StartCheck()
 {
-    // Сбрасываем глобальную глубину для нового дерева логов
+    // Сбрасываем глобальную глубину
     UCheckCondition::CurrentDepth = 0;
 
-    UE_LOG(LogTemp, Log, TEXT(""));
-    UE_LOG(LogTemp, Log, TEXT("========== 🔍 CHECK START =========="));
+    // Логируем начало только если включено
+    if (UCheckCondition::bEnableVerboseLogging)
+    {
+        UE_LOG(LogTemp, Log, TEXT(""));
+        UE_LOG(LogTemp, Log, TEXT("========== 🔍 CHECK START =========="));
+    }
 
     if (!EventBus)
     {
@@ -61,7 +65,11 @@ void UCheckCoordinatorComponent::StartCheck()
 
     if (ValidConditions.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("CheckCoordinator: No valid conditions, approving immediately."));
+        // Предупреждение выводим только при включённом логировании
+        if (UCheckCondition::bEnableVerboseLogging)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("CheckCoordinator: No valid conditions, approving immediately."));
+        }
         OnAllApproved.Broadcast();
         return;
     }
@@ -73,16 +81,22 @@ void UCheckCoordinatorComponent::StartCheck()
     Check.CompletedCount = 0;
     Check.bFinalized = false;
 
+    if (UCheckCondition::bEnableVerboseLogging)
+    {
+        UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: Started check with %d conditions."), ValidConditions.Num());
+    }
+
     for (UCheckCondition* Cond : ValidConditions)
     {
         Cond->ExecuteCheck(Txn);
     }
 
-    GetWorld()->GetTimerManager().SetTimer(Check.GlobalTimeoutTimer,
-        FTimerDelegate::CreateUObject(this, &UCheckCoordinatorComponent::OnTimeout, Txn),
-        GlobalTimeoutSeconds, false);
-
-    UE_LOG(LogTemp, Log, TEXT("CheckCoordinator: Started check with %d conditions."), ValidConditions.Num());
+    if (GlobalTimeoutSeconds > 0.0f)
+    {
+        GetWorld()->GetTimerManager().SetTimer(Check.GlobalTimeoutTimer,
+            FTimerDelegate::CreateUObject(this, &UCheckCoordinatorComponent::OnTimeout, Txn),
+            GlobalTimeoutSeconds, false);
+    }
 }
 
 void UCheckCoordinatorComponent::OnConditionComplete(UCheckCondition* Condition)
@@ -123,18 +137,24 @@ void UCheckCoordinatorComponent::FinalizeCheck(const FGuid& TransactionId, bool 
     Check->bFinalized = true;
     GetWorld()->GetTimerManager().ClearTimer(Check->GlobalTimeoutTimer);
 
+    // Логируем результат только если включено
+    if (UCheckCondition::bEnableVerboseLogging)
+    {
+        if (bSuccess)
+        {
+            UE_LOG(LogTemp, Log, TEXT("========== ✅ CHECK PASSED =========="));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Log, TEXT("========== ❌ CHECK FAILED =========="));
+        }
+        UE_LOG(LogTemp, Log, TEXT(""));
+    }
+
     if (bSuccess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("========== ✅ CHECK PASSED =========="));
-        UE_LOG(LogTemp, Log, TEXT(""));
         OnAllApproved.Broadcast();
-    }
     else
-    {
-        UE_LOG(LogTemp, Log, TEXT("========== ❌ CHECK FAILED =========="));
-        UE_LOG(LogTemp, Log, TEXT(""));
         OnAnyRejected.Broadcast();
-    }
 
     ActiveChecks.Remove(TransactionId);
 }

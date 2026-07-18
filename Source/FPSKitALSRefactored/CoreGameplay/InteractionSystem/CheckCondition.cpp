@@ -5,6 +5,15 @@
 #include "TimerManager.h"
 #include "HAL/IConsoleManager.h"
 
+int32 UCheckCondition::CurrentDepth = 0;
+bool UCheckCondition::bEnableVerboseLogging = false;
+
+static FAutoConsoleVariableRef CVarCheckConditionLogging(
+    TEXT("CheckCondition.Logging"),
+    UCheckCondition::bEnableVerboseLogging,
+    TEXT("Enable verbose logging for CheckCondition (0=off, 1=on)")
+);
+
 void UCheckCondition::Initialize(UCheckCoordinatorComponent* InCoordinator, UEventBusSubsystem* InEventBus)
 {
     Coordinator = InCoordinator;
@@ -33,15 +42,6 @@ void UCheckCondition::Reset()
     bApproved = false;
     CurrentTransactionId.Invalidate();
 }
-
-int32 UCheckCondition::CurrentDepth = 0;
-bool UCheckCondition::bEnableVerboseLogging = true;
-
-static FAutoConsoleVariableRef CVarCheckConditionLogging(
-    TEXT("CheckCondition.Logging"),
-    UCheckCondition::bEnableVerboseLogging,
-    TEXT("Enable verbose logging for CheckCondition (0=off, 1=on)")
-);
 
 void UCheckCondition::LogVerbose(const FString& Message, bool bIsStart)
 {
