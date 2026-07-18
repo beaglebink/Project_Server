@@ -5,15 +5,6 @@
 #include "TimerManager.h"
 #include "HAL/IConsoleManager.h"
 
-int32 UCheckCondition::CurrentDepth = 0;
-bool UCheckCondition::bEnableVerboseLogging = false;
-
-static FAutoConsoleVariableRef CVarCheckConditionLogging(
-    TEXT("CheckCondition.Logging"),
-    UCheckCondition::bEnableVerboseLogging,
-    TEXT("Enable verbose logging for CheckCondition (0=off, 1=on)")
-);
-
 void UCheckCondition::Initialize(UCheckCoordinatorComponent* InCoordinator, UEventBusSubsystem* InEventBus)
 {
     Coordinator = InCoordinator;
@@ -43,12 +34,34 @@ void UCheckCondition::Reset()
     CurrentTransactionId.Invalidate();
 }
 
+// ===== ЛОГИРОВАНИЕ =====
+
+int32 UCheckCondition::CurrentDepth = 0;
+bool UCheckCondition::bEnableVerboseLogging = false; // по умолчанию выключено
+
+static FAutoConsoleVariableRef CVarCheckConditionLogging(
+    TEXT("CheckCondition.Logging"),
+    UCheckCondition::bEnableVerboseLogging,
+    TEXT("Enable verbose logging for CheckCondition (0=off, 1=on)")
+);
+
 void UCheckCondition::LogVerbose(const FString& Message, bool bIsStart)
 {
     if (!bEnableVerboseLogging) return;
     FString Indent = FString::ChrN(CurrentDepth * 2, ' ');
     FString Prefix = bIsStart ? TEXT("┌─ ") : TEXT("└─ ");
-    UE_LOG(LogTemp, Log, TEXT("%s%s%s %s"), *Indent, *Prefix, *GetDescription(), *Message);
+
+    FString DisplayMessage = Message;
+
+    // Заменяем текстовые true/false на символы
+    DisplayMessage = DisplayMessage.Replace(TEXT("→ true"), TEXT("→ ✅"));
+    DisplayMessage = DisplayMessage.Replace(TEXT("→ false"), TEXT("→ ❌"));
+    DisplayMessage = DisplayMessage.Replace(TEXT("(true)"), TEXT("(✅)"));
+    DisplayMessage = DisplayMessage.Replace(TEXT("(false)"), TEXT("(❌)"));
+    DisplayMessage = DisplayMessage.Replace(TEXT(" true"), TEXT(" ✅"));
+    DisplayMessage = DisplayMessage.Replace(TEXT(" false"), TEXT(" ❌"));
+
+    UE_LOG(LogTemp, Log, TEXT("%s%s%s %s"), *Indent, *Prefix, *GetDescription(), *DisplayMessage);
 }
 
 #if WITH_EDITOR
