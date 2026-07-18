@@ -35,8 +35,11 @@ public:
     static bool bEnableVerboseLogging;
     void LogVerbose(const FString& Message, bool bIsStart = true);
 
-    UPROPERTY(VisibleAnywhere, Category = "Debug")
+    UPROPERTY(/*VisibleAnywhere, Category = "Debug"*/)
     FString DebugDescription;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Interior")
+    FGuid ItemId;
 
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

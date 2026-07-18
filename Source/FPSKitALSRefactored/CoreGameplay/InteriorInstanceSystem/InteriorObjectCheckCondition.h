@@ -5,26 +5,23 @@
 #include "InteriorCheckTypes.h"
 #include "InteriorObjectCheckCondition.generated.h"
 
-/**
- * Check for existence of a specific object on the current level.
- *
- * Проверка существования конкретного объекта на текущем уровне.
- */
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UInteriorObjectExistsCondition : public UCheckCondition
 {
     GENERATED_BODY()
 
 public:
-    // Reference to the actor whose existence is being checked
-    // Ссылка на актор, существование которого проверяется
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TSoftObjectPtr<AActor> ActorRef;
 
-    // Expected state: true – object must exist, false – must not exist
-    // Ожидаемое состояние: true – объект должен существовать, false – не должен существовать
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bShouldExist = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
+    FGuid InitialItemId;
+
+    // Переопределяем Initialize, чтобы кэшировать информацию об акторе
+    virtual void Initialize(UCheckCoordinatorComponent* InCoordinator, UEventBusSubsystem* InEventBus) override;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual bool IsApproved() const override { return bApproved; }
@@ -35,28 +32,30 @@ public:
 protected:
     bool bApproved = false;
     bool bCompleted = false;
+    FGuid ItemId;
+    FString CachedActorName;
+    bool bItemIdCached = false;
+
+    // Кэширует имя и ItemId из ActorRef при инициализации (если актор существует)
+    void CacheActorInfo();
 };
 
-/**
- * Check whether a specific object has been destroyed (removed from the world).
- *
- * Проверка, был ли конкретный объект уничтожен (удалён из мира).
- */
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UInteriorObjectDestroyedCondition : public UCheckCondition
 {
     GENERATED_BODY()
 
 public:
-    // Reference to the actor whose destruction is being checked
-    // Ссылка на актор, уничтожение которого проверяется
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TSoftObjectPtr<AActor> ActorRef;
 
-    // Expected state: true – object must be destroyed, false – must not be destroyed
-    // Ожидаемое состояние: true – объект должен быть уничтожен, false – не должен быть уничтожен
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bShouldBeDestroyed = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interior")
+    FGuid InitialItemId;
+
+    virtual void Initialize(UCheckCoordinatorComponent* InCoordinator, UEventBusSubsystem* InEventBus) override;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual bool IsApproved() const override { return bApproved; }
@@ -67,4 +66,9 @@ public:
 protected:
     bool bApproved = false;
     bool bCompleted = false;
+    FGuid ItemId;
+    FString CachedActorName;
+    bool bItemIdCached = false;
+
+    void CacheActorInfo();
 };

@@ -98,6 +98,9 @@ struct FPSKITALSREFACTORED_API FFloorPopulationRecord
 	FGameplayTagContainer GameplayTagContainer;
 
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
+	FString ActorInstanceName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
 	TArray<FName> TextTags;
 
 	UPROPERTY(BlueprintReadOnly, Category = "FloorPopulation")
