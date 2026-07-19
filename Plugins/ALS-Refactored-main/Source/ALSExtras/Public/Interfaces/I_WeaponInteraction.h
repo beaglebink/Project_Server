@@ -23,4 +23,7 @@ public:
 
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponInterface")
     void HandleWeaponDrag(bool bIsDragging);
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponInterface")
+    void HandleCutting(UPARAM(ref)FHitResult& Hit, FRotator WeaponRotation);
 };
