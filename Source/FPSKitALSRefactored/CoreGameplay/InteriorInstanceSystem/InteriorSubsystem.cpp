@@ -2905,12 +2905,14 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			default: break;
 			}
 
+			/*
 			// Удаляем из миссионной карты спавнов (если объект был в ней)
 			if (ContainsActorIdInMissionSpawnedForFloor(MissionSpawnedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId))
 			{
 				RemoveFromMissionDestroyedByActorIdForFloor(MissionDestroyedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId);
 			}
 			RemoveFromMissionSpawnedByActorIdForFloor(MissionSpawnedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId);
+			*/
 		}
 	}
 }
@@ -4148,56 +4150,78 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 		}
 	}
 
-	if (IsMissionWorld)
+	if (!IsMissionWorld)
+		return;
+
+	// ---- Собираем ID удалённых объектов для этой миссии ----
+	TSet<FGuid> DestroyedIds;
+	if (auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
 	{
-		// Apply spawns that occurred during the mission
-		// Применяем спавны, произошедшие во время миссии
-		if (auto* SpawnedMapPerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
+		if (auto* DestroyedBuckets = DestroyedMapPerFloor->Find(MissionId))
 		{
-			if (auto* BucketsForMission = SpawnedMapPerFloor->Find(MissionId))
-			{
-				auto RemoveRecordByActorId = [&](TArray<FFloorPopulationRecord>& Arr, const FGuid& ItemId)
-					{
-						Arr.RemoveAll([&ItemId](const FFloorPopulationRecord& Rec) { return Rec.ActorId == ItemId; });
-					};
-
-				auto ProcessCategory = [&](TArray<FFloorPopulationRecord>& Records, EFloorActorType ActorType)
-					{
-						if (ShouldUseActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
-						{
-							SpawnMissionRecords(Records);
-						}
-						else
-						{
-							Records.Empty();
-						}
-					};
-
-				ProcessCategory(BucketsForMission->HeavyFurniture, EFloorActorType::HeavyFurniture);
-				ProcessCategory(BucketsForMission->LightItems, EFloorActorType::LightItem);
-				ProcessCategory(BucketsForMission->Terminals, EFloorActorType::Terminal);
-				ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::SpawnGroupSpawner);
-				ProcessCategory(BucketsForMission->Debris, EFloorActorType::Debris);
-			}
+			auto AddIdsFromArray = [&](const TArray<FFloorPopulationRecord>& Arr)
+				{
+					for (const FFloorPopulationRecord& Rec : Arr)
+						DestroyedIds.Add(Rec.ActorId);
+				};
+			AddIdsFromArray(DestroyedBuckets->HeavyFurniture);
+			AddIdsFromArray(DestroyedBuckets->LightItems);
+			AddIdsFromArray(DestroyedBuckets->Terminals);
+			AddIdsFromArray(DestroyedBuckets->NPCSpawners);
+			AddIdsFromArray(DestroyedBuckets->Debris);
 		}
-		if (auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
-		{
-			if (auto* BucketsForMission = DestroyedMapPerFloor->Find(MissionId))
-			{
-				auto ProcessCategory = [&](TArray<FFloorPopulationRecord>& Records, EFloorActorType ActorType)
-					{
-						if (ShouldUseActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
-							DestroyMissionRecords(Records);
-						else
-							Records.Empty();
-					};
+	}
 
-				ProcessCategory(BucketsForMission->HeavyFurniture, EFloorActorType::HeavyFurniture);
-				ProcessCategory(BucketsForMission->LightItems, EFloorActorType::LightItem);
-				ProcessCategory(BucketsForMission->Terminals, EFloorActorType::Terminal);
-				ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::SpawnGroupSpawner);
-				ProcessCategory(BucketsForMission->Debris, EFloorActorType::Debris);
-			}
+	// ---- Применяем спавны, произошедшие во время миссии ----
+	if (auto* SpawnedMapPerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
+	{
+		if (auto* BucketsForMission = SpawnedMapPerFloor->Find(MissionId))
+		{
+			auto ProcessCategory = [&](TArray<FFloorPopulationRecord>& Records, EFloorActorType ActorType)
+				{
+					if (ShouldUseActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
+					{
+						// Фильтруем записи, исключая удалённые
+						TArray<FFloorPopulationRecord> FilteredRecords;
+						for (const FFloorPopulationRecord& Rec : Records)
+						{
+							if (!DestroyedIds.Contains(Rec.ActorId))
+								FilteredRecords.Add(Rec);
+						}
+						SpawnMissionRecords(FilteredRecords);
+					}
+					else
+					{
+						Records.Empty();
+					}
+				};
+
+			ProcessCategory(BucketsForMission->HeavyFurniture, EFloorActorType::HeavyFurniture);
+			ProcessCategory(BucketsForMission->LightItems, EFloorActorType::LightItem);
+			ProcessCategory(BucketsForMission->Terminals, EFloorActorType::Terminal);
+			ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::SpawnGroupSpawner);
+			ProcessCategory(BucketsForMission->Debris, EFloorActorType::Debris);
+		}
+	}
+
+	// ---- Применяем удаления, произошедшие во время миссии (они уже сохранены в картах, но мы также удаляем объекты, если они существуют) ----
+	if (auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
+	{
+		if (auto* BucketsForMission = DestroyedMapPerFloor->Find(MissionId))
+		{
+			auto ProcessCategory = [&](TArray<FFloorPopulationRecord>& Records, EFloorActorType ActorType)
+				{
+					if (ShouldUseActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
+						DestroyMissionRecords(Records);
+					else
+						Records.Empty();
+				};
+
+			ProcessCategory(BucketsForMission->HeavyFurniture, EFloorActorType::HeavyFurniture);
+			ProcessCategory(BucketsForMission->LightItems, EFloorActorType::LightItem);
+			ProcessCategory(BucketsForMission->Terminals, EFloorActorType::Terminal);
+			ProcessCategory(BucketsForMission->NPCSpawners, EFloorActorType::SpawnGroupSpawner);
+			ProcessCategory(BucketsForMission->Debris, EFloorActorType::Debris);
 		}
 	}
 }
@@ -4212,6 +4236,9 @@ void UInteriorSubsystem::SpawnMissionRecords(const TArray<FFloorPopulationRecord
 		// Check if the object already exists (via FindActorByItemId)
 		// Проверка, что объект ещё не существует (можно через FindActorByItemId)
 		if (FindActorByItemId(Record.ActorId)) continue;
+
+
+
 		FActorSpawnParameters Params;
 		AActor* SpawnedActor = World->SpawnActor<AActor>(Record.SourceClass, Record.WorldTransform, Params);
 		if (!SpawnedActor) continue;
