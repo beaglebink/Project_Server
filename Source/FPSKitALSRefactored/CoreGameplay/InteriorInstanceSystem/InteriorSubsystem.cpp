@@ -5443,8 +5443,6 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 	}
 
 	// If anchor found — extract the associated FloorAsset (if any) and form CurrentKey
-	// Если нашли якорь — извлекаем связанный FloorAsset (если есть) и формируем CurrentKey
-
 	bool bHaveKey = false;
 	CurrentKey = FInteriorFloorKey();
 	if (FoundAnchor)
@@ -5454,7 +5452,6 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 		if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid())
 		{
 			FGuid InteriorSetId = InteriorAsset->InteriorSetID;
-
 			if (FloorAsset && FloorAsset->FloorID.IsValid())
 			{
 				FGuid FloorId = FloorAsset->FloorID;
@@ -5464,9 +5461,7 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 		}
 	}
 
-
 	bool IsMissionWorld = false;
-
 	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
 	FString MissionName;
 	FName FindedMissionId;
@@ -5498,7 +5493,6 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 			{
 				IsMissionWorld = true;
 				FindedMissionId = Pair.Key;
-				//FindedEnvelope = Envelope;
 				break;
 			}
 		}
@@ -5509,8 +5503,6 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 		}
 	}
 
-	
-
 	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
 		return;
 
@@ -5520,12 +5512,8 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 	AllDestroyedSpawnedActorsByInteriorFloor.Remove(CurrentKey);
 	AllDestroyedOriginalActorsByInteriorFloor.Remove(CurrentKey);
 
-	if (!IsMissionWorld)
-		return;
-
 	// Собираем живые ItemId (акторы с UFloorAssignmentComponent и SnapshotChannel == Snapshot)
 	TSet<FGuid> AliveItemIds;
-	//UWorld* World = GetWorld();
 	if (World)
 	{
 		for (TActorIterator<AActor> It(World); It; ++It)
@@ -5552,22 +5540,25 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 			AllRecords.Append(Buckets.Debris);
 		};
 
-	// Глобальные карты
+	// Глобальные карты (всегда добавляем)
 	if (const FFloorPopulationBuckets* Spawned = SpawnedActorsByInteriorFloor.Find(CurrentKey))
 		AddRecordsFromBuckets(*Spawned);
 	if (const FFloorPopulationBuckets* Destroyed = DestroyedActorsByInteriorFloor.Find(CurrentKey))
 		AddRecordsFromBuckets(*Destroyed);
 
-	// Миссионные карты (для текущего ключа)
-	if (const TMap<FName, FFloorPopulationBuckets>* MissionSpawned = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
+	// Миссионные карты (добавляем только если есть активная миссия на этом этаже)
+	if (IsMissionWorld)
 	{
-		for (const auto& Pair : *MissionSpawned)
-			AddRecordsFromBuckets(Pair.Value);
-	}
-	if (const TMap<FName, FFloorPopulationBuckets>* MissionDestroyed = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
-	{
-		for (const auto& Pair : *MissionDestroyed)
-			AddRecordsFromBuckets(Pair.Value);
+		if (const TMap<FName, FFloorPopulationBuckets>* MissionSpawned = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
+		{
+			for (const auto& Pair : *MissionSpawned)
+				AddRecordsFromBuckets(Pair.Value);
+		}
+		if (const TMap<FName, FFloorPopulationBuckets>* MissionDestroyed = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
+		{
+			for (const auto& Pair : *MissionDestroyed)
+				AddRecordsFromBuckets(Pair.Value);
+		}
 	}
 
 	// Удаляем дубликаты по ActorId (оставляем первый встреченный)
