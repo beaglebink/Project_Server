@@ -210,10 +210,9 @@ auto RemoveMissionFromPopulationMap = [](TMap<FInteriorFloorKey, TMap<FName, FFl
 		return bRemovedAny;
 	};
 
-// Copies mission-spawned actors to the global spawned map
-// Копирует спавненных миссией акторов в глобальную карту спавна
+// Копирует спавненных миссией акторов в глобальную карту, удаляя все записи миссии перед добавлением.
 auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& MissionSpawnedMap,
-	TMap<FInteriorFloorKey, FFloorPopulationBuckets>& GlobalSpawnedMap,
+	TMap<FInteriorFloorKey, FFloorPopulationBuckets>& GlobalMap,
 	FMissionEnvelope Envelope,
 	EMissionEndReason Reason,
 	const FInteriorFloorKey& FloorKey,
@@ -224,9 +223,24 @@ auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorP
 		auto* Buckets = PerFloor->Find(MissionId);
 		if (!Buckets) return false;
 
-		FFloorPopulationBuckets& GlobalBuckets = GlobalSpawnedMap.FindOrAdd(FloorKey);
-		bool bCopied = false;
+		FFloorPopulationBuckets& GlobalBuckets = GlobalMap.FindOrAdd(FloorKey);
 
+		// Удаляем все записи этой миссии из глобальной карты
+		auto RemoveAllRecords = [&](const TArray<FFloorPopulationRecord>& MissionRecs, TArray<FFloorPopulationRecord>& GlobalArr)
+			{
+				for (const FFloorPopulationRecord& Rec : MissionRecs)
+				{
+					GlobalArr.RemoveAll([&](const FFloorPopulationRecord& Ex) { return Ex.ActorId == Rec.ActorId; });
+				}
+			};
+		RemoveAllRecords(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
+		RemoveAllRecords(Buckets->LightItems, GlobalBuckets.LightItems);
+		RemoveAllRecords(Buckets->Terminals, GlobalBuckets.Terminals);
+		RemoveAllRecords(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
+		RemoveAllRecords(Buckets->Debris, GlobalBuckets.Debris);
+
+		// Добавляем только те записи, которые должны сохраниться согласно политике
+		bool bCopied = false;
 		auto AddUnique = [&](const TArray<FFloorPopulationRecord>& Source, TArray<FFloorPopulationRecord>& Dest)
 			{
 				for (const FFloorPopulationRecord& Rec : Source)
@@ -241,26 +255,21 @@ auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorP
 
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
 			AddUnique(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
-
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
 			AddUnique(Buckets->LightItems, GlobalBuckets.LightItems);
-
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
 			AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
-
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::SpawnGroupSpawner), Reason, false))
 			AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
-
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
 			AddUnique(Buckets->Debris, GlobalBuckets.Debris);
 
 		return bCopied;
 	};
 
-// Copies mission-destroyed actors to the global destroyed map
-// Копирует уничтоженных миссией акторов в глобальную карту уничтоженных
+// Копирует уничтоженных миссией акторов в глобальную карту, с той же логикой очистки.
 auto CopyMissionDestroyedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& MissionDestroyedMap,
-	TMap<FInteriorFloorKey, FFloorPopulationBuckets>& GlobalDestroyedMap,
+	TMap<FInteriorFloorKey, FFloorPopulationBuckets>& GlobalMap,
 	FMissionEnvelope Envelope,
 	EMissionEndReason Reason,
 	const FInteriorFloorKey& FloorKey,
@@ -271,9 +280,22 @@ auto CopyMissionDestroyedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloo
 		auto* Buckets = PerFloor->Find(MissionId);
 		if (!Buckets) return false;
 
-		FFloorPopulationBuckets& GlobalBuckets = GlobalDestroyedMap.FindOrAdd(FloorKey);
-		bool bCopied = false;
+		FFloorPopulationBuckets& GlobalBuckets = GlobalMap.FindOrAdd(FloorKey);
 
+		auto RemoveAllRecords = [&](const TArray<FFloorPopulationRecord>& MissionRecs, TArray<FFloorPopulationRecord>& GlobalArr)
+			{
+				for (const FFloorPopulationRecord& Rec : MissionRecs)
+				{
+					GlobalArr.RemoveAll([&](const FFloorPopulationRecord& Ex) { return Ex.ActorId == Rec.ActorId; });
+				}
+			};
+		RemoveAllRecords(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
+		RemoveAllRecords(Buckets->LightItems, GlobalBuckets.LightItems);
+		RemoveAllRecords(Buckets->Terminals, GlobalBuckets.Terminals);
+		RemoveAllRecords(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
+		RemoveAllRecords(Buckets->Debris, GlobalBuckets.Debris);
+
+		bool bCopied = false;
 		auto AddUnique = [&](const TArray<FFloorPopulationRecord>& Source, TArray<FFloorPopulationRecord>& Dest)
 			{
 				for (const FFloorPopulationRecord& Rec : Source)
@@ -288,22 +310,17 @@ auto CopyMissionDestroyedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloo
 
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::HeavyFurniture), Reason, false))
 			AddUnique(Buckets->HeavyFurniture, GlobalBuckets.HeavyFurniture);
-
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::LightItem), Reason, false))
 			AddUnique(Buckets->LightItems, GlobalBuckets.LightItems);
-
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Terminal), Reason, false))
 			AddUnique(Buckets->Terminals, GlobalBuckets.Terminals);
-
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::SpawnGroupSpawner), Reason, false))
 			AddUnique(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
-
 		if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(EFloorActorType::Debris), Reason, false))
 			AddUnique(Buckets->Debris, GlobalBuckets.Debris);
 
 		return bCopied;
 	};
-
 // Removes an actor by ID from the mission-spawned map for a specific floor
 // Удаляет актора по ID из карты спавна миссией для указанного этажа
 auto RemoveFromMissionSpawnedByActorIdForFloor = [](TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& MissionMap,
@@ -5432,18 +5449,17 @@ int32 UInteriorSubsystem::GetRemainingOriginalTagCountForCurrentFloor(ETagType T
 void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 {
 	UWorld* World = GetWorld();
+	if (!World)
+		return;
+
+	// Определяем CurrentKey по первому попавшемуся якорю (можно использовать сохранённый)
 	ALocationAnchorActor* FoundAnchor = nullptr;
-	if (World)
+	for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
 	{
-		for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
-		{
-			FoundAnchor = *It;
-			break;
-		}
+		FoundAnchor = *It;
+		break;
 	}
 
-	// If anchor found — extract the associated FloorAsset (if any) and form CurrentKey
-	bool bHaveKey = false;
 	CurrentKey = FInteriorFloorKey();
 	if (FoundAnchor)
 	{
@@ -5456,16 +5472,16 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 			{
 				FGuid FloorId = FloorAsset->FloorID;
 				CurrentKey = FInteriorFloorKey(InteriorSetId, FloorId);
-				bHaveKey = true;
 			}
 		}
 	}
 
-	bool IsMissionWorld = false;
-	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-	FString MissionName;
-	FName FindedMissionId;
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return;
 
+	// ---- Находим активную миссию для текущего этажа ----
+	FMissionEnvelope ActiveEnvelope;
+	bool bMissionFound = false;
 	for (const auto& Pair : ActiveMissions)
 	{
 		const UMissionController* Ctrl = Pair.Value.Controller;
@@ -5474,147 +5490,122 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
 		if (!Asset) continue;
 
-		MissionName = Asset->Description.ToString();
-		const EMissionStatus Status = Ctrl->GetStatus();
-		const EMissionEndReason EndReason = Ctrl->GetEndReason();
-		const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
-		const EMissionResumeMode Resume = Envelope.ResumeMode;
-		const int32 MissionStep = Pair.Value.MissionStep;
-
-		FMissionEnvelopeScope Scope = Envelope.Scope;
-		for (auto Sc : Scope.InteriorScopes)
+		const FMissionEnvelope& Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelope.Scope.InteriorScopes)
 		{
-			FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
-
-			FString NormTarget = NormalizeLevelName(ScopeLevelName);
-			FString NormCurrent = NormalizeLevelName(CurrentLevelName);
-
-			if (NormTarget == NormCurrent)
+			if (UFloorAsset* Floor = FloorRef.Get())
 			{
-				IsMissionWorld = true;
-				FindedMissionId = Pair.Key;
-				break;
+				if (Floor->FloorID == CurrentKey.FloorId)
+				{
+					ActiveEnvelope = Envelope;
+					bMissionFound = true;
+					break;
+				}
 			}
 		}
-
-		if (IsMissionWorld)
-		{
-			break;
-		}
+		if (bMissionFound) break;
 	}
 
-	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
-		return;
-
-	// Очищаем карты для текущего ключа
+	// ---- Очищаем All-карты ----
 	AllSpawnedActorsByInteriorFloor.Remove(CurrentKey);
 	AllDestroyedActorsByInteriorFloor.Remove(CurrentKey);
 	AllDestroyedSpawnedActorsByInteriorFloor.Remove(CurrentKey);
 	AllDestroyedOriginalActorsByInteriorFloor.Remove(CurrentKey);
 
-	// Собираем живые ItemId (акторы с UFloorAssignmentComponent и SnapshotChannel == Snapshot)
+	// ---- Собираем живые ItemId ----
 	TSet<FGuid> AliveItemIds;
-	if (World)
+	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		for (TActorIterator<AActor> It(World); It; ++It)
+		AActor* Actor = *It;
+		if (!IsValid(Actor)) continue;
+		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+		if (Comp && Comp->SnapshotChannel == ESnapshotChannel::Snapshot && Comp->ItemId.IsValid())
 		{
-			AActor* Actor = *It;
-			if (!IsValid(Actor)) continue;
-			UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
-			if (Comp && Comp->SnapshotChannel == ESnapshotChannel::Snapshot && Comp->ItemId.IsValid())
-			{
-				AliveItemIds.Add(Comp->ItemId);
-			}
+			AliveItemIds.Add(Comp->ItemId);
 		}
 	}
 
-	// ---- Собираем все записи из глобальных и миссионных карт в один список ----
-	TArray<FFloorPopulationRecord> AllRecords;
+	// ---- Собираем записи в карту с приоритетом миссионных ----
+	TMap<FGuid, FFloorPopulationRecord> RecordMap;
 
-	auto AddRecordsFromBuckets = [&](const FFloorPopulationBuckets& Buckets)
+	// 1. Добавляем глобальные записи (постоянные)
+	auto AddGlobalBuckets = [&](const FFloorPopulationBuckets& Buckets)
 		{
-			AllRecords.Append(Buckets.HeavyFurniture);
-			AllRecords.Append(Buckets.LightItems);
-			AllRecords.Append(Buckets.Terminals);
-			AllRecords.Append(Buckets.NPCSpawners);
-			AllRecords.Append(Buckets.Debris);
+			auto AddArray = [&](const TArray<FFloorPopulationRecord>& Arr)
+				{
+					for (const FFloorPopulationRecord& Rec : Arr)
+					{
+						RecordMap.Add(Rec.ActorId, Rec);
+					}
+				};
+			AddArray(Buckets.HeavyFurniture);
+			AddArray(Buckets.LightItems);
+			AddArray(Buckets.Terminals);
+			AddArray(Buckets.NPCSpawners);
+			AddArray(Buckets.Debris);
 		};
 
-	// Глобальные карты (всегда добавляем)
 	if (const FFloorPopulationBuckets* Spawned = SpawnedActorsByInteriorFloor.Find(CurrentKey))
-		AddRecordsFromBuckets(*Spawned);
+		AddGlobalBuckets(*Spawned);
 	if (const FFloorPopulationBuckets* Destroyed = DestroyedActorsByInteriorFloor.Find(CurrentKey))
-		AddRecordsFromBuckets(*Destroyed);
+		AddGlobalBuckets(*Destroyed);
 
-	// Миссионные карты (добавляем только если есть активная миссия на этом этаже)
-	if (IsMissionWorld)
+	// 2. Добавляем миссионные записи (перезаписывают глобальные) с фильтрацией по политике
+	if (bMissionFound)
 	{
+		auto AddMissionBuckets = [&](const FFloorPopulationBuckets& Buckets)
+			{
+				auto AddArray = [&](const TArray<FFloorPopulationRecord>& Arr)
+					{
+						for (const FFloorPopulationRecord& Rec : Arr)
+						{
+							if (ShouldUseActor(ActiveEnvelope, FloorActorTypeToEnvelopeChannel(Rec.ActorType), EMissionEndReason::None, true))
+							{
+								RecordMap.Add(Rec.ActorId, Rec);
+							}
+						}
+					};
+				AddArray(Buckets.HeavyFurniture);
+				AddArray(Buckets.LightItems);
+				AddArray(Buckets.Terminals);
+				AddArray(Buckets.NPCSpawners);
+				AddArray(Buckets.Debris);
+			};
+
 		if (const TMap<FName, FFloorPopulationBuckets>* MissionSpawned = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
 		{
 			for (const auto& Pair : *MissionSpawned)
-				AddRecordsFromBuckets(Pair.Value);
+				AddMissionBuckets(Pair.Value);
 		}
+
 		if (const TMap<FName, FFloorPopulationBuckets>* MissionDestroyed = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
 		{
 			for (const auto& Pair : *MissionDestroyed)
-				AddRecordsFromBuckets(Pair.Value);
+				AddMissionBuckets(Pair.Value);
 		}
 	}
 
-	// Удаляем дубликаты по ActorId (оставляем первый встреченный)
-	TSet<FGuid> SeenIds;
-	TArray<FFloorPopulationRecord> UniqueRecords;
-	for (const FFloorPopulationRecord& Rec : AllRecords)
-	{
-		if (!SeenIds.Contains(Rec.ActorId))
-		{
-			SeenIds.Add(Rec.ActorId);
-			UniqueRecords.Add(Rec);
-		}
-	}
-
-	// Распределяем UniqueRecords по All-картам в зависимости от живости
+	// ---- Распределяем по All-картам ----
 	FFloorPopulationBuckets& AllSpawned = AllSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 	FFloorPopulationBuckets& AllDestroyed = AllDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 	FFloorPopulationBuckets& AllDestroyedSpawned = AllDestroyedSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 	FFloorPopulationBuckets& AllDestroyedOriginal = AllDestroyedOriginalActorsByInteriorFloor.FindOrAdd(CurrentKey);
 
-	for (const FFloorPopulationRecord& Rec : UniqueRecords)
+	for (const auto& Pair : RecordMap)
 	{
+		const FFloorPopulationRecord& Rec = Pair.Value;
 		bool bIsAlive = AliveItemIds.Contains(Rec.ActorId);
-		if (bIsAlive)
+		if (ShouldUseActor(ActiveEnvelope, FloorActorTypeToEnvelopeChannel(Rec.ActorType), EMissionEndReason::None, true))
 		{
-			switch (Rec.ActorType)
-			{
-			case EFloorActorType::HeavyFurniture: AllSpawned.HeavyFurniture.Add(Rec); break;
-			case EFloorActorType::LightItem:      AllSpawned.LightItems.Add(Rec); break;
-			case EFloorActorType::Terminal:       AllSpawned.Terminals.Add(Rec); break;
-			case EFloorActorType::SpawnGroupSpawner: AllSpawned.NPCSpawners.Add(Rec); break;
-			case EFloorActorType::Debris:         AllSpawned.Debris.Add(Rec); break;
-			default: break;
-			}
-		}
-		else
-		{
-			switch (Rec.ActorType)
-			{
-			case EFloorActorType::HeavyFurniture: AllDestroyed.HeavyFurniture.Add(Rec); break;
-			case EFloorActorType::LightItem:      AllDestroyed.LightItems.Add(Rec); break;
-			case EFloorActorType::Terminal:       AllDestroyed.Terminals.Add(Rec); break;
-			case EFloorActorType::SpawnGroupSpawner: AllDestroyed.NPCSpawners.Add(Rec); break;
-			case EFloorActorType::Debris:         AllDestroyed.Debris.Add(Rec); break;
-			default: break;
-			}
-			// Дополнительное разделение на спавненные / оригинальные
-			if (Rec.bIsRuntimeSpawn)
+			if (bIsAlive)
 			{
 				switch (Rec.ActorType)
 				{
-				case EFloorActorType::HeavyFurniture: AllDestroyedSpawned.HeavyFurniture.Add(Rec); break;
-				case EFloorActorType::LightItem:      AllDestroyedSpawned.LightItems.Add(Rec); break;
-				case EFloorActorType::Terminal:       AllDestroyedSpawned.Terminals.Add(Rec); break;
-				case EFloorActorType::SpawnGroupSpawner: AllDestroyedSpawned.NPCSpawners.Add(Rec); break;
-				case EFloorActorType::Debris:         AllDestroyedSpawned.Debris.Add(Rec); break;
+				case EFloorActorType::HeavyFurniture: AllSpawned.HeavyFurniture.Add(Rec); break;
+				case EFloorActorType::LightItem:      AllSpawned.LightItems.Add(Rec); break;
+				case EFloorActorType::Terminal:       AllSpawned.Terminals.Add(Rec); break;
+				case EFloorActorType::SpawnGroupSpawner: AllSpawned.NPCSpawners.Add(Rec); break;
+				case EFloorActorType::Debris:         AllSpawned.Debris.Add(Rec); break;
 				default: break;
 				}
 			}
@@ -5622,12 +5613,36 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 			{
 				switch (Rec.ActorType)
 				{
-				case EFloorActorType::HeavyFurniture: AllDestroyedOriginal.HeavyFurniture.Add(Rec); break;
-				case EFloorActorType::LightItem:      AllDestroyedOriginal.LightItems.Add(Rec); break;
-				case EFloorActorType::Terminal:       AllDestroyedOriginal.Terminals.Add(Rec); break;
-				case EFloorActorType::SpawnGroupSpawner: AllDestroyedOriginal.NPCSpawners.Add(Rec); break;
-				case EFloorActorType::Debris:         AllDestroyedOriginal.Debris.Add(Rec); break;
+				case EFloorActorType::HeavyFurniture: AllDestroyed.HeavyFurniture.Add(Rec); break;
+				case EFloorActorType::LightItem:      AllDestroyed.LightItems.Add(Rec); break;
+				case EFloorActorType::Terminal:       AllDestroyed.Terminals.Add(Rec); break;
+				case EFloorActorType::SpawnGroupSpawner: AllDestroyed.NPCSpawners.Add(Rec); break;
+				case EFloorActorType::Debris:         AllDestroyed.Debris.Add(Rec); break;
 				default: break;
+				}
+				if (Rec.bIsRuntimeSpawn)
+				{
+					switch (Rec.ActorType)
+					{
+					case EFloorActorType::HeavyFurniture: AllDestroyedSpawned.HeavyFurniture.Add(Rec); break;
+					case EFloorActorType::LightItem:      AllDestroyedSpawned.LightItems.Add(Rec); break;
+					case EFloorActorType::Terminal:       AllDestroyedSpawned.Terminals.Add(Rec); break;
+					case EFloorActorType::SpawnGroupSpawner: AllDestroyedSpawned.NPCSpawners.Add(Rec); break;
+					case EFloorActorType::Debris:         AllDestroyedSpawned.Debris.Add(Rec); break;
+					default: break;
+					}
+				}
+				else
+				{
+					switch (Rec.ActorType)
+					{
+					case EFloorActorType::HeavyFurniture: AllDestroyedOriginal.HeavyFurniture.Add(Rec); break;
+					case EFloorActorType::LightItem:      AllDestroyedOriginal.LightItems.Add(Rec); break;
+					case EFloorActorType::Terminal:       AllDestroyedOriginal.Terminals.Add(Rec); break;
+					case EFloorActorType::SpawnGroupSpawner: AllDestroyedOriginal.NPCSpawners.Add(Rec); break;
+					case EFloorActorType::Debris:         AllDestroyedOriginal.Debris.Add(Rec); break;
+					default: break;
+					}
 				}
 			}
 		}
