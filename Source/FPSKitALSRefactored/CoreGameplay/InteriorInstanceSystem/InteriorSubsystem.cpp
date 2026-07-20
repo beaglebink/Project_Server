@@ -2592,6 +2592,9 @@ int32 UInteriorSubsystem::GetDestroyedTagCount(ETagType TagType, const FName& Te
 
 void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Outcome)
 {
+	if (!IsPostLoadMapComplete)
+		return;
+
 	UWorld* World = GetWorld();
 	if (!World) return;
 	UFloorPlacementPayload* P = Cast<UFloorPlacementPayload>(Outcome.Payload);
@@ -2601,6 +2604,49 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	{
 		return;
 	}
+
+	ALocationAnchorActor* FoundAnchor = nullptr;
+	if (World)
+	{
+		for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
+		{
+			/*
+			if (bNeedTeleportToAnchor)
+			{
+				if (It->AnchorID == AnchorID)
+				{
+					FoundAnchor = *It;
+					break;
+				}
+			}
+			else
+			{
+			*/
+				FoundAnchor = *It;
+				break;
+			//}
+		}
+	}
+
+
+	CurrentKey = FInteriorFloorKey();
+	if (FoundAnchor)
+	{
+		UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
+		UInteriorSetAsset* InteriorAsset = FoundAnchor->OwnerInteriorSet.LoadSynchronous();
+		if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid())
+		{
+			FGuid InteriorSetId = InteriorAsset->InteriorSetID;
+
+			if (FloorAsset && FloorAsset->FloorID.IsValid())
+			{
+				FGuid FloorId = FloorAsset->FloorID;
+				CurrentKey = FInteriorFloorKey(InteriorSetId, FloorId);
+				//bHaveKey = true;
+			}
+		}
+	}
+
 
 	// Вспомогательная лямбда для удаления записи по ActorId из бакетов
 	auto RemoveByActorIdFromBuckets = [](FFloorPopulationBuckets& Buckets, const FGuid& ActorId)
@@ -2671,31 +2717,37 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 
 		// ---- Глобальная карта спавнов (для условий) ----
 		{
-			FFloorPopulationBuckets& GlobalSpawnedBuckets = AllSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
-			RemoveByActorIdFromBuckets(GlobalSpawnedBuckets, P->ItemId);
-			switch (P->ActorType)
+			if (CurrentKey.IsValid())
 			{
-			case EFloorActorType::HeavyFurniture: GlobalSpawnedBuckets.HeavyFurniture.Add(NewRecord); break;
-			case EFloorActorType::LightItem:      GlobalSpawnedBuckets.LightItems.Add(NewRecord); break;
-			case EFloorActorType::Terminal:       GlobalSpawnedBuckets.Terminals.Add(NewRecord); break;
-			case EFloorActorType::SpawnGroupSpawner: GlobalSpawnedBuckets.NPCSpawners.Add(NewRecord); break;
-			case EFloorActorType::Debris:         GlobalSpawnedBuckets.Debris.Add(NewRecord); break;
-			default: break;
+				FFloorPopulationBuckets& GlobalSpawnedBuckets = AllSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+				RemoveByActorIdFromBuckets(GlobalSpawnedBuckets, P->ItemId);
+				switch (P->ActorType)
+				{
+				case EFloorActorType::HeavyFurniture: GlobalSpawnedBuckets.HeavyFurniture.Add(NewRecord); break;
+				case EFloorActorType::LightItem:      GlobalSpawnedBuckets.LightItems.Add(NewRecord); break;
+				case EFloorActorType::Terminal:       GlobalSpawnedBuckets.Terminals.Add(NewRecord); break;
+				case EFloorActorType::SpawnGroupSpawner: GlobalSpawnedBuckets.NPCSpawners.Add(NewRecord); break;
+				case EFloorActorType::Debris:         GlobalSpawnedBuckets.Debris.Add(NewRecord); break;
+				default: break;
+				}
 			}
 		}
 
 		// ---- Глобальная карта размещённых (для восстановления) ----
 		{
-			FFloorPopulationBuckets& SpawnedBuckets = SpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
-			RemoveByActorIdFromBuckets(SpawnedBuckets, P->ItemId);
-			switch (P->ActorType)
+			if (CurrentKey.IsValid())
 			{
-			case EFloorActorType::HeavyFurniture: SpawnedBuckets.HeavyFurniture.Add(NewRecord); break;
-			case EFloorActorType::LightItem:      SpawnedBuckets.LightItems.Add(NewRecord); break;
-			case EFloorActorType::Terminal:       SpawnedBuckets.Terminals.Add(NewRecord); break;
-			case EFloorActorType::SpawnGroupSpawner: SpawnedBuckets.NPCSpawners.Add(NewRecord); break;
-			case EFloorActorType::Debris:         SpawnedBuckets.Debris.Add(NewRecord); break;
-			default: break;
+				FFloorPopulationBuckets& SpawnedBuckets = SpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+				RemoveByActorIdFromBuckets(SpawnedBuckets, P->ItemId);
+				switch (P->ActorType)
+				{
+				case EFloorActorType::HeavyFurniture: SpawnedBuckets.HeavyFurniture.Add(NewRecord); break;
+				case EFloorActorType::LightItem:      SpawnedBuckets.LightItems.Add(NewRecord); break;
+				case EFloorActorType::Terminal:       SpawnedBuckets.Terminals.Add(NewRecord); break;
+				case EFloorActorType::SpawnGroupSpawner: SpawnedBuckets.NPCSpawners.Add(NewRecord); break;
+				case EFloorActorType::Debris:         SpawnedBuckets.Debris.Add(NewRecord); break;
+				default: break;
+				}
 			}
 		}
 
@@ -2704,17 +2756,20 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		{
 			if (MissionId.IsNone()) return;
 
-			TMap<FName, FFloorPopulationBuckets>& PerMissionSpawn = MissionSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
-			FFloorPopulationBuckets& MissionBuckets = PerMissionSpawn.FindOrAdd(MissionId);
-			RemoveByActorIdFromBuckets(MissionBuckets, P->ItemId);
-			switch (P->ActorType)
+			if (CurrentKey.IsValid() && P->bIsRuntimeSpawn)
 			{
-			case EFloorActorType::HeavyFurniture: MissionBuckets.HeavyFurniture.Add(NewRecord); break;
-			case EFloorActorType::LightItem:      MissionBuckets.LightItems.Add(NewRecord); break;
-			case EFloorActorType::Terminal:       MissionBuckets.Terminals.Add(NewRecord); break;
-			case EFloorActorType::SpawnGroupSpawner: MissionBuckets.NPCSpawners.Add(NewRecord); break;
-			case EFloorActorType::Debris:         MissionBuckets.Debris.Add(NewRecord); break;
-			default: break;
+				TMap<FName, FFloorPopulationBuckets>& PerMissionSpawn = MissionSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+				FFloorPopulationBuckets& MissionBuckets = PerMissionSpawn.FindOrAdd(MissionId);
+				RemoveByActorIdFromBuckets(MissionBuckets, P->ItemId);
+				switch (P->ActorType)
+				{
+				case EFloorActorType::HeavyFurniture: MissionBuckets.HeavyFurniture.Add(NewRecord); break;
+				case EFloorActorType::LightItem:      MissionBuckets.LightItems.Add(NewRecord); break;
+				case EFloorActorType::Terminal:       MissionBuckets.Terminals.Add(NewRecord); break;
+				case EFloorActorType::SpawnGroupSpawner: MissionBuckets.NPCSpawners.Add(NewRecord); break;
+				case EFloorActorType::Debris:         MissionBuckets.Debris.Add(NewRecord); break;
+				default: break;
+				}
 			}
 		}
 	}
@@ -2834,7 +2889,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		}
 
 		// ---- Миссионная логика (только если есть миссия) ----
-		if (!MissionId.IsNone())
+		if (!MissionId.IsNone() && CurrentKey.IsValid())
 		{
 			// Добавляем в миссионную карту удалённых
 			TMap<FName, FFloorPopulationBuckets>& PerMissionDestroy = MissionDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
@@ -3056,7 +3111,10 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	FTimerDelegate TravelDelegate = FTimerDelegate::CreateLambda([TargetLevelPath, this]()
 		{
 			if (UWorld* LocalW = GetWorld())
+			{
+				IsPostLoadMapComplete = false;
 				LocalW->SeamlessTravel(TargetLevelPath, true);
+			}
 		});
 
 	// Notify subscribers: we are about to leave the source floor
@@ -3615,6 +3673,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			// Если нашли якорь — извлекаем связанный FloorAsset (если есть) и формируем CurrentKey
 
 			bool bHaveKey = false;
+			CurrentKey = FInteriorFloorKey();
 			if (FoundAnchor)
 			{
 				UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
@@ -3636,7 +3695,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			if (bHaveKey)
 			{
 				//SubscribePlacementRegistration();
-				SubscribeToSpawnActor();
+				//SubscribeToSpawnActor();
 				// 2. Restore base snapshots (FloorStateSnapshots)
 				// 2. Восстанавливаем базовые снапшоты состояния (FloorStateSnapshots)
 				FMissionEnvelope FindedEnvelope;
@@ -3847,6 +3906,11 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			// Финальная нотификация о завершении загрузки/перехода
 			OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 			ClearPendingAnchorID();
+
+			RebuildPopulationMapsForCurrentFloor();
+
+			SubscribeToSpawnActor();
+			IsPostLoadMapComplete = true;
 		});
 
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
@@ -4315,6 +4379,7 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
 	IsLoadComplete = false;
+	IsPostLoadMapComplete = false;
 
 	if (InData.SerializedData.IsEmpty())
 	{
@@ -5335,4 +5400,218 @@ int32 UInteriorSubsystem::GetRemainingOriginalTagCountForCurrentFloor(ETagType T
 
 	// --- 3. Оригинальные существующие с тегом = общие - живые спавны с тегом ---
 	return TotalExisting - AliveSpawnedTag;
+}
+
+void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
+{
+	UWorld* World = GetWorld();
+	ALocationAnchorActor* FoundAnchor = nullptr;
+	if (World)
+	{
+		for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
+		{
+			FoundAnchor = *It;
+			break;
+		}
+	}
+
+	// If anchor found — extract the associated FloorAsset (if any) and form CurrentKey
+	// Если нашли якорь — извлекаем связанный FloorAsset (если есть) и формируем CurrentKey
+
+	bool bHaveKey = false;
+	CurrentKey = FInteriorFloorKey();
+	if (FoundAnchor)
+	{
+		UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
+		UInteriorSetAsset* InteriorAsset = FoundAnchor->OwnerInteriorSet.LoadSynchronous();
+		if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid())
+		{
+			FGuid InteriorSetId = InteriorAsset->InteriorSetID;
+
+			if (FloorAsset && FloorAsset->FloorID.IsValid())
+			{
+				FGuid FloorId = FloorAsset->FloorID;
+				CurrentKey = FInteriorFloorKey(InteriorSetId, FloorId);
+				bHaveKey = true;
+			}
+		}
+	}
+
+
+	bool IsMissionWorld = false;
+
+	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+	FString MissionName;
+	FName FindedMissionId;
+
+	for (const auto& Pair : ActiveMissions)
+	{
+		const UMissionController* Ctrl = Pair.Value.Controller;
+		if (!Ctrl) continue;
+
+		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
+		if (!Asset) continue;
+
+		MissionName = Asset->Description.ToString();
+		const EMissionStatus Status = Ctrl->GetStatus();
+		const EMissionEndReason EndReason = Ctrl->GetEndReason();
+		const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+		const EMissionResumeMode Resume = Envelope.ResumeMode;
+		const int32 MissionStep = Pair.Value.MissionStep;
+
+		FMissionEnvelopeScope Scope = Envelope.Scope;
+		for (auto Sc : Scope.InteriorScopes)
+		{
+			FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+			FString NormTarget = NormalizeLevelName(ScopeLevelName);
+			FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+			if (NormTarget == NormCurrent)
+			{
+				IsMissionWorld = true;
+				FindedMissionId = Pair.Key;
+				//FindedEnvelope = Envelope;
+				break;
+			}
+		}
+
+		if (IsMissionWorld)
+		{
+			break;
+		}
+	}
+
+	
+
+	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
+		return;
+
+	// Очищаем карты для текущего ключа
+	AllSpawnedActorsByInteriorFloor.Remove(CurrentKey);
+	AllDestroyedActorsByInteriorFloor.Remove(CurrentKey);
+	AllDestroyedSpawnedActorsByInteriorFloor.Remove(CurrentKey);
+	AllDestroyedOriginalActorsByInteriorFloor.Remove(CurrentKey);
+
+	if (!IsMissionWorld)
+		return;
+
+	// Собираем живые ItemId (акторы с UFloorAssignmentComponent и SnapshotChannel == Snapshot)
+	TSet<FGuid> AliveItemIds;
+	//UWorld* World = GetWorld();
+	if (World)
+	{
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			AActor* Actor = *It;
+			if (!IsValid(Actor)) continue;
+			UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+			if (Comp && Comp->SnapshotChannel == ESnapshotChannel::Snapshot && Comp->ItemId.IsValid())
+			{
+				AliveItemIds.Add(Comp->ItemId);
+			}
+		}
+	}
+
+	// ---- Собираем все записи из глобальных и миссионных карт в один список ----
+	TArray<FFloorPopulationRecord> AllRecords;
+
+	auto AddRecordsFromBuckets = [&](const FFloorPopulationBuckets& Buckets)
+		{
+			AllRecords.Append(Buckets.HeavyFurniture);
+			AllRecords.Append(Buckets.LightItems);
+			AllRecords.Append(Buckets.Terminals);
+			AllRecords.Append(Buckets.NPCSpawners);
+			AllRecords.Append(Buckets.Debris);
+		};
+
+	// Глобальные карты
+	if (const FFloorPopulationBuckets* Spawned = SpawnedActorsByInteriorFloor.Find(CurrentKey))
+		AddRecordsFromBuckets(*Spawned);
+	if (const FFloorPopulationBuckets* Destroyed = DestroyedActorsByInteriorFloor.Find(CurrentKey))
+		AddRecordsFromBuckets(*Destroyed);
+
+	// Миссионные карты (для текущего ключа)
+	if (const TMap<FName, FFloorPopulationBuckets>* MissionSpawned = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
+	{
+		for (const auto& Pair : *MissionSpawned)
+			AddRecordsFromBuckets(Pair.Value);
+	}
+	if (const TMap<FName, FFloorPopulationBuckets>* MissionDestroyed = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
+	{
+		for (const auto& Pair : *MissionDestroyed)
+			AddRecordsFromBuckets(Pair.Value);
+	}
+
+	// Удаляем дубликаты по ActorId (оставляем первый встреченный)
+	TSet<FGuid> SeenIds;
+	TArray<FFloorPopulationRecord> UniqueRecords;
+	for (const FFloorPopulationRecord& Rec : AllRecords)
+	{
+		if (!SeenIds.Contains(Rec.ActorId))
+		{
+			SeenIds.Add(Rec.ActorId);
+			UniqueRecords.Add(Rec);
+		}
+	}
+
+	// Распределяем UniqueRecords по All-картам в зависимости от живости
+	FFloorPopulationBuckets& AllSpawned = AllSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+	FFloorPopulationBuckets& AllDestroyed = AllDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+	FFloorPopulationBuckets& AllDestroyedSpawned = AllDestroyedSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+	FFloorPopulationBuckets& AllDestroyedOriginal = AllDestroyedOriginalActorsByInteriorFloor.FindOrAdd(CurrentKey);
+
+	for (const FFloorPopulationRecord& Rec : UniqueRecords)
+	{
+		bool bIsAlive = AliveItemIds.Contains(Rec.ActorId);
+		if (bIsAlive)
+		{
+			switch (Rec.ActorType)
+			{
+			case EFloorActorType::HeavyFurniture: AllSpawned.HeavyFurniture.Add(Rec); break;
+			case EFloorActorType::LightItem:      AllSpawned.LightItems.Add(Rec); break;
+			case EFloorActorType::Terminal:       AllSpawned.Terminals.Add(Rec); break;
+			case EFloorActorType::SpawnGroupSpawner: AllSpawned.NPCSpawners.Add(Rec); break;
+			case EFloorActorType::Debris:         AllSpawned.Debris.Add(Rec); break;
+			default: break;
+			}
+		}
+		else
+		{
+			switch (Rec.ActorType)
+			{
+			case EFloorActorType::HeavyFurniture: AllDestroyed.HeavyFurniture.Add(Rec); break;
+			case EFloorActorType::LightItem:      AllDestroyed.LightItems.Add(Rec); break;
+			case EFloorActorType::Terminal:       AllDestroyed.Terminals.Add(Rec); break;
+			case EFloorActorType::SpawnGroupSpawner: AllDestroyed.NPCSpawners.Add(Rec); break;
+			case EFloorActorType::Debris:         AllDestroyed.Debris.Add(Rec); break;
+			default: break;
+			}
+			// Дополнительное разделение на спавненные / оригинальные
+			if (Rec.bIsRuntimeSpawn)
+			{
+				switch (Rec.ActorType)
+				{
+				case EFloorActorType::HeavyFurniture: AllDestroyedSpawned.HeavyFurniture.Add(Rec); break;
+				case EFloorActorType::LightItem:      AllDestroyedSpawned.LightItems.Add(Rec); break;
+				case EFloorActorType::Terminal:       AllDestroyedSpawned.Terminals.Add(Rec); break;
+				case EFloorActorType::SpawnGroupSpawner: AllDestroyedSpawned.NPCSpawners.Add(Rec); break;
+				case EFloorActorType::Debris:         AllDestroyedSpawned.Debris.Add(Rec); break;
+				default: break;
+				}
+			}
+			else
+			{
+				switch (Rec.ActorType)
+				{
+				case EFloorActorType::HeavyFurniture: AllDestroyedOriginal.HeavyFurniture.Add(Rec); break;
+				case EFloorActorType::LightItem:      AllDestroyedOriginal.LightItems.Add(Rec); break;
+				case EFloorActorType::Terminal:       AllDestroyedOriginal.Terminals.Add(Rec); break;
+				case EFloorActorType::SpawnGroupSpawner: AllDestroyedOriginal.NPCSpawners.Add(Rec); break;
+				case EFloorActorType::Debris:         AllDestroyedOriginal.Debris.Add(Rec); break;
+				default: break;
+				}
+			}
+		}
+	}
 }

@@ -129,6 +129,7 @@ FString UInteriorObjectExistsCondition::GetDescription() const
                 if (UInteriorSubsystem* InteriorSub = GI->GetSubsystem<UInteriorSubsystem>())
                 {
                     FFloorPopulationRecord Rec;
+                    /*
                     if (InteriorSub->FindPopulationRecordByItemId(ItemId, Rec))
                     {
                         FString Name = Rec.ActorInstanceName.IsEmpty() ? TEXT("Unnamed") : Rec.ActorInstanceName;
@@ -136,6 +137,7 @@ FString UInteriorObjectExistsCondition::GetDescription() const
                         return FString::Printf(TEXT("Object '%s' (Class: %s, ItemId: %s) exists: %s"),
                             *Name, *ClassName, *ItemId.ToString(), bShouldExist ? TEXT("true") : TEXT("false"));
                     }
+                    */
                 }
             }
         }
@@ -256,6 +258,7 @@ FString UInteriorObjectDestroyedCondition::GetDescription() const
                 if (UInteriorSubsystem* InteriorSub = GI->GetSubsystem<UInteriorSubsystem>())
                 {
                     FFloorPopulationRecord Rec;
+                    /*
                     if (InteriorSub->FindPopulationRecordByItemId(ItemId, Rec))
                     {
                         FString Name = Rec.ActorInstanceName.IsEmpty() ? TEXT("Unnamed") : Rec.ActorInstanceName;
@@ -263,6 +266,7 @@ FString UInteriorObjectDestroyedCondition::GetDescription() const
                         return FString::Printf(TEXT("Object '%s' (Class: %s, ItemId: %s) destroyed: %s"),
                             *Name, *ClassName, *ItemId.ToString(), bShouldBeDestroyed ? TEXT("true") : TEXT("false"));
                     }
+                    */
                 }
             }
         }

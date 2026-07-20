@@ -42,6 +42,11 @@ struct FPSKITALSREFACTORED_API FInteriorFloorKey
 	{
 		return InteriorSetId == Other.InteriorSetId && FloorId == Other.FloorId;
 	}
+
+	bool IsValid()
+	{
+		return InteriorSetId.IsValid() || FloorId.IsValid();
+	}
 };
 
 // Hash function for the key — combine hashes of GUID components directly

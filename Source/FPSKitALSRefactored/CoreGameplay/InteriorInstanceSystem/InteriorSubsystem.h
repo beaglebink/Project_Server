@@ -366,5 +366,10 @@ private:
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override;
 
+    /** Перестраивает вспомогательные карты AllSpawned / AllDestroyed для текущего этажа,
+     *  синхронизируя их с фактическим состоянием мира и данными из SpawnedActorsByInteriorFloor / DestroyedActorsByInteriorFloor. */
+    void RebuildPopulationMapsForCurrentFloor();
+
     bool IsLoadComplete = true;
+	bool IsPostLoadMapComplete = false; 
 };
