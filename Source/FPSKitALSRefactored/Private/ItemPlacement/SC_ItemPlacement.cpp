@@ -203,7 +203,7 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 
 			if (Item->Implements<UInteractiveActorInterface>())
 			{
-				if (UStaticMeshComponent* StaticMeshComponent = IInteractiveActorInterface::Execute_GetMeshComponent(Item))
+				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item)))
 				{
 					StaticMeshComponent->SetSimulatePhysics(false);
 
@@ -259,7 +259,7 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 	{
 		if (Item->Implements<UInteractiveActorInterface>())
 		{
-			if (UStaticMeshComponent* StaticMeshComponent = IInteractiveActorInterface::Execute_GetMeshComponent(Item))
+			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item)))
 			{
 				if (Item->AttachingDropZone)
 				{

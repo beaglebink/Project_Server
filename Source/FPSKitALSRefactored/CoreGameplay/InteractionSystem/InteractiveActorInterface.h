@@ -30,5 +30,5 @@ public:
 	virtual void EnableHighlight_Implementation(bool bEnable) {}
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interactive")
-	UStaticMeshComponent* GetMeshComponent();
+	UPrimitiveComponent* GetMeshComponent();
 };
