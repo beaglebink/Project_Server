@@ -50,7 +50,7 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 			CurrentItem = FoundItem;
 			CurrentIItemIsValid = true;
 
-			
+
 			//FoundComponentNow(Owner, FoundItem);
 		}
 		else if (FoundItem != CurrentItem)
@@ -73,7 +73,7 @@ void UInteractivePickerComponent::SetCurrentItem(UInteractiveItemComponent* Foun
 
 void UInteractivePickerComponent::CheckFoundComponent(AActor* Owner, UInteractiveItemComponent* InteractiveComponent)
 {
-	if(!InteractiveComponent)
+	if (!InteractiveComponent)
 	{
 		return;
 	}
@@ -210,7 +210,6 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 		{
 			continue;
 		}
-
 		HitActor->GetComponents<UInteractiveItemComponent>(InteractiveItems, /*bIncludeFromChildActors=*/true);
 		AllInteractiveItems.Append(InteractiveItems);
 	}
@@ -356,7 +355,7 @@ void UInteractivePickerComponent::TickSetCurrentItem(UInteractiveItemComponent* 
 	}
 	SetCurrentItem(FoundItem);
 
-	if(FoundItem)
+	if (FoundItem)
 	{
 		CheckFoundComponent(Owner, FoundItem);
 	}

@@ -17,7 +17,7 @@ public class ALSExtras : ModuleRules
             // so ALSExtras is not exposed to consumers of FPSKitALSRefactored
             // (ѕолна€ зависимость нужна дл€ линковки с типами FPSKitALSRefactored)
             // (÷икл разорван: FPSKitALSRefactored имеет только PRIVATE зависимость)
-            "FPSKitALSRefactored"
+            "FPSKitALSRefactored", "ProceduralMeshComponent"
         });
 
         PrivateDependencyModuleNames.AddRange(new[]

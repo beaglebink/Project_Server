@@ -51,7 +51,7 @@ public:
 
 	virtual void SetScannableObjectInfo_Implementation(const FScannableActorData& NewData) override;
 
-	virtual UStaticMeshComponent* GetMeshComponent_Implementation() override;
+	virtual UPrimitiveComponent* GetMeshComponent_Implementation() override;
 
 	virtual void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
 
