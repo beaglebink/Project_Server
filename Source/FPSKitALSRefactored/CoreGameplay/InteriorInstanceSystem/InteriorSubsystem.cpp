@@ -1088,6 +1088,7 @@ static EFloorActorType StringToActorType(const FString& Str)
 static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationRecord& Record)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+
 	Obj->SetStringField(TEXT("ActorType"), ActorTypeToString(Record.ActorType));
 	if (Record.SourceClass)
 		Obj->SetStringField(TEXT("SourceClass"), Record.SourceClass->GetPathName());
@@ -1095,6 +1096,26 @@ static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationReco
 	Obj->SetBoolField(TEXT("IsNewObject"), Record.IsNewObject);
 	Obj->SetObjectField(TEXT("WorldTransform"), TransformToJsonObject(Record.WorldTransform));
 	Obj->SetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
+
+	Obj->SetStringField(TEXT("ActorInstanceName"), Record.ActorInstanceName);
+	Obj->SetBoolField(TEXT("bIsRuntimeSpawn"), Record.bIsRuntimeSpawn);
+
+	// GameplayTagContainer → массив строк
+	TArray<TSharedPtr<FJsonValue>> GameplayTagArray;
+	for (const FGameplayTag& Tag : Record.GameplayTagContainer)
+	{
+		GameplayTagArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+	}
+	Obj->SetArrayField(TEXT("GameplayTags"), GameplayTagArray);
+
+	// TextTags → массив строк
+	TArray<TSharedPtr<FJsonValue>> TextTagArray;
+	for (const FName& Tag : Record.TextTags)
+	{
+		TextTagArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+	}
+	Obj->SetArrayField(TEXT("TextTags"), TextTagArray);
+
 	return Obj;
 }
 
@@ -1102,7 +1123,8 @@ static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationReco
 static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObject>& Obj)
 {
 	FFloorPopulationRecord Record;
-	if (!Obj.IsValid()) return Record;
+	if (!Obj.IsValid())
+		return Record;
 
 	FString ActorTypeStr;
 	if (Obj->TryGetStringField(TEXT("ActorType"), ActorTypeStr))
@@ -1114,17 +1136,46 @@ static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObj
 
 	FGuid::Parse(Obj->GetStringField(TEXT("ActorId")), Record.ActorId);
 
-	// Read IsNewObject field; if missing in save – default to true
-	// Чтение поля IsNewObject, если его нет в сохранении – по умолчанию true
 	if (!Obj->TryGetBoolField(TEXT("IsNewObject"), Record.IsNewObject))
-		Record.IsNewObject = true;   // fallback added / добавлен fallback
+		Record.IsNewObject = true;
 
 	if (Obj->HasField(TEXT("WorldTransform")))
 		Record.WorldTransform = TransformFromJsonObject(Obj->GetObjectField(TEXT("WorldTransform")));
 	Obj->TryGetBoolField(TEXT("bHasAnchor"), Record.bHasAnchor);
+
+	Obj->TryGetStringField(TEXT("ActorInstanceName"), Record.ActorInstanceName);
+	Obj->TryGetBoolField(TEXT("bIsRuntimeSpawn"), Record.bIsRuntimeSpawn);
+
+	// Восстановление GameplayTagContainer из массива
+	const TArray<TSharedPtr<FJsonValue>>* GameplayTagArray;
+	if (Obj->TryGetArrayField(TEXT("GameplayTags"), GameplayTagArray))
+	{
+		for (const auto& Val : *GameplayTagArray)
+		{
+			if (Val->Type == EJson::String)
+			{
+				FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Val->AsString()));
+				if (Tag.IsValid())
+					Record.GameplayTagContainer.AddTag(Tag);
+			}
+		}
+	}
+
+	// Восстановление TextTags из массива
+	const TArray<TSharedPtr<FJsonValue>>* TextTagArray;
+	if (Obj->TryGetArrayField(TEXT("TextTags"), TextTagArray))
+	{
+		for (const auto& Val : *TextTagArray)
+		{
+			if (Val->Type == EJson::String)
+			{
+				Record.TextTags.Add(FName(*Val->AsString()));
+			}
+		}
+	}
+
 	return Record;
 }
-
 // Converts population buckets to JSON / Преобразует бакеты населения в JSON
 static TSharedPtr<FJsonObject> PopulationBucketsToJson(const FFloorPopulationBuckets& Buckets)
 {

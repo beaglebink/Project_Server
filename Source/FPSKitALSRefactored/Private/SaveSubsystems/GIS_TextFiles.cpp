@@ -24,6 +24,11 @@ void UGIS_TextFiles::CollectSaveData(FSubsystemSaveData& OutData)
 
 	for (UObject* SaveableObject : SaveableObjects)
 	{
+		if (!SaveableObject || !SaveableObject->Implements<UI_SaveableObject>())
+		{
+			continue;
+		}
+
 		TMap<FString, FText> SaveDataMap = II_SaveableObject::Execute_CollectTextFilesSaveData(SaveableObject);
 
 		TSharedPtr<FJsonObject> ComputerProfile = MakeShared<FJsonObject>();

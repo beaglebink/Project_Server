@@ -24,6 +24,11 @@ void UGIS_SpreadsheetFiles::CollectSaveData(FSubsystemSaveData& OutData)
 
 	for (UObject* SaveableObject : SaveableObjects)
 	{
+		if(!SaveableObject || !SaveableObject->Implements<UI_SaveableObject>())
+		{
+			continue;
+		}
+
 		TMap<FString, FSpreadsheetCells> SaveDataMap = II_SaveableObject::Execute_CollectSpreadsheetSaveData(SaveableObject);
 
 		TSharedPtr<FJsonObject> ComputerProfile = MakeShared<FJsonObject>();
