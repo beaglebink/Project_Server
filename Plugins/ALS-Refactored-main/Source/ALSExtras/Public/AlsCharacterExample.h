@@ -5,6 +5,7 @@
 #include <PhysicsEngine/PhysicsConstraintActor.h>
 #include "AlsCharacterExample_I.h"
 #include "Interfaces/I_PortalInteraction.h"
+#include "Interfaces/I_CookingInteraction.h"
 #include "Utility/AlsGameplayTags.h"
 #include "AlsCharacterExample.generated.h"
 
@@ -33,7 +34,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMovementInputEvent, EMovementDir
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNetParalyse, AActor*, NetReason);
 
 UCLASS(AutoExpandCategories = ("Settings|Als Character Example", "State|Als Character Example"))
-class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter, public IAlsCharacter_I, public II_PortalInteraction
+class ALSEXTRAS_API AAlsCharacterExample : public AAlsCharacter, public IAlsCharacter_I, public II_PortalInteraction, public II_CookingInteraction
 {
 	GENERATED_BODY()
 
@@ -130,6 +131,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> CookingModeAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> CookingRotateAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> CookingTossAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example", Meta = (ClampMin = 0, ForceUnits = "x"))
 	float LookUpMouseSensitivity{ 1.0f };
@@ -237,7 +244,12 @@ private:
 
 	void Input_OnRemoveGrapple(const FInputActionValue& ActionValue);
 
+	//Cooking mode
 	void Input_OnSwitchCookingMode();
+
+	void Input_CookingOnRotate(const FInputActionValue& ActionValue);
+
+	void Input_CookingOnToss();
 
 protected:
 	UFUNCTION(BlueprintImplementableEvent)
@@ -245,6 +257,12 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void SwitchCookingModeHandle();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void CookingOnRotateHandle(float AngleDelta);
+	
+	UFUNCTION(BlueprintImplementableEvent)
+	void CookingOnTossHandle();
 
 	// Debug
 
@@ -308,6 +326,11 @@ public:
 	//Portal interaction
 private:
 	virtual void PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform) override;
+	
+	//Cooking interaction
+	AA_Dishes* CurrentDish = nullptr;
+	virtual void SetDishes_Implementation(AA_Dishes* Dish) override;
+	virtual AA_Dishes* GetDishes_Implementation() override;
 
 	//Food effects
 public:
