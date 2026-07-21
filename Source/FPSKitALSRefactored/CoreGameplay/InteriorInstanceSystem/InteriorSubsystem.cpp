@@ -2802,10 +2802,11 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		}
 
 		// ---- Глобальная карта размещённых (для восстановления) ----
+		//if (!IsMissionWorld)
 		{
 			if (CurrentKey.IsValid())
 			{
-				FFloorPopulationBuckets& SpawnedBuckets = SpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
+				FFloorPopulationBuckets& SpawnedBuckets = SpawnedActorsByInteriorFloorTemp.FindOrAdd(CurrentKey);
 				RemoveByActorIdFromBuckets(SpawnedBuckets, P->ItemId);
 				switch (P->ActorType)
 				{
@@ -2950,11 +2951,13 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		}
 
 		// ---- Удаляем запись из SpawnedActorsByInteriorFloor (карта размещённых) ----
+		/*
 		{
 			FFloorPopulationBuckets* SpawnedBuckets = SpawnedActorsByInteriorFloor.Find(CurrentKey);
 			if (SpawnedBuckets)
 				RemoveByActorIdFromBuckets(*SpawnedBuckets, P->ItemId);
 		}
+		*/
 
 		// ---- Миссионная логика (только если есть миссия) ----
 		if (!MissionId.IsNone() && CurrentKey.IsValid())
@@ -3678,6 +3681,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		return;
 	}
 
+	SpawnedActorsByInteriorFloorTemp.Empty();
 	//SubscribeToSpawnActor();
 
 	bool bNeedTeleportToAnchor = true;
@@ -5071,7 +5075,7 @@ void UInteriorSubsystem::TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLe
 
 	// If an actor with this ItemId is already registered in SpawnedActorsByInteriorFloor, skip registration
 	// Если актор с таким ItemId уже зарегистрирован в SpawnedActorsByInteriorFloor, пропускаем регистрацию
-	if (ContainsActorIdInSpawned(SpawnedActorsByInteriorFloor, Comp->ItemId))
+	if (ContainsActorIdInSpawned(SpawnedActorsByInteriorFloorTemp, Comp->ItemId))
 	{
 		return;
 	}

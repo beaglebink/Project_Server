@@ -279,6 +279,11 @@ private:
     UPROPERTY()
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> DestroyedActorsByInteriorFloor;
 
+    UPROPERTY()
+    TMap<FInteriorFloorKey, FFloorPopulationBuckets> SpawnedActorsByInteriorFloorTemp;
+    UPROPERTY()
+    TMap<FInteriorFloorKey, FFloorPopulationBuckets> DestroyedActorsByInteriorFloorTemp;
+
     TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>> MissionSpawnedActorsByInteriorFloor;
 
     TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>> MissionDestroyedActorsByInteriorFloor;
