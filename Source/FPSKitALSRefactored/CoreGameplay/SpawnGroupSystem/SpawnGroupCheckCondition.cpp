@@ -282,7 +282,7 @@ FString USpawnGroupKilledCountCondition::GetDescription() const
 // 5. USpawnGroupKilledByTypeCondition
 // ============================================================================
 
-void USpawnGroupKilledByTypeCondition::ExecuteCheck(const FGuid& TransactionId)
+void USpawnGroupKilledByClassCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
@@ -313,7 +313,7 @@ void USpawnGroupKilledByTypeCondition::ExecuteCheck(const FGuid& TransactionId)
     OnComplete.ExecuteIfBound(this);
 }
 
-FString USpawnGroupKilledByTypeCondition::GetDescription() const
+FString USpawnGroupKilledByClassCondition::GetDescription() const
 {
     FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
     return FString::Printf(TEXT("SpawnGroup killed by type [%s] class=%s %s %d"),
@@ -327,7 +327,7 @@ FString USpawnGroupKilledByTypeCondition::GetDescription() const
 // 6. USpawnGroupAliveByTypeCondition
 // ============================================================================
 
-void USpawnGroupAliveByTypeCondition::ExecuteCheck(const FGuid& TransactionId)
+void USpawnGroupAliveByClassCondition::ExecuteCheck(const FGuid& TransactionId)
 {
     LogVerbose(TEXT(""), true);
     CurrentTransactionId = TransactionId;
@@ -358,7 +358,7 @@ void USpawnGroupAliveByTypeCondition::ExecuteCheck(const FGuid& TransactionId)
     OnComplete.ExecuteIfBound(this);
 }
 
-FString USpawnGroupAliveByTypeCondition::GetDescription() const
+FString USpawnGroupAliveByClassCondition::GetDescription() const
 {
     FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
     return FString::Printf(TEXT("SpawnGroup alive by type [%s] class=%s %s %d"),

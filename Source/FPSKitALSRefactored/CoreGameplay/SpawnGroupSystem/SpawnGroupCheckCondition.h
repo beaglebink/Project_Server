@@ -118,7 +118,7 @@ public:
 };
 
 UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API USpawnGroupKilledByTypeCondition : public USpawnGroupCheckCondition
+class FPSKITALSREFACTORED_API USpawnGroupKilledByClassCondition : public USpawnGroupCheckCondition
 {
     GENERATED_BODY()
 public:
@@ -130,7 +130,7 @@ public:
 };
 
 UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API USpawnGroupAliveByTypeCondition : public USpawnGroupCheckCondition
+class FPSKITALSREFACTORED_API USpawnGroupAliveByClassCondition : public USpawnGroupCheckCondition
 {
     GENERATED_BODY()
 public:
