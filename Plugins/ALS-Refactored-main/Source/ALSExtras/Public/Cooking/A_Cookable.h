@@ -5,6 +5,7 @@
 #include "A_Cookable.generated.h"
 
 class UProceduralMeshComponent;
+class AA_Dishes;
 
 UCLASS()
 class ALSEXTRAS_API AA_Cookable : public AA_InteractableActor
@@ -32,4 +33,12 @@ protected:
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Slicing mesh")
 	UProceduralMeshComponent* SlicedMesh;
+
+	UPROPERTY()
+	AA_Dishes* AttachedDish;
+
+	uint8 bIsAttaching : 1{false};
+
+private:
+	float OnAttachingPauseCheckTime = 0.0f;
 };

@@ -2,6 +2,7 @@
 #include "ProceduralMeshComponent.h"
 #include "KismetProceduralMeshLibrary.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "Cooking/A_Dishes.h"
 
 AA_Cookable::AA_Cookable()
 {
@@ -19,9 +20,9 @@ AA_Cookable::AA_Cookable()
 	SlicedMesh->bUseComplexAsSimpleCollision = false;
 	SlicedMesh->SetSimulatePhysics(true);
 	SlicedMesh->SetNotifyRigidBodyCollision(true);
-	//SlicedMesh->BodyInstance.SetMassOverride(7.0f, true);
-	//SlicedMesh->SetLinearDamping(0.5f);
-	//SlicedMesh->SetAngularDamping(0.1f);
+	SlicedMesh->BodyInstance.SetMassOverride(1.0f, true);
+	SlicedMesh->SetLinearDamping(0.1f);
+	SlicedMesh->SetAngularDamping(0.1f);
 }
 
 void AA_Cookable::OnConstruction(const FTransform& Transform)
@@ -35,13 +36,32 @@ void AA_Cookable::OnConstruction(const FTransform& Transform)
 		StaticMesh->GetStaticMesh()->bAllowCPUAccess = true;
 		UKismetProceduralMeshLibrary::CopyProceduralMeshFromStaticMeshComponent(StaticMesh, 0, SlicedMesh, true);
 	}
-
 }
 
 void AA_Cookable::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (AttachedDish && bIsAttaching && !bIsHeld)
+	{
+		OnAttachingPauseCheckTime += GetWorld()->GetDeltaSeconds();
+		if (OnAttachingPauseCheckTime > 0.5f && SlicedMesh->GetPhysicsLinearVelocity().Length() < 0.5f && SlicedMesh->GetPhysicsAngularVelocityInDegrees().Length() < 0.5f)
+		{
+			SlicedMesh->SetSimulatePhysics(false);
+			AttachToActor(AttachedDish, FAttachmentTransformRules::KeepWorldTransform);
+			bIsAttaching = false;
+			OnAttachingPauseCheckTime = 0.0f;
+		}
+	}
+
+	if (AttachedDish && !bIsAttaching)
+	{
+		if (abs(AttachedDish->GetActorRotation().Roll) >= 80.0f || abs(AttachedDish->GetActorRotation().Pitch) >= 80.0f)
+		{
+			DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+			SlicedMesh->SetSimulatePhysics(true);
+		}
+	}
 }
 
 void AA_Cookable::BeginPlay()

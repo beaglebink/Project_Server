@@ -1,10 +1,18 @@
 #include "Cooking/A_Dishes.h"
 #include "GameFramework/Character.h"
+#include "Components/SphereComponent.h"
+#include "Cooking/A_Cookable.h"
 
 AA_Dishes::AA_Dishes()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	CollisionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionSphere"));
+
+	CollisionSphere->SetupAttachment(RootComponent);
+
+	CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	CollisionSphere->SetSphereRadius(20.0f);
 }
 
 void AA_Dishes::OnConstruction(const FTransform& Transform)
@@ -37,6 +45,8 @@ void AA_Dishes::BeginPlay()
 {
 	Super::BeginPlay();
 
+	CollisionSphere->OnComponentBeginOverlap.AddDynamic(this, &AA_Dishes::OnSphereOverlapBegin);
+	CollisionSphere->OnComponentEndOverlap.AddDynamic(this, &AA_Dishes::OnSphereOverlapEnd);
 }
 
 void AA_Dishes::Destroyed()
@@ -79,4 +89,53 @@ void AA_Dishes::RotateDish(float AngleDelta)
 void AA_Dishes::TossDish()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Tossing dish"));
+}
+
+void AA_Dishes::OnSphereOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+
+	if (OtherActor && OtherComp)
+	{
+		if (AA_Cookable* CookableIngredient = Cast<AA_Cookable>(OtherActor))
+		{
+			CookableIngredients.AddUnique(CookableIngredient);
+			int32& CountRef = IngredientCountMap.FindOrAdd(CookableIngredient->Name);
+			++CountRef;
+
+			if (CookableIngredient->AttachedDish != this)
+			{
+				CookableIngredient->AttachedDish = this;
+				CookableIngredient->bIsAttaching = true;
+			}
+
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
+		}
+	}
+}
+
+void AA_Dishes::OnSphereOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (OtherActor && OtherComp)
+	{
+		if (AA_Cookable* CookableIngredient = Cast<AA_Cookable>(OtherActor))
+		{
+			CookableIngredients.Remove(CookableIngredient);
+			int32* CountPtr = IngredientCountMap.Find(CookableIngredient->Name);
+			if (CountPtr)
+			{
+				--(*CountPtr);
+				if (*CountPtr <= 0)
+				{
+					IngredientCountMap.Remove(CookableIngredient->Name);
+				}
+			}
+
+			if (CookableIngredient->AttachedDish == this)
+			{
+				CookableIngredient->AttachedDish = nullptr;
+			}
+
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), *CountPtr));
+		}
+	}
 }
