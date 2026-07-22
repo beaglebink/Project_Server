@@ -21,6 +21,65 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
+    // ---- Статистика по конкретной группе ----
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetTotalSpawnedCount(const FGuid& ItemId) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetAliveCount(const FGuid& ItemId) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetKilledCount(const FGuid& ItemId) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetKilledCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetAliveCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetKilledCountByTextTag(const FGuid& ItemId, FName TextTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetAliveCountByTextTag(const FGuid& ItemId, FName TextTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetKilledCountByGameplayTag(const FGuid& ItemId, FGameplayTag GameplayTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetAliveCountByGameplayTag(const FGuid& ItemId, FGameplayTag GameplayTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    ESpawnGroupStatus GetGroupStatus(const FGuid& ItemId) const;
+
+    // ---- Статистика по текущему этажу (агрегирует все группы) ----
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetTotalSpawnedCountForCurrentFloor() const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetAliveCountForCurrentFloor() const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetKilledCountForCurrentFloor() const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetKilledCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetAliveCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetKilledCountByTextTagForCurrentFloor(FName TextTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetAliveCountByTextTagForCurrentFloor(FName TextTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetKilledCountByGameplayTagForCurrentFloor(FGameplayTag GameplayTag) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetAliveCountByGameplayTagForCurrentFloor(FGameplayTag GameplayTag) const;
+
     // ----- ISaveableSubsystem -----
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
@@ -75,4 +134,6 @@ private:
     FOutcomeHandlerHandle FloorLeavingHandle;
 
     bool bIsLoadComplete = true;
+
+    FInteriorFloorKey CurrentFloorKey;
 };

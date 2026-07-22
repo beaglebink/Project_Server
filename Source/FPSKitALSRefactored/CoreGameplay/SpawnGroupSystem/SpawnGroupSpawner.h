@@ -105,6 +105,11 @@ public:
     void DrawEditorLines() const;
 #endif
 
+protected:
+    // Хранилище всех слотов группы (и живых, и мёртвых)
+    UPROPERTY(SaveGame)
+    TArray<FSpawnSlotState> AllSlots;
+
     // ===== Состояние =====
 private:
     UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
@@ -182,6 +187,15 @@ public:
     void SafeDestroyAllGhosts();
 
     int32 GetNeedSpasnedCount();
+
+    // Получить все слоты (для сохранения и подсчёта)
+    const TArray<FSpawnSlotState>& GetAllSlots() const { return AllSlots; }
+
+    // Обновить слот при спавне (добавить новый)
+    void AddSpawnSlot(AActor* SpawnedActor, const FTransform& Transform);
+
+    // Обновить слот при убийстве (пометить как мёртвого)
+    void MarkSlotDead(const FGuid& ItemId);
 
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;

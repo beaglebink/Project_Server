@@ -1,7 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"  // для FTransform, FGuid
+#include "UObject/NoExportTypes.h"  
+#include "GameplayTagContainer.h"
 #include "SpawnGroupTypes.generated.h"
 
 // Уникальный идентификатор спавн-группы.
@@ -91,9 +92,11 @@ struct FSpawnSlotState
     UPROPERTY()
     bool bIsAlive = true;
 
-    // Можно расширить для хранения SaveGame-свойств
-    // UPROPERTY()
-    // FString ActorPropertiesJSON;
+    UPROPERTY()
+    FGameplayTagContainer GameplayTags;
+
+    UPROPERTY()
+    TArray<FName> TextTags;
 };
 
 // Полное состояние спавн-группы
