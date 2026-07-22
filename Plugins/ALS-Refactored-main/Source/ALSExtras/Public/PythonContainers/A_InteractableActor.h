@@ -40,6 +40,9 @@ public:
 	UPROPERTY()
 	AA_DropZone* AttachingDropZone;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Interaction")
+	uint8 bIsHeld : 1{false};
+
 	UFUNCTION(BlueprintCallable, Category = "TextParsing")
 	bool ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName);
 

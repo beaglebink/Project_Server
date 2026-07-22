@@ -226,6 +226,8 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(RemoveSticknessAction, ETriggerEvent::Completed, this, &ThisClass::Input_OnRemoveStickness);
 		EnhancedInput->BindAction(GrappleRemoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRemoveGrapple);
 		EnhancedInput->BindAction(CookingModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchCookingMode);
+		EnhancedInput->BindAction(CookingRotateAction, ETriggerEvent::Triggered, this, &ThisClass::Input_CookingOnRotate);
+		EnhancedInput->BindAction(CookingTossAction, ETriggerEvent::Triggered, this, &ThisClass::Input_CookingOnToss);
 
 		if (Inventory)
 		{
@@ -728,6 +730,17 @@ void AAlsCharacterExample::Input_OnSwitchCookingMode()
 	SwitchCookingModeHandle();
 }
 
+void AAlsCharacterExample::Input_CookingOnRotate(const FInputActionValue& ActionValue)
+{
+	float AngleDelta = ActionValue.Get<float>();
+	CookingOnRotateHandle(AngleDelta);
+}
+
+void AAlsCharacterExample::Input_CookingOnToss()
+{
+	CookingOnTossHandle();
+}
+
 void AAlsCharacterExample::SetLoopEffect(bool bIsSet)
 {
 	if (bIsSet && !ShouldIgnoreEnemyAbilityEffect())
@@ -846,6 +859,16 @@ void AAlsCharacterExample::PortalInteract_Implementation(const FHitResult& Hit, 
 	SetActorRotation(GetActorRotation() + DeltaRotationExitToEnter);
 	GetController()->SetControlRotation(GetController()->GetControlRotation() + DeltaRotationExitToEnter);
 	GetMovementComponent()->Velocity = DeltaRotationExitToEnter.RotateVector(GetMovementComponent()->Velocity);
+}
+
+void AAlsCharacterExample::SetDishes_Implementation(AA_Dishes* Dish)
+{
+	CurrentDish = Dish;
+}
+
+AA_Dishes* AAlsCharacterExample::GetDishes_Implementation()
+{
+	return CurrentDish;
 }
 
 void AAlsCharacterExample::InitializeFoodEffectTimerDelegates()
