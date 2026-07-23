@@ -43,6 +43,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Interaction")
 	uint8 bIsHeld : 1{false};
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Interaction")
+	uint8 bIsAttached : 1{false};
+
 	UFUNCTION(BlueprintCallable, Category = "TextParsing")
 	bool ParseAssignCommand(FText Command, FName& OutVarName, FName& OutActorName);
 
@@ -55,6 +58,8 @@ public:
 	virtual void SetScannableObjectInfo_Implementation(const FScannableActorData& NewData) override;
 
 	virtual UPrimitiveComponent* GetMeshComponent_Implementation() override;
+
+	virtual bool GetIsAttached_Implementation() override;
 
 	virtual void HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit);
 

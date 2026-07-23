@@ -45,10 +45,11 @@ void AA_Cookable::Tick(float DeltaTime)
 	if (AttachedDish && bIsAttaching && !bIsHeld)
 	{
 		OnAttachingPauseCheckTime += GetWorld()->GetDeltaSeconds();
-		if (OnAttachingPauseCheckTime > 0.5f && SlicedMesh->GetPhysicsLinearVelocity().Length() < 0.5f && SlicedMesh->GetPhysicsAngularVelocityInDegrees().Length() < 0.5f)
+		if (OnAttachingPauseCheckTime > 0.5f && SlicedMesh->GetPhysicsLinearVelocity().Length() < 2.0f && SlicedMesh->GetPhysicsAngularVelocityInDegrees().Length() < 2.0f)
 		{
 			SlicedMesh->SetSimulatePhysics(false);
 			AttachToActor(AttachedDish, FAttachmentTransformRules::KeepWorldTransform);
+			bIsAttached = true;
 			bIsAttaching = false;
 			OnAttachingPauseCheckTime = 0.0f;
 		}
@@ -59,6 +60,7 @@ void AA_Cookable::Tick(float DeltaTime)
 		if (abs(AttachedDish->GetActorRotation().Roll) >= 80.0f || abs(AttachedDish->GetActorRotation().Pitch) >= 80.0f)
 		{
 			DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+			bIsAttached = false;
 			SlicedMesh->SetSimulatePhysics(true);
 		}
 	}

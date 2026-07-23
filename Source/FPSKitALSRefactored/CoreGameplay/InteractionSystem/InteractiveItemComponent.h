@@ -16,7 +16,7 @@ class UInteractivePickerComponent;
 UENUM(BlueprintType)
 enum class EInteractDuration : uint8
 {
-	Instant  = 0 UMETA(DisplayName = "Instant"),
+	Instant = 0 UMETA(DisplayName = "Instant"),
 	Continue UMETA(DisplayName = "Hold")
 };
 
@@ -26,7 +26,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractiveNow, AActor*, WhoInter
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInteractStateChanged, bool, bEnabled, const FText&, NewTooltip);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractTooltipChange, const FText&, NewTooltip);
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FPSKITALSREFACTORED_API UInteractiveItemComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -39,7 +39,7 @@ public:
 
 	// Called by Picker when this item comes into trace range
 	void SetIsInteractiveNow(AActor* WhoInteract);
-	
+
 	// Called by Picker when this item leaves trace range
 	UFUNCTION()
 	void FinishInteractiveUse(ACharacter* IIUser, const bool IsReleaseButton = true);
@@ -106,9 +106,12 @@ public:
 
 	// Dragging transform offsets (restored)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
+	uint8 bShouldUseDraggingLocationAndRotation : 1{true};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config", meta = (EditCondition = "bShouldUseDraggingLocationAndRotation", EditConditionHides))
 	FVector DraggingLocation = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config", meta = (EditCondition = "bShouldUseDraggingLocationAndRotation", EditConditionHides))
 	FRotator DraggingRotator = FRotator::ZeroRotator;
 
 private:

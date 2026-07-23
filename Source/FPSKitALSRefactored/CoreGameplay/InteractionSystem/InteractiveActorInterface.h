@@ -31,4 +31,7 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interactive")
 	UPrimitiveComponent* GetMeshComponent();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interactive")
+	bool GetIsAttached();
 };
