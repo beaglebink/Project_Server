@@ -38,16 +38,16 @@ public:
     int32 GetAliveCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetKilledCountByTextTag(const FGuid& ItemId, FName TextTag) const;
+    int32 GetKilledCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetAliveCountByTextTag(const FGuid& ItemId, FName TextTag) const;
+    int32 GetAliveCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetKilledCountByGameplayTag(const FGuid& ItemId, FGameplayTag GameplayTag) const;
+    int32 GetKilledCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetAliveCountByGameplayTag(const FGuid& ItemId, FGameplayTag GameplayTag) const;
+    int32 GetAliveCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     ESpawnGroupStatus GetGroupStatus(const FGuid& ItemId) const;
@@ -69,16 +69,16 @@ public:
     int32 GetAliveCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetKilledCountByTextTagForCurrentFloor(FName TextTag) const;
+    int32 GetKilledCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetAliveCountByTextTagForCurrentFloor(FName TextTag) const;
+    int32 GetAliveCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetKilledCountByGameplayTagForCurrentFloor(FGameplayTag GameplayTag) const;
+    int32 GetKilledCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetAliveCountByGameplayTagForCurrentFloor(FGameplayTag GameplayTag) const;
+    int32 GetAliveCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
 
     // ----- ISaveableSubsystem -----
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;

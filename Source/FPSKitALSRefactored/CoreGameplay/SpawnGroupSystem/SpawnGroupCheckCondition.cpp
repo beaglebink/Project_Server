@@ -23,7 +23,6 @@ USpawnGroupSubsystem* USpawnGroupConditionBase::GetSpawnGroupSubsystem() const
 
 void USpawnGroupConditionBase::ExecuteCheck(const FGuid& TransactionId)
 {
-    // Базовый метод – заглушка
     bCompleted = true;
     bApproved = false;
     OnComplete.ExecuteIfBound(this);
@@ -107,7 +106,7 @@ FString USpawnGroupCheckCondition::GetDescription() const
 }
 
 // ============================================================================
-// 1. USpawnGroupStatusCondition (одиночный спавнер)
+// 1. USpawnGroupStatusCondition
 // ============================================================================
 
 void USpawnGroupStatusCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -147,7 +146,6 @@ void USpawnGroupStatusCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
 
-    // Если спавнер не задан – проверка не выполняется (можно доработать под этаж)
     bApproved = false;
     bCompleted = true;
     LogVerbose(TEXT("→ false (no spawner specified)"), false);
@@ -442,11 +440,11 @@ void USpawnGroupKilledByTextTagCondition::ExecuteCheck(const FGuid& TransactionI
     if (Ids.Num() > 0)
     {
         for (const FGuid& Id : Ids)
-            Total += Sub->GetKilledCountByTextTag(Id, TextTag);
+            Total += Sub->GetKilledCountByTextTag(Id, TextTags);
     }
     else
     {
-        Total = Sub->GetKilledCountByTextTagForCurrentFloor(TextTag);
+        Total = Sub->GetKilledCountByTextTagForCurrentFloor(TextTags);
     }
 
     bApproved = EvaluateCompare(Total);
@@ -458,9 +456,15 @@ void USpawnGroupKilledByTextTagCondition::ExecuteCheck(const FGuid& TransactionI
 
 FString USpawnGroupKilledByTextTagCondition::GetDescription() const
 {
-    return FString::Printf(TEXT("SpawnGroup killed by text tag [%s] tag=%s %s %d"),
+    FString TagsStr;
+    for (const FName& Tag : TextTags)
+    {
+        if (!TagsStr.IsEmpty()) TagsStr += TEXT(", ");
+        TagsStr += Tag.ToString();
+    }
+    return FString::Printf(TEXT("SpawnGroup killed by text tags [%s] tags=[%s] %s %d"),
         SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
-        *TextTag.ToString(),
+        *TagsStr,
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
 }
@@ -491,11 +495,11 @@ void USpawnGroupAliveByTextTagCondition::ExecuteCheck(const FGuid& TransactionId
     if (Ids.Num() > 0)
     {
         for (const FGuid& Id : Ids)
-            Total += Sub->GetAliveCountByTextTag(Id, TextTag);
+            Total += Sub->GetAliveCountByTextTag(Id, TextTags);
     }
     else
     {
-        Total = Sub->GetAliveCountByTextTagForCurrentFloor(TextTag);
+        Total = Sub->GetAliveCountByTextTagForCurrentFloor(TextTags);
     }
 
     bApproved = EvaluateCompare(Total);
@@ -507,9 +511,15 @@ void USpawnGroupAliveByTextTagCondition::ExecuteCheck(const FGuid& TransactionId
 
 FString USpawnGroupAliveByTextTagCondition::GetDescription() const
 {
-    return FString::Printf(TEXT("SpawnGroup alive by text tag [%s] tag=%s %s %d"),
+    FString TagsStr;
+    for (const FName& Tag : TextTags)
+    {
+        if (!TagsStr.IsEmpty()) TagsStr += TEXT(", ");
+        TagsStr += Tag.ToString();
+    }
+    return FString::Printf(TEXT("SpawnGroup alive by text tags [%s] tags=[%s] %s %d"),
         SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
-        *TextTag.ToString(),
+        *TagsStr,
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
 }
@@ -540,11 +550,11 @@ void USpawnGroupKilledByGameplayTagCondition::ExecuteCheck(const FGuid& Transact
     if (Ids.Num() > 0)
     {
         for (const FGuid& Id : Ids)
-            Total += Sub->GetKilledCountByGameplayTag(Id, GameplayTag);
+            Total += Sub->GetKilledCountByGameplayTag(Id, GameplayTags);
     }
     else
     {
-        Total = Sub->GetKilledCountByGameplayTagForCurrentFloor(GameplayTag);
+        Total = Sub->GetKilledCountByGameplayTagForCurrentFloor(GameplayTags);
     }
 
     bApproved = EvaluateCompare(Total);
@@ -556,9 +566,15 @@ void USpawnGroupKilledByGameplayTagCondition::ExecuteCheck(const FGuid& Transact
 
 FString USpawnGroupKilledByGameplayTagCondition::GetDescription() const
 {
-    return FString::Printf(TEXT("SpawnGroup killed by gameplay tag [%s] tag=%s %s %d"),
+    FString TagsStr;
+    for (const FGameplayTag& Tag : GameplayTags)
+    {
+        if (!TagsStr.IsEmpty()) TagsStr += TEXT(", ");
+        TagsStr += Tag.ToString();
+    }
+    return FString::Printf(TEXT("SpawnGroup killed by gameplay tags [%s] tags=[%s] %s %d"),
         SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
-        *GameplayTag.ToString(),
+        *TagsStr,
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
 }
@@ -589,11 +605,11 @@ void USpawnGroupAliveByGameplayTagCondition::ExecuteCheck(const FGuid& Transacti
     if (Ids.Num() > 0)
     {
         for (const FGuid& Id : Ids)
-            Total += Sub->GetAliveCountByGameplayTag(Id, GameplayTag);
+            Total += Sub->GetAliveCountByGameplayTag(Id, GameplayTags);
     }
     else
     {
-        Total = Sub->GetAliveCountByGameplayTagForCurrentFloor(GameplayTag);
+        Total = Sub->GetAliveCountByGameplayTagForCurrentFloor(GameplayTags);
     }
 
     bApproved = EvaluateCompare(Total);
@@ -605,9 +621,15 @@ void USpawnGroupAliveByGameplayTagCondition::ExecuteCheck(const FGuid& Transacti
 
 FString USpawnGroupAliveByGameplayTagCondition::GetDescription() const
 {
-    return FString::Printf(TEXT("SpawnGroup alive by gameplay tag [%s] tag=%s %s %d"),
+    FString TagsStr;
+    for (const FGameplayTag& Tag : GameplayTags)
+    {
+        if (!TagsStr.IsEmpty()) TagsStr += TEXT(", ");
+        TagsStr += Tag.ToString();
+    }
+    return FString::Printf(TEXT("SpawnGroup alive by gameplay tags [%s] tags=[%s] %s %d"),
         SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
-        *GameplayTag.ToString(),
+        *TagsStr,
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
 }

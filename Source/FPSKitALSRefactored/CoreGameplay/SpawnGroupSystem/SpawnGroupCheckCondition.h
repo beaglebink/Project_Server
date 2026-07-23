@@ -79,7 +79,6 @@ class FPSKITALSREFACTORED_API USpawnGroupStatusCondition : public USpawnGroupCon
     GENERATED_BODY()
 
 public:
-    // Одиночный спавнер для проверки статуса
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup", meta = (DisplayName = "Spawner Actor"))
     TSoftObjectPtr<ASpawnGroupSpawner> Spawner;
 
@@ -91,9 +90,8 @@ public:
 };
 
 // ============================================================================
-// 2–10. Количественные проверки (используют массив спавнеров)
+// 2. Общее количество заспавненных
 // ============================================================================
-
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupTotalCountCondition : public USpawnGroupCheckCondition
 {
@@ -103,6 +101,9 @@ public:
     virtual FString GetDescription() const override;
 };
 
+// ============================================================================
+// 3. Количество живых
+// ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupAliveCountCondition : public USpawnGroupCheckCondition
 {
@@ -112,6 +113,9 @@ public:
     virtual FString GetDescription() const override;
 };
 
+// ============================================================================
+// 4. Количество убитых
+// ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupKilledCountCondition : public USpawnGroupCheckCondition
 {
@@ -121,6 +125,9 @@ public:
     virtual FString GetDescription() const override;
 };
 
+// ============================================================================
+// 5. Убито по классу
+// ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupKilledByClassCondition : public USpawnGroupCheckCondition
 {
@@ -133,6 +140,9 @@ public:
     virtual FString GetDescription() const override;
 };
 
+// ============================================================================
+// 6. Живо по классу
+// ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupAliveByClassCondition : public USpawnGroupCheckCondition
 {
@@ -145,49 +155,61 @@ public:
     virtual FString GetDescription() const override;
 };
 
+// ============================================================================
+// 7. Убито по текстовым тегам (массив)
+// ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupKilledByTextTagCondition : public USpawnGroupCheckCondition
 {
     GENERATED_BODY()
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    FName TextTag;
+    TArray<FName> TextTags;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
 
+// ============================================================================
+// 8. Живо по текстовым тегам (массив)
+// ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupAliveByTextTagCondition : public USpawnGroupCheckCondition
 {
     GENERATED_BODY()
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    FName TextTag;
+    TArray<FName> TextTags;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
 
+// ============================================================================
+// 9. Убито по GameplayTag (массив)
+// ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupKilledByGameplayTagCondition : public USpawnGroupCheckCondition
 {
     GENERATED_BODY()
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    FGameplayTag GameplayTag;
+    TArray<FGameplayTag> GameplayTags;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
 
+// ============================================================================
+// 10. Живо по GameplayTag (массив)
+// ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupAliveByGameplayTagCondition : public USpawnGroupCheckCondition
 {
     GENERATED_BODY()
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    FGameplayTag GameplayTag;
+    TArray<FGameplayTag> GameplayTags;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
