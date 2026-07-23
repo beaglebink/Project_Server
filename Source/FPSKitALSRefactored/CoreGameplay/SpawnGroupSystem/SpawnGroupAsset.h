@@ -71,10 +71,6 @@ class USpawnGroupAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    // Стабильный идентификатор группы (задаётся дизайнером)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Identity")
-    FGuid GroupId;
-
     // Отображаемое имя (для дебага)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Identity")
     FText DisplayName;
@@ -111,9 +107,4 @@ public:
     {
         return FPrimaryAssetId("SpawnGroup", GetFName());
     }
-
-#if WITH_EDITOR
-    virtual void PostInitProperties() override;
-    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 };

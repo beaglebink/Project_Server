@@ -256,21 +256,21 @@ void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
 
 void USpawnGroupSubsystem::ActivateSpawnGroupInternal(const FGuid& GroupId)
 {
-    ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId);
     if (Spawner)
         Spawner->SpawnGroupInternal();
 }
 
 void USpawnGroupSubsystem::ClearSpawnGroupInternal(const FGuid& GroupId, ESpawnGroupResolutionReason Reason)
 {
-    ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId);
     if (Spawner)
         Spawner->ClearGroup(Reason);
 }
 
 void USpawnGroupSubsystem::ResetSpawnGroupInternal(const FGuid& GroupId)
 {
-    ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId);
     if (Spawner)
         Spawner->ResetGroup();
 }
@@ -921,13 +921,13 @@ int32 USpawnGroupSubsystem::GetAliveCountByTextTagForCurrentFloor(FName TextTag)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
         if (!Spawner || !IsValid(Spawner)) continue;
-        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
-        {
+        //if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
+        //{
             Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
                 {
                     return Slot.bIsAlive && Slot.TextTags.Contains(TextTag);
                 });
-        }
+        //}
     }
     return Total;
 }

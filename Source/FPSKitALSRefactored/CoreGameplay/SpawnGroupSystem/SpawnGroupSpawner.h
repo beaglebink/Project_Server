@@ -92,6 +92,12 @@ public:
     UPROPERTY(SaveGame)
     bool Restore = false;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+	TArray<FName> EnemyTags;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+	FGameplayTagContainer EnemyGameplayTags;
+
     bool IsFullRespawn = false;
     bool AllSpawned = false;
 
@@ -178,7 +184,7 @@ public:
     int32 GetKilledCount() { return KilledCount; }
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
-    FGuid GetGroupId() const { return SpawnGroupAsset ? SpawnGroupAsset->GroupId : FGuid(); }
+    FGuid GetGroupId() const;
 
 	void SetStates(const FSpawnGroupState& State);
 

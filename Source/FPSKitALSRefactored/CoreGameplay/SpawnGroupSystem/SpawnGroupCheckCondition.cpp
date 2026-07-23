@@ -12,35 +12,6 @@
 // USpawnGroupConditionBase – общая логика для всех условий
 // ============================================================================
 
-ASpawnGroupSpawner* USpawnGroupConditionBase::GetSpawner() const
-{
-    if (SpawnerReference.IsValid())
-    {
-        ASpawnGroupSpawner* Spawner = SpawnerReference.Get();
-        if (Spawner && IsValid(Spawner))
-            return Spawner;
-        Spawner = SpawnerReference.LoadSynchronous();
-        if (Spawner && IsValid(Spawner))
-            return Spawner;
-    }
-    return nullptr;
-}
-
-FGuid USpawnGroupConditionBase::GetEffectiveGroupId() const
-{
-    if (ASpawnGroupSpawner* Spawner = GetSpawner())
-    {
-        if (UFloorAssignmentComponent* Comp = Spawner->FindComponentByClass<UFloorAssignmentComponent>())
-        {
-            if (Comp->ItemId.IsValid())
-                return Comp->ItemId;
-        }
-        if (Spawner->SpawnGroupAsset && Spawner->SpawnGroupAsset->GroupId.IsValid())
-            return Spawner->SpawnGroupAsset->GroupId;
-    }
-    return FGuid(); // пустой – значит проверка по этажу
-}
-
 USpawnGroupSubsystem* USpawnGroupConditionBase::GetSpawnGroupSubsystem() const
 {
     UWorld* World = GetWorld();
@@ -52,7 +23,7 @@ USpawnGroupSubsystem* USpawnGroupConditionBase::GetSpawnGroupSubsystem() const
 
 void USpawnGroupConditionBase::ExecuteCheck(const FGuid& TransactionId)
 {
-    // Базовый метод – заглушка, переопределяется в наследниках
+    // Базовый метод – заглушка
     bCompleted = true;
     bApproved = false;
     OnComplete.ExecuteIfBound(this);
@@ -72,8 +43,44 @@ void USpawnGroupConditionBase::PostEditChangeProperty(FPropertyChangedEvent& Pro
 #endif
 
 // ============================================================================
-// USpawnGroupCheckCondition – количественные проверки (с оператором)
+// USpawnGroupCheckCondition – количественные проверки (с массивом спавнеров)
 // ============================================================================
+
+TArray<ASpawnGroupSpawner*> USpawnGroupCheckCondition::GetSpawners() const
+{
+    TArray<ASpawnGroupSpawner*> Result;
+    for (const TSoftObjectPtr<ASpawnGroupSpawner>& SoftPtr : SpawnersReferences)
+    {
+        if (SoftPtr.IsValid())
+        {
+            ASpawnGroupSpawner* Spawner = SoftPtr.Get();
+            if (Spawner && IsValid(Spawner))
+                Result.Add(Spawner);
+            else
+            {
+                Spawner = SoftPtr.LoadSynchronous();
+                if (Spawner && IsValid(Spawner))
+                    Result.Add(Spawner);
+            }
+        }
+    }
+    return Result;
+}
+
+TArray<FGuid> USpawnGroupCheckCondition::GetEffectiveGroupIds() const
+{
+    TArray<FGuid> Ids;
+    TArray<ASpawnGroupSpawner*> Spawners = GetSpawners();
+    for (ASpawnGroupSpawner* Spawner : Spawners)
+    {
+        if (UFloorAssignmentComponent* Comp = Spawner->FindComponentByClass<UFloorAssignmentComponent>())
+        {
+            if (Comp->ItemId.IsValid())
+                Ids.Add(Comp->ItemId);
+        }
+    }
+    return Ids;
+}
 
 bool USpawnGroupCheckCondition::EvaluateCompare(int32 ActualValue) const
 {
@@ -91,14 +98,16 @@ bool USpawnGroupCheckCondition::EvaluateCompare(int32 ActualValue) const
 
 FString USpawnGroupCheckCondition::GetDescription() const
 {
-    return FString::Printf(TEXT("SpawnGroup count [%s] %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
-        *UEnum::GetValueAsString(Operator),
-        ExpectedValue);
+    FString Target;
+    if (SpawnersReferences.Num() > 0)
+        Target = FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num());
+    else
+        Target = TEXT("Current Floor");
+    return FString::Printf(TEXT("SpawnGroup count [%s] %s %d"), *Target, *UEnum::GetValueAsString(Operator), ExpectedValue);
 }
 
 // ============================================================================
-// 1. USpawnGroupStatusCondition (без оператора)
+// 1. USpawnGroupStatusCondition (одиночный спавнер)
 // ============================================================================
 
 void USpawnGroupStatusCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -118,32 +127,46 @@ void USpawnGroupStatusCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
 
-    if (ASpawnGroupSpawner* Spawner = GetSpawner())
+    ASpawnGroupSpawner* SpawnerPtr = nullptr;
+    if (Spawner.IsValid())
     {
-        bApproved = (Spawner->GetCurrentStatus() == DesiredStatus);
+        SpawnerPtr = Spawner.Get();
+        if (!SpawnerPtr || !IsValid(SpawnerPtr))
+            SpawnerPtr = Spawner.LoadSynchronous();
+    }
+
+    if (SpawnerPtr)
+    {
+        bApproved = (SpawnerPtr->GetCurrentStatus() == DesiredStatus);
         bCompleted = true;
         LogVerbose(FString::Printf(TEXT("→ %s (status=%d, desired=%d)"),
             bApproved ? TEXT("true") : TEXT("false"),
-            static_cast<uint8>(Spawner->GetCurrentStatus()),
+            static_cast<uint8>(SpawnerPtr->GetCurrentStatus()),
             static_cast<uint8>(DesiredStatus)), false);
         OnComplete.ExecuteIfBound(this);
         return;
     }
 
-    // Если спавнер не задан – проверка по этажу (заглушка)
+    // Если спавнер не задан – проверка не выполняется (можно доработать под этаж)
     bApproved = false;
     bCompleted = true;
-    LogVerbose(TEXT("→ false (floor aggregation not implemented)"), false);
+    LogVerbose(TEXT("→ false (no spawner specified)"), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupStatusCondition::GetDescription() const
 {
     FString Target;
-    if (GetSpawner())
-        Target = FString::Printf(TEXT("Spawner '%s'"), *GetSpawner()->GetName());
+    if (Spawner.IsValid())
+    {
+        ASpawnGroupSpawner* S = Spawner.Get();
+        if (S && IsValid(S))
+            Target = FString::Printf(TEXT("Spawner '%s'"), *S->GetName());
+        else
+            Target = TEXT("Unknown Spawner");
+    }
     else
-        Target = TEXT("Current Floor (aggregated)");
+        Target = TEXT("Not Set");
 
     FString StatusStr = StaticEnum<ESpawnGroupStatus>()->GetDisplayNameTextByValue(static_cast<int64>(DesiredStatus)).ToString();
     return FString::Printf(TEXT("SpawnGroup status [%s] == %s"), *Target, *StatusStr);
@@ -170,24 +193,29 @@ void USpawnGroupTotalCountCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetTotalSpawnedCount(EffectiveId);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetTotalSpawnedCount(Id);
+    }
     else
-        Actual = Sub->GetTotalSpawnedCountForCurrentFloor();
+    {
+        Total = Sub->GetTotalSpawnedCountForCurrentFloor();
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
     LogVerbose(FString::Printf(TEXT("→ %s (total=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupTotalCountCondition::GetDescription() const
 {
     return FString::Printf(TEXT("SpawnGroup total count [%s] %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
 }
@@ -213,24 +241,29 @@ void USpawnGroupAliveCountCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetAliveCount(EffectiveId);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetAliveCount(Id);
+    }
     else
-        Actual = Sub->GetAliveCountForCurrentFloor();
+    {
+        Total = Sub->GetAliveCountForCurrentFloor();
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
     LogVerbose(FString::Printf(TEXT("→ %s (alive=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupAliveCountCondition::GetDescription() const
 {
     return FString::Printf(TEXT("SpawnGroup alive count [%s] %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
 }
@@ -256,30 +289,35 @@ void USpawnGroupKilledCountCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetKilledCount(EffectiveId);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetKilledCount(Id);
+    }
     else
-        Actual = Sub->GetKilledCountForCurrentFloor();
+    {
+        Total = Sub->GetKilledCountForCurrentFloor();
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
     LogVerbose(FString::Printf(TEXT("→ %s (killed=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupKilledCountCondition::GetDescription() const
 {
     return FString::Printf(TEXT("SpawnGroup killed count [%s] %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
 }
 
 // ============================================================================
-// 5. USpawnGroupKilledByTypeCondition
+// 5. USpawnGroupKilledByClassCondition
 // ============================================================================
 
 void USpawnGroupKilledByClassCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -299,32 +337,37 @@ void USpawnGroupKilledByClassCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetKilledCountByType(EffectiveId, ActorClass);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetKilledCountByType(Id, ActorClass);
+    }
     else
-        Actual = Sub->GetKilledCountByTypeForCurrentFloor(ActorClass);
+    {
+        Total = Sub->GetKilledCountByTypeForCurrentFloor(ActorClass);
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
-    LogVerbose(FString::Printf(TEXT("→ %s (killed_by_type=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+    LogVerbose(FString::Printf(TEXT("→ %s (killed_by_class=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupKilledByClassCondition::GetDescription() const
 {
     FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
-    return FString::Printf(TEXT("SpawnGroup killed by type [%s] class=%s %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+    return FString::Printf(TEXT("SpawnGroup killed by class [%s] class=%s %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *ClassName,
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
 }
 
 // ============================================================================
-// 6. USpawnGroupAliveByTypeCondition
+// 6. USpawnGroupAliveByClassCondition
 // ============================================================================
 
 void USpawnGroupAliveByClassCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -344,25 +387,30 @@ void USpawnGroupAliveByClassCondition::ExecuteCheck(const FGuid& TransactionId)
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetAliveCountByType(EffectiveId, ActorClass);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetAliveCountByType(Id, ActorClass);
+    }
     else
-        Actual = Sub->GetAliveCountByTypeForCurrentFloor(ActorClass);
+    {
+        Total = Sub->GetAliveCountByTypeForCurrentFloor(ActorClass);
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
-    LogVerbose(FString::Printf(TEXT("→ %s (alive_by_type=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+    LogVerbose(FString::Printf(TEXT("→ %s (alive_by_class=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupAliveByClassCondition::GetDescription() const
 {
     FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
-    return FString::Printf(TEXT("SpawnGroup alive by type [%s] class=%s %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+    return FString::Printf(TEXT("SpawnGroup alive by class [%s] class=%s %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *ClassName,
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
@@ -389,24 +437,29 @@ void USpawnGroupKilledByTextTagCondition::ExecuteCheck(const FGuid& TransactionI
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetKilledCountByTextTag(EffectiveId, TextTag);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetKilledCountByTextTag(Id, TextTag);
+    }
     else
-        Actual = Sub->GetKilledCountByTextTagForCurrentFloor(TextTag);
+    {
+        Total = Sub->GetKilledCountByTextTagForCurrentFloor(TextTag);
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
     LogVerbose(FString::Printf(TEXT("→ %s (killed_by_texttag=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupKilledByTextTagCondition::GetDescription() const
 {
     return FString::Printf(TEXT("SpawnGroup killed by text tag [%s] tag=%s %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *TextTag.ToString(),
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
@@ -433,24 +486,29 @@ void USpawnGroupAliveByTextTagCondition::ExecuteCheck(const FGuid& TransactionId
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetAliveCountByTextTag(EffectiveId, TextTag);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetAliveCountByTextTag(Id, TextTag);
+    }
     else
-        Actual = Sub->GetAliveCountByTextTagForCurrentFloor(TextTag);
+    {
+        Total = Sub->GetAliveCountByTextTagForCurrentFloor(TextTag);
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
     LogVerbose(FString::Printf(TEXT("→ %s (alive_by_texttag=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupAliveByTextTagCondition::GetDescription() const
 {
     return FString::Printf(TEXT("SpawnGroup alive by text tag [%s] tag=%s %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *TextTag.ToString(),
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
@@ -477,24 +535,29 @@ void USpawnGroupKilledByGameplayTagCondition::ExecuteCheck(const FGuid& Transact
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetKilledCountByGameplayTag(EffectiveId, GameplayTag);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetKilledCountByGameplayTag(Id, GameplayTag);
+    }
     else
-        Actual = Sub->GetKilledCountByGameplayTagForCurrentFloor(GameplayTag);
+    {
+        Total = Sub->GetKilledCountByGameplayTagForCurrentFloor(GameplayTag);
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
     LogVerbose(FString::Printf(TEXT("→ %s (killed_by_gptag=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupKilledByGameplayTagCondition::GetDescription() const
 {
     return FString::Printf(TEXT("SpawnGroup killed by gameplay tag [%s] tag=%s %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *GameplayTag.ToString(),
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);
@@ -521,24 +584,29 @@ void USpawnGroupAliveByGameplayTagCondition::ExecuteCheck(const FGuid& Transacti
         return;
     }
 
-    int32 Actual = 0;
-    FGuid EffectiveId = GetEffectiveGroupId();
-    if (EffectiveId.IsValid())
-        Actual = Sub->GetAliveCountByGameplayTag(EffectiveId, GameplayTag);
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetAliveCountByGameplayTag(Id, GameplayTag);
+    }
     else
-        Actual = Sub->GetAliveCountByGameplayTagForCurrentFloor(GameplayTag);
+    {
+        Total = Sub->GetAliveCountByGameplayTagForCurrentFloor(GameplayTag);
+    }
 
-    bApproved = EvaluateCompare(Actual);
+    bApproved = EvaluateCompare(Total);
     bCompleted = true;
     LogVerbose(FString::Printf(TEXT("→ %s (alive_by_gptag=%d, expected=%d)"),
-        bApproved ? TEXT("true") : TEXT("false"), Actual, ExpectedValue), false);
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
     OnComplete.ExecuteIfBound(this);
 }
 
 FString USpawnGroupAliveByGameplayTagCondition::GetDescription() const
 {
     return FString::Printf(TEXT("SpawnGroup alive by gameplay tag [%s] tag=%s %s %d"),
-        GetSpawner() ? *GetSpawner()->GetName() : TEXT("CurrentFloor"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *GameplayTag.ToString(),
         *UEnum::GetValueAsString(Operator),
         ExpectedValue);

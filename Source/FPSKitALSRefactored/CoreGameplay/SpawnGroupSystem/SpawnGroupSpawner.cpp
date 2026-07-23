@@ -71,7 +71,11 @@ void ASpawnGroupSpawner::BeginPlay()
         if (SpawnGroupAsset)
         {
             USpawnGroupRegistrationPayload* Payload = EventBus->CreatePayload<USpawnGroupRegistrationPayload>();
-            Payload->Setup(FloorComp->ItemId, SpawnGroupAsset->GroupId);
+            UFloorAssignmentComponent* Comp = FindComponentByClass<UFloorAssignmentComponent>();
+            if (Comp)
+            {
+                Payload->Setup(Comp->ItemId);
+            }
 
             FOutcomeEventBase Ev;
             Ev.OutcomeType = EOutcomeType::SpawnGroup;
@@ -92,7 +96,7 @@ void ASpawnGroupSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
             if (SpawnGroupAsset)
             {
                 USpawnGroupRegistrationPayload* Payload = EventBus->CreatePayload<USpawnGroupRegistrationPayload>();
-                Payload->Setup(FloorComp->ItemId, SpawnGroupAsset->GroupId);
+                Payload->Setup(FloorComp->ItemId);
 
                 FOutcomeEventBase Ev;
                 Ev.OutcomeType = EOutcomeType::SpawnGroup;
@@ -699,8 +703,25 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
 
         Component->InteriorSetId = FloorAssignmentComp->InteriorSetId;
         Component->FloorId = FloorAssignmentComp->FloorId;
+		Component->ActorType = EFloorActorType::SpawnItems;
         Component->SnapshotChannel = ESnapshotChannel::None;
+        Component->GameplayTagContainer.AppendTags(EnemyGameplayTags);
     }
+    else
+    {
+        //Если компонента нет, создаём его (чтобы спавнер мог отслеживать призрака)
+        UFloorAssignmentComponent* NewComp = NewObject<UFloorAssignmentComponent>(Ghost);
+        NewComp->RegisterComponent();
+        Ghost->AddInstanceComponent(NewComp);
+        NewComp->ItemId = FGuid::NewGuid();
+        NewComp->InteriorSetId = FloorAssignmentComp->InteriorSetId;
+		NewComp->FloorId = FloorAssignmentComp->FloorId;
+        NewComp->ActorType = EFloorActorType::SpawnItems;
+        NewComp->SnapshotChannel = ESnapshotChannel::None;
+        NewComp->GameplayTagContainer.AppendTags(EnemyGameplayTags);
+    }
+
+    Ghost->Tags.Append(EnemyTags);
 
     // Регистрируем слот для учёта
     AddSpawnSlot(Ghost, Transform);
@@ -744,6 +765,20 @@ void ASpawnGroupSpawner::PublishGhostClearedEvent(ESpawnGroupResolutionReason Re
     Event.Payload = Payload;
 
     EventBus->PublishOutcome(Event);
+}
+
+FGuid ASpawnGroupSpawner::GetGroupId() const
+{
+    if (SpawnGroupAsset)
+    {
+		UFloorAssignmentComponent* Comp = FindComponentByClass<UFloorAssignmentComponent>();
+        if (Comp && Comp->ItemId.IsValid())
+        {
+            return Comp->ItemId;
+		}
+        return FGuid::NewGuid();
+    }
+    return FGuid();
 }
 
 void ASpawnGroupSpawner::GatherSpawnLocationsFromChildren()

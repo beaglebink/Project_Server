@@ -12,8 +12,8 @@ class USpawnGroupSubsystem;
 
 /**
  * Базовый класс для всех условий проверки спавн-групп.
- * Содержит общую логику получения спавнера и подсистемы.
- * Не содержит оператора сравнения – используется для статусных проверок.
+ * Содержит общую логику получения подсистемы, логирование и т.д.
+ * Не содержит ссылок на спавнеры – они добавляются в наследниках.
  */
 UCLASS(Abstract, Blueprintable)
 class FPSKITALSREFACTORED_API USpawnGroupConditionBase : public UCheckCondition
@@ -21,10 +21,6 @@ class FPSKITALSREFACTORED_API USpawnGroupConditionBase : public UCheckCondition
     GENERATED_BODY()
 
 public:
-    // Ссылка на конкретный спавнер. Если не задан – проверка по текущему этажу (агрегированно).
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup", meta = (DisplayName = "Spawner Actor"))
-    TSoftObjectPtr<ASpawnGroupSpawner> SpawnerReference;
-
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual bool IsApproved() const override { return bApproved; }
     virtual bool IsCompleted() const override { return bCompleted; }
@@ -32,12 +28,6 @@ public:
     virtual UOutcomeConditionAsset* CreateSubscriptionCondition() const override { return nullptr; }
 
 protected:
-    // Возвращает указатель на спавнер, если он загружен и валиден
-    ASpawnGroupSpawner* GetSpawner() const;
-
-    // Возвращает эффективный GroupId (из спавнера или пустой для этажа)
-    FGuid GetEffectiveGroupId() const;
-
     USpawnGroupSubsystem* GetSpawnGroupSubsystem() const;
 
     bool bApproved = false;
@@ -49,7 +39,7 @@ protected:
 };
 
 // ============================================================================
-// Базовый класс для количественных проверок (с оператором сравнения)
+// Базовый класс для количественных проверок (с массивом спавнеров и оператором)
 // ============================================================================
 UCLASS(Abstract, Blueprintable)
 class FPSKITALSREFACTORED_API USpawnGroupCheckCondition : public USpawnGroupConditionBase
@@ -57,6 +47,10 @@ class FPSKITALSREFACTORED_API USpawnGroupCheckCondition : public USpawnGroupCond
     GENERATED_BODY()
 
 public:
+    // Массив конкретных спавнеров. Если пуст – проверка по текущему этажу (агрегированно).
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup", meta = (DisplayName = "Spawner Actors"))
+    TArray<TSoftObjectPtr<ASpawnGroupSpawner>> SpawnersReferences;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     ECheckCompareOp Operator = ECheckCompareOp::Equal;
 
@@ -66,12 +60,18 @@ public:
     virtual FString GetDescription() const override;
 
 protected:
+    // Возвращает массив валидных указателей на спавнеры
+    TArray<ASpawnGroupSpawner*> GetSpawners() const;
+
+    // Возвращает массив эффективных GroupId (ItemId) для указанных спавнеров (пустой, если спавнеров нет)
+    TArray<FGuid> GetEffectiveGroupIds() const;
+
     // Сравнение количества с ожидаемым значением по оператору
     bool EvaluateCompare(int32 ActualValue) const;
 };
 
 // ============================================================================
-// 1. Проверка статуса группы (без оператора и ожидаемого значения)
+// 1. Проверка статуса группы (одиночный спавнер)
 // ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupStatusCondition : public USpawnGroupConditionBase
@@ -79,6 +79,10 @@ class FPSKITALSREFACTORED_API USpawnGroupStatusCondition : public USpawnGroupCon
     GENERATED_BODY()
 
 public:
+    // Одиночный спавнер для проверки статуса
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup", meta = (DisplayName = "Spawner Actor"))
+    TSoftObjectPtr<ASpawnGroupSpawner> Spawner;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup", meta = (DisplayName = "Status"))
     ESpawnGroupStatus DesiredStatus = ESpawnGroupStatus::Active;
 
@@ -87,7 +91,7 @@ public:
 };
 
 // ============================================================================
-// 2–10. Количественные проверки (используют Operator и ExpectedValue)
+// 2–10. Количественные проверки (используют массив спавнеров)
 // ============================================================================
 
 UCLASS(BlueprintType)
