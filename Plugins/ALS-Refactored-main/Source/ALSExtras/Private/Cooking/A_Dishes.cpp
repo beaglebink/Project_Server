@@ -7,12 +7,13 @@ AA_Dishes::AA_Dishes()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	CollisionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionSphere"));
+	CollisionShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CollisionShape"));
 
-	CollisionSphere->SetupAttachment(RootComponent);
+	CollisionShape->SetupAttachment(RootComponent);
 
-	CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	CollisionSphere->SetSphereRadius(20.0f);
+	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	CollisionShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+	CollisionShape->bHiddenInGame = true;
 }
 
 void AA_Dishes::OnConstruction(const FTransform& Transform)
@@ -45,8 +46,8 @@ void AA_Dishes::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CollisionSphere->OnComponentBeginOverlap.AddDynamic(this, &AA_Dishes::OnSphereOverlapBegin);
-	CollisionSphere->OnComponentEndOverlap.AddDynamic(this, &AA_Dishes::OnSphereOverlapEnd);
+	CollisionShape->OnComponentBeginOverlap.AddDynamic(this, &AA_Dishes::OnSphereOverlapBegin);
+	CollisionShape->OnComponentEndOverlap.AddDynamic(this, &AA_Dishes::OnSphereOverlapEnd);
 }
 
 void AA_Dishes::Destroyed()
@@ -102,7 +103,7 @@ void AA_Dishes::OnSphereOverlapBegin(UPrimitiveComponent* OverlappedComponent, A
 			int32& CountRef = IngredientCountMap.FindOrAdd(CookableIngredient->Name);
 			++CountRef;
 
-			if (CookableIngredient->AttachedDish != this)
+			if (CookableIngredient->AttachedDish == nullptr)
 			{
 				CookableIngredient->AttachedDish = this;
 				CookableIngredient->bIsAttaching = true;

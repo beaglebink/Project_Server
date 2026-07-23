@@ -36,7 +36,7 @@ private:
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	USphereComponent* CollisionSphere;
+	UStaticMeshComponent* CollisionShape;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cooking")
 	USkeletalMeshComponent* AttachedMesh;
