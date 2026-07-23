@@ -306,6 +306,15 @@ UInteractiveItemComponent* UInteractivePickerComponent::TraceNearestUsableObject
 			if (!Hit.GetActor()) continue;
 			AActor* HitActor = Hit.GetActor();
 
+			// Check if interactable actor is currently attached to some actor (actually - dishes products relations)
+			if (HitActor->Implements<UInteractiveActorInterface>())
+			{
+				if (IInteractiveActorInterface::Execute_GetIsAttached(HitActor))
+				{
+					continue;
+				}
+			}
+
 			UInteractiveItemComponent* ItemFromHit = HitActor ? HitActor->FindComponentByClass<UInteractiveItemComponent>() : nullptr;
 			if (ItemFromHit)
 			{

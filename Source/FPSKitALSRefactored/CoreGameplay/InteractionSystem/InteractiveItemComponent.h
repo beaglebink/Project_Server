@@ -106,7 +106,7 @@ public:
 
 	// Dragging transform offsets (restored)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config")
-	bool bShouldUseDraggingLocationAndRotation = true;
+	uint8 bShouldUseDraggingLocationAndRotation : 1{true};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractiveItem|Config", meta = (EditCondition = "bShouldUseDraggingLocationAndRotation", EditConditionHides))
 	FVector DraggingLocation = FVector::ZeroVector;

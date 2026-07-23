@@ -92,6 +92,11 @@ UPrimitiveComponent* AA_InteractableActor::GetMeshComponent_Implementation()
 	return StaticMesh;
 }
 
+bool AA_InteractableActor::GetIsAttached_Implementation()
+{
+	return bIsAttached;
+}
+
 void AA_InteractableActor::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
 	UE_LOG(LogTemp, Log, TEXT("AA_InteractableActor::HandleWeaponShot: Hit Actor: %s"), *GetNameSafe(Hit.GetActor()));

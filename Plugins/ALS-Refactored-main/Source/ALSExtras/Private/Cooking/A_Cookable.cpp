@@ -49,6 +49,7 @@ void AA_Cookable::Tick(float DeltaTime)
 		{
 			SlicedMesh->SetSimulatePhysics(false);
 			AttachToActor(AttachedDish, FAttachmentTransformRules::KeepWorldTransform);
+			bIsAttached = true;
 			bIsAttaching = false;
 			OnAttachingPauseCheckTime = 0.0f;
 		}
@@ -59,6 +60,7 @@ void AA_Cookable::Tick(float DeltaTime)
 		if (abs(AttachedDish->GetActorRotation().Roll) >= 80.0f || abs(AttachedDish->GetActorRotation().Pitch) >= 80.0f)
 		{
 			DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+			bIsAttached = false;
 			SlicedMesh->SetSimulatePhysics(true);
 		}
 	}
