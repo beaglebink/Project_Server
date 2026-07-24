@@ -29,10 +29,12 @@ private:
 	uint8 bIsOnAttaching : 1{false};
 
 	UPROPERTY()
-	TArray<AA_Cookable*> CookableIngredients;
+	TArray<AA_Cookable*> Ingredients;
 
 	UPROPERTY()
 	TMap<FName, int32> IngredientCountMap;
+
+	TSet<AActor*> OverlappingActors;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
@@ -56,10 +58,4 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Cooking")
 	void TossDish();
-
-	UFUNCTION()
-	void OnSphereOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	UFUNCTION()
-	void OnSphereOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 };
