@@ -256,21 +256,21 @@ void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
 
 void USpawnGroupSubsystem::ActivateSpawnGroupInternal(const FGuid& GroupId)
 {
-    ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId);
     if (Spawner)
         Spawner->SpawnGroupInternal();
 }
 
 void USpawnGroupSubsystem::ClearSpawnGroupInternal(const FGuid& GroupId, ESpawnGroupResolutionReason Reason)
 {
-    ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId);
     if (Spawner)
         Spawner->ClearGroup(Reason);
 }
 
 void USpawnGroupSubsystem::ResetSpawnGroupInternal(const FGuid& GroupId)
 {
-    ASpawnGroupSpawner* Spawner = FindSpawnerByGroupId(GroupId);
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId);
     if (Spawner)
         Spawner->ResetGroup();
 }
@@ -319,6 +319,25 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
         return;
 
+    // ===== 1. Определяем текущий ключ этажа (как в InteriorSubsystem) =====
+    ALocationAnchorActor* FoundAnchor = nullptr;
+    for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
+    {
+        FoundAnchor = *It;
+        break;
+    }
+    if (FoundAnchor)
+    {
+        UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
+        UInteriorSetAsset* InteriorAsset = FoundAnchor->OwnerInteriorSet.LoadSynchronous();
+        if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid() && FloorAsset && FloorAsset->FloorID.IsValid())
+        {
+            CurrentFloorKey = FInteriorFloorKey(InteriorAsset->InteriorSetID, FloorAsset->FloorID);
+        }
+    }
+
+    // ===== 2. Восстанавливаем состояние спавнеров (существующий код) =====
+    /*
     for (const auto& Pair : SpawnerByItemId)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
@@ -330,20 +349,18 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         const TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
         if (!FloorStates) continue;
 
-
         if (Spawner->FloorAssignmentComp)
         {
             const FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
             if (!State) continue;
 
-            // Восстанавливаем флаг спавнера (если изменился в рантайме)
             Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
 
             if (State->bStoreSpawnParameters)
             {
-				Spawner->BlockNewSpawn = true;
+                Spawner->BlockNewSpawn = true;
                 Spawner->RestoreFromSlots(State->Slots);
-                return;
+                // return; // Убираем return, чтобы восстановить все спавнеры, а не только первый
             }
             else
             {
@@ -359,6 +376,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
             }
         }
     }
+    */
 }
 
 // ============================================================================
@@ -765,56 +783,96 @@ int32 USpawnGroupSubsystem::GetAliveCountByType(const FGuid& ItemId, TSubclassOf
     return 0;
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByTextTag(const FGuid& ItemId, FName TextTag) const
+int32 USpawnGroupSubsystem::GetKilledCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
-    if (Spawner)
+    if (!Spawner) return 0;
+
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
     {
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
+        if (!Slot.bIsAlive)
+        {
+            for (const FName& Tag : TextTags)
             {
-                return !Slot.bIsAlive && Slot.TextTags.Contains(TextTag);
-            });
+                if (Slot.TextTags.Contains(Tag))
+                {
+                    Count++;
+                    break;
+                }
+            }
+        }
     }
-    return 0;
+    return Count;
 }
 
-int32 USpawnGroupSubsystem::GetAliveCountByTextTag(const FGuid& ItemId, FName TextTag) const
+int32 USpawnGroupSubsystem::GetAliveCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
-    if (Spawner)
+    if (!Spawner) return 0;
+
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
     {
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
+        if (Slot.bIsAlive)
+        {
+            for (const FName& Tag : TextTags)
             {
-                return Slot.bIsAlive && Slot.TextTags.Contains(TextTag);
-            });
+                if (Slot.TextTags.Contains(Tag))
+                {
+                    Count++;
+                    break;
+                }
+            }
+        }
     }
-    return 0;
+    return Count;
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByGameplayTag(const FGuid& ItemId, FGameplayTag GameplayTag) const
+int32 USpawnGroupSubsystem::GetKilledCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
-    if (Spawner)
+    if (!Spawner) return 0;
+
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
     {
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
+        if (!Slot.bIsAlive)
+        {
+            for (const FGameplayTag& Tag : GameplayTags)
             {
-                return !Slot.bIsAlive && Slot.GameplayTags.HasTag(GameplayTag);
-            });
+                if (Slot.GameplayTags.HasTag(Tag))
+                {
+                    Count++;
+                    break;
+                }
+            }
+        }
     }
-    return 0;
+    return Count;
 }
 
-int32 USpawnGroupSubsystem::GetAliveCountByGameplayTag(const FGuid& ItemId, FGameplayTag GameplayTag) const
+int32 USpawnGroupSubsystem::GetAliveCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
-    if (Spawner)
+    if (!Spawner) return 0;
+
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
     {
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
+        if (Slot.bIsAlive)
+        {
+            for (const FGameplayTag& Tag : GameplayTags)
             {
-                return Slot.bIsAlive && Slot.GameplayTags.HasTag(GameplayTag);
-            });
+                if (Slot.GameplayTags.HasTag(Tag))
+                {
+                    Count++;
+                    break;
+                }
+            }
+        }
     }
-    return 0;
+    return Count;
 }
 
 ESpawnGroupStatus USpawnGroupSubsystem::GetGroupStatus(const FGuid& ItemId) const
@@ -896,7 +954,7 @@ int32 USpawnGroupSubsystem::GetAliveCountByTypeForCurrentFloor(TSubclassOf<AActo
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByTextTagForCurrentFloor(FName TextTag) const
+int32 USpawnGroupSubsystem::GetKilledCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
@@ -905,16 +963,13 @@ int32 USpawnGroupSubsystem::GetKilledCountByTextTagForCurrentFloor(FName TextTag
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
         {
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
-                {
-                    return !Slot.bIsAlive && Slot.TextTags.Contains(TextTag);
-                });
+            Total += GetKilledCountByTextTag(Pair.Key, TextTags);
         }
     }
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetAliveCountByTextTagForCurrentFloor(FName TextTag) const
+int32 USpawnGroupSubsystem::GetAliveCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
@@ -923,16 +978,13 @@ int32 USpawnGroupSubsystem::GetAliveCountByTextTagForCurrentFloor(FName TextTag)
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
         {
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
-                {
-                    return Slot.bIsAlive && Slot.TextTags.Contains(TextTag);
-                });
+            Total += GetAliveCountByTextTag(Pair.Key, TextTags);
         }
     }
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByGameplayTagForCurrentFloor(FGameplayTag GameplayTag) const
+int32 USpawnGroupSubsystem::GetKilledCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
@@ -941,16 +993,13 @@ int32 USpawnGroupSubsystem::GetKilledCountByGameplayTagForCurrentFloor(FGameplay
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
         {
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
-                {
-                    return !Slot.bIsAlive && Slot.GameplayTags.HasTag(GameplayTag);
-                });
+            Total += GetKilledCountByGameplayTag(Pair.Key, GameplayTags);
         }
     }
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetAliveCountByGameplayTagForCurrentFloor(FGameplayTag GameplayTag) const
+int32 USpawnGroupSubsystem::GetAliveCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
@@ -959,10 +1008,7 @@ int32 USpawnGroupSubsystem::GetAliveCountByGameplayTagForCurrentFloor(FGameplayT
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
         {
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
-                {
-                    return Slot.bIsAlive && Slot.GameplayTags.HasTag(GameplayTag);
-                });
+            Total += GetAliveCountByGameplayTag(Pair.Key, GameplayTags);
         }
     }
     return Total;

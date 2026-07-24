@@ -18,10 +18,10 @@ public:
     FGuid GroupId;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
-    USpawnGroupRegistrationPayload* Setup(const FGuid& InSpawnerId, const FGuid& InGroupId)
+    USpawnGroupRegistrationPayload* Setup(const FGuid& InSpawnerId)
     {
         SpawnerId = InSpawnerId;
-        GroupId = InGroupId;
+        //GroupId = InGroupId;
         return this;
     }
 };
