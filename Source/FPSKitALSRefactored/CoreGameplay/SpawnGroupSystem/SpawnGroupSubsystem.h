@@ -80,6 +80,35 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
 
+    // ---- Новые методы статистики для захваченных ----
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetCapturedCount(const FGuid& ItemId) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetCapturedCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetCapturedCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetCapturedCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const;
+
+    // ---- По текущему этажу ----
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetCapturedCountForCurrentFloor() const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetCapturedCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetCapturedCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetCapturedCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
+
+    // ---- Обработчик события GhostCaptured ----
+    void HandleGhostCaptured(const FOutcomeEventBase& Outcome);
+
     // ----- ISaveableSubsystem -----
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
@@ -136,4 +165,6 @@ private:
     bool bIsLoadComplete = true;
 
     FInteriorFloorKey CurrentFloorKey;
+
+    FOutcomeHandlerHandle GhostCapturedHandle;
 };

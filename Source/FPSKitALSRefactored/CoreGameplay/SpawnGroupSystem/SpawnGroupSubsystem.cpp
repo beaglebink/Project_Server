@@ -1,4 +1,5 @@
-﻿#include "SpawnGroupSubsystem.h"
+﻿// SpawnGroupSubsystem.cpp
+#include "SpawnGroupSubsystem.h"
 #include "SpawnGroupSpawner.h"
 #include "SpawnGroupCommandPayload.h"
 #include "SpawnGroupRegistrationPayload.h"
@@ -11,8 +12,23 @@
 #include <InteriorTransitionPayload.h>
 #include "FloorAsset.h"
 #include "InteriorSetAsset.h"
-//#include "../InteriorInstanceSystem/InteriorSubsystem.h"
+#include "GhostCapturedPayload.h"
 #include "../LocationSystem/LocationAnchorActor.h"
+
+// ============================================================================
+// Вспомогательная функция для подсчёта слотов по предикату
+// ============================================================================
+static int32 CountSlots(const TArray<FSpawnSlotState>& Slots, TFunction<bool(const FSpawnSlotState&)> Predicate)
+{
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : Slots)
+        if (Predicate(Slot)) Count++;
+    return Count;
+}
+
+// ============================================================================
+// Жизненный цикл
+// ============================================================================
 
 void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -38,6 +54,10 @@ void USpawnGroupSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
+// ============================================================================
+// Подписка на события EventBus
+// ============================================================================
+
 void USpawnGroupSubsystem::SubscribeEvents()
 {
     if (!CachedEventBus.IsValid()) return;
@@ -45,28 +65,28 @@ void USpawnGroupSubsystem::SubscribeEvents()
     if (!EventBus) return;
 
     auto CreateCondition = [&](EOutcomeSpawnGroup EventType) -> UOutcomeConditionAsset*
-    {
-        UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
-        Asset->OperatorType = EConditionOperator::Composite;
-        Asset->FilterRow.OutcomeType = EOutcomeType::SpawnGroup;
-        Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-        Asset->FilterRow.SpawnGroupType = EventType;
-        Asset->FilterRow.SpawnGroupComparison = EConditionComparison::Equals;
-        Asset->CompileCondition();
-        return Asset;
-    };
+        {
+            UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+            Asset->OperatorType = EConditionOperator::Composite;
+            Asset->FilterRow.OutcomeType = EOutcomeType::SpawnGroup;
+            Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+            Asset->FilterRow.SpawnGroupType = EventType;
+            Asset->FilterRow.SpawnGroupComparison = EConditionComparison::Equals;
+            Asset->CompileCondition();
+            return Asset;
+        };
 
     auto CreateInteriorCondition = [&](EOutcomeInterior EventType) -> UOutcomeConditionAsset*
-    {
-        UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
-        Asset->OperatorType = EConditionOperator::Composite;
-        Asset->FilterRow.OutcomeType = EOutcomeType::Interior;
-        Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-        Asset->FilterRow.InteriorType = EventType;
-        Asset->FilterRow.InteriorComparison = EConditionComparison::Equals;
-        Asset->CompileCondition();
-        return Asset;
-    };
+        {
+            UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+            Asset->OperatorType = EConditionOperator::Composite;
+            Asset->FilterRow.OutcomeType = EOutcomeType::Interior;
+            Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+            Asset->FilterRow.InteriorType = EventType;
+            Asset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+            Asset->CompileCondition();
+            return Asset;
+        };
 
     if (!RegisterHandle.IsValid())
     {
@@ -110,6 +130,13 @@ void USpawnGroupSubsystem::SubscribeEvents()
         if (Cond->GetCondition().IsValid())
             FloorLeavingHandle = EventBus->RegisterHandler(Cond, FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleFloorLeaving));
     }
+
+    if (!GhostCapturedHandle.IsValid())
+    {
+        UOutcomeConditionAsset* Cond = CreateCondition(EOutcomeSpawnGroup::GhostCaptured);
+        if (Cond->GetCondition().IsValid())
+            GhostCapturedHandle = EventBus->RegisterHandler(Cond, FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleGhostCaptured));
+    }
 }
 
 void USpawnGroupSubsystem::UnsubscribeEvents()
@@ -131,7 +158,12 @@ void USpawnGroupSubsystem::UnsubscribeEvents()
     Unreg(ActivateHandle);
     Unreg(ClearHandle);
     Unreg(ResetHandle);
+    Unreg(GhostCapturedHandle);
 }
+
+// ============================================================================
+// Обработчики событий
+// ============================================================================
 
 void USpawnGroupSubsystem::HandleSpawnGroupRegister(const FOutcomeEventBase& Outcome)
 {
@@ -223,7 +255,6 @@ void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
     UInteriorTransitionPayload* Payload = Cast<UInteriorTransitionPayload>(Outcome.Payload);
     if (!Payload) return;
 
-    // Загружаем ассет этажа, с которого уходим
     UFloorAsset* SourceFloorAsset = Payload->SourceFloor.LoadSynchronous();
     if (!SourceFloorAsset) return;
 
@@ -231,7 +262,6 @@ void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
     FGuid InteriorSetId = SourceFloorAsset->InteriorSetID;
     if (!InteriorSetId.IsValid())
     {
-        // Если InteriorSetID не задан, пробуем взять из родительского ассета
         if (UInteriorSetAsset* Parent = SourceFloorAsset->ParentInteriorSet.LoadSynchronous())
             InteriorSetId = Parent->InteriorSetID;
     }
@@ -239,7 +269,6 @@ void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
 
     FInteriorFloorKey LeavingKey(InteriorSetId, FloorId);
 
-    // Обновляем состояние всех спавнеров, принадлежащих этому этажу
     for (const auto& Pair : SpawnerByItemId)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
@@ -253,6 +282,39 @@ void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
     }
 }
 
+void USpawnGroupSubsystem::HandleGhostCaptured(const FOutcomeEventBase& Outcome)
+{
+    UGhostCapturedPayload* P = Cast<UGhostCapturedPayload>(Outcome.Payload);
+    if (!P) return;
+    AActor* Actor = P->CapturedActor.Get();
+    if (!Actor) return;
+
+    FGuid ItemId = P->ItemId;
+    if (!ItemId.IsValid() && Actor)
+    {
+        if (UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+            ItemId = Comp->ItemId;
+    }
+    if (!ItemId.IsValid()) return;
+
+    for (auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner) continue;
+        for (FSpawnSlotState& Slot : Spawner->GetSlotsMutable())
+        {
+            if (Slot.ItemId == ItemId)
+            {
+                Slot.State = EGhostState::Captured;
+                return;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Внутренние методы управления
+// ============================================================================
 
 void USpawnGroupSubsystem::ActivateSpawnGroupInternal(const FGuid& GroupId)
 {
@@ -292,11 +354,13 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     else
         State.TypeKilled = Spawner->GetTypeKilled();
 
-
-
     TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
     FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
 }
+
+// ============================================================================
+// Поиск спавнеров
+// ============================================================================
 
 ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByItemId(const FGuid& ItemId) const
 {
@@ -310,6 +374,10 @@ ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByGroupId(const FGuid& Grou
     return ItemId ? FindSpawnerByItemId(*ItemId) : nullptr;
 }
 
+// ============================================================================
+// Обработчик загрузки уровня
+// ============================================================================
+
 void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 {
     UWorld* World = GetWorld();
@@ -319,7 +387,6 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
         return;
 
-    // ===== 1. Определяем текущий ключ этажа (как в InteriorSubsystem) =====
     ALocationAnchorActor* FoundAnchor = nullptr;
     for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
     {
@@ -336,59 +403,18 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         }
     }
 
-    // ===== 2. Восстанавливаем состояние спавнеров (существующий код) =====
-    /*
-    for (const auto& Pair : SpawnerByItemId)
-    {
-        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
-        if (!Spawner || !IsValid(Spawner)) continue;
-
-        FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
-        if (!FloorKey.FloorId.IsValid()) continue;
-
-        const TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
-        if (!FloorStates) continue;
-
-        if (Spawner->FloorAssignmentComp)
-        {
-            const FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
-            if (!State) continue;
-
-            Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
-
-            if (State->bStoreSpawnParameters)
-            {
-                Spawner->BlockNewSpawn = true;
-                Spawner->RestoreFromSlots(State->Slots);
-                // return; // Убираем return, чтобы восстановить все спавнеры, а не только первый
-            }
-            else
-            {
-                Spawner->BlockNewSpawn = true;
-                Spawner->RestoreFromState(*State);
-            }
-
-            ESpawnGroupStatus Status = Spawner->GetCurrentStatus();
-            if (Spawner->IsFullRespawn || (Status == ESpawnGroupStatus::Active || Status == ESpawnGroupStatus::PartiallyCleared))
-            {
-                Spawner->BlockNewSpawn = true;
-                Spawner->SpawnGroup();
-            }
-        }
-    }
-    */
+    // Восстановление спавнеров пока закомментировано
 }
 
 // ============================================================================
-// CollectSaveData – полная сериализация состояния групп
+// Сохранение и загрузка
 // ============================================================================
+
 void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
     OutData.SubsystemName = GetSaveSubsystemName();
-
     PersistentGroupStates.Empty();
 
-    // 1. Сбор актуального состояния со всех спавнеров
     for (const auto& Pair : SpawnerByItemId)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
@@ -404,19 +430,15 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.KilledCount = Spawner->GetKilledCount();
 
         if (State.bStoreSpawnParameters)
-        {
-            State.Slots = Spawner->CaptureCurrentSlots();   // копируем все слоты (включая теги)
-        }
+            State.Slots = Spawner->GetAllSlots();
         else
-        {
             State.TypeKilled = Spawner->GetTypeKilled();
-        }
 
         TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
         FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
     }
 
-    // 2. Сериализация в JSON
+    // Сериализация в JSON
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
     TSharedPtr<FJsonObject> GroupsObj = MakeShared<FJsonObject>();
 
@@ -436,43 +458,26 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
             if (GroupPair.Value.bStoreSpawnParameters)
             {
-                // ---------- Сериализация Slots (полные данные) ----------
                 TArray<TSharedPtr<FJsonValue>> SlotsArray;
                 for (const FSpawnSlotState& Slot : GroupPair.Value.Slots)
                 {
                     TSharedPtr<FJsonObject> SlotObj = MakeShared<FJsonObject>();
                     SlotObj->SetStringField(TEXT("ItemId"), Slot.ItemId.ToString());
                     SlotObj->SetStringField(TEXT("ActorClass"), Slot.ActorClass ? Slot.ActorClass->GetPathName() : TEXT(""));
-
-                    // Transform
                     FVector Loc = Slot.SpawnTransform.GetLocation();
                     FRotator Rot = Slot.SpawnTransform.Rotator();
-                    SlotObj->SetArrayField(TEXT("Location"), {
-                        MakeShared<FJsonValueNumber>(Loc.X),
-                        MakeShared<FJsonValueNumber>(Loc.Y),
-                        MakeShared<FJsonValueNumber>(Loc.Z)
-                        });
-                    SlotObj->SetArrayField(TEXT("Rotation"), {
-                        MakeShared<FJsonValueNumber>(Rot.Pitch),
-                        MakeShared<FJsonValueNumber>(Rot.Yaw),
-                        MakeShared<FJsonValueNumber>(Rot.Roll)
-                        });
-                    SlotObj->SetBoolField(TEXT("bIsAlive"), Slot.bIsAlive);
+                    SlotObj->SetArrayField(TEXT("Location"), { MakeShared<FJsonValueNumber>(Loc.X), MakeShared<FJsonValueNumber>(Loc.Y), MakeShared<FJsonValueNumber>(Loc.Z) });
+                    SlotObj->SetArrayField(TEXT("Rotation"), { MakeShared<FJsonValueNumber>(Rot.Pitch), MakeShared<FJsonValueNumber>(Rot.Yaw), MakeShared<FJsonValueNumber>(Rot.Roll) });
+                    SlotObj->SetNumberField(TEXT("State"), static_cast<uint8>(Slot.State));
 
-                    // ---- GameplayTags (массив строк) ----
                     TArray<TSharedPtr<FJsonValue>> GameplayTagArray;
                     for (const FGameplayTag& Tag : Slot.GameplayTags)
-                    {
                         GameplayTagArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
-                    }
                     SlotObj->SetArrayField(TEXT("GameplayTags"), GameplayTagArray);
 
-                    // ---- TextTags (массив строк) ----
                     TArray<TSharedPtr<FJsonValue>> TextTagArray;
                     for (const FName& Tag : Slot.TextTags)
-                    {
                         TextTagArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
-                    }
                     SlotObj->SetArrayField(TEXT("TextTags"), TextTagArray);
 
                     SlotsArray.Add(MakeShared<FJsonValueObject>(SlotObj));
@@ -481,7 +486,6 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             }
             else
             {
-                // ---------- Сериализация TypeKilled ----------
                 TSharedPtr<FJsonObject> TypeKilledObj = MakeShared<FJsonObject>();
                 for (const auto& TypePair : GroupPair.Value.TypeKilled)
                     TypeKilledObj->SetNumberField(TypePair.Key.ToString(), TypePair.Value);
@@ -501,9 +505,6 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     OutData.SerializedData = Output;
 }
 
-// ============================================================================
-// ApplySaveData – полная десериализация состояния групп
-// ============================================================================
 void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
     bIsLoadComplete = false;
@@ -528,7 +529,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     {
         for (const auto& FloorPair : (*GroupsObjPtr)->Values)
         {
-            // Ключ: "InteriorSetId|FloorId"
             TArray<FString> Parts;
             FloorPair.Key.ParseIntoArray(Parts, TEXT("|"), false);
             if (Parts.Num() != 2) continue;
@@ -542,7 +542,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             {
                 for (const auto& GroupPair : (*FloorGroupsObj)->Values)
                 {
-                    // Ключ: GroupId (GUID строкой)
                     FGuid GroupGuid;
                     if (!FGuid::Parse(GroupPair.Key, GroupGuid)) continue;
                     FGuid GroupId(GroupGuid);
@@ -553,7 +552,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     FSpawnGroupState State;
                     State.GroupId = GroupId;
 
-                    // Базовые поля
                     if ((*StateObj)->HasField(TEXT("Status")))
                         State.Status = static_cast<ESpawnGroupStatus>((*StateObj)->GetIntegerField(TEXT("Status")));
                     if ((*StateObj)->HasField(TEXT("ResolutionReason")))
@@ -563,11 +561,10 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     if ((*StateObj)->HasField(TEXT("bStoreSpawnParameters")))
                         State.bStoreSpawnParameters = (*StateObj)->GetBoolField(TEXT("bStoreSpawnParameters"));
                     else
-                        State.bStoreSpawnParameters = false; // совместимость со старыми сохранениями
+                        State.bStoreSpawnParameters = false;
 
                     if (State.bStoreSpawnParameters)
                     {
-                        // ---------- Десериализация Slots ----------
                         const TArray<TSharedPtr<FJsonValue>>* SlotsArray = nullptr;
                         if ((*StateObj)->TryGetArrayField(TEXT("Slots"), SlotsArray))
                         {
@@ -577,17 +574,14 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                                 if (!SlotVal->TryGetObject(SlotObj)) continue;
 
                                 FSpawnSlotState Slot;
-                                // ItemId
                                 FString ItemIdStr;
                                 if ((*SlotObj)->TryGetStringField(TEXT("ItemId"), ItemIdStr))
                                     FGuid::Parse(ItemIdStr, Slot.ItemId);
 
-                                // ActorClass
                                 FString ClassPath;
                                 if ((*SlotObj)->TryGetStringField(TEXT("ActorClass"), ClassPath) && !ClassPath.IsEmpty())
                                     Slot.ActorClass = LoadClass<AActor>(nullptr, *ClassPath);
 
-                                // SpawnTransform
                                 const TArray<TSharedPtr<FJsonValue>>* LocArr = nullptr;
                                 if ((*SlotObj)->TryGetArrayField(TEXT("Location"), LocArr) && LocArr->Num() >= 3)
                                 {
@@ -601,10 +595,12 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                                     Slot.SpawnTransform.SetRotation(Rot.Quaternion());
                                 }
 
-                                // bIsAlive
-                                (*SlotObj)->TryGetBoolField(TEXT("bIsAlive"), Slot.bIsAlive);
+                                uint8 StateValue = 0;
+                                if ((*SlotObj)->TryGetNumberField(TEXT("State"), StateValue))
+                                    Slot.State = static_cast<EGhostState>(StateValue);
+                                else
+                                    Slot.State = EGhostState::Alive;
 
-                                // ---- Десериализация GameplayTags (массив строк) ----
                                 const TArray<TSharedPtr<FJsonValue>>* GameplayTagArray = nullptr;
                                 if ((*SlotObj)->TryGetArrayField(TEXT("GameplayTags"), GameplayTagArray))
                                 {
@@ -619,16 +615,13 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                                     }
                                 }
 
-                                // ---- Десериализация TextTags (массив строк) ----
                                 const TArray<TSharedPtr<FJsonValue>>* TextTagArray = nullptr;
                                 if ((*SlotObj)->TryGetArrayField(TEXT("TextTags"), TextTagArray))
                                 {
                                     for (const auto& Val : *TextTagArray)
                                     {
                                         if (Val->Type == EJson::String)
-                                        {
                                             Slot.TextTags.Add(FName(*Val->AsString()));
-                                        }
                                     }
                                 }
 
@@ -638,7 +631,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     }
                     else
                     {
-                        // ---------- Десериализация TypeKilled ----------
                         const TSharedPtr<FJsonObject>* TypeKilledObj = nullptr;
                         if ((*StateObj)->TryGetObjectField(TEXT("TypeKilled"), TypeKilledObj))
                         {
@@ -661,6 +653,10 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     bIsLoadComplete = true;
 }
 
+// ============================================================================
+// Вспомогательные методы
+// ============================================================================
+
 FInteriorFloorKey USpawnGroupSubsystem::GetFloorKeyFromSpawner(ASpawnGroupSpawner* Spawner) const
 {
     if (!Spawner) return FInteriorFloorKey();
@@ -669,12 +665,15 @@ FInteriorFloorKey USpawnGroupSubsystem::GetFloorKeyFromSpawner(ASpawnGroupSpawne
     return FInteriorFloorKey(Comp->InteriorSetId, Comp->FloorId);
 }
 
+// ============================================================================
+// Методы статистики по группе
+// ============================================================================
+
 int32 USpawnGroupSubsystem::GetTotalSpawnedCount(const FGuid& ItemId) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
     if (Spawner)
         return Spawner->GetAllSlots().Num();
-
     return 0;
 }
 
@@ -682,13 +681,7 @@ int32 USpawnGroupSubsystem::GetAliveCount(const FGuid& ItemId) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
     if (Spawner)
-    {
-        int32 Alive = 0;
-        for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
-            if (Slot.bIsAlive) Alive++;
-        return Alive;
-    }
-
+        return CountSlots(Spawner->GetAllSlots(), [](const FSpawnSlotState& Slot) { return Slot.State == EGhostState::Alive; });
     return 0;
 }
 
@@ -696,77 +689,15 @@ int32 USpawnGroupSubsystem::GetKilledCount(const FGuid& ItemId) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
     if (Spawner)
-    {
-        int32 Killed = 0;
-        for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
-            if (!Slot.bIsAlive) Killed++;
-        return Killed;
-    }
-    /*
-    if (const FSpawnGroupState* State = GetPersistentState(GroupId))
-    {
-        // Если есть слоты, считаем по ним, иначе по TypeKilled
-        if (State->Slots.Num() > 0)
-        {
-            int32 Killed = 0;
-            for (const FSpawnSlotState& Slot : State->Slots)
-                if (!Slot.bIsAlive) Killed++;
-            return Killed;
-        }
-        else
-        {
-            int32 Killed = 0;
-            for (const auto& Pair : State->TypeKilled)
-                Killed += Pair.Value;
-            return Killed;
-        }
-    }
-    */
+        return CountSlots(Spawner->GetAllSlots(), [](const FSpawnSlotState& Slot) { return Slot.State == EGhostState::Killed; });
     return 0;
 }
 
-int32 USpawnGroupSubsystem::GetAliveCountForCurrentFloor() const
-{
-    int32 Total = 0;
-    for (const auto& Pair : SpawnerByItemId)
-    {
-        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
-        if (!Spawner || !IsValid(Spawner)) continue;
-        FInteriorFloorKey Key = GetFloorKeyFromSpawner(Spawner);
-        if (Key == CurrentFloorKey)
-        {
-            for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
-                if (Slot.bIsAlive) Total++;
-        }
-    }
-    return Total;
-}
-
-// ============================================================================
-// Вспомогательная лямбда для подсчёта по предикату
-// ============================================================================
-static int32 CountSlots(const TArray<FSpawnSlotState>& Slots, TFunction<bool(const FSpawnSlotState&)> Predicate)
-{
-    int32 Count = 0;
-    for (const FSpawnSlotState& Slot : Slots)
-        if (Predicate(Slot)) Count++;
-    return Count;
-}
-
-// ============================================================================
-// Реализация методов статистики по группе
-// ============================================================================
-
-int32 USpawnGroupSubsystem::GetKilledCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const
+int32 USpawnGroupSubsystem::GetCapturedCount(const FGuid& ItemId) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
     if (Spawner)
-    {
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
-            {
-                return !Slot.bIsAlive && Slot.ActorClass == ActorClass;
-            });
-    }
+        return CountSlots(Spawner->GetAllSlots(), [](const FSpawnSlotState& Slot) { return Slot.State == EGhostState::Captured; });
     return 0;
 }
 
@@ -774,79 +705,75 @@ int32 USpawnGroupSubsystem::GetAliveCountByType(const FGuid& ItemId, TSubclassOf
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
     if (Spawner)
-    {
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
-            {
-                return Slot.bIsAlive && Slot.ActorClass == ActorClass;
+        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+        return Slot.State == EGhostState::Alive && Slot.ActorClass == ActorClass;
             });
-    }
     return 0;
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const
+int32 USpawnGroupSubsystem::GetKilledCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
-    if (!Spawner) return 0;
+    if (Spawner)
+        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+        return Slot.State == EGhostState::Killed && Slot.ActorClass == ActorClass;
+            });
+    return 0;
+}
 
-    int32 Count = 0;
-    for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
-    {
-        if (!Slot.bIsAlive)
-        {
-            for (const FName& Tag : TextTags)
-            {
-                if (Slot.TextTags.Contains(Tag))
-                {
-                    Count++;
-                    break;
-                }
-            }
-        }
-    }
-    return Count;
+int32 USpawnGroupSubsystem::GetCapturedCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const
+{
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
+    if (Spawner)
+        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+        return Slot.State == EGhostState::Captured && Slot.ActorClass == ActorClass;
+            });
+    return 0;
 }
 
 int32 USpawnGroupSubsystem::GetAliveCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
     if (!Spawner) return 0;
-
     int32 Count = 0;
     for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
     {
-        if (Slot.bIsAlive)
+        if (Slot.State == EGhostState::Alive)
         {
             for (const FName& Tag : TextTags)
-            {
-                if (Slot.TextTags.Contains(Tag))
-                {
-                    Count++;
-                    break;
-                }
-            }
+                if (Slot.TextTags.Contains(Tag)) { Count++; break; }
         }
     }
     return Count;
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const
+int32 USpawnGroupSubsystem::GetKilledCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
     if (!Spawner) return 0;
-
     int32 Count = 0;
     for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
     {
-        if (!Slot.bIsAlive)
+        if (Slot.State == EGhostState::Killed)
         {
-            for (const FGameplayTag& Tag : GameplayTags)
-            {
-                if (Slot.GameplayTags.HasTag(Tag))
-                {
-                    Count++;
-                    break;
-                }
-            }
+            for (const FName& Tag : TextTags)
+                if (Slot.TextTags.Contains(Tag)) { Count++; break; }
+        }
+    }
+    return Count;
+}
+
+int32 USpawnGroupSubsystem::GetCapturedCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const
+{
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
+    if (!Spawner) return 0;
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+    {
+        if (Slot.State == EGhostState::Captured)
+        {
+            for (const FName& Tag : TextTags)
+                if (Slot.TextTags.Contains(Tag)) { Count++; break; }
         }
     }
     return Count;
@@ -856,20 +783,45 @@ int32 USpawnGroupSubsystem::GetAliveCountByGameplayTag(const FGuid& ItemId, cons
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
     if (!Spawner) return 0;
-
     int32 Count = 0;
     for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
     {
-        if (Slot.bIsAlive)
+        if (Slot.State == EGhostState::Alive)
         {
             for (const FGameplayTag& Tag : GameplayTags)
-            {
-                if (Slot.GameplayTags.HasTag(Tag))
-                {
-                    Count++;
-                    break;
-                }
-            }
+                if (Slot.GameplayTags.HasTag(Tag)) { Count++; break; }
+        }
+    }
+    return Count;
+}
+
+int32 USpawnGroupSubsystem::GetKilledCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const
+{
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
+    if (!Spawner) return 0;
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+    {
+        if (Slot.State == EGhostState::Killed)
+        {
+            for (const FGameplayTag& Tag : GameplayTags)
+                if (Slot.GameplayTags.HasTag(Tag)) { Count++; break; }
+        }
+    }
+    return Count;
+}
+
+int32 USpawnGroupSubsystem::GetCapturedCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const
+{
+    ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
+    if (!Spawner) return 0;
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+    {
+        if (Slot.State == EGhostState::Captured)
+        {
+            for (const FGameplayTag& Tag : GameplayTags)
+                if (Slot.GameplayTags.HasTag(Tag)) { Count++; break; }
         }
     }
     return Count;
@@ -884,7 +836,7 @@ ESpawnGroupStatus USpawnGroupSubsystem::GetGroupStatus(const FGuid& ItemId) cons
 }
 
 // ============================================================================
-// Реализация методов статистики по текущему этажу
+// Методы статистики по текущему этажу (агрегированные)
 // ============================================================================
 
 int32 USpawnGroupSubsystem::GetTotalSpawnedCountForCurrentFloor() const
@@ -900,6 +852,19 @@ int32 USpawnGroupSubsystem::GetTotalSpawnedCountForCurrentFloor() const
     return Total;
 }
 
+int32 USpawnGroupSubsystem::GetAliveCountForCurrentFloor() const
+{
+    int32 Total = 0;
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
+            Total += CountSlots(Spawner->GetAllSlots(), [](const FSpawnSlotState& Slot) { return Slot.State == EGhostState::Alive; });
+    }
+    return Total;
+}
+
 int32 USpawnGroupSubsystem::GetKilledCountForCurrentFloor() const
 {
     int32 Total = 0;
@@ -908,17 +873,12 @@ int32 USpawnGroupSubsystem::GetKilledCountForCurrentFloor() const
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
-        {
-            Total += CountSlots(Spawner->GetAllSlots(), [](const FSpawnSlotState& Slot)
-                {
-                    return !Slot.bIsAlive;
-                });
-        }
+            Total += CountSlots(Spawner->GetAllSlots(), [](const FSpawnSlotState& Slot) { return Slot.State == EGhostState::Killed; });
     }
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const
+int32 USpawnGroupSubsystem::GetCapturedCountForCurrentFloor() const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
@@ -926,12 +886,7 @@ int32 USpawnGroupSubsystem::GetKilledCountByTypeForCurrentFloor(TSubclassOf<AAct
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
-        {
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
-                {
-                    return !Slot.bIsAlive && Slot.ActorClass == ActorClass;
-                });
-        }
+            Total += CountSlots(Spawner->GetAllSlots(), [](const FSpawnSlotState& Slot) { return Slot.State == EGhostState::Captured; });
     }
     return Total;
 }
@@ -944,11 +899,60 @@ int32 USpawnGroupSubsystem::GetAliveCountByTypeForCurrentFloor(TSubclassOf<AActo
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
-        {
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot)
-                {
-                    return Slot.bIsAlive && Slot.ActorClass == ActorClass;
+            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+            return Slot.State == EGhostState::Alive && Slot.ActorClass == ActorClass;
                 });
+    }
+    return Total;
+}
+
+int32 USpawnGroupSubsystem::GetKilledCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const
+{
+    int32 Total = 0;
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
+            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+            return Slot.State == EGhostState::Killed && Slot.ActorClass == ActorClass;
+                });
+    }
+    return Total;
+}
+
+int32 USpawnGroupSubsystem::GetCapturedCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const
+{
+    int32 Total = 0;
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
+            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+            return Slot.State == EGhostState::Captured && Slot.ActorClass == ActorClass;
+                });
+    }
+    return Total;
+}
+
+int32 USpawnGroupSubsystem::GetAliveCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const
+{
+    int32 Total = 0;
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
+        {
+            for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+            {
+                if (Slot.State == EGhostState::Alive)
+                {
+                    for (const FName& Tag : TextTags)
+                        if (Slot.TextTags.Contains(Tag)) { Total++; break; }
+                }
+            }
         }
     }
     return Total;
@@ -963,13 +967,20 @@ int32 USpawnGroupSubsystem::GetKilledCountByTextTagForCurrentFloor(const TArray<
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
         {
-            Total += GetKilledCountByTextTag(Pair.Key, TextTags);
+            for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+            {
+                if (Slot.State == EGhostState::Killed)
+                {
+                    for (const FName& Tag : TextTags)
+                        if (Slot.TextTags.Contains(Tag)) { Total++; break; }
+                }
+            }
         }
     }
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetAliveCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const
+int32 USpawnGroupSubsystem::GetCapturedCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
@@ -978,22 +989,14 @@ int32 USpawnGroupSubsystem::GetAliveCountByTextTagForCurrentFloor(const TArray<F
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
         {
-            Total += GetAliveCountByTextTag(Pair.Key, TextTags);
-        }
-    }
-    return Total;
-}
-
-int32 USpawnGroupSubsystem::GetKilledCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const
-{
-    int32 Total = 0;
-    for (const auto& Pair : SpawnerByItemId)
-    {
-        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
-        if (!Spawner || !IsValid(Spawner)) continue;
-        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
-        {
-            Total += GetKilledCountByGameplayTag(Pair.Key, GameplayTags);
+            for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+            {
+                if (Slot.State == EGhostState::Captured)
+                {
+                    for (const FName& Tag : TextTags)
+                        if (Slot.TextTags.Contains(Tag)) { Total++; break; }
+                }
+            }
         }
     }
     return Total;
@@ -1008,7 +1011,58 @@ int32 USpawnGroupSubsystem::GetAliveCountByGameplayTagForCurrentFloor(const TArr
         if (!Spawner || !IsValid(Spawner)) continue;
         if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
         {
-            Total += GetAliveCountByGameplayTag(Pair.Key, GameplayTags);
+            for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+            {
+                if (Slot.State == EGhostState::Alive)
+                {
+                    for (const FGameplayTag& Tag : GameplayTags)
+                        if (Slot.GameplayTags.HasTag(Tag)) { Total++; break; }
+                }
+            }
+        }
+    }
+    return Total;
+}
+
+int32 USpawnGroupSubsystem::GetKilledCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const
+{
+    int32 Total = 0;
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
+        {
+            for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+            {
+                if (Slot.State == EGhostState::Killed)
+                {
+                    for (const FGameplayTag& Tag : GameplayTags)
+                        if (Slot.GameplayTags.HasTag(Tag)) { Total++; break; }
+                }
+            }
+        }
+    }
+    return Total;
+}
+
+int32 USpawnGroupSubsystem::GetCapturedCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const
+{
+    int32 Total = 0;
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
+        {
+            for (const FSpawnSlotState& Slot : Spawner->GetAllSlots())
+            {
+                if (Slot.State == EGhostState::Captured)
+                {
+                    for (const FGameplayTag& Tag : GameplayTags)
+                        if (Slot.GameplayTags.HasTag(Tag)) { Total++; break; }
+                }
+            }
         }
     }
     return Total;

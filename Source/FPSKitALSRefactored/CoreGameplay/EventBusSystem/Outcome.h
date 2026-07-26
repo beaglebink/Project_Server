@@ -132,6 +132,7 @@ enum class EOutcomeSpawnGroup : uint8
     SpawnGroupReset         UMETA(DisplayName = "Spawn Group Reset"),
     SpawnGroupRegister      UMETA(DisplayName = "Spawn Group Register"),
     SpawnGroupUnregister    UMETA(DisplayName = "Spawn Group Unregister"),
+    GhostCaptured           UMETA(DisplayName = "Ghost Captured"),
     CheckRequest            UMETA(DisplayName = "Check Request"),
     CheckResponse           UMETA(DisplayName = "Check Response")
 };

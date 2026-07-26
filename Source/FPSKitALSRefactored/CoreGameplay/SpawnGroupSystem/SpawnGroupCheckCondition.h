@@ -214,3 +214,60 @@ public:
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
+
+// ============================================================================
+// 11. Проверка количества захваченных
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupCapturedCountCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 12. Захваченных по классу
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupCapturedByClassCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TSubclassOf<AActor> ActorClass;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 13. Захваченных по текстовым тегам
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupCapturedByTextTagCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TArray<FName> TextTags;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 14. Захваченных по GameplayTag
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupCapturedByGameplayTagCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TArray<FGameplayTag> GameplayTags;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};

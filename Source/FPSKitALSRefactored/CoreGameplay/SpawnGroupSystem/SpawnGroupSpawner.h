@@ -177,6 +177,13 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
     bool IsGroupCleared() const;
 
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
+    void CaptureGhost(AActor* Ghost);
+
+    void MarkSlotCaptured(const FGuid& ItemId);
+
+    void MarkSlotKilled(const FGuid& ItemId);
+
     void ResetKilledCount();
     void SpawnGroupInternal();
 
@@ -203,6 +210,8 @@ public:
     // Обновить слот при убийстве (пометить как мёртвого)
     void MarkSlotDead(const FGuid& ItemId);
 
+    TArray<FSpawnSlotState>& GetSlotsMutable() { return AllSlots; }
+
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;
     FTransform GetTransformFromLocation(ASpawnVolume* Location) const;
@@ -214,4 +223,5 @@ protected:
 
     UFUNCTION()
     void OnGhostDestroyed(AActor* DestroyedActor);
+    void UpdateSlotState(const FGuid& ItemId, EGhostState NewState);
 };

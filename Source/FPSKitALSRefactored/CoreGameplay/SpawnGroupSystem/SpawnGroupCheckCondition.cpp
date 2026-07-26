@@ -9,7 +9,7 @@
 #include "GameplayTagContainer.h"
 
 // ============================================================================
-// USpawnGroupConditionBase – общая логика для всех условий
+// USpawnGroupConditionBase
 // ============================================================================
 
 USpawnGroupSubsystem* USpawnGroupConditionBase::GetSpawnGroupSubsystem() const
@@ -42,7 +42,7 @@ void USpawnGroupConditionBase::PostEditChangeProperty(FPropertyChangedEvent& Pro
 #endif
 
 // ============================================================================
-// USpawnGroupCheckCondition – количественные проверки (с массивом спавнеров)
+// USpawnGroupCheckCondition
 // ============================================================================
 
 TArray<ASpawnGroupSpawner*> USpawnGroupCheckCondition::GetSpawners() const
@@ -628,6 +628,214 @@ FString USpawnGroupAliveByGameplayTagCondition::GetDescription() const
         TagsStr += Tag.ToString();
     }
     return FString::Printf(TEXT("SpawnGroup alive by gameplay tags [%s] tags=[%s] %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *TagsStr,
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 11. USpawnGroupCapturedCountCondition (новое)
+// ============================================================================
+
+void USpawnGroupCapturedCountCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetCapturedCount(Id);
+    }
+    else
+    {
+        Total = Sub->GetCapturedCountForCurrentFloor();
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (captured=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupCapturedCountCondition::GetDescription() const
+{
+    return FString::Printf(TEXT("SpawnGroup captured count [%s] %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 12. USpawnGroupCapturedByClassCondition
+// ============================================================================
+
+void USpawnGroupCapturedByClassCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetCapturedCountByType(Id, ActorClass);
+    }
+    else
+    {
+        Total = Sub->GetCapturedCountByTypeForCurrentFloor(ActorClass);
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (captured_by_class=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupCapturedByClassCondition::GetDescription() const
+{
+    FString ClassName = ActorClass ? ActorClass->GetName() : TEXT("Any");
+    return FString::Printf(TEXT("SpawnGroup captured by class [%s] class=%s %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *ClassName,
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 13. USpawnGroupCapturedByTextTagCondition
+// ============================================================================
+
+void USpawnGroupCapturedByTextTagCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetCapturedCountByTextTag(Id, TextTags);
+    }
+    else
+    {
+        Total = Sub->GetCapturedCountByTextTagForCurrentFloor(TextTags);
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (captured_by_texttag=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupCapturedByTextTagCondition::GetDescription() const
+{
+    FString TagsStr;
+    for (const FName& Tag : TextTags)
+    {
+        if (!TagsStr.IsEmpty()) TagsStr += TEXT(", ");
+        TagsStr += Tag.ToString();
+    }
+    return FString::Printf(TEXT("SpawnGroup captured by text tags [%s] tags=[%s] %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *TagsStr,
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 14. USpawnGroupCapturedByGameplayTagCondition
+// ============================================================================
+
+void USpawnGroupCapturedByGameplayTagCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetCapturedCountByGameplayTag(Id, GameplayTags);
+    }
+    else
+    {
+        Total = Sub->GetCapturedCountByGameplayTagForCurrentFloor(GameplayTags);
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (captured_by_gptag=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupCapturedByGameplayTagCondition::GetDescription() const
+{
+    FString TagsStr;
+    for (const FGameplayTag& Tag : GameplayTags)
+    {
+        if (!TagsStr.IsEmpty()) TagsStr += TEXT(", ");
+        TagsStr += Tag.ToString();
+    }
+    return FString::Printf(TEXT("SpawnGroup captured by gameplay tags [%s] tags=[%s] %s %d"),
         SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *TagsStr,
         *UEnum::GetValueAsString(Operator),
