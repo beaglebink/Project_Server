@@ -8,6 +8,7 @@ AA_Dishes::AA_Dishes()
 	PrimaryActorTick.bCanEverTick = true;
 
 	CollisionShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CollisionShape"));
+	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 
 	CollisionShape->SetupAttachment(RootComponent);
 
@@ -56,6 +57,19 @@ void AA_Dishes::Tick(float DeltaTime)
 void AA_Dishes::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (TossLocationFloatCurve && TossRotationFloatCurve)
+	{
+		TossLocationProgressFunction.BindUFunction(this, FName("TossLocationTimelineProgress"));
+		TossRotationProgressFunction.BindUFunction(this, FName("TossRotationTimelineProgress"));
+		TossTimeline->AddInterpFloat(TossLocationFloatCurve, TossLocationProgressFunction);
+		TossTimeline->AddInterpFloat(TossRotationFloatCurve, TossRotationProgressFunction);
+
+		TossFinishedFunction.BindUFunction(this, FName("TossTimelineFinished"));
+		TossTimeline->SetTimelineFinishedFunc(TossFinishedFunction);
+
+		TossTimeline->SetLooping(false);
+	}
 
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
@@ -144,5 +158,30 @@ void AA_Dishes::RotateDish(float AngleDelta)
 
 void AA_Dishes::TossDish()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Tossing dish"));
+	TossTimeline->PlayFromStart();
+}
+
+void AA_Dishes::TossLocationTimelineProgress(float Value)
+{
+	StaticMesh->SetRelativeLocation(FMath::VInterpTo(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, 30.0f * Value), GetWorld()->GetDeltaSeconds(), 30.0f));
+}
+
+void AA_Dishes::TossRotationTimelineProgress(float Value)
+{
+	if (Value == 1.0f)
+	{
+		for (AA_Cookable* Ingredient : Ingredients)
+		{
+			Ingredient->Toss();
+		}
+	}
+
+	float CurrentAngle = Value;
+	float DeltaAngle = (CurrentAngle - PreviousAngle) * 50.0f;
+	StaticMesh->AddLocalRotation(FRotator(DeltaAngle, 0.0f, 0.0f));
+	PreviousAngle = CurrentAngle;
+}
+
+void AA_Dishes::TossTimelineFinished()
+{
 }
