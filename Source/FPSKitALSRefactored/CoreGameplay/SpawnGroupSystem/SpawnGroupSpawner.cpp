@@ -273,8 +273,196 @@ void ASpawnGroupSpawner::SpawnGroup()
         return;
     }
 
-    // ... остальной код SpawnGroup без изменений (слишком длинный, оставляем как есть) ...
-    // (но внутри он использует SpawnSingleGhost, который уже корректен)
+    if (SpawnGroupAsset->Composition.bUsePool)
+    {
+        // 1. Желаемое количество каждого класса
+        TMap<UClass*, int32> DesiredCounts;
+
+        for (const FSpawnTypeCount& TypeCount : SpawnGroupAsset->Composition.ActorsPool)
+        {
+            DesiredCounts.Add(TypeCount.ActorClass, TypeCount.Count);
+        }
+
+        TArray<TSubclassOf<AActor>> ClassesToSpawn;
+
+        // 2. Вычитаем уже убитых (TypeKilled)
+
+        for (const auto& Pair : DesiredCounts)
+        {
+            UClass* Class = Pair.Key;
+            int32 Desired = Pair.Value;
+            int32 Killed = TypeKilled.FindRef(Class->GetFName());
+            int32 Need = FMath::Max(0, Desired - Killed);
+            for (int32 i = 0; i < Need; ++i)
+            {
+                ClassesToSpawn.Add(Class);
+            }
+        }
+
+        SpawnedCount = SpawnedGhosts.Num();
+        int32 NeedSpawnCount = 0;
+
+        if (SpawnGroupAsset->Composition.bUsePool)
+        {
+            for (auto Pool : SpawnGroupAsset->Composition.ActorsPool)
+            {
+                NeedSpawnCount = NeedSpawnCount + Pool.Count;
+            }
+        }
+        else
+        {
+            NeedSpawnCount = SpawnGroupAsset->Composition.Count;
+        }
+
+        FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, DesiredCounts, NeedSpawnCount, World]()
+            {
+                ASpawnVolume* Location = GetRandomSpawnLocation();
+
+                if (ClassesToSpawn.Num() <= 0 || !ClassesToSpawn.IsValidIndex(SpawnedCount))
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
+                    World->GetTimerManager().ClearTimer(TimerHandle);
+                    AllSpawned = true;
+                    return;
+                }
+
+                if (NeedSpawnCount <= SpawnedCount - KilledCount)
+                {
+                    //KilledCount = SpawnGroupAsset->Composition.Count;//DesiredCounts.Num();
+                    World->GetTimerManager().ClearTimer(TimerHandle);
+                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
+                        *GetName(), SpawnedGhosts.Num());
+                    AllSpawned = true;
+                    return;
+                }
+
+                TSubclassOf<AActor> SpawnedClass = ClassesToSpawn[SpawnedCount];
+                FTransform SpawnTransform;
+
+                if (IsStoreSpawnParameters && StoredSpawnParameters.Num() > 0)
+                {
+                    SpawnTransform = StoredSpawnParameters.FindRef(SpawnedClass);
+                    StoredSpawnParameters.Remove(SpawnedClass);
+                }
+                else
+                {
+                    SpawnTransform = GetTransformFromLocation(Location);
+                }
+
+                AActor* Ghost = SpawnSingleGhost(SpawnedClass, SpawnTransform);
+                if (Ghost)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Spawned Ghost [%s] Type [%s]"), *GetName(), *Ghost->GetName(), *SpawnedClass->GetName());
+                    SpawnedCount++;
+                    SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
+                    Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+
+                    OnGhostSpawned.Broadcast(Ghost);
+                }
+
+                UpdateGroupStatus();
+
+            });
+
+        //CurrentStatus = ESpawnGroupStatus::Active;
+
+        World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
+    }
+    else
+    {
+        // Определяем классы для спавна
+        TArray<TSubclassOf<AAlsCharacter>> ClassesToSpawn;
+        int32 DesiredCount = 0;
+
+        ClassesToSpawn = SpawnGroupAsset->Composition.ActorClasses;
+        DesiredCount = SpawnGroupAsset->Composition.Count;
+
+
+        if (ClassesToSpawn.Num() <= 0 || !ClassesToSpawn.IsValidIndex(SpawnedCount))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
+            World->GetTimerManager().ClearTimer(TimerHandle);
+            return;
+        }
+
+        // Если указано больше Count, чем классов, циклически повторяем классы
+        TArray<TSubclassOf<AActor>> FinalClasses;
+        for (int32 i = 0; i < DesiredCount; ++i)
+        {
+            FinalClasses.Add(ClassesToSpawn[i % ClassesToSpawn.Num()]);
+        }
+
+        // Спавним
+        SpawnedGhosts.Empty();
+        bHasPublishedClear = false;
+
+        FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, FinalClasses, World, DesiredCount]()
+            {
+                ASpawnVolume* Location = GetRandomSpawnLocation();
+
+                if (!FinalClasses.IsValidIndex(SpawnedCount % FinalClasses.Num()))
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
+                    World->GetTimerManager().ClearTimer(TimerHandle);
+                    //KilledCount = DesiredCount;
+                    return;
+                }
+
+                if (DesiredCount <= KilledCount)
+                {
+                    KilledCount = DesiredCount;
+                    World->GetTimerManager().ClearTimer(TimerHandle);
+                    return;
+                }
+
+                if (SpawnedCount >= DesiredCount - KilledCount)
+                {
+                    // Все призраки заспавнены
+                    World->GetTimerManager().ClearTimer(TimerHandle);
+                    OnAllSpawned.Broadcast();
+
+                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
+                        *GetName(), SpawnedGhosts.Num());
+                    return;
+                }
+
+                TSubclassOf<AActor> SpawnedClass = FinalClasses[SpawnedCount % FinalClasses.Num()];
+                FTransform SpawnTransform;
+
+                if (IsStoreSpawnParameters && StoredSpawnParameters.Num() > 0)
+                {
+                    SpawnTransform = StoredSpawnParameters.FindRef(SpawnedClass);
+                }
+                else
+                {
+                    SpawnTransform = GetTransformFromLocation(Location);
+                }
+
+                if (FinalClasses.Num() == 0)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: FinalClasses is empty, cannot spawn"), *GetName());
+                    World->GetTimerManager().ClearTimer(TimerHandle);
+                    return;
+                }
+
+                AActor* Ghost = SpawnSingleGhost(SpawnedClass, SpawnTransform);
+                if (Ghost)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Spawned Ghost [%s] Type [%s]"), *GetName(), *Ghost->GetName(), *SpawnedClass->GetName());
+                    SpawnedCount++;
+                    SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
+                    Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+
+                    OnGhostSpawned.Broadcast(Ghost);
+                }
+
+                UpdateGroupStatus();
+            });
+
+        //CurrentStatus = ESpawnGroupStatus::Active;
+
+        World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
+    }
 }
 
 void ASpawnGroupSpawner::ClearGroup(ESpawnGroupResolutionReason Reason)
@@ -415,7 +603,8 @@ void ASpawnGroupSpawner::UpdateSlotState(const FGuid& ItemId, EGhostState NewSta
     {
         if (Slot.ItemId == ItemId)
         {
-            Slot.State = NewState;
+            if(Slot.State == EGhostState::Alive)
+                Slot.State = NewState;
             break;
         }
     }
