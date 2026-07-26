@@ -1,5 +1,7 @@
 #include "Cooking/A_KitchenObject.h"
 #include "Components/BoxComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "Cooking/A_Dishes.h"
 
 AA_KitchenObject::AA_KitchenObject()
 {
@@ -31,6 +33,20 @@ void AA_KitchenObject::BeginPlay()
 {
 	Super::BeginPlay();
 
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			TSet<AActor*> OverlappingActors;
+			SurfaceCollisionComponent->GetOverlappingActors(OverlappingActors, AA_Dishes::StaticClass());
+
+			for (AActor* OverlappedActor : OverlappingActors)
+			{
+				if (AA_Dishes* Dish = Cast<AA_Dishes>(OverlappedActor))
+				{
+					Dish->bIsPlacing = true;
+				}
+			}
+		}, 0.5f, true);
 }
 
 void AA_KitchenObject::Destroyed()

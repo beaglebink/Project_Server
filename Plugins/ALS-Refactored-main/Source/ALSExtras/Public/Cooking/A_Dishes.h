@@ -46,6 +46,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cooking")
 	FName AttachedSocketName;
 
+	uint8 bIsPlacing : 1{false};
+
 	FTimerHandle AttachTimerHandle;
 	UFUNCTION(BlueprintCallable, Category = "Cooking")
 	void AttachDishToHand(ACharacter* PlayerCharacter, FName SocketName);
@@ -58,4 +60,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Cooking")
 	void TossDish();
+
+private:
+	float OnPlacingPauseCheckTime = 0.0f;
 };

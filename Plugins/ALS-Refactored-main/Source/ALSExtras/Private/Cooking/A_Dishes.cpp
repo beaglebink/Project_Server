@@ -26,18 +26,29 @@ void AA_Dishes::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!StaticMesh->IsSimulatingPhysics())
+	if (AttachedMesh)
 	{
 		SetActorRotation(FMath::RInterpTo(GetActorRotation(), IsValid(AttachedMesh) ? FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f) : FRotator::ZeroRotator, DeltaTime, 0.5f));
 
-		if (!bIsOnAttaching && AttachedMesh && AttachedMesh->DoesSocketExist(AttachedSocketName))
+		if (!bIsOnAttaching && AttachedMesh->DoesSocketExist(AttachedSocketName))
 		{
 			if (FVector::Distance(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName)) <= 5.0f)
 			{
 				bIsOnAttaching = true;
 				StaticMesh->AttachToComponent(AttachedMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachedSocketName);
 			}
-			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), GetWorld()->GetDeltaSeconds(), 0.5f));
+			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), GetWorld()->GetDeltaSeconds(), 2.0f));
+		}
+	}
+
+	if (bIsPlacing)
+	{
+		OnPlacingPauseCheckTime += GetWorld()->GetDeltaSeconds();
+		if (OnPlacingPauseCheckTime > 0.5f && StaticMesh->GetPhysicsLinearVelocity().Length() < 2.0f && StaticMesh->GetPhysicsAngularVelocityInDegrees().Length() < 2.0f)
+		{
+			StaticMesh->SetSimulatePhysics(false);
+			bIsPlacing = false;
+			OnPlacingPauseCheckTime = 0.0f;
 		}
 	}
 }
