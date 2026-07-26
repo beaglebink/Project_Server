@@ -67,6 +67,10 @@ private:
 
 	float PreviousAngle = 0.0f;
 
+	uint8 bIsTossed : 1 {false};
+
+	FTimerHandle TossTimerHandle;
+
 protected:
 	//Toss Timeline
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")

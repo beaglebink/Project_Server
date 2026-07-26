@@ -74,46 +74,49 @@ void AA_Dishes::BeginPlay()
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 		{
-			CollisionShape->GetOverlappingActors(OverlappingActors, AA_Cookable::StaticClass());
-
-			// Check if ingredient doesn't belong any dish
-			for (AActor* Ingredient : OverlappingActors.Array())
+			if (!bIsTossed)
 			{
-				if (AA_Cookable* CookableIngredient = Cast<AA_Cookable>(Ingredient))
+				CollisionShape->GetOverlappingActors(OverlappingActors, AA_Cookable::StaticClass());
+
+				// Check if ingredient doesn't belong any dish
+				for (AActor* Ingredient : OverlappingActors.Array())
 				{
-					if (CookableIngredient->AttachedDish == nullptr)
+					if (AA_Cookable* CookableIngredient = Cast<AA_Cookable>(Ingredient))
 					{
-						Ingredients.AddUnique(CookableIngredient);
-						int32& CountRef = IngredientCountMap.FindOrAdd(CookableIngredient->Name);
-						++CountRef;
-						CookableIngredient->AttachedDish = this;
-						CookableIngredient->bIsAttaching = true;
-
-						GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
-					}
-
-				}
-			}
-
-			// Check if ingredient is out of dish
-			for (int32 i = Ingredients.Num() - 1; i >= 0; --i)
-			{
-				if (!OverlappingActors.Contains(Ingredients[i]))
-				{
-					int32* CountPtr = IngredientCountMap.Find(Ingredients[i]->Name);
-					if (CountPtr)
-					{
-						--(*CountPtr);
-						if (*CountPtr <= 0)
+						if (CookableIngredient->AttachedDish == nullptr)
 						{
-							IngredientCountMap.Remove(Ingredients[i]->Name);
+							Ingredients.AddUnique(CookableIngredient);
+							int32& CountRef = IngredientCountMap.FindOrAdd(CookableIngredient->Name);
+							++CountRef;
+							CookableIngredient->AttachedDish = this;
+							CookableIngredient->bIsAttaching = true;
+
+							GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
 						}
+
 					}
-					Ingredients[i]->AttachedDish = nullptr;
+				}
 
-					GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *Ingredients[i]->Name.ToString(), *CountPtr));
+				// Check if ingredient is out of dish
+				for (int32 i = Ingredients.Num() - 1; i >= 0; --i)
+				{
+					if (!OverlappingActors.Contains(Ingredients[i]))
+					{
+						int32* CountPtr = IngredientCountMap.Find(Ingredients[i]->Name);
+						if (CountPtr)
+						{
+							--(*CountPtr);
+							if (*CountPtr <= 0)
+							{
+								IngredientCountMap.Remove(Ingredients[i]->Name);
+							}
+						}
+						Ingredients[i]->AttachedDish = nullptr;
 
-					Ingredients.RemoveAt(i);
+						GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *Ingredients[i]->Name.ToString(), *CountPtr));
+
+						Ingredients.RemoveAt(i);
+					}
 				}
 			}
 		}, 0.5f, true);
@@ -158,17 +161,31 @@ void AA_Dishes::RotateDish(float AngleDelta)
 
 void AA_Dishes::TossDish()
 {
+	if (GetWorldTimerManager().IsTimerActive(TossTimerHandle))
+	{
+		return;
+	}
+
+	bIsTossed = true;
+	GetWorldTimerManager().SetTimer(TossTimerHandle, [this]()
+		{
+			bIsTossed = false;
+		}, 3.0f, false);
+
 	TossTimeline->PlayFromStart();
 }
 
 void AA_Dishes::TossLocationTimelineProgress(float Value)
 {
-	StaticMesh->SetRelativeLocation(FMath::VInterpTo(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, 30.0f * Value), GetWorld()->GetDeltaSeconds(), 30.0f));
+	StaticMesh->SetRelativeLocation(FMath::Lerp(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, 30.0f), Value));
 }
 
 void AA_Dishes::TossRotationTimelineProgress(float Value)
 {
-	if (Value == 1.0f)
+	float CurrentTime = TossTimeline->GetPlaybackPosition();
+	float Duration = TossTimeline->GetTimelineLength();
+	float Percent = CurrentTime / Duration;
+	if (FMath::IsNearlyEqual(Percent, 0.5f, 0.1f))
 	{
 		for (AA_Cookable* Ingredient : Ingredients)
 		{
