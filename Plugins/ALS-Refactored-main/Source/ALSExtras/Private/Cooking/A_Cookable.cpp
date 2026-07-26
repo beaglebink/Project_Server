@@ -9,6 +9,8 @@ AA_Cookable::AA_Cookable()
 	PrimaryActorTick.bCanEverTick = true;
 
 	SlicedMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("SlicedMesh"));
+	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
+
 	RootComponent = SlicedMesh;
 
 	StaticMesh->SetSimulatePhysics(false);
@@ -70,6 +72,16 @@ void AA_Cookable::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (TossFloatCurve)
+	{
+		TossProgressFunction.BindUFunction(this, FName("TossTimelineProgress"));
+		TossTimeline->AddInterpFloat(TossFloatCurve, TossProgressFunction);
+
+		TossFinishedFunction.BindUFunction(this, FName("TossTimelineFinished"));
+		TossTimeline->SetTimelineFinishedFunc(TossFinishedFunction);
+
+		TossTimeline->SetLooping(false);
+	}
 }
 
 void AA_Cookable::Destroyed()
@@ -197,4 +209,20 @@ void AA_Cookable::BuildConvexCollision(UProceduralMeshComponent* Mesh)
 	}
 
 	Mesh->RecreatePhysicsState();
+}
+
+void AA_Cookable::Toss()
+{
+	PrevLocation = GetActorLocation();
+
+	TossTimeline->PlayFromStart();
+}
+
+void AA_Cookable::TossTimelineProgress(float Value)
+{
+	SetActorLocation(FMath::VInterpTo(PrevLocation, PrevLocation + FVector(0.0f, 0.0f, 30.0f * Value), GetWorld()->GetDeltaSeconds(), 20.0f));
+}
+
+void AA_Cookable::TossTimelineFinished()
+{
 }

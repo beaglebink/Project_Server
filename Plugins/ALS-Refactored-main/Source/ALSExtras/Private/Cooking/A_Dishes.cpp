@@ -8,6 +8,7 @@ AA_Dishes::AA_Dishes()
 	PrimaryActorTick.bCanEverTick = true;
 
 	CollisionShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CollisionShape"));
+	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 
 	CollisionShape->SetupAttachment(RootComponent);
 
@@ -26,18 +27,29 @@ void AA_Dishes::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!StaticMesh->IsSimulatingPhysics())
+	if (AttachedMesh)
 	{
 		SetActorRotation(FMath::RInterpTo(GetActorRotation(), IsValid(AttachedMesh) ? FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f) : FRotator::ZeroRotator, DeltaTime, 0.5f));
 
-		if (!bIsOnAttaching && AttachedMesh && AttachedMesh->DoesSocketExist(AttachedSocketName))
+		if (!bIsOnAttaching && AttachedMesh->DoesSocketExist(AttachedSocketName))
 		{
 			if (FVector::Distance(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName)) <= 5.0f)
 			{
 				bIsOnAttaching = true;
 				StaticMesh->AttachToComponent(AttachedMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachedSocketName);
 			}
-			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), GetWorld()->GetDeltaSeconds(), 0.5f));
+			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), GetWorld()->GetDeltaSeconds(), 2.0f));
+		}
+	}
+
+	if (bIsPlacing)
+	{
+		OnPlacingPauseCheckTime += GetWorld()->GetDeltaSeconds();
+		if (OnPlacingPauseCheckTime > 0.5f && StaticMesh->GetPhysicsLinearVelocity().Length() < 2.0f && StaticMesh->GetPhysicsAngularVelocityInDegrees().Length() < 2.0f)
+		{
+			StaticMesh->SetSimulatePhysics(false);
+			bIsPlacing = false;
+			OnPlacingPauseCheckTime = 0.0f;
 		}
 	}
 }
@@ -45,6 +57,19 @@ void AA_Dishes::Tick(float DeltaTime)
 void AA_Dishes::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (TossLocationFloatCurve && TossRotationFloatCurve)
+	{
+		TossLocationProgressFunction.BindUFunction(this, FName("TossLocationTimelineProgress"));
+		TossRotationProgressFunction.BindUFunction(this, FName("TossRotationTimelineProgress"));
+		TossTimeline->AddInterpFloat(TossLocationFloatCurve, TossLocationProgressFunction);
+		TossTimeline->AddInterpFloat(TossRotationFloatCurve, TossRotationProgressFunction);
+
+		TossFinishedFunction.BindUFunction(this, FName("TossTimelineFinished"));
+		TossTimeline->SetTimelineFinishedFunc(TossFinishedFunction);
+
+		TossTimeline->SetLooping(false);
+	}
 
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
@@ -133,5 +158,30 @@ void AA_Dishes::RotateDish(float AngleDelta)
 
 void AA_Dishes::TossDish()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Tossing dish"));
+	TossTimeline->PlayFromStart();
+}
+
+void AA_Dishes::TossLocationTimelineProgress(float Value)
+{
+	StaticMesh->SetRelativeLocation(FMath::VInterpTo(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, 30.0f * Value), GetWorld()->GetDeltaSeconds(), 30.0f));
+}
+
+void AA_Dishes::TossRotationTimelineProgress(float Value)
+{
+	if (Value == 1.0f)
+	{
+		for (AA_Cookable* Ingredient : Ingredients)
+		{
+			Ingredient->Toss();
+		}
+	}
+
+	float CurrentAngle = Value;
+	float DeltaAngle = (CurrentAngle - PreviousAngle) * 50.0f;
+	StaticMesh->AddLocalRotation(FRotator(DeltaAngle, 0.0f, 0.0f));
+	PreviousAngle = CurrentAngle;
+}
+
+void AA_Dishes::TossTimelineFinished()
+{
 }

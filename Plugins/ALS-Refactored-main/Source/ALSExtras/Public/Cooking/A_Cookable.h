@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "PythonContainers/A_InteractableActor.h"
+#include "Components/TimelineComponent.h"
 #include "A_Cookable.generated.h"
 
 class UProceduralMeshComponent;
@@ -31,6 +32,8 @@ protected:
 	void BuildConvexCollision(UProceduralMeshComponent* Mesh);
 
 public:
+	void Toss();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Slicing mesh")
 	UProceduralMeshComponent* SlicedMesh;
 
@@ -41,4 +44,24 @@ public:
 
 private:
 	float OnAttachingPauseCheckTime = 0.0f;
+
+	FVector PrevLocation;
+
+protected:
+	//Toss Timeline
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UTimelineComponent* TossTimeline;
+
+	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
+	UCurveFloat* TossFloatCurve;
+
+	FOnTimelineFloat TossProgressFunction;
+
+	FOnTimelineEvent TossFinishedFunction;
+
+	UFUNCTION()
+	void TossTimelineProgress(float Value);
+
+	UFUNCTION()
+	void TossTimelineFinished();
 };

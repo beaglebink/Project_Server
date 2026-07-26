@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "PythonContainers/A_InteractableActor.h"
+#include "Components/TimelineComponent.h"
 #include "A_Dishes.generated.h"
 
 class USphereComponent;
@@ -46,6 +47,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cooking")
 	FName AttachedSocketName;
 
+	uint8 bIsPlacing : 1{false};
+
 	FTimerHandle AttachTimerHandle;
 	UFUNCTION(BlueprintCallable, Category = "Cooking")
 	void AttachDishToHand(ACharacter* PlayerCharacter, FName SocketName);
@@ -58,4 +61,35 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Cooking")
 	void TossDish();
+
+private:
+	float OnPlacingPauseCheckTime = 0.0f;
+
+	float PreviousAngle = 0.0f;
+
+protected:
+	//Toss Timeline
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UTimelineComponent* TossTimeline;
+
+	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
+	UCurveFloat* TossLocationFloatCurve;
+
+	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
+	UCurveFloat* TossRotationFloatCurve;
+
+	FOnTimelineFloat TossLocationProgressFunction;
+
+	FOnTimelineFloat TossRotationProgressFunction;
+
+	FOnTimelineEvent TossFinishedFunction;
+
+	UFUNCTION()
+	void TossLocationTimelineProgress(float Value);
+	
+	UFUNCTION()
+	void TossRotationTimelineProgress(float Value);
+
+	UFUNCTION()
+	void TossTimelineFinished();
 };
