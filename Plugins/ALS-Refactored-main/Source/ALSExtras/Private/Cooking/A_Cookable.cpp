@@ -213,14 +213,18 @@ void AA_Cookable::BuildConvexCollision(UProceduralMeshComponent* Mesh)
 
 void AA_Cookable::Toss()
 {
-	PrevLocation = GetActorLocation();
+	SavedLocalPosition = AttachedDish->GetActorTransform().InverseTransformPosition(GetActorLocation());
+
+	TossStartRotation = SlicedMesh->GetComponentRotation();
+	TossTargetRotation = FRotator(FMath::RandRange(-90.0f, 90.0f), FMath::RandRange(-90.0f, 90.0f), FMath::RandRange(-90.0f, 90.0f));
 
 	TossTimeline->PlayFromStart();
 }
 
 void AA_Cookable::TossTimelineProgress(float Value)
 {
-	SetActorLocation(FMath::VInterpTo(PrevLocation, PrevLocation + FVector(0.0f, 0.0f, 30.0f * Value), GetWorld()->GetDeltaSeconds(), 20.0f));
+	SetActorLocation(FMath::Lerp(AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition), AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition) + FVector(0.0f, 0.0f, 70.0f), Value));
+	SlicedMesh->SetWorldRotation(FMath::Lerp(TossStartRotation, TossTargetRotation, Value));
 }
 
 void AA_Cookable::TossTimelineFinished()

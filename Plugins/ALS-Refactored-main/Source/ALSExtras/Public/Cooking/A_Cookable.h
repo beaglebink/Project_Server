@@ -45,7 +45,10 @@ public:
 private:
 	float OnAttachingPauseCheckTime = 0.0f;
 
-	FVector PrevLocation;
+	FVector SavedLocalPosition;
+
+	FRotator TossStartRotation;
+	FRotator TossTargetRotation;
 
 protected:
 	//Toss Timeline
