@@ -227,7 +227,6 @@ void AAlsCharacterExample::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(GrappleRemoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRemoveGrapple);
 		EnhancedInput->BindAction(CookingModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchCookingMode);
 		EnhancedInput->BindAction(CookingRotateAction, ETriggerEvent::Triggered, this, &ThisClass::Input_CookingOnRotate);
-		EnhancedInput->BindAction(CookingTossAction, ETriggerEvent::Triggered, this, &ThisClass::Input_CookingOnToss);
 
 		if (Inventory)
 		{
@@ -734,11 +733,6 @@ void AAlsCharacterExample::Input_CookingOnRotate(const FInputActionValue& Action
 {
 	float AngleDelta = ActionValue.Get<float>();
 	CookingOnRotateHandle(AngleDelta);
-}
-
-void AAlsCharacterExample::Input_CookingOnToss()
-{
-	CookingOnTossHandle();
 }
 
 void AAlsCharacterExample::SetLoopEffect(bool bIsSet)

@@ -27,6 +27,7 @@ void AA_Dishes::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// Dishes attach to player
 	if (AttachedMesh)
 	{
 		SetActorRotation(FMath::RInterpTo(GetActorRotation(), IsValid(AttachedMesh) ? FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f) : FRotator::ZeroRotator, DeltaTime, 0.5f));
@@ -42,6 +43,7 @@ void AA_Dishes::Tick(float DeltaTime)
 		}
 	}
 
+	// Dishes places on surface
 	if (bIsPlacing)
 	{
 		OnPlacingPauseCheckTime += GetWorld()->GetDeltaSeconds();
@@ -52,6 +54,28 @@ void AA_Dishes::Tick(float DeltaTime)
 			OnPlacingPauseCheckTime = 0.0f;
 		}
 	}
+
+	//Check if tossed
+	CurrentLocation = GetActorLocation();
+	FVector DeltaLocation = CurrentLocation - PrevLocation;
+	float DeltaLength = DeltaLocation.Length();
+	float DirectionCheck = FVector::DotProduct(DeltaLocation.GetSafeNormal(), FVector(0.0f, 0.0f, 1.0f));
+	
+	if (DeltaLength > 10.0f && DirectionCheck > 0.9f)
+	{
+		DeltaLengthAccum += DeltaLength;
+	}
+	else if (DeltaLengthAccum >= 30.0f)
+	{
+		TossDish();
+		DeltaLengthAccum = 0.0f;
+	}
+	else
+	{
+		DeltaLengthAccum = 0.0f;
+	}
+
+	PrevLocation = CurrentLocation;
 }
 
 void AA_Dishes::BeginPlay()

@@ -71,6 +71,10 @@ private:
 
 	FTimerHandle TossTimerHandle;
 
+	FVector PrevLocation = FVector::ZeroVector;
+	FVector CurrentLocation = FVector::ZeroVector;
+	float DeltaLengthAccum = 0.0f;
+
 protected:
 	//Toss Timeline
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
@@ -90,7 +94,7 @@ protected:
 
 	UFUNCTION()
 	void TossLocationTimelineProgress(float Value);
-	
+
 	UFUNCTION()
 	void TossRotationTimelineProgress(float Value);
 

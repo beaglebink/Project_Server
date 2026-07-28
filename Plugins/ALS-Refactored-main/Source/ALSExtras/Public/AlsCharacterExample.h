@@ -135,9 +135,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> CookingRotateAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character Example", Meta = (DisplayThumbnail = false))
-	TObjectPtr<UInputAction> CookingTossAction;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Als Character Example", Meta = (ClampMin = 0, ForceUnits = "x"))
 	float LookUpMouseSensitivity{ 1.0f };
 
@@ -249,8 +246,6 @@ private:
 
 	void Input_CookingOnRotate(const FInputActionValue& ActionValue);
 
-	void Input_CookingOnToss();
-
 protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void SwitchWeaponHandle();
@@ -261,9 +256,6 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void CookingOnRotateHandle(float AngleDelta);
 	
-	UFUNCTION(BlueprintImplementableEvent)
-	void CookingOnTossHandle();
-
 	// Debug
 
 public:
