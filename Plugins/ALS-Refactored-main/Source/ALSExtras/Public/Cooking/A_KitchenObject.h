@@ -29,4 +29,11 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UBoxComponent* SurfaceCollisionComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cooking", meta = (AllowPrivateAccess = true))
+	TArray<AA_Dishes*> PlacedDishes;
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cooking")
+	EHeatingLevel HeatingLevel;
 };

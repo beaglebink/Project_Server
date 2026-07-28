@@ -225,7 +225,7 @@ void AA_Cookable::Toss(float Delta)
 void AA_Cookable::TossTimelineProgress(float Value)
 {
 	SetActorLocation(FMath::Lerp(AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition), AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition) + FVector(0.0f, 0.0f, TossOfset), Value));
-	SetActorRotation(FQuat::Slerp(TossStartRotation.Quaternion(), TossTargetRotation.Quaternion(), Value));
+	//SetActorRotation(FQuat::Slerp(TossStartRotation.Quaternion(), TossTargetRotation.Quaternion(), Value));
 }
 
 void AA_Cookable::TossTimelineFinished()

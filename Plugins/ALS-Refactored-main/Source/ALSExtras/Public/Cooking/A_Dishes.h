@@ -3,7 +3,17 @@
 #include "CoreMinimal.h"
 #include "PythonContainers/A_InteractableActor.h"
 #include "Components/TimelineComponent.h"
+#include "Cooking/DA_Recipes.h"
 #include "A_Dishes.generated.h"
+
+UENUM(BlueprintType)
+enum class EHeatingLevel : uint8
+{
+	None	UMETA(DisplayName = "No heating"),
+	Low		UMETA(DisplayName = "Low level heating"),
+	Medium	UMETA(DisplayName = "Medium level heating"),
+	High	UMETA(DisplayName = "High level heating")
+};
 
 class USphereComponent;
 class AA_Cookable;
@@ -103,4 +113,20 @@ protected:
 
 	UFUNCTION()
 	void TossTimelineFinished();
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cooking")
+	UDA_Recipes* Recipes;
+
+private:
+	EHeatingLevel HeatingLevel;
+
+	FTimerHandle CookingTimerHandle;
+
+public:
+	void SetHeatingLevel(EHeatingLevel NewLevel);
+
+	EHeatingLevel GetHeatingLevel();
+
+	void CheckIfCooked();
 };
