@@ -974,7 +974,12 @@ int32 USpawnGroupSubsystem::GetAliveCountByTextTagForCurrentFloor(const TArray<F
                 if (Slot.State == EGhostState::Alive)
                 {
                     for (const FName& Tag : TextTags)
-                        if (Slot.TextTags.Contains(Tag)) { Total++; break; }
+                    {
+                        if (Slot.TextTags.Contains(Tag))
+                        {
+                            Total++; break;
+                        }
+                    }
                 }
             }
         }
