@@ -60,16 +60,19 @@ public:
 	void RotateDish(float AngleDelta);
 
 	UFUNCTION(BlueprintCallable, Category = "Cooking")
-	void TossDish();
+	void TossDish(float Delta);
+
+	FTimerHandle TossTimerHandle;
 
 private:
 	float OnPlacingPauseCheckTime = 0.0f;
 
 	float PreviousAngle = 0.0f;
 
-	uint8 bIsTossed : 1 {false};
+	float TossOffset = 0.0f;
 
-	FTimerHandle TossTimerHandle;
+	uint8 bIsTossing : 1 {false};
+
 
 	FVector PrevLocation = FVector::ZeroVector;
 	FVector CurrentLocation = FVector::ZeroVector;

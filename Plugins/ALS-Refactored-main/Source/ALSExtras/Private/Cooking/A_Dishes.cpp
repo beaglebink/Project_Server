@@ -60,14 +60,14 @@ void AA_Dishes::Tick(float DeltaTime)
 	FVector DeltaLocation = CurrentLocation - PrevLocation;
 	float DeltaLength = DeltaLocation.Length();
 	float DirectionCheck = FVector::DotProduct(DeltaLocation.GetSafeNormal(), FVector(0.0f, 0.0f, 1.0f));
-	
+
 	if (DeltaLength > 10.0f && DirectionCheck > 0.9f)
 	{
 		DeltaLengthAccum += DeltaLength;
 	}
 	else if (DeltaLengthAccum >= 30.0f)
 	{
-		TossDish();
+		TossDish(DeltaLengthAccum);
 		DeltaLengthAccum = 0.0f;
 	}
 	else
@@ -98,7 +98,7 @@ void AA_Dishes::BeginPlay()
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 		{
-			if (!bIsTossed)
+			if (!GetWorldTimerManager().IsTimerActive(TossTimerHandle))
 			{
 				CollisionShape->GetOverlappingActors(OverlappingActors, AA_Cookable::StaticClass());
 
@@ -115,7 +115,7 @@ void AA_Dishes::BeginPlay()
 							CookableIngredient->AttachedDish = this;
 							CookableIngredient->bIsAttaching = true;
 
-							GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
+							GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
 						}
 
 					}
@@ -137,7 +137,7 @@ void AA_Dishes::BeginPlay()
 						}
 						Ingredients[i]->AttachedDish = nullptr;
 
-						GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *Ingredients[i]->Name.ToString(), *CountPtr));
+						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *Ingredients[i]->Name.ToString(), *CountPtr));
 
 						Ingredients.RemoveAt(i);
 					}
@@ -183,25 +183,24 @@ void AA_Dishes::RotateDish(float AngleDelta)
 	AddActorLocalRotation(FRotator(AngleDelta * 10.0f, 0.0f, 0.0f));
 }
 
-void AA_Dishes::TossDish()
+void AA_Dishes::TossDish(float Delta)
 {
 	if (GetWorldTimerManager().IsTimerActive(TossTimerHandle))
 	{
 		return;
 	}
 
-	bIsTossed = true;
 	GetWorldTimerManager().SetTimer(TossTimerHandle, [this]()
 		{
-			bIsTossed = false;
 		}, 3.0f, false);
 
+	TossOffset = Delta;
 	TossTimeline->PlayFromStart();
 }
 
 void AA_Dishes::TossLocationTimelineProgress(float Value)
 {
-	StaticMesh->SetRelativeLocation(FMath::Lerp(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, 30.0f), Value));
+	StaticMesh->SetRelativeLocation(FMath::Lerp(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, TossOffset / 2.0f), Value));
 }
 
 void AA_Dishes::TossRotationTimelineProgress(float Value)
@@ -209,20 +208,23 @@ void AA_Dishes::TossRotationTimelineProgress(float Value)
 	float CurrentTime = TossTimeline->GetPlaybackPosition();
 	float Duration = TossTimeline->GetTimelineLength();
 	float Percent = CurrentTime / Duration;
-	if (FMath::IsNearlyEqual(Percent, 0.5f, 0.1f))
+
+	if (!bIsTossing && Percent > 0.5f)
 	{
+		bIsTossing = true;
 		for (AA_Cookable* Ingredient : Ingredients)
 		{
-			Ingredient->Toss();
+			Ingredient->Toss(TossOffset);
 		}
 	}
 
 	float CurrentAngle = Value;
-	float DeltaAngle = (CurrentAngle - PreviousAngle) * 50.0f;
+	float DeltaAngle = (CurrentAngle - PreviousAngle) * TossOffset;
 	StaticMesh->AddLocalRotation(FRotator(DeltaAngle, 0.0f, 0.0f));
 	PreviousAngle = CurrentAngle;
 }
 
 void AA_Dishes::TossTimelineFinished()
 {
+	bIsTossing = false;
 }

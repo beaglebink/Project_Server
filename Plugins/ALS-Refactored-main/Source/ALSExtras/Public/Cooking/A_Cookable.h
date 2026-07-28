@@ -32,7 +32,7 @@ protected:
 	void BuildConvexCollision(UProceduralMeshComponent* Mesh);
 
 public:
-	void Toss();
+	void Toss(float Delta);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Slicing mesh")
 	UProceduralMeshComponent* SlicedMesh;
@@ -49,6 +49,8 @@ private:
 
 	FRotator TossStartRotation;
 	FRotator TossTargetRotation;
+
+	float TossOfset = 0.0f;
 
 protected:
 	//Toss Timeline

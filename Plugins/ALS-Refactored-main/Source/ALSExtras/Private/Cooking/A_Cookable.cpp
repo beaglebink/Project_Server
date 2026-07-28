@@ -59,7 +59,7 @@ void AA_Cookable::Tick(float DeltaTime)
 
 	if (AttachedDish && !bIsAttaching)
 	{
-		if (abs(AttachedDish->GetActorRotation().Roll) >= 80.0f || abs(AttachedDish->GetActorRotation().Pitch) >= 80.0f)
+		if (!GetWorldTimerManager().IsTimerActive(AttachedDish->TossTimerHandle) && (FMath::Abs(AttachedDish->GetActorRotation().Roll) >= 80.0f || FMath::Abs(AttachedDish->GetActorRotation().Pitch) >= 80.0f))
 		{
 			DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 			bIsAttached = false;
@@ -211,20 +211,21 @@ void AA_Cookable::BuildConvexCollision(UProceduralMeshComponent* Mesh)
 	Mesh->RecreatePhysicsState();
 }
 
-void AA_Cookable::Toss()
+void AA_Cookable::Toss(float Delta)
 {
 	SavedLocalPosition = AttachedDish->GetActorTransform().InverseTransformPosition(GetActorLocation());
 
-	TossStartRotation = SlicedMesh->GetComponentRotation();
-	TossTargetRotation = FRotator(FMath::RandRange(-90.0f, 90.0f), FMath::RandRange(-90.0f, 90.0f), FMath::RandRange(-90.0f, 90.0f));
+	TossStartRotation = GetActorRotation();
+	TossTargetRotation = TossStartRotation + FRotator(FMath::RandRange(-90, 90), FMath::RandRange(-90, 90), FMath::RandRange(-90, 90));
 
+	TossOfset = Delta;
 	TossTimeline->PlayFromStart();
 }
 
 void AA_Cookable::TossTimelineProgress(float Value)
 {
-	SetActorLocation(FMath::Lerp(AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition), AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition) + FVector(0.0f, 0.0f, 70.0f), Value));
-	SlicedMesh->SetWorldRotation(FMath::Lerp(TossStartRotation, TossTargetRotation, Value));
+	SetActorLocation(FMath::Lerp(AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition), AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition) + FVector(0.0f, 0.0f, TossOfset), Value));
+	SetActorRotation(FQuat::Slerp(TossStartRotation.Quaternion(), TossTargetRotation.Quaternion(), Value));
 }
 
 void AA_Cookable::TossTimelineFinished()
