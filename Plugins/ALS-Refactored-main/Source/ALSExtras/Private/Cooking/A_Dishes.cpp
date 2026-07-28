@@ -200,7 +200,7 @@ void AA_Dishes::TossDish(float Delta)
 
 void AA_Dishes::TossLocationTimelineProgress(float Value)
 {
-	StaticMesh->SetRelativeLocation(FMath::Lerp(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, TossOffset / 2.0f), Value));
+	//StaticMesh->SetRelativeLocation(FMath::Lerp(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, TossOffset / 2.0f), Value));
 }
 
 void AA_Dishes::TossRotationTimelineProgress(float Value)
@@ -220,11 +220,51 @@ void AA_Dishes::TossRotationTimelineProgress(float Value)
 
 	float CurrentAngle = Value;
 	float DeltaAngle = (CurrentAngle - PreviousAngle) * TossOffset;
-	StaticMesh->AddLocalRotation(FRotator(DeltaAngle, 0.0f, 0.0f));
+	//StaticMesh->AddLocalRotation(FRotator(DeltaAngle, 0.0f, 0.0f));
 	PreviousAngle = CurrentAngle;
 }
 
 void AA_Dishes::TossTimelineFinished()
 {
 	bIsTossing = false;
+}
+
+void AA_Dishes::SetHeatingLevel(EHeatingLevel NewLevel)
+{
+	if (HeatingLevel == NewLevel)
+	{
+		return;
+	}
+
+	HeatingLevel = NewLevel;
+
+	switch (HeatingLevel)
+	{
+	case EHeatingLevel::None:
+	{
+		GetWorldTimerManager().ClearTimer(CookingTimerHandle);
+		CheckIfCooked();
+		break;
+	}
+	case EHeatingLevel::Low:
+	case EHeatingLevel::Medium:
+	case EHeatingLevel::High:
+	{
+		GetWorldTimerManager().SetTimer(CookingTimerHandle, [this]()
+			{
+				for (AA_Cookable* Ingredient : Ingredients)
+				{
+					Ingredient->CookingTime -= static_cast<int32>(HeatingLevel) * 2.0f;
+				}
+			}, 1.0f, true);
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+EHeatingLevel AA_Dishes::GetHeatingLevel()
+{
+	return HeatingLevel;
 }

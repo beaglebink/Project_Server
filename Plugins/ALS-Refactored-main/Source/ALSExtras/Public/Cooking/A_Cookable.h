@@ -69,4 +69,8 @@ protected:
 
 	UFUNCTION()
 	void TossTimelineFinished();
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cooking")
+	int32 CookingTime;
 };

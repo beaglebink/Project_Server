@@ -43,9 +43,21 @@ void AA_KitchenObject::BeginPlay()
 			{
 				if (AA_Dishes* Dish = Cast<AA_Dishes>(OverlappedActor))
 				{
+					PlacedDishes.AddUnique(Dish);
 					Dish->bIsPlacing = true;
+					Dish->SetHeatingLevel(HeatingLevel);
 				}
 			}
+
+			for (int32 i = PlacedDishes.Num() - 1; i >= 0; --i)
+			{
+				if (!OverlappingActors.Contains(PlacedDishes[i]))
+				{
+					PlacedDishes[i]->SetHeatingLevel(EHeatingLevel::None);
+					PlacedDishes.RemoveAt(i);
+				}
+			}
+
 		}, 0.5f, true);
 }
 
