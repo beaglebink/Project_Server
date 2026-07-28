@@ -35,7 +35,7 @@
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
 #include <UpdateActiveMissionId.h>
-#include "SpawnGroupSubsystem.h"
+//#include "SpawnGroupSubsystem.h"
 #include <LevelLoadedPayload.h>
 #include "SpawnGroupSpawner.h"
 
@@ -1448,14 +1448,14 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 						{
 							if (Spawner->GetSpawnedCount() > 0)
 							{
-								if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount())
+								if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount() + Spawner->GetCapturedCount())
 								{
 									Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
 								}
 								else
 								{
 									Spawner->CurrentStatus = ESpawnGroupStatus::Active;
-									//Spawner->ResetKilledCount();
+									Spawner->ResetKilledCount();
 								}
 							}
 
@@ -2174,7 +2174,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 															DesiredCount = Spawner->SpawnGroupAsset->Composition.Count;
 														}
 
-														if (Spawner->GetKilledCount() != DesiredCount)
+														if (Spawner->GetKilledCount() + Spawner->GetCapturedCount() != DesiredCount)
 														{
 															Spawner->ResetKilledCount();
 															//Spawner->CurrentStatus = ESpawnGroupStatus::Active;
@@ -2186,7 +2186,11 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 															else
 															{
 																Spawner->IsFullRespawn = false;
-																Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
+																Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+
+																Spawner->SetAliveAllGhosts();
+
+																Spawner->IsResetToAlive = true;
 															}
 															
 														}
@@ -2216,7 +2220,7 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 								{
 									Spawner->IsUseStoreSpawnParameters = false;
 									
-									Spawner->ResetGroup();
+									//Spawner->ResetGroup();
 									if (Spawner->GetAliveGhostCount() > 0)
 									{
 										Spawner->IsFullRespawn = true;

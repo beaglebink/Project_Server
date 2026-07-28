@@ -348,11 +348,13 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     State.GroupId = Spawner->GetRuntimeGroupId();
     State.Status = Spawner->GetCurrentStatus();
     State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
+    State.KilledCount = Spawner->GetKilledCount();
 
-    if (State.bStoreSpawnParameters)
-        State.Slots = Spawner->CaptureCurrentSlots();
-    else
-        State.TypeKilled = Spawner->GetTypeKilled();
+    // Всегда сохраняем слоты (даже если IsStoreSpawnParameters == false)
+    State.Slots = Spawner->GetAllSlots();
+
+    // Сохраняем TypeKilled для обратной совместимости (если нужно)
+    State.TypeKilled = Spawner->GetTypeKilled();
 
     TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
     FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
@@ -387,6 +389,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
         return;
 
+    // Определяем текущий ключ этажа
     ALocationAnchorActor* FoundAnchor = nullptr;
     for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
     {
@@ -403,7 +406,30 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         }
     }
 
-    // Восстановление спавнеров пока закомментировано
+    // Восстанавливаем состояние спавнеров из PersistentGroupStates
+    for (const auto& Pair : SpawnerByItemId)
+    {
+        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+        if (!Spawner || !IsValid(Spawner)) continue;
+
+        if (Spawner->Restore || !Spawner->SpawnGroupAsset || Spawner->CurrentStatus == ESpawnGroupStatus::Suppressed || Spawner->CurrentStatus == ESpawnGroupStatus::Cleared || Spawner->CurrentStatus == ESpawnGroupStatus::Inactive)
+            continue;
+
+        FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
+        if (!FloorKey.FloorId.IsValid()) continue;
+
+        TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
+        if (!FloorStates) continue;
+
+        FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
+        if (!State) continue;
+
+        // Восстанавливаем флаг спавнера (если изменился в рантайме)
+        Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
+
+        // Восстанавливаем призраков без изменения AllSlots и без уничтожения существующих
+        Spawner->RestoreFromStateWithoutCleanup(*State);
+    }
 }
 
 // ============================================================================
@@ -429,10 +455,9 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
         State.KilledCount = Spawner->GetKilledCount();
 
-        if (State.bStoreSpawnParameters)
-            State.Slots = Spawner->GetAllSlots();
-        else
-            State.TypeKilled = Spawner->GetTypeKilled();
+        // Всегда сохраняем слоты
+        State.Slots = Spawner->GetAllSlots();
+        State.TypeKilled = Spawner->GetTypeKilled();
 
         TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
         FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
@@ -456,35 +481,37 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
             StateObj->SetNumberField(TEXT("KilledCount"), GroupPair.Value.KilledCount);
 
-            if (GroupPair.Value.bStoreSpawnParameters)
+            // ---- Всегда сериализуем Slots ----
+            TArray<TSharedPtr<FJsonValue>> SlotsArray;
+            for (const FSpawnSlotState& Slot : GroupPair.Value.Slots)
             {
-                TArray<TSharedPtr<FJsonValue>> SlotsArray;
-                for (const FSpawnSlotState& Slot : GroupPair.Value.Slots)
-                {
-                    TSharedPtr<FJsonObject> SlotObj = MakeShared<FJsonObject>();
-                    SlotObj->SetStringField(TEXT("ItemId"), Slot.ItemId.ToString());
-                    SlotObj->SetStringField(TEXT("ActorClass"), Slot.ActorClass ? Slot.ActorClass->GetPathName() : TEXT(""));
-                    FVector Loc = Slot.SpawnTransform.GetLocation();
-                    FRotator Rot = Slot.SpawnTransform.Rotator();
-                    SlotObj->SetArrayField(TEXT("Location"), { MakeShared<FJsonValueNumber>(Loc.X), MakeShared<FJsonValueNumber>(Loc.Y), MakeShared<FJsonValueNumber>(Loc.Z) });
-                    SlotObj->SetArrayField(TEXT("Rotation"), { MakeShared<FJsonValueNumber>(Rot.Pitch), MakeShared<FJsonValueNumber>(Rot.Yaw), MakeShared<FJsonValueNumber>(Rot.Roll) });
-                    SlotObj->SetNumberField(TEXT("State"), static_cast<uint8>(Slot.State));
+                TSharedPtr<FJsonObject> SlotObj = MakeShared<FJsonObject>();
+                SlotObj->SetStringField(TEXT("ItemId"), Slot.ItemId.ToString());
+                SlotObj->SetStringField(TEXT("ActorClass"), Slot.ActorClass ? Slot.ActorClass->GetPathName() : TEXT(""));
+                FVector Loc = Slot.SpawnTransform.GetLocation();
+                FRotator Rot = Slot.SpawnTransform.Rotator();
+                SlotObj->SetArrayField(TEXT("Location"), { MakeShared<FJsonValueNumber>(Loc.X), MakeShared<FJsonValueNumber>(Loc.Y), MakeShared<FJsonValueNumber>(Loc.Z) });
+                SlotObj->SetArrayField(TEXT("Rotation"), { MakeShared<FJsonValueNumber>(Rot.Pitch), MakeShared<FJsonValueNumber>(Rot.Yaw), MakeShared<FJsonValueNumber>(Rot.Roll) });
+                SlotObj->SetNumberField(TEXT("State"), static_cast<uint8>(Slot.State));
 
-                    TArray<TSharedPtr<FJsonValue>> GameplayTagArray;
-                    for (const FGameplayTag& Tag : Slot.GameplayTags)
-                        GameplayTagArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
-                    SlotObj->SetArrayField(TEXT("GameplayTags"), GameplayTagArray);
+                // GameplayTags
+                TArray<TSharedPtr<FJsonValue>> GameplayTagArray;
+                for (const FGameplayTag& Tag : Slot.GameplayTags)
+                    GameplayTagArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+                SlotObj->SetArrayField(TEXT("GameplayTags"), GameplayTagArray);
 
-                    TArray<TSharedPtr<FJsonValue>> TextTagArray;
-                    for (const FName& Tag : Slot.TextTags)
-                        TextTagArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
-                    SlotObj->SetArrayField(TEXT("TextTags"), TextTagArray);
+                // TextTags
+                TArray<TSharedPtr<FJsonValue>> TextTagArray;
+                for (const FName& Tag : Slot.TextTags)
+                    TextTagArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+                SlotObj->SetArrayField(TEXT("TextTags"), TextTagArray);
 
-                    SlotsArray.Add(MakeShared<FJsonValueObject>(SlotObj));
-                }
-                StateObj->SetArrayField(TEXT("Slots"), SlotsArray);
+                SlotsArray.Add(MakeShared<FJsonValueObject>(SlotObj));
             }
-            else
+            StateObj->SetArrayField(TEXT("Slots"), SlotsArray);
+
+            // ---- Сериализуем TypeKilled для обратной совместимости ----
+            if (GroupPair.Value.TypeKilled.Num() > 0)
             {
                 TSharedPtr<FJsonObject> TypeKilledObj = MakeShared<FJsonObject>();
                 for (const auto& TypePair : GroupPair.Value.TypeKilled)
@@ -563,83 +590,80 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     else
                         State.bStoreSpawnParameters = false;
 
-                    if (State.bStoreSpawnParameters)
+                    // ---- Десериализуем Slots (всегда) ----
+                    const TArray<TSharedPtr<FJsonValue>>* SlotsArray = nullptr;
+                    if ((*StateObj)->TryGetArrayField(TEXT("Slots"), SlotsArray))
                     {
-                        const TArray<TSharedPtr<FJsonValue>>* SlotsArray = nullptr;
-                        if ((*StateObj)->TryGetArrayField(TEXT("Slots"), SlotsArray))
+                        for (const TSharedPtr<FJsonValue>& SlotVal : *SlotsArray)
                         {
-                            for (const TSharedPtr<FJsonValue>& SlotVal : *SlotsArray)
+                            const TSharedPtr<FJsonObject>* SlotObj = nullptr;
+                            if (!SlotVal->TryGetObject(SlotObj)) continue;
+
+                            FSpawnSlotState Slot;
+                            FString ItemIdStr;
+                            if ((*SlotObj)->TryGetStringField(TEXT("ItemId"), ItemIdStr))
+                                FGuid::Parse(ItemIdStr, Slot.ItemId);
+
+                            FString ClassPath;
+                            if ((*SlotObj)->TryGetStringField(TEXT("ActorClass"), ClassPath) && !ClassPath.IsEmpty())
+                                Slot.ActorClass = LoadClass<AActor>(nullptr, *ClassPath);
+
+                            const TArray<TSharedPtr<FJsonValue>>* LocArr = nullptr;
+                            if ((*SlotObj)->TryGetArrayField(TEXT("Location"), LocArr) && LocArr->Num() >= 3)
                             {
-                                const TSharedPtr<FJsonObject>* SlotObj = nullptr;
-                                if (!SlotVal->TryGetObject(SlotObj)) continue;
-
-                                FSpawnSlotState Slot;
-                                FString ItemIdStr;
-                                if ((*SlotObj)->TryGetStringField(TEXT("ItemId"), ItemIdStr))
-                                    FGuid::Parse(ItemIdStr, Slot.ItemId);
-
-                                FString ClassPath;
-                                if ((*SlotObj)->TryGetStringField(TEXT("ActorClass"), ClassPath) && !ClassPath.IsEmpty())
-                                    Slot.ActorClass = LoadClass<AActor>(nullptr, *ClassPath);
-
-                                const TArray<TSharedPtr<FJsonValue>>* LocArr = nullptr;
-                                if ((*SlotObj)->TryGetArrayField(TEXT("Location"), LocArr) && LocArr->Num() >= 3)
-                                {
-                                    FVector Loc((*LocArr)[0]->AsNumber(), (*LocArr)[1]->AsNumber(), (*LocArr)[2]->AsNumber());
-                                    Slot.SpawnTransform.SetLocation(Loc);
-                                }
-                                const TArray<TSharedPtr<FJsonValue>>* RotArr = nullptr;
-                                if ((*SlotObj)->TryGetArrayField(TEXT("Rotation"), RotArr) && RotArr->Num() >= 3)
-                                {
-                                    FRotator Rot((*RotArr)[0]->AsNumber(), (*RotArr)[1]->AsNumber(), (*RotArr)[2]->AsNumber());
-                                    Slot.SpawnTransform.SetRotation(Rot.Quaternion());
-                                }
-
-                                uint8 StateValue = 0;
-                                if ((*SlotObj)->TryGetNumberField(TEXT("State"), StateValue))
-                                    Slot.State = static_cast<EGhostState>(StateValue);
-                                else
-                                    Slot.State = EGhostState::Alive;
-
-                                const TArray<TSharedPtr<FJsonValue>>* GameplayTagArray = nullptr;
-                                if ((*SlotObj)->TryGetArrayField(TEXT("GameplayTags"), GameplayTagArray))
-                                {
-                                    for (const auto& Val : *GameplayTagArray)
-                                    {
-                                        if (Val->Type == EJson::String)
-                                        {
-                                            FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Val->AsString()));
-                                            if (Tag.IsValid())
-                                                Slot.GameplayTags.AddTag(Tag);
-                                        }
-                                    }
-                                }
-
-                                const TArray<TSharedPtr<FJsonValue>>* TextTagArray = nullptr;
-                                if ((*SlotObj)->TryGetArrayField(TEXT("TextTags"), TextTagArray))
-                                {
-                                    for (const auto& Val : *TextTagArray)
-                                    {
-                                        if (Val->Type == EJson::String)
-                                            Slot.TextTags.Add(FName(*Val->AsString()));
-                                    }
-                                }
-
-                                State.Slots.Add(Slot);
+                                FVector Loc((*LocArr)[0]->AsNumber(), (*LocArr)[1]->AsNumber(), (*LocArr)[2]->AsNumber());
+                                Slot.SpawnTransform.SetLocation(Loc);
                             }
+                            const TArray<TSharedPtr<FJsonValue>>* RotArr = nullptr;
+                            if ((*SlotObj)->TryGetArrayField(TEXT("Rotation"), RotArr) && RotArr->Num() >= 3)
+                            {
+                                FRotator Rot((*RotArr)[0]->AsNumber(), (*RotArr)[1]->AsNumber(), (*RotArr)[2]->AsNumber());
+                                Slot.SpawnTransform.SetRotation(Rot.Quaternion());
+                            }
+
+                            uint8 StateValue = 0;
+                            if ((*SlotObj)->TryGetNumberField(TEXT("State"), StateValue))
+                                Slot.State = static_cast<EGhostState>(StateValue);
+                            else
+                                Slot.State = EGhostState::Alive;
+
+                            const TArray<TSharedPtr<FJsonValue>>* GameplayTagArray = nullptr;
+                            if ((*SlotObj)->TryGetArrayField(TEXT("GameplayTags"), GameplayTagArray))
+                            {
+                                for (const auto& Val : *GameplayTagArray)
+                                {
+                                    if (Val->Type == EJson::String)
+                                    {
+                                        FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Val->AsString()));
+                                        if (Tag.IsValid())
+                                            Slot.GameplayTags.AddTag(Tag);
+                                    }
+                                }
+                            }
+
+                            const TArray<TSharedPtr<FJsonValue>>* TextTagArray = nullptr;
+                            if ((*SlotObj)->TryGetArrayField(TEXT("TextTags"), TextTagArray))
+                            {
+                                for (const auto& Val : *TextTagArray)
+                                {
+                                    if (Val->Type == EJson::String)
+                                        Slot.TextTags.Add(FName(*Val->AsString()));
+                                }
+                            }
+
+                            State.Slots.Add(Slot);
                         }
                     }
-                    else
+
+                    // ---- Десериализуем TypeKilled (если есть) ----
+                    const TSharedPtr<FJsonObject>* TypeKilledObj = nullptr;
+                    if ((*StateObj)->TryGetObjectField(TEXT("TypeKilled"), TypeKilledObj))
                     {
-                        const TSharedPtr<FJsonObject>* TypeKilledObj = nullptr;
-                        if ((*StateObj)->TryGetObjectField(TEXT("TypeKilled"), TypeKilledObj))
+                        for (const auto& TypePair : (*TypeKilledObj)->Values)
                         {
-                            for (const auto& TypePair : (*TypeKilledObj)->Values)
-                            {
-                                FName ClassName(*TypePair.Key);
-                                int32 Count = static_cast<int32>(TypePair.Value->AsNumber());
-                                State.TypeKilled.Add(ClassName, Count);
-                            }
+                            FName ClassName(*TypePair.Key);
+                            int32 Count = static_cast<int32>(TypePair.Value->AsNumber());
+                            State.TypeKilled.Add(ClassName, Count);
                         }
                     }
 

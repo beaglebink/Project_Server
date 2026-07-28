@@ -98,6 +98,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
 	FGameplayTagContainer EnemyGameplayTags;
 
+    bool IsResetToAlive = false;
+
     bool IsFullRespawn = false;
     bool AllSpawned = false;
 
@@ -189,6 +191,8 @@ public:
 
     int32 GetSpawnedCount() { return SpawnedCount; }
     int32 GetKilledCount() { return KilledCount; }
+    int32 GetCapturedCount() const;
+    void SetAliveAllGhosts();
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
     FGuid GetGroupId() const;
@@ -212,6 +216,8 @@ public:
 
     TArray<FSpawnSlotState>& GetSlotsMutable() { return AllSlots; }
 
+    void RestoreFromStateWithoutCleanup(FSpawnGroupState& State);
+
 protected:
     ASpawnVolume* GetRandomSpawnLocation() const;
     FTransform GetTransformFromLocation(ASpawnVolume* Location) const;
@@ -224,4 +230,6 @@ protected:
     UFUNCTION()
     void OnGhostDestroyed(AActor* DestroyedActor);
     void UpdateSlotState(const FGuid& ItemId, EGhostState NewState);
+
+    AActor* FindActorByItemId(const FGuid& ItemId) const;
 };

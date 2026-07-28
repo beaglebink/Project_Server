@@ -559,18 +559,18 @@ void ASpawnGroupSpawner::UpdateGroupStatus()
         }
         else
         {
-            if (KilledCount == SpawnedCount)
+            if (KilledCount + GetCapturedCount() == SpawnedCount)
                 CurrentStatus = ESpawnGroupStatus::Cleared;
             else
-                CurrentStatus = (KilledCount == 0) ? ESpawnGroupStatus::Active : ESpawnGroupStatus::PartiallyCleared;
+                CurrentStatus = (KilledCount + GetCapturedCount() == 0) ? ESpawnGroupStatus::Active : ESpawnGroupStatus::PartiallyCleared;
         }
     }
     else
     {
-        if (KilledCount == SpawnedCount)
-            CurrentStatus = ESpawnGroupStatus::Cleared;
+        if (KilledCount + GetCapturedCount() == SpawnedCount)
+            CurrentStatus = (KilledCount + GetCapturedCount() == 0) ? ESpawnGroupStatus::Inactive : ESpawnGroupStatus::Cleared;
         else
-            CurrentStatus = (KilledCount == 0) ? ESpawnGroupStatus::Active : ESpawnGroupStatus::PartiallyCleared;
+            CurrentStatus = (KilledCount + GetCapturedCount() == 0) ? ESpawnGroupStatus::Active : ESpawnGroupStatus::PartiallyCleared;
     }
 }
 
@@ -580,7 +580,21 @@ void ASpawnGroupSpawner::OnGhostDestroyed(AActor* DestroyedActor)
 
     FGuid ItemId;
     if (UFloorAssignmentComponent* Comp = DestroyedActor->FindComponentByClass<UFloorAssignmentComponent>())
+    {
         ItemId = Comp->ItemId;
+
+        for (auto Slot : AllSlots)
+        {
+            if (Slot.ItemId == ItemId)
+            {
+                if (Slot.State == EGhostState::Captured)
+                {
+                    return;
+                }
+            }
+        }
+    }
+
     if (ItemId.IsValid())
         UpdateSlotState(ItemId, EGhostState::Killed);  // исправлено
 
@@ -823,6 +837,116 @@ void ASpawnGroupSpawner::CaptureGhost(AActor* Ghost)
         Ev.OutcomeSpawnGroup = EOutcomeSpawnGroup::GhostCaptured;
         Ev.Payload = Payload;
         EventBus->PublishOutcome(Ev);
+    }
+}
+
+void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
+{
+    // Обновляем статус группы
+    CurrentStatus = State.Status;
+    if (CurrentStatus == ESpawnGroupStatus::Cleared)
+    {
+        ClearGroup(State.ResolutionReason);
+        SpawnedCount = 0;
+        return;
+    }
+
+    // Обновляем счётчики убитых (для обратной совместимости)
+    if (!State.bStoreSpawnParameters)
+    {
+        TypeKilled = State.TypeKilled;
+        KilledCount = 0;
+        for (const auto& Pair : TypeKilled) KilledCount += Pair.Value;
+    }
+
+    // Если есть слоты – восстанавливаем призраков, не изменяя AllSlots
+    if (State.Slots.Num() > 0)
+    {
+        if (IsResetToAlive)
+        {
+            for (auto& Slot : State.Slots)
+            {
+				Slot.State = EGhostState::Alive;
+            }
+            IsResetToAlive = false;
+        }
+
+        SpawnedCount = AllSlots.Num();
+        for (const FSpawnSlotState& Slot : State.Slots)
+        {
+            // Спавним только живых, и только если актор с таким ItemId отсутствует в мире
+            if (Slot.State != EGhostState::Alive) continue;
+            if (!Slot.ActorClass) continue;
+
+            // Проверяем, есть ли уже актор с таким ItemId в мире
+            if (FindActorByItemId(Slot.ItemId))
+                continue; // уже существует – не спавним повторно
+
+            // Если актор отсутствует – спавним
+            FActorSpawnParameters SpawnParams;
+            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            AActor* Ghost = GetWorld()->SpawnActor<AActor>(Slot.ActorClass, Slot.SpawnTransform, SpawnParams);
+            if (!Ghost) continue;
+
+            // Настраиваем компонент FloorAssignmentComponent
+            if (UFloorAssignmentComponent* Comp = Ghost->FindComponentByClass<UFloorAssignmentComponent>())
+            {
+                Comp->ItemId = Slot.ItemId;
+                Comp->SnapshotChannel = ESnapshotChannel::None;
+                Comp->ActorType = EFloorActorType::SpawnItems;
+                Comp->GameplayTagContainer = Slot.GameplayTags;
+                Ghost->Tags = Slot.TextTags;
+            }
+            else
+            {
+                UFloorAssignmentComponent* NewComp = NewObject<UFloorAssignmentComponent>(Ghost);
+                NewComp->RegisterComponent();
+                Ghost->AddInstanceComponent(NewComp);
+                NewComp->ItemId = Slot.ItemId;
+                NewComp->SnapshotChannel = ESnapshotChannel::None;
+                NewComp->ActorType = EFloorActorType::SpawnItems;
+                NewComp->GameplayTagContainer = Slot.GameplayTags;
+                Ghost->Tags = Slot.TextTags;
+            }
+
+            SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
+            Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+            //SpawnedCount++;
+        }
+        UpdateGroupStatus();
+    }
+}
+
+AActor* ASpawnGroupSpawner::FindActorByItemId(const FGuid& ItemId) const
+{
+    if (!GetWorld()) return nullptr;
+    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!IsValid(Actor)) continue;
+        if (UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+        {
+            if (Comp->ItemId == ItemId)
+                return Actor;
+        }
+    }
+    return nullptr;
+}
+
+int32 ASpawnGroupSpawner::GetCapturedCount() const
+{
+    int32 Count = 0;
+    for (const FSpawnSlotState& Slot : AllSlots)
+        if (Slot.State == EGhostState::Captured)
+            Count++;
+    return Count;
+}
+
+void ASpawnGroupSpawner::SetAliveAllGhosts()
+{
+    for (auto& Slot : AllSlots)
+    {
+        Slot.State = EGhostState::Alive;
     }
 }
 
