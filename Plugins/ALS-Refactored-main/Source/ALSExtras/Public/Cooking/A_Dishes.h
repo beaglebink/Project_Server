@@ -128,5 +128,5 @@ public:
 
 	EHeatingLevel GetHeatingLevel();
 
-	//void CheckIfCooked();
+	void CheckIfCooked();
 };

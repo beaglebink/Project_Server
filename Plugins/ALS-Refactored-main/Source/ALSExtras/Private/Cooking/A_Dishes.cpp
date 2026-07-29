@@ -243,7 +243,7 @@ void AA_Dishes::SetHeatingLevel(EHeatingLevel NewLevel)
 	case EHeatingLevel::None:
 	{
 		GetWorldTimerManager().ClearTimer(CookingTimerHandle);
-		//CheckIfCooked();
+		CheckIfCooked();
 		break;
 	}
 	case EHeatingLevel::Low:
