@@ -725,34 +725,43 @@ int32 USpawnGroupSubsystem::GetCapturedCount(const FGuid& ItemId) const
     return 0;
 }
 
-int32 USpawnGroupSubsystem::GetAliveCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const
+int32 USpawnGroupSubsystem::GetAliveCountByType(const FGuid& ItemId, const TArray<TSubclassOf<AActor>>& ActorClasses) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
-    if (Spawner)
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
-        return Slot.State == EGhostState::Alive && Slot.ActorClass == ActorClass;
-            });
-    return 0;
+    if (!Spawner) return 0;
+
+    return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+        if (Slot.State != EGhostState::Alive) return false;
+        for (const TSubclassOf<AActor>& Class : ActorClasses)
+            if (Slot.ActorClass && Slot.ActorClass == Class) return true;
+        return false;
+        });
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const
+int32 USpawnGroupSubsystem::GetKilledCountByType(const FGuid& ItemId, const TArray<TSubclassOf<AActor>>& ActorClasses) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
-    if (Spawner)
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
-        return Slot.State == EGhostState::Killed && Slot.ActorClass == ActorClass;
-            });
-    return 0;
+    if (!Spawner) return 0;
+
+    return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+        if (Slot.State != EGhostState::Killed) return false;
+        for (const TSubclassOf<AActor>& Class : ActorClasses)
+            if (Slot.ActorClass && Slot.ActorClass == Class) return true;
+        return false;
+        });
 }
 
-int32 USpawnGroupSubsystem::GetCapturedCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const
+int32 USpawnGroupSubsystem::GetCapturedCountByType(const FGuid& ItemId, const TArray<TSubclassOf<AActor>>& ActorClasses) const
 {
     ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(ItemId);
-    if (Spawner)
-        return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
-        return Slot.State == EGhostState::Captured && Slot.ActorClass == ActorClass;
-            });
-    return 0;
+    if (!Spawner) return 0;
+
+    return CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
+        if (Slot.State != EGhostState::Captured) return false;
+        for (const TSubclassOf<AActor>& Class : ActorClasses)
+            if (Slot.ActorClass && Slot.ActorClass == Class) return true;
+        return false;
+        });
 }
 
 int32 USpawnGroupSubsystem::GetAliveCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const
@@ -915,47 +924,44 @@ int32 USpawnGroupSubsystem::GetCapturedCountForCurrentFloor() const
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetAliveCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const
+int32 USpawnGroupSubsystem::GetAliveCountByTypeForCurrentFloor(const TArray<TSubclassOf<AActor>>& ActorClasses) const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
         if (!Spawner || !IsValid(Spawner)) continue;
-        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
-            return Slot.State == EGhostState::Alive && Slot.ActorClass == ActorClass;
-                });
+        if (GetFloorKeyFromSpawner(Spawner) != CurrentFloorKey) continue;
+
+        Total += GetAliveCountByType(Pair.Key, ActorClasses);
     }
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetKilledCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const
+int32 USpawnGroupSubsystem::GetKilledCountByTypeForCurrentFloor(const TArray<TSubclassOf<AActor>>& ActorClasses) const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
         if (!Spawner || !IsValid(Spawner)) continue;
-        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
-            return Slot.State == EGhostState::Killed && Slot.ActorClass == ActorClass;
-                });
+        if (GetFloorKeyFromSpawner(Spawner) != CurrentFloorKey) continue;
+
+        Total += GetKilledCountByType(Pair.Key, ActorClasses);
     }
     return Total;
 }
 
-int32 USpawnGroupSubsystem::GetCapturedCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const
+int32 USpawnGroupSubsystem::GetCapturedCountByTypeForCurrentFloor(const TArray<TSubclassOf<AActor>>& ActorClasses) const
 {
     int32 Total = 0;
     for (const auto& Pair : SpawnerByItemId)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
         if (!Spawner || !IsValid(Spawner)) continue;
-        if (GetFloorKeyFromSpawner(Spawner) == CurrentFloorKey)
-            Total += CountSlots(Spawner->GetAllSlots(), [&](const FSpawnSlotState& Slot) {
-            return Slot.State == EGhostState::Captured && Slot.ActorClass == ActorClass;
-                });
+        if (GetFloorKeyFromSpawner(Spawner) != CurrentFloorKey) continue;
+
+        Total += GetCapturedCountByType(Pair.Key, ActorClasses);
     }
     return Total;
 }
