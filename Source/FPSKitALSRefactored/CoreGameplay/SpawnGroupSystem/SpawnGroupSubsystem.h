@@ -53,17 +53,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCount(const FGuid& ItemId) const;
 
-    // ---- По классам (одиночный класс) ----
-    /*
-    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetAliveCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const;
-
-    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetKilledCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const;
-
-    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetCapturedCountByType(const FGuid& ItemId, TSubclassOf<AActor> ActorClass) const;
-    */
     // ---- По классам (массив классов) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByType(const FGuid& ItemId, const TArray<TSubclassOf<AActor>>& ActorClasses) const;
@@ -115,17 +104,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountForCurrentFloor() const;
 
-    // ---- По классам (одиночный класс) ----
-    /*
-    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetAliveCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const;
-
-    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetKilledCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const;
-
-    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
-    int32 GetCapturedCountByTypeForCurrentFloor(TSubclassOf<AActor> ActorClass) const;
-    */
     // ---- По классам (массив классов) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByTypeForCurrentFloor(const TArray<TSubclassOf<AActor>>& ActorClasses) const;
@@ -155,6 +133,32 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
+
+    // ---- Разрешённые (убитые + захваченные) ----
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetResolvedCount(const FGuid& ItemId) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetResolvedCountByType(const FGuid& ItemId, const TArray<TSubclassOf<AActor>>& ActorClasses) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetResolvedCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetResolvedCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const;
+
+    // ---- По текущему этажу (разрешённые) ----
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetResolvedCountForCurrentFloor() const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetResolvedCountByTypeForCurrentFloor(const TArray<TSubclassOf<AActor>>& ActorClasses) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetResolvedCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const;
+
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
+    int32 GetResolvedCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
 
 private:
     // ----- Подписка на события EventBus -----

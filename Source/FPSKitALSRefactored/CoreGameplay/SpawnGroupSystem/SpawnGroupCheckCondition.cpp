@@ -315,7 +315,103 @@ FString USpawnGroupKilledCountCondition::GetDescription() const
 }
 
 // ============================================================================
-// 5. USpawnGroupKilledByClassCondition (массив классов)
+// 5. USpawnGroupCapturedCountCondition
+// ============================================================================
+
+void USpawnGroupCapturedCountCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetCapturedCount(Id);
+    }
+    else
+    {
+        Total = Sub->GetCapturedCountForCurrentFloor();
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (captured=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupCapturedCountCondition::GetDescription() const
+{
+    return FString::Printf(TEXT("SpawnGroup captured count [%s] %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 6. USpawnGroupResolvedCountCondition (убитые + захваченные)
+// ============================================================================
+
+void USpawnGroupResolvedCountCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetResolvedCount(Id);
+    }
+    else
+    {
+        Total = Sub->GetResolvedCountForCurrentFloor();
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (resolved=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupResolvedCountCondition::GetDescription() const
+{
+    return FString::Printf(TEXT("SpawnGroup resolved count (killed+captured) [%s] %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 7. USpawnGroupKilledByClassCondition (массив классов)
 // ============================================================================
 
 void USpawnGroupKilledByClassCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -370,7 +466,7 @@ FString USpawnGroupKilledByClassCondition::GetDescription() const
 }
 
 // ============================================================================
-// 6. USpawnGroupAliveByClassCondition (массив классов)
+// 8. USpawnGroupAliveByClassCondition
 // ============================================================================
 
 void USpawnGroupAliveByClassCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -425,7 +521,7 @@ FString USpawnGroupAliveByClassCondition::GetDescription() const
 }
 
 // ============================================================================
-// 7. USpawnGroupCapturedByClassCondition (массив классов)
+// 9. USpawnGroupCapturedByClassCondition
 // ============================================================================
 
 void USpawnGroupCapturedByClassCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -480,7 +576,62 @@ FString USpawnGroupCapturedByClassCondition::GetDescription() const
 }
 
 // ============================================================================
-// 8. USpawnGroupKilledByTextTagCondition
+// 10. USpawnGroupResolvedByClassCondition (убитые + захваченные)
+// ============================================================================
+
+void USpawnGroupResolvedByClassCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetResolvedCountByType(Id, ActorClasses);
+    }
+    else
+    {
+        Total = Sub->GetResolvedCountByTypeForCurrentFloor(ActorClasses);
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (resolved_by_class=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupResolvedByClassCondition::GetDescription() const
+{
+    FString ClassesStr;
+    for (const TSubclassOf<AActor>& Class : ActorClasses)
+    {
+        if (!ClassesStr.IsEmpty()) ClassesStr += TEXT(", ");
+        ClassesStr += Class ? Class->GetName() : TEXT("None");
+    }
+    return FString::Printf(TEXT("SpawnGroup resolved by classes (killed+captured) [%s] classes=[%s] %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *ClassesStr,
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 11. USpawnGroupKilledByTextTagCondition
 // ============================================================================
 
 void USpawnGroupKilledByTextTagCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -535,7 +686,7 @@ FString USpawnGroupKilledByTextTagCondition::GetDescription() const
 }
 
 // ============================================================================
-// 9. USpawnGroupAliveByTextTagCondition
+// 12. USpawnGroupAliveByTextTagCondition
 // ============================================================================
 
 void USpawnGroupAliveByTextTagCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -590,7 +741,7 @@ FString USpawnGroupAliveByTextTagCondition::GetDescription() const
 }
 
 // ============================================================================
-// 10. USpawnGroupCapturedByTextTagCondition
+// 13. USpawnGroupCapturedByTextTagCondition
 // ============================================================================
 
 void USpawnGroupCapturedByTextTagCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -645,7 +796,62 @@ FString USpawnGroupCapturedByTextTagCondition::GetDescription() const
 }
 
 // ============================================================================
-// 11. USpawnGroupKilledByGameplayTagCondition
+// 14. USpawnGroupResolvedByTextTagCondition (убитые + захваченные)
+// ============================================================================
+
+void USpawnGroupResolvedByTextTagCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetResolvedCountByTextTag(Id, TextTags);
+    }
+    else
+    {
+        Total = Sub->GetResolvedCountByTextTagForCurrentFloor(TextTags);
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (resolved_by_texttag=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupResolvedByTextTagCondition::GetDescription() const
+{
+    FString TagsStr;
+    for (const FName& Tag : TextTags)
+    {
+        if (!TagsStr.IsEmpty()) TagsStr += TEXT(", ");
+        TagsStr += Tag.ToString();
+    }
+    return FString::Printf(TEXT("SpawnGroup resolved by text tags (killed+captured) [%s] tags=[%s] %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *TagsStr,
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 15. USpawnGroupKilledByGameplayTagCondition
 // ============================================================================
 
 void USpawnGroupKilledByGameplayTagCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -700,7 +906,7 @@ FString USpawnGroupKilledByGameplayTagCondition::GetDescription() const
 }
 
 // ============================================================================
-// 12. USpawnGroupAliveByGameplayTagCondition
+// 16. USpawnGroupAliveByGameplayTagCondition
 // ============================================================================
 
 void USpawnGroupAliveByGameplayTagCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -755,7 +961,7 @@ FString USpawnGroupAliveByGameplayTagCondition::GetDescription() const
 }
 
 // ============================================================================
-// 13. USpawnGroupCapturedByGameplayTagCondition
+// 17. USpawnGroupCapturedByGameplayTagCondition
 // ============================================================================
 
 void USpawnGroupCapturedByGameplayTagCondition::ExecuteCheck(const FGuid& TransactionId)
@@ -803,6 +1009,61 @@ FString USpawnGroupCapturedByGameplayTagCondition::GetDescription() const
         TagsStr += Tag.ToString();
     }
     return FString::Printf(TEXT("SpawnGroup captured by gameplay tags [%s] tags=[%s] %s %d"),
+        SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
+        *TagsStr,
+        *UEnum::GetValueAsString(Operator),
+        ExpectedValue);
+}
+
+// ============================================================================
+// 18. USpawnGroupResolvedByGameplayTagCondition (убитые + захваченные)
+// ============================================================================
+
+void USpawnGroupResolvedByGameplayTagCondition::ExecuteCheck(const FGuid& TransactionId)
+{
+    LogVerbose(TEXT(""), true);
+    CurrentTransactionId = TransactionId;
+    bCompleted = false;
+    bApproved = false;
+
+    USpawnGroupSubsystem* Sub = GetSpawnGroupSubsystem();
+    if (!Sub)
+    {
+        bCompleted = true;
+        bApproved = false;
+        LogVerbose(TEXT("→ false (no subsystem)"), false);
+        OnComplete.ExecuteIfBound(this);
+        return;
+    }
+
+    int32 Total = 0;
+    TArray<FGuid> Ids = GetEffectiveGroupIds();
+    if (Ids.Num() > 0)
+    {
+        for (const FGuid& Id : Ids)
+            Total += Sub->GetResolvedCountByGameplayTag(Id, GameplayTags);
+    }
+    else
+    {
+        Total = Sub->GetResolvedCountByGameplayTagForCurrentFloor(GameplayTags);
+    }
+
+    bApproved = EvaluateCompare(Total);
+    bCompleted = true;
+    LogVerbose(FString::Printf(TEXT("→ %s (resolved_by_gptag=%d, expected=%d)"),
+        bApproved ? TEXT("true") : TEXT("false"), Total, ExpectedValue), false);
+    OnComplete.ExecuteIfBound(this);
+}
+
+FString USpawnGroupResolvedByGameplayTagCondition::GetDescription() const
+{
+    FString TagsStr;
+    for (const FGameplayTag& Tag : GameplayTags)
+    {
+        if (!TagsStr.IsEmpty()) TagsStr += TEXT(", ");
+        TagsStr += Tag.ToString();
+    }
+    return FString::Printf(TEXT("SpawnGroup resolved by gameplay tags (killed+captured) [%s] tags=[%s] %s %d"),
         SpawnersReferences.Num() > 0 ? *FString::Printf(TEXT("%d spawners"), SpawnersReferences.Num()) : TEXT("CurrentFloor"),
         *TagsStr,
         *UEnum::GetValueAsString(Operator),
