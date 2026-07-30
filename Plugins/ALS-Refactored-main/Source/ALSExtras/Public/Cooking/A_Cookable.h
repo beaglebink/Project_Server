@@ -71,6 +71,17 @@ protected:
 	void TossTimelineFinished();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cooking")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
+	int32 DefaultCookingTime = 60;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	int32 CookingTime;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
+	float CookingInPercent;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* MeshDynamicMaterial;
+
+	void DecreaseCookingTime(int32 CookingPeriod);
 };

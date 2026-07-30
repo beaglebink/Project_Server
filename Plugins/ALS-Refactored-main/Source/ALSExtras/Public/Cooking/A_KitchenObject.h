@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Cooking/A_Dishes.h"
 #include "A_KitchenObject.generated.h"
 
 class UBoxComponent;
@@ -30,10 +31,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = true))
 	UBoxComponent* SurfaceCollisionComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cooking", meta = (AllowPrivateAccess = true))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (AllowPrivateAccess = true))
 	TArray<AA_Dishes*> PlacedDishes;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cooking")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	EHeatingLevel HeatingLevel;
 };
