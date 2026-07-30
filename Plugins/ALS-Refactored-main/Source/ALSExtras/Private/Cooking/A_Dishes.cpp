@@ -350,8 +350,24 @@ void AA_Dishes::CheckIfCooked()
 	}
 
 	//Ñhecking the degree of doneness
-	//
-	//
+	if (Ingredients.IsEmpty())
+	{
+		bIsOnRecipeChecking = false;
+		return;
+	}
+	float MinDoneness = FLT_MAX, MaxDoneness = -FLT_MAX, AverageDoneness = 0.0f;
+	for (AA_Cookable* Ingredient : Ingredients)
+	{
+		MinDoneness = FMath::Min(MinDoneness, Ingredient->CookingInPercent);
+		MaxDoneness = FMath::Max(MaxDoneness, Ingredient->CookingInPercent);
+		AverageDoneness += Ingredient->CookingInPercent;
+	}
+	AverageDoneness /= Ingredients.Num();
+	if (MaxDoneness - MinDoneness > 0.3f)
+	{
+		MatchedRecipe = nullptr;
+	}
+
 
 	//If all conditions are ok, swap ingredients on result dish
 	if (MatchedRecipe && MatchedRecipe->ResultCookableClass)
@@ -365,6 +381,7 @@ void AA_Dishes::CheckIfCooked()
 		IngredientCountMap.Empty();
 
 		AA_Cookable* NewDish = GetWorld()->SpawnActor<AA_Cookable>(MatchedRecipe->ResultCookableClass, CookedResultSpawnPoint->GetComponentLocation(), CookedResultSpawnPoint->GetComponentRotation());
+		NewDish->CookingTime = static_cast<int32>(NewDish->DefaultCookingTime * AverageDoneness);
 	}
 
 	bIsOnRecipeChecking = false;
