@@ -1,4 +1,6 @@
 ﻿// SpawnGroupSubsystem.cpp
+// SpawnGroupSubsystem.cpp
+
 #include "SpawnGroupSubsystem.h"
 #include "SpawnGroupSpawner.h"
 #include "SpawnGroupCommandPayload.h"
@@ -16,6 +18,7 @@
 #include "../LocationSystem/LocationAnchorActor.h"
 
 // ============================================================================
+// Helper function to count slots by predicate
 // Вспомогательная функция для подсчёта слотов по предикату
 // ============================================================================
 static int32 CountSlots(const TArray<FSpawnSlotState>& Slots, TFunction<bool(const FSpawnSlotState&)> Predicate)
@@ -27,6 +30,7 @@ static int32 CountSlots(const TArray<FSpawnSlotState>& Slots, TFunction<bool(con
 }
 
 // ============================================================================
+// Lifecycle
 // Жизненный цикл
 // ============================================================================
 
@@ -55,6 +59,7 @@ void USpawnGroupSubsystem::Deinitialize()
 }
 
 // ============================================================================
+// EventBus subscription
 // Подписка на события EventBus
 // ============================================================================
 
@@ -162,6 +167,7 @@ void USpawnGroupSubsystem::UnsubscribeEvents()
 }
 
 // ============================================================================
+// Event handlers
 // Обработчики событий
 // ============================================================================
 
@@ -313,6 +319,7 @@ void USpawnGroupSubsystem::HandleGhostCaptured(const FOutcomeEventBase& Outcome)
 }
 
 // ============================================================================
+// Internal control methods
 // Внутренние методы управления
 // ============================================================================
 
@@ -350,9 +357,11 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
     State.KilledCount = Spawner->GetKilledCount();
 
+    // Always save slots (even if IsStoreSpawnParameters == false)
     // Всегда сохраняем слоты (даже если IsStoreSpawnParameters == false)
     State.Slots = Spawner->GetAllSlots();
 
+    // Save TypeKilled for backward compatibility (if needed)
     // Сохраняем TypeKilled для обратной совместимости (если нужно)
     State.TypeKilled = Spawner->GetTypeKilled();
 
@@ -361,6 +370,7 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
 }
 
 // ============================================================================
+// Spawner lookup
 // Поиск спавнеров
 // ============================================================================
 
@@ -377,6 +387,7 @@ ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByGroupId(const FGuid& Grou
 }
 
 // ============================================================================
+// Level loaded handler
 // Обработчик загрузки уровня
 // ============================================================================
 
@@ -389,6 +400,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
         return;
 
+    // Determine current floor key
     // Определяем текущий ключ этажа
     ALocationAnchorActor* FoundAnchor = nullptr;
     for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
@@ -406,6 +418,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         }
     }
 
+    // Restore spawner states from PersistentGroupStates
     // Восстанавливаем состояние спавнеров из PersistentGroupStates
     for (const auto& Pair : SpawnerByItemId)
     {
@@ -424,15 +437,18 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
         if (!State) continue;
 
+        // Restore spawner flag (if changed at runtime)
         // Восстанавливаем флаг спавнера (если изменился в рантайме)
         Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
 
+        // Restore ghosts without modifying AllSlots and without destroying existing ones
         // Восстанавливаем призраков без изменения AllSlots и без уничтожения существующих
         Spawner->RestoreFromStateWithoutCleanup(*State);
     }
 }
 
 // ============================================================================
+// Saving and loading
 // Сохранение и загрузка
 // ============================================================================
 
@@ -455,6 +471,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
         State.KilledCount = Spawner->GetKilledCount();
 
+        // Always save slots
         // Всегда сохраняем слоты
         State.Slots = Spawner->GetAllSlots();
         State.TypeKilled = Spawner->GetTypeKilled();
@@ -463,6 +480,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
     }
 
+    // Serialization to JSON
     // Сериализация в JSON
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
     TSharedPtr<FJsonObject> GroupsObj = MakeShared<FJsonObject>();
@@ -481,6 +499,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
             StateObj->SetNumberField(TEXT("KilledCount"), GroupPair.Value.KilledCount);
 
+            // ---- Always serialize Slots ----
             // ---- Всегда сериализуем Slots ----
             TArray<TSharedPtr<FJsonValue>> SlotsArray;
             for (const FSpawnSlotState& Slot : GroupPair.Value.Slots)
@@ -510,6 +529,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             }
             StateObj->SetArrayField(TEXT("Slots"), SlotsArray);
 
+            // ---- Serialize TypeKilled for backward compatibility ----
             // ---- Сериализуем TypeKilled для обратной совместимости ----
             if (GroupPair.Value.TypeKilled.Num() > 0)
             {
@@ -590,6 +610,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     else
                         State.bStoreSpawnParameters = false;
 
+                    // ---- Deserialize Slots (always) ----
                     // ---- Десериализуем Slots (всегда) ----
                     const TArray<TSharedPtr<FJsonValue>>* SlotsArray = nullptr;
                     if ((*StateObj)->TryGetArrayField(TEXT("Slots"), SlotsArray))
@@ -655,6 +676,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                         }
                     }
 
+                    // ---- Deserialize TypeKilled (if present) ----
                     // ---- Десериализуем TypeKilled (если есть) ----
                     const TSharedPtr<FJsonObject>* TypeKilledObj = nullptr;
                     if ((*StateObj)->TryGetObjectField(TEXT("TypeKilled"), TypeKilledObj))
@@ -678,6 +700,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 }
 
 // ============================================================================
+// Helper methods
 // Вспомогательные методы
 // ============================================================================
 
@@ -690,6 +713,7 @@ FInteriorFloorKey USpawnGroupSubsystem::GetFloorKeyFromSpawner(ASpawnGroupSpawne
 }
 
 // ============================================================================
+// Group statistics methods
 // Методы статистики по группе
 // ============================================================================
 
@@ -869,6 +893,7 @@ ESpawnGroupStatus USpawnGroupSubsystem::GetGroupStatus(const FGuid& ItemId) cons
 }
 
 // ============================================================================
+// Statistics methods for current floor (aggregated)
 // Методы статистики по текущему этажу (агрегированные)
 // ============================================================================
 
@@ -1104,6 +1129,7 @@ int32 USpawnGroupSubsystem::GetCapturedCountByGameplayTagForCurrentFloor(const T
 }
 
 // ============================================================================
+// Implementation of "resolved" statistics methods (killed + captured)
 // Реализация методов статистики "разрешённые" (убитые + захваченные)
 // ============================================================================
 
@@ -1163,6 +1189,7 @@ int32 USpawnGroupSubsystem::GetResolvedCountByGameplayTag(const FGuid& ItemId, c
 }
 
 // ============================================================================
+// Implementation of "resolved" statistics methods for current floor
 // Реализация методов статистики "разрешённые" для текущего этажа
 // ============================================================================
 

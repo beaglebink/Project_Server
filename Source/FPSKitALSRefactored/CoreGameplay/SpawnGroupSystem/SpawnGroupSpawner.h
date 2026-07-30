@@ -1,3 +1,6 @@
+// SpawnGroupSpawner.h
+// SpawnGroupSpawner.h
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -31,6 +34,7 @@ protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
+    // ===== Configuration =====
     // ===== Конфигурация =====
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     TObjectPtr<USpawnGroupAsset> SpawnGroupAsset;
@@ -45,7 +49,7 @@ public:
     bool bAllowRespawn = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-	float SpawnInterval = 0.1f; 
+    float SpawnInterval = 0.1f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Placement")
     TArray<TObjectPtr<ASpawnVolume>> SpawnLocations;
@@ -87,16 +91,16 @@ public:
     bool IsUseStoreSpawnParameters = false;
 
     UPROPERTY(SaveGame)
-	TMap< TSubclassOf<AActor>, FTransform> StoredSpawnParameters;
+    TMap< TSubclassOf<AActor>, FTransform> StoredSpawnParameters;
 
     UPROPERTY(SaveGame)
     bool Restore = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-	TArray<FName> EnemyTags;
+    TArray<FName> EnemyTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-	FGameplayTagContainer EnemyGameplayTags;
+    FGameplayTagContainer EnemyGameplayTags;
 
     bool IsResetToAlive = false;
 
@@ -114,10 +118,12 @@ public:
 #endif
 
 protected:
+    // Storage for all slots of the group (both alive and dead)
     // Хранилище всех слотов группы (и живых, и мёртвых)
     UPROPERTY(SaveGame)
     TArray<FSpawnSlotState> AllSlots;
 
+    // ===== State =====
     // ===== Состояние =====
 private:
     UPROPERTY(VisibleAnywhere, Category = "SpawnGroup|State")
@@ -148,17 +154,14 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
     FGuid GetRuntimeGroupId()
-    { 
+    {
         if (!RuntimeGroupId.IsValid() && FloorAssignmentComp)
         {
-            //FSpawnGroupId Id;
-            //Id.Id = 
             RuntimeGroupId = FloorAssignmentComp->ItemId;
-                //Id;
-            return RuntimeGroupId;//Id;
+            return RuntimeGroupId;
         }
 
-        return RuntimeGroupId; 
+        return RuntimeGroupId;
     }
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
@@ -197,7 +200,7 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup")
     FGuid GetGroupId() const;
 
-	void SetStates(const FSpawnGroupState& State);
+    void SetStates(const FSpawnGroupState& State);
 
     void StoreSpawnParameters();
 
@@ -205,12 +208,15 @@ public:
 
     int32 GetNeedSpasnedCount();
 
+    // Get all slots (for saving and counting)
     // Получить все слоты (для сохранения и подсчёта)
     const TArray<FSpawnSlotState>& GetAllSlots() const { return AllSlots; }
 
+    // Update slot on spawn (add a new one)
     // Обновить слот при спавне (добавить новый)
     void AddSpawnSlot(AActor* SpawnedActor, const FTransform& Transform);
 
+    // Update slot on kill (mark as dead)
     // Обновить слот при убийстве (пометить как мёртвого)
     void MarkSlotDead(const FGuid& ItemId);
 

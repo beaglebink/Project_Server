@@ -1,4 +1,6 @@
 // SpawnGroupSpawner.cpp
+// SpawnGroupSpawner.cpp
+
 #include "SpawnGroupSpawner.h"
 #include "SpawnVolume.h"
 #include "Engine/World.h"
@@ -38,6 +40,8 @@ void ASpawnGroupSpawner::OnConstruction(const FTransform& Transform)
         FloorAssignmentComp->ItemId = FGuid::NewGuid();
         FloorAssignmentComp->ProtectedItemId = FloorAssignmentComp->ItemId;
         FloorAssignmentComp->SnapshotChannel = ESnapshotChannel::Snapshot;
+        // English: Generated new ItemId for duplicate
+        // Russian: Generated new ItemId for duplicate
         UE_LOG(LogTemp, Verbose, TEXT("SpawnGroupSpawner [%s]: Generated new ItemId for duplicate"), *GetName());
     }
 }
@@ -206,7 +210,9 @@ TArray<FSpawnSlotState> ASpawnGroupSpawner::CaptureCurrentSlots() const
 
         Slot.ActorClass = Ghost->GetClass();
         Slot.SpawnTransform = Ghost->GetActorTransform();
-        Slot.State = EGhostState::Alive;  // исправлено: вместо bIsAlive
+        // English: fixed: instead of bIsAlive
+        // Russian: исправлено: вместо bIsAlive
+        Slot.State = EGhostState::Alive;
 
         Slots.Add(Slot);
     }
@@ -275,7 +281,8 @@ void ASpawnGroupSpawner::SpawnGroup()
 
     if (SpawnGroupAsset->Composition.bUsePool)
     {
-        // 1. Желаемое количество каждого класса
+        // English: 1. Desired count of each class
+        // Russian: 1. Желаемое количество каждого класса
         TMap<UClass*, int32> DesiredCounts;
 
         for (const FSpawnTypeCount& TypeCount : SpawnGroupAsset->Composition.ActorsPool)
@@ -285,7 +292,8 @@ void ASpawnGroupSpawner::SpawnGroup()
 
         TArray<TSubclassOf<AActor>> ClassesToSpawn;
 
-        // 2. Вычитаем уже убитых (TypeKilled)
+        // English: 2. Subtract already killed (TypeKilled)
+        // Russian: 2. Вычитаем уже убитых (TypeKilled)
 
         for (const auto& Pair : DesiredCounts)
         {
@@ -364,13 +372,12 @@ void ASpawnGroupSpawner::SpawnGroup()
 
             });
 
-        //CurrentStatus = ESpawnGroupStatus::Active;
-
         World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
     }
     else
     {
-        // Определяем классы для спавна
+        // English: Determine classes for spawning
+        // Russian: Определяем классы для спавна
         TArray<TSubclassOf<AAlsCharacter>> ClassesToSpawn;
         int32 DesiredCount = 0;
 
@@ -385,14 +392,16 @@ void ASpawnGroupSpawner::SpawnGroup()
             return;
         }
 
-        // Если указано больше Count, чем классов, циклически повторяем классы
+        // English: If more Count is specified than classes, cycle through classes repeatedly
+        // Russian: Если указано больше Count, чем классов, циклически повторяем классы
         TArray<TSubclassOf<AActor>> FinalClasses;
         for (int32 i = 0; i < DesiredCount; ++i)
         {
             FinalClasses.Add(ClassesToSpawn[i % ClassesToSpawn.Num()]);
         }
 
-        // Спавним
+        // English: Spawn them
+        // Russian: Спавним
         SpawnedGhosts.Empty();
         bHasPublishedClear = false;
 
@@ -417,7 +426,8 @@ void ASpawnGroupSpawner::SpawnGroup()
 
                 if (SpawnedCount >= DesiredCount - KilledCount)
                 {
-                    // Все призраки заспавнены
+                    // English: All ghosts spawned
+                    // Russian: Все призраки заспавнены
                     World->GetTimerManager().ClearTimer(TimerHandle);
                     OnAllSpawned.Broadcast();
 
@@ -459,8 +469,6 @@ void ASpawnGroupSpawner::SpawnGroup()
                 UpdateGroupStatus();
             });
 
-        //CurrentStatus = ESpawnGroupStatus::Active;
-
         World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
     }
 }
@@ -473,7 +481,8 @@ void ASpawnGroupSpawner::ClearGroup(ESpawnGroupResolutionReason Reason)
         return;
     }
 
-    // Помечаем все слоты как убитые (используем State)
+    // English: Mark all slots as killed (using State)
+    // Russian: Помечаем все слоты как убитые (используем State)
     for (FSpawnSlotState& Slot : AllSlots)
         Slot.State = EGhostState::Killed;
 
@@ -596,7 +605,9 @@ void ASpawnGroupSpawner::OnGhostDestroyed(AActor* DestroyedActor)
     }
 
     if (ItemId.IsValid())
-        UpdateSlotState(ItemId, EGhostState::Killed);  // исправлено
+        // English: fixed
+        // Russian: исправлено
+        UpdateSlotState(ItemId, EGhostState::Killed);
 
     if (UClass* ActorClass = DestroyedActor->GetClass())
     {
@@ -617,7 +628,7 @@ void ASpawnGroupSpawner::UpdateSlotState(const FGuid& ItemId, EGhostState NewSta
     {
         if (Slot.ItemId == ItemId)
         {
-            if(Slot.State == EGhostState::Alive)
+            if (Slot.State == EGhostState::Alive)
                 Slot.State = NewState;
             break;
         }
@@ -842,7 +853,8 @@ void ASpawnGroupSpawner::CaptureGhost(AActor* Ghost)
 
 void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
 {
-    // Обновляем статус группы
+    // English: Update group status
+    // Russian: Обновляем статус группы
     CurrentStatus = State.Status;
     if (CurrentStatus == ESpawnGroupStatus::Cleared)
     {
@@ -851,7 +863,8 @@ void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
         return;
     }
 
-    // Обновляем счётчики убитых (для обратной совместимости)
+    // English: Update killed counters (for backward compatibility)
+    // Russian: Обновляем счётчики убитых (для обратной совместимости)
     if (!State.bStoreSpawnParameters)
     {
         TypeKilled = State.TypeKilled;
@@ -859,14 +872,15 @@ void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
         for (const auto& Pair : TypeKilled) KilledCount += Pair.Value;
     }
 
-    // Если есть слоты – восстанавливаем призраков, не изменяя AllSlots
+    // English: If there are slots – restore ghosts without modifying AllSlots
+    // Russian: Если есть слоты – восстанавливаем призраков, не изменяя AllSlots
     if (State.Slots.Num() > 0)
     {
         if (IsResetToAlive)
         {
             for (auto& Slot : State.Slots)
             {
-				Slot.State = EGhostState::Alive;
+                Slot.State = EGhostState::Alive;
             }
             IsResetToAlive = false;
         }
@@ -874,21 +888,25 @@ void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
         SpawnedCount = AllSlots.Num();
         for (const FSpawnSlotState& Slot : State.Slots)
         {
-            // Спавним только живых, и только если актор с таким ItemId отсутствует в мире
+            // English: Spawn only alive ones, and only if an actor with this ItemId does not exist in the world
+            // Russian: Спавним только живых, и только если актор с таким ItemId отсутствует в мире
             if (Slot.State != EGhostState::Alive) continue;
             if (!Slot.ActorClass) continue;
 
-            // Проверяем, есть ли уже актор с таким ItemId в мире
+            // English: Check if there is already an actor with this ItemId in the world
+            // Russian: Проверяем, есть ли уже актор с таким ItemId в мире
             if (FindActorByItemId(Slot.ItemId))
-                continue; // уже существует – не спавним повторно
+                continue; // already exists – do not spawn again
 
-            // Если актор отсутствует – спавним
+            // English: If actor is missing – spawn it
+            // Russian: Если актор отсутствует – спавним
             FActorSpawnParameters SpawnParams;
             SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
             AActor* Ghost = GetWorld()->SpawnActor<AActor>(Slot.ActorClass, Slot.SpawnTransform, SpawnParams);
             if (!Ghost) continue;
 
-            // Настраиваем компонент FloorAssignmentComponent
+            // English: Configure FloorAssignmentComponent
+            // Russian: Настраиваем компонент FloorAssignmentComponent
             if (UFloorAssignmentComponent* Comp = Ghost->FindComponentByClass<UFloorAssignmentComponent>())
             {
                 Comp->ItemId = Slot.ItemId;

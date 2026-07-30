@@ -1,4 +1,3 @@
-// SpawnGroupCheckCondition.cpp
 #include "SpawnGroupCheckCondition.h"
 #include "SpawnGroupSubsystem.h"
 #include "SpawnGroupSpawner.h"
@@ -363,6 +362,7 @@ FString USpawnGroupCapturedCountCondition::GetDescription() const
 }
 
 // ============================================================================
+// 6. USpawnGroupResolvedCountCondition (killed + captured)
 // 6. USpawnGroupResolvedCountCondition (убитые + захваченные)
 // ============================================================================
 
@@ -411,6 +411,7 @@ FString USpawnGroupResolvedCountCondition::GetDescription() const
 }
 
 // ============================================================================
+// 7. USpawnGroupKilledByClassCondition (array of classes)
 // 7. USpawnGroupKilledByClassCondition (массив классов)
 // ============================================================================
 
@@ -576,6 +577,7 @@ FString USpawnGroupCapturedByClassCondition::GetDescription() const
 }
 
 // ============================================================================
+// 10. USpawnGroupResolvedByClassCondition (killed + captured)
 // 10. USpawnGroupResolvedByClassCondition (убитые + захваченные)
 // ============================================================================
 
@@ -796,6 +798,7 @@ FString USpawnGroupCapturedByTextTagCondition::GetDescription() const
 }
 
 // ============================================================================
+// 14. USpawnGroupResolvedByTextTagCondition (killed + captured)
 // 14. USpawnGroupResolvedByTextTagCondition (убитые + захваченные)
 // ============================================================================
 
@@ -1016,6 +1019,7 @@ FString USpawnGroupCapturedByGameplayTagCondition::GetDescription() const
 }
 
 // ============================================================================
+// 18. USpawnGroupResolvedByGameplayTagCondition (killed + captured)
 // 18. USpawnGroupResolvedByGameplayTagCondition (убитые + захваченные)
 // ============================================================================
 

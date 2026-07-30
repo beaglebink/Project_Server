@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
-#include "../InteriorInstanceSystem/FloorAssignmentComponent.h" // <-- добавлено
+#include "../InteriorInstanceSystem/FloorAssignmentComponent.h"
 #include "GhostCapturedPayload.generated.h"
 
 UCLASS(BlueprintType)

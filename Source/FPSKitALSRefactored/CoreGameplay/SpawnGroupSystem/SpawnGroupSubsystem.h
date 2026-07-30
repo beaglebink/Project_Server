@@ -1,4 +1,7 @@
-﻿#pragma once
+﻿// SpawnGroupSubsystem.h
+// SpawnGroupSubsystem.h
+
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -18,18 +21,25 @@ class FPSKITALSREFACTORED_API USpawnGroupSubsystem : public UGameInstanceSubsyst
     GENERATED_BODY()
 
 public:
+    // ----- Lifecycle -----
     // ----- Жизненный цикл -----
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
+    // ----- Subscription to EventBus events (for external use) -----
+    // Эти методы не являются UFUNCTION, так как они используются для подписки/отписки.
+    // For backward compatibility, we keep them public, but they are mainly called from Initialize/Deinitialize.
     // ----- Подписка на события EventBus (для внешнего использования) -----
     // Эти методы не являются UFUNCTION, так как они используются для подписки/отписки.
     // Для обратной совместимости оставляем их публичными, но в основном они вызываются из Initialize/Deinitialize.
 
+    // ----- GhostCaptured event handler (available to BP? no) -----
+    // The handler is declared public, but without UFUNCTION – it can only be called from C++.
     // ----- Обработчик события GhostCaptured (доступен для BP? нет) -----
     // Обработчик объявлен как public, но без UFUNCTION – его можно вызвать только из C++.
     void HandleGhostCaptured(const FOutcomeEventBase& Outcome);
 
+    // ----- ISaveableSubsystem -----
     // ----- ISaveableSubsystem -----
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
@@ -37,9 +47,13 @@ public:
     virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
 
     // =========================================================================
+    // Statistics for a specific group (by spawner ItemId)
+    // =========================================================================
+    // =========================================================================
     // Статистика по конкретной группе (по ItemId спавнера)
     // =========================================================================
 
+    // ---- General ----
     // ---- Общие ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetTotalSpawnedCount(const FGuid& ItemId) const;
@@ -53,6 +67,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCount(const FGuid& ItemId) const;
 
+    // ---- By class (array of classes) ----
     // ---- По классам (массив классов) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByType(const FGuid& ItemId, const TArray<TSubclassOf<AActor>>& ActorClasses) const;
@@ -63,6 +78,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountByType(const FGuid& ItemId, const TArray<TSubclassOf<AActor>>& ActorClasses) const;
 
+    // ---- By text tags (array) ----
     // ---- По текстовым тегам (массив) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const;
@@ -73,6 +89,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountByTextTag(const FGuid& ItemId, const TArray<FName>& TextTags) const;
 
+    // ---- By GameplayTag (array) ----
     // ---- По GameplayTag (массив) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const;
@@ -83,14 +100,19 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const;
 
+    // ---- Group status ----
     // ---- Статус группы ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     ESpawnGroupStatus GetGroupStatus(const FGuid& ItemId) const;
 
     // =========================================================================
+    // Statistics for the current floor (aggregates all groups on the floor)
+    // =========================================================================
+    // =========================================================================
     // Статистика по текущему этажу (агрегирует все группы на этаже)
     // =========================================================================
 
+    // ---- General ----
     // ---- Общие ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetTotalSpawnedCountForCurrentFloor() const;
@@ -104,6 +126,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountForCurrentFloor() const;
 
+    // ---- By class (array of classes) ----
     // ---- По классам (массив классов) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByTypeForCurrentFloor(const TArray<TSubclassOf<AActor>>& ActorClasses) const;
@@ -114,6 +137,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountByTypeForCurrentFloor(const TArray<TSubclassOf<AActor>>& ActorClasses) const;
 
+    // ---- By text tags (array) ----
     // ---- По текстовым тегам (массив) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const;
@@ -124,6 +148,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountByTextTagForCurrentFloor(const TArray<FName>& TextTags) const;
 
+    // ---- By GameplayTag (array) ----
     // ---- По GameplayTag (массив) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetAliveCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
@@ -134,6 +159,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetCapturedCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
 
+    // ---- Resolved (killed + captured) ----
     // ---- Разрешённые (убитые + захваченные) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetResolvedCount(const FGuid& ItemId) const;
@@ -147,6 +173,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetResolvedCountByGameplayTag(const FGuid& ItemId, const TArray<FGameplayTag>& GameplayTags) const;
 
+    // ---- For current floor (resolved) ----
     // ---- По текущему этажу (разрешённые) ----
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Stats")
     int32 GetResolvedCountForCurrentFloor() const;
@@ -161,13 +188,16 @@ public:
     int32 GetResolvedCountByGameplayTagForCurrentFloor(const TArray<FGameplayTag>& GameplayTags) const;
 
 private:
+    // ----- Subscription to EventBus events -----
     // ----- Подписка на события EventBus -----
     void SubscribeEvents();
     void UnsubscribeEvents();
 
+    // ----- Helper methods -----
     // ----- Вспомогательные методы -----
     FInteriorFloorKey GetFloorKeyFromSpawner(ASpawnGroupSpawner* Spawner) const;
 
+    // ----- Event handlers -----
     // ----- Обработчики событий -----
     void HandleSpawnGroupRegister(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupUnregister(const FOutcomeEventBase& Outcome);
@@ -177,10 +207,12 @@ private:
     void HandleFloorLeaving(const FOutcomeEventBase& Outcome);
     void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
 
+    // ----- Helper methods for working with the registry -----
     // ----- Вспомогательные методы для работы с реестром -----
     ASpawnGroupSpawner* FindSpawnerByItemId(const FGuid& ItemId) const;
     ASpawnGroupSpawner* FindSpawnerByGroupId(const FGuid& GroupId) const;
 
+    // ----- Internal control methods (called from handlers) -----
     // ----- Внутренние методы управления (вызываются из обработчиков) -----
     void ActivateSpawnGroupInternal(const FGuid& GroupId);
     void ClearSpawnGroupInternal(const FGuid& GroupId, ESpawnGroupResolutionReason Reason);
@@ -188,18 +220,21 @@ private:
 
     void UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner);
 
+    // ----- Storage -----
     // ----- Хранилища -----
     UPROPERTY()
-    TMap<FGuid, TWeakObjectPtr<ASpawnGroupSpawner>> SpawnerByItemId;      // ItemId -> спавнер
+    TMap<FGuid, TWeakObjectPtr<ASpawnGroupSpawner>> SpawnerByItemId;      // ItemId -> spawner
 
     UPROPERTY()
     TMap<FGuid, FGuid> GroupIdToItemId;                                   // GroupId -> ItemId
 
+    // Saved group states (key - floor, value - map group->state)
     // Сохранённые состояния групп (ключ - этаж, значение - карта группа->состояние)
     TMap<FInteriorFloorKey, TMap<FGuid, FSpawnGroupState>> PersistentGroupStates;
 
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
 
+    // ----- Subscription handles -----
     // ----- Хэндлы подписки -----
     FOutcomeHandlerHandle RegisterHandle;
     FOutcomeHandlerHandle UnregisterHandle;
@@ -210,9 +245,11 @@ private:
     FOutcomeHandlerHandle FloorLeavingHandle;
     FOutcomeHandlerHandle GhostCapturedHandle;
 
+    // ----- State -----
     // ----- Состояние -----
     bool bIsLoadComplete = true;
 
+    // Current floor key (for aggregated counts)
     // Текущий ключ этажа (для агрегированных подсчётов)
     FInteriorFloorKey CurrentFloorKey;
 };
