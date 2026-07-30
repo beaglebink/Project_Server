@@ -8,9 +8,11 @@ AA_Dishes::AA_Dishes()
 	PrimaryActorTick.bCanEverTick = true;
 
 	CollisionShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CollisionShape"));
+	CookedResultSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CookedResultSpawnPoint"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 
 	CollisionShape->SetupAttachment(RootComponent);
+	CookedResultSpawnPoint->SetupAttachment(RootComponent);
 
 	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
@@ -181,6 +183,8 @@ void AA_Dishes::DetachDishFromHand()
 void AA_Dishes::RotateDish(float AngleDelta)
 {
 	AddActorLocalRotation(FRotator(AngleDelta * 10.0f, 0.0f, 0.0f));
+
+	CheckIfCooked();
 }
 
 void AA_Dishes::TossDish(float Delta)
@@ -270,4 +274,98 @@ EHeatingLevel AA_Dishes::GetHeatingLevel()
 
 void AA_Dishes::CheckIfCooked()
 {
+	if (bIsOnRecipeChecking)
+	{
+		return;
+	}
+
+	bIsOnRecipeChecking = true;
+	const FRecipe* MatchedRecipe = nullptr;
+
+	for (const FRecipe& Recipe : Recipes->Recipes)
+	{
+		bool bIsFollowingRecipe = true;
+
+		//Check for being tossed
+		if (Recipe.bRequiresToss)
+		{
+			for (AA_Cookable* Ingredient : Ingredients)
+			{
+				if (!Ingredient->bWasTossed)
+				{
+					bIsFollowingRecipe = false;
+					break;
+				}
+			}
+
+			if (!bIsFollowingRecipe)
+			{
+				continue;
+			}
+		}
+
+		TMap<FName, int32> RecipeMap;
+		for (const FRecipeIngredient& Ingredient : Recipe.Ingredients)
+		{
+			RecipeMap.Add(Ingredient.IngredientName, Ingredient.IngredientQuantity);
+		}
+
+		//Check for recipe matching from recipe
+		for (const auto& Pair : RecipeMap)
+		{
+			int32 CurrentCount = IngredientCountMap.FindRef(Pair.Key);
+
+			if (FMath::Abs(CurrentCount - Pair.Value) > 2)
+			{
+				bIsFollowingRecipe = false;
+				break;
+			}
+		}
+
+		if (!bIsFollowingRecipe)
+		{
+			continue;
+		}
+
+		//Check for recipe matching - extra ingredients
+		for (const auto& Pair : IngredientCountMap)
+		{
+			int32 RecipeCount = RecipeMap.FindRef(Pair.Key);
+
+			if (RecipeCount == 0)
+			{
+				bIsFollowingRecipe = false;
+				break;
+			}
+		}
+
+		if (!bIsFollowingRecipe)
+		{
+			continue;
+		}
+
+
+		MatchedRecipe = &Recipe;
+		break;
+	}
+
+	//Ñhecking the degree of doneness
+	//
+	//
+
+	//If all conditions are ok, swap ingredients on result dish
+	if (MatchedRecipe && MatchedRecipe->ResultCookableClass)
+	{
+		for (AA_Cookable* Ingredient : Ingredients)
+		{
+			Ingredient->Destroy();
+		}
+
+		Ingredients.Empty();
+		IngredientCountMap.Empty();
+
+		AA_Cookable* NewDish = GetWorld()->SpawnActor<AA_Cookable>(MatchedRecipe->ResultCookableClass, CookedResultSpawnPoint->GetComponentLocation(), CookedResultSpawnPoint->GetComponentRotation());
+	}
+
+	bIsOnRecipeChecking = false;
 }

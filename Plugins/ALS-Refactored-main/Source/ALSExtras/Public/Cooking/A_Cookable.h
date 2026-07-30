@@ -42,6 +42,8 @@ public:
 
 	uint8 bIsAttaching : 1{false};
 
+	uint8 bWasTossed : 1{false};
+
 private:
 	float OnAttachingPauseCheckTime = 0.0f;
 

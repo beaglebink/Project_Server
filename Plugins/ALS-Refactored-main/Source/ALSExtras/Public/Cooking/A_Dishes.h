@@ -51,6 +51,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* CollisionShape;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USceneComponent* CookedResultSpawnPoint;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	USkeletalMeshComponent* AttachedMesh;
 
@@ -122,6 +125,8 @@ private:
 	EHeatingLevel HeatingLevel;
 
 	FTimerHandle CookingTimerHandle;
+
+	uint8 bIsOnRecipeChecking : 1{false};
 
 public:
 	void SetHeatingLevel(EHeatingLevel NewLevel);
