@@ -25,11 +25,24 @@ AA_Cookable::AA_Cookable()
 	SlicedMesh->BodyInstance.SetMassOverride(1.0f, true);
 	SlicedMesh->SetLinearDamping(0.1f);
 	SlicedMesh->SetAngularDamping(0.1f);
+
 }
 
 void AA_Cookable::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+
+	CookingTime = DefaultCookingTime;
+
+	if (!MeshDynamicMaterial && StaticMesh->GetMaterial(0))
+	{
+		MeshDynamicMaterial = UMaterialInstanceDynamic::Create(StaticMesh->GetMaterial(0), this);
+	}
+
+	if (MeshDynamicMaterial)
+	{
+		StaticMesh->SetMaterial(0, MeshDynamicMaterial);
+	}
 
 	SlicedMesh->ClearAllMeshSections();
 
@@ -37,6 +50,10 @@ void AA_Cookable::OnConstruction(const FTransform& Transform)
 	{
 		StaticMesh->GetStaticMesh()->bAllowCPUAccess = true;
 		UKismetProceduralMeshLibrary::CopyProceduralMeshFromStaticMeshComponent(StaticMesh, 0, SlicedMesh, true);
+		if (MeshDynamicMaterial)
+		{
+			SlicedMesh->SetMaterial(0, MeshDynamicMaterial);
+		}
 	}
 }
 
@@ -44,6 +61,7 @@ void AA_Cookable::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	//Attaching to dish
 	if (AttachedDish && bIsAttaching && !bIsHeld)
 	{
 		OnAttachingPauseCheckTime += GetWorld()->GetDeltaSeconds();
@@ -57,6 +75,7 @@ void AA_Cookable::Tick(float DeltaTime)
 		}
 	}
 
+	//Fall off dish
 	if (AttachedDish && !bIsAttaching)
 	{
 		if (!GetWorldTimerManager().IsTimerActive(AttachedDish->TossTimerHandle) && (FMath::Abs(AttachedDish->GetActorRotation().Roll) >= 80.0f || FMath::Abs(AttachedDish->GetActorRotation().Pitch) >= 80.0f))
@@ -103,17 +122,16 @@ void AA_Cookable::HandleCutting_Implementation(UPARAM(ref)FHitResult& Hit, FVect
 		return;
 	}
 
-	AA_Cookable* NewPiece = GetWorld()->SpawnActor<AA_Cookable>(GetClass(), OtherHalf->GetComponentTransform());
-
-	if (!NewPiece)
+	if (AA_Cookable* NewPiece = GetWorld()->SpawnActor<AA_Cookable>(GetClass(), OtherHalf->GetComponentTransform()))
 	{
-		return;
+		CopyProceduralMesh(OtherHalf, NewPiece->SlicedMesh);
+		BuildConvexCollision(NewPiece->SlicedMesh);
+
+		NewPiece->DefaultCookingTime = DefaultCookingTime;
+		NewPiece->AddActorWorldOffset(CutPlaneNormal.BackwardVector);
+
+		OtherHalf->DestroyComponent();
 	}
-
-	CopyProceduralMesh(OtherHalf, NewPiece->SlicedMesh);
-	BuildConvexCollision(NewPiece->SlicedMesh);
-
-	OtherHalf->DestroyComponent();
 }
 
 void AA_Cookable::CopyProceduralMesh(UProceduralMeshComponent* Source, UProceduralMeshComponent* Target)
@@ -230,4 +248,13 @@ void AA_Cookable::TossTimelineProgress(float Value)
 
 void AA_Cookable::TossTimelineFinished()
 {
+}
+
+void AA_Cookable::DecreaseCookingTime(int32 CookingPeriod)
+{
+	CookingTime -= CookingPeriod;
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("COOKING %d"), CookingTime));
+	CookingInPercent = static_cast<float>(CookingTime) / static_cast<float>(DefaultCookingTime);
+	SetActorScale3D(FMath::Lerp(FVector(1.0f, 1.0f, 1.0f), FVector(0.7f, 0.7f, 0.7f), FMath::Clamp(1 - CookingInPercent, 0.0f, 2.0f)));
+	MeshDynamicMaterial->SetScalarParameterValue(FName(TEXT("Cooking")), 1 - CookingInPercent);
 }

@@ -51,25 +51,25 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* CollisionShape;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cooking")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	USkeletalMeshComponent* AttachedMesh;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cooking")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FName AttachedSocketName;
 
 	uint8 bIsPlacing : 1{false};
 
 	FTimerHandle AttachTimerHandle;
-	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	UFUNCTION(BlueprintCallable, Category = "CookingSettings")
 	void AttachDishToHand(ACharacter* PlayerCharacter, FName SocketName);
 
-	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	UFUNCTION(BlueprintCallable, Category = "CookingSettings")
 	void DetachDishFromHand();
 
-	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	UFUNCTION(BlueprintCallable, Category = "CookingSettings")
 	void RotateDish(float AngleDelta);
 
-	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	UFUNCTION(BlueprintCallable, Category = "CookingSettings")
 	void TossDish(float Delta);
 
 	FTimerHandle TossTimerHandle;
@@ -115,7 +115,7 @@ protected:
 	void TossTimelineFinished();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cooking")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	UDA_Recipes* Recipes;
 
 private:

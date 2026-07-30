@@ -243,7 +243,6 @@ void AA_Dishes::SetHeatingLevel(EHeatingLevel NewLevel)
 	case EHeatingLevel::None:
 	{
 		GetWorldTimerManager().ClearTimer(CookingTimerHandle);
-		CheckIfCooked();
 		break;
 	}
 	case EHeatingLevel::Low:
@@ -254,7 +253,7 @@ void AA_Dishes::SetHeatingLevel(EHeatingLevel NewLevel)
 			{
 				for (AA_Cookable* Ingredient : Ingredients)
 				{
-					Ingredient->CookingTime -= static_cast<int32>(HeatingLevel) * 2.0f;
+					Ingredient->DecreaseCookingTime(static_cast<int32>(HeatingLevel));
 				}
 			}, 1.0f, true);
 		break;
@@ -267,4 +266,8 @@ void AA_Dishes::SetHeatingLevel(EHeatingLevel NewLevel)
 EHeatingLevel AA_Dishes::GetHeatingLevel()
 {
 	return HeatingLevel;
+}
+
+void AA_Dishes::CheckIfCooked()
+{
 }
