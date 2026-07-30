@@ -231,6 +231,11 @@ void AA_Cookable::BuildConvexCollision(UProceduralMeshComponent* Mesh)
 
 void AA_Cookable::Toss(float Delta)
 {
+	if (CookingTime < DefaultCookingTime)
+	{
+		bWasTossed = true;
+	}
+
 	SavedLocalPosition = AttachedDish->GetActorTransform().InverseTransformPosition(GetActorLocation());
 
 	TossStartRotation = GetActorRotation();

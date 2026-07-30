@@ -30,7 +30,10 @@ struct FRecipe
 	TArray<FRecipeIngredient> Ingredients;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
-	TSubclassOf<AA_Cookable> ResultCookableObject;
+	TSubclassOf<AA_Cookable> ResultCookableClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
+	uint8 bRequiresToss : 1 {false};
 };
 
 UCLASS()
