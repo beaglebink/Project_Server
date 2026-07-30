@@ -274,7 +274,7 @@ EHeatingLevel AA_Dishes::GetHeatingLevel()
 
 void AA_Dishes::CheckIfCooked()
 {
-	if (bIsOnRecipeChecking)
+	if (bIsOnRecipeChecking || Recipes == nullptr)
 	{
 		return;
 	}
