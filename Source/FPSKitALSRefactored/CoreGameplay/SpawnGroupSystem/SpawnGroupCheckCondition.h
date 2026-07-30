@@ -126,7 +126,31 @@ public:
 };
 
 // ============================================================================
-// 5. Убито по классу
+// 5. Количество захваченных
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupCapturedCountCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 6. Количество разрешённых (убитые + захваченные)
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupResolvedCountCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 7. Убито по классам (массив)
 // ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupKilledByClassCondition : public USpawnGroupCheckCondition
@@ -134,14 +158,14 @@ class FPSKITALSREFACTORED_API USpawnGroupKilledByClassCondition : public USpawnG
     GENERATED_BODY()
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    TSubclassOf<AActor> ActorClass;
+    TArray<TSubclassOf<AActor>> ActorClasses;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
 
 // ============================================================================
-// 6. Живо по классу
+// 8. Живо по классам (массив)
 // ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupAliveByClassCondition : public USpawnGroupCheckCondition
@@ -149,14 +173,44 @@ class FPSKITALSREFACTORED_API USpawnGroupAliveByClassCondition : public USpawnGr
     GENERATED_BODY()
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    TSubclassOf<AActor> ActorClass;
+    TArray<TSubclassOf<AActor>> ActorClasses;
 
     virtual void ExecuteCheck(const FGuid& TransactionId) override;
     virtual FString GetDescription() const override;
 };
 
 // ============================================================================
-// 7. Убито по текстовым тегам (массив)
+// 9. Захваченных по классам (массив)
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupCapturedByClassCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TArray<TSubclassOf<AActor>> ActorClasses;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 10. Разрешённых по классам (убитые + захваченные) (массив)
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupResolvedByClassCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TArray<TSubclassOf<AActor>> ActorClasses;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 11. Убито по текстовым тегам (массив)
 // ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupKilledByTextTagCondition : public USpawnGroupCheckCondition
@@ -171,7 +225,7 @@ public:
 };
 
 // ============================================================================
-// 8. Живо по текстовым тегам (массив)
+// 12. Живо по текстовым тегам (массив)
 // ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupAliveByTextTagCondition : public USpawnGroupCheckCondition
@@ -186,64 +240,7 @@ public:
 };
 
 // ============================================================================
-// 9. Убито по GameplayTag (массив)
-// ============================================================================
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API USpawnGroupKilledByGameplayTagCondition : public USpawnGroupCheckCondition
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    TArray<FGameplayTag> GameplayTags;
-
-    virtual void ExecuteCheck(const FGuid& TransactionId) override;
-    virtual FString GetDescription() const override;
-};
-
-// ============================================================================
-// 10. Живо по GameplayTag (массив)
-// ============================================================================
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API USpawnGroupAliveByGameplayTagCondition : public USpawnGroupCheckCondition
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    TArray<FGameplayTag> GameplayTags;
-
-    virtual void ExecuteCheck(const FGuid& TransactionId) override;
-    virtual FString GetDescription() const override;
-};
-
-// ============================================================================
-// 11. Проверка количества захваченных
-// ============================================================================
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API USpawnGroupCapturedCountCondition : public USpawnGroupCheckCondition
-{
-    GENERATED_BODY()
-public:
-    virtual void ExecuteCheck(const FGuid& TransactionId) override;
-    virtual FString GetDescription() const override;
-};
-
-// ============================================================================
-// 12. Захваченных по классу
-// ============================================================================
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API USpawnGroupCapturedByClassCondition : public USpawnGroupCheckCondition
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    TSubclassOf<AActor> ActorClass;
-
-    virtual void ExecuteCheck(const FGuid& TransactionId) override;
-    virtual FString GetDescription() const override;
-};
-
-// ============================================================================
-// 13. Захваченных по текстовым тегам
+// 13. Захваченных по текстовым тегам (массив)
 // ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupCapturedByTextTagCondition : public USpawnGroupCheckCondition
@@ -258,10 +255,70 @@ public:
 };
 
 // ============================================================================
-// 14. Захваченных по GameplayTag
+// 14. Разрешённых по текстовым тегам (убитые + захваченные) (массив)
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupResolvedByTextTagCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TArray<FName> TextTags;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 15. Убито по GameplayTag (массив)
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupKilledByGameplayTagCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TArray<FGameplayTag> GameplayTags;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 16. Живо по GameplayTag (массив)
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupAliveByGameplayTagCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TArray<FGameplayTag> GameplayTags;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 17. Захваченных по GameplayTag (массив)
 // ============================================================================
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupCapturedByGameplayTagCondition : public USpawnGroupCheckCondition
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    TArray<FGameplayTag> GameplayTags;
+
+    virtual void ExecuteCheck(const FGuid& TransactionId) override;
+    virtual FString GetDescription() const override;
+};
+
+// ============================================================================
+// 18. Разрешённых по GameplayTag (убитые + захваченные) (массив)
+// ============================================================================
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API USpawnGroupResolvedByGameplayTagCondition : public USpawnGroupCheckCondition
 {
     GENERATED_BODY()
 public:
