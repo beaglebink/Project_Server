@@ -25,14 +25,11 @@ AA_Cookable::AA_Cookable()
 	SlicedMesh->BodyInstance.SetMassOverride(1.0f, true);
 	SlicedMesh->SetLinearDamping(0.1f);
 	SlicedMesh->SetAngularDamping(0.1f);
-
 }
 
 void AA_Cookable::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-
-	CookingTime = DefaultCookingTime;
 
 	if (!MeshDynamicMaterial && StaticMesh->GetMaterial(0))
 	{
@@ -255,11 +252,11 @@ void AA_Cookable::TossTimelineFinished()
 {
 }
 
-void AA_Cookable::DecreaseCookingTime(int32 CookingPeriod)
+void AA_Cookable::IncreaseCookingTime(int32 CookingPeriod)
 {
-	CookingTime -= CookingPeriod;
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("COOKING %d"), CookingTime));
-	CookingInPercent = static_cast<float>(CookingTime) / static_cast<float>(DefaultCookingTime);
-	SetActorScale3D(FMath::Lerp(FVector(1.0f, 1.0f, 1.0f), FVector(0.7f, 0.7f, 0.7f), FMath::Clamp(1 - CookingInPercent, 0.0f, 2.0f)));
-	MeshDynamicMaterial->SetScalarParameterValue(FName(TEXT("Cooking")), 1 - CookingInPercent);
+	CookingTime += CookingPeriod;
+	CookingInPercent = (static_cast<float>(CookingTime) / static_cast<float>(DefaultCookingTime)) / 2.0f;
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("COOKING %2.2f"), CookingInPercent));
+	SetActorScale3D(FMath::Lerp(FVector(1.0f, 1.0f, 1.0f), FVector(0.7f, 0.7f, 0.7f), FMath::Clamp(CookingInPercent, 0.0f, 1.0f)));
+	MeshDynamicMaterial->SetScalarParameterValue(FName(TEXT("Cooking")), CookingInPercent);
 }

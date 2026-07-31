@@ -77,7 +77,7 @@ public:
 	int32 DefaultCookingTime = 60;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings")
-	int32 CookingTime;
+	int32 CookingTime = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	float CookingInPercent;
@@ -85,5 +85,5 @@ public:
 	UPROPERTY()
 	UMaterialInstanceDynamic* MeshDynamicMaterial;
 
-	void DecreaseCookingTime(int32 CookingPeriod);
+	void IncreaseCookingTime(int32 CookingPeriod);
 };

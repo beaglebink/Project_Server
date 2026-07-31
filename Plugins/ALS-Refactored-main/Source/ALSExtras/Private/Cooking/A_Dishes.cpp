@@ -257,7 +257,7 @@ void AA_Dishes::SetHeatingLevel(EHeatingLevel NewLevel)
 			{
 				for (AA_Cookable* Ingredient : Ingredients)
 				{
-					Ingredient->DecreaseCookingTime(static_cast<int32>(HeatingLevel));
+					Ingredient->IncreaseCookingTime(static_cast<int32>(HeatingLevel));
 				}
 			}, 1.0f, true);
 		break;
@@ -381,7 +381,7 @@ void AA_Dishes::CheckIfCooked()
 		IngredientCountMap.Empty();
 
 		AA_Cookable* NewDish = GetWorld()->SpawnActor<AA_Cookable>(MatchedRecipe->ResultCookableClass, CookedResultSpawnPoint->GetComponentLocation(), CookedResultSpawnPoint->GetComponentRotation());
-		NewDish->CookingTime = static_cast<int32>(NewDish->DefaultCookingTime * AverageDoneness);
+		NewDish->CookingTime = static_cast<int32>(NewDish->DefaultCookingTime * AverageDoneness * 2.0f);
 	}
 
 	bIsOnRecipeChecking = false;
