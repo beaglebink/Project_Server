@@ -73,17 +73,52 @@ protected:
 	void TossTimelineFinished();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0))
 	int32 DefaultCookingTime = 60;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	int32 CookingTime = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
-	float CookingInPercent;
+	float Doneness;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float IdealDoneness = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 1.0f))
+	float UndercookTolerance = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 1.0f))
+	float OvercookTolerance = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float CookRate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 2.0f))
+	float RecipeImportance = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float CriticalRawThreshold;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float CriticalBurnThreshold;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float WorstChunkInfluence;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float MinimumSignificantChunkSize;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float Quality = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
+	float ChunkMass;
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* MeshDynamicMaterial;
 
 	void IncreaseCookingTime(int32 CookingPeriod);
+
+	void DistributeMassesByCut(AA_Cookable* CutPart);
 };

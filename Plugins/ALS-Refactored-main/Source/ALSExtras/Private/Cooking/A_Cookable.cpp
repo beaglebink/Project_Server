@@ -52,6 +52,7 @@ void AA_Cookable::OnConstruction(const FTransform& Transform)
 			SlicedMesh->SetMaterial(0, MeshDynamicMaterial);
 		}
 	}
+
 }
 
 void AA_Cookable::Tick(float DeltaTime)
@@ -69,6 +70,7 @@ void AA_Cookable::Tick(float DeltaTime)
 			bIsAttached = true;
 			bIsAttaching = false;
 			OnAttachingPauseCheckTime = 0.0f;
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), ChunkMass));
 		}
 	}
 
@@ -87,6 +89,8 @@ void AA_Cookable::Tick(float DeltaTime)
 void AA_Cookable::BeginPlay()
 {
 	Super::BeginPlay();
+
+	ChunkMass = SlicedMesh->Bounds.BoxExtent.X * SlicedMesh->Bounds.BoxExtent.Y * SlicedMesh->Bounds.BoxExtent.Z;
 
 	if (TossFloatCurve)
 	{
@@ -122,12 +126,26 @@ void AA_Cookable::HandleCutting_Implementation(UPARAM(ref)FHitResult& Hit, FVect
 	if (AA_Cookable* NewPiece = GetWorld()->SpawnActor<AA_Cookable>(GetClass(), OtherHalf->GetComponentTransform()))
 	{
 		CopyProceduralMesh(OtherHalf, NewPiece->SlicedMesh);
+		OtherHalf->DestroyComponent();
 		BuildConvexCollision(NewPiece->SlicedMesh);
 
 		NewPiece->DefaultCookingTime = DefaultCookingTime;
+		NewPiece->CookingTime = CookingTime;
+		NewPiece->Doneness = Doneness;
+		NewPiece->IdealDoneness = IdealDoneness;
+		NewPiece->UndercookTolerance = UndercookTolerance;
+		NewPiece->OvercookTolerance = OvercookTolerance;
+		NewPiece->CookRate = CookRate;
+		NewPiece->RecipeImportance = RecipeImportance;
+		NewPiece->CriticalRawThreshold = CriticalRawThreshold;
+		NewPiece->CriticalBurnThreshold = CriticalBurnThreshold;
+		NewPiece->WorstChunkInfluence = WorstChunkInfluence;
+		NewPiece->MinimumSignificantChunkSize = MinimumSignificantChunkSize;
+		NewPiece->Quality = Quality;
+
 		NewPiece->AddActorWorldOffset(CutPlaneNormal.BackwardVector);
 
-		OtherHalf->DestroyComponent();
+		DistributeMassesByCut(NewPiece);
 	}
 }
 
@@ -255,8 +273,41 @@ void AA_Cookable::TossTimelineFinished()
 void AA_Cookable::IncreaseCookingTime(int32 CookingPeriod)
 {
 	CookingTime += CookingPeriod;
-	CookingInPercent = (static_cast<float>(CookingTime) / static_cast<float>(DefaultCookingTime)) / 2.0f;
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("COOKING %2.2f"), CookingInPercent));
-	SetActorScale3D(FMath::Lerp(FVector(1.0f, 1.0f, 1.0f), FVector(0.7f, 0.7f, 0.7f), FMath::Clamp(CookingInPercent, 0.0f, 1.0f)));
-	MeshDynamicMaterial->SetScalarParameterValue(FName(TEXT("Cooking")), CookingInPercent);
+	Doneness = (static_cast<float>(CookingTime) / static_cast<float>(DefaultCookingTime)) / 2.0f;
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("COOKING %2.2f"), Doneness));
+	SetActorScale3D(FMath::Lerp(FVector(1.0f, 1.0f, 1.0f), FVector(0.7f, 0.7f, 0.7f), FMath::Clamp(Doneness, 0.0f, 1.0f)));
+	MeshDynamicMaterial->SetScalarParameterValue(FName(TEXT("Cooking")), Doneness);
+}
+
+void AA_Cookable::DistributeMassesByCut(AA_Cookable* CutPart)
+{
+	int32 TriangleCountMainPiece = 0;
+
+	for (int32 SectionIndex = 0; SectionIndex < SlicedMesh->GetNumSections(); ++SectionIndex)
+	{
+		if (FProcMeshSection* Section = SlicedMesh->GetProcMeshSection(SectionIndex))
+		{
+			TriangleCountMainPiece += Section->ProcIndexBuffer.Num() / 3;
+		}
+	}
+
+	int32 TriangleCountCutPart = 0;
+
+	for (int32 SectionIndex = 0; SectionIndex < CutPart->SlicedMesh->GetNumSections(); ++SectionIndex)
+	{
+		if (FProcMeshSection* Section = CutPart->SlicedMesh->GetProcMeshSection(SectionIndex))
+		{
+			TriangleCountCutPart += Section->ProcIndexBuffer.Num() / 3;
+		}
+	}
+
+	const int32 TotalTriangles = TriangleCountMainPiece + TriangleCountCutPart;
+	if (TotalTriangles <= 0)
+	{
+		return;
+	}
+
+	float TempMass = ChunkMass;
+	ChunkMass = TempMass * TriangleCountMainPiece / TotalTriangles;
+	CutPart->ChunkMass = TempMass * TriangleCountCutPart / TotalTriangles;
 }

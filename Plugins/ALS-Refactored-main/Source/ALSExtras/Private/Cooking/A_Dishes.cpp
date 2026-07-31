@@ -358,9 +358,9 @@ void AA_Dishes::CheckIfCooked()
 	float MinDoneness = FLT_MAX, MaxDoneness = -FLT_MAX, AverageDoneness = 0.0f;
 	for (AA_Cookable* Ingredient : Ingredients)
 	{
-		MinDoneness = FMath::Min(MinDoneness, Ingredient->CookingInPercent);
-		MaxDoneness = FMath::Max(MaxDoneness, Ingredient->CookingInPercent);
-		AverageDoneness += Ingredient->CookingInPercent;
+		MinDoneness = FMath::Min(MinDoneness, Ingredient->Doneness);
+		MaxDoneness = FMath::Max(MaxDoneness, Ingredient->Doneness);
+		AverageDoneness += Ingredient->Doneness;
 	}
 	AverageDoneness /= Ingredients.Num();
 	if (MaxDoneness - MinDoneness > 0.3f)
