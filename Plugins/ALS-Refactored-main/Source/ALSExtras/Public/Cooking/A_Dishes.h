@@ -121,6 +121,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	UDA_Recipes* Recipes;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = "0.0f", ClampMax = "1.0f"))
+	float SignificantChunkPercentage = 0.1f;
+
 private:
 	EHeatingLevel HeatingLevel;
 

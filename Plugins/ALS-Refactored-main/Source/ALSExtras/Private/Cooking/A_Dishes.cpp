@@ -376,16 +376,28 @@ void AA_Dishes::CheckIfCooked()
 		float ChunksWeightTotal = 0;
 		float WorstChunkQuality = 1.0f;
 		float WorstChunkInfluence = 0.0f;
+		float MaxChunkWeight = 0.0f;
 	};
 
 	TMap<FName, FIngredientQuality> IngredientQualityMap;
 	for (AA_Cookable* Ingredient : Ingredients)
 	{
+		// Find the maximum chunk weight for each ingredient type
 		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
-		QualityRef.TotalQualityByWeight += Ingredient->GetChunkQuality() * Ingredient->ChunkMass;
-		QualityRef.ChunksWeightTotal += Ingredient->ChunkMass;
-		QualityRef.WorstChunkQuality = FMath::Min(QualityRef.WorstChunkQuality, Ingredient->GetChunkQuality());
-		QualityRef.WorstChunkInfluence = Ingredient->WorstChunkInfluence;
+		QualityRef.MaxChunkWeight = FMath::Max(QualityRef.MaxChunkWeight, Ingredient->ChunkMass);
+	}
+
+	for (AA_Cookable* Ingredient : Ingredients)
+	{
+		// Calculate only significant chunks which weight is more than 10% of the maximum chunk weight for this ingredient type
+		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
+		if (Ingredient->ChunkMass >= SignificantChunkPercentage * QualityRef.MaxChunkWeight)
+		{
+			QualityRef.TotalQualityByWeight += Ingredient->GetChunkQuality() * Ingredient->ChunkMass;
+			QualityRef.ChunksWeightTotal += Ingredient->ChunkMass;
+			QualityRef.WorstChunkQuality = FMath::Min(QualityRef.WorstChunkQuality, Ingredient->GetChunkQuality());
+			QualityRef.WorstChunkInfluence = Ingredient->WorstChunkInfluence;
+		}
 	}
 
 	for (auto& Pair : IngredientQualityMap)
