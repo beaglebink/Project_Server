@@ -311,3 +311,17 @@ void AA_Cookable::DistributeMassesByCut(AA_Cookable* CutPart)
 	ChunkMass = TempMass * TriangleCountMainPiece / TotalTriangles;
 	CutPart->ChunkMass = TempMass * TriangleCountCutPart / TotalTriangles;
 }
+
+float AA_Cookable::GetChunkQuality()
+{
+	Quality = 1 - ((Doneness - IdealDoneness) / OvercookTolerance);
+
+	if (Doneness <= IdealDoneness)
+	{
+		Quality = 1 - ((IdealDoneness - Doneness) / UndercookTolerance);
+	}
+
+	Quality = FMath::Clamp(Quality, 0.0f, 1.0f);
+
+	return Quality;
+}

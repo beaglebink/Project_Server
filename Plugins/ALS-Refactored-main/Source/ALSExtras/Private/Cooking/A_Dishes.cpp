@@ -368,6 +368,30 @@ void AA_Dishes::CheckIfCooked()
 		MatchedRecipe = nullptr;
 	}
 
+	// Calculate chunks average quality
+	struct FIngredientQuality
+	{
+		float GroupQuality = 0.0f;
+		float TotalQualityByWeight = 0.0f;
+		float ChunksWeightTotal = 0;
+		float WorstChunkQuality = 1.0f;
+		float WorstChunkInfluence = 0.0f;
+	};
+
+	TMap<FName, FIngredientQuality> IngredientQualityMap;
+	for (AA_Cookable* Ingredient : Ingredients)
+	{
+		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
+		QualityRef.TotalQualityByWeight += Ingredient->GetChunkQuality() * Ingredient->ChunkMass;
+		QualityRef.ChunksWeightTotal += Ingredient->ChunkMass;
+		QualityRef.WorstChunkQuality = FMath::Min(QualityRef.WorstChunkQuality, Ingredient->GetChunkQuality());
+		QualityRef.WorstChunkInfluence = Ingredient->WorstChunkInfluence;
+	}
+
+	for (auto& Pair : IngredientQualityMap)
+	{
+		Pair.Value.GroupQuality = (Pair.Value.TotalQualityByWeight / Pair.Value.ChunksWeightTotal) * (1 - Pair.Value.WorstChunkInfluence + Pair.Value.WorstChunkInfluence * Pair.Value.WorstChunkQuality);
+	}
 
 	//If all conditions are ok, swap ingredients on result dish
 	if (MatchedRecipe && MatchedRecipe->ResultCookableClass)
