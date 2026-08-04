@@ -130,6 +130,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float FailureSeverityThreshold = 0.5f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float MissingPenaltyStrength = 0.4f;
+
 private:
 	EHeatingLevel HeatingLevel;
 
