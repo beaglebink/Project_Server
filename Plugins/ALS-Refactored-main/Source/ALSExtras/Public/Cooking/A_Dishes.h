@@ -54,6 +54,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* CookedResultSpawnPoint;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
+	bool bShowCookingDebug = false;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	USkeletalMeshComponent* AttachedMesh;
 
@@ -120,6 +123,12 @@ protected:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	UDA_Recipes* Recipes;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float SignificantChunkPercentage = 0.1f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float FailureSeverityThreshold = 0.5f;
 
 private:
 	EHeatingLevel HeatingLevel;

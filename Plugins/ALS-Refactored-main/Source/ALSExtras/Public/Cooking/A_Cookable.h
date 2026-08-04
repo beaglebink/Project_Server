@@ -3,10 +3,21 @@
 #include "CoreMinimal.h"
 #include "PythonContainers/A_InteractableActor.h"
 #include "Components/TimelineComponent.h"
+#include "Cooking/DA_Recipes.h"
 #include "A_Cookable.generated.h"
+
+UENUM(BlueprintType)
+enum class EDishRating : uint8
+{
+	Poor		UMETA(DisplayName = "Poor"),
+	Acceptable	UMETA(DisplayName = "Acceptable"),
+	Good		UMETA(DisplayName = "Good"),
+	Excellent	UMETA(DisplayName = "Excellent")
+};
 
 class UProceduralMeshComponent;
 class AA_Dishes;
+class UTextRenderComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_Cookable : public AA_InteractableActor
@@ -36,6 +47,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Slicing mesh")
 	UProceduralMeshComponent* SlicedMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rating")
+	UTextRenderComponent* DishRatingText;
 
 	UPROPERTY()
 	AA_Dishes* AttachedDish;
@@ -73,7 +87,7 @@ protected:
 	void TossTimelineFinished();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0))
 	int32 DefaultCookingTime = 60;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings")
@@ -82,13 +96,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	float Doneness;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float IdealDoneness = 0.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 1.0f))
 	float UndercookTolerance = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 1.0f))
 	float OvercookTolerance = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
@@ -104,12 +118,12 @@ public:
 	float CriticalBurnThreshold;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
-	float WorstChunkInfluence;
+	float WorstChunkInfluence = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float MinimumSignificantChunkSize;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float Quality = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
@@ -121,4 +135,10 @@ public:
 	void IncreaseCookingTime(int32 CookingPeriod);
 
 	void DistributeMassesByCut(AA_Cookable* CutPart);
+
+	float GetChunkQuality();
+
+	EDishRating GetDishRating(float DishQuality, const FDishQualityThresholds& Thresholds);
+
+	void ShowFinalDishRating(EDishRating DishRating);
 };

@@ -16,6 +16,21 @@ struct FRecipeIngredient
 	int32 IngredientQuantity;
 };
 
+USTRUCT(BlueprintType)
+struct FDishQualityThresholds
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float AcceptableThreshold = 0.4f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float GoodThreshold = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float ExcellentThreshold = 0.8f;
+};
+
 class AA_Cookable;
 
 USTRUCT(BlueprintType)
@@ -34,6 +49,9 @@ struct FRecipe
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	uint8 bRequiresToss : 1 {false};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
+	FDishQualityThresholds RatingThresholds;
 };
 
 UCLASS()

@@ -349,25 +349,100 @@ void AA_Dishes::CheckIfCooked()
 		break;
 	}
 
-	//Ñhecking the degree of doneness
-	if (Ingredients.IsEmpty())
+	// Calculate chunks average quality
+	struct FIngredientQuality
 	{
-		bIsOnRecipeChecking = false;
-		return;
-	}
-	float MinDoneness = FLT_MAX, MaxDoneness = -FLT_MAX, AverageDoneness = 0.0f;
+		float GroupQuality = 0.0f;
+		float TotalQualityByWeight = 0.0f;
+		float ChunksWeightTotal = 0;
+		float WorstChunkQuality = 1.0f;
+		float WorstChunkInfluence = 0.0f;
+		float MaxChunkWeight = 0.0f;
+		float RecipeImportance = 1.0f;
+		float FailureSeverity = 0.0f;
+	};
+
+	TMap<FName, FIngredientQuality> IngredientQualityMap;
 	for (AA_Cookable* Ingredient : Ingredients)
 	{
-		MinDoneness = FMath::Min(MinDoneness, Ingredient->Doneness);
-		MaxDoneness = FMath::Max(MaxDoneness, Ingredient->Doneness);
-		AverageDoneness += Ingredient->Doneness;
-	}
-	AverageDoneness /= Ingredients.Num();
-	if (MaxDoneness - MinDoneness > 0.3f)
-	{
-		MatchedRecipe = nullptr;
+		// Find the maximum chunk weight for each ingredient type
+		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
+		QualityRef.MaxChunkWeight = FMath::Max(QualityRef.MaxChunkWeight, Ingredient->ChunkMass);
 	}
 
+	for (AA_Cookable* Ingredient : Ingredients)
+	{
+		// Calculate only significant chunks which weight is more than 10% of the maximum chunk weight for this ingredient type
+		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
+		if (Ingredient->ChunkMass >= SignificantChunkPercentage * QualityRef.MaxChunkWeight)
+		{
+			QualityRef.TotalQualityByWeight += Ingredient->GetChunkQuality() * Ingredient->ChunkMass;
+			QualityRef.ChunksWeightTotal += Ingredient->ChunkMass;
+			QualityRef.WorstChunkQuality = FMath::Min(QualityRef.WorstChunkQuality, Ingredient->GetChunkQuality());
+			QualityRef.WorstChunkInfluence = Ingredient->WorstChunkInfluence;
+			QualityRef.RecipeImportance = Ingredient->RecipeImportance;
+		}
+	}
+
+	for (auto& Pair : IngredientQualityMap)
+	{
+		Pair.Value.GroupQuality = (Pair.Value.TotalQualityByWeight / Pair.Value.ChunksWeightTotal) * (1 - Pair.Value.WorstChunkInfluence + Pair.Value.WorstChunkInfluence * Pair.Value.WorstChunkQuality);
+		Pair.Value.FailureSeverity = (1 - Pair.Value.GroupQuality) * Pair.Value.RecipeImportance;
+	}
+
+	// Calculate total dish quality
+	float DishQuality = 0.0f;
+	float TotalRecipeImportance = 0.0f;
+	float LowestGroupQuality = 1.0f;
+	for (const auto& Pair : IngredientQualityMap)
+	{
+		DishQuality += Pair.Value.GroupQuality * Pair.Value.RecipeImportance;
+		TotalRecipeImportance += Pair.Value.RecipeImportance;
+		if (Pair.Value.FailureSeverity >= FailureSeverityThreshold)
+		{
+			LowestGroupQuality = FMath::Min(LowestGroupQuality, Pair.Value.GroupQuality);
+		}
+	}
+	DishQuality /= TotalRecipeImportance;
+	DishQuality *= (0.5f + 0.5f * LowestGroupQuality); // Adjust dish quality based on the lowest group quality
+
+	// Debug display
+	if (bShowCookingDebug)
+	{
+		FString DebugText;
+
+		for (const auto& Pair : IngredientQualityMap)
+		{
+			const float AverageQuality = Pair.Value.TotalQualityByWeight / Pair.Value.ChunksWeightTotal;
+
+			DebugText += FString::Printf(
+				TEXT("%s\n")
+				TEXT("Average Quality: %.2f\n")
+				TEXT("Worst Chunk: %.2f\n")
+				TEXT("Group Quality: %.2f\n")
+				TEXT("Importance: %.2f\n")
+				TEXT("Failure Severity: %.2f\n\n"),
+				*Pair.Key.ToString(),
+				AverageQuality,
+				Pair.Value.WorstChunkQuality,
+				Pair.Value.GroupQuality,
+				Pair.Value.RecipeImportance,
+				Pair.Value.FailureSeverity
+			);
+		}
+
+		DebugText += FString::Printf(
+			TEXT("--------------------------------\n")
+			TEXT("Dish Average: %.2f\n")
+			TEXT("Worst Important Ingredient: %.2f\n")
+			TEXT("Final Quality: %.2f\n"),
+			DishQuality,
+			LowestGroupQuality,
+			DishQuality
+		);
+
+		GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Yellow, DebugText);
+	}
 
 	//If all conditions are ok, swap ingredients on result dish
 	if (MatchedRecipe && MatchedRecipe->ResultCookableClass)
@@ -381,7 +456,17 @@ void AA_Dishes::CheckIfCooked()
 		IngredientCountMap.Empty();
 
 		AA_Cookable* NewDish = GetWorld()->SpawnActor<AA_Cookable>(MatchedRecipe->ResultCookableClass, CookedResultSpawnPoint->GetComponentLocation(), CookedResultSpawnPoint->GetComponentRotation());
-		NewDish->CookingTime = static_cast<int32>(NewDish->DefaultCookingTime * AverageDoneness * 2.0f);
+		NewDish->CookingTime = static_cast<int32>(NewDish->DefaultCookingTime * DishQuality * 2.0f);
+		NewDish->Quality = DishQuality;
+
+		EDishRating FinalRating = NewDish->GetDishRating(DishQuality, MatchedRecipe->RatingThresholds);
+
+		if (bShowCookingDebug)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Green, FString::Printf(TEXT("Final Rating: %s"), *StaticEnum<EDishRating>()->GetDisplayNameTextByValue(static_cast<int64>(FinalRating)).ToString()));
+		}
+
+		NewDish->ShowFinalDishRating(FinalRating);
 	}
 
 	bIsOnRecipeChecking = false;
