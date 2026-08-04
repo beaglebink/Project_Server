@@ -3,6 +3,7 @@
 #include "KismetProceduralMeshLibrary.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Cooking/A_Dishes.h"
+#include "Components/TextRenderComponent.h"
 
 AA_Cookable::AA_Cookable()
 {
@@ -10,8 +11,10 @@ AA_Cookable::AA_Cookable()
 
 	SlicedMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("SlicedMesh"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
+	DishRatingText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("DishRatingText"));
 
 	RootComponent = SlicedMesh;
+	DishRatingText->SetupAttachment(RootComponent);
 
 	StaticMesh->SetSimulatePhysics(false);
 	StaticMesh->SetNotifyRigidBodyCollision(false);
@@ -25,6 +28,10 @@ AA_Cookable::AA_Cookable()
 	SlicedMesh->BodyInstance.SetMassOverride(1.0f, true);
 	SlicedMesh->SetLinearDamping(0.1f);
 	SlicedMesh->SetAngularDamping(0.1f);
+
+	DishRatingText->SetHorizontalAlignment(EHTA_Center);
+	DishRatingText->SetRelativeLocation(FVector(0.0f, 0.0f, 20.0f));
+	DishRatingText->SetVisibility(false);
 }
 
 void AA_Cookable::OnConstruction(const FTransform& Transform)
@@ -324,4 +331,36 @@ float AA_Cookable::GetChunkQuality()
 	Quality = FMath::Clamp(Quality, 0.0f, 1.0f);
 
 	return Quality;
+}
+
+EDishRating AA_Cookable::GetDishRating(float DishQuality, const FDishQualityThresholds& Thresholds)
+{
+	if (DishQuality >= Thresholds.ExcellentThreshold)
+	{
+		return EDishRating::Excellent;
+	}
+
+	if (DishQuality >= Thresholds.GoodThreshold)
+	{
+		return EDishRating::Good;
+	}
+
+	if (DishQuality >= Thresholds.AcceptableThreshold)
+	{
+		return EDishRating::Acceptable;
+	}
+
+	return EDishRating::Poor;
+}
+
+void AA_Cookable::ShowFinalDishRating(EDishRating DishRating)
+{
+	DishRatingText->SetText(StaticEnum<EDishRating>()->GetDisplayNameTextByValue(static_cast<int64>(DishRating)));
+	DishRatingText->SetVisibility(true);
+
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this, DishRating]()
+		{
+			DishRatingText->SetVisibility(false);
+		}, 5.0f, false);
 }

@@ -54,6 +54,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* CookedResultSpawnPoint;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
+	bool bShowCookingDebug = false;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	USkeletalMeshComponent* AttachedMesh;
 

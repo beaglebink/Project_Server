@@ -3,10 +3,21 @@
 #include "CoreMinimal.h"
 #include "PythonContainers/A_InteractableActor.h"
 #include "Components/TimelineComponent.h"
+#include "Cooking/DA_Recipes.h"
 #include "A_Cookable.generated.h"
+
+UENUM(BlueprintType)
+enum class EDishRating : uint8
+{
+	Poor		UMETA(DisplayName = "Poor"),
+	Acceptable	UMETA(DisplayName = "Acceptable"),
+	Good		UMETA(DisplayName = "Good"),
+	Excellent	UMETA(DisplayName = "Excellent")
+};
 
 class UProceduralMeshComponent;
 class AA_Dishes;
+class UTextRenderComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_Cookable : public AA_InteractableActor
@@ -36,6 +47,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Slicing mesh")
 	UProceduralMeshComponent* SlicedMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rating")
+	UTextRenderComponent* DishRatingText;
 
 	UPROPERTY()
 	AA_Dishes* AttachedDish;
@@ -123,4 +137,8 @@ public:
 	void DistributeMassesByCut(AA_Cookable* CutPart);
 
 	float GetChunkQuality();
+
+	EDishRating GetDishRating(float DishQuality, const FDishQualityThresholds& Thresholds);
+
+	void ShowFinalDishRating(EDishRating DishRating);
 };
