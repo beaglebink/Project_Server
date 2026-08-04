@@ -334,7 +334,7 @@ void ASpawnGroupSpawner::SpawnGroup()
                     return;
                 }
 
-                if (NeedSpawnCount <= SpawnedCount - KilledCount)
+                if (NeedSpawnCount <= SpawnedCount + KilledCount + GetCapturedCount())
                 {
                     //KilledCount = SpawnGroupAsset->Composition.Count;//DesiredCounts.Num();
                     World->GetTimerManager().ClearTimer(TimerHandle);
@@ -676,6 +676,7 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
 
     Ghost->Tags.Append(EnemyTags);
     AddSpawnSlot(Ghost, Transform);
+    OnGhostSpawned_BP(Ghost);
     return Ghost;
 }
 

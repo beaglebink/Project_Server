@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include <AlsCharacterExample.h>
 #include "CubixonCoreData.generated.h"
 
 class UO_CubixonCMailContact;
@@ -188,4 +189,16 @@ struct FGlobalBackupData
 	
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
 	TMap<FString, FScheduledBackupData> ScheduledBackupData;
+};
+
+USTRUCT(BlueprintType)
+struct FCaptureGhostBackupTimeStamp
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	float BackupSize;
+
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Backup")
+	TMap<FString, TSubclassOf<AAlsCharacterExample>> TimeStamps;
 };

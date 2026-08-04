@@ -185,6 +185,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
     void CaptureGhost(AActor* Ghost);
 
+    UFUNCTION(BlueprintImplementableEvent, Category = "SpawnGroup")
+	void OnGhostSpawned_BP(AActor* Ghost);
+
     void MarkSlotCaptured(const FGuid& ItemId);
 
     void MarkSlotKilled(const FGuid& ItemId);
