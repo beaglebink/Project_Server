@@ -445,7 +445,7 @@ void AA_Dishes::CheckIfCooked()
 	DishQuality = FMath::Clamp(DishQuality - MissingPieceDeduction, 0.0f, 1.0f);
 
 	// Debug display
-	if (bShowCookingDebug)
+	if (bShowCookingDebug && MatchedRecipe)
 	{
 		FString DebugText;
 
@@ -461,7 +461,7 @@ void AA_Dishes::CheckIfCooked()
 				TEXT("Importance: %.2f\n")
 				TEXT("Failure Severity: %.2f\n\n")
 				TEXT("Missing Proportion: %.2f\n")
-				TEXT("ShortageSeverity: %.2f\n"),
+				TEXT("ShortageSeverity: %.2f\n\n"),
 				*Pair.Key.ToString(),
 				AverageQuality,
 				Pair.Value.WorstChunkQuality,
@@ -485,7 +485,7 @@ void AA_Dishes::CheckIfCooked()
 			DishQuality
 		);
 
-		GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Yellow, DebugText);
+		GEngine->AddOnScreenDebugMessage(-1, 40.0f, FColor::Yellow, DebugText);
 	}
 
 	//If all conditions are ok, swap ingredients on result dish

@@ -77,7 +77,6 @@ void AA_Cookable::Tick(float DeltaTime)
 			bIsAttached = true;
 			bIsAttaching = false;
 			OnAttachingPauseCheckTime = 0.0f;
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), ChunkMass));
 		}
 	}
 
