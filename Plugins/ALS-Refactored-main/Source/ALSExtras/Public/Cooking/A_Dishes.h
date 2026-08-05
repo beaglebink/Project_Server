@@ -89,9 +89,9 @@ private:
 
 	uint8 bIsTossing : 1 {false};
 
-
 	FVector PrevLocation = FVector::ZeroVector;
 	FVector CurrentLocation = FVector::ZeroVector;
+
 	float DeltaLengthAccum = 0.0f;
 
 protected:

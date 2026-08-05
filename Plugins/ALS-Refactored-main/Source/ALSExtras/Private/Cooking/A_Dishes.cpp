@@ -117,7 +117,10 @@ void AA_Dishes::BeginPlay()
 							CookableIngredient->AttachedDish = this;
 							CookableIngredient->bIsAttaching = true;
 
-							GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
+							if (bShowCookingDebug)
+							{
+								GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
+							}
 						}
 
 					}
@@ -139,7 +142,10 @@ void AA_Dishes::BeginPlay()
 						}
 						Ingredients[i]->AttachedDish = nullptr;
 
-						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *Ingredients[i]->Name.ToString(), *CountPtr));
+						if (bShowCookingDebug)
+						{
+							GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *Ingredients[i]->Name.ToString(), *CountPtr));
+						}
 
 						Ingredients.RemoveAt(i);
 					}
@@ -507,7 +513,7 @@ void AA_Dishes::CheckIfCooked()
 
 		if (bShowCookingDebug)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Green, FString::Printf(TEXT("Final Rating: %s"), *StaticEnum<EDishRating>()->GetDisplayNameTextByValue(static_cast<int64>(FinalRating)).ToString()));
+			GEngine->AddOnScreenDebugMessage(-1, 40.0f, FColor::Green, FString::Printf(TEXT("Final Rating: %s"), *StaticEnum<EDishRating>()->GetDisplayNameTextByValue(static_cast<int64>(FinalRating)).ToString()));
 		}
 
 		NewDish->ShowFinalDishRating(FinalRating);
