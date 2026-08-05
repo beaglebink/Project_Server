@@ -89,9 +89,9 @@ private:
 
 	uint8 bIsTossing : 1 {false};
 
-
 	FVector PrevLocation = FVector::ZeroVector;
 	FVector CurrentLocation = FVector::ZeroVector;
+
 	float DeltaLengthAccum = 0.0f;
 
 protected:
@@ -129,6 +129,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float FailureSeverityThreshold = 0.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float MissingPenaltyStrength = 0.4f;
 
 private:
 	EHeatingLevel HeatingLevel;

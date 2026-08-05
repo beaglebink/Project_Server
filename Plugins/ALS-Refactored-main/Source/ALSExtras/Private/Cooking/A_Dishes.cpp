@@ -117,7 +117,10 @@ void AA_Dishes::BeginPlay()
 							CookableIngredient->AttachedDish = this;
 							CookableIngredient->bIsAttaching = true;
 
-							GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
+							if (bShowCookingDebug)
+							{
+								GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Added ingredient: %s, Count: %d"), *CookableIngredient->Name.ToString(), CountRef));
+							}
 						}
 
 					}
@@ -139,7 +142,10 @@ void AA_Dishes::BeginPlay()
 						}
 						Ingredients[i]->AttachedDish = nullptr;
 
-						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *Ingredients[i]->Name.ToString(), *CountPtr));
+						if (bShowCookingDebug)
+						{
+							GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s, Count: %d"), *Ingredients[i]->Name.ToString(), *CountPtr));
+						}
 
 						Ingredients.RemoveAt(i);
 					}
@@ -313,9 +319,7 @@ void AA_Dishes::CheckIfCooked()
 		//Check for recipe matching from recipe
 		for (const auto& Pair : RecipeMap)
 		{
-			int32 CurrentCount = IngredientCountMap.FindRef(Pair.Key);
-
-			if (FMath::Abs(CurrentCount - Pair.Value) > 2)
+			if (!IngredientCountMap.Contains(Pair.Key))
 			{
 				bIsFollowingRecipe = false;
 				break;
@@ -330,9 +334,7 @@ void AA_Dishes::CheckIfCooked()
 		//Check for recipe matching - extra ingredients
 		for (const auto& Pair : IngredientCountMap)
 		{
-			int32 RecipeCount = RecipeMap.FindRef(Pair.Key);
-
-			if (RecipeCount == 0)
+			if (!RecipeMap.Contains(Pair.Key))
 			{
 				bIsFollowingRecipe = false;
 				break;
@@ -349,19 +351,21 @@ void AA_Dishes::CheckIfCooked()
 		break;
 	}
 
-	// Calculate chunks average quality
 	struct FIngredientQuality
 	{
 		float GroupQuality = 0.0f;
 		float TotalQualityByWeight = 0.0f;
-		float ChunksWeightTotal = 0;
+		float ChunksWeightTotal = 0.0f;
 		float WorstChunkQuality = 1.0f;
 		float WorstChunkInfluence = 0.0f;
 		float MaxChunkWeight = 0.0f;
 		float RecipeImportance = 1.0f;
 		float FailureSeverity = 0.0f;
+		float MissingProportion = 0.0f;
+		float ShortageSeverity = 0.0f;
 	};
 
+	// Calculate chunks average quality
 	TMap<FName, FIngredientQuality> IngredientQualityMap;
 	for (AA_Cookable* Ingredient : Ingredients)
 	{
@@ -406,8 +410,48 @@ void AA_Dishes::CheckIfCooked()
 	DishQuality /= TotalRecipeImportance;
 	DishQuality *= (0.5f + 0.5f * LowestGroupQuality); // Adjust dish quality based on the lowest group quality
 
+	//Missed requared pieces calculation
+	float WeightedShortageSeverity = 0.0f;
+	float MissingPieceDeduction = 0.0f;
+	if (MatchedRecipe)
+	{
+		float SumShortageSeverity_RecipeImportance = 0.0f;
+		for (const auto& Ingredient : MatchedRecipe->Ingredients)
+		{
+			if (FIngredientQuality* IngredientQuality = IngredientQualityMap.Find(Ingredient.IngredientName))
+			{
+				IngredientQuality->MissingProportion = 1.0f - static_cast<float>(FMath::Min(IngredientCountMap.FindRef(Ingredient.IngredientName), Ingredient.IngredientQuantity)) / static_cast<float>(Ingredient.IngredientQuantity);
+				if (IngredientQuality->MissingProportion < 0.1f)
+				{
+					IngredientQuality->ShortageSeverity = 0.0f;
+				}
+				else if (IngredientQuality->MissingProportion < 0.2f)
+				{
+					IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.1f, 0.2f), FVector2D(0.0f, 0.2f), IngredientQuality->MissingProportion);
+				}
+				else if (IngredientQuality->MissingProportion < 0.4f)
+				{
+					IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.2f, 0.4f), FVector2D(0.2f, 0.5f), IngredientQuality->MissingProportion);
+				}
+				else if (IngredientQuality->MissingProportion < 0.6f)
+				{
+					IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.4f, 0.6f), FVector2D(0.5f, 0.75f), IngredientQuality->MissingProportion);
+				}
+				else
+				{
+					IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.6f, 1.0f), FVector2D(0.75f, 1.0f), IngredientQuality->MissingProportion);
+				}
+				SumShortageSeverity_RecipeImportance += IngredientQuality->ShortageSeverity * IngredientQuality->RecipeImportance;
+			}
+		}
+		WeightedShortageSeverity = SumShortageSeverity_RecipeImportance / TotalRecipeImportance;
+		MissingPieceDeduction = WeightedShortageSeverity * MissingPenaltyStrength;
+	}
+	float DishAverage = DishQuality;
+	DishQuality = FMath::Clamp(DishQuality - MissingPieceDeduction, 0.0f, 1.0f);
+
 	// Debug display
-	if (bShowCookingDebug)
+	if (bShowCookingDebug && MatchedRecipe)
 	{
 		FString DebugText;
 
@@ -421,13 +465,17 @@ void AA_Dishes::CheckIfCooked()
 				TEXT("Worst Chunk: %.2f\n")
 				TEXT("Group Quality: %.2f\n")
 				TEXT("Importance: %.2f\n")
-				TEXT("Failure Severity: %.2f\n\n"),
+				TEXT("Failure Severity: %.2f\n\n")
+				TEXT("Missing Proportion: %.2f\n")
+				TEXT("ShortageSeverity: %.2f\n\n"),
 				*Pair.Key.ToString(),
 				AverageQuality,
 				Pair.Value.WorstChunkQuality,
 				Pair.Value.GroupQuality,
 				Pair.Value.RecipeImportance,
-				Pair.Value.FailureSeverity
+				Pair.Value.FailureSeverity,
+				Pair.Value.MissingProportion,
+				Pair.Value.ShortageSeverity
 			);
 		}
 
@@ -435,13 +483,15 @@ void AA_Dishes::CheckIfCooked()
 			TEXT("--------------------------------\n")
 			TEXT("Dish Average: %.2f\n")
 			TEXT("Worst Important Ingredient: %.2f\n")
+			TEXT("Missing Penalty: %.2f\n")
 			TEXT("Final Quality: %.2f\n"),
-			DishQuality,
+			DishAverage,
 			LowestGroupQuality,
+			MissingPieceDeduction,
 			DishQuality
 		);
 
-		GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Yellow, DebugText);
+		GEngine->AddOnScreenDebugMessage(-1, 40.0f, FColor::Yellow, DebugText);
 	}
 
 	//If all conditions are ok, swap ingredients on result dish
@@ -463,7 +513,7 @@ void AA_Dishes::CheckIfCooked()
 
 		if (bShowCookingDebug)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Green, FString::Printf(TEXT("Final Rating: %s"), *StaticEnum<EDishRating>()->GetDisplayNameTextByValue(static_cast<int64>(FinalRating)).ToString()));
+			GEngine->AddOnScreenDebugMessage(-1, 40.0f, FColor::Green, FString::Printf(TEXT("Final Rating: %s"), *StaticEnum<EDishRating>()->GetDisplayNameTextByValue(static_cast<int64>(FinalRating)).ToString()));
 		}
 
 		NewDish->ShowFinalDishRating(FinalRating);

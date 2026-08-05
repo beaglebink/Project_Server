@@ -77,7 +77,6 @@ void AA_Cookable::Tick(float DeltaTime)
 			bIsAttached = true;
 			bIsAttaching = false;
 			OnAttachingPauseCheckTime = 0.0f;
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("%2.2f"), ChunkMass));
 		}
 	}
 
@@ -281,7 +280,6 @@ void AA_Cookable::IncreaseCookingTime(int32 CookingPeriod)
 {
 	CookingTime += CookingPeriod;
 	Doneness = (static_cast<float>(CookingTime) / static_cast<float>(DefaultCookingTime)) / 2.0f;
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("COOKING %2.2f"), Doneness));
 	SetActorScale3D(FMath::Lerp(FVector(1.0f, 1.0f, 1.0f), FVector(0.7f, 0.7f, 0.7f), FMath::Clamp(Doneness, 0.0f, 1.0f)));
 	MeshDynamicMaterial->SetScalarParameterValue(FName(TEXT("Cooking")), Doneness);
 }
