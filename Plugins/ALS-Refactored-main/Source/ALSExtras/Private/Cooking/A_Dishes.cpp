@@ -8,21 +8,40 @@ AA_Dishes::AA_Dishes()
 	PrimaryActorTick.bCanEverTick = true;
 
 	CollisionShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CollisionShape"));
+	LiquidShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LiquidShape"));
 	CookedResultSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CookedResultSpawnPoint"));
+	LiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("LiquidLevelPoint"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 
 	CollisionShape->SetupAttachment(RootComponent);
+	LiquidShape->SetupAttachment(RootComponent);
 	CookedResultSpawnPoint->SetupAttachment(RootComponent);
+	LiquidLevelPoint->SetupAttachment(RootComponent);
 
 	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
 	CollisionShape->bHiddenInGame = true;
+
+	LiquidShape->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	LiquidShape->bHiddenInGame = true;
 }
 
 void AA_Dishes::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
+	if (!LiquidDynamicMaterial && LiquidShape->GetMaterial(0))
+	{
+		LiquidDynamicMaterial = UMaterialInstanceDynamic::Create(LiquidShape->GetMaterial(0), this);
+	}
+
+	if (LiquidDynamicMaterial)
+	{
+		LiquidShape->SetMaterial(0, LiquidDynamicMaterial);
+
+		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
+		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
+	}
 }
 
 void AA_Dishes::Tick(float DeltaTime)
@@ -78,6 +97,13 @@ void AA_Dishes::Tick(float DeltaTime)
 	}
 
 	PrevLocation = CurrentLocation;
+
+	// Update liquid level
+	if (LiquidDynamicMaterial)
+	{
+		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
+		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
+	}
 }
 
 void AA_Dishes::BeginPlay()
@@ -188,7 +214,7 @@ void AA_Dishes::DetachDishFromHand()
 
 void AA_Dishes::RotateDish(float AngleDelta)
 {
-	AddActorLocalRotation(FRotator(AngleDelta * 10.0f, 0.0f, 0.0f));
+	AddActorLocalRotation(FRotator(-AngleDelta * 10.0f, 0.0f, 0.0f));
 
 	CheckIfCooked();
 }
