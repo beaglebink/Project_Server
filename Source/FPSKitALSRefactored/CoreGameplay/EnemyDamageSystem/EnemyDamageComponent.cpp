@@ -419,6 +419,7 @@ void UEnemyDamageComponent::ApplyReserveRegen()
 void UEnemyDamageComponent::OnStaggerCooldownExpired()
 {
     bStaggerOnCooldown = false;
+    OnStaggerCooldownEnded.Broadcast();
 }
 
 float UEnemyDamageComponent::GetStaggerChance(float DamageValue) const

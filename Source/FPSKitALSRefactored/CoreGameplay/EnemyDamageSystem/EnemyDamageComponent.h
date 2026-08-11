@@ -11,6 +11,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHealthChanged, float NewHealth, flo
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReserveChanged, FName LayerTag, float NewReserve);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReserveDepleted, FName LayerTag);
 DECLARE_MULTICAST_DELEGATE(FOnStaggered);
+DECLARE_MULTICAST_DELEGATE(FOnStaggerCooldownEnded);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHealthZoneChanged, FName NewZone, FName OldZone);
 DECLARE_MULTICAST_DELEGATE(FOnDeath);
 
@@ -32,6 +33,7 @@ public:
     FOnReserveChanged OnReserveChanged;
     FOnReserveDepleted OnReserveDepleted;
     FOnStaggered OnStaggered;
+    FOnStaggerCooldownEnded OnStaggerCooldownEnded;
     FOnHealthZoneChanged OnHealthZoneChanged;
     FOnDeath OnDeath;
 
@@ -44,6 +46,9 @@ public:
 
     UFUNCTION(BlueprintPure)
     FName GetCurrentHealthZone() const { return CurrentHealthZoneTag; }
+
+    UFUNCTION(BlueprintPure, Category = "Enemy Damage")
+    bool IsStaggerOnCooldown() const { return bStaggerOnCooldown; }
 
     UFUNCTION(BlueprintPure)
     bool IsDead() const { return bIsDead; }
