@@ -8,6 +8,18 @@
 #include "InputModifiers.h"
 #include "CoreBlueprintFunctionLibrary.generated.h"
 
+USTRUCT(BlueprintType)
+struct FFluidPoints
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid Points")
+	TArray<FVector> LocalPositions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid Points")
+	TArray<float> DistancesToWall;
+};
+
 UCLASS()
 class FPSKITALSREFACTORED_API UCoreBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
@@ -24,6 +36,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Objects")
 	static void RemoveSceneComponent(USceneComponent* Component);
+
+	//Fluid points grid calculation inside mesh volume
+	UFUNCTION(BlueprintCallable, Category = "Fluid Points")
+	static FFluidPoints GenerateFluidPointsGrid(UStaticMeshComponent* MeshComponent, float PointSpacing, bool bDrawDebug);
 };
 
- 

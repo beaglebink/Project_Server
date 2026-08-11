@@ -2,6 +2,9 @@
 #include "GameFramework/Character.h"
 #include "Components/SphereComponent.h"
 #include "Cooking/A_Cookable.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 
 AA_Dishes::AA_Dishes()
 {
@@ -41,6 +44,16 @@ void AA_Dishes::OnConstruction(const FTransform& Transform)
 
 		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
 		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
+	}
+
+	if (LiquidNiagaraSystem && FluidPointsInsideMesh.LocalPositions.Num() > 0 && LiquidShape)
+	{
+		UNiagaraComponent* FluidFX = nullptr;
+		FluidFX = UNiagaraFunctionLibrary::SpawnSystemAttached(LiquidNiagaraSystem, LiquidShape, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+
+		FluidFX->SetNiagaraVariableInt(TEXT("User.FluidPointsQuantity"), FluidPointsInsideMesh.LocalPositions.Num());
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(FluidFX, TEXT("User.FluidPointsPositions"), FluidPointsInsideMesh.LocalPositions);
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(FluidFX, TEXT("User.FluidPointsDistancesToWall"), FluidPointsInsideMesh.DistancesToWall);
 	}
 }
 

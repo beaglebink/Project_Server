@@ -4,6 +4,7 @@
 #include "PythonContainers/A_InteractableActor.h"
 #include "Components/TimelineComponent.h"
 #include "Cooking/DA_Recipes.h"
+#include "CoreBlueprintFunctionLibrary.h"
 #include "A_Dishes.generated.h"
 
 UENUM(BlueprintType)
@@ -17,6 +18,7 @@ enum class EHeatingLevel : uint8
 
 class USphereComponent;
 class AA_Cookable;
+class UNiagaraSystem;
 
 UCLASS()
 class ALSEXTRAS_API AA_Dishes : public AA_InteractableActor
@@ -59,9 +61,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* LiquidLevelPoint;
-
-	UPROPERTY()
-	UMaterialInstanceDynamic* LiquidDynamicMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	bool bShowCookingDebug = false;
@@ -155,4 +154,14 @@ public:
 	EHeatingLevel GetHeatingLevel();
 
 	void CheckIfCooked();
+
+	//Fluid simulation
+	UPROPERTY()
+	UMaterialInstanceDynamic* LiquidDynamicMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid")
+	UNiagaraSystem* LiquidNiagaraSystem;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Fluid")
+	FFluidPoints FluidPointsInsideMesh;
 };
