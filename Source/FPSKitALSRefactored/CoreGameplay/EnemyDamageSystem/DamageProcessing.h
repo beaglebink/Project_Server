@@ -9,7 +9,6 @@
 class UEnemyDamageConfig;
 class UDamageProcessingEffect;
 
-// Контекст для модификации специальными эффектами (передаётся в UDamageProcessingEffect)
 USTRUCT(BlueprintType)
 struct FDamageProcessingContext
 {
@@ -18,10 +17,10 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadWrite)
     float IncomingDamage = 0.0f;
 
-    UPROPERTY(BlueprintReadWrite)
+    UPROPERTY(BlueprintReadOnly)
     UEnemyDamageConfig* Config = nullptr;
 
-    UPROPERTY(BlueprintReadWrite)
+    UPROPERTY(BlueprintReadOnly)
     TArray<float> Reserves;
 
     UPROPERTY(BlueprintReadWrite)
@@ -30,14 +29,14 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadWrite)
     TArray<float> ReserveDamageMultipliers;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(BlueprintReadWrite)
     TArray<bool> BypassReserve;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(BlueprintReadWrite)
     TArray<bool> IgnoreLayer;
 
     UPROPERTY(BlueprintReadWrite)
-    float FinalHealthDamageMultiplier = 1.0f;
+    float FinalHealthDamage = 0.0f;
 
     UPROPERTY(BlueprintReadWrite)
     float StaggerChanceModifier = 0.0f;
@@ -46,7 +45,16 @@ struct FDamageProcessingContext
     bool bForceStagger = false;
 };
 
-// Структура для передачи модификаторов защиты (используется в ApplyDefenseModifiers)
+// Выходные структуры (используются в эффектах)
+USTRUCT(BlueprintType)
+struct FPreDefenseOutput
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    float NewIncomingDamage = 0.0f;
+};
+
 USTRUCT(BlueprintType)
 struct FDefenseModifiers
 {
@@ -65,23 +73,31 @@ struct FDefenseModifiers
     TArray<bool> IgnoreLayer;
 };
 
-// Структура для пост-защитных эффектов (используется в PostDefenseProcessing)
 USTRUCT(BlueprintType)
-struct FPostDefenseResult
+struct FDefenseOutput
 {
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadWrite)
-    float FinalHealthDamage = 0.0f;
-
-    UPROPERTY(BlueprintReadWrite)
-    float StaggerChanceModifier = 0.0f;
-
-    UPROPERTY(BlueprintReadWrite)
-    bool bForceStagger = false;
+    FDefenseModifiers NewModifiers;
 };
 
-// Информация об атаке, передаваемая при попадании
+USTRUCT(BlueprintType)
+struct FPostDefenseOutput
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    float NewFinalHealthDamage = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    float NewStaggerChanceModifier = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool bNewForceStagger = false;
+};
+
+// Информация об атаке
 USTRUCT(BlueprintType)
 struct FAttackDamageInfo
 {
@@ -108,12 +124,11 @@ struct FAttackDamageInfo
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FGuid AttackID;
 
-    // Специальные эффекты атаки (DataAsset)
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TObjectPtr<UDamageProcessingEffect> OptionalEnemyEffects = nullptr;
 };
 
-// Результат обработки урона
+// Результат урона
 USTRUCT(BlueprintType)
 struct FDamageResult
 {

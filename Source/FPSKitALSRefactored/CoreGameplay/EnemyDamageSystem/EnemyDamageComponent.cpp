@@ -180,7 +180,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     float AttackStrength = DamageAfterZone;
     Result.AttackStrength = AttackStrength;
 
-    // 4. Подготовка контекста и модификаторов (вызов эффектов)
+    // 4. Подготовка контекста и модификаторов
     float RemainingDamage = DamageAfterZone;
     TArray<float> ResistanceMods;
     TArray<float> ReserveDamageMods;
@@ -198,27 +198,41 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         BypassReserve.Init(false, NumLayers);
         IgnoreLayer.Init(false, NumLayers);
 
-        // Вызов ModifyDamageProcessing (возвращает новый урон)
+        // Формируем контекст
+        FDamageProcessingContext Context;
+        Context.IncomingDamage = RemainingDamage;
+        Context.Config = Config;
+        Context.Reserves = CurrentReserves;
+        Context.ResistanceMultipliers = ResistanceMods;
+        Context.ReserveDamageMultipliers = ReserveDamageMods;
+        Context.BypassReserve = BypassReserve;
+        Context.IgnoreLayer = IgnoreLayer;
+        Context.FinalHealthDamage = 0.0f; // пока не известно
+        Context.StaggerChanceModifier = 0.0f;
+        Context.bForceStagger = false;
+
+        // 1. ModifyDamageProcessing
         if (AttackInfo.OptionalEnemyEffects)
         {
-            RemainingDamage = AttackInfo.OptionalEnemyEffects->ModifyDamageProcessing(RemainingDamage);
+            FPreDefenseOutput Out = AttackInfo.OptionalEnemyEffects->ModifyDamageProcessing(Context);
+            RemainingDamage = Out.NewIncomingDamage;
+            // Обновляем контекст, чтобы дальнейшие этапы видели новый урон
+            Context.IncomingDamage = RemainingDamage;
         }
 
-        // Вызов ApplyDefenseModifiers (возвращает новую структуру с массивами)
+        // 2. ApplyDefenseModifiers
         if (AttackInfo.OptionalEnemyEffects)
         {
-            FDefenseModifiers InMods;
-            InMods.ResistanceMultipliers = ResistanceMods;
-            InMods.ReserveDamageMultipliers = ReserveDamageMods;
-            InMods.BypassReserve = BypassReserve;
-            InMods.IgnoreLayer = IgnoreLayer;
-
-            FDefenseModifiers OutMods = AttackInfo.OptionalEnemyEffects->ApplyDefenseModifiers(InMods);
-
-            ResistanceMods = OutMods.ResistanceMultipliers;
-            ReserveDamageMods = OutMods.ReserveDamageMultipliers;
-            BypassReserve = OutMods.BypassReserve;
-            IgnoreLayer = OutMods.IgnoreLayer;
+            FDefenseOutput Out = AttackInfo.OptionalEnemyEffects->ApplyDefenseModifiers(Context);
+            ResistanceMods = Out.NewModifiers.ResistanceMultipliers;
+            ReserveDamageMods = Out.NewModifiers.ReserveDamageMultipliers;
+            BypassReserve = Out.NewModifiers.BypassReserve;
+            IgnoreLayer = Out.NewModifiers.IgnoreLayer;
+            // Обновляем контекст для последующих этапов (хотя они не используют эти массивы, но для полноты)
+            Context.ResistanceMultipliers = ResistanceMods;
+            Context.ReserveDamageMultipliers = ReserveDamageMods;
+            Context.BypassReserve = BypassReserve;
+            Context.IgnoreLayer = IgnoreLayer;
         }
     }
 
@@ -300,25 +314,28 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Result.ReserveDepleted.Empty();
     }
 
-    // 6. Пост-защитные эффекты (вызываются после прохождения слоёв, но до вычитания здоровья)
+    // 6. Пост-защитные эффекты
     float FinalHealthDamage = RemainingDamage;
     if (Config && AttackInfo.OptionalEnemyEffects)
     {
-        FPostDefenseResult InResult;
-        InResult.FinalHealthDamage = FinalHealthDamage;
-        InResult.StaggerChanceModifier = StaggerMod;
-        InResult.bForceStagger = bForceStagger;
+        // Обновляем контекст для финального этапа
+        FDamageProcessingContext Context;
+        Context.IncomingDamage = RemainingDamage; // уже не актуально
+        Context.Config = Config;
+        Context.Reserves = CurrentReserves;
+        Context.ResistanceMultipliers = ResistanceMods;
+        Context.ReserveDamageMultipliers = ReserveDamageMods;
+        Context.BypassReserve = BypassReserve;
+        Context.IgnoreLayer = IgnoreLayer;
+        Context.FinalHealthDamage = FinalHealthDamage;
+        Context.StaggerChanceModifier = StaggerMod;
+        Context.bForceStagger = bForceStagger;
 
-        FPostDefenseResult OutResult = AttackInfo.OptionalEnemyEffects->PostDefenseProcessing(InResult);
-
-        FinalHealthDamage = OutResult.FinalHealthDamage;
-        StaggerMod = OutResult.StaggerChanceModifier;
-        bForceStagger = OutResult.bForceStagger;
+        FPostDefenseOutput Out = AttackInfo.OptionalEnemyEffects->PostDefenseProcessing(Context);
+        FinalHealthDamage = Out.NewFinalHealthDamage;
+        StaggerMod = Out.NewStaggerChanceModifier;
+        bForceStagger = Out.bNewForceStagger;
     }
-
-    // Применяем модификатор финального урона по здоровью (если он был изменён)
-    FinalHealthDamage *= FinalHealthMod;
-    Result.FinalHealthDamage = FinalHealthDamage;
 
     // 7. Вычитание здоровья
     Health = FMath::Max(0.0f, Health - FinalHealthDamage);
