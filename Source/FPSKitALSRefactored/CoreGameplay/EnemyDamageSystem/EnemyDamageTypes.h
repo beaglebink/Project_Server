@@ -25,14 +25,14 @@ struct FRegenerationParams
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration", meta = (ClampMin = "0.0"))
     float RegenRatePerSecond = 0.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration", meta = (ClampMin = "0.0"))
     float RegenDelayAfterDamage = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration")
-    bool bInterruptOnDamage = true;
+    bool bInterruptOnDamage = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration")
     bool bRegenWhileStaggered = false;
@@ -61,16 +61,16 @@ struct FDefenseLayer
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
     EDefenseLayerType LayerType = EDefenseLayerType::Resistance;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Resistance", ClampMin = "0.0", ClampMax = "1.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Resistance", EditConditionHides , ClampMin = "0.0", ClampMax = "1.0"))
     float ResistanceMultiplier = 1.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve", EditConditionHides))
     float MaxReserve = 0.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve", EditConditionHides))
     float InitialReserve = 0.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve", EditConditionHides))
     FRegenerationParams ReserveRegen;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")

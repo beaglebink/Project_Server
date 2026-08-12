@@ -334,7 +334,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     {
         // Обновляем контекст для финального этапа
         FDamageProcessingContext Context;
-        Context.IncomingDamage = RemainingDamage; // уже не актуально
+        Context.IncomingDamage = RemainingDamage; 
         Context.Config = Config;
         Context.Reserves = CurrentReserves;
         Context.ResistanceMultipliers = ResistanceMods;
@@ -601,17 +601,17 @@ void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float Mo
             {
                 float absorbed = Result.LayerAbsorbedDamage[i];
                 if (absorbed > 0.0f)
-                    LogString += FString::Printf(TEXT(" -> Resistance x%.2f (absorbed %.1f)"), Layer.ResistanceMultiplier, absorbed);
+                    LogString += FString::Printf(TEXT(" -> Resistance [Tag: %s] x%.2f (absorbed %.1f)"), *Layer.LayerTag.ToString(), Layer.ResistanceMultiplier, absorbed);
                 else
-                    LogString += FString::Printf(TEXT(" -> Resistance x%.2f"), Layer.ResistanceMultiplier);
+                    LogString += FString::Printf(TEXT(" -> Resistance [Tag: %s] x%.2f"), *Layer.LayerTag.ToString(), Layer.ResistanceMultiplier);
             }
             else if (Layer.LayerType == EDefenseLayerType::Reserve)
             {
                 float absorbed = Result.LayerAbsorbedDamage[i];
                 if (absorbed > 0.0f)
-                    LogString += FString::Printf(TEXT(" -> Reserve -%.1f (remaining %.1f)"), absorbed, CurrentReserves[i]);
+                    LogString += FString::Printf(TEXT(" -> Reserve [Tag: %s] -%.1f (remaining %.1f)"), *Layer.LayerTag.ToString(), absorbed, CurrentReserves[i]);
                 else
-                    LogString += FString::Printf(TEXT(" -> Reserve no loss (%.1f)"), CurrentReserves[i]);
+                    LogString += FString::Printf(TEXT(" -> Reserve [Tag: %s] no loss (%.1f)"), *Layer.LayerTag.ToString(), CurrentReserves[i]);
             }
         }
     }
