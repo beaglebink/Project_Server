@@ -165,6 +165,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Fluid")
 	FFluidPoints FluidPointsInsideMesh;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fluid")
+	FVector CutPlaneNormal = FVector(0.0f, 0.0f, 1.0f);
+
 	UFUNCTION(CallInEditor, Category = "Fluid")
 	void ClearFluidPoints();
 
