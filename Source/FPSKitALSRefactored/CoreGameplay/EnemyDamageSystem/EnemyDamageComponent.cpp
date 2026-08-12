@@ -50,12 +50,13 @@ void UEnemyDamageComponent::SetConfig(UEnemyDamageConfig* InConfig)
 
 void UEnemyDamageComponent::InitializeFromConfig()
 {
+    UWorld* World = GetWorld();
+
     bIsDead = false;
     bStaggerOnCooldown = false;
     RecentAttackIDs.Empty();
-    LastHealthDamageTime = 0.0f;
+    LastHealthDamageTime = World->GetTimeSeconds();//0.0f;
 
-    UWorld* World = GetWorld();
     if (World)
     {
         World->GetTimerManager().ClearTimer(HealthRegenTimer);
@@ -154,6 +155,19 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
 
     // 2. Расчёт модифицированного урона
     float ModifiedDamage = AttackInfo.BaseDamage * AttackInfo.GunConditionModifier * AttackInfo.ClothingModifier;
+
+    if (ModifiedDamage < 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+
+        FString LogString;
+        LogString += FString::Printf(TEXT("[%s] Error, damage is less than zero."), *OwnerName);
+
+        UE_LOG(LogTemp, Log, TEXT("%s"), *LogString);
+        return Result;
+    }
+
     Result.IncomingDamage = ModifiedDamage;
 
     // 3. Зона попадания (только если есть конфиг)
@@ -347,7 +361,8 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     Result.TotalDamageDealt = TotalDamageDealt;
 
     // Всегда генерируем событие изменения здоровья (включая нулевое изменение)
-    OnHealthChanged.Broadcast(Health, HealthDelta);
+    if(HealthDelta > 0.0f)
+        OnHealthChanged.Broadcast(Health, HealthDelta);
 
     if (FinalHealthDamage > 0.0f)
     {
@@ -425,7 +440,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     {
         bIsDead = true;
         Result.bKilled = true;
-        OnHealthDepleted.Broadcast();
+        OnHealthDepleted.Broadcast(GetOwner(), Config->DeathBehaviorTag);
         // Останавливаем регенерацию
         if (World)
         {
@@ -621,18 +636,21 @@ void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float Mo
     LogString += Result.bStaggerTriggered ? TEXT(" -> Stagger: YES") : TEXT(" -> Stagger: no");
 
     TArray<FString> Signals;
+
+    Signals.Add(TEXT("OnDamageTaken"));
+
     if (FinalHealthDamage > 0.0f || !FMath::IsNearlyEqual(HealthDelta, 0.0f))
-        Signals.Add(TEXT("HealthChanged"));
+        Signals.Add(TEXT("OnHealthChanged"));
     if (bAnyReserveChanged)
-        Signals.Add(TEXT("ReserveChanged"));
+        Signals.Add(TEXT("OnReserveChanged"));
     if (Result.ReserveDepleted.Contains(true))
-        Signals.Add(TEXT("ReserveDepleted"));
+        Signals.Add(TEXT("OnReserveDepleted"));
     if (Result.bStaggerTriggered)
-        Signals.Add(TEXT("Staggered"));
+        Signals.Add(TEXT("OnStaggered"));
     if (Result.bHealthZoneChanged)
-        Signals.Add(TEXT("HealthZoneChanged"));
+        Signals.Add(TEXT("OnHealthZoneChanged"));
     if (Result.bKilled)
-        Signals.Add(TEXT("Death"));
+        Signals.Add(TEXT("OnHealthDepleted"));
 
     if (Signals.Num() > 0)
         LogString += TEXT(" -> Signals: ") + FString::Join(Signals, TEXT(", "));

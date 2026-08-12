@@ -14,7 +14,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnReserveDepleted, FName LayerTag);
 DECLARE_MULTICAST_DELEGATE(FOnStaggered);
 DECLARE_MULTICAST_DELEGATE(FOnStaggerCooldownEnded);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHealthZoneChanged, FName NewZone, FName OldZone);
-DECLARE_MULTICAST_DELEGATE(FOnDeath);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor* DeathActor, FName DeathTag);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class UEnemyDamageComponent : public UActorComponent
