@@ -15,11 +15,13 @@ AA_Dishes::AA_Dishes()
 	CookedResultSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CookedResultSpawnPoint"));
 	LiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("LiquidLevelPoint"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
+	FluidFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FluidFX"));
 
 	CollisionShape->SetupAttachment(RootComponent);
 	LiquidShape->SetupAttachment(RootComponent);
 	CookedResultSpawnPoint->SetupAttachment(RootComponent);
 	LiquidLevelPoint->SetupAttachment(RootComponent);
+	FluidFX->SetupAttachment(LiquidShape);
 
 	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
@@ -27,6 +29,8 @@ AA_Dishes::AA_Dishes()
 
 	LiquidShape->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	LiquidShape->bHiddenInGame = true;
+
+	FluidFX->SetAutoActivate(true);
 }
 
 void AA_Dishes::OnConstruction(const FTransform& Transform)
@@ -44,16 +48,6 @@ void AA_Dishes::OnConstruction(const FTransform& Transform)
 
 		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
 		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
-	}
-
-	if (LiquidNiagaraSystem && FluidPointsInsideMesh.LocalPositions.Num() > 0 && LiquidShape)
-	{
-		UNiagaraComponent* FluidFX = nullptr;
-		FluidFX = UNiagaraFunctionLibrary::SpawnSystemAttached(LiquidNiagaraSystem, LiquidShape, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
-
-		FluidFX->SetNiagaraVariableInt(TEXT("User.FluidPointsQuantity"), FluidPointsInsideMesh.LocalPositions.Num());
-		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(FluidFX, TEXT("User.FluidPointsPositions"), FluidPointsInsideMesh.LocalPositions);
-		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(FluidFX, TEXT("User.FluidPointsDistancesToWall"), FluidPointsInsideMesh.DistancesToWall);
 	}
 }
 
@@ -559,4 +553,21 @@ void AA_Dishes::CheckIfCooked()
 	}
 
 	bIsOnRecipeChecking = false;
+}
+
+void AA_Dishes::ClearFluidPoints()
+{
+	FluidPointsInsideMesh.LocalPositions.Empty();
+	FluidPointsInsideMesh.DistancesToWall.Empty();
+
+	UpdateNiagaraPreview();
+}
+
+void AA_Dishes::UpdateNiagaraPreview()
+{
+	FluidFX->SetNiagaraVariableInt(TEXT("User.FluidPointsQuantity"), FluidPointsInsideMesh.LocalPositions.Num());
+	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(FluidFX, TEXT("User.FluidPointsPositions"), FluidPointsInsideMesh.LocalPositions);
+	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(FluidFX, TEXT("User.FluidPointsDistancesToWall"), FluidPointsInsideMesh.DistancesToWall);
+
+	FluidFX->ResetSystem();
 }
