@@ -1,3 +1,4 @@
+// DamageProcessing.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -6,6 +7,7 @@
 #include "DamageProcessing.generated.h"
 
 class UEnemyDamageConfig;
+class UDamageProcessingEffect;
 
 // Контекст для модификации специальными эффектами (передаётся в UDamageProcessingEffect)
 USTRUCT(BlueprintType)
@@ -13,14 +15,70 @@ struct FDamageProcessingContext
 {
     GENERATED_BODY()
 
-    // Указатель на входящий урон (может быть изменён эффектом)
-    float* IncomingDamage = nullptr;
+    UPROPERTY(BlueprintReadWrite)
+    float IncomingDamage = 0.0f;
 
-    // Конфиг защиты (для чтения/модификации)
+    UPROPERTY(BlueprintReadWrite)
     UEnemyDamageConfig* Config = nullptr;
 
-    // Текущие резервы (массив, соответствующий слоям)
-    TArray<float>* Reserves = nullptr;
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> Reserves;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> ResistanceMultipliers;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> ReserveDamageMultipliers;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<bool> BypassReserve;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<bool> IgnoreLayer;
+
+    UPROPERTY(BlueprintReadWrite)
+    float FinalHealthDamageMultiplier = 1.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    float StaggerChanceModifier = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool bForceStagger = false;
+};
+
+// Структура для передачи модификаторов защиты (используется в ApplyDefenseModifiers)
+USTRUCT(BlueprintType)
+struct FDefenseModifiers
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> ResistanceMultipliers;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> ReserveDamageMultipliers;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<bool> BypassReserve;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<bool> IgnoreLayer;
+};
+
+// Структура для пост-защитных эффектов (используется в PostDefenseProcessing)
+USTRUCT(BlueprintType)
+struct FPostDefenseResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    float FinalHealthDamage = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    float StaggerChanceModifier = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool bForceStagger = false;
 };
 
 // Информация об атаке, передаваемая при попадании
@@ -50,9 +108,9 @@ struct FAttackDamageInfo
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FGuid AttackID;
 
-    // Специальные эффекты атаки
+    // Специальные эффекты атаки (DataAsset)
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TObjectPtr<class UDamageProcessingEffect> OptionalEnemyEffects = nullptr;
+    TObjectPtr<UDamageProcessingEffect> OptionalEnemyEffects = nullptr;
 };
 
 // Результат обработки урона
@@ -70,7 +128,6 @@ struct FDamageResult
     UPROPERTY(BlueprintReadOnly)
     float DamageAfterZone = 0.0f;
 
-    // Поглощённый урон по слоям (индексы соответствуют DefenseLayers конфига)
     UPROPERTY(BlueprintReadOnly)
     TArray<float> LayerAbsorbedDamage;
 
@@ -81,7 +138,7 @@ struct FDamageResult
     float NewHealth = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
-    TArray<float> NewReserves; // новые значения резервов
+    TArray<float> NewReserves;
 
     UPROPERTY(BlueprintReadOnly)
     FName CurrentHealthZoneTag;
@@ -98,15 +155,12 @@ struct FDamageResult
     UPROPERTY(BlueprintReadOnly)
     bool bKilled = false;
 
-    // Дополнительно: был ли истощён какой-либо резерв
     UPROPERTY(BlueprintReadOnly)
     TArray<bool> ReserveDepleted;
 
-    // Реальный урон, пошедший в здоровье и резервы (сумма списанного)
     UPROPERTY(BlueprintReadOnly)
     float TotalDamageDealt = 0.0f;
 
-    // Сила атаки после модификаторов оружия, одежды и зоны попадания (до защиты)
     UPROPERTY(BlueprintReadOnly)
     float AttackStrength = 0.0f;
 };

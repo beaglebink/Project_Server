@@ -1,3 +1,4 @@
+// EnemyDamageComponent.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -23,7 +24,6 @@ class UEnemyDamageComponent : public UActorComponent
 public:
     UEnemyDamageComponent();
 
-    // Основной метод получения урона
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage")
     FDamageResult TakeDamage(const FAttackDamageInfo& AttackInfo);
 
@@ -35,9 +35,9 @@ public:
     FOnStaggered OnStaggered;
     FOnStaggerCooldownEnded OnStaggerCooldownEnded;
     FOnHealthZoneChanged OnHealthZoneChanged;
-    FOnDeath OnDeath;
+    FOnDeath OnHealthDepleted;
 
-    // Геттеры состояния
+    // Геттеры
     UFUNCTION(BlueprintPure)
     float GetHealth() const { return Health; }
 
@@ -47,17 +47,15 @@ public:
     UFUNCTION(BlueprintPure)
     FName GetCurrentHealthZone() const { return CurrentHealthZoneTag; }
 
-    UFUNCTION(BlueprintPure, Category = "Enemy Damage")
+    UFUNCTION(BlueprintPure)
     bool IsStaggerOnCooldown() const { return bStaggerOnCooldown; }
 
     UFUNCTION(BlueprintPure)
     bool IsDead() const { return bIsDead; }
 
-    // Установка конфига (можно вызывать из кода или BP)
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage")
     void SetConfig(class UEnemyDamageConfig* InConfig);
 
-    // Сброс состояния (например, для респавна)
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage")
     void ResetState();
 
@@ -65,39 +63,34 @@ protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-    // Начальное здоровье (используется, если конфиг не задан)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy Damage")
     float InitialHealth = 100.0f;
 
 private:
-    // Конфиг – редактируемый в редакторе, может быть nullptr
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy Damage", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UEnemyDamageConfig> Config;
 
     float Health = 100.0f;
-    TArray<float> CurrentReserves; // соответствуют слоям Reserve
+    TArray<float> CurrentReserves;
     bool bIsDead = false;
     bool bStaggerOnCooldown = false;
     FName CurrentHealthZoneTag;
 
-    // Таймеры
     FTimerHandle HealthRegenTimer;
     FTimerHandle ReserveRegenTimer;
     FTimerHandle StaggerCooldownTimer;
 
-    // Временная блокировка повторов атак
     TArray<FGuid> RecentAttackIDs;
     static constexpr int32 MaxRecentAttacks = 30;
 
-    // Время последнего получения урона (для регенерации)
     float LastHealthDamageTime = 0.0f;
-    TArray<float> LastReserveDamageTimes; // по слоям
+    TArray<float> LastReserveDamageTimes;
 
-    // Методы
     void InitializeFromConfig();
     void UpdateHealthZone();
     void ApplyHealthRegen();
     void ApplyReserveRegen();
     void OnStaggerCooldownExpired();
     float GetStaggerChance(float DamageValue) const;
+    void DebugLogDamage(const FDamageResult& Result, float ModifiedDamage, float HitZoneMult, float DamageAfterZone, float FinalHealthDamage, float HealthDelta, bool bAnyReserveChanged);
 };

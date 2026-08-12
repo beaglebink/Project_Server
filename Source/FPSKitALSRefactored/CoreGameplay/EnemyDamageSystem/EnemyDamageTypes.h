@@ -1,7 +1,8 @@
+// EnemyDamageTypes.h
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DataTable.h" // для возможного использования
+#include "Engine/DataTable.h"
 #include "EnemyDamageTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -24,16 +25,16 @@ struct FRegenerationParams
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, Category = "Regeneration")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration")
     float RegenRatePerSecond = 0.0f;
 
-    UPROPERTY(EditAnywhere, Category = "Regeneration")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration")
     float RegenDelayAfterDamage = 0.0f;
 
-    UPROPERTY(EditAnywhere, Category = "Regeneration")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration")
     bool bInterruptOnDamage = true;
 
-    UPROPERTY(EditAnywhere, Category = "Regeneration")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Regeneration")
     bool bRegenWhileStaggered = false;
 };
 
@@ -42,14 +43,13 @@ struct FHealthZoneDefinition
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, Category = "Health Zone")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Zone")
     FName ZoneTag;
 
-    // Зона действует при Health ∈ (LowerBound, UpperBound]
-    UPROPERTY(EditAnywhere, Category = "Health Zone", meta = (ClampMin = "0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Zone", meta = (ClampMin = "0.0"))
     float UpperBound = 100.0f;
 
-    UPROPERTY(EditAnywhere, Category = "Health Zone", meta = (ClampMin = "0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Zone", meta = (ClampMin = "0.0"))
     float LowerBound = 0.0f;
 };
 
@@ -58,24 +58,22 @@ struct FDefenseLayer
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, Category = "Defense")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
     EDefenseLayerType LayerType = EDefenseLayerType::Resistance;
 
-    // Для Resistance
-    UPROPERTY(EditAnywhere, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Resistance", ClampMin = "0.0", ClampMax = "1.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Resistance", ClampMin = "0.0", ClampMax = "1.0"))
     float ResistanceMultiplier = 1.0f;
 
-    // Для Reserve
-    UPROPERTY(EditAnywhere, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
     float MaxReserve = 0.0f;
 
-    UPROPERTY(EditAnywhere, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
     float InitialReserve = 0.0f;
 
-    UPROPERTY(EditAnywhere, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense", meta = (EditCondition = "LayerType == EDefenseLayerType::Reserve"))
     FRegenerationParams ReserveRegen;
 
-    UPROPERTY(EditAnywhere, Category = "Defense")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
     FName LayerTag;
 };
 
@@ -84,12 +82,12 @@ struct FHitZoneDefinition
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, Category = "Hit Zone")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Zone")
     FName ZoneName;
 
-    UPROPERTY(EditAnywhere, Category = "Hit Zone")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Zone")
     TArray<FName> BoneNames;
 
-    UPROPERTY(EditAnywhere, Category = "Hit Zone")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Zone")
     float DamageMultiplier = 1.0f;
 };

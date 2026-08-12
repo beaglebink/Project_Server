@@ -1,8 +1,17 @@
+﻿// EnemyDamageComponent.cpp
 #include "EnemyDamageComponent.h"
 #include "EnemyDamageConfig.h"
 #include "DamageProcessingEffect.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+
+static TAutoConsoleVariable<int32> CVarEnemyDamageVerboseLogging(
+    TEXT("EnemyDamage.VerboseLogging"),
+    0,
+    TEXT("Enable verbose logging for enemy damage processing.\n")
+    TEXT("  0 = off (default)\n")
+    TEXT("  1 = on - prints one log line per processed hit"),
+    ECVF_Default);
 
 UEnemyDamageComponent::UEnemyDamageComponent()
 {
@@ -12,13 +21,12 @@ UEnemyDamageComponent::UEnemyDamageComponent()
 void UEnemyDamageComponent::BeginPlay()
 {
     Super::BeginPlay();
-    InitializeFromConfig(); // теперь всегда вызывается, независимо от наличия Config
+    InitializeFromConfig();
 }
 
 void UEnemyDamageComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     Super::EndPlay(EndPlayReason);
-
     UWorld* World = GetWorld();
     if (World)
     {
@@ -42,13 +50,11 @@ void UEnemyDamageComponent::SetConfig(UEnemyDamageConfig* InConfig)
 
 void UEnemyDamageComponent::InitializeFromConfig()
 {
-    // Сброс базового состояния
     bIsDead = false;
     bStaggerOnCooldown = false;
     RecentAttackIDs.Empty();
     LastHealthDamageTime = 0.0f;
 
-    // Остановка старых таймеров
     UWorld* World = GetWorld();
     if (World)
     {
@@ -59,8 +65,7 @@ void UEnemyDamageComponent::InitializeFromConfig()
 
     if (Config)
     {
-        // Инициализация из конфига
-        Health = FMath::Min(Config->InitialHealth, Config->MaxHealth);
+        Health = FMath::Min(InitialHealth, Config->MaxHealth);
         CurrentReserves.Empty();
         LastReserveDamageTimes.Empty();
         for (const FDefenseLayer& Layer : Config->DefenseLayers)
@@ -76,13 +81,33 @@ void UEnemyDamageComponent::InitializeFromConfig()
             LastReserveDamageTimes.Add(0.0f);
         }
 
-        // Сортировка зон здоровья
         Config->HealthZones.Sort([](const FHealthZoneDefinition& A, const FHealthZoneDefinition& B) {
             return A.UpperBound > B.UpperBound;
             });
         UpdateHealthZone();
 
-        // Запуск регенерации
+        if (Config->HealthZones.Num() > 0)
+        {
+            if (!FMath::IsNearlyEqual(Config->HealthZones[0].UpperBound, Config->MaxHealth, 0.001f))
+            {
+                UE_LOG(LogTemp, Error, TEXT("Health zone invalid: first zone UpperBound (%f) != MaxHealth (%f) in config %s"),
+                    Config->HealthZones[0].UpperBound, Config->MaxHealth, *GetNameSafe(Config));
+            }
+            if (!FMath::IsNearlyEqual(Config->HealthZones.Last().LowerBound, 0.0f, 0.001f))
+            {
+                UE_LOG(LogTemp, Error, TEXT("Health zone invalid: last zone LowerBound (%f) != 0 in config %s"),
+                    Config->HealthZones.Last().LowerBound, *GetNameSafe(Config));
+            }
+            for (int32 i = 0; i < Config->HealthZones.Num() - 1; ++i)
+            {
+                if (!FMath::IsNearlyEqual(Config->HealthZones[i].LowerBound, Config->HealthZones[i + 1].UpperBound, 0.001f))
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Health zone gap/overlap between %s and %s in config %s"),
+                        *Config->HealthZones[i].ZoneTag.ToString(), *Config->HealthZones[i + 1].ZoneTag.ToString(), *GetNameSafe(Config));
+                }
+            }
+        }
+
         if (World)
         {
             if (Config->HealthRegen.RegenRatePerSecond > 0.0f)
@@ -99,12 +124,10 @@ void UEnemyDamageComponent::InitializeFromConfig()
     }
     else
     {
-        // Без конфига – только здоровье, без защиты, зон и регенерации
         Health = FMath::Max(0.0f, InitialHealth);
         CurrentReserves.Empty();
         LastReserveDamageTimes.Empty();
         CurrentHealthZoneTag = NAME_None;
-        // Таймеры не запускаем
     }
 }
 
@@ -157,19 +180,49 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     float AttackStrength = DamageAfterZone;
     Result.AttackStrength = AttackStrength;
 
-    // 4. Подготовка контекста (если есть конфиг и эффекты)
+    // 4. Подготовка контекста и модификаторов (вызов эффектов)
     float RemainingDamage = DamageAfterZone;
+    TArray<float> ResistanceMods;
+    TArray<float> ReserveDamageMods;
+    TArray<bool> BypassReserve;
+    TArray<bool> IgnoreLayer;
+    float FinalHealthMod = 1.0f;
+    float StaggerMod = 0.0f;
+    bool bForceStagger = false;
+
     if (Config)
     {
-        FDamageProcessingContext Context{ &RemainingDamage, Config, &CurrentReserves };
+        int32 NumLayers = Config->DefenseLayers.Num();
+        ResistanceMods.Init(1.0f, NumLayers);
+        ReserveDamageMods.Init(1.0f, NumLayers);
+        BypassReserve.Init(false, NumLayers);
+        IgnoreLayer.Init(false, NumLayers);
+
+        // Вызов ModifyDamageProcessing (возвращает новый урон)
         if (AttackInfo.OptionalEnemyEffects)
         {
-            AttackInfo.OptionalEnemyEffects->ModifyDamageProcessing(Context);
+            RemainingDamage = AttackInfo.OptionalEnemyEffects->ModifyDamageProcessing(RemainingDamage);
+        }
+
+        // Вызов ApplyDefenseModifiers (возвращает новую структуру с массивами)
+        if (AttackInfo.OptionalEnemyEffects)
+        {
+            FDefenseModifiers InMods;
+            InMods.ResistanceMultipliers = ResistanceMods;
+            InMods.ReserveDamageMultipliers = ReserveDamageMods;
+            InMods.BypassReserve = BypassReserve;
+            InMods.IgnoreLayer = IgnoreLayer;
+
+            FDefenseModifiers OutMods = AttackInfo.OptionalEnemyEffects->ApplyDefenseModifiers(InMods);
+
+            ResistanceMods = OutMods.ResistanceMultipliers;
+            ReserveDamageMods = OutMods.ReserveDamageMultipliers;
+            BypassReserve = OutMods.BypassReserve;
+            IgnoreLayer = OutMods.IgnoreLayer;
         }
     }
-    // Если конфига нет, RemainingDamage остаётся равным DamageAfterZone
 
-    // 5. Применение слоёв защиты (только если есть конфиг)
+    // 5. Применение слоёв защиты с учётом модификаторов
     float TotalDamageDealt = 0.0f;
     if (Config)
     {
@@ -182,28 +235,45 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             Result.LayerAbsorbedDamage[i] = 0.0f;
             Result.ReserveDepleted[i] = false;
 
+            // Пропуск слоя, если игнорируется
+            if (IgnoreLayer[i])
+                continue;
+
             const FDefenseLayer& Layer = Config->DefenseLayers[i];
             if (Layer.LayerType == EDefenseLayerType::Resistance)
             {
-                float Absorbed = RemainingDamage * (1.0f - Layer.ResistanceMultiplier);
+                float EffectiveResistance = FMath::Clamp(Layer.ResistanceMultiplier * ResistanceMods[i], 0.0f, 1.0f);
+                float Absorbed = RemainingDamage * (1.0f - EffectiveResistance);
                 Result.LayerAbsorbedDamage[i] = Absorbed;
-                RemainingDamage *= Layer.ResistanceMultiplier;
+                RemainingDamage *= EffectiveResistance;
             }
             else if (Layer.LayerType == EDefenseLayerType::Reserve)
             {
-                float& Reserve = CurrentReserves[i];
-                if (RemainingDamage <= Reserve)
+                // Если резерв игнорируется (Bypass), урон не списывается
+                if (BypassReserve[i])
                 {
-                    Result.LayerAbsorbedDamage[i] = RemainingDamage;
-                    Reserve -= RemainingDamage;
-                    TotalDamageDealt += RemainingDamage;
-                    RemainingDamage = 0.0f;
+                    continue;
+                }
+
+                float& Reserve = CurrentReserves[i];
+                // Урон по резерву модифицируется
+                float DamageToReserve = RemainingDamage * ReserveDamageMods[i];
+                if (DamageToReserve <= 0.0f)
+                    continue;
+
+                if (DamageToReserve <= Reserve)
+                {
+                    Result.LayerAbsorbedDamage[i] = DamageToReserve;
+                    Reserve -= DamageToReserve;
+                    TotalDamageDealt += DamageToReserve;
+                    RemainingDamage = 0.0f; // урон полностью поглощён резервом
                 }
                 else
                 {
                     Result.LayerAbsorbedDamage[i] = Reserve;
                     TotalDamageDealt += Reserve;
-                    RemainingDamage -= Reserve;
+                    DamageToReserve -= Reserve;
+                    RemainingDamage = DamageToReserve / ReserveDamageMods[i]; // остаток урона пересчитываем без модификатора
                     Reserve = 0.0f;
                     Result.ReserveDepleted[i] = true;
                 }
@@ -230,13 +300,24 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Result.ReserveDepleted.Empty();
     }
 
-    // 6. Пост-защитные эффекты (если есть конфиг и эффекты)
+    // 6. Пост-защитные эффекты (вызываются после прохождения слоёв, но до вычитания здоровья)
     float FinalHealthDamage = RemainingDamage;
     if (Config && AttackInfo.OptionalEnemyEffects)
     {
-        FDamageProcessingContext Context{ &RemainingDamage, Config, &CurrentReserves };
-        AttackInfo.OptionalEnemyEffects->PostDefenseProcessing(Context, FinalHealthDamage);
+        FPostDefenseResult InResult;
+        InResult.FinalHealthDamage = FinalHealthDamage;
+        InResult.StaggerChanceModifier = StaggerMod;
+        InResult.bForceStagger = bForceStagger;
+
+        FPostDefenseResult OutResult = AttackInfo.OptionalEnemyEffects->PostDefenseProcessing(InResult);
+
+        FinalHealthDamage = OutResult.FinalHealthDamage;
+        StaggerMod = OutResult.StaggerChanceModifier;
+        bForceStagger = OutResult.bForceStagger;
     }
+
+    // Применяем модификатор финального урона по здоровью (если он был изменён)
+    FinalHealthDamage *= FinalHealthMod;
     Result.FinalHealthDamage = FinalHealthDamage;
 
     // 7. Вычитание здоровья
@@ -248,11 +329,9 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     TotalDamageDealt += FinalHealthDamage;
     Result.TotalDamageDealt = TotalDamageDealt;
 
-    // Событие изменения здоровья
-    if (!FMath::IsNearlyEqual(HealthDelta, 0.0f, 0.001f))
-    {
-        OnHealthChanged.Broadcast(Health, HealthDelta);
-    }
+    // Всегда генерируем событие изменения здоровья (включая нулевое изменение)
+    OnHealthChanged.Broadcast(Health, HealthDelta);
+
     if (FinalHealthDamage > 0.0f)
     {
         LastHealthDamageTime = World->GetTimeSeconds();
@@ -296,8 +375,8 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             StaggerDamage = TotalDamageDealt;
         }
 
-        float Chance = GetStaggerChance(StaggerDamage);
-        if (FMath::FRand() < Chance)
+        float Chance = GetStaggerChance(StaggerDamage) + StaggerMod;
+        if (bForceStagger || FMath::FRand() < Chance)
         {
             Result.bStaggerTriggered = true;
             bStaggerOnCooldown = true;
@@ -329,7 +408,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     {
         bIsDead = true;
         Result.bKilled = true;
-        OnDeath.Broadcast();
+        OnHealthDepleted.Broadcast();
         // Останавливаем регенерацию
         if (World)
         {
@@ -338,7 +417,10 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         }
     }
 
-    // 12. Финальное событие
+    // 12. Отладочный лог
+    DebugLogDamage(Result, ModifiedDamage, HitZoneMult, DamageAfterZone, FinalHealthDamage, HealthDelta, bAnyReserveChanged);
+
+    // 13. Финальное событие
     OnDamageTaken.Broadcast(Result);
 
     return Result;
@@ -360,6 +442,9 @@ void UEnemyDamageComponent::UpdateHealthZone()
             return;
         }
     }
+
+    UE_LOG(LogTemp, Error, TEXT("Health %f does not fit in any health zone! Config: %s. Falling back to last zone."),
+        Health, *GetNameSafe(Config));
     CurrentHealthZoneTag = Config->HealthZones.Last().ZoneTag;
 }
 
@@ -385,6 +470,15 @@ void UEnemyDamageComponent::ApplyHealthRegen()
         if (OldZone != CurrentHealthZoneTag)
         {
             OnHealthZoneChanged.Broadcast(CurrentHealthZoneTag, OldZone);
+        }
+
+        if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+        {
+            AActor* Owner = GetOwner();
+            FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+            FString ZoneChange = (OldZone != CurrentHealthZoneTag) ? TEXT(" (zone changed)") : TEXT("");
+            UE_LOG(LogTemp, Log, TEXT("[%s] Health regen: +%.1f (NewHealth %.1f) Zone: %s%s"),
+                *OwnerName, ActualDelta, Health, *CurrentHealthZoneTag.ToString(), *ZoneChange);
         }
     }
 }
@@ -412,6 +506,14 @@ void UEnemyDamageComponent::ApplyReserveRegen()
         if (ActualDelta > 0.0f)
         {
             OnReserveChanged.Broadcast(Layer.LayerTag, Reserve);
+
+            if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+            {
+                AActor* Owner = GetOwner();
+                FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+                UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regen (%s): +%.1f (NewReserve %.1f)"),
+                    *OwnerName, *Layer.LayerTag.ToString(), ActualDelta, Reserve);
+            }
         }
     }
 }
@@ -440,4 +542,85 @@ float UEnemyDamageComponent::GetReserveForLayer(int32 Index) const
 void UEnemyDamageComponent::ResetState()
 {
     InitializeFromConfig();
+}
+
+void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float ModifiedDamage, float HitZoneMult, float DamageAfterZone, float FinalHealthDamage, float HealthDelta, bool bAnyReserveChanged)
+{
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() == 0)
+        return;
+
+    AActor* Owner = GetOwner();
+    FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+
+    FString LogString;
+    LogString += FString::Printf(TEXT("[%s] Incoming %.1f"), *OwnerName, ModifiedDamage);
+
+    if (HitZoneMult != 1.0f)
+        LogString += FString::Printf(TEXT(" -> HitRegion x%.2f (%.1f)"), HitZoneMult, DamageAfterZone);
+    else
+        LogString += FString::Printf(TEXT(" -> HitRegion x1.00 (%.1f)"), DamageAfterZone);
+
+    if (Config && Config->DefenseLayers.Num() > 0)
+    {
+        for (int32 i = 0; i < Config->DefenseLayers.Num(); ++i)
+        {
+            const FDefenseLayer& Layer = Config->DefenseLayers[i];
+            if (Layer.LayerType == EDefenseLayerType::Resistance)
+            {
+                float absorbed = Result.LayerAbsorbedDamage[i];
+                if (absorbed > 0.0f)
+                    LogString += FString::Printf(TEXT(" -> Resistance x%.2f (absorbed %.1f)"), Layer.ResistanceMultiplier, absorbed);
+                else
+                    LogString += FString::Printf(TEXT(" -> Resistance x%.2f"), Layer.ResistanceMultiplier);
+            }
+            else if (Layer.LayerType == EDefenseLayerType::Reserve)
+            {
+                float absorbed = Result.LayerAbsorbedDamage[i];
+                if (absorbed > 0.0f)
+                    LogString += FString::Printf(TEXT(" -> Reserve -%.1f (remaining %.1f)"), absorbed, CurrentReserves[i]);
+                else
+                    LogString += FString::Printf(TEXT(" -> Reserve no loss (%.1f)"), CurrentReserves[i]);
+            }
+        }
+    }
+    else
+    {
+        LogString += TEXT(" -> No defense layers");
+    }
+
+    LogString += FString::Printf(TEXT(" -> Health -%.1f (NewHealth %.1f)"), FinalHealthDamage, Health);
+
+    if (Config && Config->HealthZones.Num() > 0)
+    {
+        LogString += FString::Printf(TEXT(" -> Zone: %s"), *CurrentHealthZoneTag.ToString());
+        if (Result.bHealthZoneChanged)
+            LogString += TEXT(" (changed)");
+    }
+    else
+    {
+        LogString += TEXT(" -> Zone: none");
+    }
+
+    LogString += Result.bStaggerTriggered ? TEXT(" -> Stagger: YES") : TEXT(" -> Stagger: no");
+
+    TArray<FString> Signals;
+    if (FinalHealthDamage > 0.0f || !FMath::IsNearlyEqual(HealthDelta, 0.0f))
+        Signals.Add(TEXT("HealthChanged"));
+    if (bAnyReserveChanged)
+        Signals.Add(TEXT("ReserveChanged"));
+    if (Result.ReserveDepleted.Contains(true))
+        Signals.Add(TEXT("ReserveDepleted"));
+    if (Result.bStaggerTriggered)
+        Signals.Add(TEXT("Staggered"));
+    if (Result.bHealthZoneChanged)
+        Signals.Add(TEXT("HealthZoneChanged"));
+    if (Result.bKilled)
+        Signals.Add(TEXT("Death"));
+
+    if (Signals.Num() > 0)
+        LogString += TEXT(" -> Signals: ") + FString::Join(Signals, TEXT(", "));
+    else
+        LogString += TEXT(" -> Signals: none");
+
+    UE_LOG(LogTemp, Log, TEXT("%s"), *LogString);
 }
