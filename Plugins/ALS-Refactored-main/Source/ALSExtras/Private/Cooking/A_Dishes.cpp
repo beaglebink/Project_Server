@@ -37,18 +37,22 @@ void AA_Dishes::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (!LiquidDynamicMaterial && LiquidShape->GetMaterial(0))
-	{
-		LiquidDynamicMaterial = UMaterialInstanceDynamic::Create(LiquidShape->GetMaterial(0), this);
-	}
+	//if (!LiquidDynamicMaterial && LiquidShape->GetMaterial(0))
+	//{
+	//	LiquidDynamicMaterial = UMaterialInstanceDynamic::Create(LiquidShape->GetMaterial(0), this);
+	//}
 
-	if (LiquidDynamicMaterial)
-	{
-		LiquidShape->SetMaterial(0, LiquidDynamicMaterial);
+	//if (LiquidDynamicMaterial)
+	//{
+	//	LiquidShape->SetMaterial(0, LiquidDynamicMaterial);
 
-		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
-		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
-	}
+	//	LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
+	//	LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
+	//}
+
+	// Update liquid level
+	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
+	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
 }
 
 void AA_Dishes::Tick(float DeltaTime)
@@ -106,11 +110,14 @@ void AA_Dishes::Tick(float DeltaTime)
 	PrevLocation = CurrentLocation;
 
 	// Update liquid level
-	if (LiquidDynamicMaterial)
-	{
-		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
-		LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
-	}
+	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
+	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
+
+	//if (LiquidDynamicMaterial)
+	//{
+	//	LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
+	//	LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
+	//}
 }
 
 void AA_Dishes::BeginPlay()
@@ -565,9 +572,12 @@ void AA_Dishes::ClearFluidPoints()
 
 void AA_Dishes::UpdateNiagaraPreview()
 {
-	FluidFX->SetNiagaraVariableInt(TEXT("User.FluidPointsQuantity"), FluidPointsInsideMesh.LocalPositions.Num());
+	FluidFX->SetVariableInt(FName(TEXT("User.FluidPointsQuantity")), FluidPointsInsideMesh.LocalPositions.Num());
 	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(FluidFX, TEXT("User.FluidPointsPositions"), FluidPointsInsideMesh.LocalPositions);
 	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(FluidFX, TEXT("User.FluidPointsDistancesToWall"), FluidPointsInsideMesh.DistancesToWall);
+
+	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
+	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
 
 	FluidFX->ResetSystem();
 }
