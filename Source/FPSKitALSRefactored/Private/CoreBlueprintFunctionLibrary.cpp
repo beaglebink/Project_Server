@@ -68,3 +68,55 @@ void UCoreBlueprintFunctionLibrary::RemoveSceneComponent(USceneComponent* Compon
 	Owner->RemoveInstanceComponent(Component);
 	Component->DestroyComponent();
 }
+
+FFluidPoints UCoreBlueprintFunctionLibrary::GenerateFluidPointsGrid(UStaticMeshComponent* MeshComponent, float PointSpacing, bool bDrawDebug)
+{
+	if (!MeshComponent)
+	{
+		return FFluidPoints();
+	}
+
+	UWorld* World = MeshComponent->GetWorld();
+	AActor* Owner = MeshComponent->GetOwner();
+
+	FVector Origin = MeshComponent->Bounds.Origin;
+	FVector Extent = MeshComponent->Bounds.BoxExtent;
+	int NumX = FMath::CeilToInt(Extent.X * 2 / PointSpacing);
+	int NumY = FMath::CeilToInt(Extent.Y * 2 / PointSpacing);
+	int NumZ = FMath::CeilToInt(Extent.Z * 2 / PointSpacing);
+
+	FFluidPoints FluidPoints;
+	FluidPoints.LocalPositions.Reserve(NumX * NumY * NumZ);
+	FluidPoints.DistancesToWall.Reserve(NumX * NumY * NumZ);
+
+	for (int x = 0; x < NumX; ++x)
+	{
+		for (int y = 0; y < NumY; ++y)
+		{
+			for (int z = 0; z < NumZ; ++z)
+			{
+				FVector Point = Origin + FVector(x * PointSpacing - Extent.X, y * PointSpacing - Extent.Y, z * PointSpacing - Extent.Z);
+
+				FHitResult HitResultRightX;
+				FHitResult HitResultLeftX;
+				World->LineTraceSingleByChannel(HitResultRightX, Point, Point + FVector(Extent.X * 2.0f, 0.0f, 0.0f), ECC_Visibility);
+				World->LineTraceSingleByChannel(HitResultLeftX, Point, Point - FVector(Extent.X * 2.0f, 0.0f, 0.0f), ECC_Visibility);
+				if (HitResultRightX.GetActor() == Owner && HitResultRightX.GetActor() == HitResultLeftX.GetActor())
+				{
+					if (bDrawDebug)
+					{
+						DrawDebugPoint(World, Point, 3.0f, FColor::Green, true);
+					}
+
+					FluidPoints.LocalPositions.Add(MeshComponent->GetComponentTransform().InverseTransformPosition(Point));
+					FluidPoints.DistancesToWall.Add(0.0f);
+				}
+			}
+		}
+	}
+
+	FluidPoints.LocalPositions.Shrink();
+	FluidPoints.DistancesToWall.Shrink();
+
+	return FluidPoints;
+}
