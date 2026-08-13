@@ -38,6 +38,12 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadWrite)
     float FinalHealthDamage = 0.0f;
 
+    UPROPERTY(BlueprintReadOnly)
+    FName CurrentHealthZone;
+
+    UPROPERTY(BlueprintReadOnly)
+    FName PreviousHealthZone;
+
     UPROPERTY(BlueprintReadWrite)
     float StaggerChanceModifier = 0.0f;
 

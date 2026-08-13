@@ -152,25 +152,13 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     // Сохраняем состояние до обработки
     float OldHealth = Health;
     TArray<float> OldReserves = CurrentReserves;
+    FName OldHealthZone = CurrentHealthZoneTag;
 
     // 2. Расчёт модифицированного урона
     float ModifiedDamage = AttackInfo.BaseDamage * AttackInfo.GunConditionModifier * AttackInfo.ClothingModifier;
-
-    if (ModifiedDamage < 0)
-    {
-        AActor* Owner = GetOwner();
-        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
-
-        FString LogString;
-        LogString += FString::Printf(TEXT("[%s] Error, damage is less than zero."), *OwnerName);
-
-        UE_LOG(LogTemp, Log, TEXT("%s"), *LogString);
-        return Result;
-    }
-
     Result.IncomingDamage = ModifiedDamage;
 
-    // 3. Зона попадания (только если есть конфиг)
+    // 3. Зона попадания
     float HitZoneMult = 1.0f;
     if (Config)
     {
@@ -194,7 +182,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     float AttackStrength = DamageAfterZone;
     Result.AttackStrength = AttackStrength;
 
-    // 4. Подготовка контекста и модификаторов
+    // 4. Подготовка контекста и модификаторов (вызов ModifyDamageProcessing и ApplyDefenseModifiers)
     float RemainingDamage = DamageAfterZone;
     TArray<float> ResistanceMods;
     TArray<float> ReserveDamageMods;
@@ -212,7 +200,6 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         BypassReserve.Init(false, NumLayers);
         IgnoreLayer.Init(false, NumLayers);
 
-        // Формируем контекст
         FDamageProcessingContext Context;
         Context.IncomingDamage = RemainingDamage;
         Context.Config = Config;
@@ -221,20 +208,21 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.ReserveDamageMultipliers = ReserveDamageMods;
         Context.BypassReserve = BypassReserve;
         Context.IgnoreLayer = IgnoreLayer;
-        Context.FinalHealthDamage = 0.0f; // пока не известно
+        Context.FinalHealthDamage = 0.0f;
         Context.StaggerChanceModifier = 0.0f;
         Context.bForceStagger = false;
+        Context.CurrentHealthZone = OldHealthZone;
+        Context.PreviousHealthZone = OldHealthZone;
 
-        // 1. ModifyDamageProcessing
+        // 4a. ModifyDamageProcessing
         if (AttackInfo.OptionalEnemyEffects)
         {
             FPreDefenseOutput Out = AttackInfo.OptionalEnemyEffects->ModifyDamageProcessing(Context);
             RemainingDamage = Out.NewIncomingDamage;
-            // Обновляем контекст, чтобы дальнейшие этапы видели новый урон
             Context.IncomingDamage = RemainingDamage;
         }
 
-        // 2. ApplyDefenseModifiers
+        // 4b. ApplyDefenseModifiers
         if (AttackInfo.OptionalEnemyEffects)
         {
             FDefenseOutput Out = AttackInfo.OptionalEnemyEffects->ApplyDefenseModifiers(Context);
@@ -242,7 +230,6 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             ReserveDamageMods = Out.NewModifiers.ReserveDamageMultipliers;
             BypassReserve = Out.NewModifiers.BypassReserve;
             IgnoreLayer = Out.NewModifiers.IgnoreLayer;
-            // Обновляем контекст для последующих этапов (хотя они не используют эти массивы, но для полноты)
             Context.ResistanceMultipliers = ResistanceMods;
             Context.ReserveDamageMultipliers = ReserveDamageMods;
             Context.BypassReserve = BypassReserve;
@@ -250,7 +237,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         }
     }
 
-    // 5. Применение слоёв защиты с учётом модификаторов
+    // 5. Применение слоёв защиты
     float TotalDamageDealt = 0.0f;
     if (Config)
     {
@@ -263,7 +250,6 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             Result.LayerAbsorbedDamage[i] = 0.0f;
             Result.ReserveDepleted[i] = false;
 
-            // Пропуск слоя, если игнорируется
             if (IgnoreLayer[i])
                 continue;
 
@@ -277,14 +263,10 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             }
             else if (Layer.LayerType == EDefenseLayerType::Reserve)
             {
-                // Если резерв игнорируется (Bypass), урон не списывается
                 if (BypassReserve[i])
-                {
                     continue;
-                }
 
                 float& Reserve = CurrentReserves[i];
-                // Урон по резерву модифицируется
                 float DamageToReserve = RemainingDamage * ReserveDamageMods[i];
                 if (DamageToReserve <= 0.0f)
                     continue;
@@ -294,14 +276,14 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
                     Result.LayerAbsorbedDamage[i] = DamageToReserve;
                     Reserve -= DamageToReserve;
                     TotalDamageDealt += DamageToReserve;
-                    RemainingDamage = 0.0f; // урон полностью поглощён резервом
+                    RemainingDamage = 0.0f;
                 }
                 else
                 {
                     Result.LayerAbsorbedDamage[i] = Reserve;
                     TotalDamageDealt += Reserve;
                     DamageToReserve -= Reserve;
-                    RemainingDamage = DamageToReserve / ReserveDamageMods[i]; // остаток урона пересчитываем без модификатора
+                    RemainingDamage = DamageToReserve / ReserveDamageMods[i];
                     Reserve = 0.0f;
                     Result.ReserveDepleted[i] = true;
                 }
@@ -322,19 +304,17 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     }
     else
     {
-        // Без конфига – нет слоёв защиты
         Result.LayerAbsorbedDamage.Empty();
         Result.NewReserves.Empty();
         Result.ReserveDepleted.Empty();
     }
 
-    // 6. Пост-защитные эффекты
+    // 6. Пост-защитные эффекты (вызываются до вычитания здоровья)
     float FinalHealthDamage = RemainingDamage;
     if (Config && AttackInfo.OptionalEnemyEffects)
     {
-        // Обновляем контекст для финального этапа
         FDamageProcessingContext Context;
-        Context.IncomingDamage = RemainingDamage; 
+        Context.IncomingDamage = RemainingDamage;
         Context.Config = Config;
         Context.Reserves = CurrentReserves;
         Context.ResistanceMultipliers = ResistanceMods;
@@ -344,6 +324,8 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.FinalHealthDamage = FinalHealthDamage;
         Context.StaggerChanceModifier = StaggerMod;
         Context.bForceStagger = bForceStagger;
+        Context.CurrentHealthZone = OldHealthZone;
+        Context.PreviousHealthZone = OldHealthZone;
 
         FPostDefenseOutput Out = AttackInfo.OptionalEnemyEffects->PostDefenseProcessing(Context);
         FinalHealthDamage = Out.NewFinalHealthDamage;
@@ -351,18 +333,19 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         bForceStagger = Out.bNewForceStagger;
     }
 
+    // Применяем финальный модификатор урона (если изменён)
+    FinalHealthDamage *= FinalHealthMod;
+    Result.FinalHealthDamage = FinalHealthDamage;
+
     // 7. Вычитание здоровья
     Health = FMath::Max(0.0f, Health - FinalHealthDamage);
     float HealthDelta = Health - OldHealth;
     Result.NewHealth = Health;
 
-    // Добавляем урон по здоровью в общий реальный урон
     TotalDamageDealt += FinalHealthDamage;
     Result.TotalDamageDealt = TotalDamageDealt;
 
-    // Всегда генерируем событие изменения здоровья (включая нулевое изменение)
-    if(HealthDelta > 0.0f)
-        OnHealthChanged.Broadcast(Health, HealthDelta);
+    OnHealthChanged.Broadcast(Health, HealthDelta);
 
     if (FinalHealthDamage > 0.0f)
     {
@@ -388,7 +371,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     }
     Result.bZeroDamage = !bHealthChanged && !bAnyReserveChanged;
 
-    // 9. Стаггер (только если есть конфиг, не zero‑damage и не на кулдауне)
+    // 9. Стаггер
     if (Config && !bStaggerOnCooldown && !Result.bZeroDamage)
     {
         float StaggerDamage = 0.0f;
@@ -407,9 +390,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             StaggerDamage = TotalDamageDealt;
         }
 
-        float Chance = FMath::Clamp(GetStaggerChance(StaggerDamage) + StaggerMod, 0.0f , 1.0f);
-        CurrentStaggerChance = Chance;
-
+        float Chance = GetStaggerChance(StaggerDamage) + StaggerMod;
         if (bForceStagger || FMath::FRand() < Chance)
         {
             Result.bStaggerTriggered = true;
@@ -419,7 +400,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         }
     }
 
-    // 10. Зона здоровья (только если есть конфиг)
+    // 10. Зона здоровья (обновляем после вычитания здоровья)
     if (Config)
     {
         FName OldZone = CurrentHealthZoneTag;
@@ -443,7 +424,6 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         bIsDead = true;
         Result.bKilled = true;
         OnHealthDepleted.Broadcast(GetOwner(), Config->DeathBehaviorTag);
-        // Останавливаем регенерацию
         if (World)
         {
             World->GetTimerManager().ClearTimer(HealthRegenTimer);
