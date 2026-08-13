@@ -5,6 +5,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
+#include "Cooking/DA_FluidPoints.h"
 
 AA_Dishes::AA_Dishes()
 {
@@ -36,19 +37,6 @@ AA_Dishes::AA_Dishes()
 void AA_Dishes::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-
-	//if (!LiquidDynamicMaterial && LiquidShape->GetMaterial(0))
-	//{
-	//	LiquidDynamicMaterial = UMaterialInstanceDynamic::Create(LiquidShape->GetMaterial(0), this);
-	//}
-
-	//if (LiquidDynamicMaterial)
-	//{
-	//	LiquidShape->SetMaterial(0, LiquidDynamicMaterial);
-
-	//	LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
-	//	LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
-	//}
 
 	// Update liquid level
 	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
@@ -112,12 +100,6 @@ void AA_Dishes::Tick(float DeltaTime)
 	// Update liquid level
 	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
 	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
-
-	//if (LiquidDynamicMaterial)
-	//{
-	//	LiquidDynamicMaterial->SetVectorParameterValue(TEXT("LiquidLevelPoint"), LiquidLevelPoint->GetComponentLocation());
-	//	LiquidDynamicMaterial->SetVectorParameterValue(TEXT("CutPlaneNormal"), FVector(0.0f, 0.0f, 1.0f));
-	//}
 }
 
 void AA_Dishes::BeginPlay()
@@ -562,19 +544,16 @@ void AA_Dishes::CheckIfCooked()
 	bIsOnRecipeChecking = false;
 }
 
-void AA_Dishes::ClearFluidPoints()
-{
-	FluidPointsInsideMesh.LocalPositions.Empty();
-	FluidPointsInsideMesh.DistancesToWall.Empty();
-
-	UpdateNiagaraPreview();
-}
-
 void AA_Dishes::UpdateNiagaraPreview()
 {
-	FluidFX->SetVariableInt(FName(TEXT("User.FluidPointsQuantity")), FluidPointsInsideMesh.LocalPositions.Num());
-	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(FluidFX, TEXT("User.FluidPointsPositions"), FluidPointsInsideMesh.LocalPositions);
-	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(FluidFX, TEXT("User.FluidPointsDistancesToWall"), FluidPointsInsideMesh.DistancesToWall);
+	if (FluidPointsDataAsset)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Updating Niagara preview with %d fluid points."), FluidPointsDataAsset->FluidPoints.LocalPositions.Num());
+
+		FluidFX->SetVariableInt(FName(TEXT("User.FluidPointsQuantity")), FluidPointsDataAsset->FluidPoints.LocalPositions.Num());
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(FluidFX, TEXT("User.FluidPointsPositions"), FluidPointsDataAsset->FluidPoints.LocalPositions);
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(FluidFX, TEXT("User.FluidPointsDistancesToWall"), FluidPointsDataAsset->FluidPoints.DistancesToWall);
+	}
 
 	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
 	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);

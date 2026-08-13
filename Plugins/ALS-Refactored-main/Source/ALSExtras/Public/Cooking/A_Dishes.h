@@ -19,6 +19,7 @@ enum class EHeatingLevel : uint8
 class USphereComponent;
 class AA_Cookable;
 class UNiagaraComponent;
+class UDA_FluidPoints;
 
 UCLASS()
 class ALSEXTRAS_API AA_Dishes : public AA_InteractableActor
@@ -156,20 +157,14 @@ public:
 	void CheckIfCooked();
 
 	//Fluid simulation
-	UPROPERTY()
-	UMaterialInstanceDynamic* LiquidDynamicMaterial;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Fluid")
 	UNiagaraComponent* FluidFX;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Fluid")
-	FFluidPoints FluidPointsInsideMesh;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Fluid")
+	UDA_FluidPoints* FluidPointsDataAsset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fluid")
 	FVector CutPlaneNormal = FVector(0.0f, 0.0f, 1.0f);
-
-	UFUNCTION(CallInEditor, Category = "Fluid")
-	void ClearFluidPoints();
 
 	UFUNCTION(CallInEditor, Category = "Fluid")
 	void UpdateNiagaraPreview();
