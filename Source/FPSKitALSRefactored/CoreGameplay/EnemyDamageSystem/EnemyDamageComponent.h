@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "EnemyDamageTypes.h"
 #include "DamageProcessing.h"
+#include "Delegates/Delegate.h"
 #include "EnemyDamageComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageTaken, const FDamageResult&, Result);
