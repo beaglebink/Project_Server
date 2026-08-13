@@ -7,15 +7,14 @@
 #include "DamageProcessing.h"
 #include "EnemyDamageComponent.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnDamageTaken, const FDamageResult&);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHealthChanged, float NewHealth, float Delta);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReserveChanged, FName LayerTag, float NewReserve);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnReserveDepleted, FName LayerTag);
-DECLARE_MULTICAST_DELEGATE(FOnStaggered);
-DECLARE_MULTICAST_DELEGATE(FOnStaggerCooldownEnded);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHealthZoneChanged, FName NewZone, FName OldZone);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor* DeathActor, FName DeathTag);
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageTaken, const FDamageResult&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEnemyHealthChanged, float, NewHealth, float, Delta);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnReserveChanged, FName, LayerTag, float, NewReserve);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReserveDepleted, FName, LayerTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaggered);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaggerCooldownEnded);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthZoneChanged, FName, NewZone, FName, OldZone);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor*, DeathActor, FName, DeathTag);
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class UEnemyDamageComponent : public UActorComponent
 {
@@ -28,13 +27,28 @@ public:
     FDamageResult TakeDamage(const FAttackDamageInfo& AttackInfo);
 
     // События
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnDamageTaken OnDamageTaken;
+
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")           
     FOnEnemyHealthChanged OnHealthChanged;
+    
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnReserveChanged OnReserveChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnReserveDepleted OnReserveDepleted;
+
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnStaggered OnStaggered;
+
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnStaggerCooldownEnded OnStaggerCooldownEnded;
+
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnHealthZoneChanged OnHealthZoneChanged;
+
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnDeath OnHealthDepleted;
 
     // Геттеры
@@ -85,6 +99,7 @@ private:
 
     float LastHealthDamageTime = 0.0f;
     TArray<float> LastReserveDamageTimes;
+    float CurrentStaggerChance = 0;
 
     void InitializeFromConfig();
     void UpdateHealthZone();

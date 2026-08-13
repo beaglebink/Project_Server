@@ -99,10 +99,10 @@ bool AA_InteractableActor::GetIsAttached_Implementation()
 
 void AA_InteractableActor::HandleWeaponShot_Implementation(UPARAM(ref)FHitResult& Hit)
 {
-	UE_LOG(LogTemp, Log, TEXT("AA_InteractableActor::HandleWeaponShot: Hit Actor: %s"), *GetNameSafe(Hit.GetActor()));
+	//UE_LOG(LogTemp, Log, TEXT("AA_InteractableActor::HandleWeaponShot: Hit Actor: %s"), *GetNameSafe(Hit.GetActor()));
 }
 
 void AA_InteractableActor::HandleTextFromWeapon_Implementation(const FText& TextCommand)
 {
-	UE_LOG(LogTemp, Log, TEXT("AA_InteractableActor::HandleTextFromWeapon: %s"), *TextCommand.ToString());
+	//UE_LOG(LogTemp, Log, TEXT("AA_InteractableActor::HandleTextFromWeapon: %s"), *TextCommand.ToString());
 }

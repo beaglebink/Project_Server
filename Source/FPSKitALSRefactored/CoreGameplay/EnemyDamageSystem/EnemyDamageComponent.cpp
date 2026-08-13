@@ -407,7 +407,9 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             StaggerDamage = TotalDamageDealt;
         }
 
-        float Chance = GetStaggerChance(StaggerDamage) + StaggerMod;
+        float Chance = FMath::Clamp(GetStaggerChance(StaggerDamage) + StaggerMod, 0.0f , 1.0f);
+        CurrentStaggerChance = Chance;
+
         if (bForceStagger || FMath::FRand() < Chance)
         {
             Result.bStaggerTriggered = true;
@@ -554,6 +556,10 @@ void UEnemyDamageComponent::OnStaggerCooldownExpired()
 {
     bStaggerOnCooldown = false;
     OnStaggerCooldownEnded.Broadcast();
+
+    AActor* Owner = GetOwner();
+    FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+	UE_LOG(LogTemp, Log, TEXT("[%s] Stagger cooldown ended."), *OwnerName);
 }
 
 float UEnemyDamageComponent::GetStaggerChance(float DamageValue) const
@@ -633,7 +639,7 @@ void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float Mo
         LogString += TEXT(" -> Zone: none");
     }
 
-    LogString += Result.bStaggerTriggered ? TEXT(" -> Stagger: YES") : TEXT(" -> Stagger: no");
+    LogString += Result.bStaggerTriggered ? FString::Printf(TEXT(" -> Stagger: YES (%f)"), CurrentStaggerChance) : FString::Printf(TEXT(" -> Stagger: no (%f)"), CurrentStaggerChance);
 
     TArray<FString> Signals;
 
