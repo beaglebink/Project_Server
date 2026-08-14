@@ -77,7 +77,6 @@ FFluidPoints UCoreBlueprintFunctionLibrary::GenerateFluidPointsGrid(UStaticMeshC
 	}
 
 	UWorld* World = MeshComponent->GetWorld();
-	AActor* Owner = MeshComponent->GetOwner();
 
 	FVector Origin = MeshComponent->Bounds.Origin;
 	FVector Extent = MeshComponent->Bounds.BoxExtent;
@@ -99,9 +98,9 @@ FFluidPoints UCoreBlueprintFunctionLibrary::GenerateFluidPointsGrid(UStaticMeshC
 
 				FHitResult HitResultRightX;
 				FHitResult HitResultLeftX;
-				World->LineTraceSingleByChannel(HitResultRightX, Point, Point + FVector(Extent.X * 2.0f, 0.0f, 0.0f), ECC_Visibility);
-				World->LineTraceSingleByChannel(HitResultLeftX, Point, Point - FVector(Extent.X * 2.0f, 0.0f, 0.0f), ECC_Visibility);
-				if (HitResultRightX.GetActor() == Owner && HitResultRightX.GetActor() == HitResultLeftX.GetActor())
+				World->LineTraceSingleByChannel(HitResultRightX, Point, Point + FVector(Extent.X * 2.0f, 0.0f, 0.0f),ECC_GameTraceChannel10);
+				World->LineTraceSingleByChannel(HitResultLeftX, Point, Point - FVector(Extent.X * 2.0f, 0.0f, 0.0f), ECC_GameTraceChannel10);
+				if (HitResultRightX.Component == MeshComponent && HitResultLeftX.Component == MeshComponent)
 				{
 					if (bDrawDebug)
 					{

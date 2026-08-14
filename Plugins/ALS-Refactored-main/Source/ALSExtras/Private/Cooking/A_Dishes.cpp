@@ -28,7 +28,9 @@ AA_Dishes::AA_Dishes()
 	CollisionShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
 	CollisionShape->bHiddenInGame = true;
 
-	LiquidShape->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	LiquidShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	LiquidShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	LiquidShape->SetCollisionResponseToChannel(ECC_GameTraceChannel10, ECollisionResponse::ECR_Block);
 	LiquidShape->bHiddenInGame = true;
 
 	FluidFX->SetAutoActivate(true);
