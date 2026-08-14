@@ -15,6 +15,7 @@ AA_Dishes::AA_Dishes()
 	LiquidShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LiquidShape"));
 	CookedResultSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CookedResultSpawnPoint"));
 	LiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("LiquidLevelPoint"));
+	PourPoint = CreateDefaultSubobject<USceneComponent>(TEXT("PourPoint"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 	FluidFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FluidFX"));
 
@@ -22,6 +23,7 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->SetupAttachment(RootComponent);
 	CookedResultSpawnPoint->SetupAttachment(RootComponent);
 	LiquidLevelPoint->SetupAttachment(RootComponent);
+	PourPoint->SetupAttachment(RootComponent);
 	FluidFX->SetupAttachment(LiquidShape);
 
 	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -52,7 +54,7 @@ void AA_Dishes::Tick(float DeltaTime)
 	// Dishes attach to player
 	if (AttachedMesh)
 	{
-		SetActorRotation(FMath::RInterpTo(GetActorRotation(), IsValid(AttachedMesh) ? FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f) : FRotator::ZeroRotator, DeltaTime, 0.5f));
+		SetActorRotation(FMath::RInterpTo(GetActorRotation(), FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f), GetWorld()->GetDeltaSeconds(), 0.5f));
 
 		if (!bIsOnAttaching && AttachedMesh->DoesSocketExist(AttachedSocketName))
 		{
@@ -212,7 +214,11 @@ void AA_Dishes::DetachDishFromHand()
 
 void AA_Dishes::RotateDish(float AngleDelta)
 {
-	AddActorLocalRotation(FRotator(-AngleDelta * 10.0f, 0.0f, 0.0f));
+	CurrentTiltAngle += AngleDelta * 10.0f;
+	CurrentTiltAngle = FMath::Clamp(CurrentTiltAngle, 0.0f, 90.0f);
+
+	const FQuat TiltQuat(FVector(0.0f, 1.0f, 0.0f), FMath::DegreesToRadians(CurrentTiltAngle));
+	StaticMesh->SetRelativeRotation(TiltQuat);
 
 	CheckIfCooked();
 }
@@ -561,4 +567,11 @@ void AA_Dishes::UpdateNiagaraPreview()
 	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
 
 	FluidFX->ResetSystem();
+}
+
+float AA_Dishes::PourLiquid()
+{
+
+
+	return 0.0f;
 }
