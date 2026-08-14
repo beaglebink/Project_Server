@@ -159,6 +159,9 @@ struct FDamageResult
     float NewHealth = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
+    float MaxHealth = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
     TArray<float> NewReserves;
 
     UPROPERTY(BlueprintReadOnly)

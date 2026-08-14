@@ -102,6 +102,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     FGameplayTagContainer EnemyGameplayTags;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+	bool DebugSpawnPoints = false;
+
     bool IsResetToAlive = false;
 
     bool IsFullRespawn = false;

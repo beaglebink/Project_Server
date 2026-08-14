@@ -101,6 +101,7 @@ private:
     float LastHealthDamageTime = 0.0f;
     TArray<float> LastReserveDamageTimes;
     float CurrentStaggerChance = 0;
+    float MaxHealth = 0;
 
     void InitializeFromConfig();
     void UpdateHealthZone();

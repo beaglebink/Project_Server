@@ -67,6 +67,7 @@ void UEnemyDamageComponent::InitializeFromConfig()
     if (Config)
     {
         Health = FMath::Min(InitialHealth, Config->MaxHealth);
+        MaxHealth = Config->MaxHealth;
         CurrentReserves.Empty();
         LastReserveDamageTimes.Empty();
         for (const FDefenseLayer& Layer : Config->DefenseLayers)
@@ -126,6 +127,7 @@ void UEnemyDamageComponent::InitializeFromConfig()
     else
     {
         Health = FMath::Max(0.0f, InitialHealth);
+        MaxHealth = Health;
         CurrentReserves.Empty();
         LastReserveDamageTimes.Empty();
         CurrentHealthZoneTag = NAME_None;
@@ -135,6 +137,7 @@ void UEnemyDamageComponent::InitializeFromConfig()
 FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackInfo)
 {
     FDamageResult Result;
+	Result.MaxHealth = MaxHealth;
     if (bIsDead)
         return Result;
 
@@ -423,7 +426,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     {
         bIsDead = true;
         Result.bKilled = true;
-        OnHealthDepleted.Broadcast(GetOwner(), Config->DeathBehaviorTag);
+        OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
         if (World)
         {
             World->GetTimerManager().ClearTimer(HealthRegenTimer);
