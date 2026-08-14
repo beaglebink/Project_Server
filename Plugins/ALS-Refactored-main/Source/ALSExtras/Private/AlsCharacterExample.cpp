@@ -731,7 +731,7 @@ void AAlsCharacterExample::Input_OnSwitchCookingMode()
 
 void AAlsCharacterExample::Input_CookingOnRotate(const FInputActionValue& ActionValue)
 {
-	float AngleDelta = ActionValue.Get<float>();
+	float AngleDelta = FMath::Abs(ActionValue.Get<float>());
 	CookingOnRotateHandle(AngleDelta);
 }
 

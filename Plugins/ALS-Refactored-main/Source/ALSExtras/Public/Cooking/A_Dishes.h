@@ -63,9 +63,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* LiquidLevelPoint;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	USceneComponent* PourPoint;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	bool bShowCookingDebug = false;
 
@@ -76,8 +73,6 @@ public:
 	FName AttachedSocketName;
 
 	uint8 bIsPlacing : 1{false};
-
-	float CurrentTiltAngle = 0.0f;
 
 	FTimerHandle AttachTimerHandle;
 	UFUNCTION(BlueprintCallable, Category = "CookingSettings")
@@ -173,7 +168,4 @@ public:
 
 	UFUNCTION(CallInEditor, Category = "Fluid")
 	void UpdateNiagaraPreview();
-
-	//Pouring
-	float PourLiquid();
 };
