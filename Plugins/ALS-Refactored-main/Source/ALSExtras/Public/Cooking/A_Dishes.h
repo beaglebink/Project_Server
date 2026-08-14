@@ -75,9 +75,17 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FName AttachedSocketName;
 
-	uint8 bIsPlacing : 1{false};
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 180.0f))
+	float RotateAngle = 90.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f))
+	float DefaultPauseTimeOnRotation = 5.0f;
+
+	float PauseTimeOnRotation;
 
 	float CurrentTiltAngle = 0.0f;
+
+	uint8 bIsPlacing : 1{false};
 
 	FTimerHandle AttachTimerHandle;
 	UFUNCTION(BlueprintCallable, Category = "CookingSettings")

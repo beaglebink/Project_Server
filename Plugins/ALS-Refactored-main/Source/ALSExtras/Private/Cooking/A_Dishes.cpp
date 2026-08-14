@@ -51,10 +51,16 @@ void AA_Dishes::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	PauseTimeOnRotation = FMath::Clamp(PauseTimeOnRotation - DeltaTime, 0.0f, DefaultPauseTimeOnRotation);
+
 	// Dishes attach to player
 	if (AttachedMesh)
 	{
-		SetActorRotation(FMath::RInterpTo(GetActorRotation(), FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f), GetWorld()->GetDeltaSeconds(), 0.5f));
+		if (PauseTimeOnRotation <= 0.0f || GetActorRotation().Pitch >= 5.0f || GetActorRotation().Pitch <= -RotateAngle)
+		{
+			CurrentTiltAngle = 0.0f;
+			SetActorRotation(FMath::RInterpTo(GetActorRotation(), FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f), DeltaTime, 0.5f));
+		}
 
 		if (!bIsOnAttaching && AttachedMesh->DoesSocketExist(AttachedSocketName))
 		{
@@ -63,7 +69,7 @@ void AA_Dishes::Tick(float DeltaTime)
 				bIsOnAttaching = true;
 				StaticMesh->AttachToComponent(AttachedMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachedSocketName);
 			}
-			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), GetWorld()->GetDeltaSeconds(), 2.0f));
+			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), DeltaTime, 2.0f));
 		}
 	}
 
@@ -214,11 +220,12 @@ void AA_Dishes::DetachDishFromHand()
 
 void AA_Dishes::RotateDish(float AngleDelta)
 {
-	CurrentTiltAngle += AngleDelta * 10.0f;
-	CurrentTiltAngle = FMath::Clamp(CurrentTiltAngle, 0.0f, 90.0f);
+	PauseTimeOnRotation = DefaultPauseTimeOnRotation;
 
-	const FQuat TiltQuat(FVector(0.0f, 1.0f, 0.0f), FMath::DegreesToRadians(CurrentTiltAngle));
-	StaticMesh->SetRelativeRotation(TiltQuat);
+	CurrentTiltAngle += AngleDelta * 5.0f;
+	CurrentTiltAngle = FMath::Clamp(CurrentTiltAngle, -(RotateAngle - 1.0f), 0.0f);
+
+	SetActorRotation(FRotator(CurrentTiltAngle, GetActorRotation().Yaw, GetActorRotation().Roll));
 
 	CheckIfCooked();
 }
