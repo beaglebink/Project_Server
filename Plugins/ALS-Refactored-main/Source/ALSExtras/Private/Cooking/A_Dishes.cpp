@@ -40,15 +40,14 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->bHiddenInGame = true;
 
 	FluidFX->SetAutoActivate(true);
-
-	// Initialize Liquid
-	FullLiquidVolume = LiquidVolume;
 }
 
 void AA_Dishes::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	UE_LOG(LogTemp, Warning, TEXT("FullLiquidLevel: %f, FullLiquidVolume: %f"), FullLiquidLevel, FullLiquidVolume);
+
+	// Initialize Liquid
+	FullLiquidVolume = LiquidVolume;
 
 	// Update liquid level
 	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
@@ -64,10 +63,13 @@ void AA_Dishes::Tick(float DeltaTime)
 	// Dishes attach to player
 	if (AttachedMesh)
 	{
-		if (PauseTimeOnRotation <= 0.0f || GetActorRotation().Pitch >= 5.0f || GetActorRotation().Pitch <= -RotateAngle)
+		if (PauseTimeOnRotation <= 0.0f)
 		{
-			CurrentTiltAngle = 0.0f;
-			SetActorRotation(FMath::RInterpTo(GetActorRotation(), FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f), DeltaTime, 0.5f));
+			FQuat NewQuat = FQuat::Slerp(GetActorQuat(), FRotator(0.f, AttachedMesh->GetComponentRotation().Yaw, 0.f).Quaternion(), DeltaTime * 0.5f);
+			SetActorRotation(NewQuat);
+
+			CurrentTiltAngle = FMath::FInterpTo(CurrentTiltAngle, 0.0f, DeltaTime, 0.5f);
+			PreviousTiltAngle = CurrentTiltAngle;
 		}
 
 		if (!bIsOnAttaching && AttachedMesh->DoesSocketExist(AttachedSocketName))
@@ -215,7 +217,7 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 	LiquidVolume = FMath::Lerp(FullLiquidVolume, 0.0f, 1.0f - LiquidLevelNormalized);
 	LiquidLevelPoint->SetRelativeLocation(FMath::Lerp(FullLiquidLevelPoint->GetRelativeLocation(), EmptyLiquidLevelPoint->GetRelativeLocation(), 1.0f - LiquidLevelNormalized));
 
-	GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Blue, FString::Printf(TEXT("Pouring liquid: %f   LiquidLevelPoint: %f   LiquidVolume: %f LiquidLevelNormalized: %f"), CurrentPourRate, LiquidLevelPoint->GetRelativeLocation().Z, LiquidVolume, LiquidLevelNormalized));
+	//GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Blue, FString::Printf(TEXT("Pouring liquid: %f   LiquidLevelPoint: %f   LiquidVolume: %f LiquidLevelNormalized: %f"), CurrentPourRate, LiquidLevelPoint->GetRelativeLocation().Z, LiquidVolume, LiquidLevelNormalized));
 
 	// Update Niagara fluid effect
 	// send CurrentPourRate to Niagara !!!
@@ -252,9 +254,14 @@ void AA_Dishes::RotateDish(float AngleDelta)
 	PauseTimeOnRotation = DefaultPauseTimeOnRotation;
 
 	CurrentTiltAngle += AngleDelta * 5.0f;
-	CurrentTiltAngle = FMath::Clamp(CurrentTiltAngle, -(RotateAngle - 1.0f), 0.0f);
+	CurrentTiltAngle = FMath::Clamp(CurrentTiltAngle, -RotateAngle, 0.0f);
+	float DeltaTilt = CurrentTiltAngle - PreviousTiltAngle;
 
-	SetActorRotation(FRotator(CurrentTiltAngle, GetActorRotation().Yaw, GetActorRotation().Roll));
+	FQuat BaseQuat = GetActorQuat();
+	FQuat DeltaQuat(-GetActorRightVector(), FMath::DegreesToRadians(DeltaTilt));
+
+	SetActorRotation(DeltaQuat * BaseQuat);
+	PreviousTiltAngle = CurrentTiltAngle;
 
 	CheckIfCooked();
 }

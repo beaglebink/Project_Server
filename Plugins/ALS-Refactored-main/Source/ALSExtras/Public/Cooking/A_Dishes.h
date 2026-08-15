@@ -82,7 +82,7 @@ public:
 	FName AttachedSocketName;
 
 	// Pouring settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 90.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 180.0f))
 	float RotateAngle = 90.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 45.0f))
@@ -94,6 +94,7 @@ public:
 	float PauseTimeOnRotation;
 
 	float CurrentTiltAngle = 0.0f;
+	float PreviousTiltAngle = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float LiquidPourRateNormalized = 0.1f;
