@@ -15,7 +15,6 @@ AA_Dishes::AA_Dishes()
 	LiquidShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LiquidShape"));
 	CookedResultSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CookedResultSpawnPoint"));
 	LiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("LiquidLevelPoint"));
-	PourPoint = CreateDefaultSubobject<USceneComponent>(TEXT("PourPoint"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 	FluidFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FluidFX"));
 
@@ -23,7 +22,6 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->SetupAttachment(RootComponent);
 	CookedResultSpawnPoint->SetupAttachment(RootComponent);
 	LiquidLevelPoint->SetupAttachment(RootComponent);
-	PourPoint->SetupAttachment(RootComponent);
 	FluidFX->SetupAttachment(LiquidShape);
 
 	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -36,6 +34,10 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->bHiddenInGame = true;
 
 	FluidFX->SetAutoActivate(true);
+
+	// Initialize variables DrainRate
+	LiquidLevelPourRate = LiquidLevelPoint->GetRelativeLocation().Z * LiquidPourRateNormalized;
+	LiquidVolumePourRate = LiquidVolume * LiquidPourRateNormalized;
 }
 
 void AA_Dishes::OnConstruction(const FTransform& Transform)
@@ -110,6 +112,12 @@ void AA_Dishes::Tick(float DeltaTime)
 	// Update liquid level
 	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
 	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
+
+	// Pour liquid if tilted
+	if (CurrentTiltAngle <= -MinPourAngle && LiquidLevelPoint->GetRelativeLocation().Z > 0.0f)
+	{
+		PourLiquid(DeltaTime);
+	}
 }
 
 void AA_Dishes::BeginPlay()
@@ -190,6 +198,22 @@ void AA_Dishes::Destroyed()
 {
 	Super::Destroyed();
 
+}
+
+void AA_Dishes::PourLiquid(float DeltaTime)
+{
+	float PourIntensityNormalized = FMath::GetMappedRangeValueClamped(FVector2D(MinPourAngle, RotateAngle), FVector2D(0.0f, 1.0f), -CurrentTiltAngle);
+	float CurrentPourRate = FMath::Clamp(PourIntensityNormalized * LiquidLevelNormalized * LiquidPourRateNormalized, 0.005f, 1.0f);
+	//GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Blue, FString::Printf(TEXT("PourIntensityNormalized: %f,  LiquidLevelNormalized: %f,    liquidPourRateNormalized: %f, CurrentPourRate: %f"), PourIntensityNormalized, LiquidLevelNormalized, LiquidPourRateNormalized, CurrentPourRate));
+
+	LiquidVolume -= CurrentPourRate * LiquidVolumePourRate * DeltaTime;
+	LiquidLevelPoint->SetRelativeLocation(FVector(LiquidLevelPoint->GetRelativeLocation().X, LiquidLevelPoint->GetRelativeLocation().Y, FMath::Clamp(LiquidLevelPoint->GetRelativeLocation().Z - CurrentPourRate * LiquidLevelPourRate * DeltaTime, 0.0f, LiquidLevelPoint->GetRelativeLocation().Z)));
+	LiquidLevelNormalized -= CurrentPourRate * DeltaTime;
+
+	GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Blue, FString::Printf(TEXT("Pouring liquid: %f   LiquidLevelPoint: %f   LiquidVolume: %f LiquidLevelNormalized: %f"), CurrentPourRate, LiquidLevelPoint->GetRelativeLocation().Z, LiquidVolume, LiquidLevelNormalized));
+
+	// Update Niagara fluid effect
+	// send CurrentPourRate to Niagara !!!
 }
 
 void AA_Dishes::AttachDishToHand(ACharacter* PlayerCharacter, FName SocketName)
@@ -574,11 +598,4 @@ void AA_Dishes::UpdateNiagaraPreview()
 	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
 
 	FluidFX->ResetSystem();
-}
-
-float AA_Dishes::PourLiquid()
-{
-
-
-	return 0.0f;
 }
