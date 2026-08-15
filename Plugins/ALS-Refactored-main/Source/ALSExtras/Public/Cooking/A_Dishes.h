@@ -63,6 +63,15 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* LiquidLevelPoint;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USceneComponent* FullLiquidLevelPoint;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USceneComponent* CentreLiquidLevelPoint;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USceneComponent* EmptyLiquidLevelPoint;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	bool bShowCookingDebug = false;
 
@@ -86,20 +95,20 @@ public:
 
 	float CurrentTiltAngle = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f))
-	float LiquidVolume = 100.0f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float LiquidPourRateNormalized = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, DisplayName = "LiquidVolume (ml)"))
+	float LiquidVolume = 100.0f;
 
 	UPROPERTY()
 	float LiquidLevelNormalized = 1.0f;
 
 	UPROPERTY()
-	float LiquidLevelPourRate = 0.0f;
+	float FullLiquidLevel = 0.0f;
 
 	UPROPERTY()
-	float LiquidVolumePourRate = 0.0f;
+	float FullLiquidVolume = 0.0f;
 
 	void PourLiquid(float DeltaTime);
 
