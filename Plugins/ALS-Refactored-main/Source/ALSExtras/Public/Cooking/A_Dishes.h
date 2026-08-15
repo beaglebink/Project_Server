@@ -72,6 +72,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* EmptyLiquidLevelPoint;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USceneComponent* EdgeLiquidLevelPoint;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	bool bShowCookingDebug = false;
 
@@ -82,11 +85,8 @@ public:
 	FName AttachedSocketName;
 
 	// Pouring settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 180.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 179.0f))
 	float RotateAngle = 90.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 45.0f))
-	float MinPourAngle = 5.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f))
 	float DefaultPauseTimeOnRotation = 5.0f;
@@ -96,6 +96,9 @@ public:
 	float CurrentTiltAngle = 0.0f;
 	float PreviousTiltAngle = 0.0f;
 
+	UPROPERTY()
+	float PourIntensityNormalized = 0.0f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float LiquidPourRateNormalized = 0.1f;
 
@@ -110,6 +113,9 @@ public:
 
 	UPROPERTY()
 	float FullLiquidVolume = 0.0f;
+
+	UPROPERTY()
+	float BoundsRadius = 0.0f;
 
 	void PourLiquid(float DeltaTime);
 
