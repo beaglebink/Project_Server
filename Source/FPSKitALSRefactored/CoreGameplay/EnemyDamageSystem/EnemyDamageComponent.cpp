@@ -241,7 +241,6 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     float RemainingDamage = DamageAfterZone;
     TArray<float> ResistanceMods;
     TArray<float> ReserveDamageMods;
-    //TArray<bool> BypassReserve;
     TArray<bool> IgnoreLayer;
     float FinalHealthMod = 1.0f;
     float StaggerMod = 0.0f;
@@ -253,7 +252,6 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         int32 NumLayers = Config->DefenseLayers.Num();
         ResistanceMods.Init(1.0f, NumLayers);
         ReserveDamageMods.Init(1.0f, NumLayers);
-        //BypassReserve.Init(false, NumLayers);
         IgnoreLayer.Init(false, NumLayers);
 
         FDamageProcessingContext Context;
@@ -262,13 +260,15 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.Reserves = CurrentReserves;
         Context.ResistanceMultipliers = ResistanceMods;
         Context.ReserveDamageMultipliers = ReserveDamageMods;
-        //Context.BypassReserve = BypassReserve;
         Context.IgnoreLayer = IgnoreLayer;
         Context.FinalHealthDamage = 0.0f;
         Context.StaggerChanceModifier = 0.0f;
-        //Context.bForceStagger = false;
         Context.CurrentHealthZone = OldHealthZone;
         Context.PreviousHealthZone = OldHealthZone;
+        Context.Owner = GetOwner();
+        Context.Weapon = AttackInfo.DamageSource;
+        //Context.bForceStagger = bForceStagger;
+        Context.ForceStaggerCooldown = RuntimeStaggerCooldown;
 
         if (AttackInfo.OptionalEnemyEffects)
         {
@@ -282,11 +282,9 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             FDefenseOutput Out = AttackInfo.OptionalEnemyEffects->ApplyDefenseModifiers(Context);
             ResistanceMods = Out.NewModifiers.ResistanceMultipliers;
             ReserveDamageMods = Out.NewModifiers.ReserveDamageMultipliers;
-            //BypassReserve = Out.NewModifiers.BypassReserve;
             IgnoreLayer = Out.NewModifiers.IgnoreLayer;
             Context.ResistanceMultipliers = ResistanceMods;
             Context.ReserveDamageMultipliers = ReserveDamageMods;
-            //Context.BypassReserve = BypassReserve;
             Context.IgnoreLayer = IgnoreLayer;
         }
     }
@@ -304,13 +302,24 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             Result.LayerAbsorbedDamage[i] = 0.0f;
             Result.ReserveDepleted[i] = false;
 
-            if (IgnoreLayer[i])
-                continue;
+            if (IgnoreLayer.IsValidIndex(i))
+            {
+                if (IgnoreLayer[i])
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                AActor* Owner = GetOwner();
+                FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+                UE_LOG(LogTemp, Error, TEXT("Owner %s Incorrect implementation of ignoring defense layers. Incorrect number of layers (%i)."),*OwnerName, IgnoreLayer.Num());
+			}
+
 
             const FDefenseLayer& Layer = Config->DefenseLayers[i];
             if (Layer.LayerType == EDefenseLayerType::Resistance)
             {
-                // используем runtime-множитель
                 float EffectiveResistance = FMath::Clamp(RuntimeResistanceMultipliers[i] * ResistanceMods[i], 0.0f, 1.0f);
                 float Absorbed = RemainingDamage * (1.0f - EffectiveResistance);
                 Result.LayerAbsorbedDamage[i] = Absorbed;
@@ -318,9 +327,6 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             }
             else // Reserve
             {
-                //if (BypassReserve[i])
-                //    continue;
-
                 float& Reserve = CurrentReserves[i];
                 float DamageToReserve = RemainingDamage * ReserveDamageMods[i];
                 if (DamageToReserve <= 0.0f)
@@ -370,13 +376,15 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.Reserves = CurrentReserves;
         Context.ResistanceMultipliers = ResistanceMods;
         Context.ReserveDamageMultipliers = ReserveDamageMods;
-        //Context.BypassReserve = BypassReserve;
         Context.IgnoreLayer = IgnoreLayer;
         Context.FinalHealthDamage = FinalHealthDamage;
         Context.StaggerChanceModifier = StaggerMod;
-        //Context.bForceStagger = bForceStagger;
         Context.CurrentHealthZone = OldHealthZone;
         Context.PreviousHealthZone = OldHealthZone;
+        Context.Owner = GetOwner();
+        Context.Weapon = AttackInfo.DamageSource;
+        //Context.bForceStagger = bForceStagger;
+        Context.ForceStaggerCooldown = RuntimeStaggerCooldown;
 
         FPostDefenseOutput Out = AttackInfo.OptionalEnemyEffects->PostDefenseProcessing(Context);
         FinalHealthDamage = Out.NewFinalHealthDamage;
@@ -439,7 +447,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             StaggerDamage = TotalDamageDealt;
         }
 
-        float Chance = GetStaggerChance(StaggerDamage) + StaggerMod; // GetStaggerChance использует runtime
+        float Chance = GetStaggerChance(StaggerDamage) + StaggerMod;
         CurrentStaggerChance = Chance;
         if (bForceStagger || FMath::FRand() < Chance)
         {
@@ -670,11 +678,16 @@ void UEnemyDamageComponent::HealToMax(bool bInstant)
 void UEnemyDamageComponent::SetHealth(float NewHealth)
 {
     if (bIsDead) return;
+
     float ClampedHealth = FMath::Clamp(NewHealth, 0.0f, MaxHealth);
     if (FMath::IsNearlyEqual(ClampedHealth, Health)) return;
 
+    float OldHealth = Health;
     Health = ClampedHealth;
-    OnHealthChanged.Broadcast(Health, Health - Health); // дельта = 0, но сигнал всё равно
+    float Delta = Health - OldHealth;
+
+    OnHealthChanged.Broadcast(Health, Delta);
+
     FName OldZone = CurrentHealthZoneTag;
     UpdateHealthZone();
     if (OldZone != CurrentHealthZoneTag)
@@ -682,7 +695,6 @@ void UEnemyDamageComponent::SetHealth(float NewHealth)
 
     if (Health <= 0.0f && !bIsDead)
     {
-        // Вызываем смерть
         bIsDead = true;
         OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
         UWorld* World = GetWorld();

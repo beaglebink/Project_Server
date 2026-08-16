@@ -12,7 +12,6 @@ FDefenseOutput UDamageProcessingEffect::ApplyDefenseModifiers_Implementation(con
     FDefenseOutput Out;
     Out.NewModifiers.ResistanceMultipliers = Context.ResistanceMultipliers;
     Out.NewModifiers.ReserveDamageMultipliers = Context.ReserveDamageMultipliers;
-    //Out.NewModifiers.BypassReserve = Context.BypassReserve;
     Out.NewModifiers.IgnoreLayer = Context.IgnoreLayer;
     return Out;
 }
@@ -22,6 +21,8 @@ FPostDefenseOutput UDamageProcessingEffect::PostDefenseProcessing_Implementation
     FPostDefenseOutput Out;
     Out.NewFinalHealthDamage = Context.FinalHealthDamage;
     Out.NewStaggerChanceModifier = Context.StaggerChanceModifier;
-    //Out.bNewForceStagger = Context.bForceStagger;
+    // Поле bNewForceStagger остаётся без изменений, его устанавливает блюпринт
+    Out.bNewForceStagger = false; // по умолчанию, но блюпринт переопределит
+    Out.bNewForceStaggerCooldown = Context.ForceStaggerCooldown; // передаём текущий кулдаун
     return Out;
 }

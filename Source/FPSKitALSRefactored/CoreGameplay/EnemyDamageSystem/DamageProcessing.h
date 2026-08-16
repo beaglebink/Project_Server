@@ -29,9 +29,6 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadWrite)
     TArray<float> ReserveDamageMultipliers;
 
-    //UPROPERTY(BlueprintReadWrite)
-    //TArray<bool> BypassReserve;
-
     UPROPERTY(BlueprintReadWrite)
     TArray<bool> IgnoreLayer;
 
@@ -47,8 +44,15 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadWrite)
     float StaggerChanceModifier = 0.0f;
 
-    //UPROPERTY(BlueprintReadWrite)
-    //bool bForceStagger = false;
+    // ---- НОВЫЕ ПОЛЯ (добавлены) ----
+    UPROPERTY(BlueprintReadOnly)
+    AActor* Owner = nullptr;
+
+    UPROPERTY(BlueprintReadOnly)
+    AActor* Weapon = nullptr;
+
+    UPROPERTY(BlueprintReadWrite)
+    float ForceStaggerCooldown = 2.0f;
 };
 
 // Выходные структуры (используются в эффектах)
@@ -71,9 +75,6 @@ struct FDefenseModifiers
 
     UPROPERTY(BlueprintReadWrite)
     TArray<float> ReserveDamageMultipliers;
-
-    //UPROPERTY(BlueprintReadWrite)
-    //TArray<bool> BypassReserve;
 
     UPROPERTY(BlueprintReadWrite)
     TArray<bool> IgnoreLayer;
