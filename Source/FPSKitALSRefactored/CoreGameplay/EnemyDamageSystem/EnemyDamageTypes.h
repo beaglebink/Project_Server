@@ -85,8 +85,13 @@ struct FHitZoneDefinition
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Zone")
     FName ZoneName;
 
+    // Массив имён костей
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Zone")
     TArray<FName> BoneNames;
+
+    // Массив имён компонентов
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Zone")
+    TArray<FName> ComponentNames;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Zone")
     float DamageMultiplier = 1.0f;

@@ -29,8 +29,8 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadWrite)
     TArray<float> ReserveDamageMultipliers;
 
-    UPROPERTY(BlueprintReadWrite)
-    TArray<bool> BypassReserve;
+    //UPROPERTY(BlueprintReadWrite)
+    //TArray<bool> BypassReserve;
 
     UPROPERTY(BlueprintReadWrite)
     TArray<bool> IgnoreLayer;
@@ -47,8 +47,8 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadWrite)
     float StaggerChanceModifier = 0.0f;
 
-    UPROPERTY(BlueprintReadWrite)
-    bool bForceStagger = false;
+    //UPROPERTY(BlueprintReadWrite)
+    //bool bForceStagger = false;
 };
 
 // Выходные структуры (используются в эффектах)
@@ -72,8 +72,8 @@ struct FDefenseModifiers
     UPROPERTY(BlueprintReadWrite)
     TArray<float> ReserveDamageMultipliers;
 
-    UPROPERTY(BlueprintReadWrite)
-    TArray<bool> BypassReserve;
+    //UPROPERTY(BlueprintReadWrite)
+    //TArray<bool> BypassReserve;
 
     UPROPERTY(BlueprintReadWrite)
     TArray<bool> IgnoreLayer;
@@ -101,6 +101,9 @@ struct FPostDefenseOutput
 
     UPROPERTY(BlueprintReadWrite)
     bool bNewForceStagger = false;
+
+    UPROPERTY(BlueprintReadWrite)
+    float bNewForceStaggerCooldown = 2.0f;
 };
 
 // Информация об атаке

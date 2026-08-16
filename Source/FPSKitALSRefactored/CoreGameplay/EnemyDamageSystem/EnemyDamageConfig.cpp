@@ -13,7 +13,9 @@ void UEnemyDamageConfig::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 bool UEnemyDamageConfig::ValidateHitZones() const
 {
     TSet<FName> UsedBones;
+    TSet<FName> UsedComponents;
     bool bValid = true;
+
     for (const FHitZoneDefinition& Zone : HitZones)
     {
         for (const FName& Bone : Zone.BoneNames)
@@ -24,6 +26,16 @@ bool UEnemyDamageConfig::ValidateHitZones() const
                 bValid = false;
             }
             UsedBones.Add(Bone);
+        }
+
+        for (const FName& Comp : Zone.ComponentNames)
+        {
+            if (UsedComponents.Contains(Comp))
+            {
+                UE_LOG(LogTemp, Error, TEXT("Component %s used in multiple hit zones in %s"), *Comp.ToString(), *GetNameSafe(this));
+                bValid = false;
+            }
+            UsedComponents.Add(Comp);
         }
     }
     return bValid;

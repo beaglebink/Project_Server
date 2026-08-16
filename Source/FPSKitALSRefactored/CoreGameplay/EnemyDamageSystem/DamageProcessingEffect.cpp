@@ -12,7 +12,7 @@ FDefenseOutput UDamageProcessingEffect::ApplyDefenseModifiers_Implementation(con
     FDefenseOutput Out;
     Out.NewModifiers.ResistanceMultipliers = Context.ResistanceMultipliers;
     Out.NewModifiers.ReserveDamageMultipliers = Context.ReserveDamageMultipliers;
-    Out.NewModifiers.BypassReserve = Context.BypassReserve;
+    //Out.NewModifiers.BypassReserve = Context.BypassReserve;
     Out.NewModifiers.IgnoreLayer = Context.IgnoreLayer;
     return Out;
 }
@@ -22,6 +22,6 @@ FPostDefenseOutput UDamageProcessingEffect::PostDefenseProcessing_Implementation
     FPostDefenseOutput Out;
     Out.NewFinalHealthDamage = Context.FinalHealthDamage;
     Out.NewStaggerChanceModifier = Context.StaggerChanceModifier;
-    Out.bNewForceStagger = Context.bForceStagger;
+    //Out.bNewForceStagger = Context.bForceStagger;
     return Out;
 }

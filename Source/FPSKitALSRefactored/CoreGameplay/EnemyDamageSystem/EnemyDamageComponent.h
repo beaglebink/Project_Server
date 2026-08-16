@@ -1,4 +1,3 @@
-// EnemyDamageComponent.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -74,6 +73,73 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage")
     void ResetState();
 
+    // ---- Управление здоровьем ----
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
+    void Heal(float Amount, bool bInstant = true);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
+    void HealToMax(bool bInstant = true);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
+    void SetHealth(float NewHealth);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
+    void SetMaxHealth(float NewMaxHealth);
+
+    // ---- Управление резервами ----
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
+    void RestoreReserve(int32 LayerIndex, float Amount, bool bInstant = true);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
+    void RestoreReserveToMax(int32 LayerIndex, bool bInstant = true);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
+    void SetReserve(int32 LayerIndex, float NewValue);
+
+    // ---- Управление сопротивлением ----
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Defense")
+    void SetResistanceMultiplier(int32 LayerIndex, float NewMultiplier);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Defense")
+    void SetResistanceMultiplierByTag(FName LayerTag, float NewMultiplier);
+
+    // ---- Управление регенерацией здоровья ----
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetHealthRegenEnabled(bool bEnabled);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetHealthRegenRate(float Rate);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetHealthRegenDelay(float Delay);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetHealthRegenInterruptOnDamage(bool bInterrupt);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
+    void SetHealthZones(const TArray<FHealthZoneDefinition>& NewZones);
+
+    // ---- Управление регенерацией резервов ----
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetReserveRegenEnabled(int32 LayerIndex, bool bEnabled);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetReserveRegenRate(int32 LayerIndex, float Rate);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetReserveRegenDelay(int32 LayerIndex, float Delay);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetReserveRegenInterruptOnDamage(int32 LayerIndex, bool bInterrupt);
+
+    // ---- Управление стаггером ----
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Stagger")
+    void SetStaggerParams(float BaseChance, float Susceptibility, float Cooldown);
+
+    // ---- Принудительная смерть ----
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Death")
+    void Kill();
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -102,8 +168,27 @@ private:
     TArray<float> LastReserveDamageTimes;
     float CurrentStaggerChance = 0;
     float MaxHealth = 0;
+	FName CurrentHitZoneName = NAME_None;
+
+    // Runtime-копии параметров для защиты (инициализируются из Config)
+    TArray<float> RuntimeResistanceMultipliers;
+    TArray<FRegenerationParams> RuntimeReserveRegenParams;
+    FRegenerationParams RuntimeHealthRegenParams;
+
+    // Runtime-копия зон здоровья (масштабируется при изменении MaxHealth)
+    TArray<FHealthZoneDefinition> RuntimeHealthZones;
+
+    // Флаги включения регенерации
+    bool bHealthRegenEnabled = true;
+    TArray<bool> bReserveRegenEnabled;
+
+    // Параметры стаггера (runtime)
+    float RuntimeBaseStaggerChance = 0.0f;
+    float RuntimeStaggerSusceptibility = 0.0f;
+    float RuntimeStaggerCooldown = 2.0f;
 
     void InitializeFromConfig();
+	void CheckHealthZone();
     void UpdateHealthZone();
     void ApplyHealthRegen();
     void ApplyReserveRegen();
