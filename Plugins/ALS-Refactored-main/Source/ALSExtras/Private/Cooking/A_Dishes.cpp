@@ -15,6 +15,10 @@ AA_Dishes::AA_Dishes()
 	LiquidShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LiquidShape"));
 	CookedResultSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CookedResultSpawnPoint"));
 	LiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("LiquidLevelPoint"));
+	FullLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("FullLiquidLevelPoint"));
+	CentreLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CentreLiquidLevelPoint"));
+	EmptyLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EmptyLiquidLevelPoint"));
+	EdgeLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EdgeLiquidLevelPoint"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 	FluidFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FluidFX"));
 
@@ -22,6 +26,10 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->SetupAttachment(RootComponent);
 	CookedResultSpawnPoint->SetupAttachment(RootComponent);
 	LiquidLevelPoint->SetupAttachment(RootComponent);
+	FullLiquidLevelPoint->SetupAttachment(RootComponent);
+	CentreLiquidLevelPoint->SetupAttachment(RootComponent);
+	EmptyLiquidLevelPoint->SetupAttachment(RootComponent);
+	EdgeLiquidLevelPoint->SetupAttachment(RootComponent);
 	FluidFX->SetupAttachment(LiquidShape);
 
 	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -34,11 +42,16 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->bHiddenInGame = true;
 
 	FluidFX->SetAutoActivate(true);
+
 }
 
 void AA_Dishes::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+
+	// Initialize Liquid
+	FullLiquidVolume = LiquidVolume;
+	BoundsRadius = StaticMesh->Bounds.SphereRadius;
 
 	// Update liquid level
 	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
@@ -49,10 +62,19 @@ void AA_Dishes::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	PauseTimeOnRotation = FMath::Clamp(PauseTimeOnRotation - DeltaTime, 0.0f, DefaultPauseTimeOnRotation);
+
 	// Dishes attach to player
 	if (AttachedMesh)
 	{
-		SetActorRotation(FMath::RInterpTo(GetActorRotation(), IsValid(AttachedMesh) ? FRotator(0.0f, AttachedMesh->GetComponentRotation().Yaw, 0.0f) : FRotator::ZeroRotator, DeltaTime, 0.5f));
+		if (PauseTimeOnRotation <= 0.0f)
+		{
+			FQuat NewQuat = FQuat::Slerp(GetActorQuat(), FRotator(0.f, AttachedMesh->GetComponentRotation().Yaw, 0.f).Quaternion(), DeltaTime * 0.5f);
+			SetActorRotation(NewQuat);
+
+			CurrentTiltAngle = FMath::FInterpTo(CurrentTiltAngle, 0.0f, DeltaTime, 0.5f);
+			PreviousTiltAngle = CurrentTiltAngle;
+		}
 
 		if (!bIsOnAttaching && AttachedMesh->DoesSocketExist(AttachedSocketName))
 		{
@@ -61,7 +83,7 @@ void AA_Dishes::Tick(float DeltaTime)
 				bIsOnAttaching = true;
 				StaticMesh->AttachToComponent(AttachedMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachedSocketName);
 			}
-			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), GetWorld()->GetDeltaSeconds(), 2.0f));
+			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), DeltaTime, 2.0f));
 		}
 	}
 
@@ -102,6 +124,8 @@ void AA_Dishes::Tick(float DeltaTime)
 	// Update liquid level
 	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
 	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
+
+	PourLiquid(DeltaTime);
 }
 
 void AA_Dishes::BeginPlay()
@@ -184,6 +208,39 @@ void AA_Dishes::Destroyed()
 
 }
 
+void AA_Dishes::PourLiquid(float DeltaTime)
+{
+	PourIntensityNormalized = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, BoundsRadius * 2.0f), FVector2D(0.0f, 1.0f), LiquidLevelPoint->GetComponentLocation().Z - EdgeLiquidLevelPoint->GetComponentLocation().Z);
+	if (PourIntensityNormalized > 0.0f && LiquidLevelNormalized > 0.0f)
+	{
+		FHitResult UpHitResult, DownHitResult;
+		GetWorld()->LineTraceSingleByChannel(UpHitResult, CentreLiquidLevelPoint->GetComponentLocation(), CentreLiquidLevelPoint->GetComponentLocation() + FVector::UpVector * BoundsRadius * 2.0f, ECC_GameTraceChannel11);
+		GetWorld()->LineTraceSingleByChannel(DownHitResult, CentreLiquidLevelPoint->GetComponentLocation(), CentreLiquidLevelPoint->GetComponentLocation() + FVector::DownVector * BoundsRadius * 2.0f, ECC_GameTraceChannel11);
+		if (UpHitResult.bBlockingHit)
+		{
+			FullLiquidLevelPoint->SetWorldLocation(UpHitResult.Location);
+		}
+		if (DownHitResult.bBlockingHit)
+		{
+			EmptyLiquidLevelPoint->SetWorldLocation(DownHitResult.Location);
+		}
+
+		LiquidLevelNormalized -= PourIntensityNormalized * LiquidPourRateNormalized * DeltaTime;
+		LiquidVolume = FMath::Lerp(FullLiquidVolume, 0.0f, 1.0f - LiquidLevelNormalized);
+		LiquidLevelPoint->SetWorldLocation(FMath::Lerp(FullLiquidLevelPoint->GetComponentLocation(), EmptyLiquidLevelPoint->GetComponentLocation(), 1.0f - LiquidLevelNormalized));
+
+		GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Blue, FString::Printf(TEXT("PourIntensityNormalized: %f   LiquidLevelNormalized: %f   LiquidVolume: %f"), PourIntensityNormalized, LiquidLevelNormalized, LiquidVolume));
+
+		// Update Niagara fluid effect
+		// send CurrentPourRate to Niagara !!!
+	}
+
+	if (LiquidLevelNormalized <= 0.0f)
+	{
+		FluidFX->Deactivate();
+	}
+}
+
 void AA_Dishes::AttachDishToHand(ACharacter* PlayerCharacter, FName SocketName)
 {
 	if (!PlayerCharacter)
@@ -212,7 +269,17 @@ void AA_Dishes::DetachDishFromHand()
 
 void AA_Dishes::RotateDish(float AngleDelta)
 {
-	AddActorLocalRotation(FRotator(-AngleDelta * 10.0f, 0.0f, 0.0f));
+	PauseTimeOnRotation = DefaultPauseTimeOnRotation;
+
+	CurrentTiltAngle += AngleDelta * 5.0f;
+	CurrentTiltAngle = FMath::Clamp(CurrentTiltAngle, -RotateAngle, 0.0f);
+	float DeltaTilt = CurrentTiltAngle - PreviousTiltAngle;
+
+	FQuat BaseQuat = GetActorQuat();
+	FQuat DeltaQuat(-GetActorRightVector(), FMath::DegreesToRadians(DeltaTilt));
+
+	SetActorRotation(DeltaQuat * BaseQuat);
+	PreviousTiltAngle = CurrentTiltAngle;
 
 	CheckIfCooked();
 }
