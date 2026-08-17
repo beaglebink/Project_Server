@@ -194,5 +194,6 @@ private:
     void ApplyReserveRegen();
     void OnStaggerCooldownExpired();
     float GetStaggerChance(float DamageValue) const;
+    FName PredictHealthZone(float HealthValue) const;
     void DebugLogDamage(const FDamageResult& Result, float ModifiedDamage, float HitZoneMult, float DamageAfterZone, float FinalHealthDamage, float HealthDelta, bool bAnyReserveChanged);
 };

@@ -36,6 +36,9 @@ struct FDamageProcessingContext
     float FinalHealthDamage = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
+    float Health = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
     FName CurrentHealthZone;
 
     UPROPERTY(BlueprintReadOnly)
@@ -44,7 +47,6 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadWrite)
     float StaggerChanceModifier = 0.0f;
 
-    // ---- НОВЫЕ ПОЛЯ (добавлены) ----
     UPROPERTY(BlueprintReadOnly)
     AActor* Owner = nullptr;
 

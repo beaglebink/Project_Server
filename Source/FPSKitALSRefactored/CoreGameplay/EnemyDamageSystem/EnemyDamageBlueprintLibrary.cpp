@@ -1,7 +1,6 @@
-﻿// EnemyDamageBlueprintLibrary.cpp
-#include "EnemyDamageBlueprintLibrary.h"
+﻿#include "EnemyDamageBlueprintLibrary.h"
 #include "EnemyDamageConfig.h"
-#include "Engine/Engine.h" // для GEngine
+#include "Engine/Engine.h"
 
 // ==================== Установка по индексу ====================
 

@@ -204,6 +204,12 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     TArray<float> OldReserves = CurrentReserves;
     FName OldHealthZone = CurrentHealthZoneTag;
 
+    if (AttackInfo.BaseDamage < 0)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Negative damage"));
+        return Result;
+    }
+
     // 2. Расчёт модифицированного урона
     float ModifiedDamage = AttackInfo.BaseDamage * AttackInfo.GunConditionModifier * AttackInfo.ClothingModifier;
     Result.IncomingDamage = ModifiedDamage;
@@ -267,8 +273,8 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.PreviousHealthZone = OldHealthZone;
         Context.Owner = GetOwner();
         Context.Weapon = AttackInfo.DamageSource;
-        //Context.bForceStagger = bForceStagger;
         Context.ForceStaggerCooldown = RuntimeStaggerCooldown;
+        Context.Health = Health; // текущее здоровье до урона
 
         if (AttackInfo.OptionalEnemyEffects)
         {
@@ -302,20 +308,16 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             Result.LayerAbsorbedDamage[i] = 0.0f;
             Result.ReserveDepleted[i] = false;
 
-            if (IgnoreLayer.IsValidIndex(i))
-            {
-                if (IgnoreLayer[i])
-                {
-                    continue;
-                }
-            }
-            else
+            if (IgnoreLayer.IsValidIndex(i) && IgnoreLayer[i])
+                continue;
+            if (!IgnoreLayer.IsValidIndex(i))
             {
                 AActor* Owner = GetOwner();
                 FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
-                UE_LOG(LogTemp, Error, TEXT("Owner %s Incorrect implementation of ignoring defense layers. Incorrect number of layers (%i)."),*OwnerName, IgnoreLayer.Num());
-			}
-
+                UE_LOG(LogTemp, Error, TEXT("Owner %s Incorrect IgnoreLayer array size (expected %d, got %d)"),
+                    *OwnerName, Config->DefenseLayers.Num(), IgnoreLayer.Num());
+                continue;
+            }
 
             const FDefenseLayer& Layer = Config->DefenseLayers[i];
             if (Layer.LayerType == EDefenseLayerType::Resistance)
@@ -366,10 +368,14 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Result.ReserveDepleted.Empty();
     }
 
-    // 6. Пост-защитные эффекты
+    // 6. Пост-защитные эффекты (с прогнозируемой зоной и здоровьем)
     float FinalHealthDamage = RemainingDamage;
     if (Config && AttackInfo.OptionalEnemyEffects)
     {
+        // Вычисляем прогнозируемое здоровье после применения урона
+        float PredictedHealth = FMath::Max(0.0f, Health - FinalHealthDamage);
+        FName PredictedZone = PredictHealthZone(PredictedHealth);
+
         FDamageProcessingContext Context;
         Context.IncomingDamage = RemainingDamage;
         Context.Config = Config;
@@ -379,12 +385,12 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.IgnoreLayer = IgnoreLayer;
         Context.FinalHealthDamage = FinalHealthDamage;
         Context.StaggerChanceModifier = StaggerMod;
-        Context.CurrentHealthZone = OldHealthZone;
-        Context.PreviousHealthZone = OldHealthZone;
+        Context.CurrentHealthZone = PredictedZone;          // зона после урона
+        Context.PreviousHealthZone = OldHealthZone;        // зона до урона
         Context.Owner = GetOwner();
         Context.Weapon = AttackInfo.DamageSource;
-        //Context.bForceStagger = bForceStagger;
         Context.ForceStaggerCooldown = RuntimeStaggerCooldown;
+        Context.Health = PredictedHealth;                 // прогнозируемое здоровье
 
         FPostDefenseOutput Out = AttackInfo.OptionalEnemyEffects->PostDefenseProcessing(Context);
         FinalHealthDamage = Out.NewFinalHealthDamage;
@@ -470,7 +476,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         }
     }
 
-    // 10. Обновление зоны здоровья
+    // 10. Обновление зоны здоровья (реальное состояние после вычитания)
     if (Config)
     {
         FName OldZone = CurrentHealthZoneTag;
@@ -620,6 +626,21 @@ float UEnemyDamageComponent::GetStaggerChance(float DamageValue) const
     return FMath::Clamp(RuntimeBaseStaggerChance + DamageValue * RuntimeStaggerSusceptibility, 0.0f, 1.0f);
 }
 
+FName UEnemyDamageComponent::PredictHealthZone(float HealthValue) const
+{
+    if (!Config || RuntimeHealthZones.Num() == 0)
+        return NAME_None;
+
+    for (const FHealthZoneDefinition& Zone : RuntimeHealthZones)
+    {
+        if (HealthValue > Zone.LowerBound && HealthValue <= Zone.UpperBound)
+            return Zone.ZoneTag;
+    }
+
+    // Если здоровье не попало ни в одну зону (например, из-за ошибки) – берём последнюю (обычно 0-я)
+    return RuntimeHealthZones.Last().ZoneTag;
+}
+
 float UEnemyDamageComponent::GetReserveForLayer(int32 Index) const
 {
     if (Config && CurrentReserves.IsValidIndex(Index) && Config->DefenseLayers.IsValidIndex(Index) && Config->DefenseLayers[Index].LayerType == EDefenseLayerType::Reserve)
@@ -682,6 +703,19 @@ void UEnemyDamageComponent::SetHealth(float NewHealth)
     float ClampedHealth = FMath::Clamp(NewHealth, 0.0f, MaxHealth);
     if (FMath::IsNearlyEqual(ClampedHealth, Health)) return;
 
+    if (ClampedHealth <= 0.0f && !bIsDead)
+    {
+        //bIsDead = true;
+        Kill();
+        //OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            World->GetTimerManager().ClearTimer(HealthRegenTimer);
+            World->GetTimerManager().ClearTimer(ReserveRegenTimer);
+        }
+    }
+
     float OldHealth = Health;
     Health = ClampedHealth;
     float Delta = Health - OldHealth;
@@ -693,17 +727,7 @@ void UEnemyDamageComponent::SetHealth(float NewHealth)
     if (OldZone != CurrentHealthZoneTag)
         OnHealthZoneChanged.Broadcast(CurrentHealthZoneTag, OldZone);
 
-    if (Health <= 0.0f && !bIsDead)
-    {
-        bIsDead = true;
-        OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
-        UWorld* World = GetWorld();
-        if (World)
-        {
-            World->GetTimerManager().ClearTimer(HealthRegenTimer);
-            World->GetTimerManager().ClearTimer(ReserveRegenTimer);
-        }
-    }
+
 }
 
 void UEnemyDamageComponent::SetMaxHealth(float NewMaxHealth)
@@ -713,7 +737,7 @@ void UEnemyDamageComponent::SetMaxHealth(float NewMaxHealth)
     float OldMaxHealth = MaxHealth;
     MaxHealth = NewMaxHealth;
 
-    // Если есть зоны, масштабируем их пропорционально
+    // Масштабируем зоны пропорционально
     if (RuntimeHealthZones.Num() > 0 && OldMaxHealth > 0.0f)
     {
         float Scale = NewMaxHealth / OldMaxHealth;
@@ -722,19 +746,45 @@ void UEnemyDamageComponent::SetMaxHealth(float NewMaxHealth)
             Zone.UpperBound *= Scale;
             Zone.LowerBound *= Scale;
         }
-        // Валидируем, чтобы избежать ошибок округления
-        CheckHealthZone();
+        CheckHealthZone(); // валидация
     }
 
-    // Корректируем текущее здоровье, если оно больше нового максимума
+    // Корректируем здоровье, если оно превышает новый максимум
     if (Health > MaxHealth)
     {
         Health = MaxHealth;
-        OnHealthChanged.Broadcast(Health, 0.0f); // или можно вызвать с дельтой
+        OnHealthChanged.Broadcast(Health, 0.0f);
     }
 
-    // Обновляем зону
+    // Сохраняем старую зону, обновляем, генерируем событие при изменении
+    FName OldZone = CurrentHealthZoneTag;
     UpdateHealthZone();
+    if (OldZone != CurrentHealthZoneTag)
+    {
+        OnHealthZoneChanged.Broadcast(CurrentHealthZoneTag, OldZone);
+
+        // Логирование
+        if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+        {
+            AActor* Owner = GetOwner();
+            FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+            UE_LOG(LogTemp, Log, TEXT("[%s] Health zone changed from %s to %s due to MaxHealth change (NewMax=%.1f)"),
+                *OwnerName, *OldZone.ToString(), *CurrentHealthZoneTag.ToString(), MaxHealth);
+        }
+    }
+    /*
+    else
+    {
+        // Опционально: лог, что зона не изменилась (если нужно)
+        if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+        {
+            AActor* Owner = GetOwner();
+            FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+            UE_LOG(LogTemp, Log, TEXT("[%s] Health zone unchanged after MaxHealth change (Zone: %s, NewMax=%.1f)"),
+                *OwnerName, *CurrentHealthZoneTag.ToString(), MaxHealth);
+        }
+    }
+    */
 }
 
 // ---- Резервы ----
@@ -911,7 +961,7 @@ void UEnemyDamageComponent::Kill()
     if (bIsDead) return;
     if (Health <= 0.0f) return; // уже мёртв
 
-    //Health = 0.0f;
+    Health = 0.0f;
     bIsDead = true;
     OnHealthChanged.Broadcast(0, -Health); // дельта = -старое здоровье
     Health = 0.0f;
@@ -919,7 +969,6 @@ void UEnemyDamageComponent::Kill()
     UpdateHealthZone();
     if (OldZone != CurrentHealthZoneTag)
         OnHealthZoneChanged.Broadcast(CurrentHealthZoneTag, OldZone);
-    OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
 
     UWorld* World = GetWorld();
     if (World)
@@ -935,6 +984,8 @@ void UEnemyDamageComponent::Kill()
         FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
         UE_LOG(LogTemp, Log, TEXT("[%s] Killed by script."), *OwnerName);
     }
+
+    OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
 }
 
 void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float ModifiedDamage, float HitZoneMult, float DamageAfterZone, float FinalHealthDamage, float HealthDelta, bool bAnyReserveChanged)
