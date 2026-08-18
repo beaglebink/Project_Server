@@ -98,7 +98,7 @@ public:
 
 	UPROPERTY()
 	float PourIntensityNormalized = 0.0f;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float LiquidPourRateNormalized = 0.1f;
 
@@ -181,7 +181,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	UDA_Recipes* Recipes;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 5.0f))
 	float SignificantChunkPercentage = 0.1f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
@@ -211,9 +211,18 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Fluid")
 	UDA_FluidPoints* FluidPointsDataAsset;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid")
+	FLinearColor LiquidColor;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fluid")
 	FVector CutPlaneNormal = FVector(0.0f, 0.0f, 1.0f);
 
 	UFUNCTION(CallInEditor, Category = "Fluid")
 	void UpdateNiagaraPreview();
+
+	//Pour simulation
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Fluid")
+	UNiagaraComponent* PourFX;
+
+
 };

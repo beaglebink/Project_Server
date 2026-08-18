@@ -21,6 +21,7 @@ AA_Dishes::AA_Dishes()
 	EdgeLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EdgeLiquidLevelPoint"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 	FluidFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FluidFX"));
+	PourFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("PourFX"));
 
 	CollisionShape->SetupAttachment(RootComponent);
 	LiquidShape->SetupAttachment(RootComponent);
@@ -31,6 +32,7 @@ AA_Dishes::AA_Dishes()
 	EmptyLiquidLevelPoint->SetupAttachment(RootComponent);
 	EdgeLiquidLevelPoint->SetupAttachment(RootComponent);
 	FluidFX->SetupAttachment(LiquidShape);
+	PourFX->SetupAttachment(LiquidShape);
 
 	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
@@ -42,7 +44,7 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->bHiddenInGame = true;
 
 	FluidFX->SetAutoActivate(true);
-
+	PourFX->SetAutoActivate(false);
 }
 
 void AA_Dishes::OnConstruction(const FTransform& Transform)
@@ -50,6 +52,8 @@ void AA_Dishes::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 
 	// Initialize Liquid
+	FluidFX->SetVariableLinearColor(FName(TEXT("User.LiquidColor")), LiquidColor);
+	PourFX->SetVariableLinearColor(FName(TEXT("User.LiquidColor")), LiquidColor);
 	FullLiquidVolume = LiquidVolume;
 	BoundsRadius = StaticMesh->Bounds.SphereRadius;
 
@@ -231,13 +235,18 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 
 		GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Blue, FString::Printf(TEXT("PourIntensityNormalized: %f   LiquidLevelNormalized: %f   LiquidVolume: %f"), PourIntensityNormalized, LiquidLevelNormalized, LiquidVolume));
 
-		// Update Niagara fluid effect
-		// send CurrentPourRate to Niagara !!!
+		if (!PourFX->IsActive())
+		{
+			PourFX->Activate();
+		}
 	}
+	// Update Niagara pour effect
+	PourFX->SetVariableFloat(FName(TEXT("User.PourIntensity")), PourIntensityNormalized);
 
 	if (LiquidLevelNormalized <= 0.0f)
 	{
 		FluidFX->Deactivate();
+		PourFX->Deactivate();
 	}
 }
 
