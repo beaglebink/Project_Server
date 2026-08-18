@@ -20,6 +20,7 @@ class USphereComponent;
 class AA_Cookable;
 class UNiagaraComponent;
 class UDA_FluidPoints;
+class UWidgetComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_Dishes : public AA_InteractableActor
@@ -73,7 +74,10 @@ public:
 	USceneComponent* EmptyLiquidLevelPoint;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	USceneComponent* EdgeLiquidLevelPoint;
+	USceneComponent* EdgeLiquidPoint;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UWidgetComponent* DishWidget;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	bool bShowCookingDebug = false;
@@ -99,7 +103,7 @@ public:
 	UPROPERTY()
 	float PourIntensityNormalized = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, ClampMax = 5.0f))
 	float LiquidPourRateNormalized = 0.1f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, DisplayName = "LiquidVolume (ml)"))
@@ -214,7 +218,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid")
 	FLinearColor LiquidColor;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fluid")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid")
+	ELiquidType LiquidType = ELiquidType::None;
+
+	UPROPERTY()
 	FVector CutPlaneNormal = FVector(0.0f, 0.0f, 1.0f);
 
 	UFUNCTION(CallInEditor, Category = "Fluid")
@@ -224,5 +231,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Fluid")
 	UNiagaraComponent* PourFX;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid")
+	float SphereLocationRadius = 3.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid")
+	float PourVelocityValue = 200.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "Fluid")
+	void AddLiquid(ELiquidType Type, float Amount);
 };

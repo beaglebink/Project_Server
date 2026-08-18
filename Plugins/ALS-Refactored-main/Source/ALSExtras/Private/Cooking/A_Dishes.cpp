@@ -6,6 +6,9 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "Cooking/DA_FluidPoints.h"
+#include "Components/WidgetComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 AA_Dishes::AA_Dishes()
 {
@@ -18,7 +21,8 @@ AA_Dishes::AA_Dishes()
 	FullLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("FullLiquidLevelPoint"));
 	CentreLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CentreLiquidLevelPoint"));
 	EmptyLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EmptyLiquidLevelPoint"));
-	EdgeLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EdgeLiquidLevelPoint"));
+	EdgeLiquidPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EdgeLiquidPoint"));
+	DishWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("DishWidget"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 	FluidFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FluidFX"));
 	PourFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("PourFX"));
@@ -30,7 +34,8 @@ AA_Dishes::AA_Dishes()
 	FullLiquidLevelPoint->SetupAttachment(RootComponent);
 	CentreLiquidLevelPoint->SetupAttachment(RootComponent);
 	EmptyLiquidLevelPoint->SetupAttachment(RootComponent);
-	EdgeLiquidLevelPoint->SetupAttachment(RootComponent);
+	EdgeLiquidPoint->SetupAttachment(RootComponent);
+	DishWidget->SetupAttachment(RootComponent);
 	FluidFX->SetupAttachment(LiquidShape);
 	PourFX->SetupAttachment(LiquidShape);
 
@@ -43,7 +48,10 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->SetCollisionResponseToChannel(ECC_GameTraceChannel10, ECollisionResponse::ECR_Block);
 	LiquidShape->bHiddenInGame = true;
 
-	FluidFX->SetAutoActivate(true);
+	DishWidget->SetWidgetSpace(EWidgetSpace::Screen);
+	DishWidget->SetDrawSize(FVector2D(200.0f, 400.0f));
+
+	FluidFX->SetAutoActivate(false);
 	PourFX->SetAutoActivate(false);
 }
 
@@ -51,15 +59,30 @@ void AA_Dishes::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	// Initialize Liquid
-	FluidFX->SetVariableLinearColor(FName(TEXT("User.LiquidColor")), LiquidColor);
-	PourFX->SetVariableLinearColor(FName(TEXT("User.LiquidColor")), LiquidColor);
-	FullLiquidVolume = LiquidVolume;
-	BoundsRadius = StaticMesh->Bounds.SphereRadius;
+	if (LiquidType != ELiquidType::None)
+	{
+		if (!FluidFX->IsActive())
+		{
+			FluidFX->Activate();
+		}
 
-	// Update liquid level
-	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
-	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
+		// Initialize Liquid
+		FluidFX->SetVariableLinearColor(FName(TEXT("User.LiquidColor")), LiquidColor);
+		PourFX->SetVariableLinearColor(FName(TEXT("User.LiquidColor")), LiquidColor);
+		PourFX->SetVariableFloat(FName(TEXT("User.PourVelocityValue")), PourVelocityValue);
+		PourFX->SetVariableFloat(FName(TEXT("User.SphereLocationRadius")), SphereLocationRadius);
+		FullLiquidVolume = LiquidVolume;
+		BoundsRadius = StaticMesh->Bounds.SphereRadius;
+		LiquidLevelPoint->SetWorldLocation(FullLiquidVolume == 0.0f ? EmptyLiquidLevelPoint->GetComponentLocation() : FullLiquidLevelPoint->GetComponentLocation());
+
+		// Update liquid level
+		FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
+		FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
+	}
+	else
+	{
+		FluidFX->Deactivate();
+	}
 }
 
 void AA_Dishes::Tick(float DeltaTime)
@@ -126,10 +149,13 @@ void AA_Dishes::Tick(float DeltaTime)
 	PrevLocation = CurrentLocation;
 
 	// Update liquid level
-	FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
-	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
+	if (LiquidType != ELiquidType::None)
+	{
+		FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
+		FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
 
-	PourLiquid(DeltaTime);
+		PourLiquid(DeltaTime);
+	}
 }
 
 void AA_Dishes::BeginPlay()
@@ -204,6 +230,16 @@ void AA_Dishes::BeginPlay()
 				}
 			}
 		}, 0.5f, true);
+
+	//Fluid visual
+	if (LiquidType != ELiquidType::None)
+	{
+		FluidFX->Activate();
+	}
+	else
+	{
+		FluidFX->Deactivate();
+	}
 }
 
 void AA_Dishes::Destroyed()
@@ -214,7 +250,7 @@ void AA_Dishes::Destroyed()
 
 void AA_Dishes::PourLiquid(float DeltaTime)
 {
-	PourIntensityNormalized = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, BoundsRadius * 2.0f), FVector2D(0.0f, 1.0f), LiquidLevelPoint->GetComponentLocation().Z - EdgeLiquidLevelPoint->GetComponentLocation().Z);
+	PourIntensityNormalized = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, BoundsRadius * 2.0f), FVector2D(0.0f, 1.0f), LiquidLevelPoint->GetComponentLocation().Z - EdgeLiquidPoint->GetComponentLocation().Z);
 	if (PourIntensityNormalized > 0.0f && LiquidLevelNormalized > 0.0f)
 	{
 		FHitResult UpHitResult, DownHitResult;
@@ -230,16 +266,50 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 		}
 
 		LiquidLevelNormalized -= PourIntensityNormalized * LiquidPourRateNormalized * DeltaTime;
-		LiquidVolume = FMath::Lerp(FullLiquidVolume, 0.0f, 1.0f - LiquidLevelNormalized);
-		LiquidLevelPoint->SetWorldLocation(FMath::Lerp(FullLiquidLevelPoint->GetComponentLocation(), EmptyLiquidLevelPoint->GetComponentLocation(), 1.0f - LiquidLevelNormalized));
+		LiquidVolume = FMath::Lerp(0.0f, FullLiquidVolume, LiquidLevelNormalized);
+		LiquidLevelPoint->SetWorldLocation(FMath::Lerp(EmptyLiquidLevelPoint->GetComponentLocation(), FullLiquidLevelPoint->GetComponentLocation(), LiquidLevelNormalized));
 
-		GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Blue, FString::Printf(TEXT("PourIntensityNormalized: %f   LiquidLevelNormalized: %f   LiquidVolume: %f"), PourIntensityNormalized, LiquidLevelNormalized, LiquidVolume));
+		//Check if liquid gets into dish
+		FPredictProjectilePathParams Params;
+
+		Params.StartLocation = EdgeLiquidPoint->GetComponentLocation();
+		Params.LaunchVelocity = EdgeLiquidPoint->GetUpVector() * PourVelocityValue * PourIntensityNormalized;
+		Params.ProjectileRadius = SphereLocationRadius;
+		Params.MaxSimTime = 1.0f;
+		Params.SimFrequency = 15.0f;
+		Params.bTraceWithCollision = false;
+		Params.DrawDebugType = EDrawDebugTrace::None;
+
+		FPredictProjectilePathResult Result;
+		UGameplayStatics::PredictProjectilePath(this, Params, Result);
+
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+		FHitResult PourHitResult;
+		for (int32 i = 1; i < Result.PathData.Num(); ++i)
+		{
+			FVector Start = Result.PathData[i - 1].Location;
+			FVector End = Result.PathData[i].Location;
+
+			GetWorld()->SweepSingleByChannel(PourHitResult, Start, End, FQuat::Identity, ECC_GameTraceChannel10, FCollisionShape::MakeSphere(Params.ProjectileRadius), QueryParams);
+			if (PourHitResult.bBlockingHit)
+			{
+				if (AA_Dishes* RefillableDish = Cast<AA_Dishes>(PourHitResult.GetActor()))
+				{
+					RefillableDish->AddLiquid(LiquidType, FullLiquidVolume * PourIntensityNormalized * LiquidPourRateNormalized * DeltaTime);
+					break;
+				}
+			}
+		}
+
+		//GEngine->AddOnScreenDebugMessage(-1, 20.0f, FColor::Blue, FString::Printf(TEXT("PourIntensityNormalized: %f   LiquidLevelNormalized: %f   LiquidVolume: %f"), PourIntensityNormalized, LiquidLevelNormalized, LiquidVolume));
 
 		if (!PourFX->IsActive())
 		{
 			PourFX->Activate();
 		}
 	}
+
 	// Update Niagara pour effect
 	PourFX->SetVariableFloat(FName(TEXT("User.PourIntensity")), PourIntensityNormalized);
 
@@ -637,4 +707,9 @@ void AA_Dishes::UpdateNiagaraPreview()
 	FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
 
 	FluidFX->ResetSystem();
+}
+
+void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("Adding liquid: %s, Amount: %.2f"), *UEnum::GetValueAsString(Type), Amount));
 }
