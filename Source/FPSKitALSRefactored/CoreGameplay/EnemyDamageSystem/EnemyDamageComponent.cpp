@@ -772,19 +772,6 @@ void UEnemyDamageComponent::SetMaxHealth(float NewMaxHealth)
                 *OwnerName, *OldZone.ToString(), *CurrentHealthZoneTag.ToString(), MaxHealth);
         }
     }
-    /*
-    else
-    {
-        // Опционально: лог, что зона не изменилась (если нужно)
-        if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
-        {
-            AActor* Owner = GetOwner();
-            FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
-            UE_LOG(LogTemp, Log, TEXT("[%s] Health zone unchanged after MaxHealth change (Zone: %s, NewMax=%.1f)"),
-                *OwnerName, *CurrentHealthZoneTag.ToString(), MaxHealth);
-        }
-    }
-    */
 }
 
 // ---- Резервы ----
