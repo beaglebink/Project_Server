@@ -9,6 +9,8 @@
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "GameFramework/SpringArmComponent.h"
 
 AA_Dishes::AA_Dishes()
 {
@@ -21,6 +23,7 @@ AA_Dishes::AA_Dishes()
 	FullLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("FullLiquidLevelPoint"));
 	CentreLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CentreLiquidLevelPoint"));
 	EmptyLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EmptyLiquidLevelPoint"));
+	SpringArmToEdge = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmToEdgePoint"));
 	EdgeLiquidPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EdgeLiquidPoint"));
 	DishWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("DishWidget"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
@@ -34,10 +37,11 @@ AA_Dishes::AA_Dishes()
 	FullLiquidLevelPoint->SetupAttachment(RootComponent);
 	CentreLiquidLevelPoint->SetupAttachment(RootComponent);
 	EmptyLiquidLevelPoint->SetupAttachment(RootComponent);
-	EdgeLiquidPoint->SetupAttachment(RootComponent);
+	SpringArmToEdge->SetupAttachment(RootComponent);
+	EdgeLiquidPoint->SetupAttachment(SpringArmToEdge);
 	DishWidget->SetupAttachment(RootComponent);
 	FluidFX->SetupAttachment(LiquidShape);
-	PourFX->SetupAttachment(LiquidShape);
+	PourFX->SetupAttachment(EdgeLiquidPoint);
 
 	CollisionShape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
@@ -47,6 +51,8 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	LiquidShape->SetCollisionResponseToChannel(ECC_GameTraceChannel10, ECollisionResponse::ECR_Block);
 	LiquidShape->bHiddenInGame = true;
+
+	SpringArmToEdge->bDoCollisionTest = false;
 
 	DishWidget->SetWidgetSpace(EWidgetSpace::Screen);
 	DishWidget->SetDrawSize(FVector2D(200.0f, 400.0f));
@@ -147,6 +153,9 @@ void AA_Dishes::Tick(float DeltaTime)
 	}
 
 	PrevLocation = CurrentLocation;
+
+	//Find lowest edge point to pour liquid
+	SpringArmToEdge->SetWorldRotation((GetActorUpVector().Cross(FVector(0.0f, 0.0f, 1.0f)).Cross(GetActorUpVector()) * (-1.0f)).Rotation());
 
 	// Update liquid level
 	if (LiquidType != ELiquidType::None)

@@ -63,6 +63,7 @@ class AA_Cookable;
 class UNiagaraComponent;
 class UDA_FluidPoints;
 class UWidgetComponent;
+class USpringArmComponent;
 
 UCLASS()
 class ALSEXTRAS_API AA_Dishes : public AA_InteractableActor
@@ -114,6 +115,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* EmptyLiquidLevelPoint;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	USpringArmComponent* SpringArmToEdge;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* EdgeLiquidPoint;
@@ -294,10 +298,10 @@ private:
 
 	void UpdateCookingSession();
 
-	public:
-		UFUNCTION(BlueprintImplementableEvent, Category = "CookingTimer")
-		void SetCookingTimerVisibility(bool IsSet);
+public:
+	UFUNCTION(BlueprintImplementableEvent, Category = "CookingTimer")
+	void SetCookingTimerVisibility(bool IsSet);
 
-		UFUNCTION(BlueprintImplementableEvent, Category = "CookingTimer")
-		void SetCookingTimerValue(int Value);
+	UFUNCTION(BlueprintImplementableEvent, Category = "CookingTimer")
+	void SetCookingTimerValue(int Value);
 };
