@@ -86,17 +86,18 @@ void UEnemyDamageComponent::InitializeFromConfig()
             if (Layer.LayerType == EDefenseLayerType::Reserve)
             {
                 CurrentReserves.Add(FMath::Min(Layer.InitialReserve, Layer.MaxReserve));
-                RuntimeResistanceMultipliers.Add(1.0f); // не используется для резерва
+                RuntimeResistanceMultipliers.Add(1.0f);
                 RuntimeReserveRegenParams.Add(Layer.ReserveRegen);
                 bReserveRegenEnabled.Add(true);
+                RuntimeMaxReserves.Add(Layer.MaxReserve); // <-- добавлено
             }
             else // Resistance
             {
                 CurrentReserves.Add(0.0f);
                 RuntimeResistanceMultipliers.Add(Layer.ResistanceMultiplier);
-                // для сопротивления нет регенерации
                 RuntimeReserveRegenParams.Add(FRegenerationParams());
                 bReserveRegenEnabled.Add(false);
+                RuntimeMaxReserves.Add(0.0f); // не используется
             }
             LastReserveDamageTimes.Add(0.0f);
         }
@@ -115,7 +116,6 @@ void UEnemyDamageComponent::InitializeFromConfig()
         RuntimeBaseStaggerChance = Config->BaseStaggerChance;
         RuntimeStaggerSusceptibility = Config->StaggerSusceptibility;
         
-        //if(Config->StaggerCooldown > 0)
         RuntimeStaggerCooldown = Config->StaggerCooldown;
 
         // Запуск таймеров регенерации
@@ -546,6 +546,19 @@ void UEnemyDamageComponent::ApplyHealthRegen()
     if (!World) return;
 
     const FRegenerationParams& Params = RuntimeHealthRegenParams;
+
+    // Проверка на стаггер
+    if (bStaggerOnCooldown && !Params.bRegenWhileStaggered)
+    {
+        if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+        {
+            AActor* Owner = GetOwner();
+            FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+            UE_LOG(LogTemp, Log, TEXT("[%s] Health regen skipped because staggered and bRegenWhileStaggered=false"), *OwnerName);
+        }
+        return;
+    }
+
     if (Params.RegenRatePerSecond <= 0.0f) return;
 
     if (Params.bInterruptOnDamage && (World->GetTimeSeconds() - LastHealthDamageTime) < Params.RegenDelayAfterDamage)
@@ -587,6 +600,20 @@ void UEnemyDamageComponent::ApplyReserveRegen()
         if (!bReserveRegenEnabled.IsValidIndex(i) || !bReserveRegenEnabled[i]) continue;
 
         const FRegenerationParams& Params = RuntimeReserveRegenParams[i];
+
+        // Проверка на стаггер для данного слоя
+        if (bStaggerOnCooldown && !Params.bRegenWhileStaggered)
+        {
+            if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+            {
+                AActor* Owner = GetOwner();
+                FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+                UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regen for layer [%s] skipped because staggered and bRegenWhileStaggered=false"),
+                    *OwnerName, *Layer.LayerTag.ToString());
+            }
+            continue;
+        }
+
         if (Params.RegenRatePerSecond <= 0.0f) continue;
 
         if (Params.bInterruptOnDamage && (World->GetTimeSeconds() - LastReserveDamageTimes[i]) < Params.RegenDelayAfterDamage)
@@ -594,7 +621,10 @@ void UEnemyDamageComponent::ApplyReserveRegen()
 
         float& Reserve = CurrentReserves[i];
         float OldReserve = Reserve;
-        Reserve = FMath::Min(Layer.MaxReserve, Reserve + Params.RegenRatePerSecond * 0.1f);
+
+        // Восстанавливаем резерв до нового максимума (RuntimeMaxReserves[i])
+        Reserve = FMath::Min(RuntimeMaxReserves[i], Reserve + Params.RegenRatePerSecond * 0.1f);
+
         float ActualDelta = Reserve - OldReserve;
         if (ActualDelta > 0.0f)
         {
@@ -604,8 +634,8 @@ void UEnemyDamageComponent::ApplyReserveRegen()
             {
                 AActor* Owner = GetOwner();
                 FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
-                UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regen (%s): +%.1f (NewReserve %.1f)"),
-                    *OwnerName, *Layer.LayerTag.ToString(), ActualDelta, Reserve);
+                UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regen (%s): +%.1f (NewReserve %.1f / Max %.1f)"),
+                    *OwnerName, *Layer.LayerTag.ToString(), ActualDelta, Reserve, RuntimeMaxReserves[i]);
             }
         }
     }
@@ -656,35 +686,22 @@ void UEnemyDamageComponent::ResetState()
 }
 
 // ---- Здоровье ----
-void UEnemyDamageComponent::Heal(float Amount, bool bInstant)
+void UEnemyDamageComponent::Heal(float Amount)
 {
     if (bIsDead) return;
     if (Amount <= 0.0f) return;
 
-    if (bInstant)
+    float OldHealth = Health;
+    Health = FMath::Min(Health + Amount, MaxHealth);
+    float Delta = Health - OldHealth;
+    if (Delta > 0.0f)
     {
-        float OldHealth = Health;
-        Health = FMath::Min(Health + Amount, MaxHealth);
-        float Delta = Health - OldHealth;
-        if (Delta > 0.0f)
-        {
-            OnHealthChanged.Broadcast(Health, Delta);
-            // Обновляем зону здоровья
-            FName OldZone = CurrentHealthZoneTag;
-            UpdateHealthZone();
-            if (OldZone != CurrentHealthZoneTag)
-                OnHealthZoneChanged.Broadcast(CurrentHealthZoneTag, OldZone);
-        }
-    }
-    else
-    {
-        // Постепенное восстановление – можно запустить регенерацию с заданной скоростью,
-        // но проще воспользоваться существующей регенерацией, изменив её параметры.
-        // Для простоты оставим мгновенное, а постепенное реализуем через изменение параметров регенерации.
-        // Либо можно запустить отдельный таймер, но это усложнит.
-        // Предлагаем сделать только мгновенное восстановление, а для постепенного использовать настройку регенерации.
-        // Поэтому просто игнорируем bInstant == false или делаем то же самое.
-        Heal(Amount, true);
+        OnHealthChanged.Broadcast(Health, Delta);
+        // Обновляем зону здоровья
+        FName OldZone = CurrentHealthZoneTag;
+        UpdateHealthZone();
+        if (OldZone != CurrentHealthZoneTag)
+            OnHealthZoneChanged.Broadcast(CurrentHealthZoneTag, OldZone);
     }
 }
 
@@ -693,7 +710,7 @@ void UEnemyDamageComponent::HealToMax(bool bInstant)
     if (bIsDead) return;
     float Missing = MaxHealth - Health;
     if (Missing > 0.0f)
-        Heal(Missing, bInstant);
+        Heal(Missing);
 }
 
 void UEnemyDamageComponent::SetHealth(float NewHealth)
@@ -705,9 +722,7 @@ void UEnemyDamageComponent::SetHealth(float NewHealth)
 
     if (ClampedHealth <= 0.0f && !bIsDead)
     {
-        //bIsDead = true;
         Kill();
-        //OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
         UWorld* World = GetWorld();
         if (World)
         {
@@ -775,14 +790,24 @@ void UEnemyDamageComponent::SetMaxHealth(float NewMaxHealth)
 }
 
 // ---- Резервы ----
-void UEnemyDamageComponent::RestoreReserve(int32 LayerIndex, float Amount, bool bInstant)
+void UEnemyDamageComponent::RestoreReserve(int32 LayerIndex, float Amount)
 {
-    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
-    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve) return;
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("RestoreReserve: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve)
+    {
+        UE_LOG(LogTemp, Error, TEXT("RestoreReserve: Layer %d is not a Reserve layer"), LayerIndex);
+        return;
+    }
+
     if (bIsDead) return;
 
     float& Reserve = CurrentReserves[LayerIndex];
-    float MaxRes = Config->DefenseLayers[LayerIndex].MaxReserve;
+    float MaxRes = RuntimeMaxReserves[LayerIndex]; // <-- изменено
     float OldReserve = Reserve;
     Reserve = FMath::Min(Reserve + Amount, MaxRes);
     float Delta = Reserve - OldReserve;
@@ -792,23 +817,43 @@ void UEnemyDamageComponent::RestoreReserve(int32 LayerIndex, float Amount, bool 
     }
 }
 
-void UEnemyDamageComponent::RestoreReserveToMax(int32 LayerIndex, bool bInstant)
+void UEnemyDamageComponent::RestoreReserveToMax(int32 LayerIndex)
 {
-    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
-    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve) return;
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("RestoreReserveToMax: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve)
+    {
+        UE_LOG(LogTemp, Error, TEXT("RestoreReserveToMax: Layer %d is not a Reserve layer"), LayerIndex);
+        return;
+    }
+
     float MaxRes = Config->DefenseLayers[LayerIndex].MaxReserve;
     float Current = CurrentReserves[LayerIndex];
     if (Current < MaxRes)
-        RestoreReserve(LayerIndex, MaxRes - Current, bInstant);
+        RestoreReserve(LayerIndex, MaxRes - Current);
 }
 
 void UEnemyDamageComponent::SetReserve(int32 LayerIndex, float NewValue)
 {
-    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
-    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve) return;
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserve: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserve: Layer %d is not a Reserve layer"), LayerIndex);
+        return;
+    }
+
     if (bIsDead) return;
 
-    float MaxRes = Config->DefenseLayers[LayerIndex].MaxReserve;
+    float MaxRes = RuntimeMaxReserves[LayerIndex]; // <-- изменено
     float Clamped = FMath::Clamp(NewValue, 0.0f, MaxRes);
     if (FMath::IsNearlyEqual(Clamped, CurrentReserves[LayerIndex])) return;
 
@@ -816,26 +861,203 @@ void UEnemyDamageComponent::SetReserve(int32 LayerIndex, float NewValue)
     OnReserveChanged.Broadcast(Config->DefenseLayers[LayerIndex].LayerTag, Clamped);
 }
 
+// ---- Регенерация резервов ----
+void UEnemyDamageComponent::SetAllReserveRegenEnabled(bool bEnabled)
+{
+    if (!Config) return;
+
+    int32 ModifiedCount = 0;
+    for (int32 i = 0; i < Config->DefenseLayers.Num(); ++i)
+    {
+        if (Config->DefenseLayers[i].LayerType == EDefenseLayerType::Reserve)
+        {
+            if (bReserveRegenEnabled.IsValidIndex(i))
+            {
+                if (bReserveRegenEnabled[i] != bEnabled)
+                {
+                    bReserveRegenEnabled[i] = bEnabled;
+                    ModifiedCount++;
+                }
+            }
+        }
+    }
+
+    // Логирование
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Set reserve regeneration %s for %d layers"),
+            *OwnerName, bEnabled ? TEXT("ENABLED") : TEXT("DISABLED"), ModifiedCount);
+    }
+}
+
+void UEnemyDamageComponent::SetReserveRegenEnabled(int32 LayerIndex, bool bEnabled)
+{
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve) return;
+    if (!bReserveRegenEnabled.IsValidIndex(LayerIndex)) return;
+
+    if (bReserveRegenEnabled[LayerIndex] != bEnabled)
+    {
+        bReserveRegenEnabled[LayerIndex] = bEnabled;
+
+        if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+        {
+            AActor* Owner = GetOwner();
+            FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+            UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regeneration for layer %d (%s) set to %s"),
+                *OwnerName, LayerIndex, *Config->DefenseLayers[LayerIndex].LayerTag.ToString(),
+                bEnabled ? TEXT("ENABLED") : TEXT("DISABLED"));
+        }
+    }
+}
+
+void UEnemyDamageComponent::SetMaxReserve(int32 LayerIndex, float NewMaxReserve)
+{
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetMaxReserve: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetMaxReserve: Layer %d is not a Reserve layer"), LayerIndex);
+        return;
+    }
+
+    if (!RuntimeMaxReserves.IsValidIndex(LayerIndex)) return;
+
+    float OldMax = RuntimeMaxReserves[LayerIndex];
+    RuntimeMaxReserves[LayerIndex] = FMath::Max(0.0f, NewMaxReserve);
+
+    // Если текущий резерв превышает новый максимум, обрезаем его
+    if (CurrentReserves[LayerIndex] > RuntimeMaxReserves[LayerIndex])
+    {
+        CurrentReserves[LayerIndex] = RuntimeMaxReserves[LayerIndex];
+        OnReserveChanged.Broadcast(Config->DefenseLayers[LayerIndex].LayerTag, CurrentReserves[LayerIndex]);
+    }
+
+    // Логирование
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] MaxReserve for layer [%s] (index %d) changed from %.1f to %.1f"),
+            *OwnerName, *Config->DefenseLayers[LayerIndex].LayerTag.ToString(), LayerIndex, OldMax, RuntimeMaxReserves[LayerIndex]);
+    }
+}
+
+void UEnemyDamageComponent::SetReserveRegenPerSecond(int32 LayerIndex, float Rate)
+{
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserveRegenRate: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserveRegenRate: Layer %d is not a Reserve layer"), LayerIndex);
+        return;
+    }
+
+    if (!RuntimeReserveRegenParams.IsValidIndex(LayerIndex)) return;
+
+	float OldSpeed = RuntimeReserveRegenParams[LayerIndex].RegenRatePerSecond;
+    RuntimeReserveRegenParams[LayerIndex].RegenRatePerSecond = FMath::Max(0.0f, Rate);
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Set Reserve Regen Per Second for layer [%s] (index %d) changed from %.1f to %.1f"),
+            *OwnerName, *Config->DefenseLayers[LayerIndex].LayerTag.ToString(), LayerIndex, OldSpeed, RuntimeReserveRegenParams[LayerIndex].RegenRatePerSecond);
+    }
+}
+
+void UEnemyDamageComponent::SetReserveRegenDelay(int32 LayerIndex, float Delay)
+{
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserveRegenDelay: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserveRegenDelay: Layer %d is not a Reserve layer"), LayerIndex);
+        return;
+    }
+
+    if (!RuntimeReserveRegenParams.IsValidIndex(LayerIndex)) return;
+
+	float OldDelay = RuntimeReserveRegenParams[LayerIndex].RegenDelayAfterDamage;
+    RuntimeReserveRegenParams[LayerIndex].RegenDelayAfterDamage = FMath::Max(0.0f, Delay);
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Set Reserve Regen Delay for layer [%s] (index %d) changed from %.1f to %.1f"),
+            *OwnerName, *Config->DefenseLayers[LayerIndex].LayerTag.ToString(), LayerIndex, OldDelay, RuntimeReserveRegenParams[LayerIndex].RegenDelayAfterDamage);
+    }
+}
+
+void UEnemyDamageComponent::SetReserveRegenInterruptOnDamage(int32 LayerIndex, bool bInterrupt)
+{
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserveRegenInterruptOnDamage: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserveRegenInterruptOnDamage: Layer %d is not a Reserve layer"), LayerIndex);
+        return;
+    }
+
+    if (!RuntimeReserveRegenParams.IsValidIndex(LayerIndex)) return;
+
+    RuntimeReserveRegenParams[LayerIndex].bInterruptOnDamage = bInterrupt;
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Set Reserve Regen Interrupt On Damage for layer [%s] (index %d) changed to %s"),
+            *OwnerName, *Config->DefenseLayers[LayerIndex].LayerTag.ToString(), LayerIndex, bInterrupt ? TEXT("true") : TEXT("false"));
+    }
+}
+
 // ---- Сопротивление ----
 void UEnemyDamageComponent::SetResistanceMultiplier(int32 LayerIndex, float NewMultiplier)
 {
-    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
-    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Resistance) return;
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetResistanceMultiplier: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Resistance)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetResistanceMultiplier: Layer %d is not a Resistance layer"), LayerIndex);
+        return;
+    }
+
     if (!RuntimeResistanceMultipliers.IsValidIndex(LayerIndex)) return;
 
+	float OldResistence = RuntimeResistanceMultipliers[LayerIndex];
     RuntimeResistanceMultipliers[LayerIndex] = FMath::Max(0.0f, NewMultiplier);
-}
 
-void UEnemyDamageComponent::SetResistanceMultiplierByTag(FName LayerTag, float NewMultiplier)
-{
-    if (!Config) return;
-    for (int32 i = 0; i < Config->DefenseLayers.Num(); ++i)
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
     {
-        if (Config->DefenseLayers[i].LayerTag == LayerTag && Config->DefenseLayers[i].LayerType == EDefenseLayerType::Resistance)
-        {
-            SetResistanceMultiplier(i, NewMultiplier);
-            return;
-        }
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Set Resistance Multiplier for layer [%s] (index %d) changed from %.1f to %.1f"),
+            *OwnerName, *Config->DefenseLayers[LayerIndex].LayerTag.ToString(), LayerIndex, OldResistence, RuntimeResistanceMultipliers[LayerIndex]);
     }
 }
 
@@ -848,6 +1070,14 @@ void UEnemyDamageComponent::SetHealthRegenEnabled(bool bEnabled)
         UWorld* World = GetWorld();
         if (World)
             World->GetTimerManager().ClearTimer(HealthRegenTimer);
+
+        if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+        {
+            AActor* Owner = GetOwner();
+            FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+            UE_LOG(LogTemp, Log, TEXT("[%s] Set Health Regen Enabled true"),
+                *OwnerName);
+        }
     }
     else
     {
@@ -857,11 +1087,20 @@ void UEnemyDamageComponent::SetHealthRegenEnabled(bool bEnabled)
         {
             World->GetTimerManager().SetTimer(HealthRegenTimer, this, &UEnemyDamageComponent::ApplyHealthRegen, 0.1f, true);
         }
+
+        if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+        {
+            AActor* Owner = GetOwner();
+            FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+            UE_LOG(LogTemp, Log, TEXT("[%s] Set Health Regen Enabled false"),
+                *OwnerName);
+        }
     }
 }
 
-void UEnemyDamageComponent::SetHealthRegenRate(float Rate)
+void UEnemyDamageComponent::SetHealthRegenRatePerSecond(float Rate)
 {
+	float OldRate = RuntimeHealthRegenParams.RegenRatePerSecond;
     RuntimeHealthRegenParams.RegenRatePerSecond = FMath::Max(0.0f, Rate);
     // Если регенерация включена и таймер не работает – перезапустить
     if (bHealthRegenEnabled && Rate > 0.0f)
@@ -872,16 +1111,42 @@ void UEnemyDamageComponent::SetHealthRegenRate(float Rate)
             World->GetTimerManager().SetTimer(HealthRegenTimer, this, &UEnemyDamageComponent::ApplyHealthRegen, 0.1f, true);
         }
     }
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Set Health Regen Rate Per Second changed from %.1f to %.1f"),
+            *OwnerName, OldRate, RuntimeHealthRegenParams.RegenRatePerSecond);
+    }
 }
 
 void UEnemyDamageComponent::SetHealthRegenDelay(float Delay)
 {
+    float OldDelay = RuntimeHealthRegenParams.RegenDelayAfterDamage;
     RuntimeHealthRegenParams.RegenDelayAfterDamage = FMath::Max(0.0f, Delay);
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Set Health Regen Delay changed from %.1f to %.1f"),
+            *OwnerName, OldDelay, RuntimeHealthRegenParams.RegenDelayAfterDamage);
+    }
 }
 
 void UEnemyDamageComponent::SetHealthRegenInterruptOnDamage(bool bInterrupt)
 {
+    bool OldInterrupt = RuntimeHealthRegenParams.bInterruptOnDamage;
     RuntimeHealthRegenParams.bInterruptOnDamage = bInterrupt;
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Set HealthRegenInterruptOnDamage from %s to %s"),
+            *OwnerName, OldInterrupt ? TEXT("true") : TEXT("false"), RuntimeHealthRegenParams.bInterruptOnDamage ? TEXT("true") : TEXT("false"));
+    }
 }
 
 void UEnemyDamageComponent::SetHealthZones(const TArray<FHealthZoneDefinition>& NewZones)
@@ -892,46 +1157,29 @@ void UEnemyDamageComponent::SetHealthZones(const TArray<FHealthZoneDefinition>& 
         return A.UpperBound > B.UpperBound;
         });
     CheckHealthZone();
+
+    FName OldZone = CurrentHealthZoneTag;
     UpdateHealthZone();
-}
 
-// ---- Регенерация резервов ----
-void UEnemyDamageComponent::SetReserveRegenEnabled(int32 LayerIndex, bool bEnabled)
-{
-    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
-    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve) return;
-    if (!bReserveRegenEnabled.IsValidIndex(LayerIndex)) return;
-
-    bReserveRegenEnabled[LayerIndex] = bEnabled;
-    // Здесь можно перезапустить таймер, если он общий – но у нас общий таймер на все резервы.
-    // Поэтому проще проверять флаг внутри ApplyReserveRegen.
-}
-
-void UEnemyDamageComponent::SetReserveRegenRate(int32 LayerIndex, float Rate)
-{
-    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
-    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve) return;
-    if (!RuntimeReserveRegenParams.IsValidIndex(LayerIndex)) return;
-
-    RuntimeReserveRegenParams[LayerIndex].RegenRatePerSecond = FMath::Max(0.0f, Rate);
-}
-
-void UEnemyDamageComponent::SetReserveRegenDelay(int32 LayerIndex, float Delay)
-{
-    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
-    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve) return;
-    if (!RuntimeReserveRegenParams.IsValidIndex(LayerIndex)) return;
-
-    RuntimeReserveRegenParams[LayerIndex].RegenDelayAfterDamage = FMath::Max(0.0f, Delay);
-}
-
-void UEnemyDamageComponent::SetReserveRegenInterruptOnDamage(int32 LayerIndex, bool bInterrupt)
-{
-    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex)) return;
-    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve) return;
-    if (!RuntimeReserveRegenParams.IsValidIndex(LayerIndex)) return;
-
-    RuntimeReserveRegenParams[LayerIndex].bInterruptOnDamage = bInterrupt;
+    // Отладочная печать (если включена)
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Health zones updated. New zones count: %d"), *OwnerName, RuntimeHealthZones.Num());
+        // Вывод границ зон
+        for (int32 i = 0; i < RuntimeHealthZones.Num(); ++i)
+        {
+            const FHealthZoneDefinition& Zone = RuntimeHealthZones[i];
+            UE_LOG(LogTemp, Log, TEXT("[%s]   Zone %d: %s (%.1f - %.1f]"),
+                *OwnerName, i, *Zone.ZoneTag.ToString(), Zone.LowerBound, Zone.UpperBound);
+        }
+        if (OldZone != CurrentHealthZoneTag)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[%s]   Current zone changed from %s to %s"),
+                *OwnerName, *OldZone.ToString(), *CurrentHealthZoneTag.ToString());
+        }
+    }
 }
 
 // ---- Стаггер ----
@@ -986,10 +1234,7 @@ void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float Mo
     FString LogString;
     LogString += FString::Printf(TEXT("[%s] Incoming %.1f"), *OwnerName, ModifiedDamage);
 
-    //if (HitZoneMult != 1.0f)
-        LogString += CurrentHitZoneName.IsNone() ? FString::Printf(TEXT(" -> HitRegion x%.2f (%.1f)"), HitZoneMult, DamageAfterZone) : FString::Printf(TEXT(" -> HitRegion [%s] x%.2f (%.1f)"), *CurrentHitZoneName.ToString(), HitZoneMult, DamageAfterZone);
-    //else
-    //    LogString += FString::Printf(TEXT(" -> HitRegion x1.00 (%.1f)"), DamageAfterZone);
+    LogString += CurrentHitZoneName.IsNone() ? FString::Printf(TEXT(" -> HitRegion x%.2f (%.1f)"), HitZoneMult, DamageAfterZone) : FString::Printf(TEXT(" -> HitRegion [%s] x%.2f (%.1f)"), *CurrentHitZoneName.ToString(), HitZoneMult, DamageAfterZone);
 
     if (Config && Config->DefenseLayers.Num() > 0)
     {
@@ -1000,7 +1245,7 @@ void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float Mo
             {
                 float absorbed = Result.LayerAbsorbedDamage[i];
                 if (absorbed > 0.0f)
-                    LogString += FString::Printf(TEXT(" -> Resistance [Tag: %s] x%.2f (absorbed %.1f)"), *Layer.LayerTag.ToString(), Layer.ResistanceMultiplier, absorbed);
+                    LogString += FString::Printf(TEXT(" -> Resistance [Tag: %s] x%.2f (absorbed %.1f)"), *Layer.LayerTag.ToString(), RuntimeResistanceMultipliers[i]/*Layer.ResistanceMultiplier*/, absorbed);
                 else
                     LogString += FString::Printf(TEXT(" -> Resistance [Tag: %s] x%.2f"), *Layer.LayerTag.ToString(), Layer.ResistanceMultiplier);
             }
@@ -1021,7 +1266,7 @@ void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float Mo
 
     LogString += FString::Printf(TEXT(" -> Health -%.1f (NewHealth %.1f)"), FinalHealthDamage, Health);
 
-    if (Config && Config->HealthZones.Num() > 0)
+    if (Config && RuntimeHealthZones.Num() > 0)
     {
         LogString += FString::Printf(TEXT(" -> Zone: %s"), *CurrentHealthZoneTag.ToString());
         if (Result.bHealthZoneChanged)

@@ -43,13 +43,13 @@ struct FHealthZoneDefinition
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Zone")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Zone")
     FName ZoneTag;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Zone", meta = (ClampMin = "0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Zone", meta = (ClampMin = "0.0"))
     float UpperBound = 100.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Zone", meta = (ClampMin = "0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Zone", meta = (ClampMin = "0.0"))
     float LowerBound = 0.0f;
 };
 

@@ -75,7 +75,7 @@ public:
 
     // ---- Управление здоровьем ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
-    void Heal(float Amount, bool bInstant = true);
+    void Heal(float Amount);
 
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
     void HealToMax(bool bInstant = true);
@@ -88,10 +88,10 @@ public:
 
     // ---- Управление резервами ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
-    void RestoreReserve(int32 LayerIndex, float Amount, bool bInstant = true);
+    void RestoreReserve(int32 LayerIndex, float Amount);
 
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
-    void RestoreReserveToMax(int32 LayerIndex, bool bInstant = true);
+    void RestoreReserveToMax(int32 LayerIndex);
 
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
     void SetReserve(int32 LayerIndex, float NewValue);
@@ -100,15 +100,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Defense")
     void SetResistanceMultiplier(int32 LayerIndex, float NewMultiplier);
 
-    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Defense")
-    void SetResistanceMultiplierByTag(FName LayerTag, float NewMultiplier);
+    //UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Defense")
+    //void SetResistanceMultiplierByTag(FName LayerTag, float NewMultiplier);
+
+    //UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
+    //void SetReserveDamageMultiplier(int32 LayerIndex, float NewMultiplier);
 
     // ---- Управление регенерацией здоровья ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetHealthRegenEnabled(bool bEnabled);
 
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
-    void SetHealthRegenRate(float Rate);
+    void SetHealthRegenRatePerSecond(float Rate);
 
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetHealthRegenDelay(float Delay);
@@ -121,10 +124,16 @@ public:
 
     // ---- Управление регенерацией резервов ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
-    void SetReserveRegenEnabled(int32 LayerIndex, bool bEnabled);
+    void SetAllReserveRegenEnabled(bool bEnabled);
 
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
-    void SetReserveRegenRate(int32 LayerIndex, float Rate);
+    void SetReserveRegenEnabled(int32 LayerIndex, bool bEnabled);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
+    void SetMaxReserve(int32 LayerIndex, float NewMaxReserve);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetReserveRegenPerSecond(int32 LayerIndex, float Rate);
 
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetReserveRegenDelay(int32 LayerIndex, float Delay);
@@ -169,10 +178,12 @@ private:
     float CurrentStaggerChance = 0;
     float MaxHealth = 0;
 	FName CurrentHitZoneName = NAME_None;
+    TArray<float> RuntimeMaxReserves;
 
     // Runtime-копии параметров для защиты (инициализируются из Config)
     TArray<float> RuntimeResistanceMultipliers;
     TArray<FRegenerationParams> RuntimeReserveRegenParams;
+    //TArray<float> RuntimeReserveDamageMultipliers;
     FRegenerationParams RuntimeHealthRegenParams;
 
     // Runtime-копия зон здоровья (масштабируется при изменении MaxHealth)
