@@ -228,6 +228,8 @@ void AA_Dishes::BeginPlay()
 						Ingredients.RemoveAt(i);
 					}
 				}
+
+				UpdateCookingSession();
 			}
 		}, 0.5f, true);
 
@@ -712,4 +714,25 @@ void AA_Dishes::UpdateNiagaraPreview()
 void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("Adding liquid: %s, Amount: %.2f"), *UEnum::GetValueAsString(Type), Amount));
+}
+
+void AA_Dishes::UpdateCookingSession()
+{
+	bCurrentHasIngredientsState = Ingredients.Num() > 0;
+	if (!bPrevHasIngredientsState && bCurrentHasIngredientsState)
+	{
+		CookingTimerValue = 0.0f;
+		SetCookingTimerValue(FMath::FloorToInt(CookingTimerValue));
+		SetCookingTimerVisibility(true);
+	}
+	if (bPrevHasIngredientsState && bCurrentHasIngredientsState && HeatingLevel != EHeatingLevel::None)
+	{
+		CookingTimerValue += 0.5f;
+		SetCookingTimerValue(FMath::FloorToInt(CookingTimerValue));
+	}
+	if (bPrevHasIngredientsState && !bCurrentHasIngredientsState)
+	{
+		SetCookingTimerVisibility(false);
+	}
+	bPrevHasIngredientsState = bCurrentHasIngredientsState;
 }

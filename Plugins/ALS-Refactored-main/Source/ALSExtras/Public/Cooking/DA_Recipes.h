@@ -71,10 +71,10 @@ struct FLiquidStep
 	float LateTolerance = 0.0f;	
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "AmountScoreWeight"))
-	float AmountScoreWeight = 0.0f;
+	float AmountScoreWeight = 0.65f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "TimingScoreWeight"))
-	float TimingScoreWeight = 0.0f;
+	float TimingScoreWeight = 0.35f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "RecipeImportance"))
 	float RecipeImportance = 0.0f;
