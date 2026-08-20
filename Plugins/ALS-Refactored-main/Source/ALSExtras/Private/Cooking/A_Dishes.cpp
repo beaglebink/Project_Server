@@ -722,7 +722,52 @@ void AA_Dishes::UpdateNiagaraPreview()
 
 void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("Adding liquid: %s, Amount: %.2f"), *UEnum::GetValueAsString(Type), Amount));
+	CurrentPourTime = GetWorld()->GetTimeSeconds();
+	float TimeBetweenPours = CurrentPourTime - PrevPourTime;
+
+	if (CurrentBoundaryTime > 0.0f && CookingTimerValue > CurrentBoundaryTime)
+	{
+		LastLiquidType = ELiquidType::None;
+	}
+
+	if (LastLiquidType != Type)
+	{
+		//Calculate AmountQuality and TimingQuality
+		//
+		//
+
+		FPourEvent PourEvent;
+		PourEvent.LiquidType = Type;
+		PourEvent.AmountAdded = Amount;
+		PourEvent.TimeStart = CookingTimerValue;
+		PourEvent.TimeEnd = CookingTimerValue;
+
+		FLiquidStepOnPour LiquidStepOnPour;
+		LiquidStepOnPour.PourEvents.Add(PourEvent);
+		LiquidStepsOnPour.Add(LiquidStepOnPour);
+
+		++CurrentStepIndexInRecipe;
+	}
+	else if (LastLiquidType == Type)
+	{
+		if (TimeBetweenPours > MinTimeToStartNewPourEvent)
+		{
+			FPourEvent PourEvent;
+			PourEvent.LiquidType = Type;
+			PourEvent.AmountAdded = Amount;
+			PourEvent.TimeStart = CookingTimerValue;
+			PourEvent.TimeEnd = CookingTimerValue;
+			LiquidStepsOnPour.Last().PourEvents.Add(PourEvent);
+		}
+		else
+		{
+			LiquidStepsOnPour.Last().PourEvents.Last().AmountAdded += Amount;
+			LiquidStepsOnPour.Last().PourEvents.Last().TimeEnd = CookingTimerValue;
+		}
+	}
+
+	LastLiquidType = Type;
+	PrevPourTime = CurrentPourTime;
 }
 
 void AA_Dishes::UpdateCookingSession()
