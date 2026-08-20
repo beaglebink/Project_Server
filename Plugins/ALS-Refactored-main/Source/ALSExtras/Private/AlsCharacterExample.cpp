@@ -2827,8 +2827,8 @@ void AAlsCharacterExample::GamerGear_Effect(bool Apply)
 void AAlsCharacterExample::PrepareForSeamlessTravel()
 {
 	// 1. Сброс dangling-указателей на объекты текущего уровня
-	FocusActor     = nullptr;
-	Target         = nullptr;
+	FocusActor = nullptr;
+	Target = nullptr;
 	ReasonParalyse = nullptr;
 	TestController = nullptr;
 
@@ -2849,7 +2849,7 @@ void AAlsCharacterExample::PrepareForSeamlessTravel()
 	bIsLooped = false;
 	FrameList.Empty();
 	FrameListSize = 0;
-	LoopsCounter  = 0;
+	LoopsCounter = 0;
 
 	// 4. Сброс ALS состояний — ragdoll/mantling/roll
 	//    (физика привязана к PhysicsScene текущего мира)
@@ -2864,4 +2864,39 @@ void AAlsCharacterExample::PrepareForSeamlessTravel()
 	OnPrepareForSeamlessTravel(); // virtual hook — реализовать в AAlsCharacter
 
 	UE_LOG(LogTemp, Log, TEXT("AAlsCharacterExample::PrepareForSeamlessTravel — done"));
+}
+
+//Cooking
+void AAlsCharacterExample::AddRecipeToPlayerList(FGameplayTag NewRecipeTag)
+{
+	KnownRecipesTags.Add(NewRecipeTag);
+}
+
+const TSet<FGameplayTag>& AAlsCharacterExample::GetKnownRecipes() const
+{
+	return KnownRecipesTags;
+}
+
+void AAlsCharacterExample::SetCurrentRecipe(FGameplayTag RecipeTag)
+{
+	if (KnownRecipesTags.Contains(RecipeTag))
+	{
+		CurrentRecipeTag = RecipeTag;
+	}
+}
+
+bool AAlsCharacterExample::GetCurrentRecipe(FRecipe& OutRecipe) const
+{
+	if (!Recipes)
+	{
+		return false;
+	}
+
+	if (const FRecipe* Recipe = Recipes->Recipes.Find(CurrentRecipeTag))
+	{
+		OutRecipe = *Recipe;
+		return true;
+	}
+
+	return false;
 }

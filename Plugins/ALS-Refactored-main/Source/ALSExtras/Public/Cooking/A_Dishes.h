@@ -230,19 +230,6 @@ protected:
 	UFUNCTION()
 	void TossTimelineFinished();
 
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
-	UDA_Recipes* Recipes;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 5.0f))
-	float SignificantChunkPercentage = 0.1f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
-	float FailureSeverityThreshold = 0.5f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
-	float MissingPenaltyStrength = 0.4f;
-
 private:
 	EHeatingLevel HeatingLevel;
 

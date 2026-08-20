@@ -1,5 +1,5 @@
 #include "Cooking/A_Dishes.h"
-#include "GameFramework/Character.h"
+#include "AlsCharacterExample.h"
 #include "Components/SphereComponent.h"
 #include "Cooking/A_Cookable.h"
 #include "NiagaraComponent.h"
@@ -461,75 +461,52 @@ EHeatingLevel AA_Dishes::GetHeatingLevel()
 
 void AA_Dishes::CheckIfCooked()
 {
-	if (bIsOnRecipeChecking || Recipes == nullptr)
+	AAlsCharacterExample* PlayerCharacter = Cast<AAlsCharacterExample>(GetWorld()->GetFirstPlayerController()->GetPawn());
+	FRecipe CheckedRecipe;
+	if (bIsOnRecipeChecking || !PlayerCharacter || !PlayerCharacter->GetCurrentRecipe(CheckedRecipe))
 	{
 		return;
 	}
 
 	bIsOnRecipeChecking = true;
-	const FRecipe* MatchedRecipe = nullptr;
 
-	for (const FRecipe& Recipe : Recipes->Recipes)
+	//Check for being tossed
+	if (CheckedRecipe.bRequiresToss)
 	{
-		bool bIsFollowingRecipe = true;
-
-		//Check for being tossed
-		if (Recipe.bRequiresToss)
+		for (AA_Cookable* Ingredient : Ingredients)
 		{
-			for (AA_Cookable* Ingredient : Ingredients)
+			if (!Ingredient->bWasTossed)
 			{
-				if (!Ingredient->bWasTossed)
-				{
-					bIsFollowingRecipe = false;
-					break;
-				}
-			}
-
-			if (!bIsFollowingRecipe)
-			{
-				continue;
+				bIsOnRecipeChecking = false;
+				return;
 			}
 		}
+	}
 
-		TMap<FName, int32> RecipeMap;
-		for (const FRecipeIngredient& Ingredient : Recipe.Ingredients)
+	TMap<FName, int32> RecipeMap;
+	for (const FRecipeIngredient& Ingredient : CheckedRecipe.Ingredients)
+	{
+		RecipeMap.Add(Ingredient.IngredientName, Ingredient.IngredientQuantity);
+	}
+
+	//Check for recipe matching from recipe
+	for (const auto& Pair : RecipeMap)
+	{
+		if (!IngredientCountMap.Contains(Pair.Key))
 		{
-			RecipeMap.Add(Ingredient.IngredientName, Ingredient.IngredientQuantity);
+			bIsOnRecipeChecking = false;
+			return;
 		}
+	}
 
-		//Check for recipe matching from recipe
-		for (const auto& Pair : RecipeMap)
+	//Check for recipe matching - extra ingredients
+	for (const auto& Pair : IngredientCountMap)
+	{
+		if (!RecipeMap.Contains(Pair.Key))
 		{
-			if (!IngredientCountMap.Contains(Pair.Key))
-			{
-				bIsFollowingRecipe = false;
-				break;
-			}
+			bIsOnRecipeChecking = false;
+			return;
 		}
-
-		if (!bIsFollowingRecipe)
-		{
-			continue;
-		}
-
-		//Check for recipe matching - extra ingredients
-		for (const auto& Pair : IngredientCountMap)
-		{
-			if (!RecipeMap.Contains(Pair.Key))
-			{
-				bIsFollowingRecipe = false;
-				break;
-			}
-		}
-
-		if (!bIsFollowingRecipe)
-		{
-			continue;
-		}
-
-
-		MatchedRecipe = &Recipe;
-		break;
 	}
 
 	struct FIngredientQuality
@@ -559,7 +536,7 @@ void AA_Dishes::CheckIfCooked()
 	{
 		// Calculate only significant chunks which weight is more than 10% of the maximum chunk weight for this ingredient type
 		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
-		if (Ingredient->ChunkMass >= SignificantChunkPercentage * QualityRef.MaxChunkWeight)
+		if (Ingredient->ChunkMass >= CheckedRecipe.SignificantChunkPercentage * QualityRef.MaxChunkWeight)
 		{
 			QualityRef.TotalQualityByWeight += Ingredient->GetChunkQuality() * Ingredient->ChunkMass;
 			QualityRef.ChunksWeightTotal += Ingredient->ChunkMass;
@@ -583,7 +560,7 @@ void AA_Dishes::CheckIfCooked()
 	{
 		DishQuality += Pair.Value.GroupQuality * Pair.Value.RecipeImportance;
 		TotalRecipeImportance += Pair.Value.RecipeImportance;
-		if (Pair.Value.FailureSeverity >= FailureSeverityThreshold)
+		if (Pair.Value.FailureSeverity >= CheckedRecipe.FailureSeverityThreshold)
 		{
 			LowestGroupQuality = FMath::Min(LowestGroupQuality, Pair.Value.GroupQuality);
 		}
@@ -594,45 +571,43 @@ void AA_Dishes::CheckIfCooked()
 	//Missed requared pieces calculation
 	float WeightedShortageSeverity = 0.0f;
 	float MissingPieceDeduction = 0.0f;
-	if (MatchedRecipe)
+	float SumShortageSeverity_RecipeImportance = 0.0f;
+	for (const auto& Ingredient : CheckedRecipe.Ingredients)
 	{
-		float SumShortageSeverity_RecipeImportance = 0.0f;
-		for (const auto& Ingredient : MatchedRecipe->Ingredients)
+		if (FIngredientQuality* IngredientQuality = IngredientQualityMap.Find(Ingredient.IngredientName))
 		{
-			if (FIngredientQuality* IngredientQuality = IngredientQualityMap.Find(Ingredient.IngredientName))
+			IngredientQuality->MissingProportion = 1.0f - static_cast<float>(FMath::Min(IngredientCountMap.FindRef(Ingredient.IngredientName), Ingredient.IngredientQuantity)) / static_cast<float>(Ingredient.IngredientQuantity);
+			if (IngredientQuality->MissingProportion < 0.1f)
 			{
-				IngredientQuality->MissingProportion = 1.0f - static_cast<float>(FMath::Min(IngredientCountMap.FindRef(Ingredient.IngredientName), Ingredient.IngredientQuantity)) / static_cast<float>(Ingredient.IngredientQuantity);
-				if (IngredientQuality->MissingProportion < 0.1f)
-				{
-					IngredientQuality->ShortageSeverity = 0.0f;
-				}
-				else if (IngredientQuality->MissingProportion < 0.2f)
-				{
-					IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.1f, 0.2f), FVector2D(0.0f, 0.2f), IngredientQuality->MissingProportion);
-				}
-				else if (IngredientQuality->MissingProportion < 0.4f)
-				{
-					IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.2f, 0.4f), FVector2D(0.2f, 0.5f), IngredientQuality->MissingProportion);
-				}
-				else if (IngredientQuality->MissingProportion < 0.6f)
-				{
-					IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.4f, 0.6f), FVector2D(0.5f, 0.75f), IngredientQuality->MissingProportion);
-				}
-				else
-				{
-					IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.6f, 1.0f), FVector2D(0.75f, 1.0f), IngredientQuality->MissingProportion);
-				}
-				SumShortageSeverity_RecipeImportance += IngredientQuality->ShortageSeverity * IngredientQuality->RecipeImportance;
+				IngredientQuality->ShortageSeverity = 0.0f;
 			}
+			else if (IngredientQuality->MissingProportion < 0.2f)
+			{
+				IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.1f, 0.2f), FVector2D(0.0f, 0.2f), IngredientQuality->MissingProportion);
+			}
+			else if (IngredientQuality->MissingProportion < 0.4f)
+			{
+				IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.2f, 0.4f), FVector2D(0.2f, 0.5f), IngredientQuality->MissingProportion);
+			}
+			else if (IngredientQuality->MissingProportion < 0.6f)
+			{
+				IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.4f, 0.6f), FVector2D(0.5f, 0.75f), IngredientQuality->MissingProportion);
+			}
+			else
+			{
+				IngredientQuality->ShortageSeverity = FMath::GetMappedRangeValueClamped(FVector2D(0.6f, 1.0f), FVector2D(0.75f, 1.0f), IngredientQuality->MissingProportion);
+			}
+			SumShortageSeverity_RecipeImportance += IngredientQuality->ShortageSeverity * IngredientQuality->RecipeImportance;
 		}
-		WeightedShortageSeverity = SumShortageSeverity_RecipeImportance / TotalRecipeImportance;
-		MissingPieceDeduction = WeightedShortageSeverity * MissingPenaltyStrength;
 	}
+	WeightedShortageSeverity = SumShortageSeverity_RecipeImportance / TotalRecipeImportance;
+	MissingPieceDeduction = WeightedShortageSeverity * CheckedRecipe.MissingPenaltyStrength;
+
 	float DishAverage = DishQuality;
 	DishQuality = FMath::Clamp(DishQuality - MissingPieceDeduction, 0.0f, 1.0f);
 
 	// Debug display
-	if (bShowCookingDebug && MatchedRecipe)
+	if (bShowCookingDebug)
 	{
 		FString DebugText;
 
@@ -676,7 +651,7 @@ void AA_Dishes::CheckIfCooked()
 	}
 
 	//If all conditions are ok, swap ingredients on result dish
-	if (MatchedRecipe && MatchedRecipe->ResultCookableClass)
+	if (CheckedRecipe.ResultCookableClass)
 	{
 		for (AA_Cookable* Ingredient : Ingredients)
 		{
@@ -686,11 +661,11 @@ void AA_Dishes::CheckIfCooked()
 		Ingredients.Empty();
 		IngredientCountMap.Empty();
 
-		AA_Cookable* NewDish = GetWorld()->SpawnActor<AA_Cookable>(MatchedRecipe->ResultCookableClass, CookedResultSpawnPoint->GetComponentLocation(), CookedResultSpawnPoint->GetComponentRotation());
+		AA_Cookable* NewDish = GetWorld()->SpawnActor<AA_Cookable>(CheckedRecipe.ResultCookableClass, CookedResultSpawnPoint->GetComponentLocation(), CookedResultSpawnPoint->GetComponentRotation());
 		NewDish->CookingTime = static_cast<int32>(NewDish->DefaultCookingTime * DishQuality * 2.0f);
 		NewDish->Quality = DishQuality;
 
-		EDishRating FinalRating = NewDish->GetDishRating(DishQuality, MatchedRecipe->RatingThresholds);
+		EDishRating FinalRating = NewDish->GetDishRating(DishQuality, CheckedRecipe.RatingThresholds);
 
 		if (bShowCookingDebug)
 		{

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "NativeGameplayTags.h"
 #include "DA_Recipes.generated.h"
 
 UENUM(BlueprintType)
@@ -68,7 +69,7 @@ struct FLiquidStep
 	float EarlyTolerance = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "LateTolerance (s)"))
-	float LateTolerance = 0.0f;	
+	float LateTolerance = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "AmountScoreWeight"))
 	float AmountScoreWeight = 0.65f;
@@ -89,9 +90,6 @@ struct FRecipe
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
-	FName RecipeName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	TArray<FRecipeIngredient> Ingredients;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
@@ -102,6 +100,15 @@ struct FRecipe
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FDishQualityThresholds RatingThresholds;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 5.0f))
+	float SignificantChunkPercentage = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float FailureSeverityThreshold = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float MissingPenaltyStrength = 0.4f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	TArray<FLiquidStep> LiquidSteps;
@@ -114,5 +121,5 @@ class ALSEXTRAS_API UDA_Recipes : public UDataAsset
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
-	TArray<FRecipe> Recipes;
+	TMap<FGameplayTag, FRecipe> Recipes;
 };

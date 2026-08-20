@@ -7,6 +7,7 @@
 #include "Interfaces/I_PortalInteraction.h"
 #include "Interfaces/I_CookingInteraction.h"
 #include "Utility/AlsGameplayTags.h"
+#include "Cooking/DA_Recipes.h"
 #include "AlsCharacterExample.generated.h"
 
 struct FInputActionValue;
@@ -255,7 +256,7 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void CookingOnRotateHandle(float AngleDelta);
-	
+
 	// Debug
 
 public:
@@ -318,7 +319,7 @@ public:
 	//Portal interaction
 private:
 	virtual void PortalInteract_Implementation(const FHitResult& Hit, const FTransform& EnterTransform, const FTransform& ExitTransform) override;
-	
+
 	//Cooking interaction
 	AA_Dishes* CurrentDish = nullptr;
 	virtual void SetDishes_Implementation(AA_Dishes* Dish) override;
@@ -456,4 +457,28 @@ private:
 	void VcarSweatShirt_Effect(bool Apply = false);
 	void AnandsTurtleneck_Effect(bool Apply = false);
 	void GamerGear_Effect(bool Apply = false);
+
+	//Cooking
+private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (AllowPrivateAccess = true))
+	UDA_Recipes* Recipes;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (AllowPrivateAccess = true))
+	TSet<FGameplayTag> KnownRecipesTags;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (AllowPrivateAccess = true))
+	FGameplayTag CurrentRecipeTag;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	void AddRecipeToPlayerList(FGameplayTag NewRecipeTag);
+
+	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	const TSet<FGameplayTag>& GetKnownRecipes() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	void SetCurrentRecipe(FGameplayTag RecipeTag);
+
+	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	bool GetCurrentRecipe(FRecipe& OutRecipe) const;
 };
