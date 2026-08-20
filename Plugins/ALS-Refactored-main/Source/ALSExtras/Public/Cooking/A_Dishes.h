@@ -288,6 +288,7 @@ private:
 
 	void UpdateCookingSession();
 
+
 public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "CookingTimer")
 	void SetCookingTimerVisibility(bool IsSet);
@@ -306,4 +307,7 @@ private:
 	ELiquidType LastLiquidType = ELiquidType::None;
 
 	int32 CurrentStepIndexInRecipe = 0;
+
+	void ResetCookingSession();
+
 };

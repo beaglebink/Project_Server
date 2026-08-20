@@ -461,6 +461,8 @@ EHeatingLevel AA_Dishes::GetHeatingLevel()
 
 void AA_Dishes::CheckIfCooked()
 {
+	ResetCookingSession();
+
 	AAlsCharacterExample* PlayerCharacter = Cast<AAlsCharacterExample>(GetWorld()->GetFirstPlayerController()->GetPawn());
 	FRecipe CheckedRecipe;
 	if (bIsOnRecipeChecking || !PlayerCharacter || !PlayerCharacter->GetCurrentRecipe(CheckedRecipe))
@@ -722,6 +724,19 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 		LiquidStepsOnPour.Add(LiquidStepOnPour);
 
 		++CurrentStepIndexInRecipe;
+		CurrentBoundaryTime = 0.0f;
+		if (AAlsCharacterExample* PlayerCharacter = Cast<AAlsCharacterExample>(GetWorld()->GetFirstPlayerController()->GetPawn()))
+		{
+			FRecipe CurrentRecipe;
+			if (PlayerCharacter->GetCurrentRecipe(CurrentRecipe))
+			{
+				if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe))
+				{
+					CurrentBoundaryTime = (CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe].IdealStartTime + CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealEndTime) * 0.5f;
+				}
+			}
+		}
+
 	}
 	else if (LastLiquidType == Type)
 	{
@@ -764,4 +779,14 @@ void AA_Dishes::UpdateCookingSession()
 		SetCookingTimerVisibility(false);
 	}
 	bPrevHasIngredientsState = bCurrentHasIngredientsState;
+}
+
+void AA_Dishes::ResetCookingSession()
+{
+	PrevPourTime = 0.0f;
+	CurrentBoundaryTime = 0.0f;
+	LastLiquidType = ELiquidType::None;
+	CurrentStepIndexInRecipe = 0;
+
+	LiquidStepsOnPour.Empty();
 }
