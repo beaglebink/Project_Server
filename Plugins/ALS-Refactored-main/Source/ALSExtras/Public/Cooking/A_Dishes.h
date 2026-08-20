@@ -155,6 +155,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, DisplayName = "LiquidVolume (ml)"))
 	float LiquidVolume = 100.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 1.0f))
+	float MinTimeToStartNewPourEvent = 3.0f;
+
 	UPROPERTY()
 	float LiquidLevelNormalized = 1.0f;
 
@@ -304,4 +307,16 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "CookingTimer")
 	void SetCookingTimerValue(int Value);
+
+	//Pour events registration
+private:
+	float PrevPourTime = 0.0f;
+
+	float CurrentPourTime = 0.0f;
+
+	float CurrentBoundaryTime = 0.0f;
+
+	ELiquidType LastLiquidType = ELiquidType::None;
+
+	int32 CurrentStepIndexInRecipe = 0;
 };
