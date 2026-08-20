@@ -115,8 +115,8 @@ void UEnemyDamageComponent::InitializeFromConfig()
         RuntimeHealthRegenParams = Config->HealthRegen;
         RuntimeBaseStaggerChance = Config->BaseStaggerChance;
         RuntimeStaggerSusceptibility = Config->StaggerSusceptibility;
-        
         RuntimeStaggerCooldown = Config->StaggerCooldown;
+        RuntimeStaggerInputType = Config->StaggerInput;
 
         // Запуск таймеров регенерации
         if (World)
@@ -438,7 +438,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     if (Config && !bStaggerOnCooldown && !Result.bZeroDamage)
     {
         float StaggerDamage = 0.0f;
-        switch (Config->StaggerInput)
+        switch (RuntimeStaggerInputType)
         {
         case EStaggerInputType::UseFinalHealthDamage:
             StaggerDamage = FinalHealthDamage;
@@ -457,22 +457,32 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         CurrentStaggerChance = Chance;
         if (bForceStagger || FMath::FRand() < Chance)
         {
-            Result.bStaggerTriggered = true;
-            bStaggerOnCooldown = true;
-            OnStaggered.Broadcast();
-
-            if (bForceStagger)
+            if (RuntimeStaggerCooldown > 0)
             {
-                RuntimeStaggerCooldown = bNewForceStaggerCooldown;
-                CurrentStaggerChance = 1.0f;
-            }
+                Result.bStaggerTriggered = true;
+                bStaggerOnCooldown = true;
+                OnStaggered.Broadcast();
 
-            if (StaggerMod != 0.0f)
+                if (bForceStagger)
+                {
+                    RuntimeStaggerCooldown = bNewForceStaggerCooldown;
+                    CurrentStaggerChance = 1.0f;
+                }
+
+                if (StaggerMod != 0.0f)
+                {
+                    RuntimeStaggerCooldown = bNewForceStaggerCooldown;
+                }
+
+                World->GetTimerManager().SetTimer(StaggerCooldownTimer, this, &UEnemyDamageComponent::OnStaggerCooldownExpired, RuntimeStaggerCooldown, false);
+            }
+            else
             {
-                RuntimeStaggerCooldown = bNewForceStaggerCooldown;
-            }
-
-            World->GetTimerManager().SetTimer(StaggerCooldownTimer, this, &UEnemyDamageComponent::OnStaggerCooldownExpired, RuntimeStaggerCooldown, false);
+                if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("Stagger triggered but RuntimeStaggerCooldown <= 0. Stagger will not be applied."));
+                }
+			}
         }
     }
 
@@ -1032,6 +1042,69 @@ void UEnemyDamageComponent::SetReserveRegenInterruptOnDamage(int32 LayerIndex, b
     }
 }
 
+// ---- Управление регенерацией резервов: флаг while staggered (по индексу) ----
+void UEnemyDamageComponent::SetReserveRegenWhileStaggered(int32 LayerIndex, bool bAllow)
+{
+    if (!Config || !Config->DefenseLayers.IsValidIndex(LayerIndex))
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserveRegenWhileStaggered: Invalid LayerIndex %d"), LayerIndex);
+        return;
+    }
+
+    if (Config->DefenseLayers[LayerIndex].LayerType != EDefenseLayerType::Reserve)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetReserveRegenWhileStaggered: Layer %d is not a Reserve layer"), LayerIndex);
+        return;
+    }
+
+    if (!RuntimeReserveRegenParams.IsValidIndex(LayerIndex)) return;
+
+    bool OldValue = RuntimeReserveRegenParams[LayerIndex].bRegenWhileStaggered;
+    if (OldValue == bAllow) return;
+
+    RuntimeReserveRegenParams[LayerIndex].bRegenWhileStaggered = bAllow;
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regen while staggered for layer [%s] (index %d) set to %s (was %s)"),
+            *OwnerName, *Config->DefenseLayers[LayerIndex].LayerTag.ToString(), LayerIndex,
+            bAllow ? TEXT("true") : TEXT("false"), OldValue ? TEXT("true") : TEXT("false"));
+    }
+}
+
+// ---- Управление регенерацией резервов: флаг while staggered (для всех) ----
+void UEnemyDamageComponent::SetAllReserveRegenWhileStaggered(bool bAllow)
+{
+    if (!Config) return;
+
+    int32 ModifiedCount = 0;
+    for (int32 i = 0; i < Config->DefenseLayers.Num(); ++i)
+    {
+        if (Config->DefenseLayers[i].LayerType == EDefenseLayerType::Reserve)
+        {
+            if (RuntimeReserveRegenParams.IsValidIndex(i))
+            {
+                bool OldValue = RuntimeReserveRegenParams[i].bRegenWhileStaggered;
+                if (OldValue != bAllow)
+                {
+                    RuntimeReserveRegenParams[i].bRegenWhileStaggered = bAllow;
+                    ModifiedCount++;
+                }
+            }
+        }
+    }
+
+    if (ModifiedCount > 0 && CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regen while staggered set to %s for %d layers"),
+            *OwnerName, bAllow ? TEXT("true") : TEXT("false"), ModifiedCount);
+    }
+}
+
 // ---- Сопротивление ----
 void UEnemyDamageComponent::SetResistanceMultiplier(int32 LayerIndex, float NewMultiplier)
 {
@@ -1182,12 +1255,62 @@ void UEnemyDamageComponent::SetHealthZones(const TArray<FHealthZoneDefinition>& 
     }
 }
 
+// ---- Управление регенерацией здоровья: флаг while staggered ----
+void UEnemyDamageComponent::SetHealthRegenWhileStaggered(bool bAllow)
+{
+    if (!Config) return;
+
+    bool OldValue = RuntimeHealthRegenParams.bRegenWhileStaggered;
+    if (OldValue == bAllow) return;
+
+    RuntimeHealthRegenParams.bRegenWhileStaggered = bAllow;
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Health regen while staggered set to %s (was %s)"),
+            *OwnerName, bAllow ? TEXT("true") : TEXT("false"), OldValue ? TEXT("true") : TEXT("false"));
+    }
+}
+
 // ---- Стаггер ----
-void UEnemyDamageComponent::SetStaggerParams(float BaseChance, float Susceptibility, float Cooldown)
+void UEnemyDamageComponent::SetStaggerParams(float BaseChance, float Susceptibility, float Cooldown, EStaggerInputType InputType)
 {
     RuntimeBaseStaggerChance = FMath::Clamp(BaseChance, 0.0f, 1.0f);
     RuntimeStaggerSusceptibility = FMath::Max(0.0f, Susceptibility);
     RuntimeStaggerCooldown = FMath::Max(0.0f, Cooldown);
+    RuntimeStaggerInputType = InputType;
+
+    if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
+    {
+        AActor* Owner = GetOwner();
+
+        FString InputTypeStr;
+
+        switch (InputType)
+        {
+            case EStaggerInputType::UseFinalHealthDamage:
+            {
+                InputTypeStr = TEXT("UseFinalHealthDamage");
+                break;
+            }
+            case EStaggerInputType::UseTotalDamageDealt:
+            {
+                InputTypeStr = TEXT("UseTotalDamageDealt");
+                break;
+            }
+            case EStaggerInputType::UseAttackStrength :
+            {
+                InputTypeStr = TEXT("UseAttackStrength");
+                break;
+            }
+        }
+
+        FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
+        UE_LOG(LogTemp, Log, TEXT("[%s] Stagger params updated: BaseChance=%.2f, Susceptibility=%.2f, Cooldown=%.2f, InputType=%s"),
+			*OwnerName, RuntimeBaseStaggerChance, RuntimeStaggerSusceptibility, RuntimeStaggerCooldown, *InputTypeStr);
+    }
 }
 
 // ---- Принудительная смерть ----
@@ -1196,21 +1319,34 @@ void UEnemyDamageComponent::Kill()
     if (bIsDead) return;
     if (Health <= 0.0f) return; // уже мёртв
 
+    // Сохраняем старое здоровье для дельты
+    float OldHealth = Health;
+
+    // Устанавливаем здоровье в 0 и флаг смерти
     Health = 0.0f;
-    bIsDead = true;
-    OnHealthChanged.Broadcast(0, -Health); // дельта = -старое здоровье
-    Health = 0.0f;
+    bIsDead = true;    
+    // Сигнал об изменении здоровья (дельта = 0 - OldHealth)
+    OnHealthChanged.Broadcast(Health, -OldHealth);
+
+    // Обновляем зону здоровья (теперь она должна стать последней, обычно "Low" или "Dead")
     FName OldZone = CurrentHealthZoneTag;
     UpdateHealthZone();
     if (OldZone != CurrentHealthZoneTag)
+    {
         OnHealthZoneChanged.Broadcast(CurrentHealthZoneTag, OldZone);
+    }
 
+    // Останавливаем регенерацию
     UWorld* World = GetWorld();
     if (World)
     {
         World->GetTimerManager().ClearTimer(HealthRegenTimer);
         World->GetTimerManager().ClearTimer(ReserveRegenTimer);
     }
+
+    // Сигнал о смерти
+    OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
+	OnSuicide.Broadcast();
 
     // Отладочный лог (если включён)
     if (CVarEnemyDamageVerboseLogging.GetValueOnGameThread() != 0)
@@ -1219,8 +1355,6 @@ void UEnemyDamageComponent::Kill()
         FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
         UE_LOG(LogTemp, Log, TEXT("[%s] Killed by script."), *OwnerName);
     }
-
-    OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
 }
 
 void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float ModifiedDamage, float HitZoneMult, float DamageAfterZone, float FinalHealthDamage, float HealthDelta, bool bAnyReserveChanged)

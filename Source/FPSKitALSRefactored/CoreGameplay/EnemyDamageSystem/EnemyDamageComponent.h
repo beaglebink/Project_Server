@@ -15,6 +15,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaggered);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaggerCooldownEnded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthZoneChanged, FName, NewZone, FName, OldZone);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor*, DeathActor, FName, DeathTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSuicide);
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class UEnemyDamageComponent : public UActorComponent
 {
@@ -41,6 +43,9 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnStaggered OnStaggered;
+
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
+	FOnSuicide OnSuicide;
 
     UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnStaggerCooldownEnded OnStaggerCooldownEnded;
@@ -86,6 +91,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
     void SetMaxHealth(float NewMaxHealth);
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Enemy Damage|Health")
+    bool GetIsDead() const { return bIsDead; }
+
     // ---- Управление резервами ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
     void RestoreReserve(int32 LayerIndex, float Amount);
@@ -122,6 +130,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
     void SetHealthZones(const TArray<FHealthZoneDefinition>& NewZones);
 
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetHealthRegenWhileStaggered(bool bAllow);
+
     // ---- Управление регенерацией резервов ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetAllReserveRegenEnabled(bool bEnabled);
@@ -141,9 +152,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetReserveRegenInterruptOnDamage(int32 LayerIndex, bool bInterrupt);
 
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetReserveRegenWhileStaggered(int32 LayerIndex, bool bAllow);
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
+    void SetAllReserveRegenWhileStaggered(bool bAllow);
+
     // ---- Управление стаггером ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Stagger")
-    void SetStaggerParams(float BaseChance, float Susceptibility, float Cooldown);
+    void SetStaggerParams(float BaseChance, float Susceptibility, float Cooldown, EStaggerInputType InputType);
 
     // ---- Принудительная смерть ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Death")
@@ -197,6 +214,7 @@ private:
     float RuntimeBaseStaggerChance = 0.0f;
     float RuntimeStaggerSusceptibility = 0.0f;
     float RuntimeStaggerCooldown = 2.0f;
+    EStaggerInputType RuntimeStaggerInputType = EStaggerInputType::UseTotalDamageDealt;
 
     void InitializeFromConfig();
 	void CheckHealthZone();
