@@ -300,6 +300,8 @@ public:
 
 	//Pour events registration
 private:
+	float TotalAmountAddedPerStep = 0.0f;
+
 	float PrevPourTime = 0.0f;
 
 	float CurrentPourTime = 0.0f;
@@ -312,4 +314,5 @@ private:
 
 	void ResetCookingSession();
 
+	void UpdatePourWidget(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep);
 };

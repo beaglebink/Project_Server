@@ -11,6 +11,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Cooking/W_PourEvent.h"
 
 AA_Dishes::AA_Dishes()
 {
@@ -750,10 +751,10 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 		LastLiquidType = ELiquidType::None;
 	}
 
+	FRecipe CurrentRecipe;
 	if (LastLiquidType != Type)
 	{
 		//Calculate boundary time between steps
-		FRecipe CurrentRecipe;
 		++CurrentStepIndexInRecipe;
 		CurrentBoundaryTime = 0.0f;
 		if (AAlsCharacterExample* PlayerCharacter = Cast<AAlsCharacterExample>(GetWorld()->GetFirstPlayerController()->GetPawn()))
@@ -774,7 +775,7 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 		//Calculate Qualities
 		if (LiquidStepsOnPour.Num() > 0)
 		{
-			if (LastLiquidType != CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].LiquidType)
+			if (!CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1) || LastLiquidType != CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].LiquidType)
 			{
 				LiquidStepsOnPour.Last().AmountQuality = 0.0f;
 				LiquidStepsOnPour.Last().WeightedTimingQuality = 0.0f;
@@ -837,11 +838,11 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 		PourEvent.AmountAdded = Amount;
 		PourEvent.TimeStart = CookingTimerValue;
 		PourEvent.TimeEnd = CookingTimerValue;
+		TotalAmountAddedPerStep = Amount;
 
 		FLiquidStepOnPour LiquidStepOnPour;
 		LiquidStepOnPour.PourEvents.Add(PourEvent);
 		LiquidStepsOnPour.Add(LiquidStepOnPour);
-
 	}
 	else if (LastLiquidType == Type)
 	{
@@ -859,6 +860,18 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 			LiquidStepsOnPour.Last().PourEvents.Last().AmountAdded += Amount;
 			LiquidStepsOnPour.Last().PourEvents.Last().TimeEnd = CookingTimerValue;
 		}
+		TotalAmountAddedPerStep += Amount;
+	}
+
+	//Visual data on pour
+
+	if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
+	{
+		UpdatePourWidget(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
+	}
+	else
+	{
+		UpdatePourWidget(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, FLiquidStep());
 	}
 
 	LastLiquidType = Type;
@@ -894,4 +907,8 @@ void AA_Dishes::ResetCookingSession()
 	CurrentStepIndexInRecipe = 0;
 
 	LiquidStepsOnPour.Empty();
+}
+
+void AA_Dishes::UpdatePourWidget(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep)
+{
 }
