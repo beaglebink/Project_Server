@@ -34,9 +34,6 @@ struct FPourEvent
 	float TimeEnd;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
-	float AmountQuality = 0.0f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float TimingQuality = 0.0f;
 };
 
@@ -49,6 +46,9 @@ struct FLiquidStepOnPour
 	TArray<FPourEvent> PourEvents;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
+	float AmountQuality = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float 	WeightedTimingQuality = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
@@ -56,6 +56,9 @@ struct FLiquidStepOnPour
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float WeightedLiquidContribution = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pour")
+	float RecipeImportance = 0.0f;
 };
 
 class USphereComponent;
@@ -297,6 +300,8 @@ public:
 
 	//Pour events registration
 private:
+	float TotalAmountAddedPerStep = 0.0f;
+
 	float PrevPourTime = 0.0f;
 
 	float CurrentPourTime = 0.0f;
@@ -306,4 +311,8 @@ private:
 	ELiquidType LastLiquidType = ELiquidType::None;
 
 	int32 CurrentStepIndexInRecipe = 0;
+
+	void ResetCookingSession();
+
+	void UpdatePourWidget(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep);
 };
