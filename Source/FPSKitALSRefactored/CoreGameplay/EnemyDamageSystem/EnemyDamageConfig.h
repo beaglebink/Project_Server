@@ -39,7 +39,7 @@ public:
     float StaggerCooldown = 2.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stagger")
-    EStaggerInputType StaggerInput = EStaggerInputType::UseTotalDamageDealt;
+    EStaggerInputType StaggerInput = EStaggerInputType::UseFinalHealthDamage;
 
     // ---- Регенерация здоровья ----
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Regeneration")

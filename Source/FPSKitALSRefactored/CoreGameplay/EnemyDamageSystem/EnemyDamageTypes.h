@@ -15,9 +15,9 @@ enum class EDefenseLayerType : uint8
 UENUM(BlueprintType)
 enum class EStaggerInputType : uint8
 {
-    UseFinalHealthDamage   UMETA(DisplayName = "Final Health Damage"),
-    UseTotalDamageDealt    UMETA(DisplayName = "Total Damage (Health + Reserves)"),
-    UseAttackStrength      UMETA(DisplayName = "Attack Strength (before defense)")
+    UseFinalHealthDamage   UMETA(DisplayName = "Final Health Damage (Use all defence)"),
+    UseTotalDamageDealt    UMETA(DisplayName = "Total Damage (Without defense reserve)"),
+    UseAttackStrength      UMETA(DisplayName = "Attack Strength (Before defense)")
 };
 
 USTRUCT(BlueprintType)
