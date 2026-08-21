@@ -34,9 +34,6 @@ struct FPourEvent
 	float TimeEnd;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
-	float AmountQuality = 0.0f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float TimingQuality = 0.0f;
 };
 
@@ -49,6 +46,9 @@ struct FLiquidStepOnPour
 	TArray<FPourEvent> PourEvents;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
+	float AmountQuality = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float 	WeightedTimingQuality = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
@@ -56,6 +56,9 @@ struct FLiquidStepOnPour
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float WeightedLiquidContribution = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pour")
+	float RecipeImportance = 0.0f;
 };
 
 class USphereComponent;
@@ -287,7 +290,6 @@ private:
 	float CookingTimerValue = 0.0f;
 
 	void UpdateCookingSession();
-
 
 public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "CookingTimer")
