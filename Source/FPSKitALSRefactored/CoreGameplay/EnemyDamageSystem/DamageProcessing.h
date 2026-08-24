@@ -39,22 +39,25 @@ struct FDamageProcessingContext
     float Health = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
-    FName CurrentHealthZone;
-
-    UPROPERTY(BlueprintReadOnly)
     FName PreviousHealthZone;
 
-    UPROPERTY(BlueprintReadWrite)
+    UPROPERTY(BlueprintReadOnly)
+    FName CurrentHealthZone;
+
+    //UPROPERTY(BlueprintReadWrite)
     float StaggerChanceModifier = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
     AActor* Owner = nullptr;
 
-    UPROPERTY(BlueprintReadOnly)
-    AActor* Weapon = nullptr;
+    //UPROPERTY(BlueprintReadOnly)
+    //AActor* Weapon = nullptr;
+
+    //UPROPERTY(BlueprintReadWrite)
+    float ForceStaggerCooldown = 2.0f;
 
     UPROPERTY(BlueprintReadWrite)
-    float ForceStaggerCooldown = 2.0f;
+	bool IsStagger = false;
 };
 
 // Выходные структуры (используются в эффектах)
@@ -191,6 +194,6 @@ struct FDamageResult
     UPROPERTY(BlueprintReadOnly)
     float TotalDamageDealt = 0.0f;
 
-    UPROPERTY(BlueprintReadOnly)
-    float AttackStrength = 0.0f;
+    //UPROPERTY(BlueprintReadOnly)
+    //float AttackStrength = 0.0f;
 };

@@ -241,7 +241,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     float DamageAfterZone = ModifiedDamage * HitZoneMult;
     Result.DamageAfterZone = DamageAfterZone;
     float AttackStrength = DamageAfterZone;
-    Result.AttackStrength = AttackStrength;
+    //Result.AttackStrength = AttackStrength;
 
     // 4. Контекст эффектов (Modify + ApplyDefense)
     float RemainingDamage = DamageAfterZone;
@@ -272,9 +272,10 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.CurrentHealthZone = OldHealthZone;
         Context.PreviousHealthZone = OldHealthZone;
         Context.Owner = GetOwner();
-        Context.Weapon = AttackInfo.DamageSource;
+        //Context.Weapon = AttackInfo.DamageSource;
         Context.ForceStaggerCooldown = RuntimeStaggerCooldown;
         Context.Health = Health; // текущее здоровье до урона
+		Context.IsStagger = bStaggerOnCooldown;
 
         if (AttackInfo.OptionalEnemyEffects)
         {
@@ -384,19 +385,21 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.ReserveDamageMultipliers = ReserveDamageMods;
         Context.IgnoreLayer = IgnoreLayer;
         Context.FinalHealthDamage = FinalHealthDamage;
-        Context.StaggerChanceModifier = StaggerMod;
+        //Context.StaggerChanceModifier = StaggerMod;
         Context.CurrentHealthZone = PredictedZone;          // зона после урона
         Context.PreviousHealthZone = OldHealthZone;        // зона до урона
         Context.Owner = GetOwner();
-        Context.Weapon = AttackInfo.DamageSource;
+        //Context.Weapon = AttackInfo.DamageSource;
         Context.ForceStaggerCooldown = RuntimeStaggerCooldown;
         Context.Health = PredictedHealth;                 // прогнозируемое здоровье
+        Context.IsStagger = bStaggerOnCooldown;
 
         FPostDefenseOutput Out = AttackInfo.OptionalEnemyEffects->PostDefenseProcessing(Context);
         FinalHealthDamage = Out.NewFinalHealthDamage;
         StaggerMod = Out.NewStaggerChanceModifier;
         bForceStagger = Out.bNewForceStagger;
-        bNewForceStaggerCooldown = Out.bNewForceStaggerCooldown;
+        RuntimeStaggerCooldown = Out.bNewForceStaggerCooldown;
+        
     }
 
     FinalHealthDamage *= FinalHealthMod;
@@ -447,13 +450,13 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
             StaggerDamage = TotalDamageDealt;
             break;
         case EStaggerInputType::UseAttackStrength:
-            StaggerDamage = AttackStrength;
+            StaggerDamage = DamageAfterZone;
             break;
         default:
             StaggerDamage = TotalDamageDealt;
         }
 
-        float Chance = GetStaggerChance(StaggerDamage) + StaggerMod;
+        float Chance = FMath::Clamp(GetStaggerChance(StaggerDamage) + StaggerMod, 0.0, 1.0);
         CurrentStaggerChance = Chance;
         if (bForceStagger || FMath::FRand() < Chance)
         {
@@ -465,15 +468,16 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
 
                 if (bForceStagger)
                 {
-                    RuntimeStaggerCooldown = bNewForceStaggerCooldown;
+                    //RuntimeStaggerCooldown = bNewForceStaggerCooldown;
                     CurrentStaggerChance = 1.0f;
                 }
 
+                /*
                 if (StaggerMod != 0.0f)
                 {
                     RuntimeStaggerCooldown = bNewForceStaggerCooldown;
                 }
-
+                */
                 World->GetTimerManager().SetTimer(StaggerCooldownTimer, this, &UEnemyDamageComponent::OnStaggerCooldownExpired, RuntimeStaggerCooldown, false);
             }
             else
@@ -564,7 +568,7 @@ void UEnemyDamageComponent::ApplyHealthRegen()
         {
             AActor* Owner = GetOwner();
             FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
-            UE_LOG(LogTemp, Log, TEXT("[%s] Health regen skipped because staggered and bRegenWhileStaggered=false"), *OwnerName);
+            //UE_LOG(LogTemp, Log, TEXT("[%s] Health regen skipped because staggered and bRegenWhileStaggered=false"), *OwnerName);
         }
         return;
     }
@@ -618,8 +622,8 @@ void UEnemyDamageComponent::ApplyReserveRegen()
             {
                 AActor* Owner = GetOwner();
                 FString OwnerName = Owner ? Owner->GetName() : TEXT("None");
-                UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regen for layer [%s] skipped because staggered and bRegenWhileStaggered=false"),
-                    *OwnerName, *Layer.LayerTag.ToString());
+                //UE_LOG(LogTemp, Log, TEXT("[%s] Reserve regen for layer [%s] skipped because staggered and bRegenWhileStaggered=false"),
+                //    *OwnerName, *Layer.LayerTag.ToString());
             }
             continue;
         }
