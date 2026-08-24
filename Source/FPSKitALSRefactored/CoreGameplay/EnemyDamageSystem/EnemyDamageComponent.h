@@ -17,6 +17,72 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthZoneChanged, FName, NewZon
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor*, DeathActor, FName, DeathTag);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSuicide);
 
+USTRUCT(BlueprintType)
+struct FEnemyDamageSaveData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    float Health = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> CurrentReserves;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool bIsDead = false;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool bStaggerOnCooldown = false;
+
+    UPROPERTY(BlueprintReadWrite)
+    FName CurrentHealthZoneTag;
+
+    UPROPERTY(BlueprintReadWrite)
+    float LastHealthDamageTime = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> LastReserveDamageTimes;
+
+    UPROPERTY(BlueprintReadWrite)
+    float MaxHealth = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> RuntimeMaxReserves;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<float> RuntimeResistanceMultipliers;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<FRegenerationParams> RuntimeReserveRegenParams;
+
+    UPROPERTY(BlueprintReadWrite)
+    FRegenerationParams RuntimeHealthRegenParams;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<FHealthZoneDefinition> RuntimeHealthZones;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool bHealthRegenEnabled = true;
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<bool> bReserveRegenEnabled;
+
+    UPROPERTY(BlueprintReadWrite)
+    float RuntimeBaseStaggerChance = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    float RuntimeStaggerSusceptibility = 0.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    float RuntimeStaggerCooldown = 2.0f;
+
+    UPROPERTY(BlueprintReadWrite)
+    EStaggerInputType RuntimeStaggerInputType = EStaggerInputType::UseTotalDamageDealt;
+
+    UPROPERTY(BlueprintReadWrite)
+    FName CurrentHitZoneName = NAME_None;
+};
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class UEnemyDamageComponent : public UActorComponent
 {
@@ -108,12 +174,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Defense")
     void SetResistanceMultiplier(int32 LayerIndex, float NewMultiplier);
 
-    //UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Defense")
-    //void SetResistanceMultiplierByTag(FName LayerTag, float NewMultiplier);
-
-    //UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
-    //void SetReserveDamageMultiplier(int32 LayerIndex, float NewMultiplier);
-
     // ---- Управление регенерацией здоровья ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetHealthRegenEnabled(bool bEnabled);
@@ -166,6 +226,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Death")
     void Kill();
 
+    // ---- Сериализация в строку ----
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Save")
+    FString SerializeToString() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Save")
+    bool DeserializeFromString(const FString& Data);
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -174,46 +241,90 @@ protected:
     float InitialHealth = 100.0f;
 
 private:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy Damage", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Enemy Damage", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UEnemyDamageConfig> Config;
 
+    UPROPERTY(SaveGame)
     float Health = 100.0f;
+
+    UPROPERTY(SaveGame)
     TArray<float> CurrentReserves;
+
+    UPROPERTY(SaveGame)
     bool bIsDead = false;
+
+    UPROPERTY(SaveGame)
     bool bStaggerOnCooldown = false;
+
+    UPROPERTY(SaveGame)
     FName CurrentHealthZoneTag;
 
+    UPROPERTY(SaveGame)
     FTimerHandle HealthRegenTimer;
+
+    UPROPERTY(SaveGame)
     FTimerHandle ReserveRegenTimer;
+
+    UPROPERTY(SaveGame)
     FTimerHandle StaggerCooldownTimer;
 
+    UPROPERTY(SaveGame)
     TArray<FGuid> RecentAttackIDs;
+
     static constexpr int32 MaxRecentAttacks = 30;
 
+    UPROPERTY(SaveGame)
     float LastHealthDamageTime = 0.0f;
+
+    UPROPERTY(SaveGame)
     TArray<float> LastReserveDamageTimes;
+
+    UPROPERTY(SaveGame)
     float CurrentStaggerChance = 0;
+
+    UPROPERTY(SaveGame)
     float MaxHealth = 0;
+
+    UPROPERTY(SaveGame)
 	FName CurrentHitZoneName = NAME_None;
+
+    UPROPERTY(SaveGame)
     TArray<float> RuntimeMaxReserves;
 
     // Runtime-копии параметров для защиты (инициализируются из Config)
+    UPROPERTY(SaveGame)
     TArray<float> RuntimeResistanceMultipliers;
+
+    UPROPERTY(SaveGame)
     TArray<FRegenerationParams> RuntimeReserveRegenParams;
     //TArray<float> RuntimeReserveDamageMultipliers;
+
+    UPROPERTY(SaveGame)
     FRegenerationParams RuntimeHealthRegenParams;
 
     // Runtime-копия зон здоровья (масштабируется при изменении MaxHealth)
+    UPROPERTY(SaveGame)
     TArray<FHealthZoneDefinition> RuntimeHealthZones;
 
     // Флаги включения регенерации
+
+    UPROPERTY(SaveGame)
     bool bHealthRegenEnabled = true;
+
+    UPROPERTY(SaveGame)
     TArray<bool> bReserveRegenEnabled;
 
     // Параметры стаггера (runtime)
+    UPROPERTY(SaveGame)
     float RuntimeBaseStaggerChance = 0.0f;
+
+    UPROPERTY(SaveGame)
     float RuntimeStaggerSusceptibility = 0.0f;
+
+    UPROPERTY(SaveGame)
     float RuntimeStaggerCooldown = 2.0f;
+
+    UPROPERTY(SaveGame)
     EStaggerInputType RuntimeStaggerInputType = EStaggerInputType::UseTotalDamageDealt;
 
     void InitializeFromConfig();
@@ -224,5 +335,10 @@ private:
     void OnStaggerCooldownExpired();
     float GetStaggerChance(float DamageValue) const;
     FName PredictHealthZone(float HealthValue) const;
+    
+    // ---- Сохранение/загрузка состояния ----
+    FEnemyDamageSaveData SaveState() const;
+    void LoadState(const FEnemyDamageSaveData& SaveData);
+
     void DebugLogDamage(const FDamageResult& Result, float ModifiedDamage, float HitZoneMult, float DamageAfterZone, float FinalHealthDamage, float HealthDelta, bool bAnyReserveChanged);
 };
