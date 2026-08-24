@@ -324,6 +324,8 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 
 	// Update Niagara pour effect
 	PourFX->SetVariableFloat(FName(TEXT("User.PourIntensity")), PourIntensityNormalized);
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("COLLISION %d"), (int32)ECC_GameTraceChannel3));
+
 
 	if (LiquidLevelNormalized <= 0.0f)
 	{
@@ -751,7 +753,6 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 		LastLiquidType = ELiquidType::None;
 	}
 
-	FRecipe CurrentRecipe;
 	if (LastLiquidType != Type)
 	{
 		//Calculate boundary time between steps
@@ -865,13 +866,13 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 
 	//Visual data on pour
 
-	if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
+	if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1) && LiquidStepsOnPour.Last().PourEvents[0].LiquidType == CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].LiquidType)
 	{
-		UpdatePourWidget(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
+		UpdatePourVisual_TargetDish(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
 	}
 	else
 	{
-		UpdatePourWidget(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, FLiquidStep());
+		UpdatePourVisual_TargetDish(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, FLiquidStep());
 	}
 
 	LastLiquidType = Type;
@@ -880,8 +881,13 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 
 void AA_Dishes::UpdateCookingSession()
 {
+	if (!UsesATimer)
+	{
+		return;
+	}
+
 	bCurrentHasIngredientsState = Ingredients.Num() > 0;
-	if (!bPrevHasIngredientsState && bCurrentHasIngredientsState)
+	if (!bPrevHasIngredientsState && bCurrentHasIngredientsState && HeatingLevel != EHeatingLevel::None)
 	{
 		CookingTimerValue = 0.0f;
 		SetCookingTimerValue(FMath::FloorToInt(CookingTimerValue));
@@ -909,6 +915,11 @@ void AA_Dishes::ResetCookingSession()
 	LiquidStepsOnPour.Empty();
 }
 
-void AA_Dishes::UpdatePourWidget(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep)
+void AA_Dishes::UpdatePourVisual_TargetDish(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep)
 {
+	//Pour widget
+	if (UW_PourEvent* PourEventWidget = Cast<UW_PourEvent>(DishWidget->GetUserWidgetObject()))
+	{
+		PourEventWidget->UpdateVisualDataOnPourEvent(Type, LiquidAmount, RecipeLiquidStep.UnderAmountTolerance, RecipeLiquidStep.IdealMinimumAmount, RecipeLiquidStep.IdealMaximumAmount, RecipeLiquidStep.OverAmountTolerance);
+	}
 }

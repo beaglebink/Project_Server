@@ -282,6 +282,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Fluid")
 	void AddLiquid(ELiquidType Type, float Amount);
 
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingTimer")
+	uint8 UsesATimer : 1{false};
+
 private:
 	uint8 bPrevHasIngredientsState : 1{false};
 
@@ -300,6 +304,8 @@ public:
 
 	//Pour events registration
 private:
+	FRecipe CurrentRecipe = FRecipe();
+
 	float TotalAmountAddedPerStep = 0.0f;
 
 	float PrevPourTime = 0.0f;
@@ -314,5 +320,5 @@ private:
 
 	void ResetCookingSession();
 
-	void UpdatePourWidget(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep);
+	void UpdatePourVisual_TargetDish(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep);
 };
