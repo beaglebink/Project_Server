@@ -318,14 +318,13 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 
 		if (!PourFX->IsActive())
 		{
+			PourFX->ReinitializeSystem();
 			PourFX->Activate();
 		}
 	}
 
 	// Update Niagara pour effect
 	PourFX->SetVariableFloat(FName(TEXT("User.PourIntensity")), PourIntensityNormalized);
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("COLLISION %d"), (int32)ECC_GameTraceChannel3));
-
 
 	if (LiquidLevelNormalized <= 0.0f)
 	{
