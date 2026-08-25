@@ -959,6 +959,13 @@ static void SnapshotActor(AActor* Actor, FFloorSavedActorState& OutSnapshot)
 	for (UActorComponent* C : Components)
 	{
 		if (!IsValid(C)) continue;
+
+		if (UEnemyDamageComponent* Damage = Cast<UEnemyDamageComponent>(C))
+		{
+			if (!Damage->IsSavingHealth)
+				continue;
+		}
+
 		TArray<FFloorSavedPropertyEntry> Props;
 		CollectSaveGameProperties(C, Props);
 
@@ -1023,12 +1030,6 @@ static void RestoreActorSnapshot(AActor* Actor, const FFloorSavedActorState& Sna
 	for (UActorComponent* C : Actor->GetComponents())
 	{
 		if (!IsValid(C)) continue;
-
-		if (UEnemyDamageComponent* Damage = Cast<UEnemyDamageComponent>(C))
-		{
-			if(!Damage->IsSavingHealth)
-				continue;
-		}
 
 		ComponentsByName.Add(C->GetFName(), C);
 	}
@@ -1497,6 +1498,11 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 
 					if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
 					{
+						if (Spawner && ShouldSaveEnemyStates(Spawner, Envelope, Reason))
+						{
+							Spawner->CaptureEnemyStates(Snapshot.EnemyStates);
+						}
+
 						if (Spawner->GetSpawnedCount() > 0)
 						{
 							if (Spawner->GetSpawnedCount() == Spawner->GetKilledCount() + Spawner->GetCapturedCount())
@@ -1619,7 +1625,7 @@ bool UInteriorSubsystem::ShouldSaveEnemyStates(ASpawnGroupSpawner* Spawner, cons
 	{
 		for (const FEnvelopeChannelEntry& Entry : Channels)
 		{
-			if (Entry.Channel == Channel && Entry.Policy == EChannelPolicy::Freeze)
+			if (Entry.Channel == Channel && (Entry.Policy == EChannelPolicy::Freeze || Entry.Policy == EChannelPolicy::ResetUnlessCleared))
 				return true;
 		}
 	}
@@ -1751,6 +1757,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 						}
 
 						Spawner->IsUseStoreSpawnParameters = true;
+
 						break;
 					}
 					case EJobSpacePolicy::Partial:

@@ -241,7 +241,7 @@ protected:
     float InitialHealth = 100.0f;
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy Damage")
+    UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Enemy Damage")
     bool IsSavingHealth = true;
 
 private:
