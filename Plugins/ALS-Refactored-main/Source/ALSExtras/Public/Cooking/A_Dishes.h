@@ -34,6 +34,9 @@ struct FPourEvent
 	float TimeEnd;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
+	float TimingScore = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float TimingQuality = 0.0f;
 };
 
@@ -56,9 +59,6 @@ struct FLiquidStepOnPour
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float WeightedLiquidContribution = 0.0f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pour")
-	float RecipeImportance = 0.0f;
 };
 
 class USphereComponent;
@@ -124,6 +124,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* EdgeLiquidPoint;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UAudioComponent* AudioComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UWidgetComponent* DishWidget;
@@ -284,9 +287,11 @@ public:
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingTimer")
-	uint8 UsesATimer : 1{false};
+	uint8 IsACookWare : 1{false};
 
 private:
+	FTimerHandle SteamSoundStopTimerHandle;
+
 	uint8 bPrevHasIngredientsState : 1{false};
 
 	uint8 bCurrentHasIngredientsState : 1{false};
@@ -317,6 +322,8 @@ private:
 	ELiquidType LastLiquidType = ELiquidType::None;
 
 	int32 CurrentStepIndexInRecipe = 0;
+
+	float CalculateTimingQualityPerPourMoment(float CurrentTime, FLiquidStep CurrentRecipeStep);
 
 	void ResetCookingSession();
 

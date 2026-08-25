@@ -12,6 +12,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Cooking/W_PourEvent.h"
+#include "Components/AudioComponent.h"
 
 AA_Dishes::AA_Dishes()
 {
@@ -26,6 +27,7 @@ AA_Dishes::AA_Dishes()
 	EmptyLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EmptyLiquidLevelPoint"));
 	SpringArmToEdge = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmToEdgePoint"));
 	EdgeLiquidPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EdgeLiquidPoint"));
+	AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 	DishWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("DishWidget"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 	FluidFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FluidFX"));
@@ -40,6 +42,7 @@ AA_Dishes::AA_Dishes()
 	EmptyLiquidLevelPoint->SetupAttachment(RootComponent);
 	SpringArmToEdge->SetupAttachment(RootComponent);
 	EdgeLiquidPoint->SetupAttachment(SpringArmToEdge);
+	AudioComponent->SetupAttachment(RootComponent);
 	DishWidget->SetupAttachment(RootComponent);
 	FluidFX->SetupAttachment(LiquidShape);
 	PourFX->SetupAttachment(EdgeLiquidPoint);
@@ -54,6 +57,8 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->bHiddenInGame = true;
 
 	SpringArmToEdge->bDoCollisionTest = false;
+
+	AudioComponent->bAutoActivate = false;
 
 	DishWidget->SetWidgetSpace(EWidgetSpace::Screen);
 	DishWidget->SetDrawSize(FVector2D(200.0f, 400.0f));
@@ -309,6 +314,7 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 				if (AA_Dishes* RefillableDish = Cast<AA_Dishes>(PourHitResult.GetActor()))
 				{
 					RefillableDish->AddLiquid(LiquidType, FullLiquidVolume * PourIntensityNormalized * LiquidPourRateNormalized * DeltaTime);
+					PourFX->SetVariableInt(FName(TEXT("User.HeatingLevel")), static_cast<int32>(RefillableDish->GetHeatingLevel()));
 					break;
 				}
 			}
@@ -324,6 +330,7 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 	}
 
 	// Update Niagara pour effect
+	PourFX->SetVariableVec3(FName(TEXT("User.DishUpVector")), GetActorUpVector());
 	PourFX->SetVariableFloat(FName(TEXT("User.PourIntensity")), PourIntensityNormalized);
 
 	if (LiquidLevelNormalized <= 0.0f)
@@ -373,7 +380,10 @@ void AA_Dishes::RotateDish(float AngleDelta)
 	SetActorRotation(DeltaQuat * BaseQuat);
 	PreviousTiltAngle = CurrentTiltAngle;
 
-	CheckIfCooked();
+	if (FMath::Abs(CurrentTiltAngle) > 45.0f && IsACookWare)
+	{
+		CheckIfCooked();
+	}
 }
 
 void AA_Dishes::TossDish(float Delta)
@@ -571,11 +581,58 @@ void AA_Dishes::CheckIfCooked()
 		}
 	}
 
-	//LiquidSteps 
-	for (const FLiquidStepOnPour& LiquidStepOnPour : LiquidStepsOnPour)
+	//LiquidSteps quality calculation
+	for (int i = 0; i < LiquidStepsOnPour.Num(); ++i)
 	{
+		FLiquidStepOnPour& LiquidStepOnPour = LiquidStepsOnPour[i];
+		if (!CheckedRecipe.LiquidSteps.IsValidIndex(i) || LiquidStepOnPour.PourEvents[0].LiquidType != CheckedRecipe.LiquidSteps[i].LiquidType)
+		{
+			LiquidStepOnPour.AmountQuality = 0.0f;
+			LiquidStepOnPour.WeightedTimingQuality = 0.0f;
+			LiquidStepOnPour.LiquidStepQuality = 0.0f;
+			LiquidStepOnPour.WeightedLiquidContribution = 0.0f;
+		}
+		else
+		{
+			float AmountAddedPerStep = 0.0f;
+			float Sum_PourAmount_PourTimingQuality = 0.0f;
+			for (FPourEvent& PourEvent : LiquidStepOnPour.PourEvents)
+			{
+				//AmountQuality
+				AmountAddedPerStep += PourEvent.AmountAdded;
+
+				//TimingQuality
+				PourEvent.TimingQuality = PourEvent.AmountAdded > 0.0f ? PourEvent.TimingScore / PourEvent.AmountAdded : 0.0f;
+
+				Sum_PourAmount_PourTimingQuality += PourEvent.AmountAdded * PourEvent.TimingQuality;
+			}
+
+			if (AmountAddedPerStep >= CheckedRecipe.LiquidSteps[i].IdealMinimumAmount && AmountAddedPerStep <= CheckedRecipe.LiquidSteps[i].IdealMaximumAmount)
+			{
+				LiquidStepOnPour.AmountQuality = 1.0f;
+			}
+			else if (AmountAddedPerStep < CheckedRecipe.LiquidSteps[i].IdealMinimumAmount)
+			{
+				LiquidStepOnPour.AmountQuality = FMath::Clamp(1 - (CheckedRecipe.LiquidSteps[i].IdealMinimumAmount - AmountAddedPerStep) / CheckedRecipe.LiquidSteps[i].UnderAmountTolerance, 0.0f, 1.0f);
+			}
+			else if (AmountAddedPerStep > CheckedRecipe.LiquidSteps[i].IdealMaximumAmount)
+			{
+				LiquidStepOnPour.AmountQuality = FMath::Clamp(1 - (AmountAddedPerStep - CheckedRecipe.LiquidSteps[i].IdealMaximumAmount) / CheckedRecipe.LiquidSteps[i].OverAmountTolerance, 0.0f, 1.0f);
+			}
+
+			//WeightedTimingQuality
+			LiquidStepOnPour.WeightedTimingQuality = Sum_PourAmount_PourTimingQuality / AmountAddedPerStep;
+
+			//LiquidStepQuality
+			LiquidStepOnPour.LiquidStepQuality = LiquidStepOnPour.AmountQuality * CheckedRecipe.LiquidSteps[i].AmountScoreWeight +
+				LiquidStepOnPour.WeightedTimingQuality * CheckedRecipe.LiquidSteps[i].TimingScoreWeight;
+
+			//WeightedLiquidContribution
+			LiquidStepOnPour.WeightedLiquidContribution = LiquidStepOnPour.LiquidStepQuality * CheckedRecipe.LiquidSteps[i].RecipeImportance;
+		}
+
 		DishQuality += LiquidStepOnPour.WeightedLiquidContribution;
-		TotalRecipeImportance += LiquidStepOnPour.RecipeImportance;
+		TotalRecipeImportance += CheckedRecipe.LiquidSteps.IsValidIndex(i) ? CheckedRecipe.LiquidSteps[i].RecipeImportance : 1.0f;
 	}
 
 	DishQuality /= TotalRecipeImportance;
@@ -668,7 +725,6 @@ void AA_Dishes::CheckIfCooked()
 				TEXT("Amount Quality: %.2f\n")
 				TEXT("Timing Quality: %.2f\n")
 				TEXT("Step Quality: %.2f\n")
-				TEXT("Importance: %.2f\n")
 				TEXT("Contribution: %.2f\n\n"),
 				StepIndex + 1,
 				LiquidStep.PourEvents.Num(),
@@ -676,7 +732,6 @@ void AA_Dishes::CheckIfCooked()
 				LiquidStep.AmountQuality,
 				LiquidStep.WeightedTimingQuality,
 				LiquidStep.LiquidStepQuality,
-				LiquidStep.RecipeImportance,
 				LiquidStep.WeightedLiquidContribution
 			);
 		}
@@ -772,72 +827,16 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 			}
 		}
 
-		//Calculate Qualities
-		if (LiquidStepsOnPour.Num() > 0)
-		{
-			if (!CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1) || LastLiquidType != CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].LiquidType)
-			{
-				LiquidStepsOnPour.Last().AmountQuality = 0.0f;
-				LiquidStepsOnPour.Last().WeightedTimingQuality = 0.0f;
-				LiquidStepsOnPour.Last().LiquidStepQuality = 0.0f;
-				LiquidStepsOnPour.Last().WeightedLiquidContribution = 0.0f;
-				LiquidStepsOnPour.Last().RecipeImportance = 0.0f;
-			}
-			else
-			{
-				float AmountAddedPerStep = 0.0f;
-				float Sum_PourAmount_PourTimingQuality = 0.0f;
-				for (FPourEvent& PourEvent : LiquidStepsOnPour.Last().PourEvents)
-				{
-					//AmountQuality
-					AmountAddedPerStep += PourEvent.AmountAdded;
-
-					//TimingQuality
-					float Overlap = FMath::Max(0.0f, FMath::Min(PourEvent.TimeEnd, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealEndTime) - FMath::Max(PourEvent.TimeStart, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealStartTime));
-					float Duration = PourEvent.TimeEnd - PourEvent.TimeStart;
-					if (Duration > 0.0f)
-					{
-						PourEvent.TimingQuality = Overlap / Duration;
-					}
-					else
-					{
-						PourEvent.TimingQuality = (PourEvent.TimeStart >= CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealStartTime && PourEvent.TimeStart <= CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealEndTime) ? 1.0f : 0.0f;
-					}
-
-					Sum_PourAmount_PourTimingQuality += PourEvent.AmountAdded * PourEvent.TimingQuality;
-				}
-
-				if (AmountAddedPerStep >= CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealMinimumAmount && AmountAddedPerStep <= CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealMaximumAmount)
-				{
-					LiquidStepsOnPour.Last().AmountQuality = 1.0f;
-				}
-				else if (AmountAddedPerStep < CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealMinimumAmount)
-				{
-					LiquidStepsOnPour.Last().AmountQuality = FMath::Clamp(1 - (CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealMinimumAmount - AmountAddedPerStep) / CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].UnderAmountTolerance, 0.0f, 1.0f);
-				}
-				else if (AmountAddedPerStep > CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealMaximumAmount)
-				{
-					LiquidStepsOnPour.Last().AmountQuality = FMath::Clamp(1 - (AmountAddedPerStep - CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealMaximumAmount) / CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].OverAmountTolerance, 0.0f, 1.0f);
-				}
-
-				//WeightedTimingQuality
-				LiquidStepsOnPour.Last().WeightedTimingQuality = Sum_PourAmount_PourTimingQuality / AmountAddedPerStep;
-
-				//LiquidStepQuality
-				LiquidStepsOnPour.Last().LiquidStepQuality = LiquidStepsOnPour.Last().AmountQuality * CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].AmountScoreWeight +
-					LiquidStepsOnPour.Last().WeightedTimingQuality * CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].TimingScoreWeight;
-
-				//WeightedLiquidContribution
-				LiquidStepsOnPour.Last().RecipeImportance = CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].RecipeImportance;
-				LiquidStepsOnPour.Last().WeightedLiquidContribution = LiquidStepsOnPour.Last().LiquidStepQuality * LiquidStepsOnPour.Last().RecipeImportance;
-			}
-		}
-
 		FPourEvent PourEvent;
 		PourEvent.LiquidType = Type;
 		PourEvent.AmountAdded = Amount;
 		PourEvent.TimeStart = CookingTimerValue;
 		PourEvent.TimeEnd = CookingTimerValue;
+		PourEvent.TimingScore = 0.0f;
+		if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
+		{
+			PourEvent.TimingScore = PourEvent.AmountAdded * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
+		}
 		TotalAmountAddedPerStep = Amount;
 
 		FLiquidStepOnPour LiquidStepOnPour;
@@ -853,10 +852,20 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 			PourEvent.AmountAdded = Amount;
 			PourEvent.TimeStart = CookingTimerValue;
 			PourEvent.TimeEnd = CookingTimerValue;
+			PourEvent.TimingScore = 0.0f;
+			if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
+			{
+				PourEvent.TimingScore = PourEvent.AmountAdded * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
+			}
+
 			LiquidStepsOnPour.Last().PourEvents.Add(PourEvent);
 		}
 		else
 		{
+			if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
+			{
+				LiquidStepsOnPour.Last().PourEvents.Last().TimingScore += Amount * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
+			}
 			LiquidStepsOnPour.Last().PourEvents.Last().AmountAdded += Amount;
 			LiquidStepsOnPour.Last().PourEvents.Last().TimeEnd = CookingTimerValue;
 		}
@@ -874,13 +883,30 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 		UpdatePourVisual_TargetDish(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, FLiquidStep());
 	}
 
+	//Sound steam
+	if (HeatingLevel != EHeatingLevel::None)
+	{
+		if (!AudioComponent->IsPlaying())
+		{
+			AudioComponent->Play();
+		}
+
+		GetWorldTimerManager().ClearTimer(SteamSoundStopTimerHandle);
+
+		GetWorldTimerManager().SetTimer(SteamSoundStopTimerHandle, [this]()
+			{
+				AudioComponent->Stop();
+			},
+			1.0f, false);
+	}
+
 	LastLiquidType = Type;
 	PrevPourTime = CurrentPourTime;
 }
 
 void AA_Dishes::UpdateCookingSession()
 {
-	if (!UsesATimer)
+	if (!IsACookWare)
 	{
 		return;
 	}
@@ -902,6 +928,23 @@ void AA_Dishes::UpdateCookingSession()
 		SetCookingTimerVisibility(false);
 	}
 	bPrevHasIngredientsState = bCurrentHasIngredientsState;
+}
+
+float AA_Dishes::CalculateTimingQualityPerPourMoment(float CurrentTime, FLiquidStep CurrentRecipeStep)
+{
+	if (CurrentTime >= CurrentRecipeStep.IdealStartTime && CurrentTime <= CurrentRecipeStep.IdealEndTime)
+	{
+		return 1.0f;
+	}
+	if (CurrentTime < CurrentRecipeStep.IdealStartTime)
+	{
+		return FMath::Clamp(1 - (CurrentRecipeStep.IdealStartTime - CurrentTime) / CurrentRecipeStep.EarlyTolerance, 0.0f, 1.0f);
+	}
+	if (CurrentTime > CurrentRecipeStep.IdealEndTime)
+	{
+		return FMath::Clamp(1 - (CurrentTime - CurrentRecipeStep.IdealEndTime) / CurrentRecipeStep.LateTolerance, 0.0f, 1.0f);
+	}
+	return 0.0f;
 }
 
 void AA_Dishes::ResetCookingSession()
