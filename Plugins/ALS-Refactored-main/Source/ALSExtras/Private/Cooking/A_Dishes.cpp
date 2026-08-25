@@ -12,6 +12,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Cooking/W_PourEvent.h"
+#include "Components/AudioComponent.h"
 
 AA_Dishes::AA_Dishes()
 {
@@ -26,6 +27,7 @@ AA_Dishes::AA_Dishes()
 	EmptyLiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EmptyLiquidLevelPoint"));
 	SpringArmToEdge = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmToEdgePoint"));
 	EdgeLiquidPoint = CreateDefaultSubobject<USceneComponent>(TEXT("EdgeLiquidPoint"));
+	AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 	DishWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("DishWidget"));
 	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 	FluidFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FluidFX"));
@@ -40,6 +42,7 @@ AA_Dishes::AA_Dishes()
 	EmptyLiquidLevelPoint->SetupAttachment(RootComponent);
 	SpringArmToEdge->SetupAttachment(RootComponent);
 	EdgeLiquidPoint->SetupAttachment(SpringArmToEdge);
+	AudioComponent->SetupAttachment(RootComponent);
 	DishWidget->SetupAttachment(RootComponent);
 	FluidFX->SetupAttachment(LiquidShape);
 	PourFX->SetupAttachment(EdgeLiquidPoint);
@@ -54,6 +57,8 @@ AA_Dishes::AA_Dishes()
 	LiquidShape->bHiddenInGame = true;
 
 	SpringArmToEdge->bDoCollisionTest = false;
+
+	AudioComponent->bAutoActivate = false;
 
 	DishWidget->SetWidgetSpace(EWidgetSpace::Screen);
 	DishWidget->SetDrawSize(FVector2D(200.0f, 400.0f));
@@ -309,6 +314,7 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 				if (AA_Dishes* RefillableDish = Cast<AA_Dishes>(PourHitResult.GetActor()))
 				{
 					RefillableDish->AddLiquid(LiquidType, FullLiquidVolume * PourIntensityNormalized * LiquidPourRateNormalized * DeltaTime);
+					PourFX->SetVariableInt(FName(TEXT("User.HeatingLevel")), static_cast<int32>(RefillableDish->GetHeatingLevel()));
 					break;
 				}
 			}
@@ -324,6 +330,7 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 	}
 
 	// Update Niagara pour effect
+	PourFX->SetVariableVec3(FName(TEXT("User.DishUpVector")), GetActorUpVector());
 	PourFX->SetVariableFloat(FName(TEXT("User.PourIntensity")), PourIntensityNormalized);
 
 	if (LiquidLevelNormalized <= 0.0f)
@@ -874,6 +881,23 @@ void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
 	else
 	{
 		UpdatePourVisual_TargetDish(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, FLiquidStep());
+	}
+
+	//Sound steam
+	if (HeatingLevel != EHeatingLevel::None)
+	{
+		if (!AudioComponent->IsPlaying())
+		{
+			AudioComponent->Play();
+		}
+
+		GetWorldTimerManager().ClearTimer(SteamSoundStopTimerHandle);
+
+		GetWorldTimerManager().SetTimer(SteamSoundStopTimerHandle, [this]()
+			{
+				AudioComponent->Stop();
+			},
+			1.0f, false);
 	}
 
 	LastLiquidType = Type;

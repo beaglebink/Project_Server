@@ -126,6 +126,9 @@ public:
 	USceneComponent* EdgeLiquidPoint;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UAudioComponent* AudioComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UWidgetComponent* DishWidget;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
@@ -287,6 +290,8 @@ public:
 	uint8 IsACookWare : 1{false};
 
 private:
+	FTimerHandle SteamSoundStopTimerHandle;
+
 	uint8 bPrevHasIngredientsState : 1{false};
 
 	uint8 bCurrentHasIngredientsState : 1{false};
