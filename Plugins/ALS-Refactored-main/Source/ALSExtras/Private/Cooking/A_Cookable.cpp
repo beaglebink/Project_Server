@@ -118,6 +118,11 @@ void AA_Cookable::Destroyed()
 
 void AA_Cookable::HandleCutting_Implementation(UPARAM(ref)FHitResult& Hit, FVector CutPlaneNormal)
 {
+	if (bIsAttached)
+	{
+		return;
+	}
+
 	UProceduralMeshComponent* OtherHalf = nullptr;
 
 	UKismetProceduralMeshLibrary::SliceProceduralMesh(SlicedMesh, Hit.ImpactPoint, CutPlaneNormal, true, OtherHalf, EProcMeshSliceCapOption::CreateNewSectionForCap, StaticMesh->GetMaterial(0));
@@ -252,10 +257,7 @@ void AA_Cookable::BuildConvexCollision(UProceduralMeshComponent* Mesh)
 
 void AA_Cookable::Toss(float Delta)
 {
-	if (CookingTime < DefaultCookingTime)
-	{
-		bWasTossed = true;
-	}
+	bWasTossed = true;
 
 	SavedLocalPosition = AttachedDish->GetActorTransform().InverseTransformPosition(GetActorLocation());
 
