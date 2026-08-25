@@ -22,71 +22,62 @@ UEnemyDamageComponent::UEnemyDamageComponent()
 FEnemyDamageSaveData UEnemyDamageComponent::SaveState() const
 {
     FEnemyDamageSaveData Data;
-    Data.Health = Health;
-    Data.CurrentReserves = CurrentReserves;
-    Data.bIsDead = bIsDead;
-    Data.bStaggerOnCooldown = bStaggerOnCooldown;
-    Data.CurrentHealthZoneTag = CurrentHealthZoneTag;
-    Data.LastHealthDamageTime = LastHealthDamageTime;
-    Data.LastReserveDamageTimes = LastReserveDamageTimes;
-    Data.MaxHealth = MaxHealth;
-    Data.RuntimeMaxReserves = RuntimeMaxReserves;
-    Data.RuntimeResistanceMultipliers = RuntimeResistanceMultipliers;
-    Data.RuntimeReserveRegenParams = RuntimeReserveRegenParams;
-    Data.RuntimeHealthRegenParams = RuntimeHealthRegenParams;
-    Data.RuntimeHealthZones = RuntimeHealthZones;
-    Data.bHealthRegenEnabled = bHealthRegenEnabled;
-    Data.bReserveRegenEnabled = bReserveRegenEnabled;
-    Data.RuntimeBaseStaggerChance = RuntimeBaseStaggerChance;
-    Data.RuntimeStaggerSusceptibility = RuntimeStaggerSusceptibility;
-    Data.RuntimeStaggerCooldown = RuntimeStaggerCooldown;
-    Data.RuntimeStaggerInputType = RuntimeStaggerInputType;
-    Data.CurrentHitZoneName = CurrentHitZoneName;
+    UClass* Class = GetClass();
+    UStruct* SaveStruct = FEnemyDamageSaveData::StaticStruct();
+
+    for (TFieldIterator<FProperty> It(Class); It; ++It)
+    {
+        FProperty* Prop = *It;
+        if (Prop->HasAnyPropertyFlags(CPF_SaveGame))
+        {
+            FProperty* StructProp = SaveStruct->FindPropertyByName(Prop->GetFName());
+            if (!StructProp)
+                continue;
+
+            // Проверяем совместимость типов (можно использовать Prop->SameType(StructProp) или более мягкую проверку)
+            if (Prop->SameType(StructProp))
+            {
+                const void* SrcAddr = Prop->ContainerPtrToValuePtr<const void>(this);
+                void* DstAddr = StructProp->ContainerPtrToValuePtr<void>(&Data);
+                Prop->CopyCompleteValue(DstAddr, SrcAddr);
+            }
+        }
+    }
     return Data;
 }
 
 void UEnemyDamageComponent::LoadState(const FEnemyDamageSaveData& SaveData)
 {
-    // Проверяем, что конфиг загружен (если нет – выходим)
-    if (!Config)
+    UClass* Class = GetClass();
+    UStruct* SaveStruct = FEnemyDamageSaveData::StaticStruct();
+
+    for (TFieldIterator<FProperty> It(Class); It; ++It)
     {
-        UE_LOG(LogTemp, Warning, TEXT("LoadState: Config is null, cannot restore timers properly."));
-        // Всё равно загружаем данные, но таймеры не запускаем
+        FProperty* Prop = *It;
+        if (Prop->HasAnyPropertyFlags(CPF_SaveGame))
+        {
+            FProperty* StructProp = SaveStruct->FindPropertyByName(Prop->GetFName());
+            if (!StructProp)
+                continue;
+
+            if (Prop->SameType(StructProp))
+            {
+                const void* SrcAddr = StructProp->ContainerPtrToValuePtr<const void>(&SaveData);
+                void* DstAddr = Prop->ContainerPtrToValuePtr<void>(this);
+                Prop->CopyCompleteValue(DstAddr, SrcAddr);
+            }
+        }
     }
 
-    // Восстанавливаем данные
-    Health = SaveData.Health;
-    CurrentReserves = SaveData.CurrentReserves;
-    bIsDead = SaveData.bIsDead;
-    bStaggerOnCooldown = SaveData.bStaggerOnCooldown;
-    CurrentHealthZoneTag = SaveData.CurrentHealthZoneTag;
-    LastHealthDamageTime = SaveData.LastHealthDamageTime;
-    LastReserveDamageTimes = SaveData.LastReserveDamageTimes;
-    MaxHealth = SaveData.MaxHealth;
-    RuntimeMaxReserves = SaveData.RuntimeMaxReserves;
-    RuntimeResistanceMultipliers = SaveData.RuntimeResistanceMultipliers;
-    RuntimeReserveRegenParams = SaveData.RuntimeReserveRegenParams;
-    RuntimeHealthRegenParams = SaveData.RuntimeHealthRegenParams;
-    RuntimeHealthZones = SaveData.RuntimeHealthZones;
-    bHealthRegenEnabled = SaveData.bHealthRegenEnabled;
-    bReserveRegenEnabled = SaveData.bReserveRegenEnabled;
-    RuntimeBaseStaggerChance = SaveData.RuntimeBaseStaggerChance;
-    RuntimeStaggerSusceptibility = SaveData.RuntimeStaggerSusceptibility;
-    RuntimeStaggerCooldown = SaveData.RuntimeStaggerCooldown;
-    RuntimeStaggerInputType = SaveData.RuntimeStaggerInputType;
-    CurrentHitZoneName = SaveData.CurrentHitZoneName;
-
-    // Обновляем зону здоровья в соответствии с новым здоровьем
+    // После загрузки данных обновляем состояние (таймеры, зоны и т.д.)
     UpdateHealthZone();
 
-    // Если здоровье <= 0, но флаг смерти не установлен – убиваем
     if (Health <= 0.0f && !bIsDead)
     {
         Kill();
-        return; // Kill уже всё обработает
+        return;
     }
 
-    // Если мёртв – останавливаем таймеры
     if (bIsDead)
     {
         UWorld* World = GetWorld();
@@ -98,7 +89,6 @@ void UEnemyDamageComponent::LoadState(const FEnemyDamageSaveData& SaveData)
         return;
     }
 
-    // Живой – восстанавливаем таймеры
     UWorld* World = GetWorld();
     if (!World) return;
 
@@ -134,12 +124,10 @@ void UEnemyDamageComponent::LoadState(const FEnemyDamageSaveData& SaveData)
     World->GetTimerManager().ClearTimer(StaggerCooldownTimer);
     if (bStaggerOnCooldown && RuntimeStaggerCooldown > 0.0f)
     {
-        // Восстанавливаем кулдаун с полным временем (оставшееся время не сохраняем)
         World->GetTimerManager().SetTimer(StaggerCooldownTimer, this, &UEnemyDamageComponent::OnStaggerCooldownExpired, RuntimeStaggerCooldown, false);
     }
     else if (bStaggerOnCooldown && RuntimeStaggerCooldown <= 0.0f)
     {
-        // Если кулдаун нулевой, сбрасываем флаг
         bStaggerOnCooldown = false;
     }
 }
