@@ -240,6 +240,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy Damage")
     float InitialHealth = 100.0f;
 
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy Damage")
+    bool IsSavingHealth = true;
+
 private:
     UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "Enemy Damage", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UEnemyDamageConfig> Config;

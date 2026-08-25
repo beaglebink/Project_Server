@@ -20,6 +20,7 @@
 
 class UMissionController;
 class UInteractiveItemComponent;
+class ASpawnGroupSpawner;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTransitionCompleted, bool, bSuccess, FLocationAnchorLink, DestinationLink, bool, IsTravel);
@@ -68,6 +69,7 @@ struct FFloorSavedActorState
     bool       bHasRelativeTransform = false;
     TArray<FFloorSavedPropertyEntry>  ActorProperties;
     TArray<FFloorSavedComponentState> ComponentStates;
+    TArray<FSpawnedEnemyState> EnemyStates;
 };
 
 USTRUCT()
@@ -244,6 +246,9 @@ public:
     virtual FString GetSaveSubsystemName() const override { return TEXT("InteriorSubsystem"); }
     virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
     const FInteriorFloorKey& GetCurrentFloorKey() const { return CurrentKey; }
+
+    // Вспомогательная функция для определения, нужно ли сохранять состояния врагов для спавнера
+    bool ShouldSaveEnemyStates(ASpawnGroupSpawner* Spawner, const FMissionEnvelope& Envelope, EMissionEndReason Reason) const;
 
 private:
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);

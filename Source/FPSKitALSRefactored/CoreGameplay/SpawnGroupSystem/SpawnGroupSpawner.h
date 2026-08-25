@@ -105,6 +105,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
 	bool DebugSpawnPoints = false;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    bool IsSavingHealth = true;
+
     bool IsResetToAlive = false;
 
     bool IsFullRespawn = false;
@@ -149,7 +152,12 @@ private:
     UPROPERTY(SaveGame)
     TMap<FName, int32> TypeKilled;
 
+    UPROPERTY(SaveGame)
     FSpawnGroupState StoredState;
+
+    // Хранилище состояний для врагов, которые будут заспавнены позже
+    UPROPERTY()
+    TArray<FSpawnedEnemyState> PendingEnemyStates;
 
 public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "SpawnGroup|State")
@@ -230,7 +238,21 @@ public:
 
     void RestoreFromStateWithoutCleanup(FSpawnGroupState& State);
 
+    // Сохранить состояния всех живых врагов в массив
+    void CaptureEnemyStates(TArray<FSpawnedEnemyState>& OutStates);
+
+    // Сохранить переданные состояния для последующего восстановления
+    void RestoreEnemyStates(const TArray<FSpawnedEnemyState>& InStates);
+
 protected:
+    // Вспомогательные методы для сериализации/десериализации
+    FString SerializeActorStateToJSON(AActor* Actor) const;
+    void DeserializeAndApplyState(AActor* Actor, const FSpawnedEnemyState& StateData) const;
+    FGuid GetItemIdFromActor(AActor* Actor) const;
+
+    // Поиск состояния для актора по его ItemId
+    const FSpawnedEnemyState* FindStateForActor(AActor* Actor) const;
+
     ASpawnVolume* GetRandomSpawnLocation() const;
     FTransform GetTransformFromLocation(ASpawnVolume* Location) const;
 

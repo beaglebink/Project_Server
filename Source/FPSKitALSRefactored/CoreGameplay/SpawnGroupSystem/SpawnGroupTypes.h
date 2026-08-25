@@ -7,6 +7,31 @@
 #include "SpawnGroupTypes.generated.h"
 
 USTRUCT(BlueprintType)
+struct FSpawnedEnemyState
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    FGuid ItemId;
+
+    UPROPERTY()
+    TSubclassOf<AActor> ActorClass;
+
+    UPROPERTY()
+    FTransform SpawnTransform;
+
+    UPROPERTY()
+    FString SerializedState;
+
+    FSpawnedEnemyState()
+        : ItemId(FGuid())
+        , ActorClass(nullptr)
+        , SpawnTransform(FTransform::Identity)
+        , SerializedState(TEXT(""))
+    {
+    }
+};
+USTRUCT(BlueprintType)
 struct FSpawnGroupId
 {
     GENERATED_BODY()
@@ -109,4 +134,8 @@ struct FSpawnGroupState
     TArray<FSpawnSlotState> Slots;
     UPROPERTY()
     bool bStoreSpawnParameters = false;
+
+    UPROPERTY()
+    TArray<FSpawnedEnemyState> EnemyStates; // состояние каждого врага
 };
+
