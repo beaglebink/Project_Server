@@ -443,7 +443,10 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 
         // Restore ghosts without modifying AllSlots and without destroying existing ones
         // Восстанавливаем призраков без изменения AllSlots и без уничтожения существующих
-        Spawner->RestoreFromStateWithoutCleanup(*State);
+        if (State->bStoreSpawnParameters)
+            Spawner->RestoreFromStateWithoutCleanup(*State);
+        else
+            Spawner->SpawnGroup();
     }
 }
 
