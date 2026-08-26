@@ -941,12 +941,12 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
         NewComp->GameplayTagContainer.AppendTags(EnemyGameplayTags);
     }
 
-    if (const FSpawnedEnemyState* FoundState = FindStateForActor(Ghost))
-    {
+    //if (const FSpawnedEnemyState* FoundState = FindStateForActor(Ghost))
+    //{
         //DeserializeAndApplyState(Ghost, *FoundState);
         //UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"),
         //    *GetName(), *Slot.ItemId.ToString());
-    }
+    //}
 
     Ghost->Tags.Append(EnemyTags);
     AddSpawnSlot(Ghost, Transform);
