@@ -421,7 +421,8 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.CurrentHealthZone = OldHealthZone;
         Context.PreviousHealthZone = OldHealthZone;
         Context.Owner = GetOwner();
-        //Context.Weapon = AttackInfo.DamageSource;
+		Context.Instigator = AttackInfo.Instigator;
+		Context.DamageSource = AttackInfo.DamageSource;
         Context.ForceStaggerCooldown = RuntimeStaggerCooldown;
         Context.Health = Health; // текущее здоровье до урона
 		Context.IsStagger = bStaggerOnCooldown;
@@ -534,11 +535,11 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
         Context.ReserveDamageMultipliers = ReserveDamageMods;
         Context.IgnoreLayer = IgnoreLayer;
         Context.FinalHealthDamage = FinalHealthDamage;
-        //Context.StaggerChanceModifier = StaggerMod;
         Context.CurrentHealthZone = PredictedZone;          // зона после урона
         Context.PreviousHealthZone = OldHealthZone;        // зона до урона
         Context.Owner = GetOwner();
-        //Context.Weapon = AttackInfo.DamageSource;
+        Context.Instigator = AttackInfo.Instigator;
+        Context.DamageSource = AttackInfo.DamageSource;
         Context.ForceStaggerCooldown = RuntimeStaggerCooldown;
         Context.Health = PredictedHealth;                 // прогнозируемое здоровье
         Context.IsStagger = bStaggerOnCooldown;

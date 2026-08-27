@@ -50,10 +50,12 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadOnly)
     AActor* Owner = nullptr;
 
-    //UPROPERTY(BlueprintReadOnly)
-    //AActor* Weapon = nullptr;
+    UPROPERTY(BlueprintReadOnly)
+    AActor* DamageSource = nullptr;
 
-    //UPROPERTY(BlueprintReadWrite)
+    UPROPERTY(BlueprintReadOnly)
+    AController* Instigator = nullptr;
+
     float ForceStaggerCooldown = 2.0f;
 
     UPROPERTY(BlueprintReadWrite)
