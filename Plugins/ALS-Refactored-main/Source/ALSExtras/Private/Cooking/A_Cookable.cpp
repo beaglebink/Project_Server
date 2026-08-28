@@ -10,7 +10,6 @@ AA_Cookable::AA_Cookable()
 	PrimaryActorTick.bCanEverTick = true;
 
 	SlicedMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("SlicedMesh"));
-	TossTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("TossTimelineComponent"));
 	DishRatingText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("DishRatingText"));
 
 	RootComponent = SlicedMesh;
@@ -25,7 +24,7 @@ AA_Cookable::AA_Cookable()
 	SlicedMesh->bUseComplexAsSimpleCollision = false;
 	SlicedMesh->SetSimulatePhysics(true);
 	SlicedMesh->SetNotifyRigidBodyCollision(true);
-	SlicedMesh->BodyInstance.SetMassOverride(1.0f, true);
+	SlicedMesh->BodyInstance.SetMassOverride(100.0f, true);
 	SlicedMesh->SetLinearDamping(0.1f);
 	SlicedMesh->SetAngularDamping(0.1f);
 
@@ -66,30 +65,9 @@ void AA_Cookable::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	//Attaching to dish
-	if (AttachedDish && bIsAttaching && !bIsHeld)
-	{
-		OnAttachingPauseCheckTime += GetWorld()->GetDeltaSeconds();
-		if (OnAttachingPauseCheckTime > 0.5f && SlicedMesh->GetPhysicsLinearVelocity().Length() < 2.0f && SlicedMesh->GetPhysicsAngularVelocityInDegrees().Length() < 2.0f)
-		{
-			SlicedMesh->SetSimulatePhysics(false);
-			AttachToActor(AttachedDish, FAttachmentTransformRules::KeepWorldTransform);
-			bIsAttached = true;
-			bIsAttaching = false;
-			OnAttachingPauseCheckTime = 0.0f;
-		}
-	}
-
-	//Fall off dish
-	if (AttachedDish && !bIsAttaching)
-	{
-		if (!GetWorldTimerManager().IsTimerActive(AttachedDish->TossTimerHandle) && (FMath::Abs(AttachedDish->GetActorRotation().Roll) >= 80.0f || FMath::Abs(AttachedDish->GetActorRotation().Pitch) >= 80.0f))
-		{
-			DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-			bIsAttached = false;
-			SlicedMesh->SetSimulatePhysics(true);
-		}
-	}
+	FVector CurrentVelocity = SlicedMesh->GetPhysicsLinearVelocity();
+	CurrentVelocity.Z = FMath::Clamp(CurrentVelocity.Z, -980.0, 500.0f);
+	SlicedMesh->SetPhysicsLinearVelocity(CurrentVelocity);
 }
 
 void AA_Cookable::BeginPlay()
@@ -97,17 +75,6 @@ void AA_Cookable::BeginPlay()
 	Super::BeginPlay();
 
 	ChunkMass = SlicedMesh->Bounds.BoxExtent.X * SlicedMesh->Bounds.BoxExtent.Y * SlicedMesh->Bounds.BoxExtent.Z;
-
-	if (TossFloatCurve)
-	{
-		TossProgressFunction.BindUFunction(this, FName("TossTimelineProgress"));
-		TossTimeline->AddInterpFloat(TossFloatCurve, TossProgressFunction);
-
-		TossFinishedFunction.BindUFunction(this, FName("TossTimelineFinished"));
-		TossTimeline->SetTimelineFinishedFunc(TossFinishedFunction);
-
-		TossTimeline->SetLooping(false);
-	}
 }
 
 void AA_Cookable::Destroyed()
@@ -118,7 +85,7 @@ void AA_Cookable::Destroyed()
 
 void AA_Cookable::HandleCutting_Implementation(UPARAM(ref)FHitResult& Hit, FVector CutPlaneNormal)
 {
-	if (bIsAttached)
+	if (bIsInsideADish)
 	{
 		return;
 	}
@@ -253,29 +220,6 @@ void AA_Cookable::BuildConvexCollision(UProceduralMeshComponent* Mesh)
 	}
 
 	Mesh->RecreatePhysicsState();
-}
-
-void AA_Cookable::Toss(float Delta)
-{
-	bWasTossed = true;
-
-	SavedLocalPosition = AttachedDish->GetActorTransform().InverseTransformPosition(GetActorLocation());
-
-	TossStartRotation = GetActorRotation();
-	TossTargetRotation = TossStartRotation + FRotator(FMath::RandRange(-90, 90), FMath::RandRange(-90, 90), FMath::RandRange(-90, 90));
-
-	TossOfset = Delta;
-	TossTimeline->PlayFromStart();
-}
-
-void AA_Cookable::TossTimelineProgress(float Value)
-{
-	SetActorLocation(FMath::Lerp(AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition), AttachedDish->GetActorTransform().TransformPosition(SavedLocalPosition) + FVector(0.0f, 0.0f, TossOfset), Value));
-	//SetActorRotation(FQuat::Slerp(TossStartRotation.Quaternion(), TossTargetRotation.Quaternion(), Value));
-}
-
-void AA_Cookable::TossTimelineFinished()
-{
 }
 
 void AA_Cookable::IncreaseCookingTime(int32 CookingPeriod)

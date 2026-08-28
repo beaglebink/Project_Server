@@ -43,48 +43,11 @@ protected:
 	void BuildConvexCollision(UProceduralMeshComponent* Mesh);
 
 public:
-	void Toss(float Delta);
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Slicing mesh")
 	UProceduralMeshComponent* SlicedMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rating")
 	UTextRenderComponent* DishRatingText;
-
-	UPROPERTY()
-	AA_Dishes* AttachedDish;
-
-	uint8 bIsAttaching : 1{false};
-
-	uint8 bWasTossed : 1{false};
-
-private:
-	float OnAttachingPauseCheckTime = 0.0f;
-
-	FVector SavedLocalPosition;
-
-	FRotator TossStartRotation;
-	FRotator TossTargetRotation;
-
-	float TossOfset = 0.0f;
-
-protected:
-	//Toss Timeline
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	UTimelineComponent* TossTimeline;
-
-	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
-	UCurveFloat* TossFloatCurve;
-
-	FOnTimelineFloat TossProgressFunction;
-
-	FOnTimelineEvent TossFinishedFunction;
-
-	UFUNCTION()
-	void TossTimelineProgress(float Value);
-
-	UFUNCTION()
-	void TossTimelineFinished();
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0))
@@ -128,6 +91,15 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	float ChunkMass;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
+	AA_Dishes* PrevParentDish = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
+	uint8 bIsInsideADish : 1{false};
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
+	uint8 bWasTossed : 1{false};
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* MeshDynamicMaterial;
