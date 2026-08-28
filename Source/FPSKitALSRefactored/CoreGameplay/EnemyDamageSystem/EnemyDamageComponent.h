@@ -14,7 +14,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReserveDepleted, FName, LayerTag)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaggered);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaggerCooldownEnded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthZoneChanged, FName, NewZone, FName, OldZone);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor*, DeathActor, FName, DeathTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDeath, AActor*, DeathActor, FName, DeathTag, AController*, Instigator, AActor*, DamageSource);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSuicide);
 
 USTRUCT(BlueprintType)
