@@ -360,7 +360,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     }
 
     // 2. Расчёт модифицированного урона
-    float ModifiedDamage = AttackInfo.BaseDamage * AttackInfo.GunConditionModifier * AttackInfo.ClothingModifier;
+    float ModifiedDamage = AttackInfo.BaseDamage;
     Result.IncomingDamage = ModifiedDamage;
 
     // 3. Зона попадания (кости + компоненты)

@@ -130,12 +130,6 @@ struct FAttackDamageInfo
     AController* Instigator = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float GunConditionModifier = 1.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float ClothingModifier = 1.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FHitResult HitResult;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
