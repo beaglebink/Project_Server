@@ -2596,6 +2596,13 @@ protected:
 	
 	UFUNCTION(BlueprintCallable, Category = "transition")
 	void OnPrepareForSeamlessTravel();
+
+	//Cooking settings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (AllowPrivateAccess = true))
+	uint8 IsCookingMode : 1{false};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (AllowPrivateAccess = true, ClampMin = 0.0f, ClampMax = 1.0f))
+	float CookingModeSpeedMultiplier = 0.2f;
 };
 
 inline const FGameplayTag& AAlsCharacter::GetViewMode() const
