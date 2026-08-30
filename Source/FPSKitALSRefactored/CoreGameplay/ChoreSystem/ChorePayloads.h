@@ -49,7 +49,7 @@ public:
     FChorePerformanceMetrics Performance;
 
     UPROPERTY(BlueprintReadWrite, Category = "Chore")
-    FName MissionId; // если привязано к миссии
+    FName MissionId;
 
     UFUNCTION(BlueprintCallable, Category = "Chore")
     UChoreResultPayload* Setup(FName InChoreId, bool InSuccess, const FChorePerformanceMetrics& InPerf, FName InMissionId = NAME_None)
@@ -80,6 +80,39 @@ public:
     {
         ChoreId = InChoreId;
         Rewards = InRewards;
+        return this;
+    }
+};
+
+// Payload для команд управления хорами (публикуется через EventBus)
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreCommandPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    FName ChoreId;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    bool bSuccess = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    FChorePerformanceMetrics Performance;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore")
+    UChoreCommandPayload* Setup(FName InChoreId)
+    {
+        ChoreId = InChoreId;
+        return this;
+    }
+
+    UFUNCTION(BlueprintCallable, Category = "Chore")
+    UChoreCommandPayload* SetupComplete(FName InChoreId, bool InSuccess, const FChorePerformanceMetrics& InPerf)
+    {
+        ChoreId = InChoreId;
+        bSuccess = InSuccess;
+        Performance = InPerf;
         return this;
     }
 };

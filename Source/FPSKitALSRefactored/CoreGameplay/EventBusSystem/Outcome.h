@@ -166,5 +166,13 @@ enum class EOutcomeChore : uint8
     ChoreMissionRequest     UMETA(DisplayName = "Chore Mission Request"),
     ChoreMissionResult      UMETA(DisplayName = "Chore Mission Result"),
     CheckRequest            UMETA(DisplayName = "Check Request"),
-    CheckResponse           UMETA(DisplayName = "Check Response")
+    CheckResponse           UMETA(DisplayName = "Check Response"),
+    AcceptRequest           UMETA(DisplayName = "Accept Request"),
+    StartRequest            UMETA(DisplayName = "Start Request"),
+    CompleteRequest         UMETA(DisplayName = "Complete Request"),
+    FailRequest             UMETA(DisplayName = "Fail Request"),
+    ExpireRequest           UMETA(DisplayName = "Expire Request"),
+    AbandonRequest          UMETA(DisplayName = "Abandon Request"),
+    RetryRequest            UMETA(DisplayName = "Retry Request"),
+    UnlockRequest           UMETA(DisplayName = "Unlock Request")
 };

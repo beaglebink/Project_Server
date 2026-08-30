@@ -39,7 +39,7 @@ struct FChoreState
     UPROPERTY()
     bool bRewardIssued = false;
 
-    // Для внутреннего использования: обработчик условия доступности
+    // Обработчик условия доступности
     FOutcomeHandlerHandle AvailabilityHandler;
 };
 
@@ -67,77 +67,54 @@ class FPSKITALSREFACTORED_API UChoreManagerSubsystem : public UGameInstanceSubsy
     GENERATED_BODY()
 
 public:
-    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-    virtual void Deinitialize() override;
-
     // ---- ISaveableSubsystem ----
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
     virtual FString GetSaveSubsystemName() const override { return TEXT("ChoreManager"); }
     virtual bool GetIsLoadComplete() const override { return bLoadComplete; }
 
-    // ---- Публичный API для Blueprint ----
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void OfferChore(FName ChoreId);
-
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void AcceptChore(FName ChoreId);
-
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void StartChore(FName ChoreId);
-
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void CompleteChore(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance);
-
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void FailChore(FName ChoreId);
-
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void ExpireChore(FName ChoreId);
-
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void AbandonChore(FName ChoreId);
-
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void RetryChore(FName ChoreId);
-
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void UnlockChore(FName ChoreId);
-
-    // Для миссий – запрос на выполнение хоры как шага
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex);
-
-    // Запись результата миссионной хоры (без изменения статуса задания)
-    UFUNCTION(BlueprintCallable, Category = "Chore Manager")
-    void ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId = NAME_None);
-
-    // ---- Запросы состояния ----
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager")
+    // ---- Публичные методы только для запросов состояния (не изменяют состояние) ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     EChoreStatus GetChoreStatus(FName ChoreId) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager")
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     UChoreDefinition* GetChoreDefinition(FName ChoreId) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager")
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     bool IsChoreAvailable(FName ChoreId) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager")
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetAcceptedChoreIds() const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager")
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetActiveChoreIds() const;
 
-    // ---- Для условий истории ----
+    // ---- Методы для условий истории (используются из Condition Assets) ----
     int32 GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const;
     float GetBestPerformance(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, const FString& MetricName) const;
     bool GetLastResult(FName ChoreId) const;
 
-    // ---- Регистрация определений ----
+    // ---- Регистрация определений (вызывается внутри) ----
     void RegisterChoreDefinition(UChoreDefinition* Definition);
 
 protected:
-    // ---- Внутренние методы ----
+    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    virtual void Deinitialize() override;
+
+    // ---- Внутренние методы управления (не публичные) ----
+    void OfferChore(FName ChoreId);
+    void AcceptChore(FName ChoreId);
+    void StartChore(FName ChoreId);
+    void CompleteChore(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance);
+    void FailChore(FName ChoreId);
+    void ExpireChore(FName ChoreId);
+    void AbandonChore(FName ChoreId);
+    void RetryChore(FName ChoreId);
+    void UnlockChore(FName ChoreId);
+    void RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex);
+    void ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId = NAME_None);
+
+    // ---- Вспомогательные методы ----
     void LoadAllDefinitions();
     void RegisterAvailabilityHandler(UChoreDefinition* Definition);
     void UnregisterAvailabilityHandler(FName ChoreId);
@@ -148,11 +125,23 @@ protected:
     void AddHistoryEntry(FName ChoreId, bool bSucceeded, const FChorePerformanceMetrics& Performance);
     void EvaluateAllAvailability();
 
-    // ---- Обработчики событий ----
-    void HandleEvent(const FOutcomeEventBase& Outcome);
-    void HandleMissionRequest(const FOutcomeEventBase& Outcome);
-    void HandleChoreCompletion(const FOutcomeEventBase& Outcome);
-    //void HandleCheckRequest(const FOutcomeEventBase& Outcome);
+private:
+    // ---- Обработчики команд (подписаны на EventBus) ----
+    void HandleAcceptRequest(const FOutcomeEventBase& Outcome);
+    void HandleStartRequest(const FOutcomeEventBase& Outcome);
+    void HandleCompleteRequest(const FOutcomeEventBase& Outcome);
+    void HandleFailRequest(const FOutcomeEventBase& Outcome);
+    void HandleExpireRequest(const FOutcomeEventBase& Outcome);
+    void HandleAbandonRequest(const FOutcomeEventBase& Outcome);
+    void HandleRetryRequest(const FOutcomeEventBase& Outcome);
+    void HandleUnlockRequest(const FOutcomeEventBase& Outcome);
+    void HandleEvent(const FOutcomeEventBase& Outcome);          // для глобальных условий доступности
+    void HandleMissionRequest(const FOutcomeEventBase& Outcome); // для ChoreMissionRequest
+    void HandleChoreCompletion(const FOutcomeEventBase& Outcome); // для завершения обычных хор
+
+    // ---- Вспомогательные функции для создания условий ----
+    UOutcomeConditionAsset* CreateSimpleChoreCondition(EOutcomeChore ChoreType);
+    UOutcomeConditionAsset* CreateSimpleMissionCondition(EOutcomeMission MissionType);
 
     // ---- Состояние ----
     UPROPERTY()
@@ -167,34 +156,45 @@ protected:
     UPROPERTY()
     bool bLoadComplete = true;
 
-    // ---- Таймеры ----
     FTimerManager* TimerManager = nullptr;
     TMap<FName, FTimerHandle> DeadlineTimers;
 
-    // ---- Хендлы подписок ----
-    FOutcomeHandlerHandle GlobalEventHandler;
-    FOutcomeHandlerHandle MissionRequestHandler;
-    FOutcomeHandlerHandle ChoreCompletionHandler;
-    FOutcomeHandlerHandle CheckRequestHandler;
+    // ---- Хендлы подписок на события ----
+    FOutcomeHandlerHandle GlobalEventHandler;           // для глобальных условий
+    FOutcomeHandlerHandle ChoreCompletionHandler;       // для завершения обычных хор
+    FOutcomeHandlerHandle MissionRequestHandler;        // для запросов от миссий
+
+    FOutcomeHandlerHandle AcceptRequestHandler;
+    FOutcomeHandlerHandle StartRequestHandler;
+    FOutcomeHandlerHandle CompleteRequestHandler;
+    FOutcomeHandlerHandle FailRequestHandler;
+    FOutcomeHandlerHandle ExpireRequestHandler;
+    FOutcomeHandlerHandle AbandonRequestHandler;
+    FOutcomeHandlerHandle RetryRequestHandler;
+    FOutcomeHandlerHandle UnlockRequestHandler;
 
     // ---- Условия для подписок ----
     UPROPERTY()
     TObjectPtr<UOutcomeConditionAsset> GlobalEventCondition;
-
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> ChoreCompletionCondition;
     UPROPERTY()
     TObjectPtr<UOutcomeConditionAsset> MissionRequestCondition;
 
     UPROPERTY()
-    TObjectPtr<UOutcomeConditionAsset> ChoreCompletionCondition;
-
+    TObjectPtr<UOutcomeConditionAsset> AcceptRequestCondition;
     UPROPERTY()
-    TObjectPtr<UOutcomeConditionAsset> CheckRequestCondition;
-
-    // ---- Вспомогательные структуры ----
-    struct FPendingDefinitionLoad
-    {
-        FName ChoreId;
-        TSoftObjectPtr<UChoreDefinition> DefinitionPtr;
-    };
-    TArray<FPendingDefinitionLoad> PendingDefinitions;
+    TObjectPtr<UOutcomeConditionAsset> StartRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> CompleteRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> FailRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> ExpireRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> AbandonRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> RetryRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> UnlockRequestCondition;
 };

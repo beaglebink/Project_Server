@@ -1,12 +1,12 @@
 #include "ChoreManagerSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Engine/AssetManager.h"
 #include "TimerManager.h"
 #include "JsonObjectConverter.h"
 #include "ChoreHistoryConditionAsset.h"
-#include "CheckRequestPayload.h"
-#include "CheckResponsePayload.h"
 #include "SaveGame/GameSaveSubsystem.h"
+#include "ChorePayloads.h"
 
 void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -14,75 +14,62 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     TimerManager = &GetWorld()->GetTimerManager();
 
-    // ---- Загрузка всех определений хор (можно через Primary Asset Manager) ----
+    // Загружаем все определения хор
     LoadAllDefinitions();
 
     // ---- Создание условий для подписок ----
-    // 1. Глобальный обработчик для проверки доступности (все события)
     GlobalEventCondition = NewObject<UOutcomeConditionAsset>(this);
     GlobalEventCondition->OperatorType = EConditionOperator::Composite;
-    GlobalEventCondition->FilterRow.OutcomeType = EOutcomeType::Default; // все типы
+    GlobalEventCondition->FilterRow.OutcomeType = EOutcomeType::Default;
     GlobalEventCondition->CompileCondition();
 
-    // 2. Запросы от миссий на выполнение хоры как шага (используем новый тип EOutcomeMission::ChoreStepRequest)
-    MissionRequestCondition = NewObject<UOutcomeConditionAsset>(this);
-    MissionRequestCondition->OperatorType = EConditionOperator::Composite;
-    MissionRequestCondition->FilterRow.OutcomeType = EOutcomeType::Mission;
-    MissionRequestCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-    MissionRequestCondition->FilterRow.MissionType = EOutcomeMission::ChoreStepRequest;
-    MissionRequestCondition->FilterRow.MissionComparison = EConditionComparison::Equals;
-    MissionRequestCondition->CompileCondition();
+    MissionRequestCondition = CreateSimpleMissionCondition(EOutcomeMission::ChoreStepRequest);
 
-    // 3. Завершение хоры (публикуется мини-игрой или самой хорой)
-    //    Используется для обработки обычных (не миссионных) хор.
     ChoreCompletionCondition = NewObject<UOutcomeConditionAsset>(this);
     ChoreCompletionCondition->OperatorType = EConditionOperator::Composite;
     ChoreCompletionCondition->FilterRow.OutcomeType = EOutcomeType::Chore;
     ChoreCompletionCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-    // Обрабатываем как успех, так и провал – поэтому фильтруем по OutcomeChore Succeeded/Failed
-    // Можно сделать два отдельных обработчика, но для простоты используем один и внутри проверяем.
     ChoreCompletionCondition->CompileCondition();
 
-    // 4. CheckRequest для запросов состояния (опционально)
-    /*
-    CheckRequestCondition = NewObject<UOutcomeConditionAsset>(this);
-    CheckRequestCondition->OperatorType = EConditionOperator::Composite;
-    CheckRequestCondition->FilterRow.OutcomeType = EOutcomeType::Chore;
-    CheckRequestCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-    CheckRequestCondition->FilterRow.ChoreType = EOutcomeChore::CheckRequest;
-    CheckRequestCondition->FilterRow.ChoreComparison = EConditionComparison::Equals;
-    CheckRequestCondition->CompileCondition();
-    */
+    // ---- Командные события ----
+    AcceptRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::AcceptRequest);
+    StartRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::StartRequest);
+    CompleteRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::CompleteRequest);
+    FailRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::FailRequest);
+    ExpireRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ExpireRequest);
+    AbandonRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::AbandonRequest);
+    RetryRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::RetryRequest);
+    UnlockRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::UnlockRequest);
 
     // ---- Регистрация обработчиков в EventBus ----
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
     {
-        // Глобальный обработчик для условий доступности
-        GlobalEventHandler = EventBus->RegisterHandler(
-            GlobalEventCondition,
-            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleEvent)
-        );
+        GlobalEventHandler = EventBus->RegisterHandler(GlobalEventCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleEvent));
 
-        // Обработчик запросов от миссий
-        MissionRequestHandler = EventBus->RegisterHandler(
-            MissionRequestCondition,
-            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleMissionRequest)
-        );
+        MissionRequestHandler = EventBus->RegisterHandler(MissionRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleMissionRequest));
 
-        // Обработчик завершения хор (обычных)
-        ChoreCompletionHandler = EventBus->RegisterHandler(
-            ChoreCompletionCondition,
-            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleChoreCompletion)
-        );
+        ChoreCompletionHandler = EventBus->RegisterHandler(ChoreCompletionCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleChoreCompletion));
 
-        // Обработчик проверочных запросов
-        /*
-        CheckRequestHandler = EventBus->RegisterHandler(
-            CheckRequestCondition,
-            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleCheckRequest)
-        );
-        */
+        AcceptRequestHandler = EventBus->RegisterHandler(AcceptRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleAcceptRequest));
+        StartRequestHandler = EventBus->RegisterHandler(StartRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleStartRequest));
+        CompleteRequestHandler = EventBus->RegisterHandler(CompleteRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleCompleteRequest));
+        FailRequestHandler = EventBus->RegisterHandler(FailRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleFailRequest));
+        ExpireRequestHandler = EventBus->RegisterHandler(ExpireRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleExpireRequest));
+        AbandonRequestHandler = EventBus->RegisterHandler(AbandonRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleAbandonRequest));
+        RetryRequestHandler = EventBus->RegisterHandler(RetryRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleRetryRequest));
+        UnlockRequestHandler = EventBus->RegisterHandler(UnlockRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleUnlockRequest));
     }
 
     // ---- Регистрация в системе сохранения ----
@@ -91,39 +78,56 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
         SaveSys->RegisterSaveableSubsystem(this);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("ChoreManagerSubsystem: Initialized with EventBus handlers."));
+    UE_LOG(LogTemp, Log, TEXT("ChoreManagerSubsystem: Initialized."));
 }
 
 void UChoreManagerSubsystem::Deinitialize()
 {
-    // Отписываемся
+    // Отписка от EventBus
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
     {
-        if (GlobalEventHandler.IsValid()) EventBus->UnregisterHandler(GlobalEventHandler);
-        if (MissionRequestHandler.IsValid()) EventBus->UnregisterHandler(MissionRequestHandler);
-        if (ChoreCompletionHandler.IsValid()) EventBus->UnregisterHandler(ChoreCompletionHandler);
-        //if (CheckRequestHandler.IsValid()) EventBus->UnregisterHandler(CheckRequestHandler);
+        auto Unreg = [&](FOutcomeHandlerHandle& Handle) {
+            if (Handle.IsValid()) { EventBus->UnregisterHandler(Handle); Handle.Invalidate(); }
+            };
+        Unreg(GlobalEventHandler);
+        Unreg(MissionRequestHandler);
+        Unreg(ChoreCompletionHandler);
+        Unreg(AcceptRequestHandler);
+        Unreg(StartRequestHandler);
+        Unreg(CompleteRequestHandler);
+        Unreg(FailRequestHandler);
+        Unreg(ExpireRequestHandler);
+        Unreg(AbandonRequestHandler);
+        Unreg(RetryRequestHandler);
+        Unreg(UnlockRequestHandler);
     }
 
-    // Отписываем все условия доступности
+    // Отписка обработчиков доступности
     for (auto& Pair : ActiveStates)
     {
         UnregisterAvailabilityHandler(Pair.Key);
     }
 
-    // Очищаем таймеры
-    for (auto& Pair : DeadlineTimers)
+    // Очистка таймеров
+    if (TimerManager)
     {
-        if (Pair.Value.IsValid()) TimerManager->ClearTimer(Pair.Value);
+        for (auto& Pair : DeadlineTimers)
+        {
+            if (Pair.Value.IsValid()) TimerManager->ClearTimer(Pair.Value);
+        }
+        DeadlineTimers.Empty();
     }
-    DeadlineTimers.Empty();
 
-    // Отписываемся от сохранения
+    // Отписка от сохранения
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
     {
         SaveSys->UnregisterSaveableSubsystem(this);
     }
+
+    ActiveStates.Empty();
+    Definitions.Empty();
+    History.Empty();
 
     Super::Deinitialize();
 }
@@ -131,9 +135,31 @@ void UChoreManagerSubsystem::Deinitialize()
 // ---- Загрузка определений ----
 void UChoreManagerSubsystem::LoadAllDefinitions()
 {
-    // Используем Primary Asset Manager для загрузки всех UChoreDefinition
-    // Либо просто сканируем папки. Здесь упрощённый вариант: вручную добавим в будущем.
-    // Можно сделать метод RegisterChoreDefinition, который будет вызываться извне.
+    UAssetManager* AssetManager = UAssetManager::GetIfInitialized();
+    if (!AssetManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ChoreManager: AssetManager not initialized"));
+        return;
+    }
+
+    TArray<FPrimaryAssetId> AssetIds;
+    AssetManager->GetPrimaryAssetIdList(FPrimaryAssetType("Chore"), AssetIds);
+
+    for (const FPrimaryAssetId& AssetId : AssetIds)
+    {
+        FSoftObjectPath Path = AssetManager->GetPrimaryAssetPath(AssetId);
+        UChoreDefinition* Definition = Cast<UChoreDefinition>(Path.TryLoad());
+        if (Definition)
+        {
+            RegisterChoreDefinition(Definition);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ChoreManager: Failed to load chore definition '%s'"), *AssetId.ToString());
+        }
+    }
+
+    EvaluateAllAvailability();
 }
 
 void UChoreManagerSubsystem::RegisterChoreDefinition(UChoreDefinition* Definition)
@@ -143,7 +169,7 @@ void UChoreManagerSubsystem::RegisterChoreDefinition(UChoreDefinition* Definitio
     if (Definitions.Contains(ChoreId)) return;
 
     Definitions.Add(ChoreId, Definition);
-    // Создаём состояние, если его нет
+
     if (!ActiveStates.Contains(ChoreId))
     {
         FChoreState NewState;
@@ -152,14 +178,13 @@ void UChoreManagerSubsystem::RegisterChoreDefinition(UChoreDefinition* Definitio
         ActiveStates.Add(ChoreId, NewState);
     }
 
-    // Регистрируем обработчик условия доступности
-    RegisterAvailabilityHandler(Definition);
-
-    // Если условие уже выполнено (например, при загрузке), сразу делаем доступным
-    if (Definition->AvailabilityCondition)
+    if (!Definition->AvailabilityCondition)
     {
-        // Проверим условие без события – можно вызвать Evaluate с пустым событием или просто через HandleEvent
-        // Для простоты вызовем EvaluateAllAvailability после регистрации всех определений.
+        OfferChore(ChoreId);
+    }
+    else
+    {
+        RegisterAvailabilityHandler(Definition);
     }
 }
 
@@ -173,18 +198,16 @@ void UChoreManagerSubsystem::RegisterAvailabilityHandler(UChoreDefinition* Defin
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
 
-    // Компилируем условие
     Definition->AvailabilityCondition->CompileCondition();
     if (!Definition->AvailabilityCondition->GetCondition().IsValid())
         return;
 
-    // Создаём обработчик, который при выполнении условия вызовет OfferChore
     FOutcomeHandlerHandle Handle = EventBus->RegisterHandler(
         Definition->AvailabilityCondition,
         FOutcomeHandlerDelegate::CreateLambda([this, ChoreId](const FOutcomeEventBase&)
-        {
-            OfferChore(ChoreId);
-        })
+            {
+                OfferChore(ChoreId);
+            })
     );
 
     if (Handle.IsValid())
@@ -218,36 +241,35 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
 
         FOutcomeEventBase Event;
         Event.OutcomeType = EOutcomeType::Chore;
-        Event.OutcomeChore = EOutcomeChore::Default;
+
         switch (NewStatus)
         {
-            case EChoreStatus::Available:
-            case EChoreStatus::Offered:
-                Event.OutcomeChore = EOutcomeChore::ChoreOffered;
-                break;
-            case EChoreStatus::Accepted:
-                Event.OutcomeChore = EOutcomeChore::ChoreAccepted;
-                break;
-            case EChoreStatus::Active:
-                Event.OutcomeChore = EOutcomeChore::ChoreStarted;
-                break;
-            case EChoreStatus::Succeeded:
-                Event.OutcomeChore = EOutcomeChore::ChoreSucceeded;
-                break;
-            case EChoreStatus::Failed:
-                Event.OutcomeChore = EOutcomeChore::ChoreFailed;
-                break;
-            case EChoreStatus::Expired:
-                Event.OutcomeChore = EOutcomeChore::ChoreExpired;
-                break;
-            case EChoreStatus::RetryAvailable:
-                Event.OutcomeChore = EOutcomeChore::ChoreRetryAvailable;
-                break;
-            default:
-                return;
+        case EChoreStatus::Available:
+        case EChoreStatus::Offered:
+            Event.OutcomeChore = EOutcomeChore::ChoreOffered;
+            break;
+        case EChoreStatus::Accepted:
+            Event.OutcomeChore = EOutcomeChore::ChoreAccepted;
+            break;
+        case EChoreStatus::Active:
+            Event.OutcomeChore = EOutcomeChore::ChoreStarted;
+            break;
+        case EChoreStatus::Succeeded:
+            Event.OutcomeChore = EOutcomeChore::ChoreSucceeded;
+            break;
+        case EChoreStatus::Failed:
+            Event.OutcomeChore = EOutcomeChore::ChoreFailed;
+            break;
+        case EChoreStatus::Expired:
+            Event.OutcomeChore = EOutcomeChore::ChoreExpired;
+            break;
+        case EChoreStatus::RetryAvailable:
+            Event.OutcomeChore = EOutcomeChore::ChoreRetryAvailable;
+            break;
+        default:
+            return;
         }
 
-        // Добавим payload с состоянием (опционально)
         UChoreResultPayload* Payload = EventBus->CreatePayload<UChoreResultPayload>();
         if (Payload)
         {
@@ -273,7 +295,6 @@ void UChoreManagerSubsystem::StartDeadlineTimer(FName ChoreId)
         return;
     }
 
-    // Удаляем старый таймер
     ClearDeadlineTimer(ChoreId);
 
     FTimerHandle Handle;
@@ -327,14 +348,13 @@ void UChoreManagerSubsystem::AddHistoryEntry(FName ChoreId, bool bSucceeded, con
     Entry.Timestamp = FDateTime::UtcNow();
     History.Add(Entry);
 
-    // Ограничим размер истории, например 100 записей
     if (History.Num() > 100)
     {
         History.RemoveAt(0, History.Num() - 100);
     }
 }
 
-// ---- Публичные методы ----
+// ---- Публичные методы управления (вызываются только из обработчиков) ----
 void UChoreManagerSubsystem::OfferChore(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
@@ -397,7 +417,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
         UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
         GrantRewards(ChoreId);
         AddHistoryEntry(ChoreId, true, Performance);
-        // Проверяем повторяемость
+
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->bIsRepeatable)
         {
@@ -407,8 +427,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
             }
             else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
             {
-                // Регистрируем обработчик реактивации
-                RegisterAvailabilityHandler(Def); // переиспользуем
+                RegisterAvailabilityHandler(Def);
             }
         }
     }
@@ -416,7 +435,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
     {
         UpdateChoreState(ChoreId, EChoreStatus::Failed);
         AddHistoryEntry(ChoreId, false, Performance);
-        // Обработка повтора
+
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
@@ -471,7 +490,6 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
     FChoreState& State = ActiveStates[ChoreId];
     if (State.Status != EChoreStatus::RetryAvailable) return;
 
-    // Сбрасываем состояние и предлагаем снова
     State.bRewardIssued = false;
     State.Performance = FChorePerformanceMetrics();
     UpdateChoreState(ChoreId, EChoreStatus::Available);
@@ -479,15 +497,12 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
 
 void UChoreManagerSubsystem::UnlockChore(FName ChoreId)
 {
-    // Принудительно делаем доступным (используется внешними системами)
     OfferChore(ChoreId);
 }
 
+// ---- Для миссий ----
 void UChoreManagerSubsystem::RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex)
 {
-    // Этот метод вызывается миссией, когда она хочет запустить хору как шаг.
-    // Он публикует событие, на которое подписан ChoreManager (HandleMissionRequest).
-
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus)
     {
@@ -495,7 +510,6 @@ void UChoreManagerSubsystem::RequestMissionChore(FName MissionId, FName ChoreId,
         return;
     }
 
-    // Создаём payload с идентификаторами
     UChoreMissionRequestPayload* Payload = EventBus->CreatePayload<UChoreMissionRequestPayload>();
     if (!Payload)
     {
@@ -507,25 +521,17 @@ void UChoreManagerSubsystem::RequestMissionChore(FName MissionId, FName ChoreId,
     Payload->ChoreId = ChoreId;
     Payload->MissionStepIndex = StepIndex;
 
-    // Публикуем событие типа Mission / ChoreStepRequest
     FOutcomeEventBase Event;
     Event.OutcomeType = EOutcomeType::Mission;
     Event.OutcomeMission = EOutcomeMission::ChoreStepRequest;
     Event.Payload = Payload;
-
     EventBus->PublishOutcome(Event);
-
-    UE_LOG(LogTemp, Log,
-        TEXT("ChoreManager: RequestMissionChore - published request for Mission='%s', Chore='%s', Step=%d"),
-        *MissionId.ToString(), *ChoreId.ToString(), StepIndex);
 }
 
 void UChoreManagerSubsystem::ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId)
 {
-    // Записываем в историю, не меняя статус задания
     AddHistoryEntry(ChoreId, bSuccess, Performance);
 
-    // Публикуем результат для миссии
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
 
@@ -545,7 +551,7 @@ void UChoreManagerSubsystem::ReportMissionChoreResult(FName ChoreId, bool bSucce
     }
 }
 
-// ---- Запросы состояния ----
+// ---- Запросы состояния (публичные) ----
 EChoreStatus UChoreManagerSubsystem::GetChoreStatus(FName ChoreId) const
 {
     if (ActiveStates.Contains(ChoreId)) return ActiveStates[ChoreId].Status;
@@ -588,7 +594,7 @@ TArray<FName> UChoreManagerSubsystem::GetActiveChoreIds() const
     return Result;
 }
 
-// ---- Для условий истории ----
+// ---- Методы для условий истории ----
 int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const
 {
     int32 Count = 0;
@@ -597,7 +603,6 @@ int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family
         if (!ChoreId.IsNone() && Entry.ChoreId != ChoreId) continue;
         if (bSucceededOnly && !Entry.bSucceeded) continue;
 
-        // Проверяем семейство/подтип, если нужно
         if (bUseFamily || bUseSubtype)
         {
             UChoreDefinition* Def = GetChoreDefinition(Entry.ChoreId);
@@ -650,9 +655,6 @@ bool UChoreManagerSubsystem::GetLastResult(FName ChoreId) const
 // ---- Обработчики событий ----
 void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 {
-    // Перебираем все задания и проверяем, не выполнились ли их условия доступности
-    // Это может быть дорого, но для небольшого количества заданий допустимо.
-    // Альтернатива – хранить маппинг событий на задания.
     for (auto& Pair : ActiveStates)
     {
         FName ChoreId = Pair.Key;
@@ -663,11 +665,9 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (!Def || !Def->AvailabilityCondition) continue;
 
-        // Проверяем, скомпилировано ли условие
         if (!Def->AvailabilityCondition->GetCondition().IsValid())
-        {
             Def->AvailabilityCondition->CompileCondition();
-        }
+
         if (Def->AvailabilityCondition->GetCondition().IsValid() &&
             Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome))
         {
@@ -688,8 +688,6 @@ void UChoreManagerSubsystem::HandleMissionRequest(const FOutcomeEventBase& Outco
         return;
     }
 
-    // Проверяем, доступна ли хора (можно запускать даже если она не доступна? – по дизайну миссия может запускать любую)
-    // Для миссий создаём временное состояние, если его нет
     if (!ActiveStates.Contains(ChoreId))
     {
         FChoreState NewState;
@@ -700,21 +698,18 @@ void UChoreManagerSubsystem::HandleMissionRequest(const FOutcomeEventBase& Outco
     else
     {
         FChoreState& State = ActiveStates[ChoreId];
-        // Если хора уже выполняется, игнорируем
         if (State.Status == EChoreStatus::Active || State.Status == EChoreStatus::Succeeded)
             return;
-        // Иначе переводим в активное
         State.Status = EChoreStatus::Active;
     }
 
-    // Публикуем событие о старте
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
     {
         FOutcomeEventBase Event;
         Event.OutcomeType = EOutcomeType::Chore;
         Event.OutcomeChore = EOutcomeChore::ChoreStarted;
-        Event.Payload = Req; // переиспользуем payload
+        Event.Payload = Req;
         EventBus->PublishOutcome(Event);
     }
 }
@@ -739,7 +734,7 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
         UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
         GrantRewards(ChoreId);
         AddHistoryEntry(ChoreId, true, Result->Performance);
-        // Обработка повторяемости
+
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->bIsRepeatable)
         {
@@ -753,7 +748,7 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
     {
         UpdateChoreState(ChoreId, EChoreStatus::Failed);
         AddHistoryEntry(ChoreId, false, Result->Performance);
-        // Обработка повтора
+
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->RetryBehavior == EChoreRetryBehavior::Immediate)
             UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
@@ -761,10 +756,8 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
             RegisterAvailabilityHandler(Def);
     }
 
-    // Если это результат миссионной хоры (передаём дальше)
     if (!Result->MissionId.IsNone())
     {
-        // Перепубликуем для миссии
         UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
         if (EventBus)
         {
@@ -776,58 +769,127 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
         }
     }
 }
-/*
-void UChoreManagerSubsystem::HandleCheckRequest(const FOutcomeEventBase& Outcome)
+
+// ---- Реализация обработчиков команд ----
+void UChoreManagerSubsystem::HandleAcceptRequest(const FOutcomeEventBase& Outcome)
 {
-    // Если кто-то запрашивает состояние хоры (по аналогии с MissionCheckCondition)
-    UCheckRequestPayload* Req = Cast<UCheckRequestPayload>(Outcome.Payload);
-    if (!Req) return;
-
-    // Предположим, что запрос содержит ChoreId в строке
-    FString ChoreIdStr = Req->PropertyToCheck == ECheckProperty::Name ? Req->StringValue : FString();
-    if (ChoreIdStr.IsEmpty()) return;
-    FName ChoreId = FName(*ChoreIdStr);
-
-    bool bApproved = false;
-    FString Reason;
-
-    if (ActiveStates.Contains(ChoreId))
-    {
-        bApproved = true;
-    }
-    else
-    {
-        Reason = TEXT("Chore not found");
-    }
-
-    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-    if (!EventBus) return;
-
-    UCheckResponsePayload* Resp = EventBus->CreatePayload<UCheckResponsePayload>();
-    Resp->TransactionId = Req->TransactionId;
-    Resp->bApproved = bApproved;
-    Resp->Reason = Reason;
-
-    FOutcomeEventBase Reply;
-    Reply.OutcomeType = EOutcomeType::Chore;
-    Reply.OutcomeChore = EOutcomeChore::CheckResponse;
-    Reply.Payload = Resp;
-    EventBus->PublishOutcome(Reply);
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    AcceptChore(Payload->ChoreId);
 }
-*/
-// ---- Сохранение / Загрузка ----
+
+void UChoreManagerSubsystem::HandleStartRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    StartChore(Payload->ChoreId);
+}
+
+void UChoreManagerSubsystem::HandleCompleteRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    CompleteChore(Payload->ChoreId, Payload->bSuccess, Payload->Performance);
+}
+
+void UChoreManagerSubsystem::HandleFailRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    FailChore(Payload->ChoreId);
+}
+
+void UChoreManagerSubsystem::HandleExpireRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    ExpireChore(Payload->ChoreId);
+}
+
+void UChoreManagerSubsystem::HandleAbandonRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    AbandonChore(Payload->ChoreId);
+}
+
+void UChoreManagerSubsystem::HandleRetryRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    RetryChore(Payload->ChoreId);
+}
+
+void UChoreManagerSubsystem::HandleUnlockRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    UnlockChore(Payload->ChoreId);
+}
+
+// ---- Вспомогательные функции ----
+UOutcomeConditionAsset* UChoreManagerSubsystem::CreateSimpleChoreCondition(EOutcomeChore ChoreType)
+{
+    UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+    Asset->OperatorType = EConditionOperator::Composite;
+    Asset->FilterRow.OutcomeType = EOutcomeType::Chore;
+    Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+    Asset->FilterRow.ChoreType = ChoreType;
+    Asset->FilterRow.ChoreComparison = EConditionComparison::Equals;
+    Asset->CompileCondition();
+    return Asset;
+}
+
+UOutcomeConditionAsset* UChoreManagerSubsystem::CreateSimpleMissionCondition(EOutcomeMission MissionType)
+{
+    UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+    Asset->OperatorType = EConditionOperator::Composite;
+    Asset->FilterRow.OutcomeType = EOutcomeType::Mission;
+    Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+    Asset->FilterRow.MissionType = MissionType;
+    Asset->FilterRow.MissionComparison = EConditionComparison::Equals;
+    Asset->CompileCondition();
+    return Asset;
+}
+
+void UChoreManagerSubsystem::EvaluateAllAvailability()
+{
+    for (auto& Pair : ActiveStates)
+    {
+        FName ChoreId = Pair.Key;
+        if (Pair.Value.Status == EChoreStatus::Unavailable)
+        {
+            UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+            if (Def && Def->AvailabilityCondition)
+            {
+                if (!Def->AvailabilityCondition->GetCondition().IsValid())
+                    Def->AvailabilityCondition->CompileCondition();
+                if (Def->AvailabilityCondition->GetCondition().IsValid())
+                {
+                    FOutcomeEventBase Dummy;
+                    if (Def->AvailabilityCondition->GetCondition()->Evaluate(Dummy))
+                    {
+                        OfferChore(ChoreId);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---- ISaveableSubsystem ----
 void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
     OutData.SubsystemName = GetSaveSubsystemName();
-
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
-    // Сохраняем состояния (кроме Unavailable)
+    // Сохраняем состояния
     TArray<TSharedPtr<FJsonValue>> StateArray;
     for (const auto& Pair : ActiveStates)
     {
         const FChoreState& State = Pair.Value;
         if (State.Status == EChoreStatus::Unavailable) continue;
+
         TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
         Obj->SetStringField(TEXT("ChoreId"), State.ChoreId.ToString());
         Obj->SetNumberField(TEXT("Status"), (uint8)State.Status);
@@ -836,7 +898,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetNumberField(TEXT("AttemptCount"), State.AttemptCount);
         Obj->SetBoolField(TEXT("bSucceeded"), State.bSucceeded);
         Obj->SetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
-        // Сохраняем производительность
+
         TSharedPtr<FJsonObject> PerfObj = MakeShared<FJsonObject>();
         PerfObj->SetNumberField(TEXT("CompletionTimeSeconds"), State.Performance.CompletionTimeSeconds);
         PerfObj->SetNumberField(TEXT("Mistakes"), State.Performance.Mistakes);
@@ -855,6 +917,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetStringField(TEXT("ChoreId"), Entry.ChoreId.ToString());
         Obj->SetBoolField(TEXT("bSucceeded"), Entry.bSucceeded);
         Obj->SetStringField(TEXT("Timestamp"), Entry.Timestamp.ToIso8601());
+
         TSharedPtr<FJsonObject> PerfObj = MakeShared<FJsonObject>();
         PerfObj->SetNumberField(TEXT("CompletionTimeSeconds"), Entry.Performance.CompletionTimeSeconds);
         PerfObj->SetNumberField(TEXT("Mistakes"), Entry.Performance.Mistakes);
@@ -874,7 +937,6 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
     bLoadComplete = false;
-
     FString SerializedDataCopy = InData.SerializedData;
     if (SerializedDataCopy.IsEmpty())
     {
@@ -890,7 +952,6 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         return;
     }
 
-    // Очищаем текущее состояние (кроме определений, которые уже загружены)
     ActiveStates.Empty();
     History.Empty();
     DeadlineTimers.Empty();
@@ -931,7 +992,6 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
             ActiveStates.Add(State.ChoreId, State);
 
-            // Перезапускаем таймер, если нужно
             if (State.Status == EChoreStatus::Active && State.Deadline != FDateTime::MinValue())
             {
                 FTimespan Remaining = State.Deadline - FDateTime::UtcNow();
@@ -981,34 +1041,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
+    // После загрузки перепроверяем доступность
+    EvaluateAllAvailability();
     bLoadComplete = true;
-}
-
-// ---- Вспомогательные методы ----
-void UChoreManagerSubsystem::EvaluateAllAvailability()
-{
-    // Используется после загрузки или регистрации новых определений
-    // Можно пройтись по всем и проверить условия вручную, публикуя OfferChore
-    for (auto& Pair : ActiveStates)
-    {
-        FName ChoreId = Pair.Key;
-        if (Pair.Value.Status == EChoreStatus::Unavailable)
-        {
-            UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-            if (Def && Def->AvailabilityCondition)
-            {
-                if (!Def->AvailabilityCondition->GetCondition().IsValid())
-                    Def->AvailabilityCondition->CompileCondition();
-                if (Def->AvailabilityCondition->GetCondition().IsValid())
-                {
-                    // Создаём пустое событие (не идеально, но для простоты)
-                    FOutcomeEventBase Dummy;
-                    if (Def->AvailabilityCondition->GetCondition()->Evaluate(Dummy))
-                    {
-                        OfferChore(ChoreId);
-                    }
-                }
-            }
-        }
-    }
 }
