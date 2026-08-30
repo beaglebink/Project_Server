@@ -218,4 +218,12 @@ struct FOutcomeQueryBuilder
 	{
 		return MakeShared<FNotCondition>(Condition);
 	}
+
+	// Chore category filter
+	static TSharedPtr<IOutcomeCondition> Chore(EOutcomeChore Value, bool bNegate = false)
+	{
+		return MakeShared<TFieldCondition<EOutcomeChore>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeChore; },
+			Value, bNegate, TEXT("Chore"));
+	}
 };
