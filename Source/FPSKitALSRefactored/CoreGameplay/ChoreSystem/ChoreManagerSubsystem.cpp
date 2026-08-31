@@ -594,6 +594,59 @@ TArray<FName> UChoreManagerSubsystem::GetActiveChoreIds() const
     return Result;
 }
 
+UChoreDefinition* UChoreManagerSubsystem::GetChoreDefinitionByDisplayName(const FText& DisplayName) const
+{
+    for (const auto& Pair : Definitions)
+    {
+        const UChoreDefinition* Def = Pair.Value;
+        if (Def && Def->DisplayName.EqualTo(DisplayName))
+        {
+            return const_cast<UChoreDefinition*>(Def);
+        }
+    }
+    return nullptr;
+}
+
+TArray<FName> UChoreManagerSubsystem::GetAvailableChoreIds() const
+{
+    TArray<FName> Result;
+    for (const auto& Pair : ActiveStates)
+    {
+        const EChoreStatus Status = Pair.Value.Status;
+        if (Status == EChoreStatus::Available || Status == EChoreStatus::Offered)
+        {
+            Result.Add(Pair.Key);
+        }
+    }
+    return Result;
+}
+
+TArray<FName> UChoreManagerSubsystem::GetChoreIdsByDisplayName(const FText& DisplayName) const
+{
+    TArray<FName> Result;
+    for (const auto& Pair : Definitions)
+    {
+        if (Pair.Value && Pair.Value->DisplayName.EqualTo(DisplayName))
+        {
+            Result.Add(Pair.Key);
+        }
+    }
+    return Result;
+}
+
+TArray<FName> UChoreManagerSubsystem::GetSucceededChoreIds() const
+{
+    TArray<FName> Result;
+    for (const auto& Pair : ActiveStates)
+    {
+        if (Pair.Value.Status == EChoreStatus::Succeeded)
+        {
+            Result.Add(Pair.Key);
+        }
+    }
+    return Result;
+}
+
 // ---- Методы для условий истории ----
 int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const
 {
@@ -655,29 +708,49 @@ bool UChoreManagerSubsystem::GetLastResult(FName ChoreId) const
 // ---- Обработчики событий ----
 void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 {
-    for (auto& Pair : ActiveStates)
+    // Игнорируем командные события (заканчиваются на "Request")
+    if (Outcome.OutcomeType == EOutcomeType::Chore)
     {
-        FName ChoreId = Pair.Key;
-        FChoreState& State = Pair.Value;
-        if (State.Status != EChoreStatus::Unavailable && State.Status != EChoreStatus::RetryAvailable)
-            continue;
-
-        UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-        if (!Def || !Def->AvailabilityCondition) continue;
-
-        if (!Def->AvailabilityCondition->GetCondition().IsValid())
-            Def->AvailabilityCondition->CompileCondition();
-
-        if (Def->AvailabilityCondition->GetCondition().IsValid() &&
-            Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome))
+        EOutcomeChore Chore = Outcome.OutcomeChore;
+        if (Chore == EOutcomeChore::AcceptRequest ||
+            Chore == EOutcomeChore::StartRequest ||
+            Chore == EOutcomeChore::CompleteRequest ||
+            Chore == EOutcomeChore::FailRequest ||
+            Chore == EOutcomeChore::ExpireRequest ||
+            Chore == EOutcomeChore::AbandonRequest ||
+            Chore == EOutcomeChore::RetryRequest ||
+            Chore == EOutcomeChore::UnlockRequest)
         {
-            OfferChore(ChoreId);
+            return; // Командные события не влияют на доступность
+        }
+
+        for (auto& Pair : ActiveStates)
+        {
+            FName ChoreId = Pair.Key;
+            FChoreState& State = Pair.Value;
+            if (State.Status != EChoreStatus::Unavailable && State.Status != EChoreStatus::RetryAvailable)
+                continue;
+
+            UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+            if (!Def || !Def->AvailabilityCondition) continue;
+
+            if (!Def->AvailabilityCondition->GetCondition().IsValid())
+                Def->AvailabilityCondition->CompileCondition();
+
+            if (Def->AvailabilityCondition->GetCondition().IsValid() &&
+                Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome))
+            {
+                OfferChore(ChoreId);
+            }
         }
     }
 }
 
 void UChoreManagerSubsystem::HandleMissionRequest(const FOutcomeEventBase& Outcome)
 {
+    if (Outcome.OutcomeMission != EOutcomeMission::ChoreStepRequest)
+        return;
+
     UChoreMissionRequestPayload* Req = Cast<UChoreMissionRequestPayload>(Outcome.Payload);
     if (!Req) return;
 
@@ -716,6 +789,14 @@ void UChoreManagerSubsystem::HandleMissionRequest(const FOutcomeEventBase& Outco
 
 void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outcome)
 {
+    if (Outcome.OutcomeChore != EOutcomeChore::ChoreSucceeded &&
+        Outcome.OutcomeChore != EOutcomeChore::ChoreFailed &&
+        Outcome.OutcomeChore != EOutcomeChore::ChoreExpired &&
+        Outcome.OutcomeChore != EOutcomeChore::ChoreRetryAvailable)
+    {
+        return;
+    }
+
     UChoreResultPayload* Result = Cast<UChoreResultPayload>(Outcome.Payload);
     if (!Result) return;
 

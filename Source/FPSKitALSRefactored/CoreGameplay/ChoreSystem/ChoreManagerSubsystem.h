@@ -83,11 +83,27 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     bool IsChoreAvailable(FName ChoreId) const;
 
+    // ---- Возвращает список идентификаторов доступных заданий ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
+    TArray<FName> GetAvailableChoreIds() const;
+
+    // ---- Возвращает список идентификаторов активных заданий ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
+    TArray<FName> GetActiveChoreIds() const;
+
+    // ---- Возвращает список идентификаторов принятых заданий ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetAcceptedChoreIds() const;
 
+    // ---- Возвращает список идентификаторов всех успешно выполненных заданий ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
-    TArray<FName> GetActiveChoreIds() const;
+    TArray<FName> GetSucceededChoreIds() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
+    UChoreDefinition* GetChoreDefinitionByDisplayName(const FText& DisplayName) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
+    TArray<FName> GetChoreIdsByDisplayName(const FText& DisplayName) const;
 
     // ---- Методы для условий истории (используются из Condition Assets) ----
     int32 GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const;

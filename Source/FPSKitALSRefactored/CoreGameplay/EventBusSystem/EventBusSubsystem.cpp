@@ -35,7 +35,14 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 
 		if (bResult)
 		{
-			Entry.Handler.ExecuteIfBound(Outcome);
+			if (Entry.Handler.IsBound())
+			{
+				Entry.Handler.ExecuteIfBound(Outcome);
+			}
+			else if (Entry.BlueprintDelegate.IsBound())
+			{
+				Entry.BlueprintDelegate.ExecuteIfBound(Outcome);
+			}
 		}
 	}
 
@@ -164,4 +171,49 @@ void UEventBusSubsystem::BeginDestroy()
 		Entry.Handler.Unbind();
 	}
 	Handlers.Empty();
+}
+
+FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(UOutcomeConditionAsset* ConditionAsset, FOnOutcomeEvent Delegate)
+{
+	if (!ConditionAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - ConditionAsset is null"));
+		return FOutcomeHandlerHandle();
+	}
+
+	if (!Delegate.IsBound())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - Delegate is not bound"));
+		return FOutcomeHandlerHandle();
+	}
+
+	ConditionAsset->CompileCondition();
+	TSharedPtr<IOutcomeCondition> Compiled = ConditionAsset->GetCondition();
+	if (!Compiled.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - ConditionAsset [%s] compiled to invalid Query -> registration rejected"),
+			*ConditionAsset->GetName());
+		return FOutcomeHandlerHandle();
+	}
+
+	const uint32 NewId = NextHandleId++;
+	FOutcomeHandlerEntry NewEntry(NewId, Delegate, Compiled);
+
+	if (bDispatching)
+	{
+		FPendingOperation Op;
+		Op.Type = FPendingOperation::EType::Register;
+		Op.Entry = MoveTemp(NewEntry);
+		PendingOperations.Add(MoveTemp(Op));
+		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred RegisterBlueprintHandler [%u] - condition: %s"),
+			NewId, *ConditionAsset->GetConditionDescription());
+	}
+	else
+	{
+		Handlers.Add(MoveTemp(NewEntry));
+		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered Blueprint handler [%u] - condition: %s"),
+			NewId, *ConditionAsset->GetConditionDescription());
+	}
+
+	return FOutcomeHandlerHandle(NewId);
 }

@@ -9,109 +9,108 @@
 class UOutcomeConditionAsset;
 
 // C++ handler delegate
-// (Делегат C++ обработчика)
 using FOutcomeHandlerDelegate = TDelegate<void(const FOutcomeEventBase&)>;
 
+// Blueprint dynamic delegate
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnOutcomeEvent, const FOutcomeEventBase&, Outcome);
+
 // Handle returned by RegisterHandler
-// (Дескриптор возвращаемый RegisterHandler)
+USTRUCT(BlueprintType)
 struct FOutcomeHandlerHandle
 {
-	static const uint32 Invalid = 0;
+    GENERATED_BODY()
 
-	FOutcomeHandlerHandle() : Id(Invalid) {}
-	explicit FOutcomeHandlerHandle(uint32 InId) : Id(InId) {}
+    static const uint32 Invalid = 0;
 
-	bool IsValid() const { return Id != Invalid; }
-	void Invalidate() { Id = Invalid; }
-	uint32 GetId() const { return Id; }
+    FOutcomeHandlerHandle() : Id(Invalid) {}
+    explicit FOutcomeHandlerHandle(uint32 InId) : Id(InId) {}
 
-	bool operator==(const FOutcomeHandlerHandle& Other) const { return Id == Other.Id; }
-	bool operator!=(const FOutcomeHandlerHandle& Other) const { return Id != Other.Id; }
+    bool IsValid() const { return Id != Invalid; }
+    void Invalidate() { Id = Invalid; }
+    uint32 GetId() const { return Id; }
+
+    bool operator==(const FOutcomeHandlerHandle& Other) const { return Id == Other.Id; }
+    bool operator!=(const FOutcomeHandlerHandle& Other) const { return Id != Other.Id; }
 
 private:
-	uint32 Id;
+    UPROPERTY()
+    uint32 Id;
 };
 
 // Internal handler entry
-// (Внутренняя запись обработчика)
 struct FOutcomeHandlerEntry
 {
-	uint32 HandleId;
-	FOutcomeHandlerDelegate Handler;
-	TSharedPtr<IOutcomeCondition> Query;
+    uint32 HandleId;
+    FOutcomeHandlerDelegate Handler;       // C++ делегат
+    FOnOutcomeEvent BlueprintDelegate;     // Blueprint делегат
+    TSharedPtr<IOutcomeCondition> Query;
 
-	FOutcomeHandlerEntry(uint32 InHandleId, FOutcomeHandlerDelegate InHandler,
-		TSharedPtr<IOutcomeCondition> InQuery)
-		: HandleId(InHandleId)
-		, Handler(MoveTemp(InHandler))
-		, Query(InQuery)
-	{
-	}
+    // Конструктор для C++ обработчика
+    FOutcomeHandlerEntry(uint32 InHandleId, FOutcomeHandlerDelegate InHandler, TSharedPtr<IOutcomeCondition> InQuery)
+        : HandleId(InHandleId), Handler(MoveTemp(InHandler)), Query(InQuery)
+    {
+    }
+
+    // Конструктор для Blueprint обработчика
+    FOutcomeHandlerEntry(uint32 InHandleId, FOnOutcomeEvent InBlueprintDelegate, TSharedPtr<IOutcomeCondition> InQuery)
+        : HandleId(InHandleId), BlueprintDelegate(InBlueprintDelegate), Query(InQuery)
+    {
+    }
 };
 
 UCLASS()
 class FPSKITALSREFACTORED_API UEventBusSubsystem : public UGameInstanceSubsystem
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	// Publish event - filter fields in Outcome, extra data in Outcome.Payload
-	// C++:  EventBus->PublishOutcome(Event)  where Event.Payload = MyPayload
-	// BP:   PublishOutcome node, set Payload field before calling
-	// (Публикует событие - поля фильтрации в Outcome, доп. данные в Outcome.Payload)
-	UFUNCTION(BlueprintCallable, Category = "EventBus")
-	void PublishOutcome(const FOutcomeEventBase& Outcome);
+    // Публикация события
+    UFUNCTION(BlueprintCallable, Category = "EventBus")
+    void PublishOutcome(const FOutcomeEventBase& Outcome);
 
-	// Create a typed Payload object owned by GameInstance (no GC risk)
-	// Use this to create payload before PublishOutcome
-	// C++:  UMyPayload* P = EventBus->CreatePayload<UMyPayload>()
-	// BP:   CreatePayload node → Cast To <BP_MyPayload>
-	// (Создаёт типизированный Payload с GameInstance как владельцем - нет риска GC)
-	UFUNCTION(BlueprintCallable, Category = "EventBus", meta = (DeterminesOutputType = "PayloadClass"))
-	UOutcomePayload* CreatePayload(TSubclassOf<UOutcomePayload> PayloadClass);
+    // Создание Payload
+    UFUNCTION(BlueprintCallable, Category = "EventBus", meta = (DeterminesOutputType = "PayloadClass"))
+    UOutcomePayload* CreatePayload(TSubclassOf<UOutcomePayload> PayloadClass);
 
-	// C++-only typed version of CreatePayload
-	// (C++-only типизированная версия CreatePayload)
-	template<typename T>
-	T* CreatePayload()
-	{
-		static_assert(TIsDerivedFrom<T, UOutcomePayload>::IsDerived,
-			"T must derive from UOutcomePayload");
-		return NewObject<T>(GetGameInstance());
-	}
+    template<typename T>
+    T* CreatePayload()
+    {
+        static_assert(TIsDerivedFrom<T, UOutcomePayload>::IsDerived,
+            "T must derive from UOutcomePayload");
+        return NewObject<T>(GetGameInstance());
+    }
 
-	// Register C++ handler
-	// (Регистрирует C++ обработчик)
-	FOutcomeHandlerHandle RegisterHandler(
-		UOutcomeConditionAsset* ConditionAsset,
-		FOutcomeHandlerDelegate Handler);
+    // Регистрация C++ обработчика
+    FOutcomeHandlerHandle RegisterHandler(
+        UOutcomeConditionAsset* ConditionAsset,
+        FOutcomeHandlerDelegate Handler);
 
-	// Unregister handler by handle
-	// (Снимает обработчик по дескриптору)
-	void UnregisterHandler(FOutcomeHandlerHandle& Handle);
+    // Регистрация Blueprint обработчика
+    UFUNCTION(BlueprintCallable, Category = "EventBus")
+    FOutcomeHandlerHandle RegisterBlueprintHandler(
+        UOutcomeConditionAsset* ConditionAsset,
+        FOnOutcomeEvent Delegate);
 
-	UFUNCTION(BlueprintCallable, Category = "EventBus")
-	int32 GetHandlerCount() const { return Handlers.Num(); }
+    // Отписка от событий (работает для обоих типов)
+    UFUNCTION(BlueprintCallable, Category = "EventBus")
+    void UnregisterHandler(UPARAM(ref) FOutcomeHandlerHandle& Handle);
 
-    // Override BeginDestroy to perform cleanup if needed (implementation in .cpp)
-    // (Переопределение BeginDestroy для выполнения очистки при необходимости (реализация в .cpp))
-	virtual void BeginDestroy() override;
+    UFUNCTION(BlueprintCallable, Category = "EventBus")
+    int32 GetHandlerCount() const { return Handlers.Num(); }
+
+    virtual void BeginDestroy() override;
 
 private:
-	TArray<FOutcomeHandlerEntry> Handlers;
-	uint32 NextHandleId = 1;
+    TArray<FOutcomeHandlerEntry> Handlers;
+    uint32 NextHandleId = 1;
 
-    // Protection from reentrant Register/Unregister during PublishOutcome
-    // (Защита от reentrant Register/Unregister во время PublishOutcome)
     bool bDispatching = false;
 
-    // Pending operations queued while dispatching to defer Register/Unregister
-    // (Отложенные операции, поставляемые в очередь во время dispatch для отложенной регистрации/удаления)
     struct FPendingOperation
     {
         enum class EType : uint8 { Register, Unregister } Type = EType::Unregister;
         uint32 HandleId = 0;
         FOutcomeHandlerEntry Entry{ 0, FOutcomeHandlerDelegate{}, nullptr };
     };
-	TArray<FPendingOperation> PendingOperations;
+    TArray<FPendingOperation> PendingOperations;
 };
