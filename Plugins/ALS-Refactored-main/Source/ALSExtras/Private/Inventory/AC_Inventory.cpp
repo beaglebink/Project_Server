@@ -84,7 +84,7 @@ void UAC_Inventory::OpenInventory(EnumInventoryType SentInventoryType, UAC_Conta
 		Inventory = CreateWidget<UW_InventoryHUD>(GetWorld(), InventoryClass);
 		Inventory->InventoryType = SentInventoryType;
 		Inventory->Container = OtherContainer;
-		Inventory->AddToViewport(11);
+		Inventory->AddToViewport(99);
 
 		if (SentInventoryType == EnumInventoryType::Inventory && OtherContainer == nullptr)
 		{

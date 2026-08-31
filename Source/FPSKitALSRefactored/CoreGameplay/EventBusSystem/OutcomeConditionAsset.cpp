@@ -79,6 +79,14 @@ static TSharedPtr<IOutcomeCondition> BuildFromFilterRow(const FOutcomeFilterRow&
 		Parts.Add(C->Describe());
 	}
 
+	if (FILTER_SHOULD_INCLUDE(Row.ChoreType, EOutcomeChore::Default, Row.ChoreComparison))
+	{
+		const bool bNegate = (Row.ChoreComparison == EConditionComparison::NotEquals);
+		TSharedPtr<IOutcomeCondition> C = FOutcomeQueryBuilder::Chore(Row.ChoreType, bNegate);
+		AndChain->Add(C);
+		Parts.Add(C->Describe());
+	}
+
 	OutDescription = Parts.IsEmpty()
 		? TEXT("Composite: all fields Default - matches everything")
 		: FString::Join(Parts, TEXT(" AND "));

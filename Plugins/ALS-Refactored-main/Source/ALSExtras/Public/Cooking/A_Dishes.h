@@ -191,57 +191,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "CookingSettings")
 	void RotateDish(float AngleDelta);
 
-	UFUNCTION(BlueprintCallable, Category = "CookingSettings")
-	void TossDish(float Delta);
-
-	FTimerHandle TossTimerHandle;
-
 private:
 	float OnPlacingPauseCheckTime = 0.0f;
 
 	float PreviousAngle = 0.0f;
 
-	float TossOffset = 0.0f;
-
-	uint8 bIsTossing : 1 {false};
-
-	FVector PrevLocation = FVector::ZeroVector;
-	FVector CurrentLocation = FVector::ZeroVector;
-
-	float DeltaLengthAccum = 0.0f;
-
-protected:
-	//Toss Timeline
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	UTimelineComponent* TossTimeline;
-
-	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
-	UCurveFloat* TossLocationFloatCurve;
-
-	UPROPERTY(EditAnywhere, Category = "Components|Timeline")
-	UCurveFloat* TossRotationFloatCurve;
-
-	FOnTimelineFloat TossLocationProgressFunction;
-
-	FOnTimelineFloat TossRotationProgressFunction;
-
-	FOnTimelineEvent TossFinishedFunction;
-
-	UFUNCTION()
-	void TossLocationTimelineProgress(float Value);
-
-	UFUNCTION()
-	void TossRotationTimelineProgress(float Value);
-
-	UFUNCTION()
-	void TossTimelineFinished();
-
-private:
 	EHeatingLevel HeatingLevel;
 
 	FTimerHandle CookingTimerHandle;
 
 	uint8 bIsOnRecipeChecking : 1{false};
+
+	//Toss
+	FVector PrevLocation = FVector::ZeroVector;
+
+	FVector CurrentLocation = FVector::ZeroVector;
+
+	FVector DeltaLocation = FVector::ZeroVector;
+	
+	float DeltaLengthAccum = 0.0f;
 
 public:
 	void SetHeatingLevel(EHeatingLevel NewLevel);

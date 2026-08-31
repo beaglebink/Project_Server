@@ -245,8 +245,8 @@ void AAlsCharacterExample::Input_OnLookMouse(const FInputActionValue& ActionValu
 	LoopEffectFrame.FrameActionValue_OnLookMouse = ActionValue;
 
 	const auto Value{ ActionValue.Get<FVector2D>() };
-	float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier;
-	float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier;
+	float PitchDirection = Value.Y * LookUpMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier * (IsCookingMode ? CookingModeSpeedMultiplier : 1);
+	float YawDirection = Value.X * LookRightMouseSensitivity * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier * (IsCookingMode ? CookingModeSpeedMultiplier : 1);
 
 	ShakeMouseRemoveEffect(Value);
 
@@ -288,9 +288,8 @@ void AAlsCharacterExample::Input_OnLook(const FInputActionValue& ActionValue)
 	LoopEffectFrame.FrameActionValue_OnLook = ActionValue;
 
 	const auto Value{ ActionValue.Get<FVector2D>() };
-	float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier;
-	float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier;
-
+	float PitchDirection = Value.Y * LookUpRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier * (IsCookingMode ? CookingModeSpeedMultiplier : 1);
+	float YawDirection = Value.X * LookRightRate * StunRecoveryMultiplier * WireEffectPower_01Range * GrappleEffectSpeedMultiplier * ConcatenationEffectLookSpeedMultiplier * (IsCookingMode ? CookingModeSpeedMultiplier : 1);
 	if (GetDiscombobulateEffect())
 	{
 		FTimerHandle TimerHandle;

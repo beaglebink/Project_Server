@@ -360,7 +360,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     }
 
     // 2. Расчёт модифицированного урона
-    float ModifiedDamage = AttackInfo.BaseDamage * AttackInfo.GunConditionModifier * AttackInfo.ClothingModifier;
+    float ModifiedDamage = AttackInfo.BaseDamage;
     Result.IncomingDamage = ModifiedDamage;
 
     // 3. Зона попадания (кости + компоненты)
@@ -661,7 +661,7 @@ FDamageResult UEnemyDamageComponent::TakeDamage(const FAttackDamageInfo& AttackI
     {
         bIsDead = true;
         Result.bKilled = true;
-        OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
+        OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None, AttackInfo.Instigator, AttackInfo.DamageSource);
         if (World)
         {
             World->GetTimerManager().ClearTimer(HealthRegenTimer);
@@ -1499,7 +1499,7 @@ void UEnemyDamageComponent::Kill()
     }
 
     // Сигнал о смерти
-    OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None);
+    OnHealthDepleted.Broadcast(GetOwner(), Config ? Config->DeathBehaviorTag : NAME_None, nullptr, nullptr);
 	OnSuicide.Broadcast();
 
     // Отладочный лог (если включён)
@@ -1535,7 +1535,7 @@ void UEnemyDamageComponent::DebugLogDamage(const FDamageResult& Result, float Mo
                 if (absorbed > 0.0f)
                     LogString += FString::Printf(TEXT(" -> Resistance [Tag: %s] x%.2f (absorbed %.1f)"), *Layer.LayerTag.ToString(), RuntimeResistanceMultipliers[i]/*Layer.ResistanceMultiplier*/, absorbed);
                 else
-                    LogString += FString::Printf(TEXT(" -> Resistance [Tag: %s] x%.2f"), *Layer.LayerTag.ToString(), Layer.ResistanceMultiplier);
+                    LogString += FString::Printf(TEXT(" -> Resistance [Tag: %s] x%.2f"), *Layer.LayerTag.ToString(), RuntimeResistanceMultipliers[i]);
             }
             else if (Layer.LayerType == EDefenseLayerType::Reserve)
             {

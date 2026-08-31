@@ -89,6 +89,13 @@ struct FOutcomeFilterRow
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison WorldStateComparison = EConditionComparison::Equals;
+
+	// ===== CHORE =====
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EOutcomeChore ChoreType = EOutcomeChore::Default;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EConditionComparison ChoreComparison = EConditionComparison::Equals;
 };
 
 // Operator type for the condition asset

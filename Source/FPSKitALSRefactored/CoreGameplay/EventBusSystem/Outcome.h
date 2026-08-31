@@ -11,7 +11,8 @@ enum class EOutcomeType : uint8
     Terminal        UMETA(DisplayName = "Terminal"),
     Interior        UMETA(DisplayName = "Interior"),
     SpawnGroup      UMETA(DisplayName = "Spawn Group"),
-    WorldState      UMETA(DisplayName = "World state")
+    WorldState      UMETA(DisplayName = "World state"),
+    Chore           UMETA(DisplayName = "Chore")
 };
 
 UENUM(BlueprintType)
@@ -25,7 +26,8 @@ enum class EOutcomeMission : uint8
     MissionFailed           UMETA(Hidden, DisplayName = "Mission Failed"),
     MissionAbandoned        UMETA(Hidden, DisplayName = "Mission Abandoned"),
     CheckRequest            UMETA(DisplayName = "Check Request"),
-    CheckResponse           UMETA(DisplayName = "Check Response")
+    CheckResponse           UMETA(DisplayName = "Check Response"),
+    ChoreStepRequest        UMETA(DisplayName = "Chore Step Request")
 };
 
 UENUM(BlueprintType)
@@ -145,4 +147,32 @@ enum class EWorldState : uint8
     ChangingExteriorDoorAvailability UMETA(DisplayName = "Changing Exterior Door Availability"),
     CheckRequest                UMETA(DisplayName = "Check Request"),
     CheckResponse               UMETA(DisplayName = "Check Response")
+};
+
+UENUM(BlueprintType)
+enum class EOutcomeChore : uint8
+{
+    Default                 UMETA(DisplayName = "Default"),
+    ChoreOffered            UMETA(DisplayName = "Chore Offered"),
+    ChoreAccepted           UMETA(DisplayName = "Chore Accepted"),
+    ChoreStarted            UMETA(DisplayName = "Chore Started"),
+    ChoreSucceeded          UMETA(DisplayName = "Chore Succeeded"),
+    ChoreFailed             UMETA(DisplayName = "Chore Failed"),
+    ChoreExpired            UMETA(DisplayName = "Chore Expired"),
+    ChoreRetryAvailable     UMETA(DisplayName = "Chore Retry Available"),
+    ChoreRewardGranted      UMETA(DisplayName = "Chore Reward Granted"),
+    ChoreUnlocked           UMETA(DisplayName = "Chore Unlocked"),
+    ChoreAbandoned          UMETA(DisplayName = "Chore Abandoned"),
+    ChoreMissionRequest     UMETA(DisplayName = "Chore Mission Request"),
+    ChoreMissionResult      UMETA(DisplayName = "Chore Mission Result"),
+    CheckRequest            UMETA(DisplayName = "Check Request"),
+    CheckResponse           UMETA(DisplayName = "Check Response"),
+    AcceptRequest           UMETA(DisplayName = "Accept Request"),
+    StartRequest            UMETA(DisplayName = "Start Request"),
+    CompleteRequest         UMETA(DisplayName = "Complete Request"),
+    FailRequest             UMETA(DisplayName = "Fail Request"),
+    ExpireRequest           UMETA(DisplayName = "Expire Request"),
+    AbandonRequest          UMETA(DisplayName = "Abandon Request"),
+    RetryRequest            UMETA(DisplayName = "Retry Request"),
+    UnlockRequest           UMETA(DisplayName = "Unlock Request")
 };

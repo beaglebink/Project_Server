@@ -140,6 +140,8 @@ public:
     // Необходимо для работы NewObject с GameInstance как Outer
     virtual UWorld* GetWorld() const override;
 
+    void OnChoreResult(const FOutcomeEventBase& Outcome);
+
     UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
     int32 MissionStep = -1;
 

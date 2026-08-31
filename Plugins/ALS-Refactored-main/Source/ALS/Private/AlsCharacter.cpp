@@ -2256,7 +2256,7 @@ void AAlsCharacter::CalculateBackwardAndStrafeMoveReducement()
 		* MasterMinMooMooSlippersSpeedMultiplier * MasterMinMooMooSlippersStrafeSpeedMultiplier * SheriffOutfitSpeedMultiplier * SheriffOutfitStrafeSpeedMultiplier * SniperFocusOnLongRangeSpeedMultiplier * PorcelainCannonSpeedMultiplier
 		* CarlOvercoatSpeedMultiplier * DebsFootballPadsSpeedMultiplier * SimonSweaterSpeedMultiplier * LaoEddiesNightRobeSpeedMultiplier * DesperadoPonchoWeaponSpeedMultiplier * DesperadoPonchoWeaponStrafeSpeedMultiplier
 		* DeliverySpandexSpeedMultiplier * WW2UniformSpeedMultiplier * GreenhouseOutfitSpeedMultiplier * CableRepairOutfitSpeedMultiplier * NetworkSpecialistSpeedMultiplier * TroubleshooterJacketSpeedMultiplier
-		* MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier * TranquilBlouseSpeedMultiplier;
+		* MiddleAgedCyborgSamuraiTortoiseShellSpeedMultiplier * TranquilBlouseSpeedMultiplier * (IsCookingMode ? CookingModeSpeedMultiplier : 1);
 
 	if (abs(PrevSpeedMultiplier - SpeedMultiplier) > 0.0001f)
 	{
