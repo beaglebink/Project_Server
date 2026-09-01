@@ -132,5 +132,8 @@ public:
 	// Adds a public setter for the tooltip
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	void SetTooltip(const FText& NewTooltip);
+
+	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
+	FText GetTooltip() const { return InteractiveTooltipText; }
 };
 
