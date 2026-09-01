@@ -235,6 +235,10 @@ void AA_Dishes::BeginPlay()
 					Ingredients.RemoveAt(i);
 				}
 			}
+			if (Ingredients.Num() == 0)
+			{
+				ResetCookingSession();
+			}
 
 			UpdateCookingSession();
 
@@ -642,6 +646,11 @@ bool AA_Dishes::CheckIfCooked()
 
 void AA_Dishes::ReplaceIngredientsByCookedFood()
 {
+	if (!CheckIfCooked())
+	{
+		return;
+	}
+
 	// Debug display
 	if (bShowCookingDebug)
 	{
