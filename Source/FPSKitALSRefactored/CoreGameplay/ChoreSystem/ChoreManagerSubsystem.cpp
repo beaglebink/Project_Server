@@ -341,6 +341,14 @@ void UChoreManagerSubsystem::GrantRewards(FName ChoreId)
 
 void UChoreManagerSubsystem::AddHistoryEntry(FName ChoreId, bool bSucceeded, const FChorePerformanceMetrics& Performance)
 {
+    UE_LOG(LogTemp, Log, TEXT("AddHistoryEntry: ChoreId='%s', bSucceeded=%d, Time=%.2f, Mistakes=%d, Accuracy=%.2f, Quantity=%d"),
+        *ChoreId.ToString(),
+        bSucceeded ? 1 : 0,
+        Performance.CompletionTimeSeconds,
+        Performance.Mistakes,
+        Performance.Accuracy,
+        Performance.Quantity);
+
     FChoreHistoryEntry Entry;
     Entry.ChoreId = ChoreId;
     Entry.bSucceeded = bSucceeded;
@@ -348,9 +356,12 @@ void UChoreManagerSubsystem::AddHistoryEntry(FName ChoreId, bool bSucceeded, con
     Entry.Timestamp = FDateTime::UtcNow();
     History.Add(Entry);
 
+    UE_LOG(LogTemp, Log, TEXT("AddHistoryEntry: History size now %d"), History.Num());
+
     if (History.Num() > 100)
     {
         History.RemoveAt(0, History.Num() - 100);
+        UE_LOG(LogTemp, Log, TEXT("AddHistoryEntry: History trimmed to 100 entries"));
     }
 }
 
@@ -359,8 +370,14 @@ void UChoreManagerSubsystem::OfferChore(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
+
+    // Задание уже принято или выполняется – не трогаем
+    if (State.Status == EChoreStatus::Accepted || State.Status == EChoreStatus::Active)
+        return;
+
     if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
         return;
+
     if (State.Status == EChoreStatus::Succeeded && !Definitions[ChoreId]->bIsRepeatable)
         return;
 
@@ -414,9 +431,9 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
 
     if (bSuccess)
     {
-        UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
-        GrantRewards(ChoreId);
-        AddHistoryEntry(ChoreId, true, Performance);
+        AddHistoryEntry(ChoreId, true, Performance);     // 1. Обновляем историю
+        UpdateChoreState(ChoreId, EChoreStatus::Succeeded); // 2. Публикуем событие
+        GrantRewards(ChoreId);                           // 3. Выдаём награды (не влияет на историю)
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->bIsRepeatable)
@@ -433,8 +450,8 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
     }
     else
     {
-        UpdateChoreState(ChoreId, EChoreStatus::Failed);
         AddHistoryEntry(ChoreId, false, Performance);
+        UpdateChoreState(ChoreId, EChoreStatus::Failed);
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->RetryBehavior == EChoreRetryBehavior::Immediate)
@@ -651,6 +668,9 @@ TArray<FName> UChoreManagerSubsystem::GetSucceededChoreIds() const
 int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const
 {
     int32 Count = 0;
+    UE_LOG(LogTemp, Log, TEXT("GetHistoryCount: ChoreId='%s', bUseFamily=%d, Family=%d, bUseSubtype=%d, Subtype=%d, bSucceededOnly=%d"),
+        *ChoreId.ToString(), bUseFamily, (int32)Family, bUseSubtype, (int32)Subtype, bSucceededOnly);
+
     for (const FChoreHistoryEntry& Entry : History)
     {
         if (!ChoreId.IsNone() && Entry.ChoreId != ChoreId) continue;
@@ -665,6 +685,7 @@ int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family
         }
         Count++;
     }
+    UE_LOG(LogTemp, Log, TEXT("GetHistoryCount: Result = %d"), Count);
     return Count;
 }
 
@@ -708,7 +729,9 @@ bool UChoreManagerSubsystem::GetLastResult(FName ChoreId) const
 // ---- Обработчики событий ----
 void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 {
-    // Игнорируем командные события (заканчиваются на "Request")
+    UE_LOG(LogTemp, Log, TEXT("HandleEvent: OutcomeType=%d, OutcomeChore=%d"),
+        (int32)Outcome.OutcomeType, (int32)Outcome.OutcomeChore);
+
     if (Outcome.OutcomeType == EOutcomeType::Chore)
     {
         EOutcomeChore Chore = Outcome.OutcomeChore;
@@ -735,12 +758,17 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
             if (!Def || !Def->AvailabilityCondition) continue;
 
             if (!Def->AvailabilityCondition->GetCondition().IsValid())
-                Def->AvailabilityCondition->CompileCondition();
-
-            if (Def->AvailabilityCondition->GetCondition().IsValid() &&
-                Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome))
             {
-                OfferChore(ChoreId);
+                Def->AvailabilityCondition->CompileCondition();
+            }
+
+            if (Def->AvailabilityCondition->GetCondition().IsValid())
+            {
+                bool bResult = Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome);
+                if (bResult)
+                {
+                    OfferChore(ChoreId);
+                }
             }
         }
     }
@@ -856,6 +884,9 @@ void UChoreManagerSubsystem::HandleAcceptRequest(const FOutcomeEventBase& Outcom
 {
     UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
     if (!Payload) return;
+
+    UE_LOG(LogTemp, Warning, TEXT("ChoreManager: HandleAcceptRequest %s"), *Payload->ChoreId.ToString());
+
     AcceptChore(Payload->ChoreId);
 }
 

@@ -38,8 +38,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History")
     ECheckCompareOp CompareOp = ECheckCompareOp::GreaterOrEqual;
 
-    // Переопределяем метод компиляции (без override, т.к. в базовом классе он не виртуальный)
-    virtual void CompileCondition();
+    // Переопределяем метод компиляции
+    virtual void CompileCondition() override;
 
     // Метод проверки условия (вызывается из скомпилированного условия)
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;

@@ -234,7 +234,7 @@ public:
 	// ===== EDITOR ACTIONS =====
 
 	UFUNCTION(CallInEditor, Category = "4 - Debug")
-	void CompileCondition();
+	virtual void CompileCondition();
 
 	UFUNCTION(CallInEditor, Category = "4 - Debug")
 	void ResetCondition();

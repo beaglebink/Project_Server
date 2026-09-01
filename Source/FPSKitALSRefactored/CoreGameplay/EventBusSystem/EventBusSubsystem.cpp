@@ -15,6 +15,8 @@
 
 void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 {
+	//UE_LOG(LogTemp, Log, TEXT("PublishOutcome: Type=%d, Chore=%d"), (int32)Outcome.OutcomeType, (int32)Outcome.OutcomeChore);
+
 	bDispatching = true;
 
 	for (int32 i = 0; i < Handlers.Num(); ++i)
@@ -23,25 +25,33 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 
 		if (!Entry.Query.IsValid())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("EventBus: Handler[%u] has invalid Query -> skipping"), Entry.HandleId);
+			//UE_LOG(LogTemp, Warning, TEXT("EventBus: Handler[%u] has invalid Query -> skipping"), Entry.HandleId);
 			continue;
 		}
 
+		//UE_LOG(LogTemp, Log, TEXT("PublishOutcome: Checking handler %u, Query=%s"), Entry.HandleId, *Entry.Query->Describe());
+
 		const bool bResult = Entry.Query->Evaluate(Outcome);
-		UE_LOG(LogTemp, Verbose, TEXT("EventBus: Handler[%u] Condition: %s -> Evaluate() = %s"),
-			Entry.HandleId,
-			*Entry.Query->Describe(),
-			bResult ? TEXT("true") : TEXT("false"));
+
+		//UE_LOG(LogTemp, Verbose, TEXT("EventBus: Handler[%u] Condition: %s -> Evaluate() = %s"), Entry.HandleId, *Entry.Query->Describe(), bResult ? TEXT("true") : TEXT("false"));
 
 		if (bResult)
 		{
+			//UE_LOG(LogTemp, Log, TEXT("PublishOutcome: Handler %u condition matched"), Entry.HandleId);
+
 			if (Entry.Handler.IsBound())
 			{
-				Entry.Handler.ExecuteIfBound(Outcome);
+				//UE_LOG(LogTemp, Log, TEXT("PublishOutcome: Handler %u C++ bound, executing"), Entry.HandleId);
+				Entry.Handler.Execute(Outcome);
 			}
 			else if (Entry.BlueprintDelegate.IsBound())
 			{
-				Entry.BlueprintDelegate.ExecuteIfBound(Outcome);
+				//UE_LOG(LogTemp, Log, TEXT("PublishOutcome: Handler %u Blueprint bound, executing"), Entry.HandleId);
+				Entry.BlueprintDelegate.Execute(Outcome);
+			}
+			else
+			{
+				//UE_LOG(LogTemp, Warning, TEXT("PublishOutcome: Handler %u condition matched but delegate is NOT bound!"), Entry.HandleId);
 			}
 		}
 	}
@@ -57,12 +67,12 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 			{
 				return E.HandleId == Op.HandleId;
 			});
-			UE_LOG(LogTemp, Log, TEXT("EventBus: Deferred Unregistered handler [%u]"), Op.HandleId);
+			//UE_LOG(LogTemp, Log, TEXT("EventBus: Deferred Unregistered handler [%u]"), Op.HandleId);
 		}
 		else if (Op.Type == FPendingOperation::EType::Register)
 		{
 			Handlers.Add(Op.Entry);
-			UE_LOG(LogTemp, Log, TEXT("EventBus: Deferred Registered handler [%u]"), Op.Entry.HandleId);
+			//UE_LOG(LogTemp, Log, TEXT("EventBus: Deferred Registered handler [%u]"), Op.Entry.HandleId);
 		}
 	}
 	PendingOperations.Empty();
@@ -72,7 +82,7 @@ UOutcomePayload* UEventBusSubsystem::CreatePayload(TSubclassOf<UOutcomePayload> 
 {
 	if (!PayloadClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem::CreatePayload - PayloadClass is null"));
+		//UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem::CreatePayload - PayloadClass is null"));
 		return nullptr;
 	}
 	return NewObject<UOutcomePayload>(GetGameInstance(), PayloadClass);
@@ -84,13 +94,13 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 {
 	if (!ConditionAsset)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - ConditionAsset is null"));
+		//UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - ConditionAsset is null"));
 		return FOutcomeHandlerHandle();
 	}
 
 	if (!Handler.IsBound())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - Handler is not bound"));
+		//UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - Handler is not bound"));
 		return FOutcomeHandlerHandle();
 	}
 
@@ -98,8 +108,7 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 	TSharedPtr<IOutcomeCondition> Compiled = ConditionAsset->GetCondition();
 	if (!Compiled.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - ConditionAsset [%s] compiled to invalid Query -> registration rejected"),
-			*ConditionAsset->GetName());
+		//UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterHandler - ConditionAsset [%s] compiled to invalid Query -> registration rejected"),	*ConditionAsset->GetName());
 		return FOutcomeHandlerHandle();
 	}
 
@@ -113,14 +122,12 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
 		Op.Type  = FPendingOperation::EType::Register;
 		Op.Entry = MoveTemp(NewEntry);
 		PendingOperations.Add(MoveTemp(Op));
-		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred RegisterHandler [%u] - condition: %s"),
-			NewId, *ConditionAsset->GetConditionDescription());
+		//UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred RegisterHandler [%u] - condition: %s"), NewId, *ConditionAsset->GetConditionDescription());
 	}
 	else
 	{
 		Handlers.Add(MoveTemp(NewEntry));
-		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered handler [%u] - condition: %s"),
-			NewId, *ConditionAsset->GetConditionDescription());
+		//UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered handler [%u] - condition: %s"), NewId, *ConditionAsset->GetConditionDescription());
 	}
 
 	return FOutcomeHandlerHandle(NewId);
@@ -139,7 +146,7 @@ void UEventBusSubsystem::UnregisterHandler(FOutcomeHandlerHandle& Handle)
 		Op.Type     = FPendingOperation::EType::Unregister;
 		Op.HandleId = IdToRemove;
 		PendingOperations.Add(Op);
-		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred UnregisterHandler [%u]"), IdToRemove);
+		//UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred UnregisterHandler [%u]"), IdToRemove);
 		Handle.Invalidate();
 		return;
 	}
@@ -151,11 +158,11 @@ void UEventBusSubsystem::UnregisterHandler(FOutcomeHandlerHandle& Handle)
 
 	if (Removed > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Unregistered handler [%u]"), IdToRemove);
+		//UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Unregistered handler [%u]"), IdToRemove);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: Handler [%u] not found"), IdToRemove);
+		//UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: Handler [%u] not found"), IdToRemove);
 	}
 
 	Handle.Invalidate();
@@ -177,13 +184,13 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(UOutcomeCondi
 {
 	if (!ConditionAsset)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - ConditionAsset is null"));
+		//UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - ConditionAsset is null"));
 		return FOutcomeHandlerHandle();
 	}
 
 	if (!Delegate.IsBound())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - Delegate is not bound"));
+		//UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - Delegate is not bound"));
 		return FOutcomeHandlerHandle();
 	}
 
@@ -191,8 +198,7 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(UOutcomeCondi
 	TSharedPtr<IOutcomeCondition> Compiled = ConditionAsset->GetCondition();
 	if (!Compiled.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - ConditionAsset [%s] compiled to invalid Query -> registration rejected"),
-			*ConditionAsset->GetName());
+		//UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: RegisterBlueprintHandler - ConditionAsset [%s] compiled to invalid Query -> registration rejected"), *ConditionAsset->GetName());
 		return FOutcomeHandlerHandle();
 	}
 
@@ -205,14 +211,12 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(UOutcomeCondi
 		Op.Type = FPendingOperation::EType::Register;
 		Op.Entry = MoveTemp(NewEntry);
 		PendingOperations.Add(MoveTemp(Op));
-		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred RegisterBlueprintHandler [%u] - condition: %s"),
-			NewId, *ConditionAsset->GetConditionDescription());
+		//UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Deferred RegisterBlueprintHandler [%u] - condition: %s"), NewId, *ConditionAsset->GetConditionDescription());
 	}
 	else
 	{
 		Handlers.Add(MoveTemp(NewEntry));
-		UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered Blueprint handler [%u] - condition: %s"),
-			NewId, *ConditionAsset->GetConditionDescription());
+		//UE_LOG(LogTemp, Log, TEXT("EventBusSubsystem: Registered Blueprint handler [%u] - condition: %s"), NewId, *ConditionAsset->GetConditionDescription());
 	}
 
 	return FOutcomeHandlerHandle(NewId);

@@ -36,12 +36,31 @@ void UChoreHistoryConditionAsset::CompileCondition()
 
 bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome) const
 {
-    UWorld* World = GetWorld();
-    if (!World) return false;
-    UGameInstance* GI = World->GetGameInstance();
-    if (!GI) return false;
-    UChoreManagerSubsystem* ChoreManager = GI->GetSubsystem<UChoreManagerSubsystem>();
-    if (!ChoreManager) return false;
+    // Получаем ChoreManager через GEngine и WorldContexts
+    UChoreManagerSubsystem* ChoreManager = nullptr;
+    if (GEngine)
+    {
+        const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+        for (const FWorldContext& Context : WorldContexts)
+        {
+            UWorld* World = Context.World();
+            if (World && World->IsGameWorld())
+            {
+                UGameInstance* GI = World->GetGameInstance();
+                if (GI)
+                {
+                    ChoreManager = GI->GetSubsystem<UChoreManagerSubsystem>();
+                    if (ChoreManager) break;
+                }
+            }
+        }
+    }
+
+    if (!ChoreManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("EvaluateCondition: ChoreManagerSubsystem is null"));
+        return false;
+    }
 
     int32 ActualValue = 0;
 
