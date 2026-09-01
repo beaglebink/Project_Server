@@ -13,12 +13,14 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Cooking/W_PourEvent.h"
 #include "Components/AudioComponent.h"
+#include "InteractiveItemComponent.h"
 
 AA_Dishes::AA_Dishes()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
 	CollisionShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CollisionShape"));
+	CheckForPlateSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CheckForPlateSphere"));
 	LiquidShape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LiquidShape"));
 	CookedResultSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("CookedResultSpawnPoint"));
 	LiquidLevelPoint = CreateDefaultSubobject<USceneComponent>(TEXT("LiquidLevelPoint"));
@@ -33,6 +35,7 @@ AA_Dishes::AA_Dishes()
 	PourFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("PourFX"));
 
 	CollisionShape->SetupAttachment(RootComponent);
+	CheckForPlateSphere->SetupAttachment(RootComponent);
 	LiquidShape->SetupAttachment(RootComponent);
 	CookedResultSpawnPoint->SetupAttachment(RootComponent);
 	LiquidLevelPoint->SetupAttachment(RootComponent);
@@ -234,6 +237,46 @@ void AA_Dishes::BeginPlay()
 			}
 
 			UpdateCookingSession();
+
+			//Check for plate
+			Plate = nullptr;
+			if (IsACookWare && Ingredients.Num() > 0)
+			{
+				OverlappingPlates.Empty();
+				CheckForPlateSphere->GetOverlappingActors(OverlappingPlates, AA_Dishes::StaticClass());
+
+				float Distance = static_cast<float>(INT_MAX);
+				for (AActor* DishActor : OverlappingPlates)
+				{
+					if (AA_Dishes* PlateActor = Cast<AA_Dishes>(DishActor))
+					{
+						if (PlateActor->Name == FName(TEXT("Plate")) && PlateActor->Ingredients.Num() == 0)
+						{
+							float DistanceToPlate = FVector::Dist(GetActorLocation(), PlateActor->GetActorLocation());
+							if (DistanceToPlate < Distance)
+							{
+								Distance = DistanceToPlate;
+								Plate = PlateActor;
+							}
+						}
+					}
+				}
+			}
+
+			bCurrentPlateState = (Plate != nullptr);
+			if (UInteractiveItemComponent* InteractiveItemComp = Cast<UInteractiveItemComponent>(GetComponentByClass(UInteractiveItemComponent::StaticClass())))
+			{
+				if (!bPrevPlateState && bCurrentPlateState)
+				{
+					PrevTooltipText = InteractiveItemComp->GetTooltip();
+					InteractiveItemComp->SetTooltip(CheckIfCooked() ? FText::FromString(TEXT("To place food on plate, press F.")) : FText::FromString(TEXT("Recipe is failed or incomplete.")));
+				}
+				else if (bPrevPlateState && !bCurrentPlateState)
+				{
+					InteractiveItemComp->SetTooltip(PrevTooltipText);
+				}
+			}
+			bPrevPlateState = bCurrentPlateState;
 		}, 0.5f, true);
 
 	//Fluid visual
@@ -365,11 +408,6 @@ void AA_Dishes::RotateDish(float AngleDelta)
 
 	SetActorRotation(DeltaQuat * BaseQuat);
 	PreviousTiltAngle = CurrentTiltAngle;
-
-	if (FMath::Abs(CurrentTiltAngle) > 45.0f && IsACookWare)
-	{
-		CheckIfCooked();
-	}
 }
 
 void AA_Dishes::SetHeatingLevel(EHeatingLevel NewLevel)
@@ -411,13 +449,12 @@ EHeatingLevel AA_Dishes::GetHeatingLevel()
 	return HeatingLevel;
 }
 
-void AA_Dishes::CheckIfCooked()
+bool AA_Dishes::CheckIfCooked()
 {
 	AAlsCharacterExample* PlayerCharacter = Cast<AAlsCharacterExample>(GetWorld()->GetFirstPlayerController()->GetPawn());
-	FRecipe CheckedRecipe;
 	if (bIsOnRecipeChecking || !PlayerCharacter || !PlayerCharacter->GetCurrentRecipe(CheckedRecipe))
 	{
-		return;
+		return false;
 	}
 
 	bIsOnRecipeChecking = true;
@@ -430,8 +467,7 @@ void AA_Dishes::CheckIfCooked()
 			if (!Ingredient->bWasTossed)
 			{
 				bIsOnRecipeChecking = false;
-				ResetCookingSession();
-				return;
+				return false;
 			}
 		}
 	}
@@ -448,8 +484,7 @@ void AA_Dishes::CheckIfCooked()
 		if (!IngredientCountMap.Contains(Pair.Key))
 		{
 			bIsOnRecipeChecking = false;
-			ResetCookingSession();
-			return;
+			return false;
 		}
 	}
 
@@ -459,27 +494,11 @@ void AA_Dishes::CheckIfCooked()
 		if (!RecipeMap.Contains(Pair.Key))
 		{
 			bIsOnRecipeChecking = false;
-			ResetCookingSession();
-			return;
+			return false;
 		}
 	}
 
-	struct FIngredientQuality
-	{
-		float GroupQuality = 0.0f;
-		float TotalQualityByWeight = 0.0f;
-		float ChunksWeightTotal = 0.0f;
-		float WorstChunkQuality = 1.0f;
-		float WorstChunkInfluence = 0.0f;
-		float MaxChunkWeight = 0.0f;
-		float RecipeImportance = 1.0f;
-		float FailureSeverity = 0.0f;
-		float MissingProportion = 0.0f;
-		float ShortageSeverity = 0.0f;
-	};
-
 	// Calculate chunks average quality
-	TMap<FName, FIngredientQuality> IngredientQualityMap;
 	for (AA_Cookable* Ingredient : Ingredients)
 	{
 		// Find the maximum chunk weight for each ingredient type
@@ -508,9 +527,9 @@ void AA_Dishes::CheckIfCooked()
 	}
 
 	// Calculate total dish quality
-	float DishQuality = 0.0f;
+	DishQuality = 0.0f;
 	float TotalRecipeImportance = 0.0f;
-	float LowestGroupQuality = 1.0f;
+	LowestGroupQuality = 1.0f;
 	for (const auto& Pair : IngredientQualityMap)
 	{
 		DishQuality += Pair.Value.GroupQuality * Pair.Value.RecipeImportance;
@@ -580,7 +599,7 @@ void AA_Dishes::CheckIfCooked()
 
 	//Missed requared pieces calculation
 	float WeightedShortageSeverity = 0.0f;
-	float MissingPieceDeduction = 0.0f;
+	MissingPieceDeduction = 0.0f;
 	float SumShortageSeverity_RecipeImportance = 0.0f;
 	for (const auto& Ingredient : CheckedRecipe.Ingredients)
 	{
@@ -613,9 +632,16 @@ void AA_Dishes::CheckIfCooked()
 	WeightedShortageSeverity = SumShortageSeverity_RecipeImportance / TotalRecipeImportance;
 	MissingPieceDeduction = WeightedShortageSeverity * CheckedRecipe.MissingPenaltyStrength;
 
-	float DishAverage = DishQuality;
+	DishAverage = DishQuality;
 	DishQuality = FMath::Clamp(DishQuality - MissingPieceDeduction, 0.0f, 1.0f);
 
+	bIsOnRecipeChecking = false;
+
+	return true;
+}
+
+void AA_Dishes::ReplaceIngredientsByCookedFood()
+{
 	// Debug display
 	if (bShowCookingDebug)
 	{
@@ -702,7 +728,7 @@ void AA_Dishes::CheckIfCooked()
 		Ingredients.Empty();
 		IngredientCountMap.Empty();
 
-		AA_Cookable* NewDish = GetWorld()->SpawnActor<AA_Cookable>(CheckedRecipe.ResultCookableClass, CookedResultSpawnPoint->GetComponentLocation(), CookedResultSpawnPoint->GetComponentRotation());
+		AA_Cookable* NewDish = GetWorld()->SpawnActor<AA_Cookable>(CheckedRecipe.ResultCookableClass, Plate->CookedResultSpawnPoint->GetComponentLocation(), CookedResultSpawnPoint->GetComponentRotation());
 		NewDish->CookingTime = static_cast<int32>(NewDish->DefaultCookingTime * DishQuality * 2.0f);
 		NewDish->Quality = DishQuality;
 
@@ -715,8 +741,6 @@ void AA_Dishes::CheckIfCooked()
 
 		NewDish->ShowFinalDishRating(FinalRating);
 	}
-
-	bIsOnRecipeChecking = false;
 	ResetCookingSession();
 }
 

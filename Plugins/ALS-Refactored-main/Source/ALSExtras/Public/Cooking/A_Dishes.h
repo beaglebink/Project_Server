@@ -61,6 +61,24 @@ struct FLiquidStepOnPour
 	float WeightedLiquidContribution = 0.0f;
 };
 
+USTRUCT()
+struct FIngredientQuality
+{
+	GENERATED_BODY()
+
+	float GroupQuality = 0.0f;
+	float TotalQualityByWeight = 0.0f;
+	float ChunksWeightTotal = 0.0f;
+	float WorstChunkQuality = 1.0f;
+	float WorstChunkInfluence = 0.0f;
+	float MaxChunkWeight = 0.0f;
+	float RecipeImportance = 1.0f;
+	float FailureSeverity = 0.0f;
+	float MissingProportion = 0.0f;
+	float ShortageSeverity = 0.0f;
+};
+
+
 class USphereComponent;
 class AA_Cookable;
 class UNiagaraComponent;
@@ -97,9 +115,14 @@ private:
 
 	TSet<AActor*> OverlappingActors;
 
+	TSet<AActor*> OverlappingPlates;
+
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* CollisionShape;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	USphereComponent* CheckForPlateSphere;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* LiquidShape;
@@ -208,15 +231,36 @@ private:
 	FVector CurrentLocation = FVector::ZeroVector;
 
 	FVector DeltaLocation = FVector::ZeroVector;
-	
+
 	float DeltaLengthAccum = 0.0f;
+
+	//Check recipe
+	FRecipe CheckedRecipe;
+
+	TMap<FName, FIngredientQuality> IngredientQualityMap;
+
+	float DishQuality = 0.0f;
+	float LowestGroupQuality = 1.0f;
+	float DishAverage = 0.0f;
+	float MissingPieceDeduction = 0.0f;
+
+	uint8 bPrevPlateState : 1{false};
+	uint8 bCurrentPlateState : 1{false};
+	FText PrevTooltipText;
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cooking")
+	AA_Dishes* Plate;
 
 public:
 	void SetHeatingLevel(EHeatingLevel NewLevel);
 
 	EHeatingLevel GetHeatingLevel();
 
-	void CheckIfCooked();
+	bool CheckIfCooked();
+
+	UFUNCTION(BlueprintCallable, Category = "Cooking")
+	void ReplaceIngredientsByCookedFood();
 
 	//Fluid simulation
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Fluid")
