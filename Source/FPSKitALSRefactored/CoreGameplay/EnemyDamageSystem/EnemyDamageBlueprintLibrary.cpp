@@ -2,6 +2,7 @@
 #include "EnemyDamageConfig.h"
 #include "Engine/Engine.h"
 
+// ==================== Setting by index ====================
 // ==================== Установка по индексу ====================
 
 TArray<bool> UEnemyDamageBlueprintLibrary::SetBoolArrayValue(const TArray<bool>& Source, int32 Index, bool Value, AActor* Owner, AActor* Weapon)
@@ -55,6 +56,7 @@ TArray<float> UEnemyDamageBlueprintLibrary::SetFloatArrayValue(const TArray<floa
     return Result;
 }
 
+// ==================== Modification by tag ====================
 // ==================== Модификация по тегу ====================
 
 TArray<bool> UEnemyDamageBlueprintLibrary::SetIgnoreLayerByTag(
@@ -161,6 +163,7 @@ TArray<float> UEnemyDamageBlueprintLibrary::SetReserveDamageMultiplierByTag(
     return Result;
 }
 
+// ==================== Ignoring all layers of a type ====================
 // ==================== Игнорирование всех слоёв типа ====================
 
 TArray<bool> UEnemyDamageBlueprintLibrary::IgnoreLayersOfType(
@@ -202,6 +205,7 @@ TArray<bool> UEnemyDamageBlueprintLibrary::IgnoreLayersOfType(
     return Result;
 }
 
+// ==================== Logging ====================
 // ==================== Логирование ====================
 
 void UEnemyDamageBlueprintLibrary::LogModification(
@@ -213,9 +217,11 @@ void UEnemyDamageBlueprintLibrary::LogModification(
     FString WeaponName = Weapon ? Weapon->GetName() : TEXT("Unknown");
     FString FullMessage = FString::Printf(TEXT("[%s] [%s] %s"), *OwnerName, *WeaponName, *Message);
 
+    // Log to Output Log
     // Лог в Output Log
     UE_LOG(LogTemp, Log, TEXT("%s"), *FullMessage);
 
+    // Display on screen (if GEngine is enabled)
     // Вывод на экран (если включён GEngine)
     if (GEngine)
     {
@@ -223,6 +229,7 @@ void UEnemyDamageBlueprintLibrary::LogModification(
     }
 }
 
+// ==================== Bulk modifications ====================
 // ==================== Массовые модификации ====================
 
 TArray<bool> UEnemyDamageBlueprintLibrary::SetIgnoreLayerForAllResistance(

@@ -1,11 +1,8 @@
-// DamageProcessingEffect.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "DamageProcessing.h"
-
-// бяецдю онякедмхл!
 #include "DamageProcessingEffect.generated.h"
 
 UCLASS(Abstract, Blueprintable, EditInlineNew)

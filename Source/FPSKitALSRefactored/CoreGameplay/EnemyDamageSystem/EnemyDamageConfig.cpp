@@ -46,31 +46,35 @@ bool UEnemyDamageConfig::ValidateHealthZones() const
     if (HealthZones.Num() == 0)
         return true;
 
+    // Sort in descending order of UpperBound
     // Сортировка по убыванию UpperBound
     TArray<FHealthZoneDefinition> Sorted = HealthZones;
     Sorted.Sort([](const FHealthZoneDefinition& A, const FHealthZoneDefinition& B) {
         return A.UpperBound > B.UpperBound;
-    });
+        });
 
+    // Check that the first zone covers MaxHealth
     // Проверка, что первая зона охватывает MaxHealth
     if (Sorted[0].UpperBound != MaxHealth)
     {
         UE_LOG(LogTemp, Error, TEXT("First health zone UpperBound must match MaxHealth in %s"), *GetNameSafe(this));
         return false;
     }
+    // Check that the last zone has LowerBound = 0
     // Проверка, что последняя зона имеет LowerBound = 0
     if (Sorted.Last().LowerBound != 0)
     {
         UE_LOG(LogTemp, Error, TEXT("Last health zone LowerBound must be 0 in %s"), *GetNameSafe(this));
         return false;
     }
+    // Check continuity
     // Проверка непрерывности
     for (int32 i = 0; i < Sorted.Num() - 1; ++i)
     {
         if (Sorted[i].LowerBound != Sorted[i + 1].UpperBound)
         {
             UE_LOG(LogTemp, Error, TEXT("Gap or overlap between health zones %s and %s in %s"),
-                *Sorted[i].ZoneTag.ToString(), *Sorted[i+1].ZoneTag.ToString(), *GetNameSafe(this));
+                *Sorted[i].ZoneTag.ToString(), *Sorted[i + 1].ZoneTag.ToString(), *GetNameSafe(this));
             return false;
         }
     }

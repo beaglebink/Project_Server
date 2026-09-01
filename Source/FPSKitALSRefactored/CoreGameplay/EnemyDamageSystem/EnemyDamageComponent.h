@@ -94,24 +94,25 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage")
     FDamageResult TakeDamage(const FAttackDamageInfo& AttackInfo);
 
+    // Events
     // События
     UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnDamageTaken OnDamageTaken;
 
-    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")           
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnEnemyHealthChanged OnHealthChanged;
-    
+
     UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnReserveChanged OnReserveChanged;
 
-	UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
+    UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnReserveDepleted OnReserveDepleted;
 
     UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnStaggered OnStaggered;
 
     UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
-	FOnSuicide OnSuicide;
+    FOnSuicide OnSuicide;
 
     UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnStaggerCooldownEnded OnStaggerCooldownEnded;
@@ -122,6 +123,7 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Enemy Damage")
     FOnDeath OnHealthDepleted;
 
+    // Getters
     // Геттеры
     UFUNCTION(BlueprintPure)
     float GetHealth() const { return Health; }
@@ -144,6 +146,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage")
     void ResetState();
 
+    // ---- Health management ----
     // ---- Управление здоровьем ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Health")
     void Heal(float Amount);
@@ -160,6 +163,7 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Enemy Damage|Health")
     bool GetIsDead() const { return bIsDead; }
 
+    // ---- Reserve management ----
     // ---- Управление резервами ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
     void RestoreReserve(int32 LayerIndex, float Amount);
@@ -170,10 +174,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Reserves")
     void SetReserve(int32 LayerIndex, float NewValue);
 
+    // ---- Resistance management ----
     // ---- Управление сопротивлением ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Defense")
     void SetResistanceMultiplier(int32 LayerIndex, float NewMultiplier);
 
+    // ---- Health regeneration management ----
     // ---- Управление регенерацией здоровья ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetHealthRegenEnabled(bool bEnabled);
@@ -193,6 +199,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetHealthRegenWhileStaggered(bool bAllow);
 
+    // ---- Reserve regeneration management ----
     // ---- Управление регенерацией резервов ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetAllReserveRegenEnabled(bool bEnabled);
@@ -218,14 +225,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Regeneration")
     void SetAllReserveRegenWhileStaggered(bool bAllow);
 
+    // ---- Stagger management ----
     // ---- Управление стаггером ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Stagger")
     void SetStaggerParams(float BaseChance, float Susceptibility, float Cooldown, EStaggerInputType InputType);
 
+    // ---- Forced death ----
     // ---- Принудительная смерть ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Death")
     void Kill();
 
+    // ---- Serialization to string ----
     // ---- Сериализация в строку ----
     UFUNCTION(BlueprintCallable, Category = "Enemy Damage|Save")
     FString SerializeToString() const;
@@ -290,26 +300,28 @@ private:
     float MaxHealth = 0;
 
     UPROPERTY(SaveGame)
-	FName CurrentHitZoneName = NAME_None;
+    FName CurrentHitZoneName = NAME_None;
 
     UPROPERTY(SaveGame)
     TArray<float> RuntimeMaxReserves;
 
+    // Runtime copies of parameters for protection (initialized from Config)
     // Runtime-копии параметров для защиты (инициализируются из Config)
     UPROPERTY(SaveGame)
     TArray<float> RuntimeResistanceMultipliers;
 
     UPROPERTY(SaveGame)
     TArray<FRegenerationParams> RuntimeReserveRegenParams;
-    //TArray<float> RuntimeReserveDamageMultipliers;
 
     UPROPERTY(SaveGame)
     FRegenerationParams RuntimeHealthRegenParams;
 
+    // Runtime copy of health zones (scaled when MaxHealth changes)
     // Runtime-копия зон здоровья (масштабируется при изменении MaxHealth)
     UPROPERTY(SaveGame)
     TArray<FHealthZoneDefinition> RuntimeHealthZones;
 
+    // Regeneration enable flags
     // Флаги включения регенерации
 
     UPROPERTY(SaveGame)
@@ -318,6 +330,7 @@ private:
     UPROPERTY(SaveGame)
     TArray<bool> bReserveRegenEnabled;
 
+    // Stagger parameters (runtime)
     // Параметры стаггера (runtime)
     UPROPERTY(SaveGame)
     float RuntimeBaseStaggerChance = 0.0f;
@@ -332,14 +345,15 @@ private:
     EStaggerInputType RuntimeStaggerInputType = EStaggerInputType::UseTotalDamageDealt;
 
     void InitializeFromConfig();
-	void CheckHealthZone();
+    void CheckHealthZone();
     void UpdateHealthZone();
     void ApplyHealthRegen();
     void ApplyReserveRegen();
     void OnStaggerCooldownExpired();
     float GetStaggerChance(float DamageValue) const;
     FName PredictHealthZone(float HealthValue) const;
-    
+
+    // ---- State saving/loading ----
     // ---- Сохранение/загрузка состояния ----
     FEnemyDamageSaveData SaveState() const;
     void LoadState(const FEnemyDamageSaveData& SaveData);

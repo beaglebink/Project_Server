@@ -21,8 +21,11 @@ FPostDefenseOutput UDamageProcessingEffect::PostDefenseProcessing_Implementation
     FPostDefenseOutput Out;
     Out.NewFinalHealthDamage = Context.FinalHealthDamage;
     Out.NewStaggerChanceModifier = Context.StaggerChanceModifier;
+
+    // The bNewForceStagger field remains unchanged, it is set by the blueprint.
     // Поле bNewForceStagger остаётся без изменений, его устанавливает блюпринт
-    Out.bNewForceStagger = false; // по умолчанию, но блюпринт переопределит
-    Out.bNewForceStaggerCooldown = Context.ForceStaggerCooldown; // передаём текущий кулдаун
+    Out.bNewForceStagger = false; // by default, but blueprint will override // по умолчанию, но блюпринт переопределит
+
+    Out.bNewForceStaggerCooldown = Context.ForceStaggerCooldown; // pass the current cooldown // передаём текущий кулдаун
     return Out;
 }

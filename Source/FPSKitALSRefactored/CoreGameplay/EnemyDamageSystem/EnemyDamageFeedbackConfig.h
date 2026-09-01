@@ -35,6 +35,4 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "Audio")
     TSoftObjectPtr<USoundBase> DeathSound;
-
-    // и т.д. по необходимости
 };

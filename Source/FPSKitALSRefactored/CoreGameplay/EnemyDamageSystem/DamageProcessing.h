@@ -1,4 +1,3 @@
-// DamageProcessing.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -44,7 +43,6 @@ struct FDamageProcessingContext
     UPROPERTY(BlueprintReadOnly)
     FName CurrentHealthZone;
 
-    //UPROPERTY(BlueprintReadWrite)
     float StaggerChanceModifier = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
@@ -59,9 +57,10 @@ struct FDamageProcessingContext
     float ForceStaggerCooldown = 2.0f;
 
     UPROPERTY(BlueprintReadWrite)
-	bool IsStagger = false;
+    bool IsStagger = false;
 };
 
+// Output structures (used in effects)
 // Выходные структуры (используются в эффектах)
 USTRUCT(BlueprintType)
 struct FPreDefenseOutput
@@ -114,6 +113,7 @@ struct FPostDefenseOutput
     float bNewForceStaggerCooldown = 2.0f;
 };
 
+// Attack information
 // Информация об атаке
 USTRUCT(BlueprintType)
 struct FAttackDamageInfo
@@ -139,6 +139,7 @@ struct FAttackDamageInfo
     TObjectPtr<UDamageProcessingEffect> OptionalEnemyEffects = nullptr;
 };
 
+// Damage result
 // Результат урона
 USTRUCT(BlueprintType)
 struct FDamageResult
@@ -189,7 +190,4 @@ struct FDamageResult
 
     UPROPERTY(BlueprintReadOnly)
     float TotalDamageDealt = 0.0f;
-
-    //UPROPERTY(BlueprintReadOnly)
-    //float AttackStrength = 0.0f;
 };
