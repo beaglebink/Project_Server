@@ -116,3 +116,43 @@ public:
         return this;
     }
 };
+
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreRegisterPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    TObjectPtr<UChoreDefinition> Definition;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore")
+    UChoreRegisterPayload* Setup(UChoreDefinition* InDefinition)
+    {
+        Definition = InDefinition;
+        return this;
+    }
+};
+
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreUnregisterPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    FName ChoreId;
+
+    // Если true – принудительно завершить задание, если оно активно
+    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    bool bForceRemove = false;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore")
+    UChoreUnregisterPayload* Setup(FName InChoreId, bool bForce = false)
+    {
+        ChoreId = InChoreId;
+        bForceRemove = bForce;
+        return this;
+    }
+};
+

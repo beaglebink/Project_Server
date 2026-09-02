@@ -154,6 +154,8 @@ private:
     void HandleEvent(const FOutcomeEventBase& Outcome);          // для глобальных условий доступности
     void HandleMissionRequest(const FOutcomeEventBase& Outcome); // для ChoreMissionRequest
     void HandleChoreCompletion(const FOutcomeEventBase& Outcome); // для завершения обычных хор
+    void HandleRegisterChoreRequest(const FOutcomeEventBase& Outcome);
+    void HandleUnregisterChoreRequest(const FOutcomeEventBase& Outcome);
 
     // ---- Вспомогательные функции для создания условий ----
     UOutcomeConditionAsset* CreateSimpleChoreCondition(EOutcomeChore ChoreType);
@@ -188,6 +190,8 @@ private:
     FOutcomeHandlerHandle AbandonRequestHandler;
     FOutcomeHandlerHandle RetryRequestHandler;
     FOutcomeHandlerHandle UnlockRequestHandler;
+    FOutcomeHandlerHandle RegisterChoreRequestHandler;
+    FOutcomeHandlerHandle UnregisterChoreRequestHandler;
 
     // ---- Условия для подписок ----
     UPROPERTY()
@@ -213,4 +217,8 @@ private:
     TObjectPtr<UOutcomeConditionAsset> RetryRequestCondition;
     UPROPERTY()
     TObjectPtr<UOutcomeConditionAsset> UnlockRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> RegisterChoreRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> UnregisterChoreRequestCondition;
 };

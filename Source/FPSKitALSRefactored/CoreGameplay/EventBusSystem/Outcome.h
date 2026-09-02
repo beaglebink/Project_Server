@@ -174,5 +174,7 @@ enum class EOutcomeChore : uint8
     ExpireRequest           UMETA(DisplayName = "Expire Request"),
     AbandonRequest          UMETA(DisplayName = "Abandon Request"),
     RetryRequest            UMETA(DisplayName = "Retry Request"),
-    UnlockRequest           UMETA(DisplayName = "Unlock Request")
+    UnlockRequest           UMETA(DisplayName = "Unlock Request"),
+    RegisterChoreRequest    UMETA(DisplayName = "Register Chore Request"),
+    UnregisterChoreRequest  UMETA(DisplayName = "Unregister Chore Request")
 };

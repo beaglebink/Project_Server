@@ -40,6 +40,8 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     AbandonRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::AbandonRequest);
     RetryRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::RetryRequest);
     UnlockRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::UnlockRequest);
+    RegisterChoreRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::RegisterChoreRequest);
+    UnregisterChoreRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::UnregisterChoreRequest);
 
     // ---- Регистрация обработчиков в EventBus ----
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
@@ -70,6 +72,10 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleRetryRequest));
         UnlockRequestHandler = EventBus->RegisterHandler(UnlockRequestCondition,
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleUnlockRequest));
+        RegisterChoreRequestHandler = EventBus->RegisterHandler(RegisterChoreRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleRegisterChoreRequest));
+        UnregisterChoreRequestHandler = EventBus->RegisterHandler(UnregisterChoreRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleUnregisterChoreRequest));
     }
 
     // ---- Регистрация в системе сохранения ----
@@ -1156,4 +1162,90 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     // После загрузки перепроверяем доступность
     EvaluateAllAvailability();
     bLoadComplete = true;
+}
+
+void UChoreManagerSubsystem::HandleRegisterChoreRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreRegisterPayload* Payload = Cast<UChoreRegisterPayload>(Outcome.Payload);
+    if (!Payload || !Payload->Definition)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("HandleRegisterChoreRequest: invalid payload or Definition is null"));
+        return;
+    }
+
+    RegisterChoreDefinition(Payload->Definition);
+    UE_LOG(LogTemp, Log, TEXT("HandleRegisterChoreRequest: registered chore '%s'"), *Payload->Definition->GetChoreId().ToString());
+}
+
+void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreUnregisterPayload* Payload = Cast<UChoreUnregisterPayload>(Outcome.Payload);
+    if (!Payload)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("HandleUnregisterChoreRequest: invalid payload"));
+        return;
+    }
+
+    FName ChoreId = Payload->ChoreId;
+    if (ChoreId.IsNone())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("HandleUnregisterChoreRequest: ChoreId is None"));
+        return;
+    }
+
+    // Проверяем, существует ли задание
+    if (!Definitions.Contains(ChoreId))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("HandleUnregisterChoreRequest: chore '%s' not found"), *ChoreId.ToString());
+        return;
+    }
+
+    // Проверяем статус
+    FChoreState* State = ActiveStates.Find(ChoreId);
+    if (State)
+    {
+        EChoreStatus Status = State->Status;
+        // Разрешаем удаление, если задание завершено, истекло, недоступно или принудительно
+        bool bCanRemove = (Status == EChoreStatus::Unavailable) ||
+            (Status == EChoreStatus::Expired) ||
+            (Status == EChoreStatus::Succeeded) ||
+            (Status == EChoreStatus::Failed) ||
+            Payload->bForceRemove;
+
+        if (!bCanRemove)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("HandleUnregisterChoreRequest: chore '%s' is in status %d and cannot be removed (use bForceRemove=true to override)"),
+                *ChoreId.ToString(), (int32)Status);
+            return;
+        }
+
+        // Если принудительно удаляем активное задание – завершаем его
+        if (Payload->bForceRemove && (Status == EChoreStatus::Accepted || Status == EChoreStatus::Active || Status == EChoreStatus::WaitingToStart))
+        {
+            // Можно вызвать AbandonChore или просто перевести в Failed
+            // Здесь для простоты переведём в Failed и запишем историю
+            if (Status == EChoreStatus::Active)
+            {
+                ClearDeadlineTimer(ChoreId);
+            }
+            State->bSucceeded = false;
+            AddHistoryEntry(ChoreId, false, State->Performance);
+            UpdateChoreState(ChoreId, EChoreStatus::Failed);
+        }
+    }
+
+    // Удаляем из Definitions и ActiveStates
+    Definitions.Remove(ChoreId);
+    if (State)
+    {
+        ActiveStates.Remove(ChoreId);
+    }
+
+    // Отписываем обработчик доступности, если есть
+    UnregisterAvailabilityHandler(ChoreId);
+
+    // Останавливаем таймер, если он ещё висит (на всякий случай)
+    ClearDeadlineTimer(ChoreId);
+
+    UE_LOG(LogTemp, Log, TEXT("HandleUnregisterChoreRequest: chore '%s' unregistered"), *ChoreId.ToString());
 }
