@@ -13,6 +13,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Cooking/W_PourEvent.h"
 #include "Components/AudioComponent.h"
+#include "ProceduralMeshComponent.h"
 #include "InteractiveItemComponent.h"
 
 AA_Dishes::AA_Dishes()
@@ -463,44 +464,47 @@ bool AA_Dishes::CheckIfCooked()
 
 	bIsOnRecipeChecking = true;
 
-	//Check for being tossed
-	if (CheckedRecipe.bRequiresToss)
-	{
-		for (AA_Cookable* Ingredient : Ingredients)
-		{
-			if (!Ingredient->bWasTossed)
-			{
-				bIsOnRecipeChecking = false;
-				return false;
-			}
-		}
-	}
+	IngredientQualityMap.Empty();
 
-	TMap<FName, int32> RecipeMap;
-	for (const FRecipeIngredient& Ingredient : CheckedRecipe.Ingredients)
-	{
-		RecipeMap.Add(Ingredient.IngredientName, Ingredient.IngredientQuantity);
-	}
+	////Check for being tossed
+	//if (CheckedRecipe.bRequiresToss)
+	//{
+	//	for (AA_Cookable* Ingredient : Ingredients)
+	//	{
+	//		if (!Ingredient->bWasTossed)
+	//		{
+	//			bIsOnRecipeChecking = false;
+	//			return false;
+	//		}
+	//	}
+	//}
 
-	//Check for recipe matching from recipe
-	for (const auto& Pair : RecipeMap)
-	{
-		if (!IngredientCountMap.Contains(Pair.Key))
-		{
-			bIsOnRecipeChecking = false;
-			return false;
-		}
-	}
+	//TMap<FName, int32> RecipeMap;
+	//for (const FRecipeIngredient& Ingredient : CheckedRecipe.Ingredients)
+	//{
+	//	RecipeMap.Add(Ingredient.IngredientName, Ingredient.TargetChunkCount);
+	//}
 
-	//Check for recipe matching - extra ingredients
-	for (const auto& Pair : IngredientCountMap)
-	{
-		if (!RecipeMap.Contains(Pair.Key))
-		{
-			bIsOnRecipeChecking = false;
-			return false;
-		}
-	}
+	////Check for recipe matching from recipe
+	//for (const auto& Pair : RecipeMap)
+	//{
+	//	if (!IngredientCountMap.Contains(Pair.Key))
+	//	{
+	//		bIsOnRecipeChecking = false;
+	//		return false;
+	//	}
+	//}
+
+	////Check for recipe matching - extra ingredients
+	//for (const auto& Pair : IngredientCountMap)
+	//{
+	//	if (!RecipeMap.Contains(Pair.Key))
+	//	{
+	//		bIsOnRecipeChecking = false;
+	//		return false;
+	//	}
+	//}
+
 
 	// Calculate chunks average quality
 	for (AA_Cookable* Ingredient : Ingredients)
@@ -508,6 +512,123 @@ bool AA_Dishes::CheckIfCooked()
 		// Find the maximum chunk weight for each ingredient type
 		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
 		QualityRef.MaxChunkWeight = FMath::Max(QualityRef.MaxChunkWeight, Ingredient->ChunkMass);
+
+		QualityRef.ChunksBoundBoxes.Add(Ingredient->SlicedMesh->Bounds.BoxExtent * 2.0f);
+	}
+
+	// Calculate chunks preparation quality
+	for (auto& [IngredientName, QualityRef] : IngredientQualityMap)
+	{
+		int32* Count = IngredientCountMap.Find(IngredientName);
+		FRecipeIngredient* RecipeIngredient = CheckedRecipe.FindIngredientByName(IngredientName);
+
+		if (Count && RecipeIngredient)
+		{
+			QualityRef.PreparationImportance = RecipeIngredient->PreparationImportance;
+
+			// Calculate count quality based on the ideal chunk count range
+			if (*Count >= RecipeIngredient->IdealChunkCountMin && *Count <= RecipeIngredient->IdealChunkCountMax)
+			{
+				QualityRef.CountQuality = 1.0f;
+			}
+			else if (*Count < RecipeIngredient->IdealChunkCountMin)
+			{
+				QualityRef.CountQuality = FMath::Clamp(1 - (RecipeIngredient->IdealChunkCountMin - *Count) / (RecipeIngredient->TargetChunkCount * RecipeIngredient->CountTolerancePercent / 100.0f), 0.0f, 1.0f);
+			}
+			else if (*Count > RecipeIngredient->IdealChunkCountMax)
+			{
+				QualityRef.CountQuality = FMath::Clamp(1 - (*Count - RecipeIngredient->IdealChunkCountMax) / (RecipeIngredient->TargetChunkCount * RecipeIngredient->CountTolerancePercent / 100.0f), 0.0f, 1.0f);
+			}
+
+			// Calculate SizeQuality based on the ideal chunk size range
+			float TargetChunkVolume = FMath::Pow(RecipeIngredient->TargetChunkSize, 3);
+			float TotalChunkVolumeQuality = 0.0f;
+			FVector TotalChunksBoundsBoxes = FVector::ZeroVector;
+			for (FVector& ChunkSize : QualityRef.ChunksBoundBoxes)
+			{
+				float ChunkVolume = ChunkSize.X * ChunkSize.Y * ChunkSize.Z;
+				if (ChunkVolume >= (TargetChunkVolume - TargetChunkVolume * RecipeIngredient->IdealSizeTolerancePercent / 100.0f) && ChunkVolume <= (TargetChunkVolume + TargetChunkVolume * RecipeIngredient->IdealSizeTolerancePercent / 100.0f))
+				{
+					TotalChunkVolumeQuality += 1.0f;
+				}
+				else if (ChunkVolume < (TargetChunkVolume - TargetChunkVolume * RecipeIngredient->IdealSizeTolerancePercent / 100.0f))
+				{
+					TotalChunkVolumeQuality += FMath::Clamp(1 - (TargetChunkVolume - TargetChunkVolume * RecipeIngredient->IdealSizeTolerancePercent / 100.0f - ChunkVolume) /
+						((TargetChunkVolume * RecipeIngredient->MaximumSizeTolerancePercent - TargetChunkVolume * RecipeIngredient->IdealSizeTolerancePercent) / 100.0f), 0.0f, 1.0f);
+				}
+				else if (ChunkVolume > (TargetChunkVolume + TargetChunkVolume * RecipeIngredient->IdealSizeTolerancePercent / 100.0f))
+				{
+					TotalChunkVolumeQuality += FMath::Clamp(1 - (ChunkVolume - (TargetChunkVolume + TargetChunkVolume * RecipeIngredient->IdealSizeTolerancePercent / 100.0f)) /
+						((TargetChunkVolume * RecipeIngredient->MaximumSizeTolerancePercent - TargetChunkVolume * RecipeIngredient->IdealSizeTolerancePercent) / 100.0f), 0.0f, 1.0f);
+				}
+
+				TotalChunksBoundsBoxes += ChunkSize;
+			}
+			QualityRef.SizeQuality = TotalChunkVolumeQuality / QualityRef.ChunksBoundBoxes.Num();
+			FVector AverageChunkSize = TotalChunksBoundsBoxes / QualityRef.ChunksBoundBoxes.Num();
+
+			// Calculate EvennessQuality
+			float TotalEvennessQuality = 0.0f;
+			for (FVector& ChunkSize : QualityRef.ChunksBoundBoxes)
+			{
+				float EvennessQuality_X = 0.0f;
+				if (ChunkSize.X >= (AverageChunkSize.X - AverageChunkSize.X * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f) && ChunkSize.X <= (AverageChunkSize.X + AverageChunkSize.X * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_X = 1.0f;
+				}
+				else if (ChunkSize.X < (AverageChunkSize.X - AverageChunkSize.X * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_X = FMath::Clamp(1 - (AverageChunkSize.X - AverageChunkSize.X * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f - ChunkSize.X) /
+						((AverageChunkSize.X * RecipeIngredient->MaximumEvennessTolerancePercent - AverageChunkSize.X * RecipeIngredient->IdealEvennessTolerancePercent) / 100.0f), 0.0f, 1.0f);
+				}
+				else if (ChunkSize.X > (AverageChunkSize.X + AverageChunkSize.X * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_X = FMath::Clamp(1 - (ChunkSize.X - (AverageChunkSize.X + AverageChunkSize.X * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f)) /
+						((AverageChunkSize.X * RecipeIngredient->MaximumEvennessTolerancePercent - AverageChunkSize.X * RecipeIngredient->IdealEvennessTolerancePercent) / 100.0f), 0.0f, 1.0f);
+				}
+
+				float EvennessQuality_Y = 0.0f;
+				if (ChunkSize.Y >= (AverageChunkSize.Y - AverageChunkSize.Y * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f) && ChunkSize.Y <= (AverageChunkSize.Y + AverageChunkSize.Y * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_Y = 1.0f;
+				}
+				else if (ChunkSize.Y < (AverageChunkSize.Y - AverageChunkSize.Y * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_Y = FMath::Clamp(1 - (AverageChunkSize.Y - AverageChunkSize.Y * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f - ChunkSize.Y) /
+						((AverageChunkSize.Y * RecipeIngredient->MaximumEvennessTolerancePercent - AverageChunkSize.Y * RecipeIngredient->IdealEvennessTolerancePercent) / 100.0f), 0.0f, 1.0f);
+				}
+				else if (ChunkSize.Y > (AverageChunkSize.Y + AverageChunkSize.Y * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_Y = FMath::Clamp(1 - (ChunkSize.Y - (AverageChunkSize.Y + AverageChunkSize.Y * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f)) /
+						((AverageChunkSize.Y * RecipeIngredient->MaximumEvennessTolerancePercent - AverageChunkSize.Y * RecipeIngredient->IdealEvennessTolerancePercent) / 100.0f), 0.0f, 1.0f);
+				}
+
+				float EvennessQuality_Z = 0.0f;
+				if (ChunkSize.Z >= (AverageChunkSize.Z - AverageChunkSize.Z * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f) && ChunkSize.Z <= (AverageChunkSize.Z + AverageChunkSize.Z * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_Z = 1.0f;
+				}
+				else if (ChunkSize.Z < (AverageChunkSize.Z - AverageChunkSize.Z * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_Z = FMath::Clamp(1 - (AverageChunkSize.Z - AverageChunkSize.Z * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f - ChunkSize.Z) /
+						((AverageChunkSize.Z * RecipeIngredient->MaximumEvennessTolerancePercent - AverageChunkSize.Z * RecipeIngredient->IdealEvennessTolerancePercent) / 100.0f), 0.0f, 1.0f);
+				}
+				else if (ChunkSize.Z > (AverageChunkSize.Z + AverageChunkSize.Z * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f))
+				{
+					EvennessQuality_Z = FMath::Clamp(1 - (ChunkSize.Z - (AverageChunkSize.Z + AverageChunkSize.Z * RecipeIngredient->IdealEvennessTolerancePercent / 100.0f)) /
+						((AverageChunkSize.Z * RecipeIngredient->MaximumEvennessTolerancePercent - AverageChunkSize.Z * RecipeIngredient->IdealEvennessTolerancePercent) / 100.0f), 0.0f, 1.0f);
+				}
+
+				TotalEvennessQuality += (EvennessQuality_X + EvennessQuality_Y + EvennessQuality_Z) / 3.0f;
+			}
+			QualityRef.EvennessQuality = TotalEvennessQuality / QualityRef.ChunksBoundBoxes.Num();
+
+			float WeightsSum = RecipeIngredient->CountScoreWeight + RecipeIngredient->SizeScoreWeight + RecipeIngredient->EvennessScoreWeight;
+			if (WeightsSum > 0.0f)
+			{
+				QualityRef.PreparationQuality = (QualityRef.CountQuality * RecipeIngredient->CountScoreWeight + QualityRef.SizeQuality * RecipeIngredient->SizeScoreWeight + QualityRef.EvennessQuality * RecipeIngredient->EvennessScoreWeight) / WeightsSum;
+			}
+		}
 	}
 
 	for (AA_Cookable* Ingredient : Ingredients)
@@ -516,6 +637,7 @@ bool AA_Dishes::CheckIfCooked()
 		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
 		if (Ingredient->ChunkMass >= CheckedRecipe.SignificantChunkPercentage * QualityRef.MaxChunkWeight)
 		{
+			// Calculate weighted average quality by chunk weight
 			QualityRef.TotalQualityByWeight += Ingredient->GetChunkQuality() * Ingredient->ChunkMass;
 			QualityRef.ChunksWeightTotal += Ingredient->ChunkMass;
 			QualityRef.WorstChunkQuality = FMath::Min(QualityRef.WorstChunkQuality, Ingredient->GetChunkQuality());
@@ -526,8 +648,10 @@ bool AA_Dishes::CheckIfCooked()
 
 	for (auto& Pair : IngredientQualityMap)
 	{
-		Pair.Value.GroupQuality = (Pair.Value.TotalQualityByWeight / Pair.Value.ChunksWeightTotal) * (1 - Pair.Value.WorstChunkInfluence + Pair.Value.WorstChunkInfluence * Pair.Value.WorstChunkQuality);
-		Pair.Value.FailureSeverity = (1 - Pair.Value.GroupQuality) * Pair.Value.RecipeImportance;
+		Pair.Value.IngredientFinalQuality = (Pair.Value.TotalQualityByWeight / Pair.Value.ChunksWeightTotal) * (1 - Pair.Value.WorstChunkInfluence + Pair.Value.WorstChunkInfluence * Pair.Value.WorstChunkQuality);
+		Pair.Value.IngredientFinalQuality = Pair.Value.IngredientFinalQuality * (1 - Pair.Value.PreparationImportance) + Pair.Value.PreparationQuality * Pair.Value.PreparationImportance; // Add preparation quality to the final quality based on its importance
+
+		Pair.Value.FailureSeverity = (1 - Pair.Value.IngredientFinalQuality) * Pair.Value.RecipeImportance;
 	}
 
 	// Calculate total dish quality
@@ -536,11 +660,11 @@ bool AA_Dishes::CheckIfCooked()
 	LowestGroupQuality = 1.0f;
 	for (const auto& Pair : IngredientQualityMap)
 	{
-		DishQuality += Pair.Value.GroupQuality * Pair.Value.RecipeImportance;
+		DishQuality += Pair.Value.IngredientFinalQuality * Pair.Value.RecipeImportance;
 		TotalRecipeImportance += Pair.Value.RecipeImportance;
 		if (Pair.Value.FailureSeverity >= CheckedRecipe.FailureSeverityThreshold)
 		{
-			LowestGroupQuality = FMath::Min(LowestGroupQuality, Pair.Value.GroupQuality);
+			LowestGroupQuality = FMath::Min(LowestGroupQuality, Pair.Value.IngredientFinalQuality);
 		}
 	}
 
@@ -609,7 +733,7 @@ bool AA_Dishes::CheckIfCooked()
 	{
 		if (FIngredientQuality* IngredientQuality = IngredientQualityMap.Find(Ingredient.IngredientName))
 		{
-			IngredientQuality->MissingProportion = 1.0f - static_cast<float>(FMath::Min(IngredientCountMap.FindRef(Ingredient.IngredientName), Ingredient.IngredientQuantity)) / static_cast<float>(Ingredient.IngredientQuantity);
+			IngredientQuality->MissingProportion = 1.0f - static_cast<float>(FMath::Min(IngredientCountMap.FindRef(Ingredient.IngredientName), Ingredient.TargetChunkCount)) / static_cast<float>(Ingredient.TargetChunkCount);
 			if (IngredientQuality->MissingProportion < 0.1f)
 			{
 				IngredientQuality->ShortageSeverity = 0.0f;
@@ -672,7 +796,7 @@ void AA_Dishes::ReplaceIngredientsByCookedFood()
 				*Pair.Key.ToString(),
 				AverageQuality,
 				Pair.Value.WorstChunkQuality,
-				Pair.Value.GroupQuality,
+				Pair.Value.IngredientFinalQuality,
 				Pair.Value.RecipeImportance,
 				Pair.Value.FailureSeverity,
 				Pair.Value.MissingProportion,
