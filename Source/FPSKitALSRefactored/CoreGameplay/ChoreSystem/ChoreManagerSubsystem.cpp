@@ -673,6 +673,13 @@ TArray<FName> UChoreManagerSubsystem::GetSucceededChoreIds() const
 // ---- Методы для условий истории ----
 int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const
 {
+    // Если не задан фильтр, возвращаем 0
+    if (ChoreId.IsNone() && !bUseFamily && !bUseSubtype)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("GetHistoryCount: No filter specified, returning 0"));
+        return 0;
+    }
+
     int32 Count = 0;
     UE_LOG(LogTemp, Log, TEXT("GetHistoryCount: ChoreId='%s', bUseFamily=%d, Family=%d, bUseSubtype=%d, Subtype=%d, bSucceededOnly=%d"),
         *ChoreId.ToString(), bUseFamily, (int32)Family, bUseSubtype, (int32)Subtype, bSucceededOnly);

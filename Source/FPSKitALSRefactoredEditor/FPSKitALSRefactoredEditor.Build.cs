@@ -19,6 +19,7 @@ public class FPSKitALSRefactoredEditor : ModuleRules
 
         string RuntimeModuleBase = Path.GetFullPath(Path.Combine(ModuleDirectory, "..", "FPSKitALSRefactored"));
         PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "CoreGameplay", "LocationSystem"));
+        PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "CoreGameplay", "ChoreSystem"));
         PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "Public"));
 
         PrivateIncludePaths.Add("FPSKitALSRefactoredEditor/Private");

@@ -36,7 +36,13 @@ void UChoreHistoryConditionAsset::CompileCondition()
 
 bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome) const
 {
-    // Получаем ChoreManager через GEngine и WorldContexts
+    // Проверка наличия фильтра
+    if (ChoreId.IsNone() && !bUseFamily && !bUseSubtype)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("EvaluateCondition: ChoreHistoryConditionAsset '%s' has no filter, returning false"), *GetName());
+        return false;
+    }
+
     UChoreManagerSubsystem* ChoreManager = nullptr;
     if (GEngine)
     {
@@ -63,7 +69,6 @@ bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Out
     }
 
     int32 ActualValue = 0;
-
     switch (QueryType)
     {
     case EChoreHistoryQueryType::CountCompleted:

@@ -2,6 +2,10 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "LocationAnchorActorDetails.h"
+#include "ChoreSystem/ChoreHistoryConditionAssetDetails.h"
+#include "ChoreSystem/MissionConditionAssetDetails.h"   // <-- добавлено
+#include "ChoreHistoryConditionAsset.h"
+#include "MissionConditionAsset.h"                     // <-- добавлено
 
 #define LOCTEXT_NAMESPACE "FLocationEditorModule"
 
@@ -14,10 +18,22 @@ void FLocationEditorModule::StartupModule()
 
     FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-    // ИСПРАВЛЕНО: имя класса без префикса "A"
+    // Регистрация для ALocationAnchorActor
     PropertyModule.RegisterCustomClassLayout(
         FName(TEXT("LocationAnchorActor")),
         FOnGetDetailCustomizationInstance::CreateStatic(&FLocationAnchorActorDetails::MakeInstance)
+    );
+
+    // Регистрация для UChoreHistoryConditionAsset
+    PropertyModule.RegisterCustomClassLayout(
+        UChoreHistoryConditionAsset::StaticClass()->GetFName(),
+        FOnGetDetailCustomizationInstance::CreateStatic(&FChoreHistoryConditionAssetDetails::MakeInstance)
+    );
+
+    // Регистрация для UMissionConditionAsset
+    PropertyModule.RegisterCustomClassLayout(
+        UMissionConditionAsset::StaticClass()->GetFName(),
+        FOnGetDetailCustomizationInstance::CreateStatic(&FMissionConditionAssetDetails::MakeInstance)
     );
 
     PropertyModule.NotifyCustomizationModuleChanged();
@@ -28,8 +44,11 @@ void FLocationEditorModule::ShutdownModule()
     if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
     {
         FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-        // ИСПРАВЛЕНО: то же имя без префикса
+
         PropertyModule.UnregisterCustomClassLayout(FName(TEXT("LocationAnchorActor")));
+        PropertyModule.UnregisterCustomClassLayout(UChoreHistoryConditionAsset::StaticClass()->GetFName());
+        PropertyModule.UnregisterCustomClassLayout(UMissionConditionAsset::StaticClass()->GetFName());
+
         PropertyModule.NotifyCustomizationModuleChanged();
     }
 }

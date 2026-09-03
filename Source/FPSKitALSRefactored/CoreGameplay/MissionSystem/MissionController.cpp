@@ -3,6 +3,7 @@
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "MissionEnvelopePayload.h"
+#include <MissionProgressPayload.h>
 
 void UMissionController::InitFromAsset(UMissionAsset* InAsset, UGameInstance* InOwner)
 {
@@ -124,4 +125,24 @@ UWorld* UMissionController::GetWorld() const
         return OwnerGameInstance->GetWorld();
     }
     return nullptr;
+}
+
+void UMissionController::PublishMissionProgress(int32 StepIndex)
+{
+    UGameInstance* GI = OwnerGameInstance.Get();
+    if (!GI) return;
+
+    UEventBusSubsystem* EventBus = GI->GetSubsystem<UEventBusSubsystem>();
+    if (!EventBus) return;
+
+    UMissionProgressPayload* Payload = EventBus->CreatePayload<UMissionProgressPayload>();
+    if (!Payload) return;
+
+    Payload->Setup(GetMissionId(), StepIndex);
+
+    FOutcomeEventBase Event;
+    Event.OutcomeType = EOutcomeType::Mission;
+    Event.OutcomeMission = EOutcomeMission::MissionProgress;
+    Event.Payload = Payload;
+    EventBus->PublishOutcome(Event);
 }

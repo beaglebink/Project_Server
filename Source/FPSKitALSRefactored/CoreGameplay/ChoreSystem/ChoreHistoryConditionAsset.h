@@ -5,7 +5,7 @@
 #include "CheckRequestPayload.h"
 #include "ChoreHistoryConditionAsset.generated.h"
 
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, ShowCategories = ("History", "4 - Debug"))
 class FPSKITALSREFACTORED_API UChoreHistoryConditionAsset : public UOutcomeConditionAsset
 {
     GENERATED_BODY()

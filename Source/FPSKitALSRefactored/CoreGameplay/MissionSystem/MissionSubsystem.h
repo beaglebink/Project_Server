@@ -102,6 +102,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|EventBus")
 	void UnsubscribeMissionEnvelopeEvents();
 
+	// История завершённых миссий (имена миссий)
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|History")
+	bool IsMissionCompleted(FName MissionId) const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|History")
+	TArray<FName> GetCompletedMissionIds() const;
+
 	bool IsMissionConflict(FName MissionName, FMissionEnvelope NewMissionEnvelope, FName& ConflictedMissionName);
 
 	// Ассеты условий для envelope-событий.
@@ -223,4 +230,7 @@ private:
 	FName ActiveMissionId;
 
 	bool IsLoadComplete = true;
+
+	UPROPERTY()
+	TArray<FName> CompletedMissionHistory;
 };

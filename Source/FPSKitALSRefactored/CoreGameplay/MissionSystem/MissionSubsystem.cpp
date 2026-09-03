@@ -372,6 +372,13 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 
 	Entry->Controller->RequestResolve(Reason);
 
+	if (!Entry->Controller->GetEnvelopes().IsValidIndex(Entry->MissionStep))
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("MissionSubsystem::ResolveMission: Mission '%s' has no envelope for step %d"), *MissionId.ToString(), Entry->MissionStep);
+		return;
+	}
+
 	const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelopes()[Entry->MissionStep];
 
 	EJobSpacePolicy ExitPolicy = Envelope.NextStagePolicy;
@@ -524,6 +531,30 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 	EJobSpacePolicy Policy,
 	EMissionEndReason EndReason)
 {
+	// Дополнительная публикация события MissionCompleted с UMissionEnvelopePayload
+	if (EndReason == EMissionEndReason::Completed)
+	{
+		// Если миссия успешно завершена, добавляем в историю
+
+		CompletedMissionHistory.AddUnique(MissionId);
+		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s' added to completed history"), *MissionId.ToString());
+		/*
+		if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+		{
+			UMissionEnvelopePayload* Payload = EventBus->CreatePayload<UMissionEnvelopePayload>();
+			if (Payload)
+			{
+				Payload->Setup(MissionId, nullptr, EMissionEndReason::Completed);
+				FOutcomeEventBase Ev;
+				Ev.OutcomeType = EOutcomeType::Mission;
+				Ev.OutcomeMission = EOutcomeMission::MissionCompleted;
+				Ev.Payload = Payload;
+				EventBus->PublishOutcome(Ev);
+			}
+		}
+		*/
+	}
+
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
 		UApplyMissionCompletionPolicyPayload* P = Cast<UApplyMissionCompletionPolicyPayload>(EventBus->CreatePayload(UApplyMissionCompletionPolicyPayload::StaticClass()));
@@ -1146,6 +1177,16 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 	Root->SetArrayField(TEXT("Missions"), MissionArray);
 
+	// Сохраняем историю завершённых миссий
+	TArray<TSharedPtr<FJsonValue>> HistoryArray;
+	for (const FName& CompletedMission : CompletedMissionHistory)
+	{
+		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+		Obj->SetStringField(TEXT("MissionId"), CompletedMission.ToString());
+		HistoryArray.Add(MakeShared<FJsonValueObject>(Obj));
+	}
+	Root->SetArrayField(TEXT("CompletedMissionHistory"), HistoryArray);
+
 	Root->SetStringField(TEXT("ActiveMissionId"), ActiveMissionId.ToString());
 
 	FString Output;
@@ -1250,6 +1291,22 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					*MissionIdStr, StatusInt, MissionStep);
 			}
 
+			// Восстанавливаем историю завершённых миссий
+			const TArray<TSharedPtr<FJsonValue>>* HistoryArray = nullptr;
+			if (Root->TryGetArrayField(TEXT("CompletedMissionHistory"), HistoryArray))
+			{
+				CompletedMissionHistory.Empty();
+				for (const TSharedPtr<FJsonValue>& Val : *HistoryArray)
+				{
+					const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+					if (!Val->TryGetObject(ObjPtr)) continue;
+					const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+					FString MissionIdStr;
+					Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
+					if (!MissionIdStr.IsEmpty())
+						CompletedMissionHistory.Add(FName(*MissionIdStr));
+				}
+			}
 			
 			for (auto DelMissionName : DeletedMissions)
 			{
@@ -1263,6 +1320,16 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	{
 		World->GetTimerManager().SetTimer(TimerHandle, Delegate, 0.5f, false);
 	}
+}
+
+bool UMissionSubsystem::IsMissionCompleted(FName MissionId) const
+{
+	return CompletedMissionHistory.Contains(MissionId);
+}
+
+TArray<FName> UMissionSubsystem::GetCompletedMissionIds() const
+{
+	return CompletedMissionHistory;
 }
 
 void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& Outcome)
@@ -1333,32 +1400,4 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 		TopMissionId = MissionId;
 	}
 
-	// Apply JobSpacePolicy only for the top-priority mission
-	/*
-	if (!TopMissionId.IsNone())
-	{
-		if (FActiveMissionEntry* TopEntry = ActiveMissions.Find(TopMissionId))
-		{
-			const FMissionEnvelope& TopEnv = TopEntry->Controller->GetEnvelopes()[TopEntry->MissionStep];
-			const EJobSpacePolicy JobPolicy = TopEnv.RuntimePolicy;
-			if (JobPolicy != EJobSpacePolicy::None)
-			{
-				UReleaseMissionSnapshotPayload* ReleaseP = Cast<UReleaseMissionSnapshotPayload>(
-					EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
-				if (ReleaseP)
-				{
-					ReleaseP->Setup(TopMissionId, TopEnv, JobPolicy);
-					FOutcomeEventBase ReleaseEv;
-					ReleaseEv.OutcomeType = EOutcomeType::Interior;
-					ReleaseEv.Payload = ReleaseP;
-					EventBus->PublishOutcome(ReleaseEv);
-					UE_LOG(LogTemp, Log,
-						TEXT("MissionSubsystem: Applied JobSpacePolicy=%d for top-priority mission '%s' on floor leaving"),
-						(int32)JobPolicy, *TopMissionId.ToString());
-				}
-			}
-		}
-	}
-	*/
 }
-

@@ -137,6 +137,10 @@ public:
     void OnMissionRestored();
     virtual void OnMissionRestored_Implementation() {}
 
+    // MissionController.h (добавить в public)
+    UFUNCTION(BlueprintCallable, Category = "Mission|Control")
+    void PublishMissionProgress(int32 StepIndex);
+
     // Необходимо для работы NewObject с GameInstance как Outer
     virtual UWorld* GetWorld() const override;
 
