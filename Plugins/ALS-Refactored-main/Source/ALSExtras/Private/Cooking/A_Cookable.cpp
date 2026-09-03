@@ -58,7 +58,6 @@ void AA_Cookable::OnConstruction(const FTransform& Transform)
 			SlicedMesh->SetMaterial(0, MeshDynamicMaterial);
 		}
 	}
-
 }
 
 void AA_Cookable::Tick(float DeltaTime)
