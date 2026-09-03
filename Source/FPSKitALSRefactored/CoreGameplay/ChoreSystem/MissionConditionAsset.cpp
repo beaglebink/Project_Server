@@ -1,4 +1,5 @@
-#include "MissionConditionAsset.h"
+﻿#include "MissionConditionAsset.h"
+#include "ApplyMissionCompletionPolicyPayload.h"
 #include "MissionEnvelopePayload.h"
 #include "MissionProgressPayload.h"
 #include "MissionSubsystem.h"
@@ -21,22 +22,30 @@ void UMissionConditionAsset::CompileCondition()
 
         virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
         {
+            // Сначала проверяем тип события
             if (Outcome.OutcomeType != EOutcomeType::Mission)
                 return false;
 
-            if (Asset->ConditionType == EMissionConditionType::IsCompleted)
+            // Определяем, какой тип события нас интересует
+            EOutcomeMission requiredMissionType = EOutcomeMission::Default;
+            switch (Asset->ConditionType)
             {
-                if (Outcome.OutcomeMission != EOutcomeMission::MissionCompleted)
-                    return false;
+            case EMissionConditionType::IsCompleted:
+            case EMissionConditionType::IsFailed:
+            case EMissionConditionType::IsAbandoned:
+                requiredMissionType = EOutcomeMission::MissionCompleted;
+                break;
+            case EMissionConditionType::IsActivated:
+                requiredMissionType = EOutcomeMission::MissionActivated;
+                break;
+            default:
+                return false;
             }
-            else if (Asset->ConditionType == EMissionConditionType::StepReached)
-            {
-                if (Outcome.OutcomeMission != EOutcomeMission::MissionProgress)
-                    return false;
-            }
-            else
+
+            if (Outcome.OutcomeMission != requiredMissionType)
                 return false;
 
+            // Дополнительная проверка через EvaluateCondition
             return Asset ? Asset->EvaluateCondition(Outcome) : false;
         }
 
@@ -44,10 +53,17 @@ void UMissionConditionAsset::CompileCondition()
         {
             if (Asset)
             {
-                FString Type = (Asset->ConditionType == EMissionConditionType::IsCompleted)
-                    ? TEXT("Completed") : TEXT("Step");
-                return FString::Printf(TEXT("Mission %s: %s"), 
-                    *Asset->GetEffectiveMissionId().ToString(), *Type);
+                FString TypeName;
+                switch (Asset->ConditionType)
+                {
+                case EMissionConditionType::IsCompleted:   TypeName = TEXT("Completed"); break;
+                case EMissionConditionType::IsFailed:      TypeName = TEXT("Failed"); break;
+                case EMissionConditionType::IsAbandoned:   TypeName = TEXT("Abandoned"); break;
+                case EMissionConditionType::IsActivated:   TypeName = TEXT("Activated"); break;
+                default: TypeName = TEXT("Unknown");
+                }
+                return FString::Printf(TEXT("Mission %s: %s"),
+                    *Asset->GetEffectiveMissionId().ToString(), *TypeName);
             }
             return TEXT("Invalid");
         }
@@ -66,30 +82,37 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
     if (ExpectedId.IsNone())
         return false;
 
-    if (ConditionType == EMissionConditionType::IsCompleted)
+    switch (ConditionType)
+    {
+    case EMissionConditionType::IsCompleted:
+    case EMissionConditionType::IsFailed:
+    case EMissionConditionType::IsAbandoned:
+    {
+        UApplyMissionCompletionPolicyPayload* Payload = Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload);
+        if (!Payload) return false;
+        // Проверяем MissionId и EndReason
+        if (Payload->MissionId != ExpectedId) return false;
+
+        EMissionEndReason requiredReason;
+        switch (ConditionType)
+        {
+        case EMissionConditionType::IsCompleted: requiredReason = EMissionEndReason::Completed; break;
+        case EMissionConditionType::IsFailed:    requiredReason = EMissionEndReason::Failed; break;
+        case EMissionConditionType::IsAbandoned: requiredReason = EMissionEndReason::Abandoned; break;
+        default: return false;
+        }
+        return Payload->EndReason == requiredReason;
+    }
+
+    case EMissionConditionType::IsActivated:
     {
         UMissionEnvelopePayload* Payload = Cast<UMissionEnvelopePayload>(Outcome.Payload);
         if (!Payload) return false;
         return Payload->MissionId == ExpectedId;
     }
-    else if (ConditionType == EMissionConditionType::StepReached)
-    {
-        UMissionProgressPayload* Payload = Cast<UMissionProgressPayload>(Outcome.Payload);
-        if (!Payload) return false;
-        if (Payload->MissionName != ExpectedId)
-            return false;
 
-        int32 CurrentStep = Payload->StepIndex;
-        switch (CompareOp)
-        {
-        case ECheckCompareOp::Equal:          return CurrentStep == StepIndex;
-        case ECheckCompareOp::NotEqual:       return CurrentStep != StepIndex;
-        case ECheckCompareOp::Greater:        return CurrentStep > StepIndex;
-        case ECheckCompareOp::GreaterOrEqual: return CurrentStep >= StepIndex;
-        case ECheckCompareOp::Less:           return CurrentStep < StepIndex;
-        case ECheckCompareOp::LessOrEqual:    return CurrentStep <= StepIndex;
-        default: return false;
-        }
+    // Если вы оставили проверку шага, она здесь не используется, но можно оставить
+    default:
+        return false;
     }
-    return false;
 }

@@ -339,11 +339,25 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 
 	Entry->Controller->Activate();
 
+	// --- НОВАЯ ПУБЛИКАЦИЯ ДЛЯ УСЛОВИЙ ---
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		UMissionEnvelopePayload* Payload = EventBus->CreatePayload<UMissionEnvelopePayload>();
+		if (Payload)
+		{
+			Payload->Setup(MissionId, nullptr, EMissionEndReason::None);
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Mission;
+			Ev.OutcomeMission = EOutcomeMission::MissionActivated;
+			Ev.Payload = Payload;
+			EventBus->PublishOutcome(Ev);
+		}
+	}
 
+	// Существующая публикация (можно оставить)
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
 		UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
-		//EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass());
 		if (P1)
 		{
 			P1->ActiveMissions = ActiveMissions;
@@ -351,13 +365,11 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 			P1->IsUpdateSnapshots = IsUpdateSnapshots;
 			P1->Reason = EMissionEndReason::None;
 			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Interior;	
+			Ev.OutcomeType = EOutcomeType::Interior;
 			Ev.Payload = P1;
 			EventBus->PublishOutcome(Ev);
 		}
 	}
-
-	
 }
 
 void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason)
@@ -538,21 +550,6 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 
 		CompletedMissionHistory.AddUnique(MissionId);
 		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s' added to completed history"), *MissionId.ToString());
-		/*
-		if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-		{
-			UMissionEnvelopePayload* Payload = EventBus->CreatePayload<UMissionEnvelopePayload>();
-			if (Payload)
-			{
-				Payload->Setup(MissionId, nullptr, EMissionEndReason::Completed);
-				FOutcomeEventBase Ev;
-				Ev.OutcomeType = EOutcomeType::Mission;
-				Ev.OutcomeMission = EOutcomeMission::MissionCompleted;
-				Ev.Payload = Payload;
-				EventBus->PublishOutcome(Ev);
-			}
-		}
-		*/
 	}
 
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
@@ -566,7 +563,7 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 			P->EndReason = EndReason;
 
 			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Interior;
+			Ev.OutcomeType = EOutcomeType::Mission;   
 			Ev.OutcomeMission = EOutcomeMission::MissionCompleted;
 			Ev.Payload = P;
 			EventBus->PublishOutcome(Ev);
@@ -574,6 +571,7 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 
 		ActiveMissions.Remove(MissionId);
 	}
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
