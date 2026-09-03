@@ -5,7 +5,6 @@
 
 void UChoreHistoryConditionAsset::CompileCondition()
 {
-    // Создаём условие-обёртку, которое вызывает EvaluateCondition
     class FChoreHistoryCondition : public IOutcomeCondition
     {
     public:
@@ -18,9 +17,10 @@ void UChoreHistoryConditionAsset::CompileCondition()
         {
             if (Asset)
             {
+                FString FilterDesc = Asset->GetFilterDescription();
                 return FString::Printf(TEXT("ChoreHistory: %s (%s) %s %d"),
                     *StaticEnum<EChoreHistoryQueryType>()->GetValueAsString(Asset->QueryType),
-                    *Asset->GetName(),
+                    *FilterDesc,
                     *StaticEnum<ECheckCompareOp>()->GetValueAsString(Asset->CompareOp),
                     Asset->Threshold);
             }
@@ -32,6 +32,32 @@ void UChoreHistoryConditionAsset::CompileCondition()
 
     CompiledCondition = MakeShared<FChoreHistoryCondition>(this);
     ConditionDescription = CompiledCondition->Describe();
+}
+
+FString UChoreHistoryConditionAsset::GetFilterDescription() const
+{
+    if (bUseFamily && bUseSubtype)
+    {
+        return FString::Printf(TEXT("%s / %s"),
+            *StaticEnum<EChoreFamily>()->GetValueAsString(Family),
+            *StaticEnum<EChoreSubtype>()->GetValueAsString(Subtype));
+    }
+    else if (bUseFamily)
+    {
+        return StaticEnum<EChoreFamily>()->GetValueAsString(Family);
+    }
+    else if (bUseSubtype)
+    {
+        return StaticEnum<EChoreSubtype>()->GetValueAsString(Subtype);
+    }
+    else if (!ChoreId.IsNone())
+    {
+        return ChoreId.ToString();
+    }
+    else
+    {
+        return TEXT("No filter");
+    }
 }
 
 bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome) const

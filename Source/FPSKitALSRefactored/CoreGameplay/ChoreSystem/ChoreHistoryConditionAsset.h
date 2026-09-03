@@ -38,6 +38,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History")
     ECheckCompareOp CompareOp = ECheckCompareOp::GreaterOrEqual;
 
+    // Метод для получения строкового описания фильтра
+    UFUNCTION(BlueprintCallable, Category = "ChoreHistory")
+    FString GetFilterDescription() const;
+
     // Переопределяем метод компиляции
     virtual void CompileCondition() override;
 
