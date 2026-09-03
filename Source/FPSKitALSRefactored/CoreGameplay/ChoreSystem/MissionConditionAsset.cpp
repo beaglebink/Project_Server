@@ -1,4 +1,5 @@
-﻿#include "MissionConditionAsset.h"
+﻿// MissionConditionAsset.cpp
+#include "MissionConditionAsset.h"
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "MissionEnvelopePayload.h"
 #include "MissionProgressPayload.h"
@@ -10,7 +11,18 @@ FName UMissionConditionAsset::GetEffectiveMissionId() const
 {
     if (MissionAsset)
         return MissionAsset->GetMissionId();
-    return MissionName;
+    return NAME_None;
+}
+
+FText UMissionConditionAsset::GetDisplayName() const
+{
+    if (MissionAsset)
+    {
+        return MissionAsset->DisplayName.IsEmpty()
+            ? FText::FromString(MissionAsset->GetName())
+            : MissionAsset->DisplayName;
+    }
+    return FText::FromString(TEXT("None"));
 }
 
 void UMissionConditionAsset::CompileCondition()
@@ -22,11 +34,9 @@ void UMissionConditionAsset::CompileCondition()
 
         virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
         {
-            // Сначала проверяем тип события
             if (Outcome.OutcomeType != EOutcomeType::Mission)
                 return false;
 
-            // Определяем, какой тип события нас интересует
             EOutcomeMission requiredMissionType = EOutcomeMission::Default;
             switch (Asset->ConditionType)
             {
@@ -45,7 +55,6 @@ void UMissionConditionAsset::CompileCondition()
             if (Outcome.OutcomeMission != requiredMissionType)
                 return false;
 
-            // Дополнительная проверка через EvaluateCondition
             return Asset ? Asset->EvaluateCondition(Outcome) : false;
         }
 
@@ -63,7 +72,7 @@ void UMissionConditionAsset::CompileCondition()
                 default: TypeName = TEXT("Unknown");
                 }
                 return FString::Printf(TEXT("Mission %s: %s"),
-                    *Asset->GetEffectiveMissionId().ToString(), *TypeName);
+                    *Asset->GetDisplayName().ToString(), *TypeName);
             }
             return TEXT("Invalid");
         }
@@ -90,7 +99,6 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
     {
         UApplyMissionCompletionPolicyPayload* Payload = Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload);
         if (!Payload) return false;
-        // Проверяем MissionId и EndReason
         if (Payload->MissionId != ExpectedId) return false;
 
         EMissionEndReason requiredReason;
@@ -111,7 +119,6 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
         return Payload->MissionId == ExpectedId;
     }
 
-    // Если вы оставили проверку шага, она здесь не используется, но можно оставить
     default:
         return false;
     }

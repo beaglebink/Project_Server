@@ -127,6 +127,7 @@ protected:
     void AbandonChore(FName ChoreId);
     void RetryChore(FName ChoreId);
     void UnlockChore(FName ChoreId);
+    void RevokeChore(FName ChoreId);
     void RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex);
     void ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId = NAME_None);
 

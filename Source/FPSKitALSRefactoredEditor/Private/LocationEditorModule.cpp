@@ -1,11 +1,13 @@
-#include "LocationEditorModule.h"
+ï»¿#include "LocationEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "LocationAnchorActorDetails.h"
 #include "ChoreSystem/ChoreHistoryConditionAssetDetails.h"
-#include "ChoreSystem/MissionConditionAssetDetails.h"   // <-- äîáàâëåíî
+#include "ChoreSystem/MissionConditionAssetDetails.h"
+#include "ChoreSystem/MissionActiveConditionAssetDetails.h"   // <-- Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð¾
 #include "ChoreHistoryConditionAsset.h"
-#include "MissionConditionAsset.h"                     // <-- äîáàâëåíî
+#include "MissionConditionAsset.h"
+#include "MissionActiveConditionAsset.h"                     // <-- Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð¾
 
 #define LOCTEXT_NAMESPACE "FLocationEditorModule"
 
@@ -18,22 +20,28 @@ void FLocationEditorModule::StartupModule()
 
     FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-    // Ðåãèñòðàöèÿ äëÿ ALocationAnchorActor
+    // Ð ÐµÐ³Ð¸ÑÑ‚Ñ€Ð°Ñ†Ð¸Ñ Ð´Ð»Ñ ALocationAnchorActor
     PropertyModule.RegisterCustomClassLayout(
         FName(TEXT("LocationAnchorActor")),
         FOnGetDetailCustomizationInstance::CreateStatic(&FLocationAnchorActorDetails::MakeInstance)
     );
 
-    // Ðåãèñòðàöèÿ äëÿ UChoreHistoryConditionAsset
+    // Ð ÐµÐ³Ð¸ÑÑ‚Ñ€Ð°Ñ†Ð¸Ñ Ð´Ð»Ñ UChoreHistoryConditionAsset
     PropertyModule.RegisterCustomClassLayout(
         UChoreHistoryConditionAsset::StaticClass()->GetFName(),
         FOnGetDetailCustomizationInstance::CreateStatic(&FChoreHistoryConditionAssetDetails::MakeInstance)
     );
 
-    // Ðåãèñòðàöèÿ äëÿ UMissionConditionAsset
+    // Ð ÐµÐ³Ð¸ÑÑ‚Ñ€Ð°Ñ†Ð¸Ñ Ð´Ð»Ñ UMissionConditionAsset
     PropertyModule.RegisterCustomClassLayout(
         UMissionConditionAsset::StaticClass()->GetFName(),
         FOnGetDetailCustomizationInstance::CreateStatic(&FMissionConditionAssetDetails::MakeInstance)
+    );
+
+    // Ð ÐµÐ³Ð¸ÑÑ‚Ñ€Ð°Ñ†Ð¸Ñ Ð´Ð»Ñ UMissionActiveConditionAsset
+    PropertyModule.RegisterCustomClassLayout(
+        UMissionActiveConditionAsset::StaticClass()->GetFName(),
+        FOnGetDetailCustomizationInstance::CreateStatic(&FMissionActiveConditionAssetDetails::MakeInstance)
     );
 
     PropertyModule.NotifyCustomizationModuleChanged();
@@ -48,6 +56,7 @@ void FLocationEditorModule::ShutdownModule()
         PropertyModule.UnregisterCustomClassLayout(FName(TEXT("LocationAnchorActor")));
         PropertyModule.UnregisterCustomClassLayout(UChoreHistoryConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UMissionConditionAsset::StaticClass()->GetFName());
+        PropertyModule.UnregisterCustomClassLayout(UMissionActiveConditionAsset::StaticClass()->GetFName());
 
         PropertyModule.NotifyCustomizationModuleChanged();
     }

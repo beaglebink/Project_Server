@@ -523,6 +523,20 @@ void UChoreManagerSubsystem::UnlockChore(FName ChoreId)
     OfferChore(ChoreId);
 }
 
+void UChoreManagerSubsystem::RevokeChore(FName ChoreId)
+{
+    if (!ActiveStates.Contains(ChoreId)) return;
+    FChoreState& State = ActiveStates[ChoreId];
+
+    // Отзываем только если задание ещё не принято
+    if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
+    {
+        UnregisterAvailabilityHandler(ChoreId); // отписываемся от обработчика, если есть
+        UpdateChoreState(ChoreId, EChoreStatus::Unavailable); // переводим в недоступное
+        UE_LOG(LogTemp, Log, TEXT("ChoreManager: Revoked chore '%s' (condition no longer met)"), *ChoreId.ToString());
+    }
+}
+
 // ---- Для миссий ----
 void UChoreManagerSubsystem::RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex)
 {
@@ -745,6 +759,8 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
     UE_LOG(LogTemp, Log, TEXT("HandleEvent: OutcomeType=%d, OutcomeChore=%d"),
         (int32)Outcome.OutcomeType, (int32)Outcome.OutcomeChore);
 
+    // Игнорируем командные события (заканчиваются на "Request")
+    // Они не должны влиять на доступность заданий
     if (Outcome.OutcomeType == EOutcomeType::Chore)
     {
         EOutcomeChore Chore = Outcome.OutcomeChore;
@@ -759,31 +775,51 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
         {
             return; // Командные события не влияют на доступность
         }
+    }
 
-        for (auto& Pair : ActiveStates)
+    // Проходим по всем заданиям
+    for (auto& Pair : ActiveStates)
+    {
+        FName ChoreId = Pair.Key;
+        FChoreState& State = Pair.Value;
+
+        // Получаем определение задания (нужно для доступа к условию)
+        UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+        if (!Def || !Def->AvailabilityCondition) continue;
+
+        // Компилируем условие, если ещё не скомпилировано
+        if (!Def->AvailabilityCondition->GetCondition().IsValid())
         {
-            FName ChoreId = Pair.Key;
-            FChoreState& State = Pair.Value;
-            if (State.Status != EChoreStatus::Unavailable && State.Status != EChoreStatus::RetryAvailable)
-                continue;
+            Def->AvailabilityCondition->CompileCondition();
+        }
+        if (!Def->AvailabilityCondition->GetCondition().IsValid()) continue;
 
-            UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-            if (!Def || !Def->AvailabilityCondition) continue;
+        // Проверяем, выполняется ли условие для данного события
+        bool bConditionMet = Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome);
 
-            if (!Def->AvailabilityCondition->GetCondition().IsValid())
+        // Логируем результат проверки
+        UE_LOG(LogTemp, Verbose, TEXT("HandleEvent: Chore '%s' condition met = %s, status = %d"),
+            *ChoreId.ToString(), bConditionMet ? TEXT("true") : TEXT("false"), (int32)State.Status);
+
+        // Если задание в состоянии Unavailable или RetryAvailable – предлагаем при выполнении условия
+        if (State.Status == EChoreStatus::Unavailable || State.Status == EChoreStatus::RetryAvailable)
+        {
+            if (bConditionMet)
             {
-                Def->AvailabilityCondition->CompileCondition();
-            }
-
-            if (Def->AvailabilityCondition->GetCondition().IsValid())
-            {
-                bool bResult = Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome);
-                if (bResult)
-                {
-                    OfferChore(ChoreId);
-                }
+                OfferChore(ChoreId);
             }
         }
+        // Если задание уже доступно (Available/Offered) – проверяем, не перестало ли условие выполняться
+        else if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
+        {
+            if (!bConditionMet)
+            {
+                // Условие больше не выполняется – отзываем задание
+                RevokeChore(ChoreId);
+            }
+        }
+        // Задания в состояниях Accepted, Active, Succeeded, Failed, Expired не трогаем
+        // (они уже приняты, выполняются или завершены)
     }
 }
 

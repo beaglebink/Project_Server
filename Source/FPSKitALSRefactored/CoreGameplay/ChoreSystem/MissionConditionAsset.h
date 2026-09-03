@@ -22,16 +22,14 @@ class FPSKITALSREFACTORED_API UMissionConditionAsset : public UOutcomeConditionA
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
-    FName MissionName;
-
+    // Единственный способ указать миссию – через ассет
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     TObjectPtr<class UMissionAsset> MissionAsset;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     EMissionConditionType ConditionType = EMissionConditionType::IsCompleted;
 
-    // Для проверки шага (если нужно, но пока не используется, оставим для совместимости)
+    // Для проверки шага (опционально, пока не используется)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission", meta = (EditCondition = "ConditionType == EMissionConditionType::StepReached"))
     int32 StepIndex = 0;
 
@@ -44,4 +42,5 @@ public:
 
 private:
     FName GetEffectiveMissionId() const;
+    FText GetDisplayName() const;
 };
