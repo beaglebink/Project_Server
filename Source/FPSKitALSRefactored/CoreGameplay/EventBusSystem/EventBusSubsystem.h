@@ -4,6 +4,7 @@
 #include "OutcomeEventBase.h"
 #include "OutcomePayload.h"
 #include "OutcomeQuery.h"
+#include "HAL/CriticalSection.h"
 #include "EventBusSubsystem.generated.h"
 
 class UOutcomeConditionAsset;
@@ -44,6 +45,7 @@ struct FOutcomeHandlerEntry
     FOutcomeHandlerDelegate Handler;       // C++ делегат
     FOnOutcomeEvent BlueprintDelegate;     // Blueprint делегат
     TSharedPtr<IOutcomeCondition> Query;
+    bool bPendingRemove = false;
 
     // Конструктор для C++ обработчика
     FOutcomeHandlerEntry(uint32 InHandleId, FOutcomeHandlerDelegate InHandler, TSharedPtr<IOutcomeCondition> InQuery)
@@ -105,6 +107,7 @@ private:
     uint32 NextHandleId = 1;
 
     bool bDispatching = false;
+    FCriticalSection HandlersCriticalSection;
 
     struct FPendingOperation
     {
@@ -113,4 +116,6 @@ private:
         FOutcomeHandlerEntry Entry{ 0, FOutcomeHandlerDelegate{}, nullptr };
     };
     TArray<FPendingOperation> PendingOperations;
+
+    void CleanupPendingRemoves();
 };
