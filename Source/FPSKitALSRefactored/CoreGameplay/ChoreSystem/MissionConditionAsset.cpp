@@ -1,8 +1,5 @@
-﻿// MissionConditionAsset.cpp
-#include "MissionConditionAsset.h"
+﻿#include "MissionConditionAsset.h"
 #include "ApplyMissionCompletionPolicyPayload.h"
-#include "MissionEnvelopePayload.h"
-#include "MissionProgressPayload.h"
 #include "MissionSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -34,25 +31,10 @@ void UMissionConditionAsset::CompileCondition()
 
         virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
         {
+            // Для всех типов (IsCompleted, IsFailed, IsAbandoned) реагируем только на MissionCompleted
             if (Outcome.OutcomeType != EOutcomeType::Mission)
                 return false;
-
-            EOutcomeMission requiredMissionType = EOutcomeMission::Default;
-            switch (Asset->ConditionType)
-            {
-            case EMissionConditionType::IsCompleted:
-            case EMissionConditionType::IsFailed:
-            case EMissionConditionType::IsAbandoned:
-                requiredMissionType = EOutcomeMission::MissionCompleted;
-                break;
-            case EMissionConditionType::IsActivated:
-                requiredMissionType = EOutcomeMission::MissionActivated;
-                break;
-            default:
-                return false;
-            }
-
-            if (Outcome.OutcomeMission != requiredMissionType)
+            if (Outcome.OutcomeMission != EOutcomeMission::MissionCompleted)
                 return false;
 
             return Asset ? Asset->EvaluateCondition(Outcome) : false;
@@ -68,7 +50,6 @@ void UMissionConditionAsset::CompileCondition()
                 case EMissionConditionType::IsCompleted:   TypeName = TEXT("Completed"); break;
                 case EMissionConditionType::IsFailed:      TypeName = TEXT("Failed"); break;
                 case EMissionConditionType::IsAbandoned:   TypeName = TEXT("Abandoned"); break;
-                case EMissionConditionType::IsActivated:   TypeName = TEXT("Activated"); break;
                 default: TypeName = TEXT("Unknown");
                 }
                 return FString::Printf(TEXT("Mission %s: %s"),
@@ -91,35 +72,17 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
     if (ExpectedId.IsNone())
         return false;
 
+    UApplyMissionCompletionPolicyPayload* Payload = Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload);
+    if (!Payload) return false;
+    if (Payload->MissionId != ExpectedId) return false;
+
+    EMissionEndReason requiredReason;
     switch (ConditionType)
     {
-    case EMissionConditionType::IsCompleted:
-    case EMissionConditionType::IsFailed:
-    case EMissionConditionType::IsAbandoned:
-    {
-        UApplyMissionCompletionPolicyPayload* Payload = Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload);
-        if (!Payload) return false;
-        if (Payload->MissionId != ExpectedId) return false;
-
-        EMissionEndReason requiredReason;
-        switch (ConditionType)
-        {
-        case EMissionConditionType::IsCompleted: requiredReason = EMissionEndReason::Completed; break;
-        case EMissionConditionType::IsFailed:    requiredReason = EMissionEndReason::Failed; break;
-        case EMissionConditionType::IsAbandoned: requiredReason = EMissionEndReason::Abandoned; break;
-        default: return false;
-        }
-        return Payload->EndReason == requiredReason;
+    case EMissionConditionType::IsCompleted: requiredReason = EMissionEndReason::Completed; break;
+    case EMissionConditionType::IsFailed:    requiredReason = EMissionEndReason::Failed; break;
+    case EMissionConditionType::IsAbandoned: requiredReason = EMissionEndReason::Abandoned; break;
+    default: return false;
     }
-
-    case EMissionConditionType::IsActivated:
-    {
-        UMissionEnvelopePayload* Payload = Cast<UMissionEnvelopePayload>(Outcome.Payload);
-        if (!Payload) return false;
-        return Payload->MissionId == ExpectedId;
-    }
-
-    default:
-        return false;
-    }
+    return Payload->EndReason == requiredReason;
 }

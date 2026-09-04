@@ -11,8 +11,8 @@ enum class EMissionConditionType : uint8
 {
     IsCompleted    UMETA(DisplayName = "Mission Completed"),
     IsFailed       UMETA(DisplayName = "Mission Failed"),
-    IsAbandoned    UMETA(DisplayName = "Mission Abandoned"),
-    IsActivated    UMETA(DisplayName = "Mission Activated"),
+    IsAbandoned    UMETA(DisplayName = "Mission Abandoned")
+    //IsActivated    UMETA(DisplayName = "Mission Activated"),
     // Можно добавить и другие, если потребуется
 };
 

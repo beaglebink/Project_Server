@@ -7,6 +7,7 @@
 #include "ChoreHistoryConditionAsset.h"
 #include "SaveGame/GameSaveSubsystem.h"
 #include "ChorePayloads.h"
+#include "MissionConditionAsset.h"
 
 void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -756,8 +757,8 @@ bool UChoreManagerSubsystem::GetLastResult(FName ChoreId) const
 // ---- Обработчики событий ----
 void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 {
-    UE_LOG(LogTemp, Log, TEXT("HandleEvent: OutcomeType=%d, OutcomeChore=%d"),
-        (int32)Outcome.OutcomeType, (int32)Outcome.OutcomeChore);
+    UE_LOG(LogTemp, Log, TEXT("HandleEvent: Type=%d, Mission=%d, Chore=%d"),
+        (int32)Outcome.OutcomeType, (int32)Outcome.OutcomeMission, (int32)Outcome.OutcomeChore);
 
     // Игнорируем командные события (заканчиваются на "Request")
     // Они не должны влиять на доступность заданий
@@ -783,25 +784,29 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
         FName ChoreId = Pair.Key;
         FChoreState& State = Pair.Value;
 
-        // Получаем определение задания (нужно для доступа к условию)
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (!Def || !Def->AvailabilityCondition) continue;
 
-        // Компилируем условие, если ещё не скомпилировано
         if (!Def->AvailabilityCondition->GetCondition().IsValid())
         {
             Def->AvailabilityCondition->CompileCondition();
         }
         if (!Def->AvailabilityCondition->GetCondition().IsValid()) continue;
 
-        // Проверяем, выполняется ли условие для данного события
         bool bConditionMet = Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome);
 
-        // Логируем результат проверки
-        UE_LOG(LogTemp, Verbose, TEXT("HandleEvent: Chore '%s' condition met = %s, status = %d"),
-            *ChoreId.ToString(), bConditionMet ? TEXT("true") : TEXT("false"), (int32)State.Status);
+        // Проверяем, является ли условие событийным
+        bool bIsEventBased = false;
+        if (UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition))
+        {
+            // Любое условие на миссию (завершение/активация) считаем событийным.
+            // Если в будущем добавите другие событийные условия, расширьте эту проверку.
+            bIsEventBased = true;
+        }
 
-        // Если задание в состоянии Unavailable или RetryAvailable – предлагаем при выполнении условия
+        UE_LOG(LogTemp, Log, TEXT("HandleEvent: Chore '%s' condition met = %s, status = %d, eventBased=%d"),
+            *ChoreId.ToString(), bConditionMet ? TEXT("true") : TEXT("false"), (int32)State.Status, bIsEventBased);
+
         if (State.Status == EChoreStatus::Unavailable || State.Status == EChoreStatus::RetryAvailable)
         {
             if (bConditionMet)
@@ -809,17 +814,14 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
                 OfferChore(ChoreId);
             }
         }
-        // Если задание уже доступно (Available/Offered) – проверяем, не перестало ли условие выполняться
         else if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
         {
-            if (!bConditionMet)
+            if (!bConditionMet && !bIsEventBased)
             {
-                // Условие больше не выполняется – отзываем задание
                 RevokeChore(ChoreId);
             }
+            // Если событийное – не отзываем
         }
-        // Задания в состояниях Accepted, Active, Succeeded, Failed, Expired не трогаем
-        // (они уже приняты, выполняются или завершены)
     }
 }
 

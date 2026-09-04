@@ -329,6 +329,8 @@ UMissionController* UMissionSubsystem::CreateMission(UMissionAsset* MissionAsset
 
 void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 {
+	UE_LOG(LogTemp, Log, TEXT("ActivateMission: Published MissionActivated for %s"), *MissionId.ToString());
+
 	FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
 	if (!Entry || !Entry->Controller)
 	{
