@@ -4,6 +4,8 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Cooking/A_Dishes.h"
 #include "Components/TextRenderComponent.h"
+#include "InteractiveItemComponent.h"
+#include "AlsCharacterExample.h"
 
 AA_Cookable::AA_Cookable()
 {
@@ -72,6 +74,12 @@ void AA_Cookable::Tick(float DeltaTime)
 void AA_Cookable::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (UInteractiveItemComponent* InteractiveItemComp = FindComponentByClass<UInteractiveItemComponent>())
+	{
+		DefaultTooltipText = InteractiveItemComp->GetTooltip();
+		InteractiveItemComp->OnInteractiveReceiveFocusEvent.AddDynamic(this, &AA_Cookable::IngredientReceiveFocus);
+	}
 
 	ChunkMass = SlicedMesh->Bounds.BoxExtent.X * SlicedMesh->Bounds.BoxExtent.Y * SlicedMesh->Bounds.BoxExtent.Z;
 }
@@ -306,4 +314,22 @@ void AA_Cookable::ShowFinalDishRating(EDishRating DishRating)
 		{
 			DishRatingText->SetVisibility(false);
 		}, 5.0f, false);
+}
+
+void AA_Cookable::IngredientReceiveFocus(AActor* Actor)
+{
+	if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Actor))
+	{
+		FRecipe CurrentRecipe;
+		if (Character->GetCurrentRecipe(CurrentRecipe))
+		{
+			if (FRecipeIngredient* Ingredient = CurrentRecipe.FindIngredientByName(Name))
+			{
+				if (UInteractiveItemComponent* InteractiveItemComp = FindComponentByClass<UInteractiveItemComponent>())
+				{
+					InteractiveItemComp->SetTooltip(FText::Format(FText::FromString("{0}\n{1}"), Ingredient->PreparationImportanceDescription, DefaultTooltipText));
+				}
+			}
+		}
+	}
 }
