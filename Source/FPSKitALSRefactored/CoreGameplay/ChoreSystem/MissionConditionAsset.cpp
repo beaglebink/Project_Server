@@ -1,5 +1,8 @@
-﻿#include "MissionConditionAsset.h"
+﻿// MissionConditionAsset.cpp
+#include "MissionConditionAsset.h"
 #include "ApplyMissionCompletionPolicyPayload.h"
+#include "MissionEnvelopePayload.h"
+#include "MissionProgressPayload.h"
 #include "MissionSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -31,11 +34,25 @@ void UMissionConditionAsset::CompileCondition()
 
         virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
         {
-            // Для всех типов (IsCompleted, IsFailed, IsAbandoned) реагируем только на MissionCompleted
             if (Outcome.OutcomeType != EOutcomeType::Mission)
                 return false;
-            if (Outcome.OutcomeMission != EOutcomeMission::MissionCompleted)
+
+            // Для StepReached не фильтруем по подтипу, чтобы проверять при любом событии Mission
+            // Для остальных – фильтруем по подтипу
+            switch (Asset->ConditionType)
+            {
+            case EMissionConditionType::IsCompleted:
+            case EMissionConditionType::IsFailed:
+            case EMissionConditionType::IsAbandoned:
+                if (Outcome.OutcomeMission != EOutcomeMission::MissionCompleted)
+                    return false;
+                break;
+            case EMissionConditionType::StepReached:
+                // Пропускаем любые Mission-события
+                break;
+            default:
                 return false;
+            }
 
             return Asset ? Asset->EvaluateCondition(Outcome) : false;
         }
@@ -50,6 +67,7 @@ void UMissionConditionAsset::CompileCondition()
                 case EMissionConditionType::IsCompleted:   TypeName = TEXT("Completed"); break;
                 case EMissionConditionType::IsFailed:      TypeName = TEXT("Failed"); break;
                 case EMissionConditionType::IsAbandoned:   TypeName = TEXT("Abandoned"); break;
+                case EMissionConditionType::StepReached:   TypeName = FString::Printf(TEXT("Step %d"), Asset->StepIndex); break;
                 default: TypeName = TEXT("Unknown");
                 }
                 return FString::Printf(TEXT("Mission %s: %s"),
@@ -72,17 +90,74 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
     if (ExpectedId.IsNone())
         return false;
 
-    UApplyMissionCompletionPolicyPayload* Payload = Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload);
-    if (!Payload) return false;
-    if (Payload->MissionId != ExpectedId) return false;
-
-    EMissionEndReason requiredReason;
-    switch (ConditionType)
+    // Для завершения миссии (Completed, Failed, Abandoned)
+    if (ConditionType == EMissionConditionType::IsCompleted ||
+        ConditionType == EMissionConditionType::IsFailed ||
+        ConditionType == EMissionConditionType::IsAbandoned)
     {
-    case EMissionConditionType::IsCompleted: requiredReason = EMissionEndReason::Completed; break;
-    case EMissionConditionType::IsFailed:    requiredReason = EMissionEndReason::Failed; break;
-    case EMissionConditionType::IsAbandoned: requiredReason = EMissionEndReason::Abandoned; break;
-    default: return false;
+        UApplyMissionCompletionPolicyPayload* Payload = Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload);
+        if (!Payload) return false;
+        if (Payload->MissionId != ExpectedId) return false;
+
+        EMissionEndReason requiredReason;
+        switch (ConditionType)
+        {
+        case EMissionConditionType::IsCompleted: requiredReason = EMissionEndReason::Completed; break;
+        case EMissionConditionType::IsFailed:    requiredReason = EMissionEndReason::Failed; break;
+        case EMissionConditionType::IsAbandoned: requiredReason = EMissionEndReason::Abandoned; break;
+        default: return false;
+        }
+        return Payload->EndReason == requiredReason;
     }
-    return Payload->EndReason == requiredReason;
+
+    // Для проверки шага (StepReached)
+    if (ConditionType == EMissionConditionType::StepReached)
+    {
+        UMissionSubsystem* MissionSub = nullptr;
+        if (GEngine)
+        {
+            const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+            for (const FWorldContext& Context : WorldContexts)
+            {
+                UWorld* World = Context.World();
+                if (World && World->IsGameWorld())
+                {
+                    UGameInstance* GI = World->GetGameInstance();
+                    if (GI)
+                    {
+                        MissionSub = GI->GetSubsystem<UMissionSubsystem>();
+                        if (MissionSub) break;
+                    }
+                }
+            }
+        }
+        if (!MissionSub)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("MissionConditionAsset::EvaluateCondition: MissionSubsystem not found for StepReached"));
+            return false;
+        }
+
+        int32 CurrentStep = MissionSub->GetMissionStep(ExpectedId);
+        UE_LOG(LogTemp, Log, TEXT("MissionConditionAsset::EvaluateCondition: StepReached, MissionId=%s, CurrentStep=%d, ExpectedStep=%d, CompareOp=%d"),
+            *ExpectedId.ToString(), CurrentStep, StepIndex, (int32)CompareOp);
+
+        if (CurrentStep < 0)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("MissionConditionAsset::EvaluateCondition: Mission '%s' not found in ActiveMissions"), *ExpectedId.ToString());
+            return false;
+        }
+
+        switch (CompareOp)
+        {
+        case ECheckCompareOp::Equal:          return CurrentStep == StepIndex;
+        case ECheckCompareOp::NotEqual:       return CurrentStep != StepIndex;
+        case ECheckCompareOp::Less:           return CurrentStep < StepIndex;
+        case ECheckCompareOp::LessOrEqual:    return CurrentStep <= StepIndex;
+        case ECheckCompareOp::Greater:        return CurrentStep > StepIndex;
+        case ECheckCompareOp::GreaterOrEqual: return CurrentStep >= StepIndex;
+        default: return false;
+        }
+    }
+
+    return false;
 }

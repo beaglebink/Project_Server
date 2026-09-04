@@ -101,6 +101,14 @@ void UMissionSubsystem::SetMissionProgressCondition(UOutcomeConditionAsset* NewC
 	SubscribeMissionProgress();
 }
 
+int32 UMissionSubsystem::GetMissionStep(FName MissionId) const
+{
+	const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
+	if (Entry)
+		return Entry->MissionStep;
+	return -1;
+}
+
 void UMissionSubsystem::SubscribeMissionProgress()
 {
 	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
@@ -208,7 +216,7 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 		FActiveMissionEntry* ActiveMission = ActiveMissions.Find(MissionName);
 		UMissionController* Controller = ActiveMission ? ActiveMission->Controller : nullptr;
 
-		if(!Controller)
+		if (!Controller)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: No active mission found with name '%s'"), *MissionName.ToString());
 			return;
@@ -238,7 +246,7 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 			if (MissionAsset->Envelopes.IsValidIndex(StepIndex))
 			{
 				const FMissionEnvelope& Envelope = MissionAsset->Envelopes[StepIndex];
-				
+
 				if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 				{
 					UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
@@ -341,7 +349,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 
 	Entry->Controller->Activate();
 
-	// --- НОВАЯ ПУБЛИКАЦИЯ ДЛЯ УСЛОВИЙ ---
+	// Публикуем MissionActivated для условий
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
 		UMissionEnvelopePayload* Payload = EventBus->CreatePayload<UMissionEnvelopePayload>();
@@ -356,7 +364,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 		}
 	}
 
-	// Существующая публикация (можно оставить)
+	// Существующая публикация (UUpdateMissionListPayload)
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
 		UUpdateMissionListPayload* P1 = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));

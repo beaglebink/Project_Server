@@ -154,6 +154,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	bool IsMissionProgressSubscribed() const { return MissionProgressHandle.IsValid(); }
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|Query")
+	int32 GetMissionStep(FName MissionId) const;
+
 	void SetActiveMissionId(FName& MissionId) { ActiveMissionId = MissionId; }
 	FName GetActiveMissionId() const { return ActiveMissionId; }
 

@@ -779,6 +779,7 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
     }
 
     // Проходим по всем заданиям
+// Проходим по всем заданиям
     for (auto& Pair : ActiveStates)
     {
         FName ChoreId = Pair.Key;
@@ -795,17 +796,9 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 
         bool bConditionMet = Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome);
 
-        // Проверяем, является ли условие событийным
-        bool bIsEventBased = false;
-        if (UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition))
-        {
-            // Любое условие на миссию (завершение/активация) считаем событийным.
-            // Если в будущем добавите другие событийные условия, расширьте эту проверку.
-            bIsEventBased = true;
-        }
-
-        UE_LOG(LogTemp, Log, TEXT("HandleEvent: Chore '%s' condition met = %s, status = %d, eventBased=%d"),
-            *ChoreId.ToString(), bConditionMet ? TEXT("true") : TEXT("false"), (int32)State.Status, bIsEventBased);
+        // Логируем результат проверки (можно оставить Verbose)
+        UE_LOG(LogTemp, Verbose, TEXT("HandleEvent: Chore '%s' condition met = %s, status = %d"),
+            *ChoreId.ToString(), bConditionMet ? TEXT("true") : TEXT("false"), (int32)State.Status);
 
         if (State.Status == EChoreStatus::Unavailable || State.Status == EChoreStatus::RetryAvailable)
         {
@@ -816,11 +809,24 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
         }
         else if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
         {
-            if (!bConditionMet && !bIsEventBased)
+            // Для StepReached не отзываем на событиях, не связанных с миссией
+            bool bShouldRevoke = true;
+            if (UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition))
+            {
+                if (MissionCond->ConditionType == EMissionConditionType::StepReached)
+                {
+                    // Отзываем только если событие имеет тип Mission (т.е. изменение шага миссии)
+                    // Для событий Chore (ChoreOffered и т.д.) не отзываем
+                    if (Outcome.OutcomeType != EOutcomeType::Mission)
+                    {
+                        bShouldRevoke = false;
+                    }
+                }
+            }
+            if (!bConditionMet && bShouldRevoke)
             {
                 RevokeChore(ChoreId);
             }
-            // Если событийное – не отзываем
         }
     }
 }
