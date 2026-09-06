@@ -809,20 +809,26 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
         }
         else if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
         {
-            // Для StepReached не отзываем на событиях, не связанных с миссией
             bool bShouldRevoke = true;
+
+            // Проверяем, является ли условие событийным (не должно отзываться)
             if (UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition))
             {
-                if (MissionCond->ConditionType == EMissionConditionType::StepReached)
+                // Для IsCompleted, IsFailed, IsAbandoned отключаем отзыв полностью
+                if (MissionCond->ConditionType == EMissionConditionType::IsCompleted ||
+                    MissionCond->ConditionType == EMissionConditionType::IsFailed ||
+                    MissionCond->ConditionType == EMissionConditionType::IsAbandoned)
                 {
-                    // Отзываем только если событие имеет тип Mission (т.е. изменение шага миссии)
-                    // Для событий Chore (ChoreOffered и т.д.) не отзываем
+                    bShouldRevoke = false;
+                }
+                // Для StepReached отключаем отзыв только для событий, не связанных с миссией
+                else if (MissionCond->ConditionType == EMissionConditionType::StepReached)
+                {
                     if (Outcome.OutcomeType != EOutcomeType::Mission)
-                    {
                         bShouldRevoke = false;
-                    }
                 }
             }
+
             if (!bConditionMet && bShouldRevoke)
             {
                 RevokeChore(ChoreId);
