@@ -59,7 +59,7 @@ struct FRecipeIngredient
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f))
 	float EvennessScoreWeight = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float PreparationImportance = 1.0f;
 
 	UPROPERTY(VisibleAnywhere, Category = "CookingSettings")

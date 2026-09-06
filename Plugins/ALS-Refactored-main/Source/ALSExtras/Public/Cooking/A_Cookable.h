@@ -113,4 +113,10 @@ public:
 	EDishRating GetDishRating(float DishQuality, const FDishQualityThresholds& Thresholds);
 
 	void ShowFinalDishRating(EDishRating DishRating);
+
+	//Preparation cutting tooltip show logic
+	FText DefaultTooltipText = FText::GetEmpty();
+
+	UFUNCTION()
+	void IngredientReceiveFocus(AActor* Actor);
 };

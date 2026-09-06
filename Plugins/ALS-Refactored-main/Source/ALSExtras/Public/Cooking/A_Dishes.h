@@ -66,13 +66,16 @@ struct FIngredientQuality
 {
 	GENERATED_BODY()
 
+	int32 ChunkCount = 0;
+	FVector AverageChunkSize = FVector::ZeroVector;
+
 	float CountQuality = 0.0f;
 	TArray<FVector> ChunksBoundBoxes;
 	float SizeQuality = 0.0f;
 	float EvennessQuality = 0.0f;
 	float PreparationQuality = 1.0f;
 	float PreparationImportance = 0.0f;
-
+	float GroupQuality = 0.0f;
 	float IngredientFinalQuality = 0.0f;
 	float TotalQualityByWeight = 0.0f;
 	float ChunksWeightTotal = 0.0f;
