@@ -1,4 +1,5 @@
 ﻿#pragma once
+
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
@@ -9,112 +10,109 @@
 #include "WorldStateTypes.h"
 #include "WorldStateSubsystem.generated.h"
 
+class UInteractiveItemComponent;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChangingLocationAvailabilityEvent, const FOutcomeEventBase&, Outcome);
 
 UCLASS()
 class FPSKITALSREFACTORED_API UWorldStateSubsystem : public UGameInstanceSubsystem,
-                                                     public FInteractiveSubsystemMethods,
-                                                     public ISaveableSubsystem
+    public FInteractiveSubsystemMethods,
+    public ISaveableSubsystem
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    virtual void Deinitialize() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-	TObjectPtr<UOutcomeConditionAsset> ChangingLocationAvailabilityCondition;
+    // ===== УСЛОВИЯ ДЛЯ ПОДПИСКИ НА СОБЫТИЯ (настраиваются в редакторе) =====
 
-	// Condition / handle for receiving WorldStateRecord commands via EventBus
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-	TObjectPtr<UOutcomeConditionAsset> WorldStateRecordCondition;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+    TObjectPtr<UOutcomeConditionAsset> ChangingLocationAvailabilityCondition;
 
-	UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
-	FOnChangingLocationAvailabilityEvent OnChangingLocationAvailability;
+    // Условие для команды установки записи
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+    TObjectPtr<UOutcomeConditionAsset> WorldStateRecordCondition;
 
-	// ===== HANDLER MANAGEMENT =====
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-	void SubscribeChangingLocationAvailability();
+    // Условие для команды удаления записи
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+    TObjectPtr<UOutcomeConditionAsset> WorldStateRecordRemoveCondition;
 
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-	void UnsubscribeChangingLocationAvailability();
+    // ===== СОБЫТИЕ ДЛЯ BLUEPRINT =====
 
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-	void UnsubscribeAll();
+    UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
+    FOnChangingLocationAvailabilityEvent OnChangingLocationAvailability;
 
-	// Blueprint должен вызвать этот метод после присвоения Condition (например, в BeginPlay)
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-	void SetChangingLocationAvailabilityCondition(UOutcomeConditionAsset* NewCondition);
+    // ===== УПРАВЛЕНИЕ ПОДПИСКАМИ (публичные) =====
 
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-	bool IsChangingLocationAvailabilitySubscribed() const { return ChangingLocationAvailabilityHandle.IsValid(); }
+    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
+    void SubscribeChangingLocationAvailability();
 
-	// Per-item listener API
-	void AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
-	void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
+    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
+    void UnsubscribeChangingLocationAvailability();
 
-	// ===== WORLD STATE RECORDS API =====
+    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
+    void UnsubscribeAll();
 
-	// Добавить или перезаписать запись об изменении мира.
-	// Если запись с таким ItemId+ChangeKey уже есть — перезаписывается.
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-	void SetWorldStateRecord(const FWorldStateRecord& Record);
+    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
+    void SetChangingLocationAvailabilityCondition(UOutcomeConditionAsset* NewCondition);
 
-	// Проверить наличие записи
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "WorldStateSubsystem|State")
-	bool HasWorldStateRecord(const FGuid& ItemId, FName ChangeKey) const;
+    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
+    bool IsChangingLocationAvailabilitySubscribed() const { return ChangingLocationAvailabilityHandle.IsValid(); }
 
-	// Получить запись (возвращает false если не найдена)
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-	bool GetWorldStateRecord(const FGuid& ItemId, FName ChangeKey, FWorldStateRecord& OutRecord) const;
+    // ===== МЕТОДЫ ЧТЕНИЯ СОСТОЯНИЯ (публичные) =====
 
-	// Удалить запись
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-	void RemoveWorldStateRecord(const FGuid& ItemId, FName ChangeKey);
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "WorldStateSubsystem|State")
+    bool HasWorldStateRecord(const FGuid& ItemId, FName ChangeKey) const;
 
-	// Получить все записи для конкретного объекта
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-	TArray<FWorldStateRecord> GetRecordsForItem(const FGuid& ItemId) const;
+    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
+    bool GetWorldStateRecord(const FGuid& ItemId, FName ChangeKey, FWorldStateRecord& OutRecord) const;
 
-	// Получить все записи указанной категории
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-	TArray<FWorldStateRecord> GetRecordsByCategory(EWorldStateChangeCategory Category) const;
+    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
+    TArray<FWorldStateRecord> GetRecordsForItem(const FGuid& ItemId) const;
 
-	// Применить все записи к миру после загрузки
-	UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-	void ApplyRecordsToWorld();
+    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
+    TArray<FWorldStateRecord> GetRecordsByCategory(EWorldStateChangeCategory Category) const;
 
-	// ===== ISaveableSubsystem =====
-	virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
-	virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
-	virtual FString GetSaveSubsystemName() const override { return TEXT("WorldStateSubsystem"); }
-	virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
+    // ===== ISaveableSubsystem =====
+
+    virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
+    virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
+    virtual FString GetSaveSubsystemName() const override { return TEXT("WorldStateSubsystem"); }
+    virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
 
 private:
-	void HandleChangingLocationAvailability(const FOutcomeEventBase& Outcome);
+    // ---- ОБРАБОТЧИКИ СОБЫТИЙ (приватные) ----
 
-	FOutcomeHandlerHandle ChangingLocationAvailabilityHandle;
-	FOutcomeHandlerHandle WorldStateRecordHandle;
+    void HandleChangingLocationAvailability(const FOutcomeEventBase& Outcome);
+    void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
+    void HandleRemoveWorldStateRecord(const FOutcomeEventBase& Outcome);   // <-- объявлен
 
-	// Handler for incoming WorldStateRecord payloads
-	void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
+    // ---- ХЕНДЛЫ ПОДПИСОК ----
 
-	// Per-item listeners
-	TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
+    FOutcomeHandlerHandle ChangingLocationAvailabilityHandle;
+    FOutcomeHandlerHandle WorldStateRecordHandle;
+    FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
 
-	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
-	{
-		return RegistrationListeners;
-	}
+    // ---- ПРИВАТНЫЕ МЕТОДЫ ИЗМЕНЕНИЯ СОСТОЯНИЯ (НЕ ДОСТУПНЫ ИЗ BLUEPRINT) ----
 
-	// ─── Хранилище постоянных изменений мира ─────────────────────────────────
-	// Ключ внешний: ItemId (стабильный GUID объекта из UFloorAssignmentComponent)
-	// Ключ внутренний: ChangeKey (конкретное свойство/флаг)
-	TMap<FGuid, TMap<FName, FWorldStateRecord>> WorldStateRecords;
+    void SetWorldStateRecord(const FWorldStateRecord& Record);
+    void RemoveWorldStateRecord(const FGuid& ItemId, FName ChangeKey);
+    void ApplyRecordsToWorld();
+    void ApplyRecordToActor(AActor* Actor, const FWorldStateRecord& Record) const;
 
-	// Применить одну запись к актору
-	void ApplyRecordToActor(AActor* Actor, const FWorldStateRecord& Record) const;
+    // ---- СЛУШАТЕЛИ PER-ITEM (унаследовано от FInteractiveSubsystemMethods) ----
 
-	bool IsLoadComplete = true;
+    TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
+
+    virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
+    {
+        return RegistrationListeners;
+    }
+
+    // ---- ХРАНИЛИЩЕ ЗАПИСЕЙ ----
+
+    TMap<FGuid, TMap<FName, FWorldStateRecord>> WorldStateRecords;
+
+    bool IsLoadComplete = true;
 };
-

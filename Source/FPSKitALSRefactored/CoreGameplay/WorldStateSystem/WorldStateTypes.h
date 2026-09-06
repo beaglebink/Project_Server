@@ -1,59 +1,59 @@
-#pragma once
+п»ї#pragma once
 
 #include "CoreMinimal.h"
 #include "WorldStateTypes.generated.h"
 
 // ??? EWorldStateChangeCategory ????????????????????????????????????????????????
-// Семантическая категория постоянного изменения мира.
-// Используется для группировки и фильтрации при восстановлении.
+// РЎРµРјР°РЅС‚РёС‡РµСЃРєР°СЏ РєР°С‚РµРіРѕСЂРёСЏ РїРѕСЃС‚РѕСЏРЅРЅРѕРіРѕ РёР·РјРµРЅРµРЅРёСЏ РјРёСЂР°.
+// РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РіСЂСѓРїРїРёСЂРѕРІРєРё Рё С„РёР»СЊС‚СЂР°С†РёРё РїСЂРё РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРё.
 UENUM(BlueprintType)
 enum class EWorldStateChangeCategory : uint8
 {
-    // Структурное изменение (дверь сломана, стена пробита)
+    // РЎС‚СЂСѓРєС‚СѓСЂРЅРѕРµ РёР·РјРµРЅРµРЅРёРµ (РґРІРµСЂСЊ СЃР»РѕРјР°РЅР°, СЃС‚РµРЅР° РїСЂРѕР±РёС‚Р°)
     Structural          UMETA(DisplayName = "Structural"),
-    // Состояние интерактивного объекта (терминал взломан, замок открыт)
+    // РЎРѕСЃС‚РѕСЏРЅРёРµ РёРЅС‚РµСЂР°РєС‚РёРІРЅРѕРіРѕ РѕР±СЉРµРєС‚Р° (С‚РµСЂРјРёРЅР°Р» РІР·Р»РѕРјР°РЅ, Р·Р°РјРѕРє РѕС‚РєСЂС‹С‚)
     InteractiveObject   UMETA(DisplayName = "Interactive Object"),
-    // Состояние среды (мусор убран, ремонт сделан)
+    // РЎРѕСЃС‚РѕСЏРЅРёРµ СЃСЂРµРґС‹ (РјСѓСЃРѕСЂ СѓР±СЂР°РЅ, СЂРµРјРѕРЅС‚ СЃРґРµР»Р°РЅ)
     Environment         UMETA(DisplayName = "Environment"),
-    // Состояние персонажа/NPC (убит, союзник)
+    // РЎРѕСЃС‚РѕСЏРЅРёРµ РїРµСЂСЃРѕРЅР°Р¶Р°/NPC (СѓР±РёС‚, СЃРѕСЋР·РЅРёРє)
     ActorState          UMETA(DisplayName = "Actor State"),
-    // Произвольный флаг (scripted)
+    // РџСЂРѕРёР·РІРѕР»СЊРЅС‹Р№ С„Р»Р°Рі (scripted)
     Custom              UMETA(DisplayName = "Custom")
 };
 
 // ??? FWorldStateRecord ????????????????????????????????????????????????????????
-// Одна запись о постоянном изменении мира.
-// Хранится в WorldStateSubsystem и сохраняется на диск через GameSaveSubsystem.
+// РћРґРЅР° Р·Р°РїРёСЃСЊ Рѕ РїРѕСЃС‚РѕСЏРЅРЅРѕРј РёР·РјРµРЅРµРЅРёРё РјРёСЂР°.
+// РҐСЂР°РЅРёС‚СЃСЏ РІ WorldStateSubsystem Рё СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РЅР° РґРёСЃРє С‡РµСЂРµР· GameSaveSubsystem.
 //
-// Идентифицируется по ItemId (FGuid из UFloorAssignmentComponent).
-// SerializedValue — произвольная строка (ExportText свойств, JSON, флаг).
-// Источник изменения — MissionId (FName) для дебага и трассировки.
+// РРґРµРЅС‚РёС„РёС†РёСЂСѓРµС‚СЃСЏ РїРѕ ItemId (FGuid РёР· UFloorAssignmentComponent).
+// SerializedValue вЂ” РїСЂРѕРёР·РІРѕР»СЊРЅР°СЏ СЃС‚СЂРѕРєР° (ExportText СЃРІРѕР№СЃС‚РІ, JSON, С„Р»Р°Рі).
+// РСЃС‚РѕС‡РЅРёРє РёР·РјРµРЅРµРЅРёСЏ вЂ” MissionId (FName) РґР»СЏ РґРµР±Р°РіР° Рё С‚СЂР°СЃСЃРёСЂРѕРІРєРё.
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FWorldStateRecord
 {
     GENERATED_BODY()
 
-    // Стабильный идентификатор объекта (совпадает с UFloorAssignmentComponent::ItemId)
+    // РЎС‚Р°Р±РёР»СЊРЅС‹Р№ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РѕР±СЉРµРєС‚Р°
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FGuid ItemId;
 
-    // Категория изменения
+    // РљР°С‚РµРіРѕСЂРёСЏ РёР·РјРµРЅРµРЅРёСЏ
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     EWorldStateChangeCategory Category = EWorldStateChangeCategory::Custom;
 
-    // Ключ свойства или тег изменения (например "DoorOpen", "TerminalHacked")
+    // РљР»СЋС‡ СЃРІРѕР№СЃС‚РІР° РёР»Рё С‚РµРі РёР·РјРµРЅРµРЅРёСЏ (РЅР°РїСЂРёРјРµСЂ "DoorOpen", "TerminalHacked")
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FName ChangeKey;
 
-    // Сериализованное значение (ExportText, "true"/"false", JSON-фрагмент)
+    // РЎРµСЂРёР°Р»РёР·РѕРІР°РЅРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ (ExportText, "true"/"false", JSON-С„СЂР°РіРјРµРЅС‚)
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FString SerializedValue;
 
-    // Миссия, которая породила это изменение (для дебага)
+    // РњРёСЃСЃРёСЏ, РєРѕС‚РѕСЂР°СЏ РїРѕСЂРѕРґРёР»Р° СЌС‚Рѕ РёР·РјРµРЅРµРЅРёРµ (РґР»СЏ РґРµР±Р°РіР°)
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FName SourceMissionId;
 
-    // Время изменения (UTC, строка для простой сериализации)
+    // Р’СЂРµРјСЏ РёР·РјРµРЅРµРЅРёСЏ (UTC, СЃС‚СЂРѕРєР° РґР»СЏ РїСЂРѕСЃС‚РѕР№ СЃРµСЂРёР°Р»РёР·Р°С†РёРё)
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FString Timestamp;
 
