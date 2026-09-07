@@ -8,6 +8,7 @@
 #include "SaveGame/GameSaveSubsystem.h"
 #include "ChorePayloads.h"
 #include "MissionConditionAsset.h"
+#include <MissionSubsystem.h>
 
 void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -828,8 +829,32 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
                         bShouldRevoke = false;
                 }
             }
+            /*
+            UMissionSubsystem* MissionSys = GetGameInstance()->GetSubsystem<UMissionSubsystem>();
+            if (!MissionSys)
+                return;
 
-            if (!bConditionMet && bShouldRevoke)
+            UChoreResultPayload* Result = Cast<UChoreResultPayload>(Outcome.Payload);
+            if (!Result) return;
+
+            FName MissionId = Result->MissionId;
+            */
+
+            UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition);
+            if (MissionCond)
+            {
+                UMissionAsset*  MissionAsset = MissionCond->MissionAsset;
+				FName MissionName = MissionAsset ? MissionAsset->GetMissionId() : FName();
+
+                UMissionSubsystem* MissionSys = GetGameInstance()->GetSubsystem<UMissionSubsystem>();
+                if (!MissionSys)
+                    return;
+
+                if(MissionSys->IsMissionActive(MissionName))
+                    bShouldRevoke = true;
+            }
+
+            if (!bConditionMet && (bShouldRevoke))
             {
                 RevokeChore(ChoreId);
             }

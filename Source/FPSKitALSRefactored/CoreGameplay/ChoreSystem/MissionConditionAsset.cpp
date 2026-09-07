@@ -7,6 +7,25 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
+static UMissionSubsystem* GetMissionSubsystem()
+{
+    if (!GEngine) return nullptr;
+    const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+    for (const FWorldContext& Context : WorldContexts)
+    {
+        UWorld* World = Context.World();
+        if (World && World->IsGameWorld())
+        {
+            UGameInstance* GI = World->GetGameInstance();
+            if (GI)
+            {
+                return GI->GetSubsystem<UMissionSubsystem>();
+            }
+        }
+    }
+    return nullptr;
+
+}
 FName UMissionConditionAsset::GetEffectiveMissionId() const
 {
     if (MissionAsset)
@@ -95,6 +114,11 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
         ConditionType == EMissionConditionType::IsFailed ||
         ConditionType == EMissionConditionType::IsAbandoned)
     {
+        UMissionSubsystem* MissionSub = GetMissionSubsystem();
+        if (!MissionSub) return false;
+        if (MissionSub->IsMissionActive(ExpectedId))
+            return false;
+
         UApplyMissionCompletionPolicyPayload* Payload = Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload);
         if (!Payload) return false;
         if (Payload->MissionId != ExpectedId) return false;
