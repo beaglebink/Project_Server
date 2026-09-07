@@ -10,6 +10,8 @@
 #include "EventBusSubsystem.h"
 #include "ChoreManagerSubsystem.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChoreReactivated, FName, ChoreId);
+
 USTRUCT()
 struct FChoreState
 {
@@ -105,6 +107,9 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetChoreIdsByDisplayName(const FText& DisplayName) const;
 
+    UPROPERTY(BlueprintAssignable, Category = "Chore Manager|Events")
+    FOnChoreReactivated OnChoreReactivated;
+
     // ---- Методы для условий истории (используются из Condition Assets) ----
     int32 GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const;
     float GetBestPerformance(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, const FString& MetricName) const;
@@ -135,7 +140,7 @@ protected:
     void LoadAllDefinitions();
     void RegisterAvailabilityHandler(UChoreDefinition* Definition);
     void UnregisterAvailabilityHandler(FName ChoreId);
-    void UpdateChoreState(FName ChoreId, EChoreStatus NewStatus, bool bPublishEvent = true);
+    void UpdateChoreState(FName ChoreId, EChoreStatus NewStatus, bool bPublishEvent = true, bool bReactivated = false);
     void StartDeadlineTimer(FName ChoreId);
     void ClearDeadlineTimer(FName ChoreId);
     void GrantRewards(FName ChoreId);

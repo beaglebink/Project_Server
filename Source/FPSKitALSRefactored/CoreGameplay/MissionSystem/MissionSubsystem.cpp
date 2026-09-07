@@ -270,10 +270,17 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 			{
 				// Если индекс шага выходит за пределы массива Envelopes, это может означать, что миссия завершилась
 				UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: Mission '%s' complete"), *MissionName.ToString());
-
+				/*
 				ApplyMissionCompletionPolicy(MissionName, MissionAsset->Envelopes.Last(), MissionAsset->Envelopes.Last().NextStagePolicy, EMissionEndReason::Completed);
 
 				Controller->OnMissionCompleted(EMissionEndReason::Completed);
+				*/
+
+				// 1. Переводим контроллер в состояние Resolved (это изменит статус и вызовет OnMissionCompleted внутри)
+				Controller->RequestResolve(EMissionEndReason::Completed);
+
+				// 2. Применяем политику завершения (публикует событие MissionCompleted)
+				ApplyMissionCompletionPolicy(MissionName, MissionAsset->Envelopes.Last(), MissionAsset->Envelopes.Last().NextStagePolicy, EMissionEndReason::Completed);
 			}
 		}
 		else

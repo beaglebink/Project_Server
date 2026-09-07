@@ -2806,10 +2806,24 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	{
 		for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
 		{
-			FoundAnchor = *It;
-			break;
+			/*
+			if (bNeedTeleportToAnchor)
+			{
+				if (It->AnchorID == AnchorID)
+				{
+					FoundAnchor = *It;
+					break;
+				}
+			}
+			else
+			{
+			*/
+				FoundAnchor = *It;
+				break;
+			//}
 		}
 	}
+
 
 	CurrentKey = FInteriorFloorKey();
 	if (FoundAnchor)
@@ -2824,6 +2838,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			{
 				FGuid FloorId = FloorAsset->FloorID;
 				CurrentKey = FInteriorFloorKey(InteriorSetId, FloorId);
+				//bHaveKey = true;
 			}
 		}
 	}
@@ -2849,13 +2864,9 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		FName MissionId;
 
 		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-		TArray<FName> MissionKeys;
-		ActiveMissions.GetKeys(MissionKeys);
-		for (FName& MissionKey : MissionKeys)
+		for (const auto& Pair : ActiveMissions)
 		{
-			const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionKey);
-			if (!Entry) continue;
-			const UMissionController* Ctrl = Entry->Controller;
+			const UMissionController* Ctrl = Pair.Value.Controller;
 			if (!Ctrl) continue;
 
 			const UMissionAsset* Asset = Ctrl->GetMissionAsset();
@@ -2863,10 +2874,10 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 
 			const EMissionStatus Status = Ctrl->GetStatus();
 			const EMissionEndReason EndReason = Ctrl->GetEndReason();
-			const FMissionEnvelope Envelope = Asset->Envelopes[Entry->MissionStep];
+			const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 			const EMissionResumeMode Resume = Envelope.ResumeMode;
-			const int32 MissionStep = Entry->MissionStep;
-			MissionId = Entry->MissionId;
+			const int32 MissionStep = Pair.Value.MissionStep;
+			MissionId = Pair.Key;
 
 			FMissionEnvelopeScope Scope = Envelope.Scope;
 			for (auto Sc : Scope.InteriorScopes)
@@ -2967,13 +2978,9 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		FName MissionId;
 
 		FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-		TArray<FName> MissionKeys;
-		ActiveMissions.GetKeys(MissionKeys);
-		for (const FName& MissionKey : MissionKeys)
+		for (const auto& Pair : ActiveMissions)
 		{
-			const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionKey);
-			if (!Entry) continue;
-			const UMissionController* Ctrl = Entry->Controller;
+			const UMissionController* Ctrl = Pair.Value.Controller;
 			if (!Ctrl) continue;
 
 			const UMissionAsset* Asset = Ctrl->GetMissionAsset();
@@ -2981,9 +2988,9 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 
 			const EMissionStatus Status = Ctrl->GetStatus();
 			const EMissionEndReason EndReason = Ctrl->GetEndReason();
-			const FMissionEnvelope Envelope = Asset->Envelopes[Entry->MissionStep];
+			const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 			const EMissionResumeMode Resume = Envelope.ResumeMode;
-			const int32 MissionStep = Entry->MissionStep;
+			const int32 MissionStep = Pair.Value.MissionStep;
 
 			FMissionEnvelopeScope Scope = Envelope.Scope;
 			for (auto Sc : Scope.InteriorScopes)
@@ -2996,7 +3003,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 				if (NormTarget == NormCurrent)
 				{
 					IsMissionWorld = true;
-					MissionId = Entry->MissionId;
+					MissionId = Pair.Key;
 					break;
 				}
 			}
@@ -3885,10 +3892,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					}
 				}
 			}
-
-			// ---- Устанавливаем флаг, что идёт восстановление ----
-			bIsRestoring = true;
-
 			// Inside the lambda, after determining bHaveKey and CurrentKey
 			// Внутри лямбды, после того как определили bHaveKey и CurrentKey
 			if (bHaveKey)
@@ -3911,13 +3914,9 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						FString MissionName;
 						FName FindedMissionId;
 
-						TArray<FName> MissionKeys;
-						ActiveMissions.GetKeys(MissionKeys);
-						for (const FName& MissionId : MissionKeys)
+						for (const auto& Pair : ActiveMissions)
 						{
-							const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionId);
-							if (!Entry) continue;
-							const UMissionController* Ctrl = Entry->Controller;
+							const UMissionController* Ctrl = Pair.Value.Controller;
 							if (!Ctrl) continue;
 
 							const UMissionAsset* Asset = Ctrl->GetMissionAsset();
@@ -3926,9 +3925,9 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 							MissionName = Asset->Description.ToString();
 							const EMissionStatus Status = Ctrl->GetStatus();
 							const EMissionEndReason EndReason = Ctrl->GetEndReason();
-							const FMissionEnvelope Envelope = Asset->Envelopes[Entry->MissionStep];
+							const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 							const EMissionResumeMode Resume = Envelope.ResumeMode;
-							const int32 MissionStep = Entry->MissionStep;
+							const int32 MissionStep = Pair.Value.MissionStep;
 
 							FMissionEnvelopeScope Scope = Envelope.Scope;
 							for (auto Sc : Scope.InteriorScopes)
@@ -3941,7 +3940,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 								if (NormTarget == NormCurrent)
 								{
 									IsMissionWorld = true;
-									FindedMissionId = Entry->MissionId;
+									FindedMissionId = Pair.Key;
 									FindedEnvelope = Envelope;
 									break;
 								}
@@ -3973,13 +3972,9 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 						FString MissionName;
 						FName FindedMissionId;
 
-						TArray<FName> MissionKeys;
-						ActiveMissions.GetKeys(MissionKeys);
-						for (const FName& MissionId : MissionKeys)
+						for (const auto& Pair : ActiveMissions)
 						{
-							const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionId);
-							if (!Entry) continue;
-							const UMissionController* Ctrl = Entry->Controller;
+							const UMissionController* Ctrl = Pair.Value.Controller;
 							if (!Ctrl) continue;
 
 							const UMissionAsset* Asset = Ctrl->GetMissionAsset();
@@ -3988,9 +3983,9 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 							MissionName = Asset->Description.ToString();
 							const EMissionStatus Status = Ctrl->GetStatus();
 							const EMissionEndReason EndReason = Ctrl->GetEndReason();
-							const FMissionEnvelope Envelope = Asset->Envelopes[Entry->MissionStep];
+							const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 							const EMissionResumeMode Resume = Envelope.ResumeMode;
-							const int32 MissionStep = Entry->MissionStep;
+							const int32 MissionStep = Pair.Value.MissionStep;
 
 							FMissionEnvelopeScope Scope = Envelope.Scope;
 							for (auto Sc : Scope.InteriorScopes)
@@ -4003,7 +3998,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 								if (NormTarget == NormCurrent)
 								{
 									IsMissionWorld = true;
-									FindedMissionId = Entry->MissionId;
+									FindedMissionId = Pair.Key;
 									FindedEnvelope = Envelope;
 									break;
 								}
@@ -4032,20 +4027,49 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 				}
 			}
 
-			// ---- Завершающие операции восстановления ----
-			RebuildPopulationMapsForCurrentFloor();
-			SubscribeToSpawnActor();
-			IsPostLoadMapComplete = true;
+			bool IsMissionWorld = false;
 
-			// ---- Сбрасываем флаг восстановления ----
-			bIsRestoring = false;
+			FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+			FString MissionName;
+			FName FindedMissionId;
 
-			// ---- Публикация событий временно отключена, чтобы избежать реентерабельности ----
-			// События будут опубликованы позже, когда система полностью стабилизируется.
-			// Если они необходимы, их можно вызвать из другого места, например, по таймеру с большой задержкой.
+			for (const auto& Pair : ActiveMissions)
+			{
+				const UMissionController* Ctrl = Pair.Value.Controller;
+				if (!Ctrl) continue;
 
-			/*
-			// Отложенная публикация события MissionUpdate на следующий кадр
+				const UMissionAsset* Asset = Ctrl->GetMissionAsset();
+				if (!Asset) continue;
+
+				MissionName = Asset->Description.ToString();
+				const EMissionStatus Status = Ctrl->GetStatus();
+				const EMissionEndReason EndReason = Ctrl->GetEndReason();
+				const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
+				const EMissionResumeMode Resume = Envelope.ResumeMode;
+				const int32 MissionStep = Pair.Value.MissionStep;
+
+				FMissionEnvelopeScope Scope = Envelope.Scope;
+				for (auto Sc : Scope.InteriorScopes)
+				{
+					FString ScopeLevelName = Sc->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+					FString NormTarget = NormalizeLevelName(ScopeLevelName);
+					FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+					if (NormTarget == NormCurrent)
+					{
+						IsMissionWorld = true;
+						FindedMissionId = Pair.Key;
+						break;
+					}
+				}
+
+				if (IsMissionWorld)
+				{
+					break;
+				}
+			}
+
 			if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
 			{
 				UUpdateActiveMissionId* Payload = EventBus->CreatePayload<UUpdateActiveMissionId>();
@@ -4056,22 +4080,11 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					Ev.OutcomeType = EOutcomeType::Mission;
 					Ev.OutcomeMission = EOutcomeMission::MissionUpdate;
 					Ev.Payload = Payload;
-
-					if (UWorld* LocalWorld = GetWorld())
-					{
-						LocalWorld->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([EventBus, Ev]()
-						{
-							EventBus->PublishOutcome(Ev);
-						}));
-					}
-					else
-					{
-						EventBus->PublishOutcome(Ev);
-					}
+					EventBus->PublishOutcome(Ev);
 				}
 			}
 
-			// Notification about the end of level loading
+			// Notification about the end of level loading 
 			// Оповещение о конце загрузки уровня
 			if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
 			{
@@ -4086,31 +4099,23 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 					Ev.OutcomeType = EOutcomeType::Interior;
 					Ev.OutcomeInterior = EOutcomeInterior::LevelLoaded;
 					Ev.Payload = Payload;
-
-					if (UWorld* LocalWorld = GetWorld())
-					{
-						LocalWorld->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([EventBus, Ev, LevelName]()
-						{
-							EventBus->PublishOutcome(Ev);
-							UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Published LevelLoaded event for level %s"), *LevelName);
-						}));
-					}
-					else
-					{
-						EventBus->PublishOutcome(Ev);
-						UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Published LevelLoaded event for level %s"), *LevelName);
-					}
+					EventBus->PublishOutcome(Ev);
+					UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Published LevelLoaded event for level %s"), *LevelName);
 				}
 			}
-			*/
 
 			// Final notification about completion of loading/transition
 			// Финальная нотификация о завершении загрузки/перехода
 			OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 			ClearPendingAnchorID();
+
+			RebuildPopulationMapsForCurrentFloor();
+
+			SubscribeToSpawnActor();
+			IsPostLoadMapComplete = true;
 		});
-		
-		LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
+
+	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
 }
 
 void UInteriorSubsystem::SubscribeInteractionRegistration() { SubscribeAll(); }
@@ -4307,13 +4312,9 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 	FName FindedMissionId;
 	FMissionEnvelope FindedEnvelope;
 
-	TArray<FName> MissionKeys;
-	ActiveMissions.GetKeys(MissionKeys);
-	for (const FName& MissionKey : MissionKeys)
+	for (const auto& Pair : ActiveMissions)
 	{
-		const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionKey);
-		if (!Entry) continue;
-		const UMissionController* Ctrl = Entry->Controller;
+		const UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
 
 		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
@@ -4322,9 +4323,9 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 		MissionName = Asset->Description.ToString();
 		const EMissionStatus Status = Ctrl->GetStatus();
 		const EMissionEndReason EndReason = Ctrl->GetEndReason();
-		const FMissionEnvelope Envelope = Asset->Envelopes[Entry->MissionStep];
+		const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 		const EMissionResumeMode Resume = Envelope.ResumeMode;
-		const int32 MissionStep = Entry->MissionStep;
+		const int32 MissionStep = Pair.Value.MissionStep;
 
 		FMissionEnvelopeScope Scope = Envelope.Scope;
 		for (auto Sc : Scope.InteriorScopes)
@@ -4337,7 +4338,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 			if (NormTarget == NormCurrent)
 			{
 				IsMissionWorld = true;
-				FindedMissionId = Entry->MissionId;
+				FindedMissionId = Pair.Key;
 				FindedEnvelope = Envelope;
 				break;
 			}
@@ -4494,13 +4495,9 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	FString MissionName;
 	FName FindedMissionId;
 	FMissionEnvelope FindedEnvelope;
-	TArray<FName> MissionKeys;
-	ActiveMissions.GetKeys(MissionKeys);
-	for (const FName& MissionKey : MissionKeys)
+	for (const auto& Pair : ActiveMissions)
 	{
-		const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionKey);
-		if (!Entry) continue;
-		const UMissionController* Ctrl = Entry->Controller;
+		const UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
 
 		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
@@ -4509,9 +4506,9 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		MissionName = Asset->Description.ToString();
 		const EMissionStatus Status = Ctrl->GetStatus();
 		const EMissionEndReason EndReason = Ctrl->GetEndReason();
-		const FMissionEnvelope Envelope = Asset->Envelopes[Entry->MissionStep];
+		const FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 		const EMissionResumeMode Resume = Envelope.ResumeMode;
-		const int32 MissionStep = Entry->MissionStep;
+		const int32 MissionStep = Pair.Value.MissionStep;
 
 		FMissionEnvelopeScope Scope = Envelope.Scope;
 		for (auto Sc : Scope.InteriorScopes)
@@ -4524,7 +4521,7 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 			if (NormTarget == NormCurrent)
 			{
 				IsMissionWorld = true;
-				FindedMissionId = Entry->MissionId;
+				FindedMissionId = Pair.Key;
 				FindedEnvelope = Envelope;
 				break;
 			}
@@ -4547,13 +4544,9 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	// --- Serialize ActiveMissions (as before, with minor fixes)
 	// --- Сериализация ActiveMissions (как было ранее, но с небольшими правками)
 	TArray<TSharedPtr<FJsonValue>> MissionArray;
-	TArray<FName> ArrMissionKeys;
-	ActiveMissions.GetKeys(ArrMissionKeys);
-	for (const FName& MissionKey : ArrMissionKeys)
+	for (const auto& Pair : ActiveMissions)
 	{
-		const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionKey);
-		if (!Entry) continue;
-		const UMissionController* Ctrl = Entry->Controller;
+		const UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
 
 		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
@@ -4561,9 +4554,9 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 		const EMissionStatus Status = Ctrl->GetStatus();
 		const EMissionEndReason EndReason = Ctrl->GetEndReason();
-		const FMissionEnvelope& Envelope = Asset->Envelopes[Entry->MissionStep];
+		const FMissionEnvelope& Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 		const EMissionResumeMode Resume = Envelope.ResumeMode;
-		const int32 MissionStep = Entry->MissionStep;
+		const int32 MissionStep = Pair.Value.MissionStep;
 
 		uint8 SavedStatus = static_cast<uint8>(Status);
 		uint8 SavedEndReason = static_cast<uint8>(EndReason);
@@ -4575,7 +4568,7 @@ void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		}
 
 		TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-		Obj->SetStringField(TEXT("MissionId"), Entry->MissionId.ToString());
+		Obj->SetStringField(TEXT("MissionId"), Pair.Key.ToString());
 		Obj->SetStringField(TEXT("AssetPath"), Asset->GetPathName());
 		Obj->SetNumberField(TEXT("Status"), SavedStatus);
 		Obj->SetNumberField(TEXT("EndReason"), SavedEndReason);
@@ -4763,10 +4756,10 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 			// Copy snapshots of this mission to FloorStateSnapshots (with uniqueness check)
 			// Копируем снепшоты этой миссии в FloorStateSnapshots (с проверкой уникальности)
-			for (auto It = MissionFloorSnapshots.CreateIterator(); It; ++It)
+			for (auto& MissionPair : MissionFloorSnapshots)
 			{
-				const FInteriorFloorKey& FloorKey = It->Key;
-				TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = It->Value;;
+				const FInteriorFloorKey& FloorKey = MissionPair.Key;
+				TMap<FName, TArray<FFloorSavedActorState>>& PerFloor = MissionPair.Value;
 
 				if (!PerFloor.Contains(MissionId)) continue;
 
@@ -4808,20 +4801,16 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		// --- Remove missions with FailOnLoad from ActiveMissions ---
 		// --- Удаление миссий с FailOnLoad из ActiveMissions ---
 		TArray<FName> MissionsToRemove;
-		TArray<FName> MissionKeys;
-		ActiveMissions.GetKeys(MissionKeys);
-		for (const FName& MissionKey : MissionKeys)
+		for (const auto& Pair : ActiveMissions)
 		{
-			const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionKey);
-			if (!Entry) continue;
-			const UMissionController* Ctrl = Entry->Controller;
+			UMissionController* Ctrl = Pair.Value.Controller;
 			if (!Ctrl) continue;
 			UMissionAsset* Asset = Ctrl->GetMissionAsset();
 			if (!Asset) continue;
-			FMissionEnvelope Envelope = Asset->Envelopes[Entry->MissionStep];
+			FMissionEnvelope Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 			if (Envelope.ResumeMode == EMissionResumeMode::FailOnLoad)
 			{
-				MissionsToRemove.Add(Entry->MissionId);
+				MissionsToRemove.Add(Pair.Key);
 			}
 		}
 		for (const FName& MissionId : MissionsToRemove)
@@ -5676,19 +5665,15 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 	// ---- Находим активную миссию для текущего этажа ----
 	FMissionEnvelope ActiveEnvelope;
 	bool bMissionFound = false;
-	TArray<FName> MissionKeys;
-	ActiveMissions.GetKeys(MissionKeys);
-	for (const FName& MissionKey : MissionKeys)
+	for (const auto& Pair : ActiveMissions)
 	{
-		const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionKey);
-		if (!Entry) continue;
-		const UMissionController* Ctrl = Entry->Controller;
+		const UMissionController* Ctrl = Pair.Value.Controller;
 		if (!Ctrl) continue;
 
 		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
 		if (!Asset) continue;
 
-		const FMissionEnvelope& Envelope = Asset->Envelopes[Entry->MissionStep];
+		const FMissionEnvelope& Envelope = Asset->Envelopes[Pair.Value.MissionStep];
 		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelope.Scope.InteriorScopes)
 		{
 			if (UFloorAsset* Floor = FloorRef.Get())

@@ -1,4 +1,3 @@
-// ChoreDefinition.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -16,7 +15,7 @@ struct FChoreRewardSet
     int32 Money = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TArray<FName> ItemIds;   // или использовать FPrimaryAssetId
+    TArray<FName> ItemIds;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 Experience = 0;

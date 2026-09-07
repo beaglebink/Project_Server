@@ -198,23 +198,33 @@ void UChoreManagerSubsystem::RegisterChoreDefinition(UChoreDefinition* Definitio
 
 void UChoreManagerSubsystem::RegisterAvailabilityHandler(UChoreDefinition* Definition)
 {
-    if (!Definition || !Definition->AvailabilityCondition) return;
+    if (!Definition || !Definition->AvailabilityCondition)
+        return;
+
     FName ChoreId = Definition->GetChoreId();
+
+    // Если для этого задания уже зарегистрирован обработчик — выходим
     if (ActiveStates.Contains(ChoreId) && ActiveStates[ChoreId].AvailabilityHandler.IsValid())
         return;
 
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-    if (!EventBus) return;
+    if (!EventBus)
+        return;
 
+    // Компилируем условие доступности
     Definition->AvailabilityCondition->CompileCondition();
     if (!Definition->AvailabilityCondition->GetCondition().IsValid())
         return;
 
+    // Регистрируем обработчик на EventBus
     FOutcomeHandlerHandle Handle = EventBus->RegisterHandler(
         Definition->AvailabilityCondition,
         FOutcomeHandlerDelegate::CreateLambda([this, ChoreId](const FOutcomeEventBase&)
             {
-                OfferChore(ChoreId);
+                // При выполнении условия — предлагаем задание (реактивация)
+                // Флаг bReactivated = true означает, что это повторное предложение
+                // и будет вызван делегат OnChoreReactivated.
+                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
             })
     );
 
@@ -236,11 +246,17 @@ void UChoreManagerSubsystem::UnregisterAvailabilityHandler(FName ChoreId)
 }
 
 // ---- Управление состоянием ----
-void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewStatus, bool bPublishEvent)
+void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewStatus, bool bPublishEvent, bool bReactivated)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
     State.Status = NewStatus;
+
+    // Если это реактивация – бросаем сигнал
+    if (bReactivated && (NewStatus == EChoreStatus::Available || NewStatus == EChoreStatus::Offered))
+    {
+        OnChoreReactivated.Broadcast(ChoreId);
+    }
 
     if (bPublishEvent)
     {
@@ -517,7 +533,7 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
 
     State.bRewardIssued = false;
     State.Performance = FChorePerformanceMetrics();
-    UpdateChoreState(ChoreId, EChoreStatus::Available);
+    UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
 }
 
 void UChoreManagerSubsystem::UnlockChore(FName ChoreId)

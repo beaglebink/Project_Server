@@ -382,5 +382,4 @@ private:
 
     bool IsLoadComplete = true;
 	bool IsPostLoadMapComplete = false; 
-    bool bIsRestoring = false;
 };
