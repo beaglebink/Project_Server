@@ -829,29 +829,19 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
                         bShouldRevoke = false;
                 }
             }
-            /*
-            UMissionSubsystem* MissionSys = GetGameInstance()->GetSubsystem<UMissionSubsystem>();
-            if (!MissionSys)
-                return;
 
-            UChoreResultPayload* Result = Cast<UChoreResultPayload>(Outcome.Payload);
-            if (!Result) return;
-
-            FName MissionId = Result->MissionId;
-            */
-
-            UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition);
-            if (MissionCond)
+            if (UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition))
             {
-                UMissionAsset*  MissionAsset = MissionCond->MissionAsset;
-				FName MissionName = MissionAsset ? MissionAsset->GetMissionId() : FName();
-
-                UMissionSubsystem* MissionSys = GetGameInstance()->GetSubsystem<UMissionSubsystem>();
-                if (!MissionSys)
-                    return;
-
-                if(MissionSys->IsMissionActive(MissionName))
-                    bShouldRevoke = true;
+                if (MissionCond->ConditionType == EMissionConditionType::IsCompleted)
+                {
+                    UMissionAsset* MissionAsset = MissionCond->MissionAsset;
+                    FName MissionName = MissionAsset ? MissionAsset->GetMissionId() : FName();
+                    UMissionSubsystem* MissionSys = GetGameInstance()->GetSubsystem<UMissionSubsystem>();
+                    if (MissionSys && MissionSys->IsMissionActive(MissionName))
+                    {
+                        bShouldRevoke = true;
+                    }
+                }
             }
 
             if (!bConditionMet && (bShouldRevoke))
