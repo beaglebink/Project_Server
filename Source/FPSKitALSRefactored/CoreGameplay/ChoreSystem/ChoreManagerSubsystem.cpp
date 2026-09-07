@@ -832,7 +832,9 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 
             if (UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition))
             {
-                if (MissionCond->ConditionType == EMissionConditionType::IsCompleted)
+                if (MissionCond->ConditionType == EMissionConditionType::IsCompleted || 
+                    MissionCond->ConditionType == EMissionConditionType::IsFailed || 
+                    MissionCond->ConditionType == EMissionConditionType::IsAbandoned)
                 {
                     UMissionAsset* MissionAsset = MissionCond->MissionAsset;
                     FName MissionName = MissionAsset ? MissionAsset->GetMissionId() : FName();
