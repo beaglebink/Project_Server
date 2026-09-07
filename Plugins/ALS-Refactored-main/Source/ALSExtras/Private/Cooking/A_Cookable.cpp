@@ -318,18 +318,18 @@ void AA_Cookable::ShowFinalDishRating(EDishRating DishRating)
 
 void AA_Cookable::IngredientReceiveFocus(AActor* Actor)
 {
-	if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Actor))
-	{
-		FRecipe CurrentRecipe;
-		if (Character->GetCurrentRecipe(CurrentRecipe))
-		{
-			if (FRecipeIngredient* Ingredient = CurrentRecipe.FindIngredientByName(Name))
-			{
-				if (UInteractiveItemComponent* InteractiveItemComp = FindComponentByClass<UInteractiveItemComponent>())
-				{
-					InteractiveItemComp->SetTooltip(FText::Format(FText::FromString("{0}\n{1}"), Ingredient->PreparationImportanceDescription, DefaultTooltipText));
-				}
-			}
-		}
-	}
+	//if (AAlsCharacterExample* Character = Cast<AAlsCharacterExample>(Actor))
+	//{
+	//	FRecipe CurrentRecipe;
+	//	if (Character->GetCurrentRecipe(CurrentRecipe))
+	//	{
+	//		if (FRecipeIngredient* Ingredient = CurrentRecipe.FindIngredientByName(Name))
+	//		{
+	//			if (UInteractiveItemComponent* InteractiveItemComp = FindComponentByClass<UInteractiveItemComponent>())
+	//			{
+	//				InteractiveItemComp->SetTooltip(FText::Format(FText::FromString("{0}\n{1}"), Ingredient->PreparationImportanceDescription, DefaultTooltipText));
+	//			}
+	//		}
+	//	}
+	//}
 }
