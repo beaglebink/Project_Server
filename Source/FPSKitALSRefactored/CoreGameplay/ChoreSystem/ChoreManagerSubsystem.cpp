@@ -460,21 +460,20 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
 
     if (bSuccess)
     {
-        AddHistoryEntry(ChoreId, true, Performance);     // 1. Обновляем историю
-        UpdateChoreState(ChoreId, EChoreStatus::Succeeded); // 2. Публикуем событие
-        GrantRewards(ChoreId);                           // 3. Выдаём награды (не влияет на историю)
+        AddHistoryEntry(ChoreId, true, Performance);
+        UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
+        GrantRewards(ChoreId);
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->bIsRepeatable)
         {
             if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
             {
-                // Немедленный повтор – задание становится доступным для ретрая
-                UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
+                // Немедленная реактивация: задание становится доступным сразу
+                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
             }
             else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
             {
-                // Регистрируем обработчик реактивации (одноразовый)
                 RegisterReactivationHandler(Def);
             }
         }
@@ -485,14 +484,17 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
         UpdateChoreState(ChoreId, EChoreStatus::Failed);
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-        if (Def && Def->RetryBehavior == EChoreRetryBehavior::Immediate)
+        if (Def && Def->bIsRepeatable)
         {
-            UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
-        }
-        else if (Def && Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
-        {
-            // Регистрируем обработчик реактивации (одноразовый)
-            RegisterReactivationHandler(Def);
+            if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
+            {
+                // Немедленная реактивация: задание становится доступным сразу
+                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+            }
+            else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
+            {
+                RegisterReactivationHandler(Def);
+            }
         }
     }
 }
@@ -513,14 +515,13 @@ void UChoreManagerSubsystem::FailChore(FName ChoreId)
     {
         if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
-            UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
+            UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
         }
         else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
         {
             RegisterReactivationHandler(Def);
         }
     }
-
 }
 
 void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
@@ -539,7 +540,7 @@ void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
     {
         if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
-            UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
+            UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
         }
         else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
         {
@@ -564,14 +565,13 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     {
         if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
-            UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
+            UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
         }
         else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
         {
             RegisterReactivationHandler(Def);
         }
     }
-
 }
 
 void UChoreManagerSubsystem::RetryChore(FName ChoreId)
@@ -993,9 +993,13 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
         if (Def && Def->bIsRepeatable)
         {
             if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
-                UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+            }
             else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
-                RegisterAvailabilityHandler(Def);
+            {
+                RegisterAvailabilityHandler(Def); // или RegisterReactivationHandler, если есть отдельный
+            }
         }
     }
     else
@@ -1004,10 +1008,17 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
         AddHistoryEntry(ChoreId, false, Result->Performance);
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-        if (Def && Def->RetryBehavior == EChoreRetryBehavior::Immediate)
-            UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
-        else if (Def && Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
-            RegisterAvailabilityHandler(Def);
+        if (Def && Def->bIsRepeatable)
+        {
+            if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+            }
+            else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
+            {
+                RegisterAvailabilityHandler(Def);
+            }
+        }
     }
 
     if (!Result->MissionId.IsNone())
