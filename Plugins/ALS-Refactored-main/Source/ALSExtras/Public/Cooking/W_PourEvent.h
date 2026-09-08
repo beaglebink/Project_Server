@@ -11,5 +11,5 @@ class ALSEXTRAS_API UW_PourEvent : public UUserWidget
 
 public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "PourEvent")
-	void UpdateVisualDataOnPourEvent(ELiquidType LiquidType, float PourAmount, float UnderAmountTolerance, float IdealMinimumAmount, float IdealMaximumAmount, float OverAmountTolerance);
+	void UpdateVisualDataOnPourEvent(const FGameplayTag& LiquidTag, float PourAmount, float UnderAmountTolerance, float IdealMinimumAmount, float IdealMaximumAmount, float OverAmountTolerance);
 };
