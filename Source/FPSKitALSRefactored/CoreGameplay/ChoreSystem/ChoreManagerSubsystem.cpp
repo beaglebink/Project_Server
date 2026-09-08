@@ -431,7 +431,6 @@ void UChoreManagerSubsystem::AcceptChore(FName ChoreId)
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def)
     {
-        State.Deadline = Def->Deadline.GetTicks() > 0 ? State.AcceptTime + Def->Deadline : FDateTime::MinValue();
         State.AttemptCount++;
     }
 
@@ -440,7 +439,12 @@ void UChoreManagerSubsystem::AcceptChore(FName ChoreId)
 
     if (NewStatus == EChoreStatus::Active)
     {
-        StartDeadlineTimer(ChoreId);
+        // Если задание стартует сразу, устанавливаем дедлайн здесь
+        if (Def && Def->Deadline != FTimespan::Zero())
+        {
+            State.Deadline = FDateTime::UtcNow() + Def->Deadline;
+            StartDeadlineTimer(ChoreId);
+        }
     }
 }
 
@@ -450,6 +454,21 @@ void UChoreManagerSubsystem::StartChore(FName ChoreId)
     FChoreState& State = ActiveStates[ChoreId];
     if (State.Status != EChoreStatus::Accepted && State.Status != EChoreStatus::WaitingToStart)
         return;
+
+    // Пересчитываем дедлайн от текущего момента (начала выполнения)
+    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (Def)
+    {
+        // Если дедлайн задан (не нулевой), пересчитываем от текущего времени
+        if (Def->Deadline != FTimespan::Zero())
+        {
+            State.Deadline = FDateTime::UtcNow() + Def->Deadline;
+        }
+        else
+        {
+            State.Deadline = FDateTime::MinValue(); // без дедлайна
+        }
+    }
 
     UpdateChoreState(ChoreId, EChoreStatus::Active);
     StartDeadlineTimer(ChoreId);
@@ -534,6 +553,10 @@ void UChoreManagerSubsystem::FailChore(FName ChoreId)
         {
             RegisterReactivationHandler(Def);
         }
+        else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+        {
+            UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
+        }
     }
 }
 
@@ -559,6 +582,10 @@ void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
         {
             RegisterReactivationHandler(Def);
         }
+        else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+        {
+            UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
+        }
     }
 }
 
@@ -583,6 +610,10 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
         else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
         {
             RegisterReactivationHandler(Def);
+        }
+        else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+        {
+            UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
         }
     }
 }
