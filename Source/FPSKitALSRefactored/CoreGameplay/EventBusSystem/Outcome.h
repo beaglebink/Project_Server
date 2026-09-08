@@ -160,6 +160,7 @@ enum class EOutcomeChore : uint8
     ChoreFailed             UMETA(DisplayName = "Chore Failed"),
     ChoreExpired            UMETA(DisplayName = "Chore Expired"),
     ChoreRetryAvailable     UMETA(DisplayName = "Chore Retry Available"),
+    ChoreReactivated        UMETA(DisplayName = "Chore Reactivated"),
     ChoreRewardGranted      UMETA(DisplayName = "Chore Reward Granted"),
     ChoreUnlocked           UMETA(DisplayName = "Chore Unlocked"),
     ChoreAbandoned          UMETA(DisplayName = "Chore Abandoned"),

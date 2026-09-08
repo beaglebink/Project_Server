@@ -41,8 +41,11 @@ struct FChoreState
     UPROPERTY()
     bool bRewardIssued = false;
 
-    // Обработчик условия доступности
+    // Обработчик условия доступности (первичное предложение)
     FOutcomeHandlerHandle AvailabilityHandler;
+
+    // Обработчик условия реактивации (повторное предложение)
+    FOutcomeHandlerHandle ReactivationHandler;   // <-- НОВОЕ ПОЛЕ
 };
 
 USTRUCT()
@@ -146,6 +149,8 @@ protected:
     void GrantRewards(FName ChoreId);
     void AddHistoryEntry(FName ChoreId, bool bSucceeded, const FChorePerformanceMetrics& Performance);
     void EvaluateAllAvailability();
+    void RegisterReactivationHandler(UChoreDefinition* Definition);
+    void UnregisterReactivationHandler(FName ChoreId);
 
 private:
     // ---- Обработчики команд (подписаны на EventBus) ----

@@ -37,8 +37,6 @@ struct FChorePerformanceMetrics
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 Quantity = 0;
-
-    // Можно добавлять другие метрики по необходимости
 };
 
 UCLASS(BlueprintType)
@@ -77,8 +75,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
     bool bMustStartImmediately = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
-    FTimespan Deadline; // нулевой = без дедлайна
+    // Дедлайн в минутах и секундах (для удобства настройки в редакторе)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior", meta = (ClampMin = 0))
+    int32 DeadlineMinutes = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior", meta = (ClampMin = 0))
+    int32 DeadlineSeconds = 0;
+
+    // Результирующий дедлайн (вычисляется автоматически из минут и секунд)
+    // Поле доступно только для чтения в редакторе, чтобы не нарушать консистентность.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Behavior")
+    FTimespan Deadline;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
     EChoreRetryBehavior RetryBehavior = EChoreRetryBehavior::None;
@@ -101,4 +108,12 @@ public:
     {
         return FPrimaryAssetId("Chore", GetFName());
     }
+
+    // Обновить Deadline из текущих значений DeadlineMinutes и DeadlineSeconds
+    void UpdateDeadlineFromMinutesSeconds();
+
+#if WITH_EDITOR
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+    virtual void PostLoad() override;
 };

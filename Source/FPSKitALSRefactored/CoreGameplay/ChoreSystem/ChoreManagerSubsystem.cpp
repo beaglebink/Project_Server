@@ -114,9 +114,9 @@ void UChoreManagerSubsystem::Deinitialize()
     // Отписка обработчиков доступности
     for (auto& Pair : ActiveStates)
     {
+        UnregisterReactivationHandler(Pair.Key);
         UnregisterAvailabilityHandler(Pair.Key);
     }
-
     // Очистка таймеров
     if (TimerManager)
     {
@@ -252,12 +252,17 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
     FChoreState& State = ActiveStates[ChoreId];
     State.Status = NewStatus;
 
-    // Если это реактивация – бросаем сигнал
     if (bReactivated && (NewStatus == EChoreStatus::Available || NewStatus == EChoreStatus::Offered))
     {
+        // Отписываемся
+        UnregisterReactivationHandler(ChoreId);
+        // Вызываем делегат для Blueprint
         OnChoreReactivated.Broadcast(ChoreId);
+        // НЕ публикуем событие в EventBus, чтобы избежать циклов
+        bPublishEvent = false; // подавляем публикацию
     }
 
+    // Публикация события в EventBus (если требуется)
     if (bPublishEvent)
     {
         UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
@@ -270,7 +275,7 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
         {
         case EChoreStatus::Available:
         case EChoreStatus::Offered:
-            Event.OutcomeChore = EOutcomeChore::ChoreOffered;
+            Event.OutcomeChore = bReactivated ? EOutcomeChore::ChoreReactivated : EOutcomeChore::ChoreOffered;
             break;
         case EChoreStatus::Accepted:
             Event.OutcomeChore = EOutcomeChore::ChoreAccepted;
@@ -464,11 +469,13 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
         {
             if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
             {
+                // Немедленный повтор – задание становится доступным для ретрая
                 UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
             }
             else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
             {
-                RegisterAvailabilityHandler(Def);
+                // Регистрируем обработчик реактивации (одноразовый)
+                RegisterReactivationHandler(Def);
             }
         }
     }
@@ -484,7 +491,8 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
         }
         else if (Def && Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
         {
-            RegisterAvailabilityHandler(Def);
+            // Регистрируем обработчик реактивации (одноразовый)
+            RegisterReactivationHandler(Def);
         }
     }
 }
@@ -499,6 +507,20 @@ void UChoreManagerSubsystem::FailChore(FName ChoreId)
     State.bSucceeded = false;
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
     AddHistoryEntry(ChoreId, false, State.Performance);
+
+    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (Def && Def->bIsRepeatable)
+    {
+        if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
+        {
+            UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
+        }
+        else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
+        {
+            RegisterReactivationHandler(Def);
+        }
+    }
+
 }
 
 void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
@@ -523,6 +545,20 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     ClearDeadlineTimer(ChoreId);
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
     AddHistoryEntry(ChoreId, false, State.Performance);
+
+    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (Def && Def->bIsRepeatable)
+    {
+        if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
+        {
+            UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
+        }
+        else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
+        {
+            RegisterReactivationHandler(Def);
+        }
+    }
+
 }
 
 void UChoreManagerSubsystem::RetryChore(FName ChoreId)
@@ -1083,6 +1119,62 @@ void UChoreManagerSubsystem::EvaluateAllAvailability()
             }
         }
     }
+}
+
+void UChoreManagerSubsystem::RegisterReactivationHandler(UChoreDefinition* Definition)
+{
+    if (!Definition || !Definition->ReactivationCondition)
+        return;
+
+    FName ChoreId = Definition->GetChoreId();
+
+    // Если уже есть активный обработчик – не создаём новый
+    if (ActiveStates.Contains(ChoreId) && ActiveStates[ChoreId].AvailabilityHandler.IsValid())
+        return;
+
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (!EventBus)
+        return;
+
+    // Компилируем условие
+    Definition->ReactivationCondition->CompileCondition();
+    if (!Definition->ReactivationCondition->GetCondition().IsValid())
+        return;
+
+    // Проверяем, выполнено ли условие прямо сейчас
+    FOutcomeEventBase Dummy;
+    Dummy.OutcomeType = EOutcomeType::Default;
+    if (Definition->ReactivationCondition->GetCondition()->Evaluate(Dummy))
+    {
+        // Условие уже истинно – реактивируем сразу
+        UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+        return;
+    }
+
+    // Иначе подписываемся на событие
+    FOutcomeHandlerHandle Handle = EventBus->RegisterHandler(
+        Definition->ReactivationCondition,
+        FOutcomeHandlerDelegate::CreateLambda([this, ChoreId](const FOutcomeEventBase&)
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+            })
+    );
+
+    if (Handle.IsValid())
+    {
+        ActiveStates[ChoreId].ReactivationHandler = Handle; // <-- ИЗМЕНЕНО
+    }
+}
+
+void UChoreManagerSubsystem::UnregisterReactivationHandler(FName ChoreId)
+{
+    if (!ActiveStates.Contains(ChoreId)) return;
+    FOutcomeHandlerHandle& Handle = ActiveStates[ChoreId].ReactivationHandler;
+    if (!Handle.IsValid()) return;
+
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (EventBus) EventBus->UnregisterHandler(Handle);
+    Handle.Invalidate();
 }
 
 // ---- ISaveableSubsystem ----
