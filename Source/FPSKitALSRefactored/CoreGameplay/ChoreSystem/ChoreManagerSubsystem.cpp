@@ -533,6 +533,19 @@ void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
     State.bSucceeded = false;
     UpdateChoreState(ChoreId, EChoreStatus::Expired);
     AddHistoryEntry(ChoreId, false, State.Performance);
+
+    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (Def && Def->bIsRepeatable)
+    {
+        if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
+        {
+            UpdateChoreState(ChoreId, EChoreStatus::RetryAvailable);
+        }
+        else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
+        {
+            RegisterReactivationHandler(Def);
+        }
+    }
 }
 
 void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
