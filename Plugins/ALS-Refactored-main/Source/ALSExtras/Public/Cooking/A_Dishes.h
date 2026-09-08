@@ -22,7 +22,7 @@ struct FPourEvent
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pour")
-	ELiquidType LiquidType = ELiquidType::None;
+	FGameplayTag LiquidTag;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pour")
 	float 	AmountAdded = 0.0f;
@@ -101,7 +101,6 @@ class ALSEXTRAS_API AA_Dishes : public AA_InteractableActor
 {
 	GENERATED_BODY()
 
-
 public:
 	AA_Dishes();
 
@@ -124,7 +123,7 @@ private:
 	TArray<AA_Cookable*> Ingredients;
 
 	UPROPERTY()
-	TMap<FName, int32> IngredientCountMap;
+	TMap<FGameplayTag, int32> IngredientCountMap;
 
 	TSet<AActor*> OverlappingActors;
 
@@ -250,7 +249,7 @@ private:
 	//Check recipe
 	FRecipe CheckedRecipe;
 
-	TMap<FName, FIngredientQuality> IngredientQualityMap;
+	TMap<FGameplayTag, FIngredientQuality> IngredientQualityMap;
 
 	float DishQuality = 0.0f;
 	float LowestGroupQuality = 1.0f;
@@ -286,7 +285,7 @@ public:
 	FLinearColor LiquidColor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fluid")
-	ELiquidType LiquidType = ELiquidType::None;
+	FGameplayTag LiquidTag;
 
 	UPROPERTY()
 	FVector CutPlaneNormal = FVector(0.0f, 0.0f, 1.0f);
@@ -308,7 +307,7 @@ public:
 	TArray<FLiquidStepOnPour> LiquidStepsOnPour;
 
 	UFUNCTION(BlueprintCallable, Category = "Fluid")
-	void AddLiquid(ELiquidType Type, float Amount);
+	void AddLiquid(const FGameplayTag& AddLiquidTag, float Amount);
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingTimer")
@@ -344,7 +343,13 @@ private:
 
 	float CurrentBoundaryTime = 0.0f;
 
-	ELiquidType LastLiquidType = ELiquidType::None;
+	float CurrentLiquidStepEndTime = 0.0f;
+
+	float NextLiquidStepStartTime = 0.0f;
+
+	FGameplayTag LastLiquidTag;
+
+	int32 PrevStepIndexInRecipe = 0;
 
 	int32 CurrentStepIndexInRecipe = 0;
 
@@ -352,5 +357,5 @@ private:
 
 	void ResetCookingSession();
 
-	void UpdatePourVisual_TargetDish(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep);
+	void UpdatePourVisual_TargetDish(const FGameplayTag& UpdateLiquidTag, float LiquidAmount, FLiquidStep RecipeLiquidStep);
 };

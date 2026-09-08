@@ -8,6 +8,7 @@
 #include "Interfaces/I_WeaponInteraction.h"
 #include "InteractiveActorInterface.h"
 #include "Scanning/ScannableActorData.h"
+#include "NativeGameplayTags.h"
 #include "A_InteractableActor.generated.h"
 
 class AA_DropZone;
@@ -33,6 +34,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Name")
 	FName Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Name")
+	FGameplayTag Tag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScanningData")
 	FScannableActorData ScannableData;

@@ -74,7 +74,7 @@ void AA_Dishes::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (LiquidType != ELiquidType::None)
+	if (LiquidTag.IsValid())
 	{
 		if (!FluidFX->IsActive())
 		{
@@ -168,7 +168,7 @@ void AA_Dishes::Tick(float DeltaTime)
 	SpringArmToEdge->SetWorldRotation((GetActorUpVector().Cross(FVector(0.0f, 0.0f, 1.0f)).Cross(GetActorUpVector()) * (-1.0f)).Rotation());
 
 	// Update liquid level
-	if (LiquidType != ELiquidType::None)
+	if (LiquidTag.IsValid())
 	{
 		FluidFX->SetVariableVec3(FName(TEXT("User.LiquidLevelPoint")), LiquidLevelPoint->GetComponentLocation());
 		FluidFX->SetVariableVec3(FName(TEXT("User.CutPlaneNormal")), CutPlaneNormal);
@@ -199,17 +199,17 @@ void AA_Dishes::BeginPlay()
 							CookableIngredient->ParentDish = this;
 							CookableIngredient->bIsInsideADish = true;
 
-							int32& CountRef = IngredientCountMap.FindOrAdd(CookableIngredient->Name);
+							int32& CountRef = IngredientCountMap.FindOrAdd(CookableIngredient->Tag);
 							++CountRef;
 
 							// Add ingredient event to cooking log requirements
 							bool bEventCreated = false;
-							if (IsACookWare && CookableIngredient->RecipeRequirement.RequirementType == ERecipeRequirementType::None)
+							if (IsACookWare && !CookableIngredient->RecipeRequirement.RequirementTag.IsValid())
 							{
 								float TimeOfLastEventOfSameIngredient = -1.0f;
 								for (int i = RecipeRequirements.Num() - 1; i >= 0; --i)
 								{
-									if (RecipeRequirements[i].RequirementType == ERecipeRequirementType::Ingredient && RecipeRequirements[i].Ingredient.IngredientName == CookableIngredient->Name)
+									if (RecipeRequirements[i].RequirementTag.MatchesTag(TAG_Cooking_Ingredients) && RecipeRequirements[i].Ingredient.IngredientTag == CookableIngredient->Tag)
 									{
 										TimeOfLastEventOfSameIngredient = RecipeRequirements[i].RequirementStartTime;
 										break;
@@ -219,15 +219,15 @@ void AA_Dishes::BeginPlay()
 								{
 									bEventCreated = true;
 									FRecipeRequirement NewEvent = FRecipeRequirement();
-									NewEvent.RequirementType = ERecipeRequirementType::Ingredient;
+									NewEvent.RequirementTag = TAG_Cooking_Ingredients;
 									NewEvent.RequirementStartTime = CookingTimerValue;
-									NewEvent.Ingredient.IngredientName = CookableIngredient->Name;
+									NewEvent.Ingredient.IngredientTag = CookableIngredient->Tag;
 									RecipeRequirements.Add(NewEvent);
 									CookableIngredient->RecipeRequirement = NewEvent;
 								}
 							}
 
-							FString DebugMessage = FString::Printf(TEXT("Added ingredient: %s"), *CookableIngredient->Name.ToString()) + (bEventCreated ? FString::Printf(TEXT(" | Event %.2f"), CookingTimerValue) : "");
+							FString DebugMessage = FString::Printf(TEXT("Added ingredient: %s"), *CookableIngredient->Tag.ToString()) + (bEventCreated ? FString::Printf(TEXT(" | Event %.2f"), CookingTimerValue) : "");
 
 							if (bShowCookingDebug)
 							{
@@ -246,19 +246,19 @@ void AA_Dishes::BeginPlay()
 					Ingredients[i]->bIsInsideADish = false;
 					Ingredients[i]->ParentDish = nullptr;
 
-					int32* CountPtr = IngredientCountMap.Find(Ingredients[i]->Name);
+					int32* CountPtr = IngredientCountMap.Find(Ingredients[i]->Tag);
 					if (CountPtr)
 					{
 						--(*CountPtr);
 						if (*CountPtr <= 0)
 						{
-							IngredientCountMap.Remove(Ingredients[i]->Name);
+							IngredientCountMap.Remove(Ingredients[i]->Tag);
 						}
 					}
 
 					if (bShowCookingDebug)
 					{
-						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s"), *Ingredients[i]->Name.ToString()));
+						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Removed ingredient: %s"), *Ingredients[i]->Tag.ToString()));
 					}
 
 					Ingredients.RemoveAt(i);
@@ -313,7 +313,7 @@ void AA_Dishes::BeginPlay()
 		}, 0.5f, true);
 
 	//Fluid visual
-	if (LiquidType != ELiquidType::None)
+	if (LiquidTag.IsValid())
 	{
 		FluidFX->Activate();
 	}
@@ -377,7 +377,7 @@ void AA_Dishes::PourLiquid(float DeltaTime)
 			{
 				if (AA_Dishes* RefillableDish = Cast<AA_Dishes>(PourHitResult.GetActor()))
 				{
-					RefillableDish->AddLiquid(LiquidType, FullLiquidVolume * PourIntensityNormalized * LiquidPourRateNormalized * DeltaTime);
+					RefillableDish->AddLiquid(LiquidTag, FullLiquidVolume * PourIntensityNormalized * LiquidPourRateNormalized * DeltaTime);
 					PourFX->SetVariableInt(FName(TEXT("User.HeatingLevel")), static_cast<int32>(RefillableDish->GetHeatingLevel()));
 					break;
 				}
@@ -528,7 +528,7 @@ bool AA_Dishes::CheckIfCooked()
 	for (AA_Cookable* Ingredient : Ingredients)
 	{
 		// Find the maximum chunk weight for each ingredient type
-		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
+		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Tag);
 		QualityRef.MaxChunkWeight = FMath::Max(QualityRef.MaxChunkWeight, Ingredient->ChunkMass);
 
 		QualityRef.ChunkCount++;
@@ -655,7 +655,7 @@ bool AA_Dishes::CheckIfCooked()
 	for (AA_Cookable* Ingredient : Ingredients)
 	{
 		// Calculate only significant chunks which weight is more than 10% of the maximum chunk weight for this ingredient type
-		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Name);
+		FIngredientQuality& QualityRef = IngredientQualityMap.FindOrAdd(Ingredient->Tag);
 		if (Ingredient->ChunkMass >= CheckedRecipe.SignificantChunkPercentage * QualityRef.MaxChunkWeight)
 		{
 			// Calculate weighted average quality by chunk weight
@@ -752,12 +752,12 @@ bool AA_Dishes::CheckIfCooked()
 	float SumShortageSeverity_RecipeImportance = 0.0f;
 	for (const auto& Requirement : CheckedRecipe.Requirements)
 	{
-		if (Requirement.RequirementType == ERecipeRequirementType::Ingredient)
+		if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Ingredients))
 		{
 			FRecipeIngredient Ingredient = Requirement.Ingredient;
-			if (FIngredientQuality* IngredientQuality = IngredientQualityMap.Find(Ingredient.IngredientName))
+			if (FIngredientQuality* IngredientQuality = IngredientQualityMap.Find(Ingredient.IngredientTag))
 			{
-				IngredientQuality->MissingProportion = 1.0f - static_cast<float>(FMath::Min(IngredientCountMap.FindRef(Ingredient.IngredientName), Ingredient.TargetChunkCount)) / static_cast<float>(Ingredient.TargetChunkCount);
+				IngredientQuality->MissingProportion = 1.0f - static_cast<float>(FMath::Min(IngredientCountMap.FindRef(Ingredient.IngredientTag), Ingredient.TargetChunkCount)) / static_cast<float>(Ingredient.TargetChunkCount);
 				if (IngredientQuality->MissingProportion < 0.1f)
 				{
 					IngredientQuality->ShortageSeverity = 0.0f;
@@ -854,10 +854,10 @@ void AA_Dishes::ReplaceIngredientsByCookedFood()
 		{
 			const FLiquidStepOnPour& LiquidStep = LiquidStepsOnPour[StepIndex];
 
-			ELiquidType StepLiquidType = ELiquidType::None;
+			FGameplayTag StepLiquidTag;
 			if (LiquidStep.PourEvents.Num() > 0)
 			{
-				StepLiquidType = LiquidStep.PourEvents[0].LiquidType;
+				StepLiquidTag = LiquidStep.PourEvents[0].LiquidTag;
 			}
 
 			DebugText += FString::Printf(
@@ -870,7 +870,7 @@ void AA_Dishes::ReplaceIngredientsByCookedFood()
 				TEXT("Contribution: %.2f\n\n"),
 				StepIndex + 1,
 				LiquidStep.PourEvents.Num(),
-				*StaticEnum<ELiquidType>()->GetDisplayNameTextByValue((int64)StepLiquidType).ToString(),
+				*StepLiquidTag.ToString(),
 				LiquidStep.AmountQuality,
 				LiquidStep.WeightedTimingQuality,
 				LiquidStep.LiquidStepQuality,
@@ -937,111 +937,125 @@ void AA_Dishes::UpdateNiagaraPreview()
 	FluidFX->ResetSystem();
 }
 
-void AA_Dishes::AddLiquid(ELiquidType Type, float Amount)
+void AA_Dishes::AddLiquid(const FGameplayTag& AddLiquidTag, float Amount)
 {
-	//CurrentPourTime = GetWorld()->GetTimeSeconds();
-	//float TimeBetweenPours = CurrentPourTime - PrevPourTime;
+	CurrentPourTime = GetWorld()->GetTimeSeconds();
+	float TimeBetweenPours = CurrentPourTime - PrevPourTime;
 
-	//if (CurrentBoundaryTime > 0.0f && CookingTimerValue > CurrentBoundaryTime)
-	//{
-	//	LastLiquidType = ELiquidType::None;
-	//}
+	if (CurrentBoundaryTime >= 0.0f && CurrentBoundaryTime <= CookingTimerValue)
+	{
+		LastLiquidTag = FGameplayTag::EmptyTag;
 
-	//if (LastLiquidType != Type)
-	//{
-	//	//Calculate boundary time between steps
-	//	++CurrentStepIndexInRecipe;
-	//	CurrentBoundaryTime = 0.0f;
-	//	if (AAlsCharacterExample* PlayerCharacter = Cast<AAlsCharacterExample>(GetWorld()->GetFirstPlayerController()->GetPawn()))
-	//	{
-	//		if (PlayerCharacter->GetCurrentRecipe(CurrentRecipe))
-	//		{
-	//			if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe))
-	//			{
-	//				CurrentBoundaryTime = (CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe].IdealStartTime + CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].IdealEndTime) * 0.5f;
-	//			}
-	//		}
-	//		else
-	//		{
-	//			return;
-	//		}
-	//	}
+		//Calculate boundary time between steps
+		CurrentBoundaryTime = -1.0f;
+		if (AAlsCharacterExample* PlayerCharacter = Cast<AAlsCharacterExample>(GetWorld()->GetFirstPlayerController()->GetPawn()))
+		{
+			if (PlayerCharacter->GetCurrentRecipe(CurrentRecipe))
+			{
+				CurrentLiquidStepEndTime = 0;
+				for (int32 i = CurrentStepIndexInRecipe; i < CurrentRecipe.Requirements.Num(); ++i)
+				{
+					if (CurrentRecipe.Requirements[i].RequirementTag.MatchesTag(TAG_Cooking_Liquids))
+					{
+						if (FMath::IsNearlyZero(CurrentLiquidStepEndTime))
+						{
+							CurrentLiquidStepEndTime = CurrentRecipe.Requirements[i].LiquidStep.IdealEndTime;
+							PrevStepIndexInRecipe = i;
+						}
+						else
+						{
+							NextLiquidStepStartTime = CurrentRecipe.Requirements[i].LiquidStep.IdealStartTime;
+							CurrentBoundaryTime = (CurrentLiquidStepEndTime + NextLiquidStepStartTime) / 2.0f;
+							CurrentStepIndexInRecipe = i;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				return;
+			}
+		}
+	}
 
-	//	FPourEvent PourEvent;
-	//	PourEvent.LiquidType = Type;
-	//	PourEvent.AmountAdded = Amount;
-	//	PourEvent.TimeStart = CookingTimerValue;
-	//	PourEvent.TimeEnd = CookingTimerValue;
-	//	PourEvent.TimingScore = 0.0f;
-	//	if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
-	//	{
-	//		PourEvent.TimingScore = PourEvent.AmountAdded * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
-	//	}
-	//	TotalAmountAddedPerStep = Amount;
+	if (LastLiquidTag != AddLiquidTag)
+	{
+		FPourEvent PourEvent;
+		PourEvent.LiquidTag = AddLiquidTag;
+		PourEvent.AmountAdded = Amount;
+		PourEvent.TimeStart = CookingTimerValue;
+		PourEvent.TimeEnd = CookingTimerValue;
+		PourEvent.TimingScore = 0.0f;
+		//if (CurrentRecipe.Requirements.IsValidIndex(PrevStepIndexInRecipe))
+		//{
+		//	PourEvent.TimingScore = PourEvent.AmountAdded * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
+		//}
+		TotalAmountAddedPerStep = Amount;
 
-	//	FLiquidStepOnPour LiquidStepOnPour;
-	//	LiquidStepOnPour.PourEvents.Add(PourEvent);
-	//	LiquidStepsOnPour.Add(LiquidStepOnPour);
-	//}
-	//else if (LastLiquidType == Type)
-	//{
-	//	if (TimeBetweenPours > MinTimeToStartNewPourEvent)
-	//	{
-	//		FPourEvent PourEvent;
-	//		PourEvent.LiquidType = Type;
-	//		PourEvent.AmountAdded = Amount;
-	//		PourEvent.TimeStart = CookingTimerValue;
-	//		PourEvent.TimeEnd = CookingTimerValue;
-	//		PourEvent.TimingScore = 0.0f;
-	//		if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
-	//		{
-	//			PourEvent.TimingScore = PourEvent.AmountAdded * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
-	//		}
+		FLiquidStepOnPour LiquidStepOnPour;
+		LiquidStepOnPour.PourEvents.Add(PourEvent);
+		LiquidStepsOnPour.Add(LiquidStepOnPour);
+	}
+	else if (LastLiquidTag == AddLiquidTag)
+	{
+		if (TimeBetweenPours > MinTimeToStartNewPourEvent)
+		{
+			FPourEvent PourEvent;
+			PourEvent.LiquidTag = AddLiquidTag;
+			PourEvent.AmountAdded = Amount;
+			PourEvent.TimeStart = CookingTimerValue;
+			PourEvent.TimeEnd = CookingTimerValue;
+			PourEvent.TimingScore = 0.0f;
+			//if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
+			//{
+			//	PourEvent.TimingScore = PourEvent.AmountAdded * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
+			//}
 
-	//		LiquidStepsOnPour.Last().PourEvents.Add(PourEvent);
-	//	}
-	//	else
-	//	{
-	//		if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
-	//		{
-	//			LiquidStepsOnPour.Last().PourEvents.Last().TimingScore += Amount * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
-	//		}
-	//		LiquidStepsOnPour.Last().PourEvents.Last().AmountAdded += Amount;
-	//		LiquidStepsOnPour.Last().PourEvents.Last().TimeEnd = CookingTimerValue;
-	//	}
-	//	TotalAmountAddedPerStep += Amount;
-	//}
+			LiquidStepsOnPour.Last().PourEvents.Add(PourEvent);
+		}
+		else
+		{
+			//if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1))
+			//{
+			//	LiquidStepsOnPour.Last().PourEvents.Last().TimingScore += Amount * CalculateTimingQualityPerPourMoment(CookingTimerValue, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
+			//}
+			LiquidStepsOnPour.Last().PourEvents.Last().AmountAdded += Amount;
+			LiquidStepsOnPour.Last().PourEvents.Last().TimeEnd = CookingTimerValue;
+		}
+		TotalAmountAddedPerStep += Amount;
+	}
 
-	////Visual data on pour
+	//Visual data on pour
 
-	//if (CurrentRecipe.LiquidSteps.IsValidIndex(CurrentStepIndexInRecipe - 1) && LiquidStepsOnPour.Last().PourEvents[0].LiquidType == CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1].LiquidType)
-	//{
-	//	UpdatePourVisual_TargetDish(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, CurrentRecipe.LiquidSteps[CurrentStepIndexInRecipe - 1]);
-	//}
-	//else
-	//{
-	//	UpdatePourVisual_TargetDish(LiquidStepsOnPour.Last().PourEvents[0].LiquidType, TotalAmountAddedPerStep, FLiquidStep());
-	//}
+	if (CurrentRecipe.Requirements.IsValidIndex(PrevStepIndexInRecipe) && LiquidStepsOnPour.Last().PourEvents[0].LiquidTag == CurrentRecipe.Requirements[PrevStepIndexInRecipe].LiquidStep.LiquidTag)
+	{
+		UpdatePourVisual_TargetDish(LiquidStepsOnPour.Last().PourEvents[0].LiquidTag, TotalAmountAddedPerStep, CurrentRecipe.Requirements[PrevStepIndexInRecipe].LiquidStep);
+	}
+	else
+	{
+		UpdatePourVisual_TargetDish(LiquidStepsOnPour.Last().PourEvents[0].LiquidTag, TotalAmountAddedPerStep, FLiquidStep());
+	}
 
-	////Sound steam
-	//if (HeatingLevel != EHeatingLevel::None)
-	//{
-	//	if (!AudioComponent->IsPlaying())
-	//	{
-	//		AudioComponent->Play();
-	//	}
+	//Sound steam
+	if (HeatingLevel != EHeatingLevel::None)
+	{
+		if (!AudioComponent->IsPlaying())
+		{
+			AudioComponent->Play();
+		}
 
-	//	GetWorldTimerManager().ClearTimer(SteamSoundStopTimerHandle);
+		GetWorldTimerManager().ClearTimer(SteamSoundStopTimerHandle);
 
-	//	GetWorldTimerManager().SetTimer(SteamSoundStopTimerHandle, [this]()
-	//		{
-	//			AudioComponent->Stop();
-	//		},
-	//		1.0f, false);
-	//}
+		GetWorldTimerManager().SetTimer(SteamSoundStopTimerHandle, [this]()
+			{
+				AudioComponent->Stop();
+			},
+			1.0f, false);
+	}
 
-	//LastLiquidType = Type;
-	//PrevPourTime = CurrentPourTime;
+	LastLiquidTag = AddLiquidTag;
+	PrevPourTime = CurrentPourTime;
 }
 
 void AA_Dishes::UpdateCookingSession()
@@ -1091,17 +1105,20 @@ void AA_Dishes::ResetCookingSession()
 {
 	PrevPourTime = 0.0f;
 	CurrentBoundaryTime = 0.0f;
-	LastLiquidType = ELiquidType::None;
+	CurrentLiquidStepEndTime = 0.0f;
+	NextLiquidStepStartTime = 0.0f;
+	LastLiquidTag = FGameplayTag::EmptyTag;
+	PrevStepIndexInRecipe = 0;
 	CurrentStepIndexInRecipe = 0;
 
 	LiquidStepsOnPour.Empty();
 }
 
-void AA_Dishes::UpdatePourVisual_TargetDish(ELiquidType Type, float LiquidAmount, FLiquidStep RecipeLiquidStep)
+void AA_Dishes::UpdatePourVisual_TargetDish(const FGameplayTag& UpdateLiquidTag, float LiquidAmount, FLiquidStep RecipeLiquidStep)
 {
 	//Pour widget
 	if (UW_PourEvent* PourEventWidget = Cast<UW_PourEvent>(DishWidget->GetUserWidgetObject()))
 	{
-		PourEventWidget->UpdateVisualDataOnPourEvent(Type, LiquidAmount, RecipeLiquidStep.UnderAmountTolerance, RecipeLiquidStep.IdealMinimumAmount, RecipeLiquidStep.IdealMaximumAmount, RecipeLiquidStep.OverAmountTolerance);
+		PourEventWidget->UpdateVisualDataOnPourEvent(UpdateLiquidTag, LiquidAmount, RecipeLiquidStep.UnderAmountTolerance, RecipeLiquidStep.IdealMinimumAmount, RecipeLiquidStep.IdealMaximumAmount, RecipeLiquidStep.OverAmountTolerance);
 	}
 }
