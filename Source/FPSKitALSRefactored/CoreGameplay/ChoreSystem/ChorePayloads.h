@@ -156,3 +156,19 @@ public:
     }
 };
 
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreReacceptPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    FName ChoreId;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore")
+    UChoreReacceptPayload* Setup(FName InChoreId)
+    {
+        ChoreId = InChoreId;
+        return this;
+    }
+};

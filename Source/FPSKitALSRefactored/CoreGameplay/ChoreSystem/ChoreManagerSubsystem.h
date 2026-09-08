@@ -167,6 +167,7 @@ private:
     void HandleChoreCompletion(const FOutcomeEventBase& Outcome); // для завершения обычных хор
     void HandleRegisterChoreRequest(const FOutcomeEventBase& Outcome);
     void HandleUnregisterChoreRequest(const FOutcomeEventBase& Outcome);
+    void HandleReacceptRequest(const FOutcomeEventBase& Outcome);
 
     // ---- Вспомогательные функции для создания условий ----
     UOutcomeConditionAsset* CreateSimpleChoreCondition(EOutcomeChore ChoreType);
@@ -203,6 +204,7 @@ private:
     FOutcomeHandlerHandle UnlockRequestHandler;
     FOutcomeHandlerHandle RegisterChoreRequestHandler;
     FOutcomeHandlerHandle UnregisterChoreRequestHandler;
+    FOutcomeHandlerHandle ReacceptRequestHandler;
 
     // ---- Условия для подписок ----
     UPROPERTY()
@@ -232,4 +234,6 @@ private:
     TObjectPtr<UOutcomeConditionAsset> RegisterChoreRequestCondition;
     UPROPERTY()
     TObjectPtr<UOutcomeConditionAsset> UnregisterChoreRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> ReacceptRequestCondition;
 };

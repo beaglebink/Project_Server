@@ -44,6 +44,7 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     UnlockRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::UnlockRequest);
     RegisterChoreRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::RegisterChoreRequest);
     UnregisterChoreRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::UnregisterChoreRequest);
+    ReacceptRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ReacceptRequest);
 
     // ---- Регистрация обработчиков в EventBus ----
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
@@ -78,6 +79,8 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleRegisterChoreRequest));
         UnregisterChoreRequestHandler = EventBus->RegisterHandler(UnregisterChoreRequestCondition,
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleUnregisterChoreRequest));
+        ReacceptRequestHandler = EventBus->RegisterHandler(ReacceptRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleReacceptRequest));
     }
 
     // ---- Регистрация в системе сохранения ----
@@ -109,6 +112,7 @@ void UChoreManagerSubsystem::Deinitialize()
         Unreg(AbandonRequestHandler);
         Unreg(RetryRequestHandler);
         Unreg(UnlockRequestHandler);
+        Unreg(ReacceptRequestHandler);
     }
 
     // Отписка обработчиков доступности
@@ -295,6 +299,9 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
         case EChoreStatus::RetryAvailable:
             Event.OutcomeChore = EOutcomeChore::ChoreRetryAvailable;
             break;
+        case EChoreStatus::PendingReaccept:
+            Event.OutcomeChore = EOutcomeChore::ChorePendingReaccept;
+            break;
         default:
             return;
         }
@@ -469,12 +476,15 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
         {
             if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
             {
-                // Немедленная реактивация: задание становится доступным сразу
                 UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
             }
             else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
             {
                 RegisterReactivationHandler(Def);
+            }
+            else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
             }
         }
     }
@@ -488,12 +498,15 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
         {
             if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
             {
-                // Немедленная реактивация: задание становится доступным сразу
                 UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
             }
             else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
             {
                 RegisterReactivationHandler(Def);
+            }
+            else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
             }
         }
     }
@@ -998,7 +1011,11 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
             }
             else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
             {
-                RegisterAvailabilityHandler(Def); // или RegisterReactivationHandler, если есть отдельный
+                RegisterReactivationHandler(Def);
+            }
+            else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
             }
         }
     }
@@ -1016,7 +1033,11 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
             }
             else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
             {
-                RegisterAvailabilityHandler(Def);
+                RegisterReactivationHandler(Def);
+            }
+            else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
             }
         }
     }
@@ -1454,4 +1475,19 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
     ClearDeadlineTimer(ChoreId);
 
     UE_LOG(LogTemp, Log, TEXT("HandleUnregisterChoreRequest: chore '%s' unregistered"), *ChoreId.ToString());
+}
+
+void UChoreManagerSubsystem::HandleReacceptRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreReacceptPayload* Payload = Cast<UChoreReacceptPayload>(Outcome.Payload);
+    if (!Payload) return;
+
+    FName ChoreId = Payload->ChoreId;
+    if (!ActiveStates.Contains(ChoreId)) return;
+
+    FChoreState& State = ActiveStates[ChoreId];
+    if (State.Status != EChoreStatus::PendingReaccept) return;
+
+    // Реактивируем задание
+    UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
 }

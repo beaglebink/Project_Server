@@ -35,7 +35,8 @@ enum class EChoreStatus : uint8
     Succeeded          UMETA(DisplayName = "Succeeded"),
     Failed             UMETA(DisplayName = "Failed"),
     Expired            UMETA(DisplayName = "Expired"),
-    RetryAvailable     UMETA(DisplayName = "Retry Available")
+    RetryAvailable     UMETA(DisplayName = "Retry Available"),
+    PendingReaccept    UMETA(DisplayName = "Pending Re-accept from NPC")
 };
 
 UENUM(BlueprintType)
