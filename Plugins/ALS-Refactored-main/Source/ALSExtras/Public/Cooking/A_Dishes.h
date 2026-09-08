@@ -118,6 +118,9 @@ private:
 	uint8 bIsOnAttaching : 1{false};
 
 	UPROPERTY()
+	TArray<FRecipeRequirement> RecipeRequirements;
+
+	UPROPERTY()
 	TArray<AA_Cookable*> Ingredients;
 
 	UPROPERTY()

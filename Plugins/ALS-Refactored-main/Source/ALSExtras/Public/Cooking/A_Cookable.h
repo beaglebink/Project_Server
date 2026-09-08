@@ -92,14 +92,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	float ChunkMass;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
-	AA_Dishes* PrevParentDish = nullptr;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings")
+	AA_Dishes* ParentDish;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings")
+	FRecipeRequirement RecipeRequirement;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	uint8 bIsInsideADish : 1{false};
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
-	uint8 bWasTossed : 1{false};
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* MeshDynamicMaterial;
