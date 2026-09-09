@@ -209,7 +209,7 @@ void AA_Dishes::BeginPlay()
 								float TimeOfLastEventOfSameIngredient = -1.0f;
 								for (int i = RecipeRequirements.Num() - 1; i >= 0; --i)
 								{
-									if (RecipeRequirements[i].RequirementTag.MatchesTag(TAG_Cooking_Ingredients) && RecipeRequirements[i].Ingredient.IngredientTag == CookableIngredient->Tag)
+									if (RecipeRequirements[i].RequirementTag.MatchesTag(TAG_Cooking_Ingredients) && RecipeRequirements[i].IngredientStep.IngredientTag == CookableIngredient->Tag)
 									{
 										TimeOfLastEventOfSameIngredient = RecipeRequirements[i].RequirementStartTime;
 										break;
@@ -221,7 +221,7 @@ void AA_Dishes::BeginPlay()
 									FRecipeRequirement NewEvent = FRecipeRequirement();
 									NewEvent.RequirementTag = TAG_Cooking_Ingredients;
 									NewEvent.RequirementStartTime = CookingTimerValue;
-									NewEvent.Ingredient.IngredientTag = CookableIngredient->Tag;
+									NewEvent.IngredientStep.IngredientTag = CookableIngredient->Tag;
 									RecipeRequirements.Add(NewEvent);
 									CookableIngredient->RecipeRequirement = NewEvent;
 								}
@@ -495,34 +495,75 @@ bool AA_Dishes::CheckIfCooked()
 	IngredientQualityMap.Empty();
 
 	////Check for being tossed
+	for (const FRecipeRequirement& RecipeRequirement : CurrentRecipe.Requirements)
+	{
+		if (!RecipeRequirement.RequirementTag.MatchesTag(TAG_Cooking_WokMovements))
+		{
+			continue;
+		}
+
+		int32 MovementQuantityDifference = INT32_MAX;
+		FRecipeRequirement* TempRequirement = nullptr;
+		for (FRecipeRequirement& ActualRequirement : RecipeRequirements)
+		{
+			if (!ActualRequirement.bChecked && RecipeRequirement == ActualRequirement)
+			{
+				int32 CurrentMovementQuantityDifference = ActualRequirement.WokMovementStep.WokMovementQuantity - RecipeRequirement.WokMovementStep.WokMovementQuantityMin;
+				if (CurrentMovementQuantityDifference >= 0 && CurrentMovementQuantityDifference < MovementQuantityDifference)
+				{
+					TempRequirement = &ActualRequirement;
+					MovementQuantityDifference = CurrentMovementQuantityDifference;
+				}
+			}
+		}
+		if (TempRequirement)
+		{
+			TempRequirement->bChecked = true;
+		}
+		else
+		{
+			// bonus --;
+			break;
+		}
+	}
+	for (FRecipeRequirement& ActualRequirement : RecipeRequirements)
+	{
+		ActualRequirement.bChecked = false;
+	}
+
+	////Check for recipe matching from recipe - missing requirements
+	for (const FRecipeRequirement& RecipeRequirement : CurrentRecipe.Requirements)
+	{
+		bool bRequirementFound = false;
+		for (FRecipeRequirement& ActualRequirement : RecipeRequirements)
+		{
+			if (!ActualRequirement.bChecked && RecipeRequirement == ActualRequirement && (!RecipeRequirement.RequirementTag.MatchesTag(TAG_Cooking_WokMovements) && !RecipeRequirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals)))
+			{
+				bRequirementFound = true;
+				ActualRequirement.bChecked = true;
+				break;
+			}
+		}
+		if (!bRequirementFound)
+		{
+			MissingRequirements.Add(RecipeRequirement);
+		}
+	}
+	for (FRecipeRequirement& ActualRequirement : RecipeRequirements)
+	{
+		ActualRequirement.bChecked = false;
+	}
 
 
-	//TMap<FName, int32> RecipeMap;
-	//for (const FRecipeIngredient& Ingredient : CheckedRecipe.Ingredients)
-	//{
-	//	RecipeMap.Add(Ingredient.IngredientName, Ingredient.TargetChunkCount);
-	//}
-
-	////Check for recipe matching from recipe
-	//for (const auto& Pair : RecipeMap)
-	//{
-	//	if (!IngredientCountMap.Contains(Pair.Key))
-	//	{
-	//		bIsOnRecipeChecking = false;
-	//		return false;
-	//	}
-	//}
-
-	//Check for recipe matching - extra ingredients
-	//for (const auto& Pair : IngredientCountMap)
-	//{
-	//	if (!RecipeMap.Contains(Pair.Key))
-	//	{
-	//		bIsOnRecipeChecking = false;
-	//		return false;
-	//	}
-	//}
-
+	//Check for recipe matching - extra requirements
+	for (const FRecipeRequirement& Requirement : RecipeRequirements)
+	{
+		if (!CurrentRecipe.Requirements.Contains(Requirement) && (!Requirement.RequirementTag.MatchesTag(TAG_Cooking_WokMovements) && !Requirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals)))
+		{
+			ExtraStepPenaltyMultiplier = 0.85f;
+			break;
+		}
+	}
 
 	// Calculate chunks average quality
 	for (AA_Cookable* Ingredient : Ingredients)
@@ -754,7 +795,7 @@ bool AA_Dishes::CheckIfCooked()
 	{
 		if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Ingredients))
 		{
-			FRecipeIngredient Ingredient = Requirement.Ingredient;
+			FRecipeIngredient Ingredient = Requirement.IngredientStep;
 			if (FIngredientQuality* IngredientQuality = IngredientQualityMap.Find(Ingredient.IngredientTag))
 			{
 				IngredientQuality->MissingProportion = 1.0f - static_cast<float>(FMath::Min(IngredientCountMap.FindRef(Ingredient.IngredientTag), Ingredient.TargetChunkCount)) / static_cast<float>(Ingredient.TargetChunkCount);

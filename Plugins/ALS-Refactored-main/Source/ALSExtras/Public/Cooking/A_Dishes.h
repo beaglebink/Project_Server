@@ -250,7 +250,9 @@ private:
 	FRecipe CheckedRecipe;
 
 	TMap<FGameplayTag, FIngredientQuality> IngredientQualityMap;
+	TArray<FRecipeRequirement> MissingRequirements;
 
+	float ExtraStepPenaltyMultiplier = 1.0f;
 	float DishQuality = 0.0f;
 	float LowestGroupQuality = 1.0f;
 	float DishAverage = 0.0f;
