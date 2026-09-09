@@ -10,8 +10,22 @@
 #include "EventBusSubsystem.h"
 #include "ChoreManagerSubsystem.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChoreReactivated, FName, ChoreId);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChoreReactivated, FName, ChoreId);
+/*
+USTRUCT()
+struct FShoreNameStatus
+{
+    GENERATED_BODY()
 
+    FName ChoreId;
+    EChoreStatus Status = EChoreStatus::Unavailable;
+
+    bool operator==(const FShoreNameStatus& Other) const
+    {
+        return ChoreId == Other.ChoreId && Status == Other.Status;
+    }
+};
+*/
 USTRUCT()
 struct FChoreState
 {
@@ -110,8 +124,8 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetChoreIdsByDisplayName(const FText& DisplayName) const;
 
-    UPROPERTY(BlueprintAssignable, Category = "Chore Manager|Events")
-    FOnChoreReactivated OnChoreReactivated;
+    //UPROPERTY(BlueprintAssignable, Category = "Chore Manager|Events")
+    //FOnChoreReactivated OnChoreReactivated;
 
     // ---- Методы для условий истории (используются из Condition Assets) ----
     int32 GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const;
@@ -185,7 +199,10 @@ private:
 
     UPROPERTY()
     bool bLoadComplete = true;
-
+    /*
+    UPROPERTY()
+    TArray<FShoreNameStatus> NotPublishState;
+    */
     FTimerManager* TimerManager = nullptr;
     TMap<FName, FTimerHandle> DeadlineTimers;
 

@@ -45,18 +45,50 @@ struct FOutcomeHandlerEntry
     FOutcomeHandlerDelegate Handler;       // C++ делегат
     FOnOutcomeEvent BlueprintDelegate;     // Blueprint делегат
     TSharedPtr<IOutcomeCondition> Query;
+    UOutcomeConditionAsset* ConditionAsset = nullptr;
     bool bPendingRemove = false;
 
+    // Конструктор по умолчанию
+    FOutcomeHandlerEntry() : HandleId(0), ConditionAsset(nullptr), bPendingRemove(false) {}
+
     // Конструктор для C++ обработчика
-    FOutcomeHandlerEntry(uint32 InHandleId, FOutcomeHandlerDelegate InHandler, TSharedPtr<IOutcomeCondition> InQuery)
-        : HandleId(InHandleId), Handler(MoveTemp(InHandler)), Query(InQuery)
+    FOutcomeHandlerEntry(uint32 InHandleId, FOutcomeHandlerDelegate InHandler, TSharedPtr<IOutcomeCondition> InQuery, UOutcomeConditionAsset* InConditionAsset = nullptr)
+        : HandleId(InHandleId), Handler(MoveTemp(InHandler)), Query(InQuery), ConditionAsset(InConditionAsset)
     {
     }
 
     // Конструктор для Blueprint обработчика
-    FOutcomeHandlerEntry(uint32 InHandleId, FOnOutcomeEvent InBlueprintDelegate, TSharedPtr<IOutcomeCondition> InQuery)
-        : HandleId(InHandleId), BlueprintDelegate(InBlueprintDelegate), Query(InQuery)
+    FOutcomeHandlerEntry(uint32 InHandleId, FOnOutcomeEvent InBlueprintDelegate, TSharedPtr<IOutcomeCondition> InQuery, UOutcomeConditionAsset* InConditionAsset = nullptr)
+        : HandleId(InHandleId), BlueprintDelegate(InBlueprintDelegate), Query(InQuery), ConditionAsset(InConditionAsset)
     {
+    }
+
+    // Проверка дубликата (без учёта HandleId)
+    bool IsDuplicateOf(const FOutcomeHandlerEntry& Other) const
+    {
+        if (Handler.IsBound() && Other.Handler.IsBound())
+        {
+            if (Handler.GetUObject() == Other.Handler.GetUObject() && ConditionAsset == Other.ConditionAsset)
+                return true;
+        }
+        else if (BlueprintDelegate.IsBound() && Other.BlueprintDelegate.IsBound())
+        {
+            if (BlueprintDelegate.GetUObject() == Other.BlueprintDelegate.GetUObject() &&
+                BlueprintDelegate.GetFunctionName() == Other.BlueprintDelegate.GetFunctionName() &&
+                ConditionAsset == Other.ConditionAsset)
+                return true;
+        }
+        return false;
+    }
+
+    bool operator==(const FOutcomeHandlerEntry& Other) const
+    {
+        return IsDuplicateOf(Other);
+    }
+
+    bool operator!=(const FOutcomeHandlerEntry& Other) const
+    {
+        return !(*this == Other);
     }
 };
 
@@ -113,7 +145,7 @@ private:
     {
         enum class EType : uint8 { Register, Unregister } Type = EType::Unregister;
         uint32 HandleId = 0;
-        FOutcomeHandlerEntry Entry{ 0, FOutcomeHandlerDelegate{}, nullptr };
+        FOutcomeHandlerEntry Entry{ 0, FOutcomeHandlerDelegate{}, nullptr, nullptr };
     };
     TArray<FPendingOperation> PendingOperations;
 

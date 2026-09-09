@@ -82,8 +82,31 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
     if (!Compiled.IsValid())
         return FOutcomeHandlerHandle();
 
+    // Проверка на дублирование для C++ обработчиков
+    bool bDuplicate = false;
+    for (const FOutcomeHandlerEntry& Existing : Handlers)
+    {
+        if (Existing.ConditionAsset == ConditionAsset &&
+            Existing.Handler.IsBound() &&
+            Existing.Handler.GetUObject() == Handler.GetUObject())
+        {
+            // Для C++ делегатов сравнение указателя функции невозможно без дополнительной информации.
+            // Можно считать дубликатом, если объект и условие совпадают (риск, что у объекта несколько методов).
+            // Для точности можно использовать GetFunctionPointer() в некоторых версиях UE.
+            // Если хотите точно, используйте сравнительные методы делегатов, либо храните идентификатор.
+            // В данном случае просто предупреждаем.
+            bDuplicate = true;
+            UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: Duplicate C++ handler detected for ConditionAsset %s, skipping registration."),
+                *ConditionAsset->GetName());
+            break;
+        }
+    }
+
+    if (bDuplicate)
+        return FOutcomeHandlerHandle();
+
     const uint32 NewId = NextHandleId++;
-    FOutcomeHandlerEntry NewEntry(NewId, MoveTemp(Handler), Compiled);
+    FOutcomeHandlerEntry NewEntry(NewId, MoveTemp(Handler), Compiled, ConditionAsset);
 
     if (bDispatching)
     {
@@ -98,7 +121,6 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
     }
     return FOutcomeHandlerHandle(NewId);
 }
-
 FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(
     UOutcomeConditionAsset* ConditionAsset,
     FOnOutcomeEvent Delegate)
@@ -113,8 +135,28 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(
     if (!Compiled.IsValid())
         return FOutcomeHandlerHandle();
 
+    // Проверка на дублирование
+    // Ищем обработчик с таким же ConditionAsset и делегатом
+    bool bDuplicate = false;
+    for (const FOutcomeHandlerEntry& Existing : Handlers)
+    {
+        if (Existing.ConditionAsset == ConditionAsset &&
+            Existing.BlueprintDelegate.IsBound() &&
+            Existing.BlueprintDelegate.GetUObject() == Delegate.GetUObject() &&
+            Existing.BlueprintDelegate.GetFunctionName() == Delegate.GetFunctionName())
+        {
+            bDuplicate = true;
+            UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: Duplicate Blueprint handler detected for ConditionAsset %s, skipping registration."),
+                *ConditionAsset->GetName());
+            break;
+        }
+    }
+
+    if (bDuplicate)
+        return FOutcomeHandlerHandle(); // или вернуть существующий Handle? Лучше Invalid
+
     const uint32 NewId = NextHandleId++;
-    FOutcomeHandlerEntry NewEntry(NewId, Delegate, Compiled);
+    FOutcomeHandlerEntry NewEntry(NewId, Delegate, Compiled, ConditionAsset);
 
     if (bDispatching)
     {

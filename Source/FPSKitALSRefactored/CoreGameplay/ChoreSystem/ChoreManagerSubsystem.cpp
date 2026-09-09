@@ -254,18 +254,31 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
+    if(State.Status == NewStatus) return;
+
     State.Status = NewStatus;
 
+
+
+    //FShoreNameStatus CheckState{ ChoreId, NewStatus };
+    /*
+    if (NotPublishState.Contains(CheckState))
+    {
+        NotPublishState.Remove({ ChoreId, NewStatus });
+        return;
+    }
+ 
     if (bReactivated && (NewStatus == EChoreStatus::Available || NewStatus == EChoreStatus::Offered))
     {
         // Отписываемся
-        UnregisterReactivationHandler(ChoreId);
+        //UnregisterReactivationHandler(ChoreId);
         // Вызываем делегат для Blueprint
         OnChoreReactivated.Broadcast(ChoreId);
         // НЕ публикуем событие в EventBus, чтобы избежать циклов
-        bPublishEvent = false; // подавляем публикацию
+        //bPublishEvent = false; // подавляем публикацию
+		//NotPublishState.AddUnique(CheckState);
     }
-
+   */
     // Публикация события в EventBus (если требуется)
     if (bPublishEvent)
     {
