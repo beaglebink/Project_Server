@@ -3,8 +3,18 @@
 
 void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 {
+    // Защита от рекурсивного входа
+    if (bIsPublishing)
+    {
+        // Если уже идёт публикация, добавляем событие в очередь и выходим
+        PendingEvents.Add(Outcome);
+        UE_LOG(LogTemp, Verbose, TEXT("EventBusSubsystem: Reentrant PublishOutcome queued."));
+        return;
+    }
+
     FScopeLock Lock(&HandlersCriticalSection);
 
+    bIsPublishing = true;
     bDispatching = true;
 
     for (int32 i = 0; i < Handlers.Num(); ++i)
@@ -30,6 +40,7 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 
     bDispatching = false;
 
+    // Обработка отложенных операций регистрации/отписки
     for (const FPendingOperation& Op : PendingOperations)
     {
         if (Op.Type == FPendingOperation::EType::Unregister)
@@ -51,6 +62,41 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
     PendingOperations.Empty();
 
     CleanupPendingRemoves();
+
+    bIsPublishing = false;
+
+    // Теперь обрабатываем отложенные события (если они есть)
+    ProcessPendingEvents();
+}
+
+void UEventBusSubsystem::ProcessPendingEvents()
+{
+    // Защита от рекурсивной обработки очереди
+    if (bIsProcessingPending || PendingEvents.Num() == 0)
+        return;
+
+    bIsProcessingPending = true;
+
+    // Копируем очередь, чтобы избежать конфликтов при добавлении новых событий
+    TArray<FOutcomeEventBase> EventsToProcess = MoveTemp(PendingEvents);
+    // Очередь теперь пуста, но во время обработки могут добавиться новые
+
+    for (const FOutcomeEventBase& Ev : EventsToProcess)
+    {
+        // Рекурсивный вызов PublishOutcome для отложенных событий
+        // Поскольку bIsPublishing сейчас false, они будут опубликованы синхронно
+        PublishOutcome(Ev);
+    }
+
+    // После обработки скопированных событий проверяем, не добавились ли новые
+    // во время обработки (рекурсивно). Если добавились – обрабатываем их рекурсивно.
+    if (PendingEvents.Num() > 0)
+    {
+        // Рекурсивный вызов для обработки новых отложенных событий
+        ProcessPendingEvents();
+    }
+
+    bIsProcessingPending = false;
 }
 
 void UEventBusSubsystem::CleanupPendingRemoves()
@@ -90,11 +136,6 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
             Existing.Handler.IsBound() &&
             Existing.Handler.GetUObject() == Handler.GetUObject())
         {
-            // Для C++ делегатов сравнение указателя функции невозможно без дополнительной информации.
-            // Можно считать дубликатом, если объект и условие совпадают (риск, что у объекта несколько методов).
-            // Для точности можно использовать GetFunctionPointer() в некоторых версиях UE.
-            // Если хотите точно, используйте сравнительные методы делегатов, либо храните идентификатор.
-            // В данном случае просто предупреждаем.
             bDuplicate = true;
             UE_LOG(LogTemp, Warning, TEXT("EventBusSubsystem: Duplicate C++ handler detected for ConditionAsset %s, skipping registration."),
                 *ConditionAsset->GetName());
@@ -121,6 +162,7 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterHandler(
     }
     return FOutcomeHandlerHandle(NewId);
 }
+
 FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(
     UOutcomeConditionAsset* ConditionAsset,
     FOnOutcomeEvent Delegate)
@@ -135,8 +177,7 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(
     if (!Compiled.IsValid())
         return FOutcomeHandlerHandle();
 
-    // Проверка на дублирование
-    // Ищем обработчик с таким же ConditionAsset и делегатом
+    // Проверка на дублирование для Blueprint обработчиков
     bool bDuplicate = false;
     for (const FOutcomeHandlerEntry& Existing : Handlers)
     {
@@ -153,7 +194,7 @@ FOutcomeHandlerHandle UEventBusSubsystem::RegisterBlueprintHandler(
     }
 
     if (bDuplicate)
-        return FOutcomeHandlerHandle(); // или вернуть существующий Handle? Лучше Invalid
+        return FOutcomeHandlerHandle();
 
     const uint32 NewId = NextHandleId++;
     FOutcomeHandlerEntry NewEntry(NewId, Delegate, Compiled, ConditionAsset);
@@ -206,6 +247,6 @@ void UEventBusSubsystem::UnregisterHandler(FOutcomeHandlerHandle& Handle)
 void UEventBusSubsystem::BeginDestroy()
 {
     Super::BeginDestroy();
-    // При уничтожении подсистемы просто очищаем массив, мьютекс уже не нужен
     Handlers.Empty();
+    PendingEvents.Empty();
 }

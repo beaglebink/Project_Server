@@ -139,6 +139,8 @@ private:
     uint32 NextHandleId = 1;
 
     bool bDispatching = false;
+    bool bIsPublishing = false;
+    bool bIsProcessingPending = false;
     FCriticalSection HandlersCriticalSection;
 
     struct FPendingOperation
@@ -149,5 +151,9 @@ private:
     };
     TArray<FPendingOperation> PendingOperations;
 
+    // Очередь событий, опубликованных во время рекурсивного вызова
+    TArray<FOutcomeEventBase> PendingEvents;
+
     void CleanupPendingRemoves();
+    void ProcessPendingEvents();
 };

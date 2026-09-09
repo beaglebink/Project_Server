@@ -71,7 +71,7 @@ struct FChoreHistoryEntry
     FName ChoreId;
 
     UPROPERTY()
-    bool bSucceeded = false;
+    EOutcomeChore Result = EOutcomeChore::Default;
 
     UPROPERTY()
     FChorePerformanceMetrics Performance;
@@ -143,7 +143,7 @@ protected:
     void OfferChore(FName ChoreId);
     void AcceptChore(FName ChoreId);
     void StartChore(FName ChoreId);
-    void CompleteChore(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance);
+    void CompleteChore(FName ChoreId, const FChorePerformanceMetrics& Performance);
     void FailChore(FName ChoreId);
     void ExpireChore(FName ChoreId);
     void AbandonChore(FName ChoreId);
@@ -161,7 +161,7 @@ protected:
     void StartDeadlineTimer(FName ChoreId);
     void ClearDeadlineTimer(FName ChoreId);
     void GrantRewards(FName ChoreId);
-    void AddHistoryEntry(FName ChoreId, bool bSucceeded, const FChorePerformanceMetrics& Performance);
+    void AddHistoryEntry(FName ChoreId, EOutcomeChore Result, const FChorePerformanceMetrics& Performance);
     void EvaluateAllAvailability();
     void RegisterReactivationHandler(UChoreDefinition* Definition);
     void UnregisterReactivationHandler(FName ChoreId);

@@ -94,8 +94,8 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Chore")
     FName ChoreId;
 
-    UPROPERTY(BlueprintReadWrite, Category = "Chore")
-    bool bSuccess = false;
+    //UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    //bool bSuccess = false;
 
     UPROPERTY(BlueprintReadWrite, Category = "Chore")
     FChorePerformanceMetrics Performance;
@@ -108,10 +108,10 @@ public:
     }
 
     UFUNCTION(BlueprintCallable, Category = "Chore")
-    UChoreCommandPayload* SetupComplete(FName InChoreId, bool InSuccess, const FChorePerformanceMetrics& InPerf)
+    UChoreCommandPayload* SetupComplete(FName InChoreId, const FChorePerformanceMetrics& InPerf)
     {
         ChoreId = InChoreId;
-        bSuccess = InSuccess;
+        //bSuccess = InSuccess;
         Performance = InPerf;
         return this;
     }

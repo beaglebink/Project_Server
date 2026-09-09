@@ -388,19 +388,11 @@ void UChoreManagerSubsystem::GrantRewards(FName ChoreId)
     }
 }
 
-void UChoreManagerSubsystem::AddHistoryEntry(FName ChoreId, bool bSucceeded, const FChorePerformanceMetrics& Performance)
+void UChoreManagerSubsystem::AddHistoryEntry(FName ChoreId, EOutcomeChore Result, const FChorePerformanceMetrics& Performance)
 {
-    UE_LOG(LogTemp, Log, TEXT("AddHistoryEntry: ChoreId='%s', bSucceeded=%d, Time=%.2f, Mistakes=%d, Accuracy=%.2f, Quantity=%d"),
-        *ChoreId.ToString(),
-        bSucceeded ? 1 : 0,
-        Performance.CompletionTimeSeconds,
-        Performance.Mistakes,
-        Performance.Accuracy,
-        Performance.Quantity);
-
     FChoreHistoryEntry Entry;
     Entry.ChoreId = ChoreId;
-    Entry.bSucceeded = bSucceeded;
+    Entry.Result = Result;
     Entry.Performance = Performance;
     Entry.Timestamp = FDateTime::UtcNow();
     History.Add(Entry);
@@ -487,7 +479,7 @@ void UChoreManagerSubsystem::StartChore(FName ChoreId)
     StartDeadlineTimer(ChoreId);
 }
 
-void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance)
+void UChoreManagerSubsystem::CompleteChore(FName ChoreId, const FChorePerformanceMetrics& Performance)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
@@ -495,11 +487,11 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
 
     ClearDeadlineTimer(ChoreId);
     State.Performance = Performance;
-    State.bSucceeded = bSuccess;
+    //State.bSucceeded = bSuccess;
 
-    if (bSuccess)
-    {
-        AddHistoryEntry(ChoreId, true, Performance);
+    //if (bSuccess)
+    //{
+        AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Performance);
         UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
         GrantRewards(ChoreId);
 
@@ -519,7 +511,8 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
                 UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
             }
         }
-    }
+    //}
+    /*
     else
     {
         AddHistoryEntry(ChoreId, false, Performance);
@@ -542,6 +535,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, bool bSuccess, const F
             }
         }
     }
+    */
 }
 
 void UChoreManagerSubsystem::FailChore(FName ChoreId)
@@ -551,9 +545,9 @@ void UChoreManagerSubsystem::FailChore(FName ChoreId)
     if (State.Status != EChoreStatus::Active) return;
 
     ClearDeadlineTimer(ChoreId);
-    State.bSucceeded = false;
+    //State.Result = EOutcomeChore::FailRequest;
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
-    AddHistoryEntry(ChoreId, false, State.Performance);
+    AddHistoryEntry(ChoreId, EOutcomeChore::FailRequest, State.Performance);
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def && Def->bIsRepeatable)
@@ -580,9 +574,9 @@ void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
     if (State.Status != EChoreStatus::Active) return;
 
     ClearDeadlineTimer(ChoreId);
-    State.bSucceeded = false;
+    //State.bSucceeded = false;
     UpdateChoreState(ChoreId, EChoreStatus::Expired);
-    AddHistoryEntry(ChoreId, false, State.Performance);
+    AddHistoryEntry(ChoreId, EOutcomeChore::ExpireRequest, State.Performance);
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def && Def->bIsRepeatable)
@@ -611,7 +605,7 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
 
     ClearDeadlineTimer(ChoreId);
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
-    AddHistoryEntry(ChoreId, false, State.Performance);
+    AddHistoryEntry(ChoreId, EOutcomeChore::AbandonRequest, State.Performance);
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def && Def->bIsRepeatable)
@@ -691,7 +685,7 @@ void UChoreManagerSubsystem::RequestMissionChore(FName MissionId, FName ChoreId,
 
 void UChoreManagerSubsystem::ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId)
 {
-    AddHistoryEntry(ChoreId, bSuccess, Performance);
+    AddHistoryEntry(ChoreId, bSuccess ? EOutcomeChore::CompleteRequest : EOutcomeChore::FailRequest, Performance);
 
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
@@ -825,7 +819,7 @@ int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family
     for (const FChoreHistoryEntry& Entry : History)
     {
         if (!ChoreId.IsNone() && Entry.ChoreId != ChoreId) continue;
-        if (bSucceededOnly && !Entry.bSucceeded) continue;
+        if (bSucceededOnly && Entry.Result != EOutcomeChore::CompleteRequest) continue;
 
         if (bUseFamily || bUseSubtype)
         {
@@ -872,7 +866,7 @@ bool UChoreManagerSubsystem::GetLastResult(FName ChoreId) const
     for (int32 i = History.Num() - 1; i >= 0; --i)
     {
         if (History[i].ChoreId == ChoreId)
-            return History[i].bSucceeded;
+            return History[i].Result == EOutcomeChore::CompleteRequest;
     }
     return false;
 }
@@ -1044,7 +1038,7 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
     {
         UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
         GrantRewards(ChoreId);
-        AddHistoryEntry(ChoreId, true, Result->Performance);
+        AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Result->Performance);
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->bIsRepeatable)
@@ -1066,7 +1060,7 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
     else
     {
         UpdateChoreState(ChoreId, EChoreStatus::Failed);
-        AddHistoryEntry(ChoreId, false, Result->Performance);
+        AddHistoryEntry(ChoreId, EOutcomeChore::FailRequest, Result->Performance);
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (Def && Def->bIsRepeatable)
@@ -1122,7 +1116,7 @@ void UChoreManagerSubsystem::HandleCompleteRequest(const FOutcomeEventBase& Outc
 {
     UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
     if (!Payload) return;
-    CompleteChore(Payload->ChoreId, Payload->bSuccess, Payload->Performance);
+    CompleteChore(Payload->ChoreId, Payload->Performance);
 }
 
 void UChoreManagerSubsystem::HandleFailRequest(const FOutcomeEventBase& Outcome)
@@ -1304,7 +1298,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     {
         TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
         Obj->SetStringField(TEXT("ChoreId"), Entry.ChoreId.ToString());
-        Obj->SetBoolField(TEXT("bSucceeded"), Entry.bSucceeded);
+        Obj->SetNumberField(TEXT("Result"), (uint8)Entry.Result);
         Obj->SetStringField(TEXT("Timestamp"), Entry.Timestamp.ToIso8601());
 
         TSharedPtr<FJsonObject> PerfObj = MakeShared<FJsonObject>();
@@ -1413,7 +1407,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             FString ChoreIdStr, TimestampStr;
             Obj->TryGetStringField(TEXT("ChoreId"), ChoreIdStr);
             Entry.ChoreId = FName(*ChoreIdStr);
-            Obj->TryGetBoolField(TEXT("bSucceeded"), Entry.bSucceeded);
+            int32 ResultInt = 0;
             Obj->TryGetStringField(TEXT("Timestamp"), TimestampStr);
             FDateTime::ParseIso8601(*TimestampStr, Entry.Timestamp);
 
@@ -1500,7 +1494,7 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
                 ClearDeadlineTimer(ChoreId);
             }
             State->bSucceeded = false;
-            AddHistoryEntry(ChoreId, false, State->Performance);
+            AddHistoryEntry(ChoreId, EOutcomeChore::FailRequest, State->Performance);
             UpdateChoreState(ChoreId, EChoreStatus::Failed);
         }
     }
