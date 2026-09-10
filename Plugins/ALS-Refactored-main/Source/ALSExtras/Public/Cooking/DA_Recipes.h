@@ -28,22 +28,22 @@ struct FRecipeIngredient
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0))
 	int32 IdealChunkCountMax;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float CountTolerancePercent = 50.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f))
 	float TargetChunkSize;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float IdealSizeTolerancePercent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float MaximumSizeTolerancePercent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float IdealEvennessTolerancePercent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float MaximumEvennessTolerancePercent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f))
@@ -136,7 +136,7 @@ struct FLiquidStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "OverAmountTolerance (ml)"))
 	float OverAmountTolerance = 0.0f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IdealStartTime (s)"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IdealStartTime (s)"))
 	float IdealStartTime = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IdealEndTime (s)"))
@@ -233,8 +233,9 @@ struct FRecipeRequirement
 	UPROPERTY()
 	ERecipeRequirementType RequirementType = ERecipeRequirementType::None;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, EditCondition = "RequirementType != ERecipeRequirementType::Liquid && RequirementType != ERecipeRequirementType::Interval", EditConditionHides))
 	float RequirementStartTime = 0.0f;
+	float RequirementEndTime = 0.0f;
 
 	uint8 bChecked : 1{false};
 
@@ -297,7 +298,7 @@ struct FRecipe
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float ExtraRecipeIngredientPenaltyStrength = 0.85f;
 
-	FRecipeIngredient* FindIngredientByName(const FGameplayTag& IngredientTag)
+	FRecipeIngredient* FindIngredientByTag(const FGameplayTag& IngredientTag)
 	{
 		for (FRecipeRequirement& Requirement : Requirements)
 		{
@@ -337,7 +338,6 @@ public:
 				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Liquids))
 				{
 					Requirement.RequirementType = ERecipeRequirementType::Liquid;
-					Requirement.LiquidStep.IdealStartTime = Requirement.RequirementStartTime;
 				}
 				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Spices))
 				{

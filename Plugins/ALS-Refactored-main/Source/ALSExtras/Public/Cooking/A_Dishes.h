@@ -196,7 +196,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, DisplayName = "LiquidVolume (ml)"))
 	float LiquidVolume = 100.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 1.0f, ClampMax = 5.0f))
 	float MinTimeToStartNewPourEvent = 3.0f;
 
 	UPROPERTY()
@@ -248,13 +248,14 @@ private:
 
 	float LastTossOrMoveTime = 0.0f;
 
+	float TossBonusMultiplier = 1.0f;
+
 	//Check recipe
 	FRecipe CheckedRecipe;
 
 	TMap<FGameplayTag, FIngredientQuality> IngredientQualityMap;
 	TArray<FRecipeRequirement> MissingRequirements;
 
-	float TossBonusMultiplier = 1.15f;
 	float ExtraStepPenaltyMultiplier = 1.0f;
 	float DishQuality = 0.0f;
 	float LowestGroupQuality = 1.0f;
@@ -338,8 +339,6 @@ public:
 
 	//Pour events registration
 private:
-	FRecipe CurrentRecipe = FRecipe();
-
 	float TotalAmountAddedPerStep = 0.0f;
 
 	float PrevPourTime = 0.0f;
@@ -354,9 +353,7 @@ private:
 
 	FGameplayTag LastLiquidTag;
 
-	int32 PrevStepIndexInRecipe = 0;
-
-	int32 CurrentStepIndexInRecipe = 0;
+	int32 CurrentStepIndexInRecipe = -1;
 
 	float CalculateTimingQualityPerPourMoment(float CurrentTime, FLiquidStep CurrentRecipeStep);
 
