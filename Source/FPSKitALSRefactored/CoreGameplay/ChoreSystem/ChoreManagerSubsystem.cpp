@@ -258,27 +258,6 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
 
     State.Status = NewStatus;
 
-
-
-    //FShoreNameStatus CheckState{ ChoreId, NewStatus };
-    /*
-    if (NotPublishState.Contains(CheckState))
-    {
-        NotPublishState.Remove({ ChoreId, NewStatus });
-        return;
-    }
- 
-    if (bReactivated && (NewStatus == EChoreStatus::Available || NewStatus == EChoreStatus::Offered))
-    {
-        // Отписываемся
-        //UnregisterReactivationHandler(ChoreId);
-        // Вызываем делегат для Blueprint
-        OnChoreReactivated.Broadcast(ChoreId);
-        // НЕ публикуем событие в EventBus, чтобы избежать циклов
-        //bPublishEvent = false; // подавляем публикацию
-		//NotPublishState.AddUnique(CheckState);
-    }
-   */
     // Публикация события в EventBus (если требуется)
     if (bPublishEvent)
     {
@@ -487,55 +466,26 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, const FChorePerformanc
 
     ClearDeadlineTimer(ChoreId);
     State.Performance = Performance;
-    //State.bSucceeded = bSuccess;
+    AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Performance);
+    UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
+    GrantRewards(ChoreId);
 
-    //if (bSuccess)
-    //{
-        AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Performance);
-        UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
-        GrantRewards(ChoreId);
-
-        UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-        if (Def && Def->bIsRepeatable)
-        {
-            if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
-            {
-                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
-            }
-            else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
-            {
-                RegisterReactivationHandler(Def);
-            }
-            else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
-            {
-                UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
-            }
-        }
-    //}
-    /*
-    else
+    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (Def && Def->bIsRepeatable)
     {
-        AddHistoryEntry(ChoreId, false, Performance);
-        UpdateChoreState(ChoreId, EChoreStatus::Failed);
-
-        UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-        if (Def && Def->bIsRepeatable)
+        if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
-            if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
-            {
-                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
-            }
-            else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
-            {
-                RegisterReactivationHandler(Def);
-            }
-            else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
-            {
-                UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
-            }
+            UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+        }
+        else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
+        {
+            RegisterReactivationHandler(Def);
+        }
+        else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+        {
+            UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
         }
     }
-    */
 }
 
 void UChoreManagerSubsystem::FailChore(FName ChoreId)
@@ -545,7 +495,6 @@ void UChoreManagerSubsystem::FailChore(FName ChoreId)
     if (State.Status != EChoreStatus::Active) return;
 
     ClearDeadlineTimer(ChoreId);
-    //State.Result = EOutcomeChore::FailRequest;
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
     AddHistoryEntry(ChoreId, EOutcomeChore::FailRequest, State.Performance);
 
@@ -574,7 +523,6 @@ void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
     if (State.Status != EChoreStatus::Active) return;
 
     ClearDeadlineTimer(ChoreId);
-    //State.bSucceeded = false;
     UpdateChoreState(ChoreId, EChoreStatus::Expired);
     AddHistoryEntry(ChoreId, EOutcomeChore::ExpireRequest, State.Performance);
 
