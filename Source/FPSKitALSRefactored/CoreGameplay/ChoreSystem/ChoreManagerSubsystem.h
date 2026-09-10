@@ -10,22 +10,6 @@
 #include "EventBusSubsystem.h"
 #include "ChoreManagerSubsystem.generated.h"
 
-//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChoreReactivated, FName, ChoreId);
-/*
-USTRUCT()
-struct FShoreNameStatus
-{
-    GENERATED_BODY()
-
-    FName ChoreId;
-    EChoreStatus Status = EChoreStatus::Unavailable;
-
-    bool operator==(const FShoreNameStatus& Other) const
-    {
-        return ChoreId == Other.ChoreId && Status == Other.Status;
-    }
-};
-*/
 USTRUCT()
 struct FChoreState
 {
@@ -39,6 +23,10 @@ struct FChoreState
 
     UPROPERTY()
     FDateTime AcceptTime;
+
+    // ---- НОВОЕ: фактическое время начала выполнения (переход в Active) ----
+    UPROPERTY()
+    FDateTime StartTime;
 
     UPROPERTY()
     FDateTime Deadline;
@@ -55,11 +43,8 @@ struct FChoreState
     UPROPERTY()
     bool bRewardIssued = false;
 
-    // Обработчик условия доступности (первичное предложение)
     FOutcomeHandlerHandle AvailabilityHandler;
-
-    // Обработчик условия реактивации (повторное предложение)
-    FOutcomeHandlerHandle ReactivationHandler;   // <-- НОВОЕ ПОЛЕ
+    FOutcomeHandlerHandle ReactivationHandler;
 };
 
 USTRUCT()
@@ -124,12 +109,87 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetChoreIdsByDisplayName(const FText& DisplayName) const;
 
-    //UPROPERTY(BlueprintAssignable, Category = "Chore Manager|Events")
-    //FOnChoreReactivated OnChoreReactivated;
+    // ---- Время выполнения ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query|Time")
+    float GetChoreElapsedTime(FName ChoreId) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query|Time")
+    FDateTime GetChoreStartTime(FName ChoreId) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore Manager|Time")
+    void SetChoreElapsedTime(FName ChoreId, float ElapsedSeconds);
+
+    UFUNCTION(BlueprintCallable, Category = "Chore Manager|Time")
+    void SetChoreStartTime(FName ChoreId, FDateTime InStartTime);
+
+    // ---- Расширенные запросы истории ----
+
+// Было ли задание когда-либо успешно выполнено?
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    bool WasChoreEverCompleted(FName ChoreId) const;
+
+    // Последний результат задания (Default, если записей нет)
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    EOutcomeChore GetLastOutcome(FName ChoreId) const;
+
+    // Последняя зафиксированная производительность задания
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    FChorePerformanceMetrics GetLastPerformance(FName ChoreId) const;
+
+    // Универсальный счётчик: фильтр по (ChoreId | Family | Subtype) + опционально по Result.
+    // bRequireSpecificResult = false → считает все записи, попадающие под фильтр (TotalAttempts).
+    int32 GetHistoryCountByResult(
+        FName ChoreId,
+        EChoreFamily Family,
+        EChoreSubtype Subtype,
+        bool bUseFamily,
+        bool bUseSubtype,
+        EOutcomeChore RequiredResult,
+        bool bRequireSpecificResult) const;
+
+    // Сколько раз задание/семейство/подтип было успешно завершено
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    int32 GetSuccessCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
+        bool bUseFamily, bool bUseSubtype) const;
+
+    // Сколько раз провалено (FailRequest)
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    int32 GetFailureCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
+        bool bUseFamily, bool bUseSubtype) const;
+
+    // Сколько раз истекло по таймауту (ExpireRequest)
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    int32 GetExpireCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
+        bool bUseFamily, bool bUseSubtype) const;
+
+    // Сколько раз отменено игроком (AbandonRequest)
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    int32 GetAbandonCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
+        bool bUseFamily, bool bUseSubtype) const;
+
+    // Любая неудача = Fail + Expire + Abandon
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    int32 GetAnyFailureCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
+        bool bUseFamily, bool bUseSubtype) const;
+
+    // Общее число попыток (все результаты) — знаменатель для win-rate
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    int32 GetTotalAttempts(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
+        bool bUseFamily, bool bUseSubtype) const;
+
+    // Лучшая производительность с опциональным фильтром «только успешные».
+    // Существующий GetBestPerformance не трогаем, чтобы не ломать Condition Assets.
+    float GetBestPerformanceFiltered(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
+        bool bUseFamily, bool bUseSubtype, const FString& MetricName, bool bSucceededOnly) const;
 
     // ---- Методы для условий истории (используются из Condition Assets) ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     float GetBestPerformance(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, const FString& MetricName) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     bool GetLastResult(FName ChoreId) const;
 
     // ---- Регистрация определений (вызывается внутри) ----
@@ -144,7 +204,7 @@ protected:
     void AcceptChore(FName ChoreId);
     void StartChore(FName ChoreId);
     void CompleteChore(FName ChoreId, const FChorePerformanceMetrics& Performance);
-    void FailChore(FName ChoreId);
+    void FailChore(FName ChoreId, const FChorePerformanceMetrics& Performance);
     void ExpireChore(FName ChoreId);
     void AbandonChore(FName ChoreId);
     void RetryChore(FName ChoreId);
@@ -186,6 +246,9 @@ private:
     // ---- Вспомогательные функции для создания условий ----
     UOutcomeConditionAsset* CreateSimpleChoreCondition(EOutcomeChore ChoreType);
     UOutcomeConditionAsset* CreateSimpleMissionCondition(EOutcomeMission MissionType);
+
+    // Заполняет State.Performance.CompletionTimeSeconds, если оно ещё не задано
+    void EnsureElapsedTimeRecorded(FChoreState& State) const;
 
     // ---- Состояние ----
     UPROPERTY()
