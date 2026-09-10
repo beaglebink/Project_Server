@@ -140,29 +140,63 @@ void AA_Dishes::Tick(float DeltaTime)
 	DeltaLocation = GetActorLocation() - PrevLocation;
 	PrevLocation = GetActorLocation();
 
-	float DeltaLength = DeltaLocation.Length();
-	float DirectionCheck = FVector::DotProduct(DeltaLocation.GetSafeNormal(), FVector(0.0f, 0.0f, 1.0f));
-	if (DeltaLength > 1.0f && DirectionCheck > 0.9f)
+	if (IsACookWare && RecipeRequirements.Num() > 0)
 	{
-		DeltaLengthAccum += DeltaLength;
-	}
-	else if (DeltaLengthAccum >= 15.0f)
-	{
-		for (AA_Cookable* Ingredient : Ingredients)
+		float CurrentTime = GetWorld()->GetTimeSeconds();
+		float DeltaLength = DeltaLocation.Length();
+		float DirectionCheck = FVector::DotProduct(DeltaLocation.GetSafeNormal(), FVector(0.0f, 0.0f, 1.0f));
+		if (DeltaLength > 1.0f && (DirectionCheck > 0.9f || FMath::IsNearlyZero(DirectionCheck, 0.1f)))
 		{
-			/*Ingredient->bWasTossed = true;*/
+			DeltaLengthAccum += DeltaLength;
 		}
-		if (bShowCookingDebug)
+		else if (DeltaLengthAccum >= 15.0f)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("Tossed")));
-		}
-		DeltaLengthAccum = 0.0f;
-	}
-	else
-	{
-		DeltaLengthAccum = 0.0f;
-	}
+			if (CurrentTime - LastTossOrMoveTime > 5.0f)
+			{
+				FRecipeRequirement TossOrMoveEvent;
+				TossOrMoveEvent.RequirementTag = TAG_Cooking_WokMovements;
+				TossOrMoveEvent.WokMovementStep.WokMovementQuantity = 1;
+				TossOrMoveEvent.RequirementStartTime = CookingTimerValue;
+				RecipeRequirements.Add(TossOrMoveEvent);
+				if (bShowCookingDebug)
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("Tossed or moved")));
+				}
+			}
+			else
+			{
+				int32 Index = RecipeRequirements.FindLast(FRecipeRequirement(TAG_Cooking_WokMovements));
+				if (Index != -1)
+				{
+					++RecipeRequirements[Index].WokMovementStep.WokMovementQuantity;
+					if (bShowCookingDebug)
+					{
+						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("Tossed or moved %d"), RecipeRequirements[Index].WokMovementStep.WokMovementQuantity));
+					}
+				}
+				else
+				{
+					FRecipeRequirement TossOrMoveEvent;
+					TossOrMoveEvent.RequirementTag = TAG_Cooking_WokMovements;
+					TossOrMoveEvent.WokMovementStep.WokMovementQuantity = 1;
+					TossOrMoveEvent.RequirementStartTime = CookingTimerValue;
+					RecipeRequirements.Add(TossOrMoveEvent);
 
+					if (bShowCookingDebug)
+					{
+						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("Tossed or moved")));
+					}
+				}
+			}
+			LastTossOrMoveTime = CurrentTime;
+			DeltaLengthAccum = 0.0f;
+
+		}
+		else
+		{
+			DeltaLengthAccum = 0.0f;
+		}
+	}
 
 	//Find lowest edge point to pour liquid
 	SpringArmToEdge->SetWorldRotation((GetActorUpVector().Cross(FVector(0.0f, 0.0f, 1.0f)).Cross(GetActorUpVector()) * (-1.0f)).Rotation());
@@ -180,6 +214,8 @@ void AA_Dishes::Tick(float DeltaTime)
 void AA_Dishes::BeginPlay()
 {
 	Super::BeginPlay();
+
+	PrevLocation = GetActorLocation();
 
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
@@ -263,10 +299,6 @@ void AA_Dishes::BeginPlay()
 
 					Ingredients.RemoveAt(i);
 				}
-			}
-			if (Ingredients.Num() == 0)
-			{
-				ResetCookingSession();
 			}
 
 			UpdateCookingSession();
@@ -522,7 +554,7 @@ bool AA_Dishes::CheckIfCooked()
 		}
 		else
 		{
-			// bonus --;
+			TossBonusMultiplier = 1.0f;
 			break;
 		}
 	}
@@ -1106,23 +1138,23 @@ void AA_Dishes::UpdateCookingSession()
 		return;
 	}
 
-	bCurrentHasIngredientsState = Ingredients.Num() > 0;
-	if (!bPrevHasIngredientsState && bCurrentHasIngredientsState && HeatingLevel != EHeatingLevel::None)
+	bIsCooking = RecipeRequirements.Num() > 0;
+	if (!bPrevCookingState && bIsCooking && HeatingLevel != EHeatingLevel::None)
 	{
 		CookingTimerValue = 0.0f;
 		SetCookingTimerValue(FMath::FloorToInt(CookingTimerValue));
 		SetCookingTimerVisibility(true);
 	}
-	if (bPrevHasIngredientsState && bCurrentHasIngredientsState && HeatingLevel != EHeatingLevel::None)
+	if (bPrevCookingState && bIsCooking && HeatingLevel != EHeatingLevel::None)
 	{
 		CookingTimerValue += 0.5f;
 		SetCookingTimerValue(FMath::FloorToInt(CookingTimerValue));
 	}
-	if (bPrevHasIngredientsState && !bCurrentHasIngredientsState)
+	if (bPrevCookingState && !bIsCooking)
 	{
 		SetCookingTimerVisibility(false);
 	}
-	bPrevHasIngredientsState = bCurrentHasIngredientsState;
+	bPrevCookingState = bIsCooking;
 }
 
 float AA_Dishes::CalculateTimingQualityPerPourMoment(float CurrentTime, FLiquidStep CurrentRecipeStep)
@@ -1151,8 +1183,11 @@ void AA_Dishes::ResetCookingSession()
 	LastLiquidTag = FGameplayTag::EmptyTag;
 	PrevStepIndexInRecipe = 0;
 	CurrentStepIndexInRecipe = 0;
+	bIsCooking = false;
+	bPrevCookingState = false;
 
 	LiquidStepsOnPour.Empty();
+	RecipeRequirements.Empty();
 }
 
 void AA_Dishes::UpdatePourVisual_TargetDish(const FGameplayTag& UpdateLiquidTag, float LiquidAmount, FLiquidStep RecipeLiquidStep)

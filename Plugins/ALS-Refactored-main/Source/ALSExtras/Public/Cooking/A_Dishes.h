@@ -246,12 +246,15 @@ private:
 
 	float DeltaLengthAccum = 0.0f;
 
+	float LastTossOrMoveTime = 0.0f;
+
 	//Check recipe
 	FRecipe CheckedRecipe;
 
 	TMap<FGameplayTag, FIngredientQuality> IngredientQualityMap;
 	TArray<FRecipeRequirement> MissingRequirements;
 
+	float TossBonusMultiplier = 1.15f;
 	float ExtraStepPenaltyMultiplier = 1.0f;
 	float DishQuality = 0.0f;
 	float LowestGroupQuality = 1.0f;
@@ -318,9 +321,9 @@ public:
 private:
 	FTimerHandle SteamSoundStopTimerHandle;
 
-	uint8 bPrevHasIngredientsState : 1{false};
+	uint8 bPrevCookingState : 1{false};
 
-	uint8 bCurrentHasIngredientsState : 1{false};
+	uint8 bIsCooking : 1{false};
 
 	float CookingTimerValue = 0.0f;
 
