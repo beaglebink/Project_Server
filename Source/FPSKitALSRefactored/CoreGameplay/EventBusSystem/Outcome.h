@@ -178,6 +178,6 @@ enum class EOutcomeChore : uint8
     UnlockRequest           UMETA(DisplayName = "Unlock Request"),
     RegisterChoreRequest    UMETA(DisplayName = "Register Chore Request"),
     UnregisterChoreRequest  UMETA(DisplayName = "Unregister Chore Request"),
-    ReacceptRequest      UMETA(DisplayName = "Re-accept Request"),
-    ChorePendingReaccept UMETA(DisplayName = "Chore Pending Re-accept")
+    ReacceptRequest         UMETA(DisplayName = "Re-accept Request"),
+    ChorePendingReaccept    UMETA(DisplayName = "Chore Pending Re-accept")
 };

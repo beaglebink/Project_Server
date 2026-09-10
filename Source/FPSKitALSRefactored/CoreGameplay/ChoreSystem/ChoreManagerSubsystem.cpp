@@ -36,8 +36,8 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     // ---- Командные события ----
     AcceptRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::AcceptRequest);
     StartRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::StartRequest);
-    CompleteRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::CompleteRequest);
-    FailRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::FailRequest);
+    CompleteRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ChoreSucceeded);
+    FailRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ChoreFailed);
     ExpireRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ExpireRequest);
     AbandonRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::AbandonRequest);
     RetryRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::RetryRequest);
@@ -292,7 +292,7 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
         {
         case EChoreStatus::Available:
         case EChoreStatus::Offered:
-            Event.OutcomeChore = bReactivated ? EOutcomeChore::ChoreReactivated : EOutcomeChore::ChoreOffered;
+            Event.OutcomeChore = bReactivated ? EOutcomeChore::ReacceptRequest : EOutcomeChore::ChoreOffered;
             break;
         case EChoreStatus::Accepted:
             Event.OutcomeChore = EOutcomeChore::ChoreAccepted;
@@ -629,7 +629,7 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
-    if (State.Status != EChoreStatus::RetryAvailable) return;
+    if (State.Status != EChoreStatus::PendingReaccept) return;
 
     State.bRewardIssued = false;
     State.Performance = FChorePerformanceMetrics();
@@ -1142,7 +1142,7 @@ void UChoreManagerSubsystem::HandleAbandonRequest(const FOutcomeEventBase& Outco
 
 void UChoreManagerSubsystem::HandleRetryRequest(const FOutcomeEventBase& Outcome)
 {
-    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    UChoreReacceptPayload* Payload = Cast<UChoreReacceptPayload>(Outcome.Payload);
     if (!Payload) return;
     RetryChore(Payload->ChoreId);
 }
