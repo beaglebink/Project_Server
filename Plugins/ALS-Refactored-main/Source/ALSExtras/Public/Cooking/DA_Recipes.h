@@ -28,22 +28,22 @@ struct FRecipeIngredient
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0))
 	int32 IdealChunkCountMax;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float CountTolerancePercent = 50.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f))
 	float TargetChunkSize;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float IdealSizeTolerancePercent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float MaximumSizeTolerancePercent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float IdealEvennessTolerancePercent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float MaximumEvennessTolerancePercent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0.0f))
@@ -153,9 +153,6 @@ struct FLiquidStep
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
 	float TimingScoreWeight = 0.35f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
-	float RecipeImportance = 0.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -174,9 +171,6 @@ struct FSpicesStep
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
 	float TimingScoreWeight = 0.35f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
-	float RecipeImportance = 0.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -184,11 +178,13 @@ struct FWokMovementStep
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0))
 	int32 WokMovementQuantity = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
-	float RecipeImportance = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0))
+	int32 WokMovementQuantityMin = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0))
+	int32 WokMovementQuantityMax = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -213,9 +209,6 @@ struct FIntervalStep
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
 	float TimingScoreWeight = 0.35f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
-	float RecipeImportance = 0.0f;
 };
 
 UENUM()
@@ -240,15 +233,20 @@ struct FRecipeRequirement
 	UPROPERTY()
 	ERecipeRequirementType RequirementType = ERecipeRequirementType::None;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, EditCondition = "RequirementType != ERecipeRequirementType::Liquid && RequirementType != ERecipeRequirementType::Interval", EditConditionHides))
 	float RequirementStartTime = 0.0f;
+	float RequirementEndTime = 0.0f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	uint8 bChecked : 1{false};
+
+	float StepQuality = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
+	float StepRecipeImportance = 0.0f;
 
 	// Requirement - Ingredient
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (EditCondition = "RequirementType == ERecipeRequirementType::Ingredient", EditConditionHides))
-	FRecipeIngredient Ingredient;
+	FRecipeIngredient IngredientStep;
 
 	// Requirement - Liquid
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (EditCondition = "RequirementType == ERecipeRequirementType::Liquid", EditConditionHides))
@@ -265,6 +263,11 @@ struct FRecipeRequirement
 	// Requirement - Interval
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (EditCondition = "RequirementType == ERecipeRequirementType::Interval", EditConditionHides))
 	FIntervalStep IntervalStep;
+
+	FORCEINLINE bool operator==(const FRecipeRequirement& Other) const
+	{
+		return RequirementTag.IsValid() && RequirementTag == Other.RequirementTag;
+	}
 };
 
 class AA_Cookable;
@@ -295,13 +298,13 @@ struct FRecipe
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
 	float ExtraRecipeIngredientPenaltyStrength = 0.85f;
 
-	FRecipeIngredient* FindIngredientByName(const FGameplayTag& IngredientTag)
+	FRecipeIngredient* FindIngredientByTag(const FGameplayTag& IngredientTag)
 	{
 		for (FRecipeRequirement& Requirement : Requirements)
 		{
-			if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Ingredients) && Requirement.Ingredient.IngredientTag == IngredientTag)
+			if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Ingredients) && Requirement.IngredientStep.IngredientTag == IngredientTag)
 			{
-				return &Requirement.Ingredient;
+				return &Requirement.IngredientStep;
 			}
 		}
 		return nullptr;
@@ -327,29 +330,26 @@ public:
 		{
 			for (FRecipeRequirement& Requirement : Recipe.Requirements)
 			{
-				//if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FRecipeRequirement, RequirementTag))
+				if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Ingredients))
 				{
-					if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Ingredients))
-					{
-						Requirement.RequirementType = ERecipeRequirementType::Ingredient;
-						Requirement.Ingredient.UpdatePreparationImportanceInfo();
-					}
-					else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Liquids))
-					{
-						Requirement.RequirementType = ERecipeRequirementType::Liquid;
-					}
-					else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Spices))
-					{
-						Requirement.RequirementType = ERecipeRequirementType::Spice;
-					}
-					else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_WokMovements))
-					{
-						Requirement.RequirementType = ERecipeRequirementType::WokMovement;
-					}
-					else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals))
-					{
-						Requirement.RequirementType = ERecipeRequirementType::Interval;
-					}
+					Requirement.RequirementType = ERecipeRequirementType::Ingredient;
+					Requirement.IngredientStep.UpdatePreparationImportanceInfo();
+				}
+				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Liquids))
+				{
+					Requirement.RequirementType = ERecipeRequirementType::Liquid;
+				}
+				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Spices))
+				{
+					Requirement.RequirementType = ERecipeRequirementType::Spice;
+				}
+				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_WokMovements))
+				{
+					Requirement.RequirementType = ERecipeRequirementType::WokMovement;
+				}
+				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals))
+				{
+					Requirement.RequirementType = ERecipeRequirementType::Interval;
 				}
 			}
 		}

@@ -323,7 +323,7 @@ void AA_Cookable::IngredientReceiveFocus(AActor* Actor)
 	//	FRecipe CurrentRecipe;
 	//	if (Character->GetCurrentRecipe(CurrentRecipe))
 	//	{
-	//		if (FRecipeIngredient* Ingredient = CurrentRecipe.FindIngredientByName(Name))
+	//		if (FRecipeIngredient* Ingredient = CurrentRecipe.FindIngredientByTag(IngredientTag))
 	//		{
 	//			if (UInteractiveItemComponent* InteractiveItemComp = FindComponentByClass<UInteractiveItemComponent>())
 	//			{

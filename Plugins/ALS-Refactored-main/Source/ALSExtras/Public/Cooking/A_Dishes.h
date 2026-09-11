@@ -196,7 +196,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 0.0f, DisplayName = "LiquidVolume (ml)"))
 	float LiquidVolume = 100.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PouringSettings", meta = (ClampMin = 1.0f, ClampMax = 5.0f))
 	float MinTimeToStartNewPourEvent = 3.0f;
 
 	UPROPERTY()
@@ -246,11 +246,17 @@ private:
 
 	float DeltaLengthAccum = 0.0f;
 
+	float LastTossOrMoveTime = 0.0f;
+
+	float TossBonusMultiplier = 1.0f;
+
 	//Check recipe
 	FRecipe CheckedRecipe;
 
 	TMap<FGameplayTag, FIngredientQuality> IngredientQualityMap;
+	TArray<FRecipeRequirement> MissingRequirements;
 
+	float ExtraStepPenaltyMultiplier = 1.0f;
 	float DishQuality = 0.0f;
 	float LowestGroupQuality = 1.0f;
 	float DishAverage = 0.0f;
@@ -316,9 +322,9 @@ public:
 private:
 	FTimerHandle SteamSoundStopTimerHandle;
 
-	uint8 bPrevHasIngredientsState : 1{false};
+	uint8 bPrevCookingState : 1{false};
 
-	uint8 bCurrentHasIngredientsState : 1{false};
+	uint8 bIsCooking : 1{false};
 
 	float CookingTimerValue = 0.0f;
 
@@ -333,8 +339,6 @@ public:
 
 	//Pour events registration
 private:
-	FRecipe CurrentRecipe = FRecipe();
-
 	float TotalAmountAddedPerStep = 0.0f;
 
 	float PrevPourTime = 0.0f;
@@ -349,9 +353,7 @@ private:
 
 	FGameplayTag LastLiquidTag;
 
-	int32 PrevStepIndexInRecipe = 0;
-
-	int32 CurrentStepIndexInRecipe = 0;
+	int32 CurrentStepIndexInRecipe = -1;
 
 	float CalculateTimingQualityPerPourMoment(float CurrentTime, FLiquidStep CurrentRecipeStep);
 
