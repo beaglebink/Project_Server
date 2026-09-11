@@ -24,8 +24,8 @@ static UMissionSubsystem* GetMissionSubsystem()
         }
     }
     return nullptr;
-
 }
+
 FName UMissionConditionAsset::GetEffectiveMissionId() const
 {
     if (MissionAsset)
@@ -56,8 +56,8 @@ void UMissionConditionAsset::CompileCondition()
             if (Outcome.OutcomeType != EOutcomeType::Mission)
                 return false;
 
-            // Для StepReached не фильтруем по подтипу, чтобы проверять при любом событии Mission
-            // Для остальных – фильтруем по подтипу
+            // Для StepReached не фильтруем по подтипу, чтобы проверять при любом событии Mission.
+            // Для остальных — фильтруем по подтипу.
             switch (Asset->ConditionType)
             {
             case EMissionConditionType::IsCompleted:
@@ -78,23 +78,26 @@ void UMissionConditionAsset::CompileCondition()
 
         virtual FString Describe() const override
         {
-            if (Asset)
-            {
-                FString TypeName;
-                switch (Asset->ConditionType)
-                {
-                case EMissionConditionType::IsCompleted:   TypeName = TEXT("Completed"); break;
-                case EMissionConditionType::IsFailed:      TypeName = TEXT("Failed"); break;
-                case EMissionConditionType::IsAbandoned:   TypeName = TEXT("Abandoned"); break;
-                case EMissionConditionType::StepReached:   TypeName = FString::Printf(TEXT("Step %d"), Asset->StepIndex); break;
-                default: TypeName = TEXT("Unknown");
-                }
-                return FString::Printf(TEXT("Mission %s: %s"),
-                    *Asset->GetDisplayName().ToString(), *TypeName);
-            }
-            return TEXT("Invalid");
-        }
+            if (!Asset) return TEXT("Mission: Invalid");
 
+            const FString MissionName = Asset->MissionAsset
+                ? Asset->MissionAsset->GetMissionId().ToString()
+                : TEXT("None");
+
+            const FString CondStr = StaticEnum<EMissionConditionType>()
+                ->GetValueAsString(Asset->ConditionType);
+
+            if (Asset->ConditionType == EMissionConditionType::StepReached)
+            {
+                return FString::Printf(TEXT("Mission: %s [%s] %s %d"),
+                    *MissionName,
+                    *CondStr,
+                    *StaticEnum<ECheckCompareOp>()->GetValueAsString(Asset->CompareOp),
+                    Asset->StepIndex);
+            }
+
+            return FString::Printf(TEXT("Mission: %s [%s]"), *MissionName, *CondStr);
+        }
     private:
         const UMissionConditionAsset* Asset;
     };
@@ -127,7 +130,7 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
         switch (ConditionType)
         {
         case EMissionConditionType::IsCompleted: requiredReason = EMissionEndReason::Completed; break;
-        case EMissionConditionType::IsFailed:    requiredReason = EMissionEndReason::Failed; break;
+        case EMissionConditionType::IsFailed:    requiredReason = EMissionEndReason::Failed;    break;
         case EMissionConditionType::IsAbandoned: requiredReason = EMissionEndReason::Abandoned; break;
         default: return false;
         }

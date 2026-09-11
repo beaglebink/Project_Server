@@ -32,15 +32,14 @@ void UMissionActiveConditionAsset::CompileCondition()
 
         virtual FString Describe() const override
         {
-            if (Asset)
+            if (Asset && Asset->MissionAsset)
             {
-                return FString::Printf(TEXT("Mission %s is %s"),
-                    *Asset->GetDisplayName().ToString(),
-                    Asset->ExpectedActive ? TEXT("Active") : TEXT("Not Active"));
+                return FString::Printf(TEXT("MissionActive: %s (Expected=%s)"),
+                    *Asset->MissionAsset->GetMissionId().ToString(),
+                    Asset->ExpectedActive ? TEXT("true") : TEXT("false"));
             }
-            return TEXT("Invalid");
+            return TEXT("MissionActive: Invalid");
         }
-
     private:
         const UMissionActiveConditionAsset* Asset;
     };

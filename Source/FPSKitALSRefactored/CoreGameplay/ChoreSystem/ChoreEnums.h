@@ -56,3 +56,12 @@ enum class EChoreHistoryQueryType : uint8
     BestPerformance    UMETA(DisplayName = "Best Performance (specific metric)"),
     LastResult         UMETA(DisplayName = "Last Result (Success/Fail)")
 };
+
+UENUM(BlueprintType)
+enum class EChorePerformanceMetric : uint8
+{
+    CompletionTimeSeconds   UMETA(DisplayName = "Completion Time (sec, lower is better)"),
+    Mistakes                UMETA(DisplayName = "Mistakes (lower is better)"),
+    Accuracy                UMETA(DisplayName = "Accuracy (higher is better)"),
+    Quantity                UMETA(DisplayName = "Quantity (higher is better)")
+};

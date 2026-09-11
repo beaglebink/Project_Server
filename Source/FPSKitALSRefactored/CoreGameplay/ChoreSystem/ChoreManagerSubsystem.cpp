@@ -811,6 +811,33 @@ void UChoreManagerSubsystem::EnsureElapsedTimeRecorded(FChoreState& State) const
     }
 }
 
+float UChoreManagerSubsystem::ExtractMetricValue(const FChorePerformanceMetrics& Perf, EChorePerformanceMetric Metric)
+{
+    switch (Metric)
+    {
+    case EChorePerformanceMetric::CompletionTimeSeconds: return Perf.CompletionTimeSeconds;
+    case EChorePerformanceMetric::Mistakes:              return Perf.Mistakes;
+    case EChorePerformanceMetric::Accuracy:              return Perf.Accuracy;
+    case EChorePerformanceMetric::Quantity:              return Perf.Quantity;
+    default:                                             return 0.0f;
+    }
+}
+
+bool UChoreManagerSubsystem::IsLowerBetterForMetric(EChorePerformanceMetric Metric)
+{
+    switch (Metric)
+    {
+    case EChorePerformanceMetric::CompletionTimeSeconds:
+    case EChorePerformanceMetric::Mistakes:
+        return true;
+    case EChorePerformanceMetric::Accuracy:
+    case EChorePerformanceMetric::Quantity:
+        return false;
+    default:
+        return false;
+    }
+}
+
 TArray<FName> UChoreManagerSubsystem::GetSucceededChoreIds() const
 {
     TArray<FName> Result;
@@ -934,11 +961,13 @@ int32 UChoreManagerSubsystem::GetTotalAttempts(FName ChoreId, EChoreFamily Famil
         EOutcomeChore::Default, /*bRequireSpecificResult=*/false);
 }
 
-float UChoreManagerSubsystem::GetBestPerformanceFiltered(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
-    bool bUseFamily, bool bUseSubtype, const FString& MetricName, bool bSucceededOnly) const
+float UChoreManagerSubsystem::GetBestPerformanceFiltered(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, EChorePerformanceMetric Metric, bool bSucceededOnly) const
 {
+    const bool bLowerIsBetter = IsLowerBetterForMetric(Metric);
+
     float Best = 0.0f;
     bool bFirst = true;
+
     for (const FChoreHistoryEntry& Entry : History)
     {
         if (!ChoreId.IsNone() && Entry.ChoreId != ChoreId) continue;
@@ -948,23 +977,16 @@ float UChoreManagerSubsystem::GetBestPerformanceFiltered(FName ChoreId, EChoreFa
         {
             UChoreDefinition* Def = GetChoreDefinition(Entry.ChoreId);
             if (!Def) continue;
-            if (bUseFamily && Def->Family != Family) continue;
+            if (bUseFamily && Def->Family != Family)  continue;
             if (bUseSubtype && Def->Subtype != Subtype) continue;
         }
 
-        float Value = 0.0f;
-        if (MetricName == TEXT("CompletionTimeSeconds")) Value = Entry.Performance.CompletionTimeSeconds;
-        else if (MetricName == TEXT("Mistakes"))         Value = Entry.Performance.Mistakes;
-        else if (MetricName == TEXT("Accuracy"))         Value = Entry.Performance.Accuracy;
-        else if (MetricName == TEXT("Quantity"))         Value = Entry.Performance.Quantity;
-        else continue;
+        const float Value = ExtractMetricValue(Entry.Performance, Metric);
 
-        // Для времени лучший результат — минимальный, для остальных — максимальный.
-        const bool bLowerIsBetter = (MetricName == TEXT("CompletionTimeSeconds") ||
-            MetricName == TEXT("Mistakes"));
         if (bFirst) { Best = Value; bFirst = false; }
         else if (bLowerIsBetter ? (Value < Best) : (Value > Best)) Best = Value;
     }
+
     return Best;
 }
 
@@ -999,30 +1021,37 @@ int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family
     return Count;
 }
 
-float UChoreManagerSubsystem::GetBestPerformance(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, const FString& MetricName) const
+float UChoreManagerSubsystem::GetBestPerformance(
+    FName ChoreId,
+    EChoreFamily Family,
+    EChoreSubtype Subtype,
+    bool bUseFamily,
+    bool bUseSubtype,
+    EChorePerformanceMetric Metric) const
 {
+    const bool bLowerIsBetter = IsLowerBetterForMetric(Metric);
+
     float Best = 0.0f;
     bool bFirst = true;
+
     for (const FChoreHistoryEntry& Entry : History)
     {
         if (!ChoreId.IsNone() && Entry.ChoreId != ChoreId) continue;
+
         if (bUseFamily || bUseSubtype)
         {
             UChoreDefinition* Def = GetChoreDefinition(Entry.ChoreId);
             if (!Def) continue;
-            if (bUseFamily && Def->Family != Family) continue;
+            if (bUseFamily && Def->Family != Family)  continue;
             if (bUseSubtype && Def->Subtype != Subtype) continue;
         }
 
-        float Value = 0.0f;
-        if (MetricName == TEXT("CompletionTimeSeconds")) Value = Entry.Performance.CompletionTimeSeconds;
-        else if (MetricName == TEXT("Mistakes")) Value = Entry.Performance.Mistakes;
-        else if (MetricName == TEXT("Accuracy")) Value = Entry.Performance.Accuracy;
-        else if (MetricName == TEXT("Quantity")) Value = Entry.Performance.Quantity;
-        else continue;
+        const float Value = ExtractMetricValue(Entry.Performance, Metric);
 
-        if (bFirst || Value > Best) { Best = Value; bFirst = false; }
+        if (bFirst) { Best = Value; bFirst = false; }
+        else if (bLowerIsBetter ? (Value < Best) : (Value > Best)) Best = Value;
     }
+
     return Best;
 }
 

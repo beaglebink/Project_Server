@@ -32,8 +32,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History")
     int32 Threshold = 1;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History", meta = (EditCondition = "QueryType == EChoreHistoryQueryType::BestPerformance"))
-    FName PerformanceMetricName;
+    // ---- НОВОЕ: метрика выбирается из списка ----
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History",
+        meta = (EditCondition = "QueryType == EChoreHistoryQueryType::BestPerformance"))
+    EChorePerformanceMetric Metric = EChorePerformanceMetric::CompletionTimeSeconds;
+
+    // ---- Legacy-поле (для миграции старых ассетов). Скрыто из UI. ----
+    UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Metric instead."))
+    FName PerformanceMetricName_DEPRECATED;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History")
     ECheckCompareOp CompareOp = ECheckCompareOp::GreaterOrEqual;
@@ -47,4 +53,10 @@ public:
 
     // Метод проверки условия (вызывается из скомпилированного условия)
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
+
+#if WITH_EDITOR
+    // Автомиграция старого поля в новый enum при загрузке/изменении ассета.
+    virtual void PostLoad() override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& Event) override;
+#endif
 };

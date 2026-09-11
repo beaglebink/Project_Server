@@ -3,6 +3,17 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
+// ---- Утилита миграции (используется в PostLoad/PostEditChangeProperty) ----
+static EChorePerformanceMetric MetricFromLegacyName(const FName& LegacyName)
+{
+    if (LegacyName == TEXT("Mistakes"))              return EChorePerformanceMetric::Mistakes;
+    if (LegacyName == TEXT("Accuracy"))              return EChorePerformanceMetric::Accuracy;
+    if (LegacyName == TEXT("Quantity"))              return EChorePerformanceMetric::Quantity;
+    if (LegacyName == TEXT("CompletionTimeSeconds")) return EChorePerformanceMetric::CompletionTimeSeconds;
+    // По умолчанию — самая «естественная» метрика для истории хор.
+    return EChorePerformanceMetric::CompletionTimeSeconds;
+}
+
 void UChoreHistoryConditionAsset::CompileCondition()
 {
     class FChoreHistoryCondition : public IOutcomeCondition
@@ -18,9 +29,16 @@ void UChoreHistoryConditionAsset::CompileCondition()
             if (Asset)
             {
                 FString FilterDesc = Asset->GetFilterDescription();
-                return FString::Printf(TEXT("ChoreHistory: %s (%s) %s %d"),
+                FString MetricDesc;
+                if (Asset->QueryType == EChoreHistoryQueryType::BestPerformance)
+                {
+                    MetricDesc = FString::Printf(TEXT("[%s] "),
+                        *StaticEnum<EChorePerformanceMetric>()->GetValueAsString(Asset->Metric));
+                }
+                return FString::Printf(TEXT("ChoreHistory: %s (%s) %s%s %d"),
                     *StaticEnum<EChoreHistoryQueryType>()->GetValueAsString(Asset->QueryType),
                     *FilterDesc,
+                    *MetricDesc,
                     *StaticEnum<ECheckCompareOp>()->GetValueAsString(Asset->CompareOp),
                     Asset->Threshold);
             }
@@ -105,7 +123,8 @@ bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Out
         break;
     case EChoreHistoryQueryType::BestPerformance:
     {
-        float Best = ChoreManager->GetBestPerformance(ChoreId, Family, Subtype, bUseFamily, bUseSubtype, PerformanceMetricName.ToString());
+        // ---- НОВОЕ: передаём enum вместо строки ----
+        float Best = ChoreManager->GetBestPerformance(ChoreId, Family, Subtype, bUseFamily, bUseSubtype, Metric);
         ActualValue = FMath::RoundToInt(Best);
         break;
     }
@@ -130,3 +149,33 @@ bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Out
     default: return false;
     }
 }
+
+// ---- Миграция старого FName-поля в новый enum ----
+#if WITH_EDITOR
+void UChoreHistoryConditionAsset::PostLoad()
+{
+    Super::PostLoad();
+
+    // Если старое поле задано — переносим значение в Metric и очищаем legacy.
+    if (!PerformanceMetricName_DEPRECATED.IsNone())
+    {
+        Metric = MetricFromLegacyName(PerformanceMetricName_DEPRECATED);
+        PerformanceMetricName_DEPRECATED = NAME_None;
+        // Помечаем пакет как изменённый, чтобы при следующем сохранении ассета
+        // значение ушло в Metric.
+        MarkPackageDirty();
+    }
+}
+
+void UChoreHistoryConditionAsset::PostEditChangeProperty(FPropertyChangedEvent& Event)
+{
+    Super::PostEditChangeProperty(Event);
+
+    // На случай, если legacy-поле откуда-то появилось в редакторе — тоже мигрируем.
+    if (!PerformanceMetricName_DEPRECATED.IsNone())
+    {
+        Metric = MetricFromLegacyName(PerformanceMetricName_DEPRECATED);
+        PerformanceMetricName_DEPRECATED = NAME_None;
+    }
+}
+#endif

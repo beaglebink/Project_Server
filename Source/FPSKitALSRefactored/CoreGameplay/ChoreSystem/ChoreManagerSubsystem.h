@@ -179,15 +179,16 @@ public:
 
     // Лучшая производительность с опциональным фильтром «только успешные».
     // Существующий GetBestPerformance не трогаем, чтобы не ломать Condition Assets.
-    float GetBestPerformanceFiltered(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
-        bool bUseFamily, bool bUseSubtype, const FString& MetricName, bool bSucceededOnly) const;
+    float GetBestPerformanceFiltered(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, EChorePerformanceMetric Metric, bool bSucceededOnly) const;
 
     // ---- Методы для условий истории (используются из Condition Assets) ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
-    float GetBestPerformance(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, const FString& MetricName) const;
+    // ---- Лучшая производительность по выбранной метрике ----
+    // Направление оптимизации задаётся самим enum (см. IsLowerBetterForMetric).
+    float GetBestPerformance(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, EChorePerformanceMetric Metric) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     bool GetLastResult(FName ChoreId) const;
@@ -249,6 +250,12 @@ private:
 
     // Заполняет State.Performance.CompletionTimeSeconds, если оно ещё не задано
     void EnsureElapsedTimeRecorded(FChoreState& State) const;
+
+    // Извлекает значение метрики из записи истории.
+    static float ExtractMetricValue(const FChorePerformanceMetrics& Perf, EChorePerformanceMetric Metric);
+
+    // true для метрик, где «лучше» = меньше (время, ошибки).
+    static bool IsLowerBetterForMetric(EChorePerformanceMetric Metric);
 
     // ---- Состояние ----
     UPROPERTY()
