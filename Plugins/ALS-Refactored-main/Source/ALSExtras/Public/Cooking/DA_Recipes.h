@@ -16,7 +16,7 @@ struct FRecipeIngredient
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "CookingSettings")
 	FGameplayTag IngredientTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CookingSettings", meta = (ClampMin = 0))
@@ -118,7 +118,7 @@ struct FLiquidStep
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FGameplayTag LiquidTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "TargetAmount (ml)"))
@@ -160,7 +160,7 @@ struct FSpicesStep
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FGameplayTag SpicesTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "EarlyTolerance (s)"))
@@ -233,16 +233,18 @@ struct FRecipeRequirement
 	UPROPERTY()
 	ERecipeRequirementType RequirementType = ERecipeRequirementType::None;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, EditCondition = "RequirementType != ERecipeRequirementType::WokMovement", EditConditionHides))
+	float RecipeImportance = 0.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, EditCondition = "RequirementType != ERecipeRequirementType::Liquid && RequirementType != ERecipeRequirementType::Interval", EditConditionHides))
 	float RequirementStartTime = 0.0f;
 	float RequirementEndTime = 0.0f;
 
 	uint8 bChecked : 1{false};
 
-	float StepQuality = 0.0f;
+	uint8 bCheckedOnPour : 1{false};
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
-	float StepRecipeImportance = 0.0f;
+	float StepQuality = 0.0f;
 
 	// Requirement - Ingredient
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (EditCondition = "RequirementType == ERecipeRequirementType::Ingredient", EditConditionHides))
@@ -333,15 +335,18 @@ public:
 				if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Ingredients))
 				{
 					Requirement.RequirementType = ERecipeRequirementType::Ingredient;
+					Requirement.IngredientStep.IngredientTag = Requirement.RequirementTag;
 					Requirement.IngredientStep.UpdatePreparationImportanceInfo();
 				}
 				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Liquids))
 				{
 					Requirement.RequirementType = ERecipeRequirementType::Liquid;
+					Requirement.LiquidStep.LiquidTag = Requirement.RequirementTag;
 				}
 				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Spices))
 				{
 					Requirement.RequirementType = ERecipeRequirementType::Spice;
+					Requirement.SpicesStep.SpicesTag = Requirement.RequirementTag;
 				}
 				else if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_WokMovements))
 				{

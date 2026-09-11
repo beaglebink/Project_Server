@@ -251,7 +251,7 @@ private:
 	float TossBonusMultiplier = 1.0f;
 
 	//Check recipe
-	FRecipe CheckedRecipe;
+	FRecipe CheckedRecipe = FRecipe();
 
 	TMap<FGameplayTag, FIngredientQuality> IngredientQualityMap;
 	TArray<FRecipeRequirement> MissingRequirements;
@@ -260,6 +260,7 @@ private:
 	float DishQuality = 0.0f;
 	float LowestGroupQuality = 1.0f;
 	float DishAverage = 0.0f;
+	float MissingStepImportanceSummary = 0.0f;
 	float MissingPieceDeduction = 0.0f;
 
 	uint8 bPrevPlateState : 1{false};
@@ -345,15 +346,9 @@ private:
 
 	float CurrentPourTime = 0.0f;
 
-	float CurrentBoundaryTime = 0.0f;
-
-	float CurrentLiquidStepEndTime = 0.0f;
-
-	float NextLiquidStepStartTime = 0.0f;
-
 	FGameplayTag LastLiquidTag;
 
-	int32 CurrentStepIndexInRecipe = -1;
+	FRecipeRequirement* CurrentRecipeRequirement = nullptr;
 
 	float CalculateTimingQualityPerPourMoment(float CurrentTime, FLiquidStep CurrentRecipeStep);
 

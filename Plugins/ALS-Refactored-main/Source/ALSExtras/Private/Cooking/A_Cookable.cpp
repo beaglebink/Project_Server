@@ -121,7 +121,6 @@ void AA_Cookable::HandleCutting_Implementation(UPARAM(ref)FHitResult& Hit, FVect
 		NewPiece->UndercookTolerance = UndercookTolerance;
 		NewPiece->OvercookTolerance = OvercookTolerance;
 		NewPiece->CookRate = CookRate;
-		NewPiece->RecipeImportance = RecipeImportance;
 		NewPiece->CriticalRawThreshold = CriticalRawThreshold;
 		NewPiece->CriticalBurnThreshold = CriticalBurnThreshold;
 		NewPiece->WorstChunkInfluence = WorstChunkInfluence;
