@@ -172,3 +172,37 @@ public:
         return this;
     }
 };
+
+// Payload для команды advance/нотификации о смене стадии
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreStagePayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
+    FName ChoreId;
+
+    // При отправке: индекс новой стадии.
+    // При нотификации: текущий индекс.
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
+    int32 StageIndex = 0;
+
+    // Заполняется менеджером при нотификации.
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
+    FName StageKey;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
+    int32 TotalStages = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
+    FText StageDisplayName;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore|Stage")
+    UChoreStagePayload* Setup(FName InChoreId, int32 InStageIndex)
+    {
+        ChoreId = InChoreId;
+        StageIndex = InStageIndex;
+        return this;
+    }
+};

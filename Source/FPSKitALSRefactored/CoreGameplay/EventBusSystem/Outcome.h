@@ -179,5 +179,14 @@ enum class EOutcomeChore : uint8
     RegisterChoreRequest    UMETA(DisplayName = "Register Chore Request"),
     UnregisterChoreRequest  UMETA(DisplayName = "Unregister Chore Request"),
     ReacceptRequest         UMETA(DisplayName = "Re-accept Request"),
-    ChorePendingReaccept    UMETA(DisplayName = "Chore Pending Re-accept")
+    ChorePendingReaccept    UMETA(DisplayName = "Chore Pending Re-accept"),
+    // ---- Команды от миниигры (аналог AcceptRequest/StartRequest/...) ----
+    AdvanceStageRequest     UMETA(DisplayName = "Advance Stage Request"),
+    PauseRequest            UMETA(DisplayName = "Pause Request"),
+    ResumeRequest           UMETA(DisplayName = "Resume Request"),
+
+    // ---- Нотификации от Chore Manager ----
+    ChoreStageAdvanced      UMETA(DisplayName = "Chore Stage Advanced"),
+    ChorePaused             UMETA(DisplayName = "Chore Paused"),
+    ChoreResumed            UMETA(DisplayName = "Chore Resumed")
 };

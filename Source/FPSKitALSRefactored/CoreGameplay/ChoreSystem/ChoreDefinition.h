@@ -7,6 +7,35 @@
 #include "ChoreDefinition.generated.h"
 
 USTRUCT(BlueprintType)
+struct FChoreStageDefinition
+{
+    GENERATED_BODY()
+
+    // Уникальный стабильный ключ стадии.
+    // Используется в условиях, сейвах, навигации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
+    FName StageKey;
+
+    // Имя для UI (например, "Забрать посылку").
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
+    FText DisplayName;
+
+    // Описание для UI (опционально).
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
+    FText Description;
+
+    // Опциональная метка локации/бизнеса/маркера для навигации.
+    // Миниигра и UI сами решают, как её интерпретировать.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
+    FName LocationTag;
+
+    // Флаг: стадия сопровождается экраном перехода / анимацией / телепортом.
+    // Используется UI/режиссурой, сам Chore Manager его не трактует.
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
+    //bool bRequiresTransition = false;
+};
+
+USTRUCT(BlueprintType)
 struct FChoreRewardSet
 {
     GENERATED_BODY()
@@ -61,6 +90,13 @@ public:
     // Ссылка на ассет с конфигурацией мини-игры (префаб, уровень, BP и т.п.)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Setup")
     TSoftObjectPtr<UObject> ChoreSetup;
+
+    // ---- Стадии (multi-stage chores) ----
+    // Пустой массив = single-stage chore (одна неявная стадия).
+    // Порядок элементов соответствует индексам, которые миниигра шлёт
+    // в AdvanceStageRequest.StageIndex.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stages")
+    TArray<FChoreStageDefinition> Stages;
 
     // ---- Доступность ----
     // Условие, при котором задание становится доступным

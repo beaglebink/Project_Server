@@ -24,7 +24,6 @@ struct FChoreState
     UPROPERTY()
     FDateTime AcceptTime;
 
-    // ---- НОВОЕ: фактическое время начала выполнения (переход в Active) ----
     UPROPERTY()
     FDateTime StartTime;
 
@@ -42,6 +41,23 @@ struct FChoreState
 
     UPROPERTY()
     bool bRewardIssued = false;
+
+    // ---- Стадии ----
+    UPROPERTY()
+    int32 CurrentStageIndex = 0;
+
+    UPROPERTY()
+    FName CurrentStageKey;
+
+    // ---- Pause ----
+    UPROPERTY()
+    bool bIsPaused = false;
+
+    UPROPERTY()
+    FDateTime PauseStartTime;
+
+    UPROPERTY()
+    FTimespan AccumulatedPauseTime;
 
     FOutcomeHandlerHandle AvailabilityHandler;
     FOutcomeHandlerHandle ReactivationHandler;
@@ -193,6 +209,29 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     bool GetLastResult(FName ChoreId) const;
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
+    int32 GetChoreCurrentStage(FName ChoreId) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
+    int32 GetChoreTotalStages(FName ChoreId) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
+    FName GetChoreCurrentStageKey(FName ChoreId) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
+    bool IsChorePaused(FName ChoreId) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
+    bool IsChoreMultiStage(FName ChoreId) const;
+
+    // Возвращает authored-определение стадии (nullptr, если стадии нет).
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
+    bool GetChoreStageDefinition(FName ChoreId, int32 StageIndex, FChoreStageDefinition& OutStage) const;
+
+    // Возвращает определение текущей стадии хоры.
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
+    bool GetChoreCurrentStageDefinition(FName ChoreId, FChoreStageDefinition& OutStage) const;
+
     // ---- Регистрация определений (вызывается внутри) ----
     void RegisterChoreDefinition(UChoreDefinition* Definition);
 
@@ -227,6 +266,12 @@ protected:
     void RegisterReactivationHandler(UChoreDefinition* Definition);
     void UnregisterReactivationHandler(FName ChoreId);
 
+    // Принимает advance от миниигры. Возвращает true, если состояние изменено.
+    void AdvanceChoreStage(FName ChoreId, int32 NewStageIndex, FName NewStageKey);
+
+    void PauseChore(FName ChoreId);
+    void ResumeChore(FName ChoreId);
+
 private:
     // ---- Обработчики команд (подписаны на EventBus) ----
     void HandleAcceptRequest(const FOutcomeEventBase& Outcome);
@@ -243,6 +288,20 @@ private:
     void HandleRegisterChoreRequest(const FOutcomeEventBase& Outcome);
     void HandleUnregisterChoreRequest(const FOutcomeEventBase& Outcome);
     void HandleReacceptRequest(const FOutcomeEventBase& Outcome);
+    void HandleAdvanceStageRequest(const FOutcomeEventBase& Outcome);
+    void HandlePauseRequest(const FOutcomeEventBase& Outcome);
+    void HandleResumeRequest(const FOutcomeEventBase& Outcome);
+
+    FOutcomeHandlerHandle AdvanceStageRequestHandler;
+    FOutcomeHandlerHandle PauseRequestHandler;
+    FOutcomeHandlerHandle ResumeRequestHandler;
+
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> AdvanceStageRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> PauseRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> ResumeRequestCondition;
 
     // ---- Вспомогательные функции для создания условий ----
     UOutcomeConditionAsset* CreateSimpleChoreCondition(EOutcomeChore ChoreType);

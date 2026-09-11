@@ -46,6 +46,10 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     UnregisterChoreRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::UnregisterChoreRequest);
     ReacceptRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ReacceptRequest);
 
+    AdvanceStageRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::AdvanceStageRequest);
+    PauseRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::PauseRequest);
+    ResumeRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ResumeRequest);
+
     // ---- Регистрация обработчиков в EventBus ----
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
@@ -81,6 +85,12 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleUnregisterChoreRequest));
         ReacceptRequestHandler = EventBus->RegisterHandler(ReacceptRequestCondition,
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleReacceptRequest));
+        AdvanceStageRequestHandler = EventBus->RegisterHandler(AdvanceStageRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleAdvanceStageRequest));
+        PauseRequestHandler = EventBus->RegisterHandler(PauseRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandlePauseRequest));
+        ResumeRequestHandler = EventBus->RegisterHandler(ResumeRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleResumeRequest));
     }
 
     // ---- Регистрация в системе сохранения ----
@@ -113,6 +123,9 @@ void UChoreManagerSubsystem::Deinitialize()
         Unreg(RetryRequestHandler);
         Unreg(UnlockRequestHandler);
         Unreg(ReacceptRequestHandler);
+        Unreg(AdvanceStageRequestHandler);
+        Unreg(PauseRequestHandler);
+        Unreg(ResumeRequestHandler);
     }
 
     // Отписка обработчиков доступности
@@ -187,6 +200,10 @@ void UChoreManagerSubsystem::RegisterChoreDefinition(UChoreDefinition* Definitio
         FChoreState NewState;
         NewState.ChoreId = ChoreId;
         NewState.Status = EChoreStatus::Unavailable;
+        NewState.CurrentStageIndex = 0;
+        NewState.CurrentStageKey = Definition->Stages.IsEmpty()
+            ? NAME_None
+            : Definition->Stages[0].StageKey;
         ActiveStates.Add(ChoreId, NewState);
     }
 
@@ -600,6 +617,13 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
     State.bRewardIssued = false;
     State.Performance = FChorePerformanceMetrics();
     State.StartTime = FDateTime::MinValue();
+
+    State.CurrentStageIndex = 0;
+    State.CurrentStageKey = NAME_None;
+    State.bIsPaused = false;
+    State.PauseStartTime = FDateTime::MinValue();
+    State.AccumulatedPauseTime = FTimespan::Zero();
+
     UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
 }
 void UChoreManagerSubsystem::UnlockChore(FName ChoreId)
@@ -761,13 +785,25 @@ float UChoreManagerSubsystem::GetChoreElapsedTime(FName ChoreId) const
     if (!ActiveStates.Contains(ChoreId)) return 0.0f;
     const FChoreState& State = ActiveStates[ChoreId];
 
-    // Если хора активна — считаем «живое» время от StartTime
     if (State.Status == EChoreStatus::Active && State.StartTime != FDateTime::MinValue())
     {
-        return (float)(FDateTime::UtcNow() - State.StartTime).GetTotalSeconds();
+        FTimespan Elapsed = FDateTime::UtcNow() - State.StartTime;
+
+        // Вычитаем накопленную паузу…
+        Elapsed -= State.AccumulatedPauseTime;
+
+        // …и текущую незавершённую паузу, если прямо сейчас на паузе.
+        if (State.bIsPaused && State.PauseStartTime != FDateTime::MinValue())
+        {
+            Elapsed -= (FDateTime::UtcNow() - State.PauseStartTime);
+        }
+
+        if (Elapsed.GetTotalSeconds() < 0.0)
+            Elapsed = FTimespan::Zero();
+
+        return (float)Elapsed.GetTotalSeconds();
     }
 
-    // Иначе возвращаем сохранённое значение из метрик
     return State.Performance.CompletionTimeSeconds;
 }
 
@@ -802,13 +838,19 @@ void UChoreManagerSubsystem::SetChoreStartTime(FName ChoreId, FDateTime InStartT
 
 void UChoreManagerSubsystem::EnsureElapsedTimeRecorded(FChoreState& State) const
 {
-    // Если CompletionTimeSeconds не задано (<= 0) и есть StartTime — считаем сами.
-    if (State.Performance.CompletionTimeSeconds <= 0.0f &&
-        State.StartTime != FDateTime::MinValue())
+    if (State.Performance.CompletionTimeSeconds > 0.0f) return;
+    if (State.StartTime == FDateTime::MinValue()) return;
+
+    FTimespan Elapsed = FDateTime::UtcNow() - State.StartTime;
+    Elapsed -= State.AccumulatedPauseTime;
+    if (State.bIsPaused && State.PauseStartTime != FDateTime::MinValue())
     {
-        State.Performance.CompletionTimeSeconds =
-            (float)(FDateTime::UtcNow() - State.StartTime).GetTotalSeconds();
+        Elapsed -= (FDateTime::UtcNow() - State.PauseStartTime);
     }
+    if (Elapsed.GetTotalSeconds() < 0.0)
+        Elapsed = FTimespan::Zero();
+
+    State.Performance.CompletionTimeSeconds = (float)Elapsed.GetTotalSeconds();
 }
 
 float UChoreManagerSubsystem::ExtractMetricValue(const FChorePerformanceMetrics& Perf, EChorePerformanceMetric Metric)
@@ -1063,6 +1105,47 @@ bool UChoreManagerSubsystem::GetLastResult(FName ChoreId) const
             return History[i].Result == EOutcomeChore::CompleteRequest;
     }
     return false;
+}
+
+int32 UChoreManagerSubsystem::GetChoreCurrentStage(FName ChoreId) const
+{
+    const FChoreState* State = ActiveStates.Find(ChoreId);
+    return State ? State->CurrentStageIndex : 0;
+}
+
+int32 UChoreManagerSubsystem::GetChoreTotalStages(FName ChoreId) const
+{
+    const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    return Def ? Def->Stages.Num() : 0;
+}
+
+FName UChoreManagerSubsystem::GetChoreCurrentStageKey(FName ChoreId) const
+{
+    const FChoreState* State = ActiveStates.Find(ChoreId);
+    return State ? State->CurrentStageKey : NAME_None;
+}
+
+bool UChoreManagerSubsystem::IsChorePaused(FName ChoreId) const
+{
+    return ActiveStates.Contains(ChoreId) && ActiveStates[ChoreId].bIsPaused;
+}
+
+bool UChoreManagerSubsystem::IsChoreMultiStage(FName ChoreId) const
+{
+    return GetChoreTotalStages(ChoreId) > 1;
+}
+
+bool UChoreManagerSubsystem::GetChoreStageDefinition(FName ChoreId, int32 StageIndex, FChoreStageDefinition& OutStage) const
+{
+    const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (!Def || !Def->Stages.IsValidIndex(StageIndex)) return false;
+    OutStage = Def->Stages[StageIndex];
+    return true;
+}
+
+bool UChoreManagerSubsystem::GetChoreCurrentStageDefinition(FName ChoreId, FChoreStageDefinition& OutStage) const
+{
+    return GetChoreStageDefinition(ChoreId, GetChoreCurrentStage(ChoreId), OutStage);
 }
 
 // ---- Обработчики событий ----
@@ -1455,13 +1538,100 @@ void UChoreManagerSubsystem::UnregisterReactivationHandler(FName ChoreId)
     Handle.Invalidate();
 }
 
+void UChoreManagerSubsystem::AdvanceChoreStage(FName ChoreId, int32 NewStageIndex, FName NewStageKey)
+{
+    FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State || State->Status != EChoreStatus::Active) return;
+
+    const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (!Def || !Def->Stages.IsValidIndex(NewStageIndex)) return;
+
+    // Не назад и не та же самая стадия.
+    if (NewStageIndex <= State->CurrentStageIndex) return;
+
+    // Ключ берём из ассета — миниигра присылает только индекс.
+    State->CurrentStageIndex = NewStageIndex;
+    State->CurrentStageKey = Def->Stages[NewStageIndex].StageKey;
+
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (!EventBus) return;
+
+    UChoreStagePayload* Payload = EventBus->CreatePayload<UChoreStagePayload>();
+    if (!Payload) return;
+
+    Payload->ChoreId = ChoreId;
+    Payload->StageIndex = NewStageIndex;
+    Payload->StageKey = State->CurrentStageKey;
+    Payload->TotalStages = Def->Stages.Num();
+    Payload->StageDisplayName = Def->Stages[NewStageIndex].DisplayName;
+
+    FOutcomeEventBase Event;
+    Event.OutcomeType = EOutcomeType::Chore;
+    Event.OutcomeChore = EOutcomeChore::ChoreStageAdvanced;
+    Event.Payload = Payload;
+    EventBus->PublishOutcome(Event);
+}
+
+void UChoreManagerSubsystem::PauseChore(FName ChoreId)
+{
+    if (!ActiveStates.Contains(ChoreId)) return;
+    FChoreState& State = ActiveStates[ChoreId];
+    if (State.Status != EChoreStatus::Active) return;
+    if (State.bIsPaused) return;
+
+    State.bIsPaused = true;
+    State.PauseStartTime = FDateTime::UtcNow();
+
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (!EventBus) return;
+
+    UChoreCommandPayload* Payload = EventBus->CreatePayload<UChoreCommandPayload>();
+    if (!Payload) return;
+    Payload->ChoreId = ChoreId;
+
+    FOutcomeEventBase Event;
+    Event.OutcomeType = EOutcomeType::Chore;
+    Event.OutcomeChore = EOutcomeChore::ChorePaused;
+    Event.Payload = Payload;
+    EventBus->PublishOutcome(Event);
+}
+
+void UChoreManagerSubsystem::ResumeChore(FName ChoreId)
+{
+    if (!ActiveStates.Contains(ChoreId)) return;
+    FChoreState& State = ActiveStates[ChoreId];
+    if (State.Status != EChoreStatus::Active) return;
+    if (!State.bIsPaused) return;
+
+    // Накопить время паузы
+    if (State.PauseStartTime != FDateTime::MinValue())
+    {
+        State.AccumulatedPauseTime += (FDateTime::UtcNow() - State.PauseStartTime);
+    }
+    State.PauseStartTime = FDateTime::MinValue();
+    State.bIsPaused = false;
+
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (!EventBus) return;
+
+    UChoreCommandPayload* Payload = EventBus->CreatePayload<UChoreCommandPayload>();
+    if (!Payload) return;
+    Payload->ChoreId = ChoreId;
+
+    FOutcomeEventBase Event;
+    Event.OutcomeType = EOutcomeType::Chore;
+    Event.OutcomeChore = EOutcomeChore::ChoreResumed;
+    Event.Payload = Payload;
+    EventBus->PublishOutcome(Event);
+}
+
 // ---- ISaveableSubsystem ----
 void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
     OutData.SubsystemName = GetSaveSubsystemName();
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
-    // Сохраняем состояния
+    // ---- Состояния ----
     TArray<TSharedPtr<FJsonValue>> StateArray;
     for (const auto& Pair : ActiveStates)
     {
@@ -1478,17 +1648,27 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetBoolField(TEXT("bSucceeded"), State.bSucceeded);
         Obj->SetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
 
+        // Стадии
+        Obj->SetNumberField(TEXT("CurrentStageIndex"), State.CurrentStageIndex);
+        Obj->SetStringField(TEXT("CurrentStageKey"), State.CurrentStageKey.ToString());
+
+        // Pause
+        Obj->SetBoolField(TEXT("bIsPaused"), State.bIsPaused);
+        Obj->SetNumberField(TEXT("AccumulatedPauseSeconds"), State.AccumulatedPauseTime.GetTotalSeconds());
+
+        // Performance
         TSharedPtr<FJsonObject> PerfObj = MakeShared<FJsonObject>();
         PerfObj->SetNumberField(TEXT("CompletionTimeSeconds"), State.Performance.CompletionTimeSeconds);
         PerfObj->SetNumberField(TEXT("Mistakes"), State.Performance.Mistakes);
         PerfObj->SetNumberField(TEXT("Accuracy"), State.Performance.Accuracy);
         PerfObj->SetNumberField(TEXT("Quantity"), State.Performance.Quantity);
         Obj->SetObjectField(TEXT("Performance"), PerfObj);
+
         StateArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
     Root->SetArrayField(TEXT("States"), StateArray);
 
-    // Сохраняем историю
+    // ---- История ----
     TArray<TSharedPtr<FJsonValue>> HistoryArray;
     for (const FChoreHistoryEntry& Entry : History)
     {
@@ -1503,10 +1683,12 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         PerfObj->SetNumberField(TEXT("Accuracy"), Entry.Performance.Accuracy);
         PerfObj->SetNumberField(TEXT("Quantity"), Entry.Performance.Quantity);
         Obj->SetObjectField(TEXT("Performance"), PerfObj);
+
         HistoryArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
     Root->SetArrayField(TEXT("History"), HistoryArray);
 
+    // ---- Сериализация ----
     FString Output;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
     FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
@@ -1535,7 +1717,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     History.Empty();
     DeadlineTimers.Empty();
 
-    // Восстанавливаем состояния
+    // ---- Состояния ----
     const TArray<TSharedPtr<FJsonValue>>* StateArray = nullptr;
     if (Root->TryGetArrayField(TEXT("States"), StateArray))
     {
@@ -1546,33 +1728,54 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
             FChoreState State;
-            FString ChoreIdStr, AcceptTimeStr, DeadlineStr;
+
+            FString ChoreIdStr;
             Obj->TryGetStringField(TEXT("ChoreId"), ChoreIdStr);
             State.ChoreId = FName(*ChoreIdStr);
+
             int32 StatusInt = 0;
             Obj->TryGetNumberField(TEXT("Status"), StatusInt);
             State.Status = (EChoreStatus)StatusInt;
+
+            FString AcceptTimeStr;
             Obj->TryGetStringField(TEXT("AcceptTime"), AcceptTimeStr);
             FDateTime::ParseIso8601(*AcceptTimeStr, State.AcceptTime);
 
             FString StartTimeStr;
-            if (Obj->TryGetStringField(TEXT("StartTime"), StartTimeStr))
-            {
-                if (!FDateTime::ParseIso8601(*StartTimeStr, State.StartTime))
-                {
-                    State.StartTime = FDateTime::MinValue();
-                }
-            }
-            else
+            Obj->TryGetStringField(TEXT("StartTime"), StartTimeStr);
+            if (!FDateTime::ParseIso8601(*StartTimeStr, State.StartTime))
             {
                 State.StartTime = FDateTime::MinValue();
             }
 
+            FString DeadlineStr;
             Obj->TryGetStringField(TEXT("Deadline"), DeadlineStr);
-            FDateTime::ParseIso8601(*DeadlineStr, State.Deadline);            Obj->TryGetNumberField(TEXT("AttemptCount"), State.AttemptCount);
+            FDateTime::ParseIso8601(*DeadlineStr, State.Deadline);
+
+            Obj->TryGetNumberField(TEXT("AttemptCount"), State.AttemptCount);
             Obj->TryGetBoolField(TEXT("bSucceeded"), State.bSucceeded);
             Obj->TryGetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
 
+            // ---- Стадии ----
+            int32 CurrentStageInt = 0;
+            Obj->TryGetNumberField(TEXT("CurrentStageIndex"), CurrentStageInt);
+            State.CurrentStageIndex = CurrentStageInt;
+
+            FString StageKeyStr;
+            Obj->TryGetStringField(TEXT("CurrentStageKey"), StageKeyStr);
+            State.CurrentStageKey = FName(*StageKeyStr);
+
+            // ---- Pause ----
+            Obj->TryGetBoolField(TEXT("bIsPaused"), State.bIsPaused);
+
+            double AccumulatedPauseSecs = 0.0;
+            Obj->TryGetNumberField(TEXT("AccumulatedPauseSeconds"), AccumulatedPauseSecs);
+            State.AccumulatedPauseTime = FTimespan::FromSeconds(AccumulatedPauseSecs);
+
+            // Пауза, начавшаяся до сохранения, при загрузке «начинается заново».
+            State.PauseStartTime = State.bIsPaused ? FDateTime::UtcNow() : FDateTime::MinValue();
+
+            // ---- Performance ----
             const TSharedPtr<FJsonObject>* PerfObj = nullptr;
             if (Obj->TryGetObjectField(TEXT("Performance"), PerfObj))
             {
@@ -1584,14 +1787,18 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
             ActiveStates.Add(State.ChoreId, State);
 
+            // Восстанавливаем таймер дедлайна для активных хор
             if (State.Status == EChoreStatus::Active && State.Deadline != FDateTime::MinValue())
             {
                 FTimespan Remaining = State.Deadline - FDateTime::UtcNow();
                 if (Remaining.GetTotalSeconds() > 0)
                 {
                     FTimerHandle Handle;
-                    TimerManager->SetTimer(Handle, FTimerDelegate::CreateUObject(this, &UChoreManagerSubsystem::ExpireChore, State.ChoreId),
-                        (float)Remaining.GetTotalSeconds(), false);
+                    TimerManager->SetTimer(
+                        Handle,
+                        FTimerDelegate::CreateUObject(this, &UChoreManagerSubsystem::ExpireChore, State.ChoreId),
+                        (float)Remaining.GetTotalSeconds(),
+                        false);
                     DeadlineTimers.Add(State.ChoreId, Handle);
                 }
                 else
@@ -1602,7 +1809,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
-    // Восстанавливаем историю
+    // ---- История ----
     const TArray<TSharedPtr<FJsonValue>>* HistoryArray = nullptr;
     if (Root->TryGetArrayField(TEXT("History"), HistoryArray))
     {
@@ -1613,10 +1820,16 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
             FChoreHistoryEntry Entry;
-            FString ChoreIdStr, TimestampStr;
+
+            FString ChoreIdStr;
             Obj->TryGetStringField(TEXT("ChoreId"), ChoreIdStr);
             Entry.ChoreId = FName(*ChoreIdStr);
+
             int32 ResultInt = 0;
+            Obj->TryGetNumberField(TEXT("Result"), ResultInt);
+            Entry.Result = (EOutcomeChore)ResultInt;
+
+            FString TimestampStr;
             Obj->TryGetStringField(TEXT("Timestamp"), TimestampStr);
             FDateTime::ParseIso8601(*TimestampStr, Entry.Timestamp);
 
@@ -1737,4 +1950,26 @@ void UChoreManagerSubsystem::HandleReacceptRequest(const FOutcomeEventBase& Outc
 
     // Реактивируем задание
     UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+}
+
+void UChoreManagerSubsystem::HandleAdvanceStageRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreStagePayload* Payload = Cast<UChoreStagePayload>(Outcome.Payload);
+    if (!Payload) return;
+
+    AdvanceChoreStage(Payload->ChoreId, Payload->StageIndex, NAME_None);
+}
+
+void UChoreManagerSubsystem::HandlePauseRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    PauseChore(Payload->ChoreId);
+}
+
+void UChoreManagerSubsystem::HandleResumeRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+    ResumeChore(Payload->ChoreId);
 }
