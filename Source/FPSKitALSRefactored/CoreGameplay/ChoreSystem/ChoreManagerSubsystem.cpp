@@ -1538,7 +1538,7 @@ void UChoreManagerSubsystem::UnregisterReactivationHandler(FName ChoreId)
     Handle.Invalidate();
 }
 
-void UChoreManagerSubsystem::AdvanceChoreStage(FName ChoreId, int32 NewStageIndex, FName NewStageKey)
+void UChoreManagerSubsystem::AdvanceChoreStage(FName ChoreId, int32 NewStageIndex, bool IsStart, FName NewStageKey)
 {
     FChoreState* State = ActiveStates.Find(ChoreId);
     if (!State || State->Status != EChoreStatus::Active) return;
@@ -1546,12 +1546,13 @@ void UChoreManagerSubsystem::AdvanceChoreStage(FName ChoreId, int32 NewStageInde
     const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (!Def || !Def->Stages.IsValidIndex(NewStageIndex)) return;
 
-    // Не назад и не та же самая стадия.
-    if (NewStageIndex <= State->CurrentStageIndex) return;
+    // Не назад
+    if (NewStageIndex < State->CurrentStageIndex) return;
 
     // Ключ берём из ассета — миниигра присылает только индекс.
     State->CurrentStageIndex = NewStageIndex;
     State->CurrentStageKey = Def->Stages[NewStageIndex].StageKey;
+    State->IsStart = IsStart;
 
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
@@ -1564,6 +1565,7 @@ void UChoreManagerSubsystem::AdvanceChoreStage(FName ChoreId, int32 NewStageInde
     Payload->StageKey = State->CurrentStageKey;
     Payload->TotalStages = Def->Stages.Num();
     Payload->StageDisplayName = Def->Stages[NewStageIndex].DisplayName;
+    Payload->IsStart = State->IsStart;
 
     FOutcomeEventBase Event;
     Event.OutcomeType = EOutcomeType::Chore;
@@ -1957,7 +1959,7 @@ void UChoreManagerSubsystem::HandleAdvanceStageRequest(const FOutcomeEventBase& 
     UChoreStagePayload* Payload = Cast<UChoreStagePayload>(Outcome.Payload);
     if (!Payload) return;
 
-    AdvanceChoreStage(Payload->ChoreId, Payload->StageIndex, NAME_None);
+    AdvanceChoreStage(Payload->ChoreId, Payload->StageIndex, Payload->IsStart, NAME_None);
 }
 
 void UChoreManagerSubsystem::HandlePauseRequest(const FOutcomeEventBase& Outcome)

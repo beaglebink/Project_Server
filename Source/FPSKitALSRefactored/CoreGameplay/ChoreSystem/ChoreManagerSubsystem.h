@@ -49,6 +49,9 @@ struct FChoreState
     UPROPERTY()
     FName CurrentStageKey;
 
+    UPROPERTY()
+    bool IsStart;
+
     // ---- Pause ----
     UPROPERTY()
     bool bIsPaused = false;
@@ -267,7 +270,7 @@ protected:
     void UnregisterReactivationHandler(FName ChoreId);
 
     // Принимает advance от миниигры. Возвращает true, если состояние изменено.
-    void AdvanceChoreStage(FName ChoreId, int32 NewStageIndex, FName NewStageKey);
+    void AdvanceChoreStage(FName ChoreId, int32 NewStageIndex, bool IsStart, FName NewStageKey);
 
     void PauseChore(FName ChoreId);
     void ResumeChore(FName ChoreId);

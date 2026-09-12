@@ -198,11 +198,15 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
     FText StageDisplayName;
 
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
+    bool IsStart = false;
+
     UFUNCTION(BlueprintCallable, Category = "Chore|Stage")
-    UChoreStagePayload* Setup(FName InChoreId, int32 InStageIndex)
+    UChoreStagePayload* Setup(FName InChoreId, int32 InStageIndex, bool InIsStart)
     {
         ChoreId = InChoreId;
         StageIndex = InStageIndex;
+        IsStart = InIsStart;
         return this;
     }
 };
