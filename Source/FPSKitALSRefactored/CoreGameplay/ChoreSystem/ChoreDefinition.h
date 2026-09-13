@@ -19,7 +19,7 @@ struct FChoreStageDefinition
     // Имя для UI (например, "Забрать посылку").
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
     FText DisplayName;
-
+    /*
     // Описание для UI (опционально).
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
     FText Description;
@@ -28,7 +28,7 @@ struct FChoreStageDefinition
     // Миниигра и UI сами решают, как её интерпретировать.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
     FName LocationTag;
-
+    */
     // Флаг: стадия сопровождается экраном перехода / анимацией / телепортом.
     // Используется UI/режиссурой, сам Chore Manager его не трактует.
     //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")

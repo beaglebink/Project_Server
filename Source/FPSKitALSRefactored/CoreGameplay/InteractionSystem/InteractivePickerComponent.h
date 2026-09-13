@@ -91,7 +91,7 @@ public:
 	bool DebugDraw = false;
 
 	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, SaveGame, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	float PickTickInterval = 0.3f;
+	float PickTickInterval = 0.15f;
 
 	UPROPERTY(Category = "TheGame|InteractiveItem", EditDefaultsOnly, SaveGame, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Depth = 300.f;
