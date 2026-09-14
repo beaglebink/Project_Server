@@ -189,6 +189,24 @@ public:
     }
 };
 
+// Payload для отчета о постановке задачи на паузу и о снятии с паузы
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChorePauseReportPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Reward")
+    FName ChoreId;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore|Reward")
+    UChorePauseReportPayload* Setup(FName InChoreId)
+    {
+        ChoreId = InChoreId;
+        return this;
+    }
+};
+
 // Payload для сигнала о выдаче награды за хору.
 // Публикуется после успешного завершения хоры (Succeeded),
 // когда менеджер просит owning-подсистемы выдать свои порции.

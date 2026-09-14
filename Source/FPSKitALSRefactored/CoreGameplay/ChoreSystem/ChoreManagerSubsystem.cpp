@@ -1726,9 +1726,10 @@ void UChoreManagerSubsystem::PauseChore(FName ChoreId)
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
 
-    UChoreCommandPayload* Payload = EventBus->CreatePayload<UChoreCommandPayload>();
+    UChorePauseReportPayload* Payload = EventBus->CreatePayload<UChorePauseReportPayload>();
     if (!Payload) return;
-    Payload->ChoreId = ChoreId;
+
+    Payload->Setup(ChoreId);
 
     FOutcomeEventBase Event;
     Event.OutcomeType = EOutcomeType::Chore;
@@ -1764,9 +1765,10 @@ void UChoreManagerSubsystem::ResumeChore(FName ChoreId)
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
 
-    UChoreCommandPayload* Payload = EventBus->CreatePayload<UChoreCommandPayload>();
+    UChorePauseReportPayload* Payload = EventBus->CreatePayload<UChorePauseReportPayload>();
     if (!Payload) return;
-    Payload->ChoreId = ChoreId;
+
+    Payload->Setup(ChoreId);
 
     FOutcomeEventBase Event;
     Event.OutcomeType = EOutcomeType::Chore;
