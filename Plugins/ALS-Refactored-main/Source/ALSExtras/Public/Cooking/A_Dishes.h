@@ -91,6 +91,7 @@ struct FIngredientQuality
 
 class USphereComponent;
 class AA_Cookable;
+class AA_Spices;
 class UNiagaraComponent;
 class UDA_FluidPoints;
 class UWidgetComponent;
@@ -123,9 +124,14 @@ private:
 	TArray<AA_Cookable*> Ingredients;
 
 	UPROPERTY()
+	TArray<AA_Spices*> Spices;
+
+	UPROPERTY()
 	TMap<FGameplayTag, int32> IngredientCountMap;
 
-	TSet<AActor*> OverlappingActors;
+	TSet<AActor*> OverlappingActors_Ingredients;
+
+	TSet<AActor*> OverlappingActors_Spices;
 
 	TSet<AActor*> OverlappingPlates;
 

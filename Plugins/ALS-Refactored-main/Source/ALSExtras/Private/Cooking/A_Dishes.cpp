@@ -15,6 +15,7 @@
 #include "Components/AudioComponent.h"
 #include "ProceduralMeshComponent.h"
 #include "InteractiveItemComponent.h"
+#include "Cooking/A_Spices.h"
 
 AA_Dishes::AA_Dishes()
 {
@@ -220,10 +221,10 @@ void AA_Dishes::BeginPlay()
 	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 		{
-			CollisionShape->GetOverlappingActors(OverlappingActors, AA_Cookable::StaticClass());
+			CollisionShape->GetOverlappingActors(OverlappingActors_Ingredients, AA_Cookable::StaticClass());
 
 			// Check if ingredient doesn't belong any dish
-			for (AActor* Ingredient : OverlappingActors.Array())
+			for (AActor* Ingredient : OverlappingActors_Ingredients.Array())
 			{
 				if (AA_Cookable* CookableIngredient = Cast<AA_Cookable>(Ingredient))
 				{
@@ -277,7 +278,7 @@ void AA_Dishes::BeginPlay()
 			// Check if ingredient is out of dish
 			for (int32 i = Ingredients.Num() - 1; i >= 0; --i)
 			{
-				if (!OverlappingActors.Contains(Ingredients[i]))
+				if (!OverlappingActors_Ingredients.Contains(Ingredients[i]))
 				{
 					Ingredients[i]->bIsInsideADish = false;
 					Ingredients[i]->ParentDish = nullptr;
@@ -298,6 +299,60 @@ void AA_Dishes::BeginPlay()
 					}
 
 					Ingredients.RemoveAt(i);
+				}
+			}
+
+			//Check for spices income to dish
+			CollisionShape->GetOverlappingActors(OverlappingActors_Spices, AA_Spices::StaticClass());
+			for (AActor* Spice : OverlappingActors_Spices.Array())
+			{
+				if (AA_Spices* CookableSpice = Cast<AA_Spices>(Spice))
+				{
+					if (!Spices.Contains(CookableSpice))
+					{
+						if (CookableSpice->ParentDish == nullptr)
+						{
+							// Add spice event to cooking log requirements
+							FGameplayTag SpiceTag = CookableSpice->Tag;
+							if (IsACookWare)
+							{
+								FRecipeRequirement NewEvent = FRecipeRequirement();
+								NewEvent.RequirementTag = SpiceTag;
+								NewEvent.RequirementStartTime = CookingTimerValue;
+								NewEvent.SpicesStep.SpicesTag = SpiceTag;
+								RecipeRequirements.Add(NewEvent);
+								CookableSpice->Destroy();
+							}
+							else
+							{
+								Spices.Add(CookableSpice);
+								CookableSpice->ParentDish = this;
+							}
+
+							FString DebugMessage = FString::Printf(TEXT("Added spice: %s | Event %.2f"), *SpiceTag.ToString(), CookingTimerValue);
+
+							if (bShowCookingDebug)
+							{
+								GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, DebugMessage);
+							}
+						}
+					}
+				}
+			}
+
+			// Check for spices outcome from dish
+			for (int32 i = Spices.Num() - 1; i >= 0; --i)
+			{
+				if (!OverlappingActors_Spices.Contains(Spices[i]))
+				{
+					Spices[i]->ParentDish = nullptr;
+
+					if (bShowCookingDebug)
+					{
+						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Removed spice: %s"), *Spices[i]->Tag.ToString()));
+					}
+
+					Spices.RemoveAt(i);
 				}
 			}
 
@@ -845,7 +900,7 @@ bool AA_Dishes::CheckIfCooked()
 		}
 	}
 
-	//Mission steps quality calculation
+	//Missing steps quality calculation
 	MissingStepImportanceSummary = 0.0f;
 	for (FRecipeRequirement& Requirement : MissingRequirements)
 	{
@@ -853,6 +908,42 @@ bool AA_Dishes::CheckIfCooked()
 		{
 			TotalRecipeImportance += Requirement.RecipeImportance;
 			MissingStepImportanceSummary += Requirement.RecipeImportance;
+		}
+	}
+
+	// Spices steps quality calculation
+	for (FRecipeRequirement& RecipeRequirement : CheckedRecipe.Requirements)
+	{
+		if (RecipeRequirement.RequirementTag.MatchesTag(TAG_Cooking_Spices))
+		{
+			TotalRecipeImportance += RecipeRequirement.RecipeImportance;
+
+			FRecipeRequirement* CheckedRequirement = RecipeRequirements.FindByPredicate([RecipeRequirement](FRecipeRequirement& Requirement)
+				{
+					return !Requirement.bChecked && Requirement.RequirementTag == RecipeRequirement.RequirementTag;
+				});
+			if (CheckedRequirement)
+			{
+				CheckedRequirement->bChecked = true;
+
+				float SpiceTimingQuality = 0.0f;
+
+				//Calculate step quality by time
+				if (CheckedRequirement->RequirementStartTime >= RecipeRequirement.RequirementStartTime && CheckedRequirement->RequirementStartTime <= RecipeRequirement.RequirementEndTime)
+				{
+					SpiceTimingQuality = 1.0f * RecipeRequirement.RecipeImportance;
+				}
+				else if (CheckedRequirement->RequirementStartTime < RecipeRequirement.RequirementStartTime)
+				{
+					SpiceTimingQuality = FMath::Clamp(1 - (RecipeRequirement.RequirementStartTime - CheckedRequirement->RequirementStartTime) / RecipeRequirement.SpicesStep.EarlyTolerance, 0.0f, 1.0f) * RecipeRequirement.RecipeImportance;
+				}
+				else if (CheckedRequirement->RequirementStartTime > RecipeRequirement.RequirementEndTime)
+				{
+					SpiceTimingQuality = FMath::Clamp(1 - (CheckedRequirement->RequirementStartTime - RecipeRequirement.RequirementEndTime) / RecipeRequirement.SpicesStep.LateTolerance, 0.0f, 1.0f) * RecipeRequirement.RecipeImportance;
+				}
+				CheckedRequirement->StepQuality = SpiceTimingQuality;
+				DishQuality += SpiceTimingQuality;
+			}
 		}
 	}
 
@@ -990,6 +1081,22 @@ void AA_Dishes::ReplaceIngredientsByCookedFood()
 				LiquidStep.LiquidStepQuality,
 				LiquidStep.WeightedLiquidContribution
 			);
+		}
+
+		DebugText += TEXT("--------------------------------\n");
+		DebugText += TEXT("SPICES STEPS\n\n");
+
+		for (FRecipeRequirement& Requirement : RecipeRequirements)
+		{
+			if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Spices))
+			{
+
+				DebugText += FString::Printf(
+					TEXT("Spice: %s\n")
+					TEXT("Timing Quality: %.2f\n"),
+					*Requirement.RequirementTag.ToString(),
+					Requirement.StepQuality);
+			}
 		}
 
 		DebugText += FString::Printf(

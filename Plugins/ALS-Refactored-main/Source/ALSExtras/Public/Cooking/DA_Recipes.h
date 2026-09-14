@@ -163,14 +163,11 @@ struct FSpicesStep
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FGameplayTag SpicesTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "EarlyTolerance (s)"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "EarlyTolerance (s)"))
 	float EarlyTolerance = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "LateTolerance (s)"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "LateTolerance (s)"))
 	float LateTolerance = 0.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
-	float TimingScoreWeight = 0.35f;
 };
 
 USTRUCT(BlueprintType)
@@ -198,17 +195,14 @@ struct FIntervalStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FGameplayTag EndEvent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IntervalDuration (s)"))
 	float IntervalDuration = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "EarlyTolerance (s)"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "EarlyTolerance (s)"))
 	float EarlyTolerance = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "LateTolerance (s)"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "LateTolerance (s)"))
 	float LateTolerance = 0.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
-	float TimingScoreWeight = 0.35f;
 };
 
 UENUM()
@@ -238,6 +232,8 @@ struct FRecipeRequirement
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, EditCondition = "RequirementType != ERecipeRequirementType::Liquid && RequirementType != ERecipeRequirementType::Interval", EditConditionHides))
 	float RequirementStartTime = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, EditCondition = "RequirementType == ERecipeRequirementType::Spice", EditConditionHides))
 	float RequirementEndTime = 0.0f;
 
 	uint8 bChecked : 1{false};
