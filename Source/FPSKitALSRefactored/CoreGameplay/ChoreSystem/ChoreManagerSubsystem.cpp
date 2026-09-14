@@ -187,6 +187,33 @@ void UChoreManagerSubsystem::LoadAllDefinitions()
     EvaluateAllAvailability();
 }
 
+bool UChoreManagerSubsystem::GetChoreRewards(FName ChoreId, FChoreRewardSet& OutRewards) const
+{
+    OutRewards = FChoreRewardSet();
+
+    const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (!Def) return false;
+
+    // Автор запретил показывать награду заранее — не раскрываем её вообще.
+    if (!Def->bShowRewardBeforeAccept) return false;
+
+    // У хоры нет наград — возвращать нечего.
+    const bool bHasAnyReward =
+        Def->Rewards.Money != 0 ||
+        Def->Rewards.Experience != 0 ||
+        Def->Rewards.ItemIds.Num() > 0;
+    if (!bHasAnyReward) return false;
+
+    OutRewards = Def->Rewards;
+    return true;
+}
+
+bool UChoreManagerSubsystem::CanShowRewardsBeforeAccept(FName ChoreId) const
+{
+    const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    return Def && Def->bShowRewardBeforeAccept;
+}
+
 void UChoreManagerSubsystem::RegisterChoreDefinition(UChoreDefinition* Definition)
 {
     if (!Definition) return;
@@ -360,9 +387,14 @@ void UChoreManagerSubsystem::ClearDeadlineTimer(FName ChoreId)
 
 void UChoreManagerSubsystem::GrantRewards(FName ChoreId)
 {
-    if (!ActiveStates.Contains(ChoreId)) return;
-    FChoreState& State = ActiveStates[ChoreId];
-    if (State.bRewardIssued) return;
+    FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State) return;
+
+    // Уже выдана — второй раз не выдаём.
+    if (State->bRewardIssued) return;
+
+    // Награду выдаём только за успешно завершённую хору.
+    if (State->Status != EChoreStatus::Succeeded) return;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (!Def) return;
@@ -371,17 +403,25 @@ void UChoreManagerSubsystem::GrantRewards(FName ChoreId)
     if (!EventBus) return;
 
     UChoreRewardPayload* Payload = EventBus->CreatePayload<UChoreRewardPayload>();
-    if (Payload)
-    {
-        Payload->ChoreId = ChoreId;
-        Payload->Rewards = Def->Rewards;
-        FOutcomeEventBase Event;
-        Event.OutcomeType = EOutcomeType::Chore;
-        Event.OutcomeChore = EOutcomeChore::ChoreRewardGranted;
-        Event.Payload = Payload;
-        EventBus->PublishOutcome(Event);
-        State.bRewardIssued = true;
-    }
+    if (!Payload) return;
+
+    Payload->Setup(ChoreId, Def->DisplayName, Def->Rewards);
+
+    FOutcomeEventBase Event;
+    Event.OutcomeType = EOutcomeType::Chore;
+    Event.OutcomeChore = EOutcomeChore::ChoreRewardGranted;
+    Event.Payload = Payload;
+    EventBus->PublishOutcome(Event);
+
+    // Помечаем сразу — подсистемы обязаны быть идемпотентны,
+    // а повторный вызов с нашей стороны уже не пройдёт эту проверку.
+    State->bRewardIssued = true;
+
+    UE_LOG(LogTemp, Log, TEXT("ChoreManager: reward issued for chore '%s' (Money=%d, Items=%d, XP=%d)"),
+        *ChoreId.ToString(),
+        Def->Rewards.Money,
+        Def->Rewards.ItemIds.Num(),
+        Def->Rewards.Experience);
 }
 
 void UChoreManagerSubsystem::AddHistoryEntry(FName ChoreId, EOutcomeChore Result, const FChorePerformanceMetrics& Performance)
@@ -1194,6 +1234,18 @@ bool UChoreManagerSubsystem::GetChoreStageDefinition(FName ChoreId, int32 StageI
 bool UChoreManagerSubsystem::GetChoreCurrentStageDefinition(FName ChoreId, FChoreStageDefinition& OutStage) const
 {
     return GetChoreStageDefinition(ChoreId, GetChoreCurrentStage(ChoreId), OutStage);
+}
+
+bool UChoreManagerSubsystem::WasRewardIssued(FName ChoreId) const
+{
+    const FChoreState* State = ActiveStates.Find(ChoreId);
+    return State ? State->bRewardIssued : false;
+}
+
+void UChoreManagerSubsystem::RequestRewardIssue(FName ChoreId)
+{
+    // Повторный вызов безопасен: GrantRewards сам себя защищает.
+    GrantRewards(ChoreId);
 }
 
 // ---- Обработчики событий ----

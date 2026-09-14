@@ -239,6 +239,36 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
     bool GetChoreCurrentStageDefinition(FName ChoreId, FChoreStageDefinition& OutStage) const;
 
+    // ---- Награды ----
+
+    // Была ли награда за хору уже отправлена подсистемам?
+    // false — если хора ещё не завершалась успешно, была отменена
+    // или завершилась неудачно.
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Reward")
+    bool WasRewardIssued(FName ChoreId) const;
+
+    // Ручной запрос на выдачу награды. Идемпотентен: если награда уже
+    // была отправлена или хора не в статусе Succeeded — ничего не делает.
+    // Используется UI/диалогами, когда нужно «выдать награду по кнопке»
+    // уже после завершения хоры.
+    UFUNCTION(BlueprintCallable, Category = "Chore Manager|Reward")
+    void RequestRewardIssue(FName ChoreId);
+
+    // ---- Награды ----
+
+    // Возвращает набор наград за хору, если автор разрешил показывать
+    // его заранее (bShowRewardBeforeAccept == true).
+    //
+    // Если флаг false — вернёт false и OutRewards останется пустым.
+    // Игрок в этом случае узнаёт о награде только в момент фактической
+    // выдачи, через событие ChoreRewardGranted (UChoreRewardPayload).
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Reward")
+    bool GetChoreRewards(FName ChoreId, FChoreRewardSet& OutRewards) const;
+
+    // Хелпер: разрешён ли предварительный показ наград у этой хоры.
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Reward")
+    bool CanShowRewardsBeforeAccept(FName ChoreId) const;
+
     // ---- Регистрация определений (вызывается внутри) ----
     void RegisterChoreDefinition(UChoreDefinition* Definition);
 

@@ -62,28 +62,6 @@ public:
     }
 };
 
-// Payload для награды
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UChoreRewardPayload : public UOutcomePayload
-{
-    GENERATED_BODY()
-
-public:
-    UPROPERTY(BlueprintReadWrite, Category = "Chore")
-    FName ChoreId;
-
-    UPROPERTY(BlueprintReadWrite, Category = "Chore")
-    FChoreRewardSet Rewards;
-
-    UFUNCTION(BlueprintCallable, Category = "Chore")
-    UChoreRewardPayload* Setup(FName InChoreId, const FChoreRewardSet& InRewards)
-    {
-        ChoreId = InChoreId;
-        Rewards = InRewards;
-        return this;
-    }
-};
-
 // Payload для команд управления хорами (публикуется через EventBus)
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UChoreCommandPayload : public UOutcomePayload
@@ -207,6 +185,37 @@ public:
         ChoreId = InChoreId;
         StageIndex = InStageIndex;
         IsStart = InIsStart;
+        return this;
+    }
+};
+
+// Payload для сигнала о выдаче награды за хору.
+// Публикуется после успешного завершения хоры (Succeeded),
+// когда менеджер просит owning-подсистемы выдать свои порции.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreRewardPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Reward")
+    FName ChoreId;
+
+    // Отображаемое имя хоры (для UI: "Награда за доставку посылки").
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Reward")
+    FText ChoreDisplayName;
+
+    // Сам набор награды. Один и тот же экземпляр уходит во все owning-подсистемы;
+    // каждая берёт свою часть (Money, ItemIds, Experience).
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Reward")
+    FChoreRewardSet Rewards;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore|Reward")
+    UChoreRewardPayload* Setup(FName InChoreId, const FText& InDisplayName, const FChoreRewardSet& InRewards)
+    {
+        ChoreId = InChoreId;
+        ChoreDisplayName = InDisplayName;
+        Rewards = InRewards;
         return this;
     }
 };
