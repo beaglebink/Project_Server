@@ -158,6 +158,7 @@ void AA_Dishes::Tick(float DeltaTime)
 				TossOrMoveEvent.RequirementTag = TAG_Cooking_WokMovements;
 				TossOrMoveEvent.WokMovementStep.WokMovementQuantity = 1;
 				TossOrMoveEvent.RequirementStartTime = CookingTimerValue;
+				TossOrMoveEvent.RequirementEndTime = CookingTimerValue;
 				RecipeRequirements.Add(TossOrMoveEvent);
 				if (bShowCookingDebug)
 				{
@@ -181,6 +182,7 @@ void AA_Dishes::Tick(float DeltaTime)
 					TossOrMoveEvent.RequirementTag = TAG_Cooking_WokMovements;
 					TossOrMoveEvent.WokMovementStep.WokMovementQuantity = 1;
 					TossOrMoveEvent.RequirementStartTime = CookingTimerValue;
+					TossOrMoveEvent.RequirementEndTime = CookingTimerValue;
 					RecipeRequirements.Add(TossOrMoveEvent);
 
 					if (bShowCookingDebug)
@@ -258,6 +260,7 @@ void AA_Dishes::BeginPlay()
 									FRecipeRequirement NewEvent = FRecipeRequirement();
 									NewEvent.RequirementTag = CookableIngredient->Tag;
 									NewEvent.RequirementStartTime = CookingTimerValue;
+									NewEvent.RequirementEndTime = CookingTimerValue;
 									NewEvent.IngredientStep.IngredientTag = CookableIngredient->Tag;
 									RecipeRequirements.Add(NewEvent);
 									CookableIngredient->RecipeRequirement = NewEvent;
@@ -310,7 +313,7 @@ void AA_Dishes::BeginPlay()
 				{
 					if (!Spices.Contains(CookableSpice))
 					{
-						if (CookableSpice->ParentDish == nullptr)
+						if (CookableSpice->ParentDish == nullptr && !CookableSpice->ActorHasTag(TEXT("BeingGrabbed")))
 						{
 							// Add spice event to cooking log requirements
 							FGameplayTag SpiceTag = CookableSpice->Tag;
@@ -319,6 +322,7 @@ void AA_Dishes::BeginPlay()
 								FRecipeRequirement NewEvent = FRecipeRequirement();
 								NewEvent.RequirementTag = SpiceTag;
 								NewEvent.RequirementStartTime = CookingTimerValue;
+								NewEvent.RequirementEndTime = CookingTimerValue;
 								NewEvent.SpicesStep.SpicesTag = SpiceTag;
 								RecipeRequirements.Add(NewEvent);
 								CookableSpice->Destroy();
@@ -931,18 +935,56 @@ bool AA_Dishes::CheckIfCooked()
 				//Calculate step quality by time
 				if (CheckedRequirement->RequirementStartTime >= RecipeRequirement.RequirementStartTime && CheckedRequirement->RequirementStartTime <= RecipeRequirement.RequirementEndTime)
 				{
-					SpiceTimingQuality = 1.0f * RecipeRequirement.RecipeImportance;
+					SpiceTimingQuality = 1.0f;
 				}
 				else if (CheckedRequirement->RequirementStartTime < RecipeRequirement.RequirementStartTime)
 				{
-					SpiceTimingQuality = FMath::Clamp(1 - (RecipeRequirement.RequirementStartTime - CheckedRequirement->RequirementStartTime) / RecipeRequirement.SpicesStep.EarlyTolerance, 0.0f, 1.0f) * RecipeRequirement.RecipeImportance;
+					SpiceTimingQuality = FMath::Clamp(1 - (RecipeRequirement.RequirementStartTime - CheckedRequirement->RequirementStartTime) / RecipeRequirement.SpicesStep.EarlyTolerance, 0.0f, 1.0f);
 				}
 				else if (CheckedRequirement->RequirementStartTime > RecipeRequirement.RequirementEndTime)
 				{
-					SpiceTimingQuality = FMath::Clamp(1 - (CheckedRequirement->RequirementStartTime - RecipeRequirement.RequirementEndTime) / RecipeRequirement.SpicesStep.LateTolerance, 0.0f, 1.0f) * RecipeRequirement.RecipeImportance;
+					SpiceTimingQuality = FMath::Clamp(1 - (CheckedRequirement->RequirementStartTime - RecipeRequirement.RequirementEndTime) / RecipeRequirement.SpicesStep.LateTolerance, 0.0f, 1.0f);
 				}
-				CheckedRequirement->StepQuality = SpiceTimingQuality;
-				DishQuality += SpiceTimingQuality;
+				CheckedRequirement->StepQuality = SpiceTimingQuality * RecipeRequirement.RecipeImportance;
+				DishQuality += SpiceTimingQuality * RecipeRequirement.RecipeImportance;
+			}
+		}
+	}
+	for (FRecipeRequirement& ActualRequirement : RecipeRequirements)
+	{
+		ActualRequirement.bChecked = false;
+	}
+
+	//Calculate interval requirements quality
+	for (FRecipeRequirement& RecipeRequirement : CheckedRecipe.Requirements)
+	{
+		if (RecipeRequirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals))
+		{
+			TotalRecipeImportance += RecipeRequirement.RecipeImportance;
+
+			for (int32 i = 0; i < RecipeRequirements.Num() - 1; ++i)
+			{
+				if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvent == RecipeRequirements[i + 1].RequirementTag)
+				{
+					float EventDuration = RecipeRequirements[i + 1].RequirementStartTime - RecipeRequirements[i].RequirementEndTime;
+					float IntervalTimingQuality = 0.0f;
+
+					if (EventDuration >= RecipeRequirement.IntervalStep.IntervalDurationMin && EventDuration <= RecipeRequirement.IntervalStep.IntervalDurationMax)
+					{
+						IntervalTimingQuality = 1.0f;
+					}
+					else if (EventDuration < RecipeRequirement.IntervalStep.IntervalDurationMin)
+					{
+						IntervalTimingQuality = FMath::Clamp(1 - (RecipeRequirement.IntervalStep.IntervalDurationMin - EventDuration) / RecipeRequirement.IntervalStep.EarlyTolerance, 0.0f, 1.0f);
+					}
+					else if (EventDuration > RecipeRequirement.IntervalStep.IntervalDurationMax)
+					{
+						IntervalTimingQuality = FMath::Clamp(1 - (EventDuration - RecipeRequirement.IntervalStep.IntervalDurationMax) / RecipeRequirement.IntervalStep.LateTolerance, 0.0f, 1.0f);
+					}
+					RecipeRequirement.StepQuality = IntervalTimingQuality * RecipeRequirement.RecipeImportance;
+					DishQuality += IntervalTimingQuality * RecipeRequirement.RecipeImportance;
+					break;
+				}
 			}
 		}
 	}
@@ -1095,6 +1137,22 @@ void AA_Dishes::ReplaceIngredientsByCookedFood()
 					TEXT("Spice: %s\n")
 					TEXT("Timing Quality: %.2f\n"),
 					*Requirement.RequirementTag.ToString(),
+					Requirement.StepQuality);
+			}
+		}
+
+		DebugText += TEXT("--------------------------------\n");
+		DebugText += TEXT("INTERVAL STEPS\n\n");
+
+		for (FRecipeRequirement& Requirement :CheckedRecipe.Requirements)
+		{
+			if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals))
+			{
+				DebugText += FString::Printf(
+					TEXT("Interval start event: %s --- Interval end event: %s\n")
+					TEXT("Timing Quality: %.2f\n"),
+					*Requirement.IntervalStep.StartEvent.ToString(),
+					*Requirement.IntervalStep.EndEvent.ToString(),
 					Requirement.StepQuality);
 			}
 		}

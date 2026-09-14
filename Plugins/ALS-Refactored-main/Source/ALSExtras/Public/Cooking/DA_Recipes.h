@@ -195,8 +195,11 @@ struct FIntervalStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FGameplayTag EndEvent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IntervalDuration (s)"))
-	float IntervalDuration = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IntervalDurationMIN (s)"))
+	float IntervalDurationMin = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IntervalDurationMAX (s)"))
+	float IntervalDurationMax = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "EarlyTolerance (s)"))
 	float EarlyTolerance = 0.0f;
