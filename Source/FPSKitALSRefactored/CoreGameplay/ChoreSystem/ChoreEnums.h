@@ -65,3 +65,16 @@ enum class EChorePerformanceMetric : uint8
     Accuracy                UMETA(DisplayName = "Accuracy (higher is better)"),
     Quantity                UMETA(DisplayName = "Quantity (higher is better)")
 };
+
+UENUM(BlueprintType)
+enum class EChoreAbandonBehavior : uint8
+{
+    // Провалить (текущее поведение).
+    Fail               UMETA(DisplayName = "Fail"),
+
+    // Откатить в Accepted: попытка прервана, но задание остаётся принятым.
+    ReturnToAccepted   UMETA(DisplayName = "Return to Accepted"),
+
+    // Вернуть в Available: задание снова доступно для принятия.
+    ReturnToAvailable  UMETA(DisplayName = "Return to Available")
+};

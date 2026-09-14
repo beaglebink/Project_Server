@@ -272,6 +272,15 @@ protected:
     // Принимает advance от миниигры. Возвращает true, если состояние изменено.
     void AdvanceChoreStage(FName ChoreId, int32 NewStageIndex, bool IsStart, FName NewStageKey);
 
+    // Сбрасывает «прогресс попытки» (стадии, паузы, метрики, время).
+    // Не трогает статус, AttemptCount, AcceptTime, bRewardIssued.
+    void ResetAttemptState(FChoreState& State);
+
+    // Полная процедура рестарта попытки: гасит таймер дедлайна и
+    // сбрасывает прогресс. Не меняет статус и не публикует события —
+    // сигналом наружу служит сам RetryRequest, из которого мы вызваны.
+    void RestartChore(FName ChoreId);
+
     void PauseChore(FName ChoreId);
     void ResumeChore(FName ChoreId);
 
@@ -331,17 +340,14 @@ private:
 
     UPROPERTY()
     bool bLoadComplete = true;
-    /*
-    UPROPERTY()
-    TArray<FShoreNameStatus> NotPublishState;
-    */
+
     FTimerManager* TimerManager = nullptr;
     TMap<FName, FTimerHandle> DeadlineTimers;
 
     // ---- Хендлы подписок на события ----
-    FOutcomeHandlerHandle GlobalEventHandler;           // для глобальных условий
-    FOutcomeHandlerHandle ChoreCompletionHandler;       // для завершения обычных хор
-    FOutcomeHandlerHandle MissionRequestHandler;        // для запросов от миссий
+    FOutcomeHandlerHandle GlobalEventHandler;           
+    FOutcomeHandlerHandle ChoreCompletionHandler;       
+    FOutcomeHandlerHandle MissionRequestHandler;       
 
     FOutcomeHandlerHandle AcceptRequestHandler;
     FOutcomeHandlerHandle StartRequestHandler;

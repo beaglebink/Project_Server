@@ -19,20 +19,7 @@ struct FChoreStageDefinition
     // Имя для UI (например, "Забрать посылку").
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
     FText DisplayName;
-    /*
-    // Описание для UI (опционально).
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
-    FText Description;
 
-    // Опциональная метка локации/бизнеса/маркера для навигации.
-    // Миниигра и UI сами решают, как её интерпретировать.
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
-    FName LocationTag;
-    */
-    // Флаг: стадия сопровождается экраном перехода / анимацией / телепортом.
-    // Используется UI/режиссурой, сам Chore Manager его не трактует.
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
-    //bool bRequiresTransition = false;
 };
 
 USTRUCT(BlueprintType)
@@ -128,6 +115,10 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
     bool bIsRepeatable = false;
+
+    // ---- Поведение при AbandonRequest ----
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
+    EChoreAbandonBehavior AbandonBehavior = EChoreAbandonBehavior::Fail;
 
     // ---- Награды ----
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rewards")

@@ -582,50 +582,98 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
-    if (State.Status != EChoreStatus::Accepted && State.Status != EChoreStatus::WaitingToStart && State.Status != EChoreStatus::Active)
-        return;
 
+    // Отменять можно только принятое / ожидающее старта / активное задание.
+    if (State.Status != EChoreStatus::Accepted && State.Status != EChoreStatus::WaitingToStart && State.Status != EChoreStatus::Active)
+    {
+        return;
+    }
+
+    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    const EChoreAbandonBehavior Behavior = Def ? Def->AbandonBehavior : EChoreAbandonBehavior::Fail;
+
+    // ---- Fail (прежнее поведение) ----
     ClearDeadlineTimer(ChoreId);
     EnsureElapsedTimeRecorded(State);
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
     AddHistoryEntry(ChoreId, EOutcomeChore::AbandonRequest, State.Performance);
 
-    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    if (Def && Def->bIsRepeatable)
+    if (Behavior == EChoreAbandonBehavior::Fail)
     {
-        if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
+        if (Def && Def->bIsRepeatable)
         {
-            UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+            if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+            }
+            else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
+            {
+                RegisterReactivationHandler(Def);
+            }
+            else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
+            {
+                UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
+            }
         }
-        else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
-        {
-            RegisterReactivationHandler(Def);
-        }
-        else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
-        {
-            UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
-        }
+    }
+
+	// ---- ReturnToAvailable ----
+    if (GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAccepted ||
+        GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAvailable)
+    {
+        RestartChore(ChoreId);
+
+        UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+    }
+
+    // ---- ReturnToAccepted ----
+    if (GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAccepted)
+    {
+        UpdateChoreState(ChoreId, EChoreStatus::Accepted, true, true);
     }
 }
 
 void UChoreManagerSubsystem::RetryChore(FName ChoreId)
 {
-    if (!ActiveStates.Contains(ChoreId)) return;
-    FChoreState& State = ActiveStates[ChoreId];
-    if (State.Status != EChoreStatus::PendingReaccept) return;
+    FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State) return;
 
-    State.bRewardIssued = false;
-    State.Performance = FChorePerformanceMetrics();
-    State.StartTime = FDateTime::MinValue();
+    // ---- Сценарий 1: обычный retry после провала с RequireReaccept ----
+    if (State->Status == EChoreStatus::PendingReaccept)
+    {
+        RestartChore(ChoreId);
+        State->bRewardIssued = false;
+        UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+        return;
+    }
 
-    State.CurrentStageIndex = 0;
-    State.CurrentStageKey = NAME_None;
-    State.bIsPaused = false;
-    State.PauseStartTime = FDateTime::MinValue();
-    State.AccumulatedPauseTime = FTimespan::Zero();
+    // ---- Сценарий 2: Abandon вернул хору в исходное состояние ----
+    // AbandonChore для ReturnToAccepted/ReturnToAvailable публикует RetryRequest,
+    // и мы попадаем сюда, пока статус — один из «до старта»/«в процессе».
+    if (State->Status == EChoreStatus::Failed)
+    {
+        UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+        const EChoreAbandonBehavior Behavior = Def
+            ? Def->AbandonBehavior
+            : EChoreAbandonBehavior::Fail;
 
-    UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+        RestartChore(ChoreId);
+
+        if (Behavior == EChoreAbandonBehavior::ReturnToAccepted)
+        {
+            UpdateChoreState(ChoreId, EChoreStatus::Accepted);
+        }
+        else if (Behavior == EChoreAbandonBehavior::ReturnToAvailable)
+        {
+            State->bRewardIssued = false;
+            UpdateChoreState(ChoreId, EChoreStatus::Available);
+        }
+        return;
+    }
+
+    // Любые другие статусы — не наш сценарий.
 }
+
 void UChoreManagerSubsystem::UnlockChore(FName ChoreId)
 {
     OfferChore(ChoreId);
@@ -1000,7 +1048,7 @@ int32 UChoreManagerSubsystem::GetTotalAttempts(FName ChoreId, EChoreFamily Famil
     bool bUseFamily, bool bUseSubtype) const
 {
     return GetHistoryCountByResult(ChoreId, Family, Subtype, bUseFamily, bUseSubtype,
-        EOutcomeChore::Default, /*bRequireSpecificResult=*/false);
+        EOutcomeChore::Default, false);
 }
 
 float UChoreManagerSubsystem::GetBestPerformanceFiltered(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, EChorePerformanceMetric Metric, bool bSucceededOnly) const
@@ -1523,7 +1571,7 @@ void UChoreManagerSubsystem::RegisterReactivationHandler(UChoreDefinition* Defin
 
     if (Handle.IsValid())
     {
-        ActiveStates[ChoreId].ReactivationHandler = Handle; // <-- ИЗМЕНЕНО
+        ActiveStates[ChoreId].ReactivationHandler = Handle;
     }
 }
 
@@ -1572,6 +1620,31 @@ void UChoreManagerSubsystem::AdvanceChoreStage(FName ChoreId, int32 NewStageInde
     Event.OutcomeChore = EOutcomeChore::ChoreStageAdvanced;
     Event.Payload = Payload;
     EventBus->PublishOutcome(Event);
+}
+
+void UChoreManagerSubsystem::ResetAttemptState(FChoreState& State)
+{
+    State.StartTime = FDateTime::MinValue();
+    State.Deadline = FDateTime::MinValue();
+
+    State.Performance = FChorePerformanceMetrics();
+    State.bSucceeded = false;
+
+    State.CurrentStageIndex = 0;
+    State.CurrentStageKey = NAME_None;
+
+    State.bIsPaused = false;
+    State.PauseStartTime = FDateTime::MinValue();
+    State.AccumulatedPauseTime = FTimespan::Zero();
+}
+
+void UChoreManagerSubsystem::RestartChore(FName ChoreId)
+{
+    FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State) return;
+
+    ClearDeadlineTimer(ChoreId);
+    ResetAttemptState(*State);
 }
 
 void UChoreManagerSubsystem::PauseChore(FName ChoreId)
