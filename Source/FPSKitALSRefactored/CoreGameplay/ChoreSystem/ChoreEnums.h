@@ -72,9 +72,9 @@ enum class EChoreAbandonBehavior : uint8
     // Провалить (текущее поведение).
     Fail               UMETA(DisplayName = "Fail"),
 
-    // Откатить в Accepted: попытка прервана, но задание остаётся принятым.
-    ReturnToAccepted   UMETA(DisplayName = "Return to Accepted"),
-
     // Вернуть в Available: задание снова доступно для принятия.
-    ReturnToAvailable  UMETA(DisplayName = "Return to Available")
+    ReturnToAvailable  UMETA(DisplayName = "Return to Available"),
+
+    // Откатить в Accepted: попытка прервана, но задание остаётся принятым.
+    ReturnToAccepted   UMETA(DisplayName = "Return to Accepted")
 };
