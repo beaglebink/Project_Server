@@ -62,6 +62,10 @@ struct FChoreState
     UPROPERTY()
     FTimespan AccumulatedPauseTime;
 
+    // Остаток дедлайна на момент паузы. 0 = дедлайна не было.
+    UPROPERTY()
+    FTimespan PausedDeadlineRemaining = FTimespan::Zero();
+
     FOutcomeHandlerHandle AvailabilityHandler;
     FOutcomeHandlerHandle ReactivationHandler;
 };

@@ -1636,6 +1636,7 @@ void UChoreManagerSubsystem::ResetAttemptState(FChoreState& State)
     State.bIsPaused = false;
     State.PauseStartTime = FDateTime::MinValue();
     State.AccumulatedPauseTime = FTimespan::Zero();
+    State.PausedDeadlineRemaining = FTimespan::Zero();
 }
 
 void UChoreManagerSubsystem::RestartChore(FName ChoreId)
@@ -1656,6 +1657,19 @@ void UChoreManagerSubsystem::PauseChore(FName ChoreId)
 
     State.bIsPaused = true;
     State.PauseStartTime = FDateTime::UtcNow();
+
+    // ---- Замираем дедлайн ----
+    // Снимаем таймер и запоминаем остаток; сам Deadline обнуляем,
+    // чтобы save/load не «унаследовал» уже устаревший момент времени.
+    if (State.Deadline != FDateTime::MinValue())
+    {
+        State.PausedDeadlineRemaining = State.Deadline - FDateTime::UtcNow();
+        if (State.PausedDeadlineRemaining.GetTotalSeconds() < 0)
+            State.PausedDeadlineRemaining = FTimespan::Zero();
+
+        ClearDeadlineTimer(ChoreId);
+        State.Deadline = FDateTime::MinValue();
+    }
 
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
@@ -1678,13 +1692,22 @@ void UChoreManagerSubsystem::ResumeChore(FName ChoreId)
     if (State.Status != EChoreStatus::Active) return;
     if (!State.bIsPaused) return;
 
-    // Накопить время паузы
+    // Накопить время паузы (для elapsed-времени).
     if (State.PauseStartTime != FDateTime::MinValue())
     {
         State.AccumulatedPauseTime += (FDateTime::UtcNow() - State.PauseStartTime);
     }
     State.PauseStartTime = FDateTime::MinValue();
     State.bIsPaused = false;
+
+    // ---- Восстанавливаем дедлайн ----
+    // Отсчёт продолжается с того места, где был остановлен.
+    if (State.PausedDeadlineRemaining.GetTotalSeconds() > 0.0)
+    {
+        State.Deadline = FDateTime::UtcNow() + State.PausedDeadlineRemaining;
+        State.PausedDeadlineRemaining = FTimespan::Zero();
+        StartDeadlineTimer(ChoreId);
+    }
 
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
@@ -1730,6 +1753,9 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         // Pause
         Obj->SetBoolField(TEXT("bIsPaused"), State.bIsPaused);
         Obj->SetNumberField(TEXT("AccumulatedPauseSeconds"), State.AccumulatedPauseTime.GetTotalSeconds());
+        Obj->SetBoolField(TEXT("bIsPaused"), State.bIsPaused);
+        Obj->SetNumberField(TEXT("AccumulatedPauseSeconds"), State.AccumulatedPauseTime.GetTotalSeconds());
+        Obj->SetNumberField(TEXT("PausedDeadlineSeconds"), State.PausedDeadlineRemaining.GetTotalSeconds());
 
         // Performance
         TSharedPtr<FJsonObject> PerfObj = MakeShared<FJsonObject>();
@@ -1846,6 +1872,10 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             double AccumulatedPauseSecs = 0.0;
             Obj->TryGetNumberField(TEXT("AccumulatedPauseSeconds"), AccumulatedPauseSecs);
             State.AccumulatedPauseTime = FTimespan::FromSeconds(AccumulatedPauseSecs);
+
+            double PausedDeadlineSecs = 0.0;
+            Obj->TryGetNumberField(TEXT("PausedDeadlineSeconds"), PausedDeadlineSecs);
+            State.PausedDeadlineRemaining = FTimespan::FromSeconds(PausedDeadlineSecs);
 
             // Пауза, начавшаяся до сохранения, при загрузке «начинается заново».
             State.PauseStartTime = State.bIsPaused ? FDateTime::UtcNow() : FDateTime::MinValue();
