@@ -962,12 +962,36 @@ bool AA_Dishes::CheckIfCooked()
 		{
 			TotalRecipeImportance += RecipeRequirement.RecipeImportance;
 
-			for (int32 i = 0; i < RecipeRequirements.Num() - 1; ++i)
+			for (int32 i = 0; i < RecipeRequirements.Num(); ++i)
 			{
-				if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvent == RecipeRequirements[i + 1].RequirementTag)
+				float EventDuration = 0.0f;
+				float IntervalTimingQuality = 0.0f;
+
+				if (i == RecipeRequirements.Num() - 1) //interval tag-final
 				{
-					float EventDuration = RecipeRequirements[i + 1].RequirementStartTime - RecipeRequirements[i].RequirementEndTime;
-					float IntervalTimingQuality = 0.0f;
+					if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvent == FGameplayTag::EmptyTag)
+					{
+						EventDuration = CookingTimerValue - RecipeRequirements[i].RequirementEndTime;
+						if (EventDuration >= RecipeRequirement.IntervalStep.IntervalDurationMin && EventDuration <= RecipeRequirement.IntervalStep.IntervalDurationMax)
+						{
+							IntervalTimingQuality = 1.0f;
+						}
+						else if (EventDuration < RecipeRequirement.IntervalStep.IntervalDurationMin)
+						{
+							IntervalTimingQuality = FMath::Clamp(1 - (RecipeRequirement.IntervalStep.IntervalDurationMin - EventDuration) / RecipeRequirement.IntervalStep.EarlyTolerance, 0.0f, 1.0f);
+						}
+						else if (EventDuration > RecipeRequirement.IntervalStep.IntervalDurationMax)
+						{
+							IntervalTimingQuality = FMath::Clamp(1 - (EventDuration - RecipeRequirement.IntervalStep.IntervalDurationMax) / RecipeRequirement.IntervalStep.LateTolerance, 0.0f, 1.0f);
+						}
+						RecipeRequirement.StepQuality = IntervalTimingQuality * RecipeRequirement.RecipeImportance;
+						DishQuality += IntervalTimingQuality * RecipeRequirement.RecipeImportance;
+						break;
+					}
+				}
+				else if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvent == RecipeRequirements[i + 1].RequirementTag) //interval tag-tag
+				{
+					EventDuration = RecipeRequirements[i + 1].RequirementStartTime - RecipeRequirements[i].RequirementEndTime;
 
 					if (EventDuration >= RecipeRequirement.IntervalStep.IntervalDurationMin && EventDuration <= RecipeRequirement.IntervalStep.IntervalDurationMax)
 					{
@@ -1144,7 +1168,7 @@ void AA_Dishes::ReplaceIngredientsByCookedFood()
 		DebugText += TEXT("--------------------------------\n");
 		DebugText += TEXT("INTERVAL STEPS\n\n");
 
-		for (FRecipeRequirement& Requirement :CheckedRecipe.Requirements)
+		for (FRecipeRequirement& Requirement : CheckedRecipe.Requirements)
 		{
 			if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals))
 			{
