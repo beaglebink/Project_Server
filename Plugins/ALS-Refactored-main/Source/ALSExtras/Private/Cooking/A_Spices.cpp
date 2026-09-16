@@ -13,6 +13,7 @@ void AA_Spices::OnConstruction(const FTransform& Transform)
 void AA_Spices::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
 }
 
 void AA_Spices::BeginPlay()

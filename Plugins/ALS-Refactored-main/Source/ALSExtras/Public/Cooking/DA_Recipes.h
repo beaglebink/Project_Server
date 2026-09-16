@@ -130,11 +130,11 @@ struct FLiquidStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IdealMaximumAmount (ml)"))
 	float IdealMaximumAmount = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "UnderAmountTolerance (ml)"))
-	float UnderAmountTolerance = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "UnderAmountTolerance (ml)"))
+	float UnderAmountTolerance = 0.01f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "OverAmountTolerance (ml)"))
-	float OverAmountTolerance = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "OverAmountTolerance (ml)"))
+	float OverAmountTolerance = 0.01f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IdealStartTime (s)"))
 	float IdealStartTime = 0.0f;
@@ -142,11 +142,11 @@ struct FLiquidStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IdealEndTime (s)"))
 	float IdealEndTime = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "EarlyTolerance (s)"))
-	float EarlyTolerance = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "EarlyTolerance (s)"))
+	float EarlyTolerance = 0.01f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "LateTolerance (s)"))
-	float LateTolerance = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "LateTolerance (s)"))
+	float LateTolerance = 0.01f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f))
 	float AmountScoreWeight = 0.65f;
@@ -164,10 +164,10 @@ struct FSpicesStep
 	FGameplayTag SpicesTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "EarlyTolerance (s)"))
-	float EarlyTolerance = 0.0f;
+	float EarlyTolerance = 0.01f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "LateTolerance (s)"))
-	float LateTolerance = 0.0f;
+	float LateTolerance = 0.01f;
 };
 
 USTRUCT(BlueprintType)
@@ -195,14 +195,17 @@ struct FIntervalStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
 	FGameplayTag EndEvent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IntervalDuration (s)"))
-	float IntervalDuration = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IntervalDurationMin (s)"))
+	float IntervalDurationMin = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IntervalDurationMax (s)"))
+	float IntervalDurationMax = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "EarlyTolerance (s)"))
-	float EarlyTolerance = 0.0f;
+	float EarlyTolerance = 0.01f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.01f, DisplayName = "LateTolerance (s)"))
-	float LateTolerance = 0.0f;
+	float LateTolerance = 0.01f;
 };
 
 UENUM()
