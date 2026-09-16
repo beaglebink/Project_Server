@@ -1930,12 +1930,8 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             FString StageKeyStr;
             Obj->TryGetStringField(TEXT("CurrentStageKey"), StageKeyStr);
             State.CurrentStageKey = FName(*StageKeyStr);
-            Obj->TryGetBoolField(TEXT("IsStart"), State.IsStart);
 
             bool bLoaded = Obj->TryGetBoolField(TEXT("IsStart"), State.IsStart);
-            UE_LOG(LogTemp, Log, TEXT("Load IsStart: success=%s value=%s"),
-                bLoaded ? TEXT("yes") : TEXT("NO"),
-                State.IsStart ? TEXT("true") : TEXT("false"));
 
             // ---- Pause ----
             Obj->TryGetBoolField(TEXT("bIsPaused"), State.bIsPaused);
