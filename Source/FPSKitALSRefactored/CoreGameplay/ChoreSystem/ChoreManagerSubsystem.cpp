@@ -464,6 +464,7 @@ void UChoreManagerSubsystem::OfferChore(FName ChoreId)
         return;
 
     UpdateChoreState(ChoreId, EChoreStatus::Available);
+    State.IsExpired = false;
 }
 
 void UChoreManagerSubsystem::AcceptChore(FName ChoreId)
@@ -482,6 +483,7 @@ void UChoreManagerSubsystem::AcceptChore(FName ChoreId)
 
     EChoreStatus NewStatus = (Def && Def->bMustStartImmediately) ? EChoreStatus::Active : EChoreStatus::Accepted;
     UpdateChoreState(ChoreId, NewStatus);
+    State.IsExpired = false;
 
     if (NewStatus == EChoreStatus::Active)
     {
@@ -523,6 +525,7 @@ void UChoreManagerSubsystem::StartChore(FName ChoreId)
 
     UpdateChoreState(ChoreId, EChoreStatus::Active);
     StartDeadlineTimer(ChoreId);
+    State.IsExpired = false;
 }
 
 void UChoreManagerSubsystem::CompleteChore(FName ChoreId, const FChorePerformanceMetrics& Performance)
@@ -546,6 +549,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, const FChorePerformanc
     AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Performance);
     UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
     GrantRewards(ChoreId);
+    State.IsExpired = false;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def && Def->bIsRepeatable)
@@ -575,6 +579,7 @@ void UChoreManagerSubsystem::FailChore(FName ChoreId, const FChorePerformanceMet
     EnsureElapsedTimeRecorded(State);
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
     AddHistoryEntry(ChoreId, EOutcomeChore::FailRequest, State.Performance);
+    State.IsExpired = false;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def && Def->bIsRepeatable)
@@ -604,6 +609,7 @@ void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
     EnsureElapsedTimeRecorded(State);
     UpdateChoreState(ChoreId, EChoreStatus::Expired);
     AddHistoryEntry(ChoreId, EOutcomeChore::ExpireRequest, State.Performance);
+    State.IsExpired = true;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def && Def->bIsRepeatable)
@@ -642,6 +648,7 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     EnsureElapsedTimeRecorded(State);
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
     AddHistoryEntry(ChoreId, EOutcomeChore::AbandonRequest, State.Performance);
+    State.IsExpired = false;
 
     if (Behavior == EChoreAbandonBehavior::Fail)
     {
@@ -682,6 +689,8 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
 {
     FChoreState* State = ActiveStates.Find(ChoreId);
     if (!State) return;
+
+    State->IsExpired = false;
 
     // ---- Сценарий 1: обычный retry после провала с RequireReaccept ----
     if (State->Status == EChoreStatus::PendingReaccept)
@@ -728,6 +737,8 @@ void UChoreManagerSubsystem::RevokeChore(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
+
+    State.IsExpired = false;
 
     // Отзываем только если задание ещё не принято
     if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
@@ -1816,6 +1827,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetNumberField(TEXT("CurrentStageIndex"), State.CurrentStageIndex);
         Obj->SetStringField(TEXT("CurrentStageKey"), State.CurrentStageKey.ToString());
         Obj->SetBoolField(TEXT("IsStart"), State.IsStart);
+        Obj->SetBoolField(TEXT("IsExpired"), State.IsExpired);
 
         // Pause
         Obj->SetBoolField(TEXT("bIsPaused"), State.bIsPaused);
@@ -1894,33 +1906,34 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
             FChoreState State;
+            bool bLoaded;
 
             FString ChoreIdStr;
-            Obj->TryGetStringField(TEXT("ChoreId"), ChoreIdStr);
+            bLoaded = Obj->TryGetStringField(TEXT("ChoreId"), ChoreIdStr);
             State.ChoreId = FName(*ChoreIdStr);
 
             int32 StatusInt = 0;
-            Obj->TryGetNumberField(TEXT("Status"), StatusInt);
+            bLoaded = Obj->TryGetNumberField(TEXT("Status"), StatusInt);
             State.Status = (EChoreStatus)StatusInt;
 
             FString AcceptTimeStr;
-            Obj->TryGetStringField(TEXT("AcceptTime"), AcceptTimeStr);
+            bLoaded = Obj->TryGetStringField(TEXT("AcceptTime"), AcceptTimeStr);
             FDateTime::ParseIso8601(*AcceptTimeStr, State.AcceptTime);
 
             FString StartTimeStr;
-            Obj->TryGetStringField(TEXT("StartTime"), StartTimeStr);
+            bLoaded = Obj->TryGetStringField(TEXT("StartTime"), StartTimeStr);
             if (!FDateTime::ParseIso8601(*StartTimeStr, State.StartTime))
             {
                 State.StartTime = FDateTime::MinValue();
             }
 
             FString DeadlineStr;
-            Obj->TryGetStringField(TEXT("Deadline"), DeadlineStr);
+            bLoaded = Obj->TryGetStringField(TEXT("Deadline"), DeadlineStr);
             FDateTime::ParseIso8601(*DeadlineStr, State.Deadline);
 
-            Obj->TryGetNumberField(TEXT("AttemptCount"), State.AttemptCount);
-            Obj->TryGetBoolField(TEXT("bSucceeded"), State.bSucceeded);
-            Obj->TryGetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
+            bLoaded = Obj->TryGetNumberField(TEXT("AttemptCount"), State.AttemptCount);
+            bLoaded = Obj->TryGetBoolField(TEXT("bSucceeded"), State.bSucceeded);
+            bLoaded = Obj->TryGetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
 
             // ---- Стадии ----
             int32 CurrentStageInt = 0;
@@ -1928,20 +1941,21 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             State.CurrentStageIndex = CurrentStageInt;
 
             FString StageKeyStr;
-            Obj->TryGetStringField(TEXT("CurrentStageKey"), StageKeyStr);
+            bLoaded = Obj->TryGetStringField(TEXT("CurrentStageKey"), StageKeyStr);
             State.CurrentStageKey = FName(*StageKeyStr);
 
-            bool bLoaded = Obj->TryGetBoolField(TEXT("IsStart"), State.IsStart);
+            bLoaded = Obj->TryGetBoolField(TEXT("IsStart"), State.IsStart);
+            bLoaded = Obj->TryGetBoolField(TEXT("IsExpired"), State.IsExpired);
 
             // ---- Pause ----
-            Obj->TryGetBoolField(TEXT("bIsPaused"), State.bIsPaused);
+            bLoaded = Obj->TryGetBoolField(TEXT("bIsPaused"), State.bIsPaused);
 
             double AccumulatedPauseSecs = 0.0;
-            Obj->TryGetNumberField(TEXT("AccumulatedPauseSeconds"), AccumulatedPauseSecs);
+            bLoaded = Obj->TryGetNumberField(TEXT("AccumulatedPauseSeconds"), AccumulatedPauseSecs);
             State.AccumulatedPauseTime = FTimespan::FromSeconds(AccumulatedPauseSecs);
 
             double PausedDeadlineSecs = 0.0;
-            Obj->TryGetNumberField(TEXT("PausedDeadlineSeconds"), PausedDeadlineSecs);
+            bLoaded = Obj->TryGetNumberField(TEXT("PausedDeadlineSeconds"), PausedDeadlineSecs);
             State.PausedDeadlineRemaining = FTimespan::FromSeconds(PausedDeadlineSecs);
 
             // Пауза, начавшаяся до сохранения, при загрузке «начинается заново».

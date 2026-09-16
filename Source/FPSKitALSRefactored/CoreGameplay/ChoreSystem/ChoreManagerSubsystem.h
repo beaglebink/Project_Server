@@ -52,6 +52,9 @@ struct FChoreState
     UPROPERTY(BlueprintReadOnly)
     bool IsStart = true;
 
+    UPROPERTY(BlueprintReadOnly)
+    bool IsExpired = true;
+
     // ---- Pause ----
     UPROPERTY(BlueprintReadOnly)
     bool bIsPaused = false;
