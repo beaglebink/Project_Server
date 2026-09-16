@@ -10,11 +10,6 @@ void UBookfaceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     UE_LOG(LogTemp, Log, TEXT("BookfaceSubsystem initialized"));
     
     TryRegisterBookfaceSubsystem();
-
-    /*
-    if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
-        SaveSys->RegisterSaveableSubsystem(this);
-        */
 }
 
 void UBookfaceSubsystem::TryRegisterBookfaceSubsystem()

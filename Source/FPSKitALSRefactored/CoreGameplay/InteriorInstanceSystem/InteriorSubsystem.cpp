@@ -3740,6 +3740,11 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+    // Форсируем инициализацию системы сохранения ДО нас.
+    // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
+    // и регистрация Saveable-подсистемы молча не сработает.
+    Collection.InitializeDependency<UGameSaveSubsystem>();
+	
 	// Register with GameSaveSubsystem to participate in saving/loading
 	// Регистрируемся в GameSaveSubsystem для участия в сохранении/загрузке
 	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
@@ -3791,6 +3796,12 @@ void UInteriorSubsystem::Deinitialize()
 	CachedEventBus = nullptr;
 
 	UnsubscribeFromSpawnActor();
+	
+	// Отписка от сохранения
+    if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+    {
+        SaveSys->UnregisterSaveableSubsystem(this);
+    }
 
 	Super::Deinitialize();
 }
@@ -4113,6 +4124,8 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 
 			SubscribeToSpawnActor();
 			IsPostLoadMapComplete = true;
+
+			SaveLoadFromDisk.Broadcast(false);
 		});
 
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
@@ -4486,6 +4499,8 @@ void UInteriorSubsystem::RestoreSpawnedActorsForCurrentFloor(const FMissionEnvel
 
 void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
+	SaveLoadFromDisk.Broadcast(true);
+
 	UWorld* World = GetWorld();
 	if (!World) return;
 

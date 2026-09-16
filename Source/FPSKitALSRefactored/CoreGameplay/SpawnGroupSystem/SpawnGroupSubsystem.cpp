@@ -39,6 +39,11 @@ void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     Super::Initialize(Collection);
     CachedEventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     SubscribeEvents();
+	
+    // Форсируем инициализацию системы сохранения ДО нас.
+    // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
+    // и регистрация Saveable-подсистемы молча не сработает.
+    Collection.InitializeDependency<UGameSaveSubsystem>();
 
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
         SaveSys->RegisterSaveableSubsystem(this);

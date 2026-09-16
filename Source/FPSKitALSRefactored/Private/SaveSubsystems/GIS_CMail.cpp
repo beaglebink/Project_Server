@@ -6,6 +6,11 @@ void UGIS_CMail::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+    // Форсируем инициализацию системы сохранения ДО нас.
+    // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
+    // и регистрация Saveable-подсистемы молча не сработает.
+    Collection.InitializeDependency<UGameSaveSubsystem>();
+	
 	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
 	{
 		SaveSys->RegisterSaveableSubsystem(this);
@@ -13,7 +18,13 @@ void UGIS_CMail::Initialize(FSubsystemCollectionBase& Collection)
 }
 
 void UGIS_CMail::Deinitialize()
-{
+{	
+	// Отписка от сохранения
+    if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+    {
+        SaveSys->UnregisterSaveableSubsystem(this);
+    }
+	
 	Super::Deinitialize();
 }
 

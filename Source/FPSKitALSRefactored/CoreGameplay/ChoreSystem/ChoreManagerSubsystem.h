@@ -10,60 +10,60 @@
 #include "EventBusSubsystem.h"
 #include "ChoreManagerSubsystem.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FChoreState
 {
     GENERATED_BODY()
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FName ChoreId;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     EChoreStatus Status = EChoreStatus::Unavailable;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FDateTime AcceptTime;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FDateTime StartTime;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FDateTime Deadline;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     int32 AttemptCount = 0;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     bool bSucceeded = false;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FChorePerformanceMetrics Performance;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     bool bRewardIssued = false;
 
     // ---- Стадии ----
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     int32 CurrentStageIndex = 0;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FName CurrentStageKey;
 
-    UPROPERTY()
-    bool IsStart;
+    UPROPERTY(BlueprintReadOnly)
+    bool IsStart = true;
 
     // ---- Pause ----
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     bool bIsPaused = false;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FDateTime PauseStartTime;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FTimespan AccumulatedPauseTime;
 
     // Остаток дедлайна на момент паузы. 0 = дедлайна не было.
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FTimespan PausedDeadlineRemaining = FTimespan::Zero();
 
     FOutcomeHandlerHandle AvailabilityHandler;
@@ -109,6 +109,9 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     bool IsChoreAvailable(FName ChoreId) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
+    FChoreState GetState(FName ChoreId) const;
 
     // ---- Возвращает список идентификаторов доступных заданий ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")

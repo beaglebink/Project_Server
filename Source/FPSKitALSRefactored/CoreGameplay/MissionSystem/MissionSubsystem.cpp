@@ -61,6 +61,11 @@ void UMissionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+    // Форсируем инициализацию системы сохранения ДО нас.
+    // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
+    // и регистрация Saveable-подсистемы молча не сработает.
+    Collection.InitializeDependency<UGameSaveSubsystem>();
+	
 	// Регистрируемся в GameSaveSubsystem для участия в сохранении/загрузке
 	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
 	{

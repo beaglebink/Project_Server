@@ -25,6 +25,7 @@ class ASpawnGroupSpawner;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteriorInteractItemRegistrationEvent, UInteractItemRegistrationPayload*, Payload);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTransitionCompleted, bool, bSuccess, FLocationAnchorLink, DestinationLink, bool, IsTravel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFloorExiting, TSoftObjectPtr<UFloorAsset>, SourceFloor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSaveLoadFromDisk, bool, IsSave);
 
 struct FInteractItemRecord
 {
@@ -138,6 +139,9 @@ public:
     FOnTransitionCompleted OnTransitionCompleted;
     UPROPERTY(BlueprintAssignable, Category = "InteriorSubsystem|Events")
     FOnFloorExiting OnFloorExiting;
+
+    UPROPERTY(BlueprintAssignable)
+    FSaveLoadFromDisk SaveLoadFromDisk;
 
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Population")
     TArray<FFloorPopulationRecord> GetPlacedActorsForInteriorFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const;

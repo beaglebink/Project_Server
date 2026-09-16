@@ -5,6 +5,12 @@
 void UInstantMessengerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
+	
+	// Форсируем инициализацию системы сохранения ДО нас.
+    // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
+    // и регистрация Saveable-подсистемы молча не сработает.
+    Collection.InitializeDependency<UGameSaveSubsystem>();
+	
     UE_LOG(LogTemp, Log, TEXT("InstantMessengerSubsystem initialized"));
 
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
@@ -14,6 +20,13 @@ void UInstantMessengerSubsystem::Initialize(FSubsystemCollectionBase& Collection
 void UInstantMessengerSubsystem::Deinitialize()
 {
     Super::Deinitialize();
+	
+	// Отписка от сохранения
+    if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+    {
+        SaveSys->UnregisterSaveableSubsystem(this);
+    }
+	
     UE_LOG(LogTemp, Log, TEXT("InstantMessengerSubsystem deinitialized"));
 }
 
