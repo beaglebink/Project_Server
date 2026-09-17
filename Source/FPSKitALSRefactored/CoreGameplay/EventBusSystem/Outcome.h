@@ -77,37 +77,60 @@ UENUM(BlueprintType)
 enum class EOutcomeTerminal : uint8
 {
     Default                 UMETA(DisplayName = "Default"),
+
+    // ---- Нотификации (существующие) ----
     TerminalOpened          UMETA(DisplayName = "Terminal Opened"),
     TerminalTaskCompleted   UMETA(DisplayName = "Terminal Task Completed"),
-    TerminalTaskFailed      UMETA(DisplayName = "Terminal Task Failed"),
+    //TerminalTaskFailed      UMETA(DisplayName = "Terminal Task Failed"),
     TerminalClosed          UMETA(DisplayName = "Terminal Closed"),
     TerminalLoginFailed     UMETA(DisplayName = "Terminal Login Failed"),
     TerminalLoginSucceeded  UMETA(DisplayName = "Terminal Login Succeeded"),
     TerminalFileModified    UMETA(DisplayName = "Terminal File Modified"),
-    TerminalGlobalServiceModified UMETA(DisplayName = "Terminal Global Service Modified"),
+
     InteractSetEnabled      UMETA(DisplayName = "Interact Set Enabled"),
     InteractSetRange        UMETA(DisplayName = "Interact Set Range"),
     InteractSetTooltip      UMETA(DisplayName = "Interact Set Tooltip"),
     TerminalCommand         UMETA(DisplayName = "Terminal command"),
     InteractRegistered      UMETA(Hidden, DisplayName = "Interact Registered"),
     InteractUnregistered    UMETA(Hidden, DisplayName = "Interact Unregistered"),
-    CheckRequest            UMETA(DisplayName = "Check Request"),
-    CheckResponse           UMETA(DisplayName = "Check Response")
+    //CheckRequest            UMETA(DisplayName = "Check Request"),
+    //CheckResponse           UMETA(DisplayName = "Check Response"),
+
+    // ---- Команды (Request) ----
+    RegisterTerminalRequest UMETA(DisplayName = "Register Terminal Request"),
+    UnregisterTerminalRequest UMETA(DisplayName = "Unregister Terminal Request"),
+    SetCapabilitiesRequest  UMETA(DisplayName = "Set Capabilities Request"),
+    ApplyProfileRequest     UMETA(DisplayName = "Apply Profile Request"),
+    ResetToDefaultRequest   UMETA(DisplayName = "Reset To Default Request"),
+
+    OpenTerminalRequest     UMETA(DisplayName = "Open Terminal Request"),
+    CloseTerminalRequest    UMETA(DisplayName = "Close Terminal Request"),
+    LoginPasswordRequest    UMETA(DisplayName = "Login Password Request"),
+    LoginAccountRequest     UMETA(DisplayName = "Login Account Request"),
+    ContextualAccessRequest UMETA(DisplayName = "Contextual Access Request"),
+
+    WriteFileRequest        UMETA(DisplayName = "Write File Request"),
+    DeleteFileRequest       UMETA(DisplayName = "Delete File Request"),
+
+    SetEmailContentRequest  UMETA(DisplayName = "Set Email Content Request"),
+    SetWebsiteContentRequest UMETA(DisplayName = "Set Website Content Request"),
+    SetGlobalDataRequest    UMETA(DisplayName = "Set Global Data Request"),
+    AddLogRequest           UMETA(DisplayName = "Add Log Request")
 };
 
 UENUM(BlueprintType)
 enum class EOutcomeInterior : uint8
 {
     Default                 UMETA(DisplayName = "Default"),
-    InteriorEntered         UMETA(DisplayName = "Interior Entered"),
-    InteriorTransition      UMETA(DisplayName = "Interior Transition"),
-    InteriorLeaving         UMETA(DisplayName = "Interior Leaving"),
-    FloorEntered            UMETA(DisplayName = "Floor Entered"),
+    //InteriorEntered         UMETA(DisplayName = "Interior Entered"),
+    //InteriorTransition      UMETA(DisplayName = "Interior Transition"),
+    //InteriorLeaving         UMETA(DisplayName = "Interior Leaving"),
+    //FloorEntered            UMETA(DisplayName = "Floor Entered"),
     FloorTransition         UMETA(DisplayName = "Floor Transition"),
     FloorLeaving            UMETA(DisplayName = "Floor Leaving"),
-    BuildingEntered         UMETA(DisplayName = "Location Entered"),
-    BuildingTransition      UMETA(DisplayName = "Location Transition"),
-    BuildingLeaving         UMETA(DisplayName = "Location Leaving"),
+    //BuildingEntered         UMETA(DisplayName = "Location Entered"),
+    //BuildingTransition      UMETA(DisplayName = "Location Transition"),
+    //BuildingLeaving         UMETA(DisplayName = "Location Leaving"),
     InteractSetEnabled      UMETA(DisplayName = "Interact Set Enabled"),
     InteractSetRange        UMETA(DisplayName = "Interact Set Range"),
     InteractSetTooltip      UMETA(DisplayName = "Interact Set Tooltip"),
@@ -118,8 +141,8 @@ enum class EOutcomeInterior : uint8
     FloorStateSave          UMETA(DisplayName = "Floor State Save"),
     FloorStateRestore       UMETA(DisplayName = "Floor State Restore"),
     LevelLoaded             UMETA(DisplayName = "Level Loaded"),
-    CheckRequest            UMETA(DisplayName = "Check Request"),
-    CheckResponse           UMETA(DisplayName = "Check Response")
+    //CheckRequest            UMETA(DisplayName = "Check Request"),
+    //CheckResponse           UMETA(DisplayName = "Check Response")
 };
 
 UENUM(BlueprintType)
@@ -127,26 +150,26 @@ enum class EOutcomeSpawnGroup : uint8
 {
     Default                 UMETA(Hidden, DisplayName = "Default"),
     SpawnGroupActivated     UMETA(DisplayName = "Spawn Group Activated"),
-    SpawnGroupDeactivated   UMETA(DisplayName = "Spawn Group Deactivated"),
+    //SpawnGroupDeactivated   UMETA(DisplayName = "Spawn Group Deactivated"),
     SpawnGroupCleared       UMETA(DisplayName = "Spawn Group Cleared"),
-    SpawnGroupEnabled       UMETA(DisplayName = "Spawn Group Enabled"),
+    //SpawnGroupEnabled       UMETA(DisplayName = "Spawn Group Enabled"),
     SpawnGroupDisabled      UMETA(DisplayName = "Spawn Group Disabled"),
     SpawnGroupReset         UMETA(DisplayName = "Spawn Group Reset"),
     SpawnGroupRegister      UMETA(DisplayName = "Spawn Group Register"),
     SpawnGroupUnregister    UMETA(DisplayName = "Spawn Group Unregister"),
     GhostCaptured           UMETA(DisplayName = "Ghost Captured"),
-    CheckRequest            UMETA(DisplayName = "Check Request"),
-    CheckResponse           UMETA(DisplayName = "Check Response")
+    //CheckRequest            UMETA(DisplayName = "Check Request"),
+    //CheckResponse           UMETA(DisplayName = "Check Response")
 };
 
 UENUM(BlueprintType)
 enum class EWorldState : uint8
 {
     Default                     UMETA(DisplayName = "Default"),
-    ChangingLocationAvailability    UMETA(DisplayName = "Changing Location Availability"),
-    ChangingExteriorDoorAvailability UMETA(DisplayName = "Changing Exterior Door Availability"),
-    CheckRequest                UMETA(DisplayName = "Check Request"),
-    CheckResponse               UMETA(DisplayName = "Check Response")
+    //ChangingLocationAvailability    UMETA(DisplayName = "Changing Location Availability"),
+    //ChangingExteriorDoorAvailability UMETA(DisplayName = "Changing Exterior Door Availability"),
+    //CheckRequest                UMETA(DisplayName = "Check Request"),
+    //CheckResponse               UMETA(DisplayName = "Check Response")
 };
 
 UENUM(BlueprintType)
@@ -162,12 +185,12 @@ enum class EOutcomeChore : uint8
     ChoreRetryAvailable     UMETA(DisplayName = "Chore Retry Available"),
     ChoreReactivated        UMETA(DisplayName = "Chore Reactivated"),
     ChoreRewardGranted      UMETA(DisplayName = "Chore Reward Granted"),
-    ChoreUnlocked           UMETA(DisplayName = "Chore Unlocked"),
-    ChoreAbandoned          UMETA(DisplayName = "Chore Abandoned"),
-    ChoreMissionRequest     UMETA(DisplayName = "Chore Mission Request"),
+    //ChoreUnlocked           UMETA(DisplayName = "Chore Unlocked"),
+    //ChoreAbandoned          UMETA(DisplayName = "Chore Abandoned"),
+    //ChoreMissionRequest     UMETA(DisplayName = "Chore Mission Request"),
     ChoreMissionResult      UMETA(DisplayName = "Chore Mission Result"),
-    CheckRequest            UMETA(DisplayName = "Check Request"),
-    CheckResponse           UMETA(DisplayName = "Check Response"),
+    //CheckRequest            UMETA(DisplayName = "Check Request"),
+    //CheckResponse           UMETA(DisplayName = "Check Response"),
     AcceptRequest           UMETA(DisplayName = "Accept Request"),
     StartRequest            UMETA(DisplayName = "Start Request"),
     CompleteRequest         UMETA(DisplayName = "Complete Request"),

@@ -458,7 +458,6 @@ bool UTerminalSubsystem::SetEmailContent(const FString& Account, const FString& 
 {
 	GlobalState.EmailBoxes.Add(Account, Content);
 	BroadcastGlobalState();
-	PublishTerminalOutcome(FGuid(), EOutcomeTerminal::TerminalGlobalServiceModified);
 	return true;
 }
 
@@ -476,7 +475,6 @@ bool UTerminalSubsystem::SetWebsiteContent(const FString& Url, const FString& Co
 {
 	GlobalState.Websites.Add(Url, Content);
 	BroadcastGlobalState();
-	PublishTerminalOutcome(FGuid(), EOutcomeTerminal::TerminalGlobalServiceModified);
 	return true;
 }
 
@@ -494,7 +492,6 @@ bool UTerminalSubsystem::SetGlobalData(const FString& Key, const FString& Value)
 {
 	GlobalState.SharedData.Add(Key, Value);
 	BroadcastGlobalState();
-	PublishTerminalOutcome(FGuid(), EOutcomeTerminal::TerminalGlobalServiceModified);
 	return true;
 }
 
@@ -789,6 +786,7 @@ void UTerminalSubsystem::SubscribeAll()
 	SubscribeSetRange();
 	SubscribeSetTooltip();
 	SubscribeTestInteractCommand();
+	SubscribeCommands();
 }
 
 void UTerminalSubsystem::UnsubscribeAll()
@@ -799,6 +797,7 @@ void UTerminalSubsystem::UnsubscribeAll()
 	UnsubscribeSetRange();
 	UnsubscribeSetTooltip();
 	UnsubscribeTestInteractCommand();
+	UnsubscribeCommands();
 }
 
 // ============================================================================
@@ -1032,5 +1031,218 @@ void UTerminalSubsystem::BroadcastTerminalState(const FGuid& TerminalId)
 void UTerminalSubsystem::BroadcastGlobalState()
 {
 	OnTerminalGlobalStateChanged.Broadcast(GlobalState);
+}
+
+UOutcomeConditionAsset* UTerminalSubsystem::CreateSimpleTerminalCondition(EOutcomeTerminal TerminalType)
+{
+	UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+	Asset->OperatorType = EConditionOperator::Composite;
+	Asset->FilterRow.OutcomeType = EOutcomeType::Terminal;
+	Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	Asset->FilterRow.TerminalType = TerminalType;
+	Asset->FilterRow.TerminalComparison = EConditionComparison::Equals;
+	Asset->CompileCondition();
+	return Asset;
+}
+
+void UTerminalSubsystem::SubscribeCommands()
+{
+	if (!CachedEventBus.IsValid()) return;
+
+	auto Sub = [this](UOutcomeConditionAsset*& Cond,
+		EOutcomeTerminal Cmd,
+		FOutcomeHandlerHandle& Handle,
+		void (UTerminalSubsystem::* Fn)(const FOutcomeEventBase&))
+		{
+			if (Handle.IsValid()) return;
+			Cond = CreateSimpleTerminalCondition(Cmd);
+			if (Cond->GetCondition().IsValid())
+			{
+				Handle = CachedEventBus->RegisterHandler(
+					Cond,
+					FOutcomeHandlerDelegate::CreateUObject(this, Fn));
+			}
+		};
+
+	Sub(RegisterTerminalCondition, EOutcomeTerminal::RegisterTerminalRequest,
+		RegisterTerminalHandler, &UTerminalSubsystem::HandleRegisterTerminalRequest);
+	Sub(UnregisterTerminalCondition, EOutcomeTerminal::UnregisterTerminalRequest,
+		UnregisterTerminalHandler, &UTerminalSubsystem::HandleUnregisterTerminalRequest);
+	Sub(SetCapabilitiesCondition, EOutcomeTerminal::SetCapabilitiesRequest,
+		SetCapabilitiesHandler, &UTerminalSubsystem::HandleSetCapabilitiesRequest);
+	Sub(ApplyProfileCondition, EOutcomeTerminal::ApplyProfileRequest,
+		ApplyProfileHandler, &UTerminalSubsystem::HandleApplyProfileRequest);
+	Sub(ResetToDefaultCondition, EOutcomeTerminal::ResetToDefaultRequest,
+		ResetToDefaultHandler, &UTerminalSubsystem::HandleResetToDefaultRequest);
+
+	Sub(OpenTerminalCondition, EOutcomeTerminal::OpenTerminalRequest,
+		OpenTerminalHandler, &UTerminalSubsystem::HandleOpenTerminalRequest);
+	Sub(CloseTerminalCondition, EOutcomeTerminal::CloseTerminalRequest,
+		CloseTerminalHandler, &UTerminalSubsystem::HandleCloseTerminalRequest);
+	Sub(LoginPasswordCondition, EOutcomeTerminal::LoginPasswordRequest,
+		LoginPasswordHandler, &UTerminalSubsystem::HandleLoginPasswordRequest);
+	Sub(LoginAccountCondition, EOutcomeTerminal::LoginAccountRequest,
+		LoginAccountHandler, &UTerminalSubsystem::HandleLoginAccountRequest);
+	Sub(ContextualAccessCondition, EOutcomeTerminal::ContextualAccessRequest,
+		ContextualAccessHandler, &UTerminalSubsystem::HandleContextualAccessRequest);
+
+	Sub(WriteFileCondition, EOutcomeTerminal::WriteFileRequest,
+		WriteFileHandler, &UTerminalSubsystem::HandleWriteFileRequest);
+	Sub(DeleteFileCondition, EOutcomeTerminal::DeleteFileRequest,
+		DeleteFileHandler, &UTerminalSubsystem::HandleDeleteFileRequest);
+
+	Sub(SetEmailCondition, EOutcomeTerminal::SetEmailContentRequest,
+		SetEmailHandler, &UTerminalSubsystem::HandleSetEmailRequest);
+	Sub(SetWebsiteCondition, EOutcomeTerminal::SetWebsiteContentRequest,
+		SetWebsiteHandler, &UTerminalSubsystem::HandleSetWebsiteRequest);
+	Sub(SetGlobalDataCondition, EOutcomeTerminal::SetGlobalDataRequest,
+		SetGlobalDataHandler, &UTerminalSubsystem::HandleSetGlobalDataRequest);
+
+	Sub(AddLogCondition, EOutcomeTerminal::AddLogRequest,
+		AddLogHandler, &UTerminalSubsystem::HandleAddLogRequest);
+}
+
+void UTerminalSubsystem::UnsubscribeCommands()
+{
+	if (!CachedEventBus.IsValid()) return;
+
+	auto Unsub = [this](FOutcomeHandlerHandle& H, UOutcomeConditionAsset*& C)
+		{
+			if (H.IsValid())
+			{
+				CachedEventBus->UnregisterHandler(H);
+				H.Invalidate();
+			}
+			C = nullptr;
+		};
+
+	Unsub(RegisterTerminalHandler, RegisterTerminalCondition);
+	Unsub(UnregisterTerminalHandler, UnregisterTerminalCondition);
+	Unsub(SetCapabilitiesHandler, SetCapabilitiesCondition);
+	Unsub(ApplyProfileHandler, ApplyProfileCondition);
+	Unsub(ResetToDefaultHandler, ResetToDefaultCondition);
+	Unsub(OpenTerminalHandler, OpenTerminalCondition);
+	Unsub(CloseTerminalHandler, CloseTerminalCondition);
+	Unsub(LoginPasswordHandler, LoginPasswordCondition);
+	Unsub(LoginAccountHandler, LoginAccountCondition);
+	Unsub(ContextualAccessHandler, ContextualAccessCondition);
+	Unsub(WriteFileHandler, WriteFileCondition);
+	Unsub(DeleteFileHandler, DeleteFileCondition);
+	Unsub(SetEmailHandler, SetEmailCondition);
+	Unsub(SetWebsiteHandler, SetWebsiteCondition);
+	Unsub(SetGlobalDataHandler, SetGlobalDataCondition);
+	Unsub(AddLogHandler, AddLogCondition);
+}
+
+void UTerminalSubsystem::HandleRegisterTerminalRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalRegisterCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	RegisterTerminal(P->TerminalId, P->ProfileActor);
+}
+
+void UTerminalSubsystem::HandleUnregisterTerminalRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalIdCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	UnregisterTerminal(P->TerminalId);
+}
+
+void UTerminalSubsystem::HandleSetCapabilitiesRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalSetCapabilitiesCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	SetTerminalCapabilities(P->TerminalId, P->Capabilities);
+}
+
+void UTerminalSubsystem::HandleApplyProfileRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalApplyProfileCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	ApplyProfileToTerminal(P->TerminalId, P->ProfileActor);
+}
+
+void UTerminalSubsystem::HandleResetToDefaultRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalIdCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	ResetTerminalToDefault(P->TerminalId);
+}
+
+void UTerminalSubsystem::HandleOpenTerminalRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalIdCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	OpenTerminal(P->TerminalId);
+}
+
+void UTerminalSubsystem::HandleCloseTerminalRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalIdCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	CloseTerminal(P->TerminalId);
+}
+
+void UTerminalSubsystem::HandleLoginPasswordRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalLoginPasswordCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	LoginWithPassword(P->TerminalId, P->Password);
+}
+
+void UTerminalSubsystem::HandleLoginAccountRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalLoginAccountCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	LoginWithAccount(P->TerminalId, P->AccountName);
+}
+
+void UTerminalSubsystem::HandleContextualAccessRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalContextualAccessCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	ContextualAccess(P->TerminalId, P->ContextToken);
+}
+
+void UTerminalSubsystem::HandleWriteFileRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalWriteFileCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	WriteLocalFile(P->TerminalId, P->FileName, P->Content);
+}
+
+void UTerminalSubsystem::HandleDeleteFileRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalDeleteFileCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	DeleteLocalFile(P->TerminalId, P->FileName);
+}
+
+void UTerminalSubsystem::HandleSetEmailRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalSetEmailCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	SetEmailContent(P->Account, P->Content);
+}
+
+void UTerminalSubsystem::HandleSetWebsiteRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalSetWebsiteCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	SetWebsiteContent(P->Url, P->Content);
+}
+
+void UTerminalSubsystem::HandleSetGlobalDataRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalSetGlobalDataCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	SetGlobalData(P->Key, P->Value);
+}
+
+void UTerminalSubsystem::HandleAddLogRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalAddLogCommandPayload>(Outcome.Payload);
+	if (!P) return;
+	AddLocalLogEntry(P->TerminalId, P->Message);
 }
 
