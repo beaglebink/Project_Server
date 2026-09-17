@@ -3334,6 +3334,7 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 	}
 	// Then standard local broadcast / Затем стандартный локальный broadcast
 	OnFloorExiting.Broadcast(P->SourceFloor);
+	SaveLoadFromDisk.Broadcast(true);
 
 	if (IsUseTravel)
 	{

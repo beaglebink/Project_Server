@@ -546,6 +546,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, const FChorePerformanc
     }
 
     State.Performance = Performance;
+    State.bSucceeded = true;
     AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Performance);
     UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
     GrantRewards(ChoreId);
@@ -580,6 +581,7 @@ void UChoreManagerSubsystem::FailChore(FName ChoreId, const FChorePerformanceMet
     UpdateChoreState(ChoreId, EChoreStatus::Failed);
     AddHistoryEntry(ChoreId, EOutcomeChore::FailRequest, State.Performance);
     State.IsExpired = false;
+    State.bSucceeded = false;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def && Def->bIsRepeatable)
@@ -1818,7 +1820,23 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetNumberField(TEXT("Status"), (uint8)State.Status);
         Obj->SetStringField(TEXT("AcceptTime"), State.AcceptTime.ToIso8601());
         Obj->SetStringField(TEXT("StartTime"), State.StartTime.ToIso8601());
-        Obj->SetStringField(TEXT("Deadline"), State.Deadline.ToIso8601());
+
+        // Дедлайн сохраняем как ОСТАТОК в секундах, а не как абсолютную метку,
+        // чтобы после загрузки отсчёт продолжился ровно с того места,
+        // где он был на момент сохранения.
+        {
+            double DeadlineRemainingSecs = 0.0;
+            if (State.Deadline != FDateTime::MinValue())
+            {
+                DeadlineRemainingSecs = (State.Deadline - FDateTime::UtcNow()).GetTotalSeconds();
+                if (DeadlineRemainingSecs < 0.0)
+                {
+                    DeadlineRemainingSecs = 0.0;
+                }
+            }
+            Obj->SetNumberField(TEXT("DeadlineRemainingSeconds"), DeadlineRemainingSecs);
+        }
+
         Obj->SetNumberField(TEXT("AttemptCount"), State.AttemptCount);
         Obj->SetBoolField(TEXT("bSucceeded"), State.bSucceeded);
         Obj->SetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
@@ -1906,34 +1924,43 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
             FChoreState State;
-            bool bLoaded;
 
             FString ChoreIdStr;
-            bLoaded = Obj->TryGetStringField(TEXT("ChoreId"), ChoreIdStr);
+            Obj->TryGetStringField(TEXT("ChoreId"), ChoreIdStr);
             State.ChoreId = FName(*ChoreIdStr);
 
             int32 StatusInt = 0;
-            bLoaded = Obj->TryGetNumberField(TEXT("Status"), StatusInt);
+            Obj->TryGetNumberField(TEXT("Status"), StatusInt);
             State.Status = (EChoreStatus)StatusInt;
 
             FString AcceptTimeStr;
-            bLoaded = Obj->TryGetStringField(TEXT("AcceptTime"), AcceptTimeStr);
+            Obj->TryGetStringField(TEXT("AcceptTime"), AcceptTimeStr);
             FDateTime::ParseIso8601(*AcceptTimeStr, State.AcceptTime);
 
             FString StartTimeStr;
-            bLoaded = Obj->TryGetStringField(TEXT("StartTime"), StartTimeStr);
+            Obj->TryGetStringField(TEXT("StartTime"), StartTimeStr);
             if (!FDateTime::ParseIso8601(*StartTimeStr, State.StartTime))
             {
                 State.StartTime = FDateTime::MinValue();
             }
 
-            FString DeadlineStr;
-            bLoaded = Obj->TryGetStringField(TEXT("Deadline"), DeadlineStr);
-            FDateTime::ParseIso8601(*DeadlineStr, State.Deadline);
+            // Дедлайн восстанавливаем из остатка: Deadline = Now + Remaining.
+            // 0 = дедлайна у хоры не было.
+            double DeadlineRemainingSecs = 0.0;
+            Obj->TryGetNumberField(TEXT("DeadlineRemainingSeconds"), DeadlineRemainingSecs);
 
-            bLoaded = Obj->TryGetNumberField(TEXT("AttemptCount"), State.AttemptCount);
-            bLoaded = Obj->TryGetBoolField(TEXT("bSucceeded"), State.bSucceeded);
-            bLoaded = Obj->TryGetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
+            if (DeadlineRemainingSecs > 0.0)
+            {
+                State.Deadline = FDateTime::UtcNow() + FTimespan::FromSeconds(DeadlineRemainingSecs);
+            }
+            else
+            {
+                State.Deadline = FDateTime::MinValue();
+            }
+
+            Obj->TryGetNumberField(TEXT("AttemptCount"), State.AttemptCount);
+            Obj->TryGetBoolField(TEXT("bSucceeded"), State.bSucceeded);
+            Obj->TryGetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
 
             // ---- Стадии ----
             int32 CurrentStageInt = 0;
@@ -1941,21 +1968,21 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             State.CurrentStageIndex = CurrentStageInt;
 
             FString StageKeyStr;
-            bLoaded = Obj->TryGetStringField(TEXT("CurrentStageKey"), StageKeyStr);
+            Obj->TryGetStringField(TEXT("CurrentStageKey"), StageKeyStr);
             State.CurrentStageKey = FName(*StageKeyStr);
 
-            bLoaded = Obj->TryGetBoolField(TEXT("IsStart"), State.IsStart);
-            bLoaded = Obj->TryGetBoolField(TEXT("IsExpired"), State.IsExpired);
+            Obj->TryGetBoolField(TEXT("IsStart"), State.IsStart);
+            Obj->TryGetBoolField(TEXT("IsExpired"), State.IsExpired);
 
             // ---- Pause ----
-            bLoaded = Obj->TryGetBoolField(TEXT("bIsPaused"), State.bIsPaused);
+            Obj->TryGetBoolField(TEXT("bIsPaused"), State.bIsPaused);
 
             double AccumulatedPauseSecs = 0.0;
-            bLoaded = Obj->TryGetNumberField(TEXT("AccumulatedPauseSeconds"), AccumulatedPauseSecs);
+            Obj->TryGetNumberField(TEXT("AccumulatedPauseSeconds"), AccumulatedPauseSecs);
             State.AccumulatedPauseTime = FTimespan::FromSeconds(AccumulatedPauseSecs);
 
             double PausedDeadlineSecs = 0.0;
-            bLoaded = Obj->TryGetNumberField(TEXT("PausedDeadlineSeconds"), PausedDeadlineSecs);
+            Obj->TryGetNumberField(TEXT("PausedDeadlineSeconds"), PausedDeadlineSecs);
             State.PausedDeadlineRemaining = FTimespan::FromSeconds(PausedDeadlineSecs);
 
             // Пауза, начавшаяся до сохранения, при загрузке «начинается заново».
@@ -1973,7 +2000,9 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
             ActiveStates.Add(State.ChoreId, State);
 
-            // Восстанавливаем таймер дедлайна для активных хор
+            // Восстанавливаем таймер дедлайна для активных хор.
+            // У хоры в паузе Deadline == MinValue — таймер не запускается,
+            // отсчёт возобновится при ResumeChore из PausedDeadlineRemaining.
             if (State.Status == EChoreStatus::Active && State.Deadline != FDateTime::MinValue())
             {
                 FTimespan Remaining = State.Deadline - FDateTime::UtcNow();
