@@ -71,7 +71,7 @@ static TSharedPtr<IOutcomeCondition> BuildFromFilterRow(const FOutcomeFilterRow&
 		Parts.Add(C->Describe());
 	}
 
-	if (FILTER_SHOULD_INCLUDE(Row.WorldStateType, EWorldState::Default, Row.WorldStateComparison))
+	if (FILTER_SHOULD_INCLUDE(Row.WorldStateType, EOutcomeWorldState::Default, Row.WorldStateComparison))
 	{
 		const bool bNegate = (Row.WorldStateComparison == EConditionComparison::NotEquals);
 		TSharedPtr<IOutcomeCondition> C = FOutcomeQueryBuilder::WorldState(Row.WorldStateType, bNegate);
@@ -209,7 +209,7 @@ void UOutcomeConditionAsset::CompileCondition()
 			const bool bNegate = (WorldStateComparison == EConditionComparison::NotEquals);
 			CompiledCondition    = BuildCategoryCondition(
 				EOutcomeType::WorldState,
-				WorldStateType, EWorldState::Default, WorldStateComparison,
+				WorldStateType, EOutcomeWorldState::Default, WorldStateComparison,
 				FOutcomeQueryBuilder::WorldState(WorldStateType, bNegate));
 			ConditionDescription = CompiledCondition->Describe();
 			break;
@@ -304,7 +304,7 @@ void UOutcomeConditionAsset::ResetCondition()
 	InteriorComparison   = EConditionComparison::Equals;
 	SpawnGroupType       = EOutcomeSpawnGroup::Default;
 	SpawnGroupComparison = EConditionComparison::Equals;
-	WorldStateType       = EWorldState::Default;
+	WorldStateType       = EOutcomeWorldState::Default;
 	WorldStateComparison = EConditionComparison::Equals;
 	FirstCondition       = nullptr;
 	SecondCondition      = nullptr;

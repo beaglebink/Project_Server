@@ -85,7 +85,7 @@ struct FOutcomeFilterRow
 	// ===== WORLD STATE =====
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EWorldState WorldStateType = EWorldState::Default;
+	EOutcomeWorldState WorldStateType = EOutcomeWorldState::Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EConditionComparison WorldStateComparison = EConditionComparison::Equals;
@@ -220,7 +220,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "3 - Simple Condition",
 		meta = (EditCondition = "OperatorType == EConditionOperator::WorldState", EditConditionHides))
-	EWorldState WorldStateType = EWorldState::Default;
+	EOutcomeWorldState WorldStateType = EOutcomeWorldState::Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "3 - Simple Condition",
 		meta = (EditCondition = "OperatorType == EConditionOperator::WorldState", EditConditionHides))

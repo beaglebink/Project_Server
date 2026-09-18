@@ -204,10 +204,10 @@ struct FOutcomeQueryBuilder
 
 	// World state category filter
 	// (Фильтр по категории состояния мира)
-	static TSharedPtr<IOutcomeCondition> WorldState(EWorldState Value, bool bNegate = false)
+	static TSharedPtr<IOutcomeCondition> WorldState(EOutcomeWorldState Value, bool bNegate = false)
 	{
-		return MakeShared<TFieldCondition<EWorldState>>(
-			[](const FOutcomeEventBase& O) { return O.WorldState; },
+		return MakeShared<TFieldCondition<EOutcomeWorldState>>(
+			[](const FOutcomeEventBase& O) { return O.OutcomeWorldState; },
 			Value, bNegate, TEXT("WorldState"));
 	}
 

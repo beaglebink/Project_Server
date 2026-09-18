@@ -37,7 +37,7 @@ struct FOutcomeEventBase
 	// world state field used by OutcomeQuery and other code
 	// поле состояния мира, ожидаемое OutcomeQuery и другими частями кода)
 	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
-	EWorldState WorldState = EWorldState::Default;
+	EOutcomeWorldState OutcomeWorldState = EOutcomeWorldState::Default;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Outcome")
 	EOutcomeChore OutcomeChore = EOutcomeChore::Default;

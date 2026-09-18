@@ -23,37 +23,27 @@ void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
         SaveSys->RegisterSaveableSubsystem(this);
     }
 
-    if (ChangingLocationAvailabilityCondition)
-    {
-        SubscribeChangingLocationAvailability();
-    }
+    SubscribeAllWorldStateEvents();
+}
 
-    WorldStateRecordCondition = NewObject<UOutcomeConditionAsset>(this);
-    WorldStateRecordCondition->OperatorType = EConditionOperator::Composite;
-    WorldStateRecordCondition->FilterRow.OutcomeType = EOutcomeType::WorldState;
-    WorldStateRecordCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-    WorldStateRecordCondition->CompileCondition();
-
-    // subscribe to incoming world-state record commands (if condition asset provided)
-    if (WorldStateRecordCondition)
+void UWorldStateSubsystem::SubscribeAllWorldStateEvents()
+{
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (EventBus)
     {
-        if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-        {
-            WorldStateRecordHandle = EventBus->RegisterHandler(
-                WorldStateRecordCondition,
-                FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleSetWorldStateRecord));
-        }
-    }
+        WorldStateAddRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateAddRecord);
 
-    // Подписка на команду удаления записи
-    if (WorldStateRecordRemoveCondition)
-    {
-        if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-        {
-            WorldStateRecordRemoveHandle = EventBus->RegisterHandler(
-                WorldStateRecordRemoveCondition,
-                FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleRemoveWorldStateRecord));
-        }
+        WorldStateRecordHandle = EventBus->RegisterHandler(
+            WorldStateAddRecordCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleSetWorldStateRecord)
+        );
+
+        WorldStateRemoveRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateRemoveRecord);
+
+        WorldStateRecordRemoveHandle = EventBus->RegisterHandler(
+            WorldStateRemoveRecordCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleRemoveWorldStateRecord)
+		);
     }
 }
 
@@ -68,74 +58,37 @@ void UWorldStateSubsystem::Deinitialize()
     }
 
     // Дополнительная очистка
-    if (WorldStateRecordRemoveHandle.IsValid())
-    {
-        if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-        {
-            EventBus->UnregisterHandler(WorldStateRecordRemoveHandle);
-        }
-        WorldStateRecordRemoveHandle.Invalidate();
-    }
-
     WorldStateRecords.Empty();
     Super::Deinitialize();
 }
 
-void UWorldStateSubsystem::SetChangingLocationAvailabilityCondition(UOutcomeConditionAsset* NewCondition)
+UOutcomeConditionAsset* UWorldStateSubsystem::CreateSimpleWorldStateCondition(EOutcomeWorldState WorldStateType)
 {
-    if (ChangingLocationAvailabilityCondition == NewCondition) return;
-
-    ChangingLocationAvailabilityCondition = NewCondition;
-
-    if (ChangingLocationAvailabilityHandle.IsValid())
-    {
-        UnsubscribeChangingLocationAvailability();
-    }
-
-    SubscribeChangingLocationAvailability();
-}
-
-void UWorldStateSubsystem::SubscribeChangingLocationAvailability()
-{
-    if (ChangingLocationAvailabilityHandle.IsValid())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("WorldStateSubsystem: Already subscribed to ChangingLocationAvailability"));
-        return;
-    }
-
-    if (!ChangingLocationAvailabilityCondition)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("WorldStateSubsystem: ChangingLocationAvailabilityCondition is null, cannot subscribe"));
-        return;
-    }
-
-    if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-    {
-        ChangingLocationAvailabilityHandle = EventBus->RegisterHandler(
-            ChangingLocationAvailabilityCondition,
-            FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleChangingLocationAvailability)
-        );
-
-        UE_LOG(LogTemp, Log, TEXT("WorldStateSubsystem: Subscribed to ChangingLocationAvailability (handle=%u)"), ChangingLocationAvailabilityHandle.GetId());
-    }
-}
-
-void UWorldStateSubsystem::UnsubscribeChangingLocationAvailability()
-{
-    if (!ChangingLocationAvailabilityHandle.IsValid()) return;
-
-    if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-    {
-        EventBus->UnregisterHandler(ChangingLocationAvailabilityHandle);
-        UE_LOG(LogTemp, Log, TEXT("WorldStateSubsystem: Unsubscribed ChangingLocationAvailability (handle=%u)"), ChangingLocationAvailabilityHandle.GetId());
-    }
-    ChangingLocationAvailabilityHandle.Invalidate();
+    UOutcomeConditionAsset* Asset = NewObject<UOutcomeConditionAsset>(this);
+    Asset->OperatorType = EConditionOperator::Composite;
+    Asset->FilterRow.OutcomeType = EOutcomeType::WorldState;
+    Asset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+    Asset->FilterRow.WorldStateType = WorldStateType;
+    Asset->FilterRow.WorldStateComparison = EConditionComparison::Equals;
+    Asset->CompileCondition();
+    return Asset;
 }
 
 void UWorldStateSubsystem::UnsubscribeAll()
 {
-    UnsubscribeChangingLocationAvailability();
 
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (EventBus)
+    {
+        auto Unreg = [&](FOutcomeHandlerHandle& Handle) {
+            if (Handle.IsValid()) { EventBus->UnregisterHandler(Handle); Handle.Invalidate(); }
+            };
+        Unreg(WorldStateRecordHandle);
+        Unreg(WorldStateRecordRemoveHandle);
+    }
+
+    //UnsubscribeChangingLocationAvailability();
+    /*
     if (WorldStateRecordHandle.IsValid())
     {
         if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
@@ -153,31 +106,7 @@ void UWorldStateSubsystem::UnsubscribeAll()
         }
         WorldStateRecordRemoveHandle.Invalidate();
     }
-}
-
-void UWorldStateSubsystem::HandleChangingLocationAvailability(const FOutcomeEventBase& Outcome)
-{
-    if (ChangingLocationAvailabilityCondition)
-    {
-        auto Query = ChangingLocationAvailabilityCondition->GetCondition();
-        if (Query.IsValid() && !Query->Evaluate(Outcome))
-        {
-            UE_LOG(LogTemp, Verbose, TEXT("WorldStateSubsystem: Incoming outcome does not satisfy ChangingLocationAvailabilityCondition -> ignoring"));
-            return;
-        }
-    }
-
-    if (UChangingLocationAvailabilityPayload* P = Cast<UChangingLocationAvailabilityPayload>(Outcome.Payload))
-    {
-        UE_LOG(LogTemp, Log, TEXT("WorldStateSubsystem: Location - Name: %s, IsAvailable: %s"),
-            *P->LocationName, P->bIsAvailable ? TEXT("true") : TEXT("false"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Verbose, TEXT("WorldStateSubsystem: HandleChangingLocationAvailability called with no payload or unexpected payload type"));
-    }
-
-    OnChangingLocationAvailability.Broadcast(Outcome);
+    */
 }
 
 void UWorldStateSubsystem::HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome)

@@ -23,20 +23,18 @@ class FPSKITALSREFACTORED_API UWorldStateSubsystem : public UGameInstanceSubsyst
 
 public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    
     virtual void Deinitialize() override;
 
     // ===== УСЛОВИЯ ДЛЯ ПОДПИСКИ НА СОБЫТИЯ (настраиваются в редакторе) =====
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-    TObjectPtr<UOutcomeConditionAsset> ChangingLocationAvailabilityCondition;
-
     // Условие для команды установки записи
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-    TObjectPtr<UOutcomeConditionAsset> WorldStateRecordCondition;
+    TObjectPtr<UOutcomeConditionAsset> WorldStateAddRecordCondition;
 
     // Условие для команды удаления записи
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
-    TObjectPtr<UOutcomeConditionAsset> WorldStateRecordRemoveCondition;
+    TObjectPtr<UOutcomeConditionAsset> WorldStateRemoveRecordCondition;
 
     // ===== СОБЫТИЕ ДЛЯ BLUEPRINT =====
 
@@ -46,19 +44,7 @@ public:
     // ===== УПРАВЛЕНИЕ ПОДПИСКАМИ (публичные) =====
 
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-    void SubscribeChangingLocationAvailability();
-
-    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-    void UnsubscribeChangingLocationAvailability();
-
-    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
     void UnsubscribeAll();
-
-    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-    void SetChangingLocationAvailabilityCondition(UOutcomeConditionAsset* NewCondition);
-
-    UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
-    bool IsChangingLocationAvailabilitySubscribed() const { return ChangingLocationAvailabilityHandle.IsValid(); }
 
     // ===== МЕТОДЫ ЧТЕНИЯ СОСТОЯНИЯ (публичные) =====
 
@@ -82,15 +68,16 @@ public:
     virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
 
 private:
+    void SubscribeAllWorldStateEvents();
+    UOutcomeConditionAsset* CreateSimpleWorldStateCondition(EOutcomeWorldState WorldStateType);
+
     // ---- ОБРАБОТЧИКИ СОБЫТИЙ (приватные) ----
 
-    void HandleChangingLocationAvailability(const FOutcomeEventBase& Outcome);
     void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
     void HandleRemoveWorldStateRecord(const FOutcomeEventBase& Outcome);   // <-- объявлен
 
     // ---- ХЕНДЛЫ ПОДПИСОК ----
 
-    FOutcomeHandlerHandle ChangingLocationAvailabilityHandle;
     FOutcomeHandlerHandle WorldStateRecordHandle;
     FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
 
