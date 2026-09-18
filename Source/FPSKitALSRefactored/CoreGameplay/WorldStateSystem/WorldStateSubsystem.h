@@ -25,26 +25,20 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
-    // ===== УСЛОВИЯ ДЛЯ ПОДПИСКИ НА СОБЫТИЯ =====
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
     TObjectPtr<UOutcomeConditionAsset> WorldStateAddRecordCondition;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
     TObjectPtr<UOutcomeConditionAsset> WorldStateRemoveRecordCondition;
 
-    // ===== СОБЫТИЕ ДЛЯ BLUEPRINT =====
-
     UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
     FOnChangingLocationAvailabilityEvent OnChangingLocationAvailability;
-
-    // ===== УПРАВЛЕНИЕ ПОДПИСКАМИ =====
 
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
     void UnsubscribeAll();
 
-    // ===== МЕТОДЫ ЧТЕНИЯ СОСТОЯНИЯ =====
-    // ComponentName == NAME_None → запись, относящаяся к самому актёру.
+    // ===== МЕТОДЫ ЧТЕНИЯ =====
+    // Записи с bPendingRemoval = true игнорируются.
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "WorldStateSubsystem|State")
     bool HasWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey) const;
@@ -70,14 +64,12 @@ private:
     UOutcomeConditionAsset* CreateSimpleWorldStateCondition(EOutcomeWorldState WorldStateType);
 
     // ---- ОБРАБОТЧИКИ СОБЫТИЙ ----
-
     void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
     void HandleRemoveWorldStateRecord(const FOutcomeEventBase& Outcome);
     void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
     void HandleActorSpawned(AActor* SpawnedActor);
 
     // ---- ХЕНДЛЫ ПОДПИСОК ----
-
     FOutcomeHandlerHandle WorldStateRecordHandle;
     FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
     FOutcomeHandlerHandle LevelLoadedHandle;
@@ -86,7 +78,6 @@ private:
     UOutcomeConditionAsset* LevelLoadedConditionAsset = nullptr;
 
     // ---- ПОДПИСКА НА СПАВН АКТОРОВ ----
-
     FDelegateHandle ActorSpawnedHandle;
     TWeakObjectPtr<UWorld> SubscribedWorld;
 
@@ -94,20 +85,28 @@ private:
     void UnsubscribeFromActorSpawned();
 
     // ---- ПРИВАТНЫЕ МЕТОДЫ ИЗМЕНЕНИЯ СОСТОЯНИЯ ----
-
     void SetWorldStateRecord(const FWorldStateRecord& Record);
     void RemoveWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey);
     void ApplyRecordsToWorld();
     void ApplyRecordToActor(AActor* Actor, const FWorldStateRecord& Record) const;
 
-    // ---- ПОИСК АКТОРОВ / КОМПОНЕНТОВ ----
+    // Захватывает OriginalValue, если он ещё не захвачен.
+    void CaptureOriginalValueIfMissing(const FWorldStateKey& Key, AActor* Actor);
 
+    // Пытается финализировать отложенное удаление записи для указанного актёра.
+    // Возвращает true, если запись была удалена из карты.
+    bool TryFinalizePendingRemoval(const FWorldStateKey& Key, AActor* Actor);
+
+    // ---- ПОИСК АКТОРОВ / КОМПОНЕНТОВ / СВОЙСТВ ----
     AActor* FindActorByItemId(const FGuid& ItemId) const;
     void BuildActorIndex(TMap<FGuid, AActor*>& OutIndex) const;
     UActorComponent* FindComponentByStableName(AActor* Actor, FName ComponentName) const;
 
-    // ---- СЛУШАТЕЛИ PER-ITEM ----
+    FProperty* ResolveTargetProperty(AActor* Actor, const FWorldStateRecord& Record, UObject*& OutTargetObject) const;
+    bool TryReadPropertyValue(AActor* Actor, const FWorldStateRecord& Record, FString& OutValue) const;
+    bool WritePropertyValue(AActor* Actor, const FWorldStateRecord& Record, const FString& Value, bool bIsRestore) const;
 
+    // ---- СЛУШАТЕЛИ PER-ITEM ----
     TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -116,8 +115,6 @@ private:
     }
 
     // ---- ХРАНИЛИЩЕ ЗАПИСЕЙ ----
-    // Ключ — тройка (ItemId, ComponentName, ChangeKey).
-
     TMap<FWorldStateKey, FWorldStateRecord> WorldStateRecords;
 
     bool IsLoadComplete = true;
