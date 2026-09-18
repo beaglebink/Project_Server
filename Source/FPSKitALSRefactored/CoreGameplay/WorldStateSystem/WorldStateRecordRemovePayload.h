@@ -17,13 +17,18 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FGuid ItemId;
 
+    // NAME_None → запись относилась к самому актёру.
+    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    FName ComponentName = NAME_None;
+
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FName ChangeKey;
 
     UFUNCTION(BlueprintCallable, Category = "WorldState")
-    UWorldStateRecordRemovePayload* Setup(const FGuid& InItemId, FName InChangeKey)
+    UWorldStateRecordRemovePayload* Setup(const FGuid& InItemId, FName InComponentName, FName InChangeKey)
     {
         ItemId = InItemId;
+        ComponentName = InComponentName;
         ChangeKey = InChangeKey;
         return this;
     }

@@ -25,7 +25,7 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
-    // ===== УСЛОВИЯ ДЛЯ ПОДПИСКИ НА СОБЫТИЯ (настраиваются в редакторе) =====
+    // ===== УСЛОВИЯ ДЛЯ ПОДПИСКИ НА СОБЫТИЯ =====
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
     TObjectPtr<UOutcomeConditionAsset> WorldStateAddRecordCondition;
@@ -38,18 +38,19 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "EventBus|Events")
     FOnChangingLocationAvailabilityEvent OnChangingLocationAvailability;
 
-    // ===== УПРАВЛЕНИЕ ПОДПИСКАМИ (публичные) =====
+    // ===== УПРАВЛЕНИЕ ПОДПИСКАМИ =====
 
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|Handlers")
     void UnsubscribeAll();
 
-    // ===== МЕТОДЫ ЧТЕНИЯ СОСТОЯНИЯ (публичные) =====
+    // ===== МЕТОДЫ ЧТЕНИЯ СОСТОЯНИЯ =====
+    // ComponentName == NAME_None → запись, относящаяся к самому актёру.
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "WorldStateSubsystem|State")
-    bool HasWorldStateRecord(const FGuid& ItemId, FName ChangeKey) const;
+    bool HasWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey) const;
 
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-    bool GetWorldStateRecord(const FGuid& ItemId, FName ChangeKey, FWorldStateRecord& OutRecord) const;
+    bool GetWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey, FWorldStateRecord& OutRecord) const;
 
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
     TArray<FWorldStateRecord> GetRecordsForItem(const FGuid& ItemId) const;
@@ -68,17 +69,11 @@ private:
     void SubscribeAllWorldStateEvents();
     UOutcomeConditionAsset* CreateSimpleWorldStateCondition(EOutcomeWorldState WorldStateType);
 
-    // ---- ОБРАБОТЧИКИ СОБЫТИЙ (приватные) ----
+    // ---- ОБРАБОТЧИКИ СОБЫТИЙ ----
 
     void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
     void HandleRemoveWorldStateRecord(const FOutcomeEventBase& Outcome);
-
-    // Обработчик завершения загрузки уровня (публикуется InteriorSubsystem).
-    // Вызывается после того, как InteriorSubsystem восстановил свои снапшоты.
     void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
-
-    // Обработчик появления актора — применяет к нему уже накопленные записи.
-    // Нужен для late-spawn и стриминга.
     void HandleActorSpawned(AActor* SpawnedActor);
 
     // ---- ХЕНДЛЫ ПОДПИСОК ----
@@ -101,14 +96,15 @@ private:
     // ---- ПРИВАТНЫЕ МЕТОДЫ ИЗМЕНЕНИЯ СОСТОЯНИЯ ----
 
     void SetWorldStateRecord(const FWorldStateRecord& Record);
-    void RemoveWorldStateRecord(const FGuid& ItemId, FName ChangeKey);
+    void RemoveWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey);
     void ApplyRecordsToWorld();
     void ApplyRecordToActor(AActor* Actor, const FWorldStateRecord& Record) const;
 
-    // ---- ПОИСК АКТОРОВ ПО ItemId ----
+    // ---- ПОИСК АКТОРОВ / КОМПОНЕНТОВ ----
 
     AActor* FindActorByItemId(const FGuid& ItemId) const;
     void BuildActorIndex(TMap<FGuid, AActor*>& OutIndex) const;
+    UActorComponent* FindComponentByStableName(AActor* Actor, FName ComponentName) const;
 
     // ---- СЛУШАТЕЛИ PER-ITEM ----
 
@@ -120,8 +116,9 @@ private:
     }
 
     // ---- ХРАНИЛИЩЕ ЗАПИСЕЙ ----
+    // Ключ — тройка (ItemId, ComponentName, ChangeKey).
 
-    TMap<FGuid, TMap<FName, FWorldStateRecord>> WorldStateRecords;
+    TMap<FWorldStateKey, FWorldStateRecord> WorldStateRecords;
 
     bool IsLoadComplete = true;
 };

@@ -17,11 +17,8 @@ void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     Collection.InitializeDependency<UInteriorSubsystem>();
 
     // Форсируем инициализацию системы сохранения ДО нас.
-    // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
-    // и регистрация Saveable-подсистемы молча не сработает.
     Collection.InitializeDependency<UGameSaveSubsystem>();
-	
-    // Регистрируемся в GameSaveSubsystem
+
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
     {
         SaveSys->RegisterSaveableSubsystem(this);
@@ -114,7 +111,6 @@ void UWorldStateSubsystem::UnsubscribeAll()
 
     LevelLoadedConditionAsset = nullptr;
 
-    // Отписываемся от ActorSpawned текущего мира
     UnsubscribeFromActorSpawned();
 }
 
@@ -130,7 +126,7 @@ void UWorldStateSubsystem::HandleRemoveWorldStateRecord(const FOutcomeEventBase&
 {
     if (UWorldStateRecordRemovePayload* P = Cast<UWorldStateRecordRemovePayload>(Outcome.Payload))
     {
-        RemoveWorldStateRecord(P->ItemId, P->ChangeKey);
+        RemoveWorldStateRecord(P->ItemId, P->ComponentName, P->ChangeKey);
     }
 }
 
@@ -140,34 +136,34 @@ void UWorldStateSubsystem::HandleRemoveWorldStateRecord(const FOutcomeEventBase&
 
 void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
 {
-    TMap<FName, FWorldStateRecord>& Inner = WorldStateRecords.FindOrAdd(Record.ItemId);
-    Inner.Add(Record.ChangeKey, Record);
+    const FWorldStateKey Key(Record.ItemId, Record.ComponentName, Record.ChangeKey);
+    WorldStateRecords.Add(Key, Record);
 
     // Немедленно применяем к живому актёру, если он уже есть на текущей сцене.
-    // Это устраняет рассинхрон между состоянием подсистемы и состоянием мира.
     if (AActor* Actor = FindActorByItemId(Record.ItemId))
     {
         ApplyRecordToActor(Actor, Record);
     }
 
     UE_LOG(LogTemp, Log,
-        TEXT("WorldStateSubsystem: SetRecord ItemId=%s Key='%s' Value='%s' Mission='%s'"),
+        TEXT("WorldStateSubsystem: SetRecord ItemId=%s Component='%s' Key='%s' Value='%s'"),
         *Record.ItemId.ToString(),
+        Record.ComponentName.IsNone() ? TEXT("<actor>") : *Record.ComponentName.ToString(),
         *Record.ChangeKey.ToString(),
-        *Record.SerializedValue,
-        *Record.SourceMissionId.ToString());
+        *Record.SerializedValue);
 }
 
-void UWorldStateSubsystem::RemoveWorldStateRecord(const FGuid& ItemId, FName ChangeKey)
+void UWorldStateSubsystem::RemoveWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey)
 {
-    TMap<FName, FWorldStateRecord>* Inner = WorldStateRecords.Find(ItemId);
-    if (!Inner) return;
-    Inner->Remove(ChangeKey);
-    if (Inner->IsEmpty())
+    const FWorldStateKey Key(ItemId, ComponentName, ChangeKey);
+    if (WorldStateRecords.Remove(Key) > 0)
     {
-        WorldStateRecords.Remove(ItemId);
+        UE_LOG(LogTemp, Log,
+            TEXT("WorldStateSubsystem: Removed record ItemId=%s Component='%s' Key='%s'"),
+            *ItemId.ToString(),
+            ComponentName.IsNone() ? TEXT("<actor>") : *ComponentName.ToString(),
+            *ChangeKey.ToString());
     }
-    UE_LOG(LogTemp, Log, TEXT("WorldStateSubsystem: Removed record ItemId=%s Key='%s'"), *ItemId.ToString(), *ChangeKey.ToString());
 }
 
 void UWorldStateSubsystem::ApplyRecordsToWorld()
@@ -183,18 +179,17 @@ void UWorldStateSubsystem::ApplyRecordsToWorld()
     }
 
     int32 Applied = 0;
-    for (const auto& OuterPair : WorldStateRecords)
+    for (const auto& Pair : WorldStateRecords)
     {
-        AActor** ActorPtr = ActorByItemId.Find(OuterPair.Key);
+        const FWorldStateKey& Key = Pair.Key;
+        const FWorldStateRecord& Record = Pair.Value;
+
+        AActor** ActorPtr = ActorByItemId.Find(Key.ItemId);
         if (!ActorPtr || !IsValid(*ActorPtr))
             continue;
-        AActor* Actor = *ActorPtr;
 
-        for (const auto& InnerPair : OuterPair.Value)
-        {
-            ApplyRecordToActor(Actor, InnerPair.Value);
-            ++Applied;
-        }
+        ApplyRecordToActor(*ActorPtr, Record);
+        ++Applied;
     }
 
     UE_LOG(LogTemp, Log,
@@ -205,31 +200,62 @@ void UWorldStateSubsystem::ApplyRecordToActor(AActor* Actor, const FWorldStateRe
 {
     if (!IsValid(Actor)) return;
 
-    FProperty* Prop = FindFProperty<FProperty>(Actor->GetClass(), Record.ChangeKey);
-    if (Prop && Prop->HasAllPropertyFlags(CPF_SaveGame))
+    // --- Вариант 1: указан компонент — ищем свойство строго в нём ---
+    if (!Record.ComponentName.IsNone())
     {
-        Prop->ImportText_InContainer(*Record.SerializedValue, Actor, Actor, PPF_None);
-        UE_LOG(LogTemp, Verbose,
-            TEXT("WorldStateSubsystem: Applied '%s'='%s' to actor '%s'"),
-            *Record.ChangeKey.ToString(), *Record.SerializedValue, *Actor->GetName());
-        return;
-    }
+        UActorComponent* Comp = FindComponentByStableName(Actor, Record.ComponentName);
+        if (!IsValid(Comp))
+        {
+            UE_LOG(LogTemp, Verbose,
+                TEXT("WorldStateSubsystem: Component '%s' not found on actor '%s' (Key='%s')"),
+                *Record.ComponentName.ToString(), *Actor->GetName(), *Record.ChangeKey.ToString());
+            return;
+        }
 
-    TArray<UActorComponent*> Components;
-    Actor->GetComponents(Components);
-    for (UActorComponent* Comp : Components)
-    {
-        if (!IsValid(Comp)) continue;
         FProperty* CompProp = FindFProperty<FProperty>(Comp->GetClass(), Record.ChangeKey);
         if (CompProp && CompProp->HasAllPropertyFlags(CPF_SaveGame))
         {
-            CompProp->ImportText_InContainer(*Record.SerializedValue, Comp, Comp, PPF_None);
-            UE_LOG(LogTemp, Verbose,
-                TEXT("WorldStateSubsystem: Applied '%s'='%s' to component '%s' on actor '%s'"),
-                *Record.ChangeKey.ToString(), *Record.SerializedValue,
-                *Comp->GetName(), *Actor->GetName());
-            return;
+            if (!CompProp->ImportText_InContainer(*Record.SerializedValue, Comp, Comp, PPF_None))
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("WorldStateSubsystem: ImportText failed '%s'='%s' on component '%s' (actor '%s')"),
+                    *Record.ChangeKey.ToString(), *Record.SerializedValue,
+                    *Comp->GetName(), *Actor->GetName());
+            }
+            else
+            {
+                UE_LOG(LogTemp, Verbose,
+                    TEXT("WorldStateSubsystem: Applied '%s'='%s' to component '%s' on actor '%s'"),
+                    *Record.ChangeKey.ToString(), *Record.SerializedValue,
+                    *Comp->GetName(), *Actor->GetName());
+            }
         }
+        else
+        {
+            UE_LOG(LogTemp, Verbose,
+                TEXT("WorldStateSubsystem: No SaveGame property '%s' on component '%s' (actor '%s')"),
+                *Record.ChangeKey.ToString(), *Comp->GetName(), *Actor->GetName());
+        }
+        return;
+    }
+
+    // --- Вариант 2: компонент не указан — ищем свойство на самом актёре ---
+    FProperty* Prop = FindFProperty<FProperty>(Actor->GetClass(), Record.ChangeKey);
+    if (Prop && Prop->HasAllPropertyFlags(CPF_SaveGame))
+    {
+        if (!Prop->ImportText_InContainer(*Record.SerializedValue, Actor, Actor, PPF_None))
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("WorldStateSubsystem: ImportText failed '%s'='%s' on actor '%s'"),
+                *Record.ChangeKey.ToString(), *Record.SerializedValue, *Actor->GetName());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Verbose,
+                TEXT("WorldStateSubsystem: Applied '%s'='%s' to actor '%s'"),
+                *Record.ChangeKey.ToString(), *Record.SerializedValue, *Actor->GetName());
+        }
+        return;
     }
 
     UE_LOG(LogTemp, Verbose,
@@ -241,19 +267,18 @@ void UWorldStateSubsystem::ApplyRecordToActor(AActor* Actor, const FWorldStateRe
 // МЕТОДЫ ЧТЕНИЯ (публичные)
 // ─────────────────────────────────────────────────────────────────────────────
 
-bool UWorldStateSubsystem::HasWorldStateRecord(const FGuid& ItemId, FName ChangeKey) const
+bool UWorldStateSubsystem::HasWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey) const
 {
-    const TMap<FName, FWorldStateRecord>* Inner = WorldStateRecords.Find(ItemId);
-    if (!Inner) return false;
-    return Inner->Contains(ChangeKey);
+    const FWorldStateKey Key(ItemId, ComponentName, ChangeKey);
+    return WorldStateRecords.Contains(Key);
 }
 
-bool UWorldStateSubsystem::GetWorldStateRecord(const FGuid& ItemId, FName ChangeKey, FWorldStateRecord& OutRecord) const
+bool UWorldStateSubsystem::GetWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey, FWorldStateRecord& OutRecord) const
 {
-    const TMap<FName, FWorldStateRecord>* Inner = WorldStateRecords.Find(ItemId);
-    if (!Inner) return false;
-    const FWorldStateRecord* Found = Inner->Find(ChangeKey);
-    if (!Found) return false;
+    const FWorldStateKey Key(ItemId, ComponentName, ChangeKey);
+    const FWorldStateRecord* Found = WorldStateRecords.Find(Key);
+    if (!Found)
+        return false;
     OutRecord = *Found;
     return true;
 }
@@ -261,11 +286,12 @@ bool UWorldStateSubsystem::GetWorldStateRecord(const FGuid& ItemId, FName Change
 TArray<FWorldStateRecord> UWorldStateSubsystem::GetRecordsForItem(const FGuid& ItemId) const
 {
     TArray<FWorldStateRecord> Result;
-    const TMap<FName, FWorldStateRecord>* Inner = WorldStateRecords.Find(ItemId);
-    if (!Inner) return Result;
-    for (const auto& Pair : *Inner)
+    for (const auto& Pair : WorldStateRecords)
     {
-        Result.Add(Pair.Value);
+        if (Pair.Key.ItemId == ItemId)
+        {
+            Result.Add(Pair.Value);
+        }
     }
     return Result;
 }
@@ -273,14 +299,11 @@ TArray<FWorldStateRecord> UWorldStateSubsystem::GetRecordsForItem(const FGuid& I
 TArray<FWorldStateRecord> UWorldStateSubsystem::GetRecordsByCategory(EWorldStateChangeCategory Category) const
 {
     TArray<FWorldStateRecord> Result;
-    for (const auto& OuterPair : WorldStateRecords)
+    for (const auto& Pair : WorldStateRecords)
     {
-        for (const auto& InnerPair : OuterPair.Value)
+        if (Pair.Value.Category == Category)
         {
-            if (InnerPair.Value.Category == Category)
-            {
-                Result.Add(InnerPair.Value);
-            }
+            Result.Add(Pair.Value);
         }
     }
     return Result;
@@ -296,20 +319,18 @@ void UWorldStateSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
     TArray<TSharedPtr<FJsonValue>> RecordsArray;
 
-    for (const auto& OuterPair : WorldStateRecords)
+    for (const auto& Pair : WorldStateRecords)
     {
-        for (const auto& InnerPair : OuterPair.Value)
-        {
-            const FWorldStateRecord& Rec = InnerPair.Value;
-            TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-            Obj->SetStringField(TEXT("ItemId"), Rec.ItemId.ToString());
-            Obj->SetNumberField(TEXT("Category"), static_cast<int32>(Rec.Category));
-            Obj->SetStringField(TEXT("ChangeKey"), Rec.ChangeKey.ToString());
-            Obj->SetStringField(TEXT("Value"), Rec.SerializedValue);
-            Obj->SetStringField(TEXT("MissionId"), Rec.SourceMissionId.ToString());
-            Obj->SetStringField(TEXT("Timestamp"), Rec.Timestamp);
-            RecordsArray.Add(MakeShared<FJsonValueObject>(Obj));
-        }
+        const FWorldStateRecord& Rec = Pair.Value;
+        TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+        Obj->SetStringField(TEXT("ItemId"), Rec.ItemId.ToString());
+        Obj->SetNumberField(TEXT("Category"), static_cast<int32>(Rec.Category));
+        Obj->SetStringField(TEXT("ComponentName"),
+            Rec.ComponentName.IsNone() ? FString() : Rec.ComponentName.ToString());
+        Obj->SetStringField(TEXT("ChangeKey"), Rec.ChangeKey.ToString());
+        Obj->SetStringField(TEXT("Value"), Rec.SerializedValue);
+        Obj->SetStringField(TEXT("Timestamp"), Rec.Timestamp);
+        RecordsArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
 
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
@@ -329,14 +350,26 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 {
     IsLoadComplete = false;
 
-    if (InData.SerializedData.IsEmpty()) return;
+    if (InData.SerializedData.IsEmpty())
+    {
+        IsLoadComplete = true;
+        return;
+    }
 
     TSharedPtr<FJsonObject> Root;
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(InData.SerializedData);
-    if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid()) return;
+    if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+    {
+        IsLoadComplete = true;
+        return;
+    }
 
     const TArray<TSharedPtr<FJsonValue>>* RecordsArray = nullptr;
-    if (!Root->TryGetArrayField(TEXT("Records"), RecordsArray)) return;
+    if (!Root->TryGetArrayField(TEXT("Records"), RecordsArray))
+    {
+        IsLoadComplete = true;
+        return;
+    }
 
     WorldStateRecords.Empty();
 
@@ -346,14 +379,14 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         if (!Val->TryGetObject(ObjPtr)) continue;
         const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-        FString ItemIdStr, ChangeKeyStr, Value, MissionIdStr, Timestamp;
+        FString ItemIdStr, ChangeKeyStr, ComponentNameStr, Value, Timestamp;
         int32 CategoryInt = 0;
 
         Obj->TryGetStringField(TEXT("ItemId"), ItemIdStr);
         Obj->TryGetNumberField(TEXT("Category"), CategoryInt);
         Obj->TryGetStringField(TEXT("ChangeKey"), ChangeKeyStr);
+        Obj->TryGetStringField(TEXT("ComponentName"), ComponentNameStr);
         Obj->TryGetStringField(TEXT("Value"), Value);
-        Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
         Obj->TryGetStringField(TEXT("Timestamp"), Timestamp);
 
         FGuid ItemId;
@@ -363,21 +396,26 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         Record.ItemId = ItemId;
         Record.Category = static_cast<EWorldStateChangeCategory>(CategoryInt);
         Record.ChangeKey = FName(*ChangeKeyStr);
+        Record.ComponentName = ComponentNameStr.IsEmpty() ? NAME_None : FName(*ComponentNameStr);
         Record.SerializedValue = Value;
-        Record.SourceMissionId = FName(*MissionIdStr);
         Record.Timestamp = Timestamp;
 
-        WorldStateRecords.FindOrAdd(ItemId).Add(Record.ChangeKey, Record);
+        const FWorldStateKey Key(Record.ItemId, Record.ComponentName, Record.ChangeKey);
+        WorldStateRecords.Add(Key, Record);
     }
 
     UE_LOG(LogTemp, Log,
-        TEXT("WorldStateSubsystem::ApplySaveData: loaded %d items with records"),
+        TEXT("WorldStateSubsystem::ApplySaveData: loaded %d records"),
         WorldStateRecords.Num());
 
     ApplyRecordsToWorld();
 
     IsLoadComplete = true;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// АКТОРЫ: спавн, поиск, индекс
+// ─────────────────────────────────────────────────────────────────────────────
 
 void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
 {
@@ -388,14 +426,13 @@ void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
     if (!FAC || !FAC->ItemId.IsValid())
         return;
 
-    const TMap<FName, FWorldStateRecord>* Inner = WorldStateRecords.Find(FAC->ItemId);
-    if (!Inner)
-        return;
-
-    // Применяем все записи, относящиеся к этому актору
-    for (const auto& Pair : *Inner)
+    // Применяем все записи, относящиеся к этому ItemId (по любому ComponentName).
+    for (const auto& Pair : WorldStateRecords)
     {
-        ApplyRecordToActor(SpawnedActor, Pair.Value);
+        if (Pair.Key.ItemId == FAC->ItemId)
+        {
+            ApplyRecordToActor(SpawnedActor, Pair.Value);
+        }
     }
 }
 
@@ -405,11 +442,9 @@ void UWorldStateSubsystem::SubscribeToActorSpawned()
     if (!World)
         return;
 
-    // Уже подписаны на этот же мир — ничего не делаем.
     if (SubscribedWorld.Get() == World && ActorSpawnedHandle.IsValid())
         return;
 
-    // Смена мира — снимаем старую подписку.
     UnsubscribeFromActorSpawned();
 
     SubscribedWorld = World;
@@ -451,11 +486,6 @@ AActor* UWorldStateSubsystem::FindActorByItemId(const FGuid& ItemId) const
     return nullptr;
 }
 
-// ============================================================================
-// BuildActorIndex
-// Строит индекс "ItemId → Actor" по текущему миру.
-// Используется в ApplyRecordsToWorld для массового применения записей.
-// ============================================================================
 void UWorldStateSubsystem::BuildActorIndex(TMap<FGuid, AActor*>& OutIndex) const
 {
     OutIndex.Reset();
@@ -480,19 +510,52 @@ void UWorldStateSubsystem::BuildActorIndex(TMap<FGuid, AActor*>& OutIndex) const
     }
 }
 
+UActorComponent* UWorldStateSubsystem::FindComponentByStableName(AActor* Actor, FName ComponentName) const
+{
+    if (!IsValid(Actor) || ComponentName.IsNone())
+        return nullptr;
+
+    TArray<UActorComponent*> Components;
+    Actor->GetComponents(Components);
+
+    // 1-й проход: точное совпадение FName (обычно нативные C++-компоненты).
+    for (UActorComponent* Comp : Components)
+    {
+        if (IsValid(Comp) && Comp->GetFName() == ComponentName)
+            return Comp;
+    }
+
+    // 2-й проход: BP-компоненты получают FName вида "<VariableName>_GEN_VARIABLE".
+    static const FString Suffix = TEXT("_GEN_VARIABLE");
+    const FString TargetStr = ComponentName.ToString();
+
+    for (UActorComponent* Comp : Components)
+    {
+        if (!IsValid(Comp)) continue;
+
+        const FString CompNameStr = Comp->GetName();
+        if (CompNameStr.Equals(TargetStr, ESearchCase::CaseSensitive))
+            return Comp;
+
+        if (CompNameStr.Len() > Suffix.Len()
+            && CompNameStr.EndsWith(Suffix, ESearchCase::CaseSensitive))
+        {
+            const FString WithoutSuffix = CompNameStr.LeftChop(Suffix.Len());
+            if (WithoutSuffix.Equals(TargetStr, ESearchCase::CaseSensitive))
+                return Comp;
+        }
+    }
+
+    return nullptr;
+}
+
 // ============================================================================
 // Level loaded handler
-// Обработчик загрузки уровня
 // ============================================================================
 
 void UWorldStateSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 {
-    // InteriorSubsystem к этому моменту уже восстановил свои снапшоты,
-    // поэтому WorldState применяется поверх — как более "постоянный" слой.
     ApplyRecordsToWorld();
-
-    // Переподписываемся на OnActorSpawned для нового мира,
-    // чтобы late-spawned акторы тоже получали свои записи.
     SubscribeToActorSpawned();
 
     UE_LOG(LogTemp, Log,
