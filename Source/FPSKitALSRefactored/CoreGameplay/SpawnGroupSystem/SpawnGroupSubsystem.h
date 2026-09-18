@@ -1,7 +1,4 @@
-﻿// SpawnGroupSubsystem.h
-// SpawnGroupSubsystem.h
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"

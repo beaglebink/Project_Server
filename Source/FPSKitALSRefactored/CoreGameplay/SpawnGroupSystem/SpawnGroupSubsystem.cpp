@@ -392,70 +392,6 @@ ASpawnGroupSpawner* USpawnGroupSubsystem::FindSpawnerByGroupId(const FGuid& Grou
 }
 
 // ============================================================================
-// Level loaded handler
-// Обработчик загрузки уровня
-// ============================================================================
-
-void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
-{
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    if (Outcome.OutcomeType != EOutcomeType::Interior ||
-        Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
-        return;
-
-    // Determine current floor key
-    // Определяем текущий ключ этажа
-    ALocationAnchorActor* FoundAnchor = nullptr;
-    for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
-    {
-        FoundAnchor = *It;
-        break;
-    }
-    if (FoundAnchor)
-    {
-        UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
-        UInteriorSetAsset* InteriorAsset = FoundAnchor->OwnerInteriorSet.LoadSynchronous();
-        if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid() && FloorAsset && FloorAsset->FloorID.IsValid())
-        {
-            CurrentFloorKey = FInteriorFloorKey(InteriorAsset->InteriorSetID, FloorAsset->FloorID);
-        }
-    }
-
-    // Restore spawner states from PersistentGroupStates
-    // Восстанавливаем состояние спавнеров из PersistentGroupStates
-    for (const auto& Pair : SpawnerByItemId)
-    {
-        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
-        if (!Spawner || !IsValid(Spawner)) continue;
-
-        if (Spawner->Restore || !Spawner->SpawnGroupAsset || Spawner->CurrentStatus == ESpawnGroupStatus::Suppressed || Spawner->CurrentStatus == ESpawnGroupStatus::Cleared || Spawner->CurrentStatus == ESpawnGroupStatus::Inactive)
-            continue;
-
-        FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
-        if (!FloorKey.FloorId.IsValid()) continue;
-
-        TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
-        if (!FloorStates) continue;
-
-        FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
-        if (!State) continue;
-
-        // Restore spawner flag (if changed at runtime)
-        // Восстанавливаем флаг спавнера (если изменился в рантайме)
-        Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
-
-        // Restore ghosts without modifying AllSlots and without destroying existing ones
-        // Восстанавливаем призраков без изменения AllSlots и без уничтожения существующих
-        if (State->bStoreSpawnParameters)
-            Spawner->RestoreFromStateWithoutCleanup(*State);
-        else
-            Spawner->SpawnGroup();
-    }
-}
-
-// ============================================================================
 // Saving and loading
 // Сохранение и загрузка
 // ============================================================================
@@ -1251,4 +1187,14 @@ int32 USpawnGroupSubsystem::GetResolvedCountByGameplayTagForCurrentFloor(const T
         Total += GetResolvedCountByGameplayTag(Pair.Key, GameplayTags);
     }
     return Total;
+}
+
+void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
+{
+    // InteriorSubsystem опубликовал LevelLoaded — уровень загружен,
+    // можно восстановить состояние спавн-групп под новую сцену.
+    // TODO: здесь ваша логика (восстановление, реинициализация и т.п.)
+
+    UE_LOG(LogTemp, Log,
+        TEXT("SpawnGroupSubsystem::HandleLevelLoaded: level loaded"));
 }

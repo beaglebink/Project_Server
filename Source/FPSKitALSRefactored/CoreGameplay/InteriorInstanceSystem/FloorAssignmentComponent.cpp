@@ -13,6 +13,11 @@ void UFloorAssignmentComponent::BeginPlay()
 {
     Super::BeginPlay();
 
+    if (ProtectedItemId.IsValid())
+    {
+        ItemId = ProtectedItemId;
+    }
+
     if (SnapshotChannel == ESnapshotChannel::Snapshot && ItemId.IsValid())
     {
         if (UWorld* W = GetWorld())

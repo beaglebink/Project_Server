@@ -4129,7 +4129,7 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			SaveLoadFromDisk.Broadcast(false);
 		});
 
-	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
+	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 2.0f, false);
 }
 
 void UInteriorSubsystem::SubscribeInteractionRegistration() { SubscribeAll(); }

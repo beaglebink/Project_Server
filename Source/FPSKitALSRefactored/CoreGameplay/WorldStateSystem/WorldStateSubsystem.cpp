@@ -7,10 +7,14 @@
 #include "JsonObjectConverter.h"
 #include "WorldStateRecordPayload.h"
 #include "WorldStateRecordRemovePayload.h"
+#include "LevelLoadedPayload.h"
+#include <InteriorSubsystem.h>
 
 void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
+
+    Collection.InitializeDependency<UInteriorSubsystem>();
 
     // Форсируем инициализацию системы сохранения ДО нас.
     // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
@@ -29,21 +33,38 @@ void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UWorldStateSubsystem::SubscribeAllWorldStateEvents()
 {
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-    if (EventBus)
+    if (!EventBus)
+        return;
+
+    // ---- Установка записи ----
+    WorldStateAddRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateAddRecord);
+    WorldStateRecordHandle = EventBus->RegisterHandler(
+        WorldStateAddRecordCondition,
+        FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleSetWorldStateRecord));
+
+    // ---- Удаление записи ----
+    WorldStateRemoveRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateRemoveRecord);
+    WorldStateRecordRemoveHandle = EventBus->RegisterHandler(
+        WorldStateRemoveRecordCondition,
+        FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleRemoveWorldStateRecord));
+
+    // ---- Загрузка уровня (InteriorSubsystem публикует после восстановления снапшотов) ----
+    if (!LevelLoadedHandle.IsValid())
     {
-        WorldStateAddRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateAddRecord);
+        LevelLoadedConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+        LevelLoadedConditionAsset->OperatorType = EConditionOperator::Composite;
+        LevelLoadedConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+        LevelLoadedConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+        LevelLoadedConditionAsset->FilterRow.InteriorType = EOutcomeInterior::LevelLoaded;
+        LevelLoadedConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+        LevelLoadedConditionAsset->CompileCondition();
 
-        WorldStateRecordHandle = EventBus->RegisterHandler(
-            WorldStateAddRecordCondition,
-            FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleSetWorldStateRecord)
-        );
-
-        WorldStateRemoveRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateRemoveRecord);
-
-        WorldStateRecordRemoveHandle = EventBus->RegisterHandler(
-            WorldStateRemoveRecordCondition,
-            FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleRemoveWorldStateRecord)
-		);
+        if (LevelLoadedConditionAsset->GetCondition().IsValid())
+        {
+            LevelLoadedHandle = EventBus->RegisterHandler(
+                LevelLoadedConditionAsset,
+                FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleLevelLoaded));
+        }
     }
 }
 
@@ -51,14 +72,14 @@ void UWorldStateSubsystem::Deinitialize()
 {
     UnsubscribeAll();
 
-    // Снимаем регистрацию
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
     {
         SaveSys->UnregisterSaveableSubsystem(this);
     }
 
-    // Дополнительная очистка
     WorldStateRecords.Empty();
+    SubscribedWorld = nullptr;
+
     Super::Deinitialize();
 }
 
@@ -76,37 +97,25 @@ UOutcomeConditionAsset* UWorldStateSubsystem::CreateSimpleWorldStateCondition(EO
 
 void UWorldStateSubsystem::UnsubscribeAll()
 {
-
-    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-    if (EventBus)
+    if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
     {
-        auto Unreg = [&](FOutcomeHandlerHandle& Handle) {
-            if (Handle.IsValid()) { EventBus->UnregisterHandler(Handle); Handle.Invalidate(); }
+        auto Unreg = [&](FOutcomeHandlerHandle& Handle)
+            {
+                if (Handle.IsValid())
+                {
+                    EventBus->UnregisterHandler(Handle);
+                    Handle.Invalidate();
+                }
             };
         Unreg(WorldStateRecordHandle);
         Unreg(WorldStateRecordRemoveHandle);
+        Unreg(LevelLoadedHandle);
     }
 
-    //UnsubscribeChangingLocationAvailability();
-    /*
-    if (WorldStateRecordHandle.IsValid())
-    {
-        if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-        {
-            EventBus->UnregisterHandler(WorldStateRecordHandle);
-        }
-        WorldStateRecordHandle.Invalidate();
-    }
+    LevelLoadedConditionAsset = nullptr;
 
-    if (WorldStateRecordRemoveHandle.IsValid())
-    {
-        if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
-        {
-            EventBus->UnregisterHandler(WorldStateRecordRemoveHandle);
-        }
-        WorldStateRecordRemoveHandle.Invalidate();
-    }
-    */
+    // Отписываемся от ActorSpawned текущего мира
+    UnsubscribeFromActorSpawned();
 }
 
 void UWorldStateSubsystem::HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome)
@@ -134,6 +143,13 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
     TMap<FName, FWorldStateRecord>& Inner = WorldStateRecords.FindOrAdd(Record.ItemId);
     Inner.Add(Record.ChangeKey, Record);
 
+    // Немедленно применяем к живому актёру, если он уже есть на текущей сцене.
+    // Это устраняет рассинхрон между состоянием подсистемы и состоянием мира.
+    if (AActor* Actor = FindActorByItemId(Record.ItemId))
+    {
+        ApplyRecordToActor(Actor, Record);
+    }
+
     UE_LOG(LogTemp, Log,
         TEXT("WorldStateSubsystem: SetRecord ItemId=%s Key='%s' Value='%s' Mission='%s'"),
         *Record.ItemId.ToString(),
@@ -156,28 +172,22 @@ void UWorldStateSubsystem::RemoveWorldStateRecord(const FGuid& ItemId, FName Cha
 
 void UWorldStateSubsystem::ApplyRecordsToWorld()
 {
-    UWorld* World = GetWorld();
-    if (!World) return;
-
     TMap<FGuid, AActor*> ActorByItemId;
-    for (TActorIterator<AActor> It(World); It; ++It)
+    BuildActorIndex(ActorByItemId);
+
+    if (ActorByItemId.Num() == 0)
     {
-        AActor* Actor = *It;
-        if (!IsValid(Actor)) continue;
-        if (UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>())
-        {
-            if (FAC->ItemId.IsValid())
-            {
-                ActorByItemId.Add(FAC->ItemId, Actor);
-            }
-        }
+        UE_LOG(LogTemp, Log,
+            TEXT("WorldStateSubsystem::ApplyRecordsToWorld: no actors with UFloorAssignmentComponent on current level"));
+        return;
     }
 
     int32 Applied = 0;
     for (const auto& OuterPair : WorldStateRecords)
     {
         AActor** ActorPtr = ActorByItemId.Find(OuterPair.Key);
-        if (!ActorPtr || !IsValid(*ActorPtr)) continue;
+        if (!ActorPtr || !IsValid(*ActorPtr))
+            continue;
         AActor* Actor = *ActorPtr;
 
         for (const auto& InnerPair : OuterPair.Value)
@@ -367,4 +377,124 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     ApplyRecordsToWorld();
 
     IsLoadComplete = true;
+}
+
+void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
+{
+    if (!IsValid(SpawnedActor))
+        return;
+
+    UFloorAssignmentComponent* FAC = SpawnedActor->FindComponentByClass<UFloorAssignmentComponent>();
+    if (!FAC || !FAC->ItemId.IsValid())
+        return;
+
+    const TMap<FName, FWorldStateRecord>* Inner = WorldStateRecords.Find(FAC->ItemId);
+    if (!Inner)
+        return;
+
+    // Применяем все записи, относящиеся к этому актору
+    for (const auto& Pair : *Inner)
+    {
+        ApplyRecordToActor(SpawnedActor, Pair.Value);
+    }
+}
+
+void UWorldStateSubsystem::SubscribeToActorSpawned()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+        return;
+
+    // Уже подписаны на этот же мир — ничего не делаем.
+    if (SubscribedWorld.Get() == World && ActorSpawnedHandle.IsValid())
+        return;
+
+    // Смена мира — снимаем старую подписку.
+    UnsubscribeFromActorSpawned();
+
+    SubscribedWorld = World;
+    ActorSpawnedHandle = World->AddOnActorSpawnedHandler(
+        FOnActorSpawned::FDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleActorSpawned));
+}
+
+void UWorldStateSubsystem::UnsubscribeFromActorSpawned()
+{
+    if (UWorld* World = SubscribedWorld.Get())
+    {
+        if (ActorSpawnedHandle.IsValid())
+        {
+            World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
+        }
+    }
+    ActorSpawnedHandle.Reset();
+    SubscribedWorld = nullptr;
+}
+
+AActor* UWorldStateSubsystem::FindActorByItemId(const FGuid& ItemId) const
+{
+    UWorld* World = GetWorld();
+    if (!World)
+        return nullptr;
+
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!IsValid(Actor))
+            continue;
+
+        if (UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+        {
+            if (FAC->ItemId == ItemId)
+                return Actor;
+        }
+    }
+    return nullptr;
+}
+
+// ============================================================================
+// BuildActorIndex
+// Строит индекс "ItemId → Actor" по текущему миру.
+// Используется в ApplyRecordsToWorld для массового применения записей.
+// ============================================================================
+void UWorldStateSubsystem::BuildActorIndex(TMap<FGuid, AActor*>& OutIndex) const
+{
+    OutIndex.Reset();
+
+    UWorld* World = GetWorld();
+    if (!World)
+        return;
+
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!IsValid(Actor))
+            continue;
+
+        if (UFloorAssignmentComponent* FAC = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+        {
+            if (FAC->ItemId.IsValid())
+            {
+                OutIndex.Add(FAC->ItemId, Actor);
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Level loaded handler
+// Обработчик загрузки уровня
+// ============================================================================
+
+void UWorldStateSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
+{
+    // InteriorSubsystem к этому моменту уже восстановил свои снапшоты,
+    // поэтому WorldState применяется поверх — как более "постоянный" слой.
+    ApplyRecordsToWorld();
+
+    // Переподписываемся на OnActorSpawned для нового мира,
+    // чтобы late-spawned акторы тоже получали свои записи.
+    SubscribeToActorSpawned();
+
+    UE_LOG(LogTemp, Log,
+        TEXT("WorldStateSubsystem::HandleLevelLoaded: reapplied WorldState records for new level"));
 }

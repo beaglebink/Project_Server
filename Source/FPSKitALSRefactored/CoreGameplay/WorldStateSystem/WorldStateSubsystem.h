@@ -23,16 +23,13 @@ class FPSKITALSREFACTORED_API UWorldStateSubsystem : public UGameInstanceSubsyst
 
 public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-    
     virtual void Deinitialize() override;
 
     // ===== УСЛОВИЯ ДЛЯ ПОДПИСКИ НА СОБЫТИЯ (настраиваются в редакторе) =====
 
-    // Условие для команды установки записи
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
     TObjectPtr<UOutcomeConditionAsset> WorldStateAddRecordCondition;
 
-    // Условие для команды удаления записи
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
     TObjectPtr<UOutcomeConditionAsset> WorldStateRemoveRecordCondition;
 
@@ -74,21 +71,46 @@ private:
     // ---- ОБРАБОТЧИКИ СОБЫТИЙ (приватные) ----
 
     void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
-    void HandleRemoveWorldStateRecord(const FOutcomeEventBase& Outcome);   // <-- объявлен
+    void HandleRemoveWorldStateRecord(const FOutcomeEventBase& Outcome);
+
+    // Обработчик завершения загрузки уровня (публикуется InteriorSubsystem).
+    // Вызывается после того, как InteriorSubsystem восстановил свои снапшоты.
+    void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
+
+    // Обработчик появления актора — применяет к нему уже накопленные записи.
+    // Нужен для late-spawn и стриминга.
+    void HandleActorSpawned(AActor* SpawnedActor);
 
     // ---- ХЕНДЛЫ ПОДПИСОК ----
 
     FOutcomeHandlerHandle WorldStateRecordHandle;
     FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
+    FOutcomeHandlerHandle LevelLoadedHandle;
 
-    // ---- ПРИВАТНЫЕ МЕТОДЫ ИЗМЕНЕНИЯ СОСТОЯНИЯ (НЕ ДОСТУПНЫ ИЗ BLUEPRINT) ----
+    UPROPERTY()
+    UOutcomeConditionAsset* LevelLoadedConditionAsset = nullptr;
+
+    // ---- ПОДПИСКА НА СПАВН АКТОРОВ ----
+
+    FDelegateHandle ActorSpawnedHandle;
+    TWeakObjectPtr<UWorld> SubscribedWorld;
+
+    void SubscribeToActorSpawned();
+    void UnsubscribeFromActorSpawned();
+
+    // ---- ПРИВАТНЫЕ МЕТОДЫ ИЗМЕНЕНИЯ СОСТОЯНИЯ ----
 
     void SetWorldStateRecord(const FWorldStateRecord& Record);
     void RemoveWorldStateRecord(const FGuid& ItemId, FName ChangeKey);
     void ApplyRecordsToWorld();
     void ApplyRecordToActor(AActor* Actor, const FWorldStateRecord& Record) const;
 
-    // ---- СЛУШАТЕЛИ PER-ITEM (унаследовано от FInteractiveSubsystemMethods) ----
+    // ---- ПОИСК АКТОРОВ ПО ItemId ----
+
+    AActor* FindActorByItemId(const FGuid& ItemId) const;
+    void BuildActorIndex(TMap<FGuid, AActor*>& OutIndex) const;
+
+    // ---- СЛУШАТЕЛИ PER-ITEM ----
 
     TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
