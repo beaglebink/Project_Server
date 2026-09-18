@@ -106,6 +106,11 @@ private:
     bool TryReadPropertyValue(AActor* Actor, const FWorldStateRecord& Record, FString& OutValue) const;
     bool WritePropertyValue(AActor* Actor, const FWorldStateRecord& Record, const FString& Value, bool bIsRestore) const;
 
+    // Вызывает UFUNCTION без параметров с именем Record.ReactionFunctionName
+    // на целевом объекте. Если имя не задано или функция не найдена — тихо
+    // ничего не делает (Warning в лог при невалидном имени).
+    void InvokeReactionFunction(UObject* Target, const FWorldStateRecord& Record) const;
+
     // ---- СЛУШАТЕЛИ PER-ITEM ----
     TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 

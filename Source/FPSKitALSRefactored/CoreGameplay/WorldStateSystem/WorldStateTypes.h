@@ -72,29 +72,25 @@ struct FPSKITALSREFACTORED_API FWorldStateRecord
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FName ChangeKey;
 
-    // NAME_None → свойство ищется на самом актёре.
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FName ComponentName = NAME_None;
 
-    // Значение, которое было установлено записью.
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FString SerializedValue;
 
-    // Значение, которое было у свойства ДО установки записи.
-    // Восстанавливается при удалении.
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FString OriginalValue;
 
-    // true, если OriginalValue успешно захвачен.
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     bool bHasOriginalValue = false;
 
-    // true → запись помечена на удаление, но ещё не финализирована
-    // (актёр отсутствует или оригинал не захвачен).
-    // Такие записи игнорируются функциями чтения и применяются только
-    // для финализации удаления, когда актёр появится.
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     bool bPendingRemoval = false;
+
+    // Имя UFUNCTION без параметров, которая вызывается на целевом объекте
+    // после применения значения. NAME_None — реакция не вызывается.
+    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    FName ReactionFunctionName = NAME_None;
 
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FString Timestamp;
@@ -106,12 +102,14 @@ struct FPSKITALSREFACTORED_API FWorldStateRecord
         EWorldStateChangeCategory InCategory,
         FName InChangeKey,
         const FString& InValue,
-        FName InComponentName = NAME_None)
+        FName InComponentName = NAME_None,
+        FName InReactionFunctionName = NAME_None)
         : ItemId(InItemId)
         , Category(InCategory)
         , ChangeKey(InChangeKey)
         , ComponentName(InComponentName)
         , SerializedValue(InValue)
+        , ReactionFunctionName(InReactionFunctionName)
         , Timestamp(FDateTime::UtcNow().ToString())
     {
     }

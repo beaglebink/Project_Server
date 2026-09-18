@@ -117,6 +117,12 @@ void UFloorAssignmentComponent::PostEditImport()
 void UFloorAssignmentComponent::MarkPackageDirty()
 {
 #if WITH_EDITOR
+    if (!ItemId.IsValid())
+    {
+        ItemId = FGuid::NewGuid();
+        ProtectedItemId = ItemId;
+    }
+
     Modify();
     if (UPackage* Package = GetOutermost())
         Package->MarkPackageDirty();
@@ -167,7 +173,7 @@ void UFloorAssignmentComponent::PublishRegistration()
 
 void UFloorAssignmentComponent::Registrate(EFloorActorType Type, FGuid ForceItemId /*= FGuid()*/)
 {
-    ItemId = ForceItemId.IsValid() ? ForceItemId : FGuid::NewGuid();
+    ItemId = ForceItemId.IsValid() ? ForceItemId : ItemId.IsValid() ? ItemId : FGuid::NewGuid();
     ProtectedItemId = ItemId;
     SnapshotChannel = ESnapshotChannel::Snapshot;
     ActorType = Type;

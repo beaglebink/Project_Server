@@ -324,6 +324,8 @@ void UWorldStateSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetStringField(TEXT("OriginalValue"), Rec.OriginalValue);
         Obj->SetBoolField(TEXT("bHasOriginalValue"), Rec.bHasOriginalValue);
         Obj->SetBoolField(TEXT("bPendingRemoval"), Rec.bPendingRemoval);
+        Obj->SetStringField(TEXT("ReactionFunctionName"),
+            Rec.ReactionFunctionName.IsNone() ? FString() : Rec.ReactionFunctionName.ToString());
         Obj->SetStringField(TEXT("Timestamp"), Rec.Timestamp);
         RecordsArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
@@ -374,7 +376,7 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         if (!Val->TryGetObject(ObjPtr)) continue;
         const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-        FString ItemIdStr, ChangeKeyStr, ComponentNameStr, Value, OriginalValue, Timestamp;
+        FString ItemIdStr, ChangeKeyStr, ComponentNameStr, Value, OriginalValue, ReactionFunctionNameStr, Timestamp;
         int32 CategoryInt = 0;
         bool bHasOriginalValue = false;
         bool bPendingRemoval = false;
@@ -387,6 +389,7 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         Obj->TryGetStringField(TEXT("OriginalValue"), OriginalValue);
         Obj->TryGetBoolField(TEXT("bHasOriginalValue"), bHasOriginalValue);
         Obj->TryGetBoolField(TEXT("bPendingRemoval"), bPendingRemoval);
+        Obj->TryGetStringField(TEXT("ReactionFunctionName"), ReactionFunctionNameStr);
         Obj->TryGetStringField(TEXT("Timestamp"), Timestamp);
 
         FGuid ItemId;
@@ -401,6 +404,7 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         Record.OriginalValue = OriginalValue;
         Record.bHasOriginalValue = bHasOriginalValue;
         Record.bPendingRemoval = bPendingRemoval;
+        Record.ReactionFunctionName = ReactionFunctionNameStr.IsEmpty() ? NAME_None : FName(*ReactionFunctionNameStr);
         Record.Timestamp = Timestamp;
 
         const FWorldStateKey Key(Record.ItemId, Record.ComponentName, Record.ChangeKey);
@@ -635,19 +639,85 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
     FProperty* Prop = ResolveTargetProperty(Actor, Record, Target);
     if (!Prop || !Target) return false;
 
-    Prop->ExportText_InContainer(0, OutValue, Target, nullptr, Target, PPF_PropertyWindow);
-
-    // Явная страховка для bool: если по какой-то причине строка всё ещё пуста,
-    // читаем значение напрямую и формируем "True"/"False".
-    if (OutValue.IsEmpty())
+    // --- Bool: читаем явно, чтобы false не превратился в "" ---
+    if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
     {
-        if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
+        OutValue = BoolProp->GetPropertyValue_InContainer(Target)
+            ? TEXT("True") : TEXT("False");
+        return true;
+    }
+
+    // --- Целочисленные и enum ---
+    if (FIntProperty* IntProp = CastField<FIntProperty>(Prop))
+    {
+        OutValue = FString::FromInt(IntProp->GetPropertyValue_InContainer(Target));
+        return true;
+    }
+    if (FInt64Property* Int64Prop = CastField<FInt64Property>(Prop))
+    {
+        OutValue = FString::Printf(TEXT("%lld"), Int64Prop->GetPropertyValue_InContainer(Target));
+        return true;
+    }
+    if (FInt16Property* Int16Prop = CastField<FInt16Property>(Prop))
+    {
+        OutValue = FString::FromInt(static_cast<int32>(Int16Prop->GetPropertyValue_InContainer(Target)));
+        return true;
+    }
+    if (FInt8Property* Int8Prop = CastField<FInt8Property>(Prop))
+    {
+        OutValue = FString::FromInt(static_cast<int32>(Int8Prop->GetPropertyValue_InContainer(Target)));
+        return true;
+    }
+    if (FByteProperty* ByteProp = CastField<FByteProperty>(Prop))
+    {
+        OutValue = FString::FromInt(static_cast<int32>(ByteProp->GetPropertyValue_InContainer(Target)));
+        return true;
+    }
+    if (FUInt16Property* UInt16Prop = CastField<FUInt16Property>(Prop))
+    {
+        OutValue = FString::FromInt(static_cast<int32>(UInt16Prop->GetPropertyValue_InContainer(Target)));
+        return true;
+    }
+    if (FUInt32Property* UInt32Prop = CastField<FUInt32Property>(Prop))
+    {
+        OutValue = FString::Printf(TEXT("%u"), UInt32Prop->GetPropertyValue_InContainer(Target));
+        return true;
+    }
+    if (FUInt64Property* UInt64Prop = CastField<FUInt64Property>(Prop))
+    {
+        OutValue = FString::Printf(TEXT("%llu"), UInt64Prop->GetPropertyValue_InContainer(Target));
+        return true;
+    }
+
+    // --- Enum: экспортируем как int32 ---
+    if (FEnumProperty* EnumProp = CastField<FEnumProperty>(Prop))
+    {
+        FNumericProperty* Underlying = EnumProp->GetUnderlyingProperty();
+        if (Underlying)
         {
-            const bool bVal = BoolProp->GetPropertyValue_InContainer(Target);
-            OutValue = bVal ? TEXT("True") : TEXT("False");
+            OutValue = FString::FromInt(static_cast<int32>(
+                Underlying->GetSignedIntPropertyValue_InContainer(Target)));
+            return true;
         }
     }
 
+    // --- Float / Double ---
+    if (FFloatProperty* FloatProp = CastField<FFloatProperty>(Prop))
+    {
+        OutValue = FString::SanitizeFloat(
+            static_cast<double>(FloatProp->GetPropertyValue_InContainer(Target)));
+        return true;
+    }
+    if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(Prop))
+    {
+        OutValue = FString::SanitizeFloat(DoubleProp->GetPropertyValue_InContainer(Target));
+        return true;
+    }
+
+    // --- Всё остальное: FName, FString, FText, FGuid, структуры, массивы, ... ---
+    // Стандартный ExportText. Для этих типов PPF_None работает корректно:
+    // пустая строка = пустое значение, ImportText("") восстановит его.
+    Prop->ExportText_InContainer(0, OutValue, Target, nullptr, Target, PPF_None);
     return true;
 }
 
@@ -679,6 +749,10 @@ bool UWorldStateSubsystem::WritePropertyValue(AActor* Actor, const FWorldStateRe
         bIsRestore ? TEXT("Restored") : TEXT("Applied"),
         *Record.ChangeKey.ToString(), *Value,
         *Target->GetName(), *Actor->GetName());
+
+    // Уведомляем цель через рефлексию — без параметров.
+    InvokeReactionFunction(Target, Record);
+
     return true;
 }
 
@@ -733,4 +807,30 @@ bool UWorldStateSubsystem::TryFinalizePendingRemoval(const FWorldStateKey& Key, 
     WritePropertyValue(Actor, *Record, Record->OriginalValue, /*bIsRestore=*/true);
     WorldStateRecords.Remove(Key);
     return true;
+}
+
+void UWorldStateSubsystem::InvokeReactionFunction(UObject* Target, const FWorldStateRecord& Record) const
+{
+    if (!IsValid(Target) || Record.ReactionFunctionName.IsNone())
+        return;
+
+    UFunction* Func = Target->FindFunction(Record.ReactionFunctionName);
+    if (!Func)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("WorldStateSubsystem: ReactionFunction '%s' not found on '%s' (Key='%s')"),
+            *Record.ReactionFunctionName.ToString(),
+            *Target->GetName(),
+            *Record.ChangeKey.ToString());
+        return;
+    }
+
+    // UFUNCTION без параметров — просто ProcessEvent с nullptr.
+    Target->ProcessEvent(Func, nullptr);
+
+    UE_LOG(LogTemp, Verbose,
+        TEXT("WorldStateSubsystem: Invoked reaction '%s' on '%s' (Key='%s')"),
+        *Record.ReactionFunctionName.ToString(),
+        *Target->GetName(),
+        *Record.ChangeKey.ToString());
 }
