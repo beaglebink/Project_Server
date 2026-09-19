@@ -7,6 +7,7 @@
 #include "JsonObjectConverter.h"
 #include "WorldStateRecordPayload.h"
 #include "WorldStateRecordRemovePayload.h"
+#include "WorldStateFactChangedPayload.h"
 #include "LevelLoadedPayload.h"
 #include <InteriorSubsystem.h>
 
@@ -120,76 +121,126 @@ void UWorldStateSubsystem::UnsubscribeAll()
 
 void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
 {
-    const FWorldStateKey Key(Record.ItemId, Record.ComponentName, Record.ChangeKey);
-    FWorldStateRecord* Existing = WorldStateRecords.Find(Key);
+    if (Record.FactId.IsNone())
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("WorldStateSubsystem: SetWorldStateRecord — FactId is None, record ignored"));
+        return;
+    }
+
+    FWorldStateRecord* Existing = WorldStateRecords.Find(Record.FactId);
+
+    // Факт "новый", если его не было в карте ИЛИ если он был помечен
+    // на удаление и сейчас оживает.
+    const bool bIsNewFact = (Existing == nullptr) || Existing->bPendingRemoval;
+
+    // Запоминаем предыдущее значение ДО мутации.
+    FString PreviousValue;
+    if (!bIsNewFact && Existing)
+    {
+        PreviousValue = Existing->SerializedValue;
+    }
 
     FWorldStateRecord NewRecord = Record;
-
-    // Новый Set отменяет отложенное удаление.
     NewRecord.bPendingRemoval = false;
 
     if (Existing)
     {
-        // Сохраняем уже захваченный оригинал (если был).
         NewRecord.OriginalValue = Existing->OriginalValue;
         NewRecord.bHasOriginalValue = Existing->bHasOriginalValue;
     }
 
-    WorldStateRecords.Add(Key, NewRecord);
+    FWorldStateRecord& Stored = WorldStateRecords.Add(Record.FactId, NewRecord);
 
-    // Немедленно применяем к живому актёру, если он есть.
-    if (AActor* Actor = FindActorByItemId(Record.ItemId))
+    // Применяем к актёру, если он на сцене.
+    if (AActor* Actor = FindActorByItemId(Stored.ItemId))
     {
-        CaptureOriginalValueIfMissing(Key, Actor);
+        CaptureOriginalValueIfMissing(Record.FactId, Actor);
 
-        if (const FWorldStateRecord* FinalRecord = WorldStateRecords.Find(Key))
+        if (const FWorldStateRecord* FinalRecord = WorldStateRecords.Find(Record.FactId))
         {
             ApplyRecordToActor(Actor, *FinalRecord);
         }
     }
 
-    const FWorldStateRecord* Final = WorldStateRecords.Find(Key);
+    // Снимок для payload делаем ПОСЛЕ применения — OriginalValue уже
+    // мог быть захвачен, и подписчик увидит актуальное состояние записи.
+    const FWorldStateRecord* Final = WorldStateRecords.Find(Record.FactId);
+    const FWorldStateRecord Snapshot = Final ? *Final : Stored;
+
     UE_LOG(LogTemp, Log,
-        TEXT("WorldStateSubsystem: SetRecord ItemId=%s Component='%s' Key='%s' Value='%s' Original='%s' (captured=%s)"),
+        TEXT("WorldStateSubsystem: SetRecord FactId='%s' (%s) ItemId=%s Component='%s' Key='%s' Value='%s' Original='%s' (captured=%s)"),
+        *Record.FactId.ToString(),
+        bIsNewFact ? TEXT("ADDED") : TEXT("CHANGED"),
         *Record.ItemId.ToString(),
         Record.ComponentName.IsNone() ? TEXT("<actor>") : *Record.ComponentName.ToString(),
         *Record.ChangeKey.ToString(),
         *Record.SerializedValue,
-        (Final && Final->bHasOriginalValue) ? *Final->OriginalValue : TEXT("<none>"),
-        (Final && Final->bHasOriginalValue) ? TEXT("true") : TEXT("false"));
+        Snapshot.bHasOriginalValue ? *Snapshot.OriginalValue : TEXT("<none>"),
+        Snapshot.bHasOriginalValue ? TEXT("true") : TEXT("false"));
+
+    PublishFactEvent(
+        Record.FactId,
+        Snapshot,
+        bIsNewFact ? EOutcomeWorldState::WorldStateFactAdded
+        : EOutcomeWorldState::WorldStateFactChanged,
+        PreviousValue);
 }
 
-void UWorldStateSubsystem::RemoveWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey)
+void UWorldStateSubsystem::RemoveWorldStateRecord(FName FactId)
 {
-    const FWorldStateKey Key(ItemId, ComponentName, ChangeKey);
-    FWorldStateRecord* Record = WorldStateRecords.Find(Key);
-    if (!Record) return;
+    FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
+    if (!Record)
+    {
+        UE_LOG(LogTemp, Verbose,
+            TEXT("WorldStateSubsystem: RemoveRecord FactId='%s' — not found, nothing to do"),
+            *FactId.ToString());
+        return;
+    }
 
-    // Помечаем запись как ожидающую удаления. Даже если сейчас сможем
-    // финализировать — снаружи поведение одинаково: запись исчезнет только
-    // после восстановления оригинала.
+    if (Record->bPendingRemoval)
+    {
+        UE_LOG(LogTemp, Verbose,
+            TEXT("WorldStateSubsystem: RemoveRecord FactId='%s' — already pending removal"),
+            *FactId.ToString());
+        return;
+    }
+
+    // Снимок ДО пометки — чтобы подписчик увидел запись "как она была".
+    FWorldStateRecord Snapshot = *Record;
+    Snapshot.bPendingRemoval = false;
+
+    // Что будет восстановлено на актёре (если оригинал захвачен).
+    const bool bHasRestored = Record->bHasOriginalValue;
+    const FString RestoredValue = bHasRestored ? Record->OriginalValue : FString();
+
     Record->bPendingRemoval = true;
 
-    // Если актёр доступен — пытаемся финализировать немедленно.
-    if (AActor* Actor = FindActorByItemId(ItemId))
+    // Событие публикуем сразу — мир считает факт неактивным, даже если
+    // восстановление на актёре произойдёт позже (актёра нет на сцене).
+    PublishFactEvent(
+        FactId,
+        Snapshot,
+        EOutcomeWorldState::WorldStateFactRemoved,
+        /*PreviousValue=*/FString(),
+        RestoredValue,
+        bHasRestored);
+
+    // Если актёр есть — финализируем немедленно.
+    if (AActor* Actor = FindActorByItemId(Record->ItemId))
     {
-        if (TryFinalizePendingRemoval(Key, Actor))
+        if (TryFinalizePendingRemoval(FactId, Actor))
         {
             UE_LOG(LogTemp, Log,
-                TEXT("WorldStateSubsystem: Removed record ItemId=%s Component='%s' Key='%s' (restored immediately)"),
-                *ItemId.ToString(),
-                ComponentName.IsNone() ? TEXT("<actor>") : *ComponentName.ToString(),
-                *ChangeKey.ToString());
+                TEXT("WorldStateSubsystem: Removed record FactId='%s' (restored immediately)"),
+                *FactId.ToString());
             return;
         }
     }
 
-    // Актёра нет — финализируем, когда он появится.
     UE_LOG(LogTemp, Log,
-        TEXT("WorldStateSubsystem: Deferred removal for ItemId=%s Component='%s' Key='%s' (waiting for actor)"),
-        *ItemId.ToString(),
-        ComponentName.IsNone() ? TEXT("<actor>") : *ComponentName.ToString(),
-        *ChangeKey.ToString());
+        TEXT("WorldStateSubsystem: Deferred removal for FactId='%s' (waiting for actor)"),
+        *FactId.ToString());
 }
 
 void UWorldStateSubsystem::ApplyRecordsToWorld()
@@ -204,39 +255,52 @@ void UWorldStateSubsystem::ApplyRecordsToWorld()
         return;
     }
 
-    // Копируем ключи: в процессе итерации карта может мутировать
-    // (TryFinalizePendingRemoval удаляет записи).
-    TArray<FWorldStateKey> Keys;
-    WorldStateRecords.GetKeys(Keys);
+    // Собираем факты, разделяя на pending removals и активные.
+    TArray<FName> PendingFactIds;
+    TArray<FName> ActiveFactIds;
 
-    int32 Applied = 0;
-    int32 Restored = 0;
-
-    for (const FWorldStateKey& Key : Keys)
+    for (const auto& Pair : WorldStateRecords)
     {
-        AActor** ActorPtr = ActorByItemId.Find(Key.ItemId);
-        if (!ActorPtr || !IsValid(*ActorPtr))
-            continue;
+        if (Pair.Value.bPendingRemoval)
+            PendingFactIds.Add(Pair.Key);
+        else
+            ActiveFactIds.Add(Pair.Key);
+    }
+
+    int32 Restored = 0;
+    int32 Applied = 0;
+
+    // --- Проход 1: pending removals ---
+    // Выполняются ДО применения активных фактов, чтобы вернуть свойство
+    // в исходное состояние, а затем уже наложить на него текущие факты.
+    for (const FName& FactId : PendingFactIds)
+    {
+        FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
+        if (!Record) continue;
+
+        AActor** ActorPtr = ActorByItemId.Find(Record->ItemId);
+        if (!ActorPtr || !IsValid(*ActorPtr)) continue;
+
+        if (TryFinalizePendingRemoval(FactId, *ActorPtr))
+        {
+            ++Restored;
+        }
+    }
+
+    // --- Проход 2: активные факты ---
+    for (const FName& FactId : ActiveFactIds)
+    {
+        FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
+        if (!Record) continue;
+
+        AActor** ActorPtr = ActorByItemId.Find(Record->ItemId);
+        if (!ActorPtr || !IsValid(*ActorPtr)) continue;
 
         AActor* Actor = *ActorPtr;
 
-        FWorldStateRecord* Record = WorldStateRecords.Find(Key);
-        if (!Record) continue;
+        CaptureOriginalValueIfMissing(FactId, Actor);
 
-        // Отложенное удаление — пытаемся финализировать.
-        if (Record->bPendingRemoval)
-        {
-            if (TryFinalizePendingRemoval(Key, Actor))
-            {
-                ++Restored;
-            }
-            continue;
-        }
-
-        // Обычная логика применения.
-        CaptureOriginalValueIfMissing(Key, Actor);
-
-        if (const FWorldStateRecord* FinalRecord = WorldStateRecords.Find(Key))
+        if (const FWorldStateRecord* FinalRecord = WorldStateRecords.Find(FactId))
         {
             ApplyRecordToActor(Actor, *FinalRecord);
             ++Applied;
@@ -258,47 +322,61 @@ void UWorldStateSubsystem::ApplyRecordToActor(AActor* Actor, const FWorldStateRe
 // МЕТОДЫ ЧТЕНИЯ (публичные)
 // ─────────────────────────────────────────────────────────────────────────────
 
-bool UWorldStateSubsystem::HasWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey) const
+bool UWorldStateSubsystem::HasWorldStateRecord(FName FactId, bool bIncludePendingRemoval) const
 {
-    const FWorldStateKey Key(ItemId, ComponentName, ChangeKey);
-    const FWorldStateRecord* Record = WorldStateRecords.Find(Key);
-    return Record && !Record->bPendingRemoval;
+    const FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
+    if (!Record) return false;
+    if (!bIncludePendingRemoval && Record->bPendingRemoval) return false;
+    return true;
 }
 
-bool UWorldStateSubsystem::GetWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey, FWorldStateRecord& OutRecord) const
+bool UWorldStateSubsystem::GetWorldStateRecord(FName FactId, bool bIncludePendingRemoval, FWorldStateRecord& OutRecord) const
 {
-    const FWorldStateKey Key(ItemId, ComponentName, ChangeKey);
-    const FWorldStateRecord* Found = WorldStateRecords.Find(Key);
-    if (!Found || Found->bPendingRemoval)
-        return false;
+    const FWorldStateRecord* Found = WorldStateRecords.Find(FactId);
+    if (!Found) return false;
+    if (!bIncludePendingRemoval && Found->bPendingRemoval) return false;
     OutRecord = *Found;
     return true;
 }
 
-TArray<FWorldStateRecord> UWorldStateSubsystem::GetRecordsForItem(const FGuid& ItemId) const
+FWorldStateRecord UWorldStateSubsystem::GetWorldStateRecordOrDefault(FName FactId, bool bIncludePendingRemoval) const
+{
+    const FWorldStateRecord* Found = WorldStateRecords.Find(FactId);
+    if (!Found) return FWorldStateRecord();
+    if (!bIncludePendingRemoval && Found->bPendingRemoval) return FWorldStateRecord();
+    return *Found;
+}
+
+TArray<FWorldStateRecord> UWorldStateSubsystem::GetRecordsForItem(const FGuid& ItemId, bool bIncludePendingRemoval) const
 {
     TArray<FWorldStateRecord> Result;
     for (const auto& Pair : WorldStateRecords)
     {
-        if (Pair.Key.ItemId == ItemId && !Pair.Value.bPendingRemoval)
-        {
-            Result.Add(Pair.Value);
-        }
+        if (Pair.Value.ItemId != ItemId) continue;
+        if (!bIncludePendingRemoval && Pair.Value.bPendingRemoval) continue;
+        Result.Add(Pair.Value);
     }
     return Result;
 }
 
-TArray<FWorldStateRecord> UWorldStateSubsystem::GetRecordsByCategory(EWorldStateChangeCategory Category) const
+TArray<FWorldStateRecord> UWorldStateSubsystem::GetRecordsByCategory(EWorldStateChangeCategory Category, bool bIncludePendingRemoval) const
 {
     TArray<FWorldStateRecord> Result;
     for (const auto& Pair : WorldStateRecords)
     {
-        if (Pair.Value.Category == Category && !Pair.Value.bPendingRemoval)
-        {
-            Result.Add(Pair.Value);
-        }
+        if (Pair.Value.Category != Category) continue;
+        if (!bIncludePendingRemoval && Pair.Value.bPendingRemoval) continue;
+        Result.Add(Pair.Value);
     }
     return Result;
+}
+
+const FWorldStateRecord* UWorldStateSubsystem::FindWorldStateRecord(FName FactId, bool bIncludePendingRemoval) const
+{
+    const FWorldStateRecord* Found = WorldStateRecords.Find(FactId);
+    if (!Found) return nullptr;
+    if (!bIncludePendingRemoval && Found->bPendingRemoval) return nullptr;
+    return Found;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -315,8 +393,10 @@ void UWorldStateSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     {
         const FWorldStateRecord& Rec = Pair.Value;
         TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-        Obj->SetStringField(TEXT("ItemId"), Rec.ItemId.ToString());
+        Obj->SetStringField(TEXT("FactId"), Rec.FactId.ToString());
+        Obj->SetStringField(TEXT("Description"), Rec.Description);
         Obj->SetNumberField(TEXT("Category"), static_cast<int32>(Rec.Category));
+        Obj->SetStringField(TEXT("ItemId"), Rec.ItemId.ToString());
         Obj->SetStringField(TEXT("ComponentName"),
             Rec.ComponentName.IsNone() ? FString() : Rec.ComponentName.ToString());
         Obj->SetStringField(TEXT("ChangeKey"), Rec.ChangeKey.ToString());
@@ -376,13 +456,16 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         if (!Val->TryGetObject(ObjPtr)) continue;
         const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-        FString ItemIdStr, ChangeKeyStr, ComponentNameStr, Value, OriginalValue, ReactionFunctionNameStr, Timestamp;
+        FString FactIdStr, Description, ItemIdStr, ChangeKeyStr, ComponentNameStr;
+        FString Value, OriginalValue, ReactionFunctionNameStr, Timestamp;
         int32 CategoryInt = 0;
         bool bHasOriginalValue = false;
         bool bPendingRemoval = false;
 
-        Obj->TryGetStringField(TEXT("ItemId"), ItemIdStr);
+        Obj->TryGetStringField(TEXT("FactId"), FactIdStr);
+        Obj->TryGetStringField(TEXT("Description"), Description);
         Obj->TryGetNumberField(TEXT("Category"), CategoryInt);
+        Obj->TryGetStringField(TEXT("ItemId"), ItemIdStr);
         Obj->TryGetStringField(TEXT("ChangeKey"), ChangeKeyStr);
         Obj->TryGetStringField(TEXT("ComponentName"), ComponentNameStr);
         Obj->TryGetStringField(TEXT("Value"), Value);
@@ -392,12 +475,21 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         Obj->TryGetStringField(TEXT("ReactionFunctionName"), ReactionFunctionNameStr);
         Obj->TryGetStringField(TEXT("Timestamp"), Timestamp);
 
+        if (FactIdStr.IsEmpty())
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("WorldStateSubsystem::ApplySaveData: record without FactId skipped"));
+            continue;
+        }
+
         FGuid ItemId;
         if (!FGuid::Parse(ItemIdStr, ItemId)) continue;
 
         FWorldStateRecord Record;
-        Record.ItemId = ItemId;
+        Record.FactId = FName(*FactIdStr);
+        Record.Description = Description;
         Record.Category = static_cast<EWorldStateChangeCategory>(CategoryInt);
+        Record.ItemId = ItemId;
         Record.ChangeKey = FName(*ChangeKeyStr);
         Record.ComponentName = ComponentNameStr.IsEmpty() ? NAME_None : FName(*ComponentNameStr);
         Record.SerializedValue = Value;
@@ -407,8 +499,7 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         Record.ReactionFunctionName = ReactionFunctionNameStr.IsEmpty() ? NAME_None : FName(*ReactionFunctionNameStr);
         Record.Timestamp = Timestamp;
 
-        const FWorldStateKey Key(Record.ItemId, Record.ComponentName, Record.ChangeKey);
-        WorldStateRecords.Add(Key, Record);
+        WorldStateRecords.Add(Record.FactId, Record);
     }
 
     UE_LOG(LogTemp, Log,
@@ -433,28 +524,35 @@ void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
     if (!FAC || !FAC->ItemId.IsValid())
         return;
 
-    TArray<FWorldStateKey> Keys;
-    WorldStateRecords.GetKeys(Keys);
+    // Собираем факты для этого актёра, разделяя на pending removals и активные.
+    TArray<FName> PendingFactIds;
+    TArray<FName> ActiveFactIds;
 
-    for (const FWorldStateKey& Key : Keys)
+    for (const auto& Pair : WorldStateRecords)
     {
-        if (Key.ItemId != FAC->ItemId)
-            continue;
+        if (Pair.Value.ItemId != FAC->ItemId) continue;
 
-        FWorldStateRecord* Record = WorldStateRecords.Find(Key);
+        if (Pair.Value.bPendingRemoval)
+            PendingFactIds.Add(Pair.Key);
+        else
+            ActiveFactIds.Add(Pair.Key);
+    }
+
+    // --- Проход 1: pending removals ---
+    for (const FName& FactId : PendingFactIds)
+    {
+        TryFinalizePendingRemoval(FactId, SpawnedActor);
+    }
+
+    // --- Проход 2: активные факты ---
+    for (const FName& FactId : ActiveFactIds)
+    {
+        FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
         if (!Record) continue;
 
-        // Отложенное удаление — финализируем, НЕ применяя SerializedValue.
-        if (Record->bPendingRemoval)
-        {
-            TryFinalizePendingRemoval(Key, SpawnedActor);
-            continue;
-        }
+        CaptureOriginalValueIfMissing(FactId, SpawnedActor);
 
-        // Обычный путь: захватываем оригинал и применяем значение.
-        CaptureOriginalValueIfMissing(Key, SpawnedActor);
-
-        if (const FWorldStateRecord* FinalRecord = WorldStateRecords.Find(Key))
+        if (const FWorldStateRecord* FinalRecord = WorldStateRecords.Find(FactId))
         {
             ApplyRecordToActor(SpawnedActor, *FinalRecord);
         }
@@ -587,11 +685,21 @@ void UWorldStateSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         TEXT("WorldStateSubsystem::HandleLevelLoaded: reapplied WorldState records for new level"));
 }
 
-void UWorldStateSubsystem::CaptureOriginalValueIfMissing(const FWorldStateKey& Key, AActor* Actor)
+void UWorldStateSubsystem::CaptureOriginalValueIfMissing(FName FactId, AActor* Actor)
 {
-    FWorldStateRecord* Record = WorldStateRecords.Find(Key);
+    FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
     if (!Record || !IsValid(Actor) || Record->bHasOriginalValue)
         return;
+
+    UObject* Target = nullptr;
+    FProperty* Prop = ResolveTargetProperty(Actor, *Record, Target);
+    if (!Prop)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("WorldStateSubsystem: CaptureOriginalValueIfMissing — property '%s' NOT found on actor '%s' (FactId='%s')"),
+            *Record->ChangeKey.ToString(), *Actor->GetName(), *FactId.ToString());
+        return;
+    }
 
     FString Captured;
     if (TryReadPropertyValue(Actor, *Record, Captured))
@@ -599,11 +707,16 @@ void UWorldStateSubsystem::CaptureOriginalValueIfMissing(const FWorldStateKey& K
         Record->OriginalValue = Captured;
         Record->bHasOriginalValue = true;
 
-        UE_LOG(LogTemp, Verbose,
-            TEXT("WorldStateSubsystem: Captured original '%s'='%s' on actor '%s' (Component='%s')"),
+        UE_LOG(LogTemp, Log,
+            TEXT("WorldStateSubsystem: Captured original '%s'='%s' on '%s' (actor '%s', FactId='%s')"),
             *Record->ChangeKey.ToString(), *Captured,
-            *Actor->GetName(),
-            Record->ComponentName.IsNone() ? TEXT("<actor>") : *Record->ComponentName.ToString());
+            *Target->GetName(), *Actor->GetName(), *FactId.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("WorldStateSubsystem: CaptureOriginalValueIfMissing — TryRead FAILED for '%s' (FactId='%s')"),
+            *Record->ChangeKey.ToString(), *FactId.ToString());
     }
 }
 
@@ -768,44 +881,40 @@ void UWorldStateSubsystem::HandleRemoveWorldStateRecord(const FOutcomeEventBase&
 {
     if (UWorldStateRecordRemovePayload* P = Cast<UWorldStateRecordRemovePayload>(Outcome.Payload))
     {
-        RemoveWorldStateRecord(P->ItemId, P->ComponentName, P->ChangeKey);
+        RemoveWorldStateRecord(P->FactId);
     }
 }
 
-bool UWorldStateSubsystem::TryFinalizePendingRemoval(const FWorldStateKey& Key, AActor* Actor)
+bool UWorldStateSubsystem::TryFinalizePendingRemoval(FName FactId, AActor* Actor)
 {
-    FWorldStateRecord* Record = WorldStateRecords.Find(Key);
+    FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
     if (!Record || !Record->bPendingRemoval)
         return false;
 
     if (!IsValid(Actor))
         return false;
 
-    // Если оригинал не захвачен — захватываем текущее значение как оригинал.
-    // Это корректно при первом появлении актёра (значение уровня/класса).
-    // Если свойство не найдено — финализировать нельзя, ждём дальше.
     if (!Record->bHasOriginalValue)
     {
         FString Captured;
         if (!TryReadPropertyValue(Actor, *Record, Captured))
         {
             UE_LOG(LogTemp, Verbose,
-                TEXT("WorldStateSubsystem: Cannot finalize removal for '%s' on actor '%s' (property not found yet)"),
-                *Record->ChangeKey.ToString(), *Actor->GetName());
+                TEXT("WorldStateSubsystem: Cannot finalize removal for '%s' on actor '%s' (property not found yet, FactId='%s')"),
+                *Record->ChangeKey.ToString(), *Actor->GetName(), *FactId.ToString());
             return false;
         }
 
         Record->OriginalValue = Captured;
         Record->bHasOriginalValue = true;
-
-        UE_LOG(LogTemp, Verbose,
-            TEXT("WorldStateSubsystem: Captured original '%s'='%s' on actor '%s' (before removing record)"),
-            *Record->ChangeKey.ToString(), *Captured, *Actor->GetName());
     }
 
-    // Восстанавливаем оригинал и удаляем запись.
     WritePropertyValue(Actor, *Record, Record->OriginalValue, /*bIsRestore=*/true);
-    WorldStateRecords.Remove(Key);
+    WorldStateRecords.Remove(FactId);
+
+    // Событие Removed уже опубликовано в RemoveWorldStateRecord.
+    // Повторно не публикуем — иначе подписчики увидят два Removed на один факт.
+
     return true;
 }
 
@@ -833,4 +942,40 @@ void UWorldStateSubsystem::InvokeReactionFunction(UObject* Target, const FWorldS
         *Record.ReactionFunctionName.ToString(),
         *Target->GetName(),
         *Record.ChangeKey.ToString());
+}
+
+void UWorldStateSubsystem::PublishFactEvent(
+    FName FactId,
+    const FWorldStateRecord& RecordSnapshot,
+    EOutcomeWorldState EventType,
+    const FString& PreviousValue,
+    const FString& RestoredValue,
+    bool bHasRestoredValue) const
+{
+    if (FactId.IsNone())
+        return;
+
+    UGameInstance* GI = GetGameInstance();
+    if (!GI)
+        return;
+
+    UEventBusSubsystem* Bus = GI->GetSubsystem<UEventBusSubsystem>();
+    if (!Bus)
+        return;
+
+    UWorldStateFactChangedPayload* P = Bus->CreatePayload<UWorldStateFactChangedPayload>();
+    if (!P)
+        return;
+
+    P->Setup(FactId, RecordSnapshot);
+    P->PreviousValue = PreviousValue;
+    P->RestoredValue = RestoredValue;
+    P->bHasRestoredValue = bHasRestoredValue;
+
+    FOutcomeEventBase Ev;
+    Ev.OutcomeType = EOutcomeType::WorldState;
+    Ev.OutcomeWorldState = EventType;
+    Ev.Payload = P;
+
+    Bus->PublishOutcome(Ev);
 }

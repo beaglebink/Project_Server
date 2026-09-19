@@ -17,78 +17,52 @@ enum class EWorldStateChangeCategory : uint8
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FWorldStateKey
-// ─────────────────────────────────────────────────────────────────────────────
-USTRUCT(BlueprintType)
-struct FPSKITALSREFACTORED_API FWorldStateKey
-{
-    GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
-    FGuid ItemId;
-
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
-    FName ComponentName = NAME_None;
-
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
-    FName ChangeKey;
-
-    FWorldStateKey() = default;
-
-    FWorldStateKey(const FGuid& InItemId, FName InComponentName, FName InChangeKey)
-        : ItemId(InItemId), ComponentName(InComponentName), ChangeKey(InChangeKey) {
-    }
-
-    bool operator==(const FWorldStateKey& Other) const
-    {
-        return ItemId == Other.ItemId
-            && ComponentName == Other.ComponentName
-            && ChangeKey == Other.ChangeKey;
-    }
-};
-
-FORCEINLINE uint32 GetTypeHash(const FWorldStateKey& Key)
-{
-    uint32 H = GetTypeHash(Key.ItemId);
-    H = HashCombine(H, GetTypeHash(Key.ComponentName));
-    H = HashCombine(H, GetTypeHash(Key.ChangeKey));
-    return H;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // FWorldStateRecord
+// Одна запись о постоянном изменении мира.
+// Уникальный ключ — FactId (строковый идентификатор мирового факта).
 // ─────────────────────────────────────────────────────────────────────────────
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FWorldStateRecord
 {
     GENERATED_BODY()
 
+    // Строковый уникальный идентификатор факта. Например "DoorOpened_MainEntrance".
+    // Служит ключом карты WorldStateRecords и используется для удаления записи.
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
-    FGuid ItemId;
+    FName FactId;
+
+    // Человекочитаемое описание факта (для UI, дебага, логов).
+    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    FString Description;
 
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     EWorldStateChangeCategory Category = EWorldStateChangeCategory::Custom;
 
+    // ---- Куда применять ----
+    // Идентификатор объекта (FGuid из UFloorAssignmentComponent).
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
-    FName ChangeKey;
+    FGuid ItemId;
 
+    // NAME_None → свойство ищется на самом актёре.
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FName ComponentName = NAME_None;
 
+    // Имя FProperty, помеченного CPF_SaveGame.
+    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    FName ChangeKey;
+
+    // ---- Значения ----
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FString SerializedValue;
 
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FString OriginalValue;
 
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     bool bHasOriginalValue = false;
 
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     bool bPendingRemoval = false;
 
-    // Имя UFUNCTION без параметров, которая вызывается на целевом объекте
-    // после применения значения. NAME_None — реакция не вызывается.
+    // Имя UFUNCTION без параметров, вызываемой на целевом объекте после
+    // применения значения. NAME_None — реакция не вызывается.
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
     FName ReactionFunctionName = NAME_None;
 
@@ -98,16 +72,20 @@ struct FPSKITALSREFACTORED_API FWorldStateRecord
     FWorldStateRecord() = default;
 
     FWorldStateRecord(
-        const FGuid& InItemId,
+        FName InFactId,
+        const FString& InDescription,
         EWorldStateChangeCategory InCategory,
+        const FGuid& InItemId,
         FName InChangeKey,
         const FString& InValue,
         FName InComponentName = NAME_None,
         FName InReactionFunctionName = NAME_None)
-        : ItemId(InItemId)
+        : FactId(InFactId)
+        , Description(InDescription)
         , Category(InCategory)
-        , ChangeKey(InChangeKey)
+        , ItemId(InItemId)
         , ComponentName(InComponentName)
+        , ChangeKey(InChangeKey)
         , SerializedValue(InValue)
         , ReactionFunctionName(InReactionFunctionName)
         , Timestamp(FDateTime::UtcNow().ToString())

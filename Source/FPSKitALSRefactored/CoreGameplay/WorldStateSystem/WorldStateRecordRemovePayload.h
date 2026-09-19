@@ -6,7 +6,7 @@
 
 /**
  * Payload для команды удаления записи о состоянии мира через EventBus.
- * Используется вместе с UWorldStateSubsystem::WorldStateRecordRemoveCondition.
+ * Удаление выполняется по FactId (строковому идентификатору мирового факта).
  */
 UCLASS(BlueprintType, Blueprintable)
 class FPSKITALSREFACTORED_API UWorldStateRecordRemovePayload : public UOutcomePayload
@@ -15,21 +15,12 @@ class FPSKITALSREFACTORED_API UWorldStateRecordRemovePayload : public UOutcomePa
 
 public:
     UPROPERTY(BlueprintReadWrite, Category = "WorldState")
-    FGuid ItemId;
-
-    // NAME_None → запись относилась к самому актёру.
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
-    FName ComponentName = NAME_None;
-
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
-    FName ChangeKey;
+    FName FactId;
 
     UFUNCTION(BlueprintCallable, Category = "WorldState")
-    UWorldStateRecordRemovePayload* Setup(const FGuid& InItemId, FName InComponentName, FName InChangeKey)
+    UWorldStateRecordRemovePayload* Setup(FName InFactId)
     {
-        ItemId = InItemId;
-        ComponentName = InComponentName;
-        ChangeKey = InChangeKey;
+        FactId = InFactId;
         return this;
     }
 };

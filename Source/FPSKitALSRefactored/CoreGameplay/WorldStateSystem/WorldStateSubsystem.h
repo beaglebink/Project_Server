@@ -38,21 +38,27 @@ public:
     void UnsubscribeAll();
 
     // ===== МЕТОДЫ ЧТЕНИЯ =====
-    // Записи с bPendingRemoval = true игнорируются.
+    // bIncludePendingRemoval:
+    //   false (по умолчанию) — записи с bPendingRemoval = true игнорируются
+    //   true                 — такие записи включаются в результат
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "WorldStateSubsystem|State")
-    bool HasWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey) const;
+    bool HasWorldStateRecord(FName FactId, bool bIncludePendingRemoval = false) const;
 
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-    bool GetWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey, FWorldStateRecord& OutRecord) const;
+    bool GetWorldStateRecord(FName FactId, bool bIncludePendingRemoval, FWorldStateRecord& OutRecord) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "WorldStateSubsystem|State")
+    FWorldStateRecord GetWorldStateRecordOrDefault(FName FactId, bool bIncludePendingRemoval = false) const;
 
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-    TArray<FWorldStateRecord> GetRecordsForItem(const FGuid& ItemId) const;
+    TArray<FWorldStateRecord> GetRecordsForItem(const FGuid& ItemId, bool bIncludePendingRemoval = false) const;
 
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
-    TArray<FWorldStateRecord> GetRecordsByCategory(EWorldStateChangeCategory Category) const;
+    TArray<FWorldStateRecord> GetRecordsByCategory(EWorldStateChangeCategory Category, bool bIncludePendingRemoval = false) const;
 
-    // ===== ISaveableSubsystem =====
+    // ===== C++-геттеры (без рефлексии) =====
+    const FWorldStateRecord* FindWorldStateRecord(FName FactId, bool bIncludePendingRemoval = false) const;
 
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
@@ -63,7 +69,7 @@ private:
     void SubscribeAllWorldStateEvents();
     UOutcomeConditionAsset* CreateSimpleWorldStateCondition(EOutcomeWorldState WorldStateType);
 
-    // ---- ОБРАБОТЧИКИ СОБЫТИЙ ----
+    // ---- ОБРАБОТЧИКИ ----
     void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
     void HandleRemoveWorldStateRecord(const FOutcomeEventBase& Outcome);
     void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
@@ -77,27 +83,29 @@ private:
     UPROPERTY()
     UOutcomeConditionAsset* LevelLoadedConditionAsset = nullptr;
 
-    // ---- ПОДПИСКА НА СПАВН АКТОРОВ ----
+    // ---- ПОДПИСКА НА СПАВН ----
     FDelegateHandle ActorSpawnedHandle;
     TWeakObjectPtr<UWorld> SubscribedWorld;
 
     void SubscribeToActorSpawned();
     void UnsubscribeFromActorSpawned();
 
-    // ---- ПРИВАТНЫЕ МЕТОДЫ ИЗМЕНЕНИЯ СОСТОЯНИЯ ----
+    // ---- ИЗМЕНЕНИЕ СОСТОЯНИЯ ----
     void SetWorldStateRecord(const FWorldStateRecord& Record);
-    void RemoveWorldStateRecord(const FGuid& ItemId, FName ComponentName, FName ChangeKey);
+    void RemoveWorldStateRecord(FName FactId);
     void ApplyRecordsToWorld();
     void ApplyRecordToActor(AActor* Actor, const FWorldStateRecord& Record) const;
 
-    // Захватывает OriginalValue, если он ещё не захвачен.
-    void CaptureOriginalValueIfMissing(const FWorldStateKey& Key, AActor* Actor);
+    void CaptureOriginalValueIfMissing(FName FactId, AActor* Actor);
+    bool TryFinalizePendingRemoval(FName FactId, AActor* Actor);
 
-    // Пытается финализировать отложенное удаление записи для указанного актёра.
-    // Возвращает true, если запись была удалена из карты.
-    bool TryFinalizePendingRemoval(const FWorldStateKey& Key, AActor* Actor);
+    // Публикует событие факта с полным снимком записи.
+    //   PreviousValue — для Changed (пустая строка для Added/Removed).
+    //   RestoredValue / bHasRestoredValue — для Removed (для Added/Changed
+    //   передаются пустая строка и false).
+    void PublishFactEvent(FName FactId, const FWorldStateRecord& RecordSnapshot, EOutcomeWorldState EventType, const FString& PreviousValue = FString(), const FString& RestoredValue = FString(), bool bHasRestoredValue = false) const;
 
-    // ---- ПОИСК АКТОРОВ / КОМПОНЕНТОВ / СВОЙСТВ ----
+    // ---- ПОИСК ----
     AActor* FindActorByItemId(const FGuid& ItemId) const;
     void BuildActorIndex(TMap<FGuid, AActor*>& OutIndex) const;
     UActorComponent* FindComponentByStableName(AActor* Actor, FName ComponentName) const;
@@ -105,10 +113,6 @@ private:
     FProperty* ResolveTargetProperty(AActor* Actor, const FWorldStateRecord& Record, UObject*& OutTargetObject) const;
     bool TryReadPropertyValue(AActor* Actor, const FWorldStateRecord& Record, FString& OutValue) const;
     bool WritePropertyValue(AActor* Actor, const FWorldStateRecord& Record, const FString& Value, bool bIsRestore) const;
-
-    // Вызывает UFUNCTION без параметров с именем Record.ReactionFunctionName
-    // на целевом объекте. Если имя не задано или функция не найдена — тихо
-    // ничего не делает (Warning в лог при невалидном имени).
     void InvokeReactionFunction(UObject* Target, const FWorldStateRecord& Record) const;
 
     // ---- СЛУШАТЕЛИ PER-ITEM ----
@@ -119,8 +123,9 @@ private:
         return RegistrationListeners;
     }
 
-    // ---- ХРАНИЛИЩЕ ЗАПИСЕЙ ----
-    TMap<FWorldStateKey, FWorldStateRecord> WorldStateRecords;
+    // ---- ХРАНИЛИЩЕ ----
+    // Ключ — FactId.
+    TMap<FName, FWorldStateRecord> WorldStateRecords;
 
     bool IsLoadComplete = true;
 };

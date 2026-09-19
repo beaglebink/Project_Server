@@ -167,7 +167,10 @@ enum class EOutcomeWorldState : uint8
 {
     Default                     UMETA(Hidden, DisplayName = "Default"),
     WorldStateAddRecord         UMETA(DisplayName = "Adding State Record"),
-    WorldStateRemoveRecord      UMETA(DisplayName = "Removing State Record")
+    WorldStateRemoveRecord      UMETA(DisplayName = "Removing State Record"),
+    WorldStateFactAdded      UMETA(DisplayName = "Fact Added"),
+    WorldStateFactChanged    UMETA(DisplayName = "Fact Changed"),
+    WorldStateFactRemoved    UMETA(DisplayName = "Fact Removed")
     //ChangingExteriorDoorAvailability UMETA(DisplayName = "Changing Exterior Door Availability"),
     //CheckRequest                UMETA(DisplayName = "Check Request"),
     //CheckResponse               UMETA(DisplayName = "Check Response")
