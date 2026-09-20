@@ -119,14 +119,25 @@ void UInteractiveItemComponent::BeginPlay()
 
 void UInteractiveItemComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Unregister per-item listener (all types)
+	// Снимаем per-item слушателя у подсистемы (все типы)
 	RemoveListenerFromSubsystem(GetWorld(), SubsystemType, ItemId, this);
 
-	UEventBusSubsystem* EventBus = GetWorld()
-		? GetWorld()->GetGameInstance()->GetSubsystem<UEventBusSubsystem>()
-		: nullptr;
+	UWorld* World = GetWorld();
+	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+	UEventBusSubsystem* EventBus = GI ? GI->GetSubsystem<UEventBusSubsystem>() : nullptr;
 
-	if (EventBus)
+	// FIX: не публикуем в EventBus во время teardown мира / подсистем / GI.
+	// Иначе BP-делегаты могут быть вызваны на уже разрушаемых объектах
+	// (см. стек: EndPlay → PublishOutcome → ProcessPendingEvents → BP-wrapper).
+	const bool bSafeToPublish =
+		EventBus &&
+		World &&
+		!World->bIsTearingDown &&
+		GI &&
+		!GI->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed) &&
+		!this->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed);
+
+	if (bSafeToPublish)
 	{
 		UInteractItemRegistrationPayload* Payload = EventBus->CreatePayload<UInteractItemRegistrationPayload>();
 		Payload->Setup(ItemId, SubsystemType, InteractionRange, InteractiveTooltipText, GetOwner());
@@ -155,6 +166,13 @@ void UInteractiveItemComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 		EventBus->PublishOutcome(Event);
 
 		UE_LOG(LogTemp, Log, TEXT("InteractiveItemComponent: Published unregistration ItemId=%s"),
+			*ItemId.ToString());
+	}
+	else
+	{
+		// FIX: во время teardown просто пропускаем публикацию — обработчики всё равно мертвы.
+		UE_LOG(LogTemp, Verbose,
+			TEXT("InteractiveItemComponent: Skipped unregistration publish during teardown. ItemId=%s"),
 			*ItemId.ToString());
 	}
 

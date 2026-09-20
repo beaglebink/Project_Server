@@ -3,67 +3,100 @@
 
 void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
 {
+    // FIX: если мы уже в teardown — вообще не принимаем реентерантные публикации,
+    // чтобы не накапливать в PendingEvents события, которые будут диспатчиться
+    // по мёртвым BP-объектам (это и был путь крэша в стеке).
+    if (UWorld* W = GetWorld(); W && W->bIsTearingDown)
+    {
+        return;
+    }
+
     // Защита от рекурсивного входа
     if (bIsPublishing)
     {
-        // Если уже идёт публикация, добавляем событие в очередь и выходим
+        FScopeLock Lock(&HandlersCriticalSection);
         PendingEvents.Add(Outcome);
         UE_LOG(LogTemp, Verbose, TEXT("EventBusSubsystem: Reentrant PublishOutcome queued."));
         return;
     }
 
-    FScopeLock Lock(&HandlersCriticalSection);
-
-    bIsPublishing = true;
-    bDispatching = true;
-
-    for (int32 i = 0; i < Handlers.Num(); ++i)
+    // FIX: снимаем снимок хэндлеров под локом, а сами делегаты исполняем ВНЕ лока.
+    // Иначе BP-код держит CRITICAL_SECTION и может реентерабельно трогать реестр.
+    TArray<FOutcomeHandlerEntry> LocalHandlers;
     {
-        const FOutcomeHandlerEntry& Entry = Handlers[i];
-        if (Entry.bPendingRemove) continue;
+        FScopeLock Lock(&HandlersCriticalSection);
+        bIsPublishing = true;
+        bDispatching = true;
+        LocalHandlers = Handlers; // копия — на случай реентерантных модификаций
+    }
 
+    for (int32 i = 0; i < LocalHandlers.Num(); ++i)
+    {
+        FOutcomeHandlerEntry& Entry = LocalHandlers[i];
+        if (Entry.bPendingRemove) continue;
         if (!Entry.Query.IsValid()) continue;
 
         const bool bResult = Entry.Query->Evaluate(Outcome);
-        if (bResult)
+        if (!bResult) continue;
+
+        if (Entry.Handler.IsBound())
         {
-            if (Entry.Handler.IsBound())
-            {
-                Entry.Handler.Execute(Outcome);
-            }
-            else if (Entry.BlueprintDelegate.IsBound())
+            Entry.Handler.Execute(Outcome);
+        }
+        else if (Entry.BlueprintDelegate.IsBound())
+        {
+            // FIX: проверяем, что BP-объект ещё валиден и не в процессе разрушения.
+            UObject* BPObj = Entry.BlueprintDelegate.GetUObject();
+            if (IsValid(BPObj) &&
+                !BPObj->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
             {
                 Entry.BlueprintDelegate.Execute(Outcome);
             }
-        }
-    }
-
-    bDispatching = false;
-
-    // Обработка отложенных операций регистрации/отписки
-    for (const FPendingOperation& Op : PendingOperations)
-    {
-        if (Op.Type == FPendingOperation::EType::Unregister)
-        {
-            for (FOutcomeHandlerEntry& E : Handlers)
+            else
             {
-                if (E.HandleId == Op.HandleId)
+                // Хэндлер на разрушаемом/мёртвом объекте — помечаем на удаление.
+                FScopeLock Lock(&HandlersCriticalSection);
+                for (FOutcomeHandlerEntry& E : Handlers)
                 {
-                    E.bPendingRemove = true;
-                    break;
+                    if (E.HandleId == Entry.HandleId)
+                    {
+                        E.bPendingRemove = true;
+                        break;
+                    }
                 }
             }
         }
-        else if (Op.Type == FPendingOperation::EType::Register)
-        {
-            Handlers.Add(Op.Entry);
-        }
     }
-    PendingOperations.Empty();
 
-    CleanupPendingRemoves();
+    // Применяем отложенные операции регистрации/отписки и чистим помеченные на удаление.
+    {
+        FScopeLock Lock(&HandlersCriticalSection);
+        bDispatching = false;
 
-    bIsPublishing = false;
+        for (const FPendingOperation& Op : PendingOperations)
+        {
+            if (Op.Type == FPendingOperation::EType::Unregister)
+            {
+                for (FOutcomeHandlerEntry& E : Handlers)
+                {
+                    if (E.HandleId == Op.HandleId)
+                    {
+                        E.bPendingRemove = true;
+                        break;
+                    }
+                }
+            }
+            else if (Op.Type == FPendingOperation::EType::Register)
+            {
+                Handlers.Add(Op.Entry);
+            }
+        }
+        PendingOperations.Empty();
+
+        CleanupPendingRemoves();
+
+        bIsPublishing = false;
+    }
 
     // Теперь обрабатываем отложенные события (если они есть)
     ProcessPendingEvents();

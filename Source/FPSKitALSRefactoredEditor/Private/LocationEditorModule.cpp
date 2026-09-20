@@ -4,10 +4,12 @@
 #include "LocationAnchorActorDetails.h"
 #include "ChoreSystem/ChoreHistoryConditionAssetDetails.h"
 #include "ChoreSystem/MissionConditionAssetDetails.h"
-#include "ChoreSystem/MissionActiveConditionAssetDetails.h"   // <-- добавлено
+#include "ChoreSystem/MissionActiveConditionAssetDetails.h"
+#include "ChoreSystem/WorldStateConditionAssetDetails.h"
 #include "ChoreHistoryConditionAsset.h"
 #include "MissionConditionAsset.h"
-#include "MissionActiveConditionAsset.h"                     // <-- добавлено
+#include "MissionActiveConditionAsset.h"
+#include "WorldStateConditionAsset.h"
 
 #define LOCTEXT_NAMESPACE "FLocationEditorModule"
 
@@ -44,6 +46,11 @@ void FLocationEditorModule::StartupModule()
         FOnGetDetailCustomizationInstance::CreateStatic(&FMissionActiveConditionAssetDetails::MakeInstance)
     );
 
+    PropertyModule.RegisterCustomClassLayout(
+        UWorldStateConditionAsset::StaticClass()->GetFName(),
+        FOnGetDetailCustomizationInstance::CreateStatic(&FWorldStateConditionAssetDetails::MakeInstance)
+    );
+
     PropertyModule.NotifyCustomizationModuleChanged();
 }
 
@@ -57,6 +64,7 @@ void FLocationEditorModule::ShutdownModule()
         PropertyModule.UnregisterCustomClassLayout(UChoreHistoryConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UMissionConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UMissionActiveConditionAsset::StaticClass()->GetFName());
+        PropertyModule.UnregisterCustomClassLayout(UWorldStateConditionAsset::StaticClass()->GetFName());
 
         PropertyModule.NotifyCustomizationModuleChanged();
     }

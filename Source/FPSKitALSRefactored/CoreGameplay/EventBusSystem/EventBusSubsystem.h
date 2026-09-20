@@ -152,6 +152,7 @@ private:
     TArray<FPendingOperation> PendingOperations;
 
     // Очередь событий, опубликованных во время рекурсивного вызова
+    UPROPERTY()
     TArray<FOutcomeEventBase> PendingEvents;
 
     void CleanupPendingRemoves();
