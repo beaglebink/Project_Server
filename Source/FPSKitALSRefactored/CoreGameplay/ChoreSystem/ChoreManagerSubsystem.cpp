@@ -277,7 +277,10 @@ void UChoreManagerSubsystem::RegisterAvailabilityHandler(UChoreDefinition* Defin
                 // При выполнении условия — предлагаем задание (реактивация)
                 // Флаг bReactivated = true означает, что это повторное предложение
                 // и будет вызван делегат OnChoreReactivated.
-                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+                if (ActiveStates[ChoreId].Status == EChoreStatus::Unavailable)
+                {
+                    UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+                }
             })
     );
 
