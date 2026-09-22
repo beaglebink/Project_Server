@@ -271,17 +271,17 @@ void UChoreManagerSubsystem::RegisterAvailabilityHandler(UChoreDefinition* Defin
 
     // Регистрируем обработчик на EventBus
     FOutcomeHandlerHandle Handle = EventBus->RegisterHandler(
-        Definition->AvailabilityCondition,
-        FOutcomeHandlerDelegate::CreateLambda([this, ChoreId](const FOutcomeEventBase&)
+    Definition->AvailabilityCondition,
+    FOutcomeHandlerDelegate::CreateLambda([this, ChoreId](const FOutcomeEventBase&)
+        {
+            if (FChoreState* State = ActiveStates.Find(ChoreId))
             {
-                // При выполнении условия — предлагаем задание (реактивация)
-                // Флаг bReactivated = true означает, что это повторное предложение
-                // и будет вызван делегат OnChoreReactivated.
-                if (ActiveStates[ChoreId].Status == EChoreStatus::Unavailable)
+                if (State->Status == EChoreStatus::Unavailable)
                 {
                     UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
                 }
-            })
+            }
+        })
     );
 
     if (Handle.IsValid())

@@ -73,10 +73,17 @@ void UWorldStateConditionAsset::CompileCondition()
             case EWorldStateConditionType::FactAdded:
             case EWorldStateConditionType::FactChanged:
             case EWorldStateConditionType::FactRemoved:
-                return FString::Printf(TEXT("WorldState: [%s] FactId='%s' Category=%s (byCategory=%s)"),
-                    *CondStr, *Asset->FactId.ToString(),
-                    *StaticEnum<EWorldStateChangeCategory>()->GetValueAsString(Asset->Category),
-                    Asset->bMatchByCategory ? TEXT("true") : TEXT("false"));
+                // Для event-driven типов bMatchByCategory определяет,
+                // фильтруем ли мы по FactId или по Category. Описание
+                // отражает именно то, что реально проверяется.
+                if (Asset->bMatchByCategory)
+                {
+                    return FString::Printf(TEXT("WorldState: [%s] Category=%s"),
+                        *CondStr,
+                        *StaticEnum<EWorldStateChangeCategory>()->GetValueAsString(Asset->Category));
+                }
+                return FString::Printf(TEXT("WorldState: [%s] FactId='%s'"),
+                    *CondStr, *Asset->FactId.ToString());
 
             default:
                 return FString::Printf(TEXT("WorldState: [%s]"), *CondStr);
@@ -102,7 +109,12 @@ bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outco
 
     switch (ConditionType)
     {
-    // ---- State-driven ----
+        // ─────────────────────────────────────────────────────────────────────
+        // State-driven
+        // Для этих типов bMatchByCategory не применяется:
+        //   - «любой факт такой Category» покрыт отдельным типом CategoryExists;
+        //   - ValueMatches всегда работает с конкретным FactId.
+        // ─────────────────────────────────────────────────────────────────────
 
     case EWorldStateConditionType::FactExists:
     {
@@ -127,14 +139,14 @@ bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outco
             WorldState->FindWorldStateRecord(FactId, /*bIncludePendingRemoval=*/false);
         if (!Record) return false;
 
-        // Значения хранятся как строки (результат ExportText). Для числовых
-        // сравнений приводим обе стороны к double, если это возможно.
+        // Значения хранятся как строки (результат ExportText).
+        // Для числовых сравнений приводим обе стороны к double, если возможно.
         const FString& Actual = Record->SerializedValue;
 
         auto TryParseNum = [](const FString& S, double& Out) -> bool
-        {
-            return FDefaultValueHelper::ParseDouble(S, Out);
-        };
+            {
+                return FDefaultValueHelper::ParseDouble(S, Out);
+            };
 
         double ExpectedNum = 0.0, ActualNum = 0.0;
         const bool bBothNumeric =
@@ -170,7 +182,10 @@ bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outco
         }
     }
 
-    // ---- Event-driven ----
+    // ─────────────────────────────────────────────────────────────────────
+    // Event-driven
+    // bMatchByCategory определяет, фильтруем ли мы по FactId или по Category.
+    // ─────────────────────────────────────────────────────────────────────
 
     case EWorldStateConditionType::FactAdded:
         return MatchFactEvent(Outcome, EOutcomeWorldState::WorldStateFactAdded);

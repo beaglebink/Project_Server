@@ -30,31 +30,37 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     EWorldStateConditionType ConditionType = EWorldStateConditionType::FactExists;
 
-    // FactId — основной ключ для FactExists / FactAdded / FactChanged /
-    // FactRemoved / ValueMatches. Для CategoryExists не используется.
+    // FactId — для FactExists / ValueMatches (state-driven) и для
+    // FactAdded / FactChanged / FactRemoved при bMatchByCategory = false.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState",
-        meta = (EditCondition = "ConditionType != EWorldStateConditionType::CategoryExists"))
+        meta = (EditCondition = "ConditionType == EWorldStateConditionType::FactExists || ConditionType == EWorldStateConditionType::ValueMatches || ((ConditionType == EWorldStateConditionType::FactAdded || ConditionType == EWorldStateConditionType::FactChanged || ConditionType == EWorldStateConditionType::FactRemoved) && !bMatchByCategory)",
+            EditConditionHides))
     FName FactId;
 
-    // Категория — для CategoryExists. Для event-driven типов может
-    // использоваться как дополнительный фильтр (см. bMatchByCategory).
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
+    // Category — для CategoryExists (state-driven) и для
+    // FactAdded / FactChanged / FactRemoved при bMatchByCategory = true.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState",
+        meta = (EditCondition = "ConditionType == EWorldStateConditionType::CategoryExists || ((ConditionType == EWorldStateConditionType::FactAdded || ConditionType == EWorldStateConditionType::FactChanged || ConditionType == EWorldStateConditionType::FactRemoved) && bMatchByCategory)",
+            EditConditionHides))
     EWorldStateChangeCategory Category = EWorldStateChangeCategory::Custom;
 
     // Дополнительный фильтр для event-driven типов: если true,
-    // событие должно относиться к факту с указанной Category.
+    // фильтрация идёт по Category, а FactId игнорируется.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState",
-        meta = (EditCondition = "ConditionType == EWorldStateConditionType::FactAdded || ConditionType == EWorldStateConditionType::FactChanged || ConditionType == EWorldStateConditionType::FactRemoved"))
+        meta = (EditCondition = "ConditionType == EWorldStateConditionType::FactAdded || ConditionType == EWorldStateConditionType::FactChanged || ConditionType == EWorldStateConditionType::FactRemoved",
+            EditConditionHides))
     bool bMatchByCategory = false;
 
     // Ожидаемое значение — используется только в ValueMatches.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState",
-        meta = (EditCondition = "ConditionType == EWorldStateConditionType::ValueMatches"))
+        meta = (EditCondition = "ConditionType == EWorldStateConditionType::ValueMatches",
+            EditConditionHides))
     FString ExpectedValue;
 
     // Способ сравнения — используется только в ValueMatches.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState",
-        meta = (EditCondition = "ConditionType == EWorldStateConditionType::ValueMatches"))
+        meta = (EditCondition = "ConditionType == EWorldStateConditionType::ValueMatches",
+            EditConditionHides))
     ECheckCompareOp CompareOp = ECheckCompareOp::Equal;
 
     virtual void CompileCondition() override;
@@ -62,6 +68,5 @@ public:
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 
 private:
-    // Проверка события WorldStateFact* с учётом FactId / Category.
     bool MatchFactEvent(const FOutcomeEventBase& Outcome, EOutcomeWorldState ExpectedType) const;
 };
