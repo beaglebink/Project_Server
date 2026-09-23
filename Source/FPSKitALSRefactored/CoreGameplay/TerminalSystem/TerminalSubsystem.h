@@ -219,12 +219,6 @@ public:
 
     // ---- Поиск по ActivityId (GameId) без указания TerminalId ----
 
-    /** Найти первую запись с данным GameId среди всех терминалов. */
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
-    bool FindGameRecordByActivityId(const FString& ActivityId,
-        FTerminalActivityRecord& OutRecord,
-        FGuid& OutTerminalId) const;
-
     /** Проверить, есть ли где-нибудь запись с данным GameId. */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     bool HasGameRecordByActivityId(const FString& ActivityId) const;
