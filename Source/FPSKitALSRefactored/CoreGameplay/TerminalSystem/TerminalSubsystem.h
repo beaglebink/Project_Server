@@ -217,6 +217,22 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     TArray<FTerminalActivityRecord> GetGameRecordsByStatus(ETerminalRecordStatus Status) const;
 
+    // ---- Поиск по ActivityId (GameId) без указания TerminalId ----
+
+    /** Найти первую запись с данным GameId среди всех терминалов. */
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    bool FindGameRecordByActivityId(const FString& ActivityId,
+        FTerminalActivityRecord& OutRecord,
+        FGuid& OutTerminalId) const;
+
+    /** Проверить, есть ли где-нибудь запись с данным GameId. */
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    bool HasGameRecordByActivityId(const FString& ActivityId) const;
+
+    /** Все записи с данным GameId (если одна и та же игра пройдена на нескольких терминалах). */
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    TArray<FTerminalActivityRecord> GetAllGameRecordsByActivityId(const FString& ActivityId) const;
+
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
     FOnTerminalEvent OnTerminalEvent;

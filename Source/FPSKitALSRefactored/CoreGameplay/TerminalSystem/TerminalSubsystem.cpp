@@ -1457,6 +1457,50 @@ TArray<FTerminalActivityRecord> UTerminalSubsystem::GetGameRecordsByStatus(ETerm
 	return Result;
 }
 
+bool UTerminalSubsystem::FindGameRecordByActivityId(const FString& ActivityId,
+	FTerminalActivityRecord& OutRecord,
+	FGuid& OutTerminalId) const
+{
+	if (ActivityId.IsEmpty()) return false;
+
+	for (const auto& TermPair : GameRecords)
+	{
+		if (const FTerminalActivityRecord* Rec = TermPair.Value.Find(ActivityId))
+		{
+			OutRecord = *Rec;
+			OutTerminalId = TermPair.Key;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UTerminalSubsystem::HasGameRecordByActivityId(const FString& ActivityId) const
+{
+	if (ActivityId.IsEmpty()) return false;
+
+	for (const auto& TermPair : GameRecords)
+	{
+		if (TermPair.Value.Contains(ActivityId))
+			return true;
+	}
+	return false;
+}
+
+TArray<FTerminalActivityRecord> UTerminalSubsystem::GetAllGameRecordsByActivityId(const FString& ActivityId) const
+{
+	TArray<FTerminalActivityRecord> Result;
+	if (ActivityId.IsEmpty()) return Result;
+
+	for (const auto& TermPair : GameRecords)
+	{
+		if (const FTerminalActivityRecord* Rec = TermPair.Value.Find(ActivityId))
+			Result.Add(*Rec);
+	}
+	return Result;
+}
+
+
 // ============================================================================
 // Game mutators
 // ============================================================================
