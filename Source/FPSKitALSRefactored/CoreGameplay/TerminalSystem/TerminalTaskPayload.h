@@ -86,6 +86,22 @@ public:
     }
 };
 
+// Лёгкий payload «игра началась» — только идентификаторы.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalActivityStartedPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
+    UTerminalActivityStartedPayload* Setup(const FGuid& InTid, const FString& InAid)
+    {
+        TerminalId = InTid; ActivityId = InAid; return this;
+    }
+};
+
 // Удаление одной игры. Пустой ActivityId — все игры терминала.
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalRemoveActivityRecordPayload : public UOutcomePayload

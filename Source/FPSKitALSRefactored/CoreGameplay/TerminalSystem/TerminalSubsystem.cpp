@@ -1,4 +1,4 @@
-#include "TerminalSubsystem.h"
+﻿#include "TerminalSubsystem.h"
 #include "TerminalProfileProvider.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../EventBusSystem/OutcomeConditionAsset.h"
@@ -19,7 +19,9 @@
 
 namespace
 {
-	// �����������, ��� ������ ����������, � ���������� ������ �� ��.
+	// Гарантирует, что запись существует, и возвращает ссылку на неё.
+	// StartedAt при создании = UtcNow(). При последующих вызовах не трогается.
+	// Для явного старта/перезапуска партии используем ReportGameStarted.
 	FTerminalActivityRecord& EnsureRecord(
 		TMap<FGuid, TMap<FString, FTerminalActivityRecord>>& Storage,
 		const FGuid& TerminalId, const FString& ActivityId)
@@ -1256,6 +1258,8 @@ void UTerminalSubsystem::SubscribeCommands()
 		AddLogHandler, &UTerminalSubsystem::HandleAddLogRequest);
 
 	// ---- Game reports ----
+	Sub(ReportGameStartedCondition, EOutcomeTerminal::ReportGameStartedRequest,
+		ReportGameStartedHandler, &UTerminalSubsystem::HandleReportGameStartedRequest);
 	Sub(ReportGameStageCondition, EOutcomeTerminal::ReportGameStageRequest,
 		ReportGameStageHandler, &UTerminalSubsystem::HandleReportGameStageRequest);
 	Sub(ReportGameResultCondition, EOutcomeTerminal::ReportGameResultRequest,
@@ -1295,6 +1299,7 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(SetGlobalDataHandler, SetGlobalDataCondition);
 	Unsub(AddLogHandler, AddLogCondition);
 
+	Unsub(ReportGameStartedHandler, ReportGameStartedCondition);
 	Unsub(ReportGameStageHandler, ReportGameStageCondition);
 	Unsub(ReportGameResultHandler, ReportGameResultCondition);
 	Unsub(RemoveGameRecordHandler, RemoveGameRecordCondition);
@@ -1455,6 +1460,50 @@ TArray<FTerminalActivityRecord> UTerminalSubsystem::GetGameRecordsByStatus(ETerm
 // ============================================================================
 // Game mutators
 // ============================================================================
+void UTerminalSubsystem::ReportGameStarted(const FGuid& TerminalId, const FString& GameId)
+{
+	auto& Inner = GameRecords.FindOrAdd(TerminalId);
+
+	const FDateTime Now = FDateTime::UtcNow();
+
+	FTerminalActivityRecord* Existing = Inner.Find(GameId);
+	if (!Existing)
+	{
+		// Первый старт в этой сессии — создаём чистую запись.
+		FTerminalActivityRecord New;
+		New.TerminalId = TerminalId;
+		New.ActivityId = GameId;
+		New.Status = ETerminalRecordStatus::Started;
+		New.StartedAt = Now;
+		New.LastUpdatedAt = Now;
+		Existing = &Inner.Add(GameId, New);
+	}
+	else if (Existing->Status == ETerminalRecordStatus::Completed
+		|| Existing->Status == ETerminalRecordStatus::Failed)
+	{
+		// Перезапуск партии: полный сброс прогресса, новый StartedAt.
+		Existing->Status = ETerminalRecordStatus::InProgress;
+		Existing->Stages.Empty();
+		Existing->TotalScore = 0;
+		Existing->ResultData.Empty();
+		Existing->StartedAt = Now;
+		Existing->LastUpdatedAt = Now;
+	}
+	else
+	{
+		// Повторный «start» посреди партии — просто фиксируем активность.
+		Existing->LastUpdatedAt = Now;
+	}
+
+	if (UEventBusSubsystem* Bus = CachedEventBus.Get())
+	{
+		if (auto* P = Bus->CreatePayload<UTerminalActivityRecordChangedPayload>())
+		{
+			P->Setup(TerminalId, GameId, *Existing);
+			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::GameRecordUpdated, P);
+		}
+	}
+}
 
 void UTerminalSubsystem::ReportGameStage(const FGuid& TerminalId, const FString& GameId,
 	const FString& StageId, const ETerminalRecordStatus& Status, int32 Score, const FString& Notes)
@@ -1494,7 +1543,7 @@ void UTerminalSubsystem::ReportGameResult(const FGuid& TerminalId, const FString
 	Rec.Status = bSuccess ? ETerminalRecordStatus::Completed : ETerminalRecordStatus::Failed;
 	Rec.TotalScore = TotalScore;
 	Rec.ResultData = ResultData;
-	Rec.LastUpdatedAt = FDateTime::UtcNow();
+	Rec.LastUpdatedAt = FDateTime::UtcNow();   // ← метка окончания игры
 
 	if (UEventBusSubsystem* Bus = CachedEventBus.Get())
 	{
@@ -1511,7 +1560,7 @@ void UTerminalSubsystem::RemoveGameRecord(const FGuid& TerminalId, const FString
 	auto* Inner = GameRecords.Find(TerminalId);
 	if (!Inner) return;
 
-	// ������ GameId � ������� ��� ���� ���������.
+	// Пустой GameId — удалить все игры терминала.
 	if (GameId.IsEmpty())
 	{
 		TArray<FString> Keys;
@@ -1544,6 +1593,12 @@ void UTerminalSubsystem::RemoveGameRecord(const FGuid& TerminalId, const FString
 // ============================================================================
 // Game report handlers
 // ============================================================================
+void UTerminalSubsystem::HandleReportGameStartedRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalActivityStartedPayload>(Outcome.Payload);
+	if (!P) return;
+	ReportGameStarted(P->TerminalId, P->ActivityId);
+}
 
 void UTerminalSubsystem::HandleReportGameStageRequest(const FOutcomeEventBase& Outcome)
 {

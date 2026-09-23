@@ -86,6 +86,7 @@ UENUM(BlueprintType)
 enum class ETerminalRecordStatus : uint8
 {
     NotStarted  UMETA(DisplayName = "Not Started"),
+    Started     UMETA(DisplayName = "Started"),
     InProgress  UMETA(DisplayName = "In Progress"),
     Completed   UMETA(DisplayName = "Completed"),
     Failed      UMETA(DisplayName = "Failed")
@@ -295,11 +296,13 @@ private:
     void HandleAddLogRequest(const FOutcomeEventBase& Outcome);
 
     // ---- Game report handlers ----
+    void HandleReportGameStartedRequest(const FOutcomeEventBase& Outcome);
     void HandleReportGameStageRequest(const FOutcomeEventBase& Outcome);
     void HandleReportGameResultRequest(const FOutcomeEventBase& Outcome);
     void HandleRemoveGameRecordRequest(const FOutcomeEventBase& Outcome);
 
     // ---- Game mutators ----
+    void ReportGameStarted(const FGuid& TerminalId, const FString& GameId);
     void ReportGameStage(const FGuid& TerminalId, const FString& GameId,
         const FString& StageId, const ETerminalRecordStatus& Status, int32 Score, const FString& Notes);
     void ReportGameResult(const FGuid& TerminalId, const FString& GameId,
@@ -375,6 +378,7 @@ private:
     FOutcomeHandlerHandle AddLogHandler;
 
     // ---- Game report handles ----
+    FOutcomeHandlerHandle ReportGameStartedHandler;
     FOutcomeHandlerHandle ReportGameStageHandler;
     FOutcomeHandlerHandle ReportGameResultHandler;
     FOutcomeHandlerHandle RemoveGameRecordHandler;
@@ -407,6 +411,7 @@ private:
     UPROPERTY() UOutcomeConditionAsset* AddLogCondition = nullptr;
 
     // ---- Game report conditions ----
+    UPROPERTY() UOutcomeConditionAsset* ReportGameStartedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* ReportGameStageCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* ReportGameResultCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* RemoveGameRecordCondition = nullptr;

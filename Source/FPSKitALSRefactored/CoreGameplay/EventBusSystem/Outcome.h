@@ -115,6 +115,7 @@ enum class EOutcomeTerminal : uint8
     AddLogRequest           UMETA(DisplayName = "Add Log Request"),
 
     // ---- Входные команды: отчёты от терминалов ----
+    ReportGameStartedRequest UMETA(DisplayName = "Report Game Started"),
     ReportGameStageRequest  UMETA(DisplayName = "Report Game Stage"),
     ReportGameResultRequest UMETA(DisplayName = "Report Game Result"),
     RemoveGameRecordRequest UMETA(DisplayName = "Remove Game Record"),
