@@ -81,7 +81,6 @@ enum class EOutcomeTerminal : uint8
     // ---- Нотификации (существующие) ----
     TerminalOpened          UMETA(DisplayName = "Terminal Opened"),
     TerminalTaskCompleted   UMETA(DisplayName = "Terminal Task Completed"),
-    //TerminalTaskFailed      UMETA(DisplayName = "Terminal Task Failed"),
     TerminalClosed          UMETA(DisplayName = "Terminal Closed"),
     TerminalLoginFailed     UMETA(DisplayName = "Terminal Login Failed"),
     TerminalLoginSucceeded  UMETA(DisplayName = "Terminal Login Succeeded"),
@@ -93,8 +92,6 @@ enum class EOutcomeTerminal : uint8
     TerminalCommand         UMETA(DisplayName = "Terminal command"),
     InteractRegistered      UMETA(Hidden, DisplayName = "Interact Registered"),
     InteractUnregistered    UMETA(Hidden, DisplayName = "Interact Unregistered"),
-    //CheckRequest            UMETA(DisplayName = "Check Request"),
-    //CheckResponse           UMETA(DisplayName = "Check Response"),
 
     // ---- Команды (Request) ----
     RegisterTerminalRequest UMETA(DisplayName = "Register Terminal Request"),
@@ -115,7 +112,16 @@ enum class EOutcomeTerminal : uint8
     SetEmailContentRequest  UMETA(DisplayName = "Set Email Content Request"),
     SetWebsiteContentRequest UMETA(DisplayName = "Set Website Content Request"),
     SetGlobalDataRequest    UMETA(DisplayName = "Set Global Data Request"),
-    AddLogRequest           UMETA(DisplayName = "Add Log Request")
+    AddLogRequest           UMETA(DisplayName = "Add Log Request"),
+
+    // ---- Входные команды: отчёты от терминалов ----
+    ReportGameStageRequest  UMETA(DisplayName = "Report Game Stage"),
+    ReportGameResultRequest UMETA(DisplayName = "Report Game Result"),
+    RemoveGameRecordRequest UMETA(DisplayName = "Remove Game Record"),
+
+    // ---- Исходящие нотификации ----
+    GameRecordUpdated       UMETA(DisplayName = "Game Record Updated"),
+    GameRecordRemoved       UMETA(DisplayName = "Game Record Removed")
 };
 
 UENUM(BlueprintType)
@@ -148,7 +154,7 @@ enum class EOutcomeInterior : uint8
 UENUM(BlueprintType)
 enum class EOutcomeSpawnGroup : uint8
 {
-    Default                 UMETA(Hidden, DisplayName = "Default"),
+    Default                 UMETA(DisplayName = "Default"),
     SpawnGroupActivated     UMETA(DisplayName = "Spawn Group Activated"),
     //SpawnGroupDeactivated   UMETA(DisplayName = "Spawn Group Deactivated"),
     SpawnGroupCleared       UMETA(DisplayName = "Spawn Group Cleared"),
@@ -165,12 +171,12 @@ enum class EOutcomeSpawnGroup : uint8
 UENUM(BlueprintType)
 enum class EOutcomeWorldState : uint8
 {
-    Default                     UMETA(Hidden, DisplayName = "Default"),
+    Default                     UMETA(DisplayName = "Default"),
     WorldStateAddRecord         UMETA(DisplayName = "Adding State Record"),
     WorldStateRemoveRecord      UMETA(DisplayName = "Removing State Record"),
-    WorldStateFactAdded      UMETA(DisplayName = "Fact Added"),
-    WorldStateFactChanged    UMETA(DisplayName = "Fact Changed"),
-    WorldStateFactRemoved    UMETA(DisplayName = "Fact Removed")
+    WorldStateFactAdded         UMETA(DisplayName = "Fact Added"),
+    WorldStateFactChanged       UMETA(DisplayName = "Fact Changed"),
+    WorldStateFactRemoved       UMETA(DisplayName = "Fact Removed")
     //ChangingExteriorDoorAvailability UMETA(DisplayName = "Changing Exterior Door Availability"),
     //CheckRequest                UMETA(DisplayName = "Check Request"),
     //CheckResponse               UMETA(DisplayName = "Check Response")

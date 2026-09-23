@@ -15,6 +15,30 @@
 #include "Serialization/JsonSerializer.h"
 #include "Misc/Base64.h"
 #include "TerminalCommandPayload.h"
+#include "TerminalTaskPayload.h"
+
+namespace
+{
+	// √арантирует, что запись существует, и возвращает ссылку на неЄ.
+	FTerminalActivityRecord& EnsureRecord(
+		TMap<FGuid, TMap<FString, FTerminalActivityRecord>>& Storage,
+		const FGuid& TerminalId, const FString& ActivityId)
+	{
+		auto& Inner = Storage.FindOrAdd(TerminalId);
+		FTerminalActivityRecord* Existing = Inner.Find(ActivityId);
+		if (!Existing)
+		{
+			FTerminalActivityRecord New;
+			New.TerminalId = TerminalId;
+			New.ActivityId = ActivityId;
+			New.Status = ETerminalRecordStatus::InProgress;
+			New.StartedAt = FDateTime::UtcNow();
+			New.LastUpdatedAt = New.StartedAt;
+			Existing = &Inner.Add(ActivityId, New);
+		}
+		return *Existing;
+	}
+}
 
 // ============================================================================
 // Helper to get interface
@@ -673,7 +697,7 @@ void UTerminalSubsystem::SubscribeTestInteractCommand()
 	TerminalCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Terminal;
 	TerminalCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
 	TerminalCommandConditionAsset->FilterRow.TerminalType = EOutcomeTerminal::TerminalCommand;
-	TerminalCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	TerminalCommandConditionAsset->FilterRow.TerminalComparison = EConditionComparison::Equals;
 	TerminalCommandConditionAsset->CompileCondition();
 	if (TerminalCommandConditionAsset->GetCondition().IsValid())
 	{
@@ -704,7 +728,6 @@ void UTerminalSubsystem::HandleTestInteractCommand(const FOutcomeEventBase& Outc
 			FGuid ObjectItemId = P->ObjectItemId;
 			AActor* OwnerActor = P->OwnerActor;
 			bool IsEnable = P->IsEnable;
-
 
 			UInteractiveItemComponent* InteractiveComp = OwnerActor->FindComponentByClass<UInteractiveItemComponent>();
 
@@ -750,10 +773,6 @@ void UTerminalSubsystem::HandleTestInteractCommand(const FOutcomeEventBase& Outc
 					}
 				}
 			}
-
-			//if (const FTerminalInteractRecord* Rec = RegisteredItems.Find(P->ObjectItemId))
-			//    ExecuteTestInteractCommandOnOwner(P->ObjectItemId, Rec->OwnerActor.Get(), P->IsEnable);
-
 		}
 	}
 }
@@ -810,7 +829,9 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
+	// ========================================================================
 	// Serialize terminals
+	// ========================================================================
 	TArray<TSharedPtr<FJsonValue>> TerminalArray;
 	for (const auto& Pair : Terminals)
 	{
@@ -860,7 +881,9 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	}
 	Root->SetArrayField(TEXT("Terminals"), TerminalArray);
 
+	// ========================================================================
 	// Serialize global state
+	// ========================================================================
 	TSharedPtr<FJsonObject> GlobalObj = MakeShared<FJsonObject>();
 
 	TSharedPtr<FJsonObject> EmailObj = MakeShared<FJsonObject>();
@@ -880,10 +903,55 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 	Root->SetObjectField(TEXT("GlobalState"), GlobalObj);
 
+	// ========================================================================
+	// Serialize game records
+	// ========================================================================
+	TArray<TSharedPtr<FJsonValue>> GameArr;
+	for (const auto& TermPair : GameRecords)
+	{
+		for (const auto& RecPair : TermPair.Value)
+		{
+			const FTerminalActivityRecord& R = RecPair.Value;
+
+			TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
+			O->SetStringField(TEXT("TerminalId"), R.TerminalId.ToString());
+			O->SetStringField(TEXT("ActivityId"), R.ActivityId);
+			O->SetNumberField(TEXT("Status"), static_cast<int32>(R.Status));
+			O->SetNumberField(TEXT("TotalScore"), R.TotalScore);
+			O->SetStringField(TEXT("StartedAt"), R.StartedAt.ToString());
+			O->SetStringField(TEXT("LastUpdatedAt"), R.LastUpdatedAt.ToString());
+			O->SetStringField(TEXT("ResultData"), R.ResultData);
+
+			TArray<TSharedPtr<FJsonValue>> StageArr;
+			for (const FTerminalStageProgress& S : R.Stages)
+			{
+				TSharedPtr<FJsonObject> SO = MakeShared<FJsonObject>();
+				SO->SetStringField(TEXT("StageId"), S.StageId);
+				SO->SetBoolField(TEXT("bCompleted"), S.bCompleted);
+				SO->SetNumberField(TEXT("Score"), S.Score);
+				SO->SetStringField(TEXT("CompletedAt"), S.CompletedAt.ToString());
+				SO->SetStringField(TEXT("Notes"), S.Notes);
+				StageArr.Add(MakeShared<FJsonValueObject>(SO));
+			}
+			O->SetArrayField(TEXT("Stages"), StageArr);
+
+			GameArr.Add(MakeShared<FJsonValueObject>(O));
+		}
+	}
+	Root->SetArrayField(TEXT("GameRecords"), GameArr);
+
+	// ========================================================================
+	// Serialize to string
+	// ========================================================================
 	FString Output;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
 	FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
 	OutData.SerializedData = Output;
+
+	UE_LOG(LogTemp, Log,
+		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records"),
+		Terminals.Num(),
+		GameRecords.Num());
 }
 
 void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
@@ -904,9 +972,16 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
+	// ========================================================================
+	// Reset containers
+	// ========================================================================
 	Terminals.Empty();
 	GlobalState = FTerminalGlobalState();
+	GameRecords.Empty();
 
+	// ========================================================================
+	// Deserialize terminals
+	// ========================================================================
 	const TArray<TSharedPtr<FJsonValue>>* TerminalArray = nullptr;
 	if (Root->TryGetArrayField(TEXT("Terminals"), TerminalArray))
 	{
@@ -971,6 +1046,9 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		}
 	}
 
+	// ========================================================================
+	// Deserialize global state
+	// ========================================================================
 	const TSharedPtr<FJsonObject>* GlobalObjPtr = nullptr;
 	if (Root->TryGetObjectField(TEXT("GlobalState"), GlobalObjPtr))
 	{
@@ -998,8 +1076,79 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		}
 	}
 
+	// ========================================================================
+	// Deserialize game records
+	// ========================================================================
+	const TArray<TSharedPtr<FJsonValue>>* GameArr = nullptr;
+	if (Root->TryGetArrayField(TEXT("GameRecords"), GameArr))
+	{
+		for (const TSharedPtr<FJsonValue>& V : *GameArr)
+		{
+			const TSharedPtr<FJsonObject>* OP = nullptr;
+			if (!V->TryGetObject(OP)) continue;
+			const TSharedPtr<FJsonObject>& O = *OP;
+
+			FTerminalActivityRecord R;
+			FString TerminalIdStr;
+			if (O->TryGetStringField(TEXT("TerminalId"), TerminalIdStr))
+				FGuid::Parse(TerminalIdStr, R.TerminalId);
+
+			O->TryGetStringField(TEXT("ActivityId"), R.ActivityId);
+
+			int32 StatusInt = 0;
+			O->TryGetNumberField(TEXT("Status"), StatusInt);
+			R.Status = static_cast<ETerminalRecordStatus>(StatusInt);
+
+			O->TryGetNumberField(TEXT("TotalScore"), R.TotalScore);
+
+			FString StartedStr, UpdatedStr;
+			if (O->TryGetStringField(TEXT("StartedAt"), StartedStr))
+				FDateTime::Parse(StartedStr, R.StartedAt);
+			if (O->TryGetStringField(TEXT("LastUpdatedAt"), UpdatedStr))
+				FDateTime::Parse(UpdatedStr, R.LastUpdatedAt);
+
+			O->TryGetStringField(TEXT("ResultData"), R.ResultData);
+
+			const TArray<TSharedPtr<FJsonValue>>* StageArr = nullptr;
+			if (O->TryGetArrayField(TEXT("Stages"), StageArr))
+			{
+				for (const TSharedPtr<FJsonValue>& SV : *StageArr)
+				{
+					const TSharedPtr<FJsonObject>* SOP = nullptr;
+					if (!SV->TryGetObject(SOP)) continue;
+					const TSharedPtr<FJsonObject>& SO = *SOP;
+
+					FTerminalStageProgress S;
+					SO->TryGetStringField(TEXT("StageId"), S.StageId);
+					SO->TryGetBoolField(TEXT("bCompleted"), S.bCompleted);
+					SO->TryGetNumberField(TEXT("Score"), S.Score);
+
+					FString CompletedStr;
+					if (SO->TryGetStringField(TEXT("CompletedAt"), CompletedStr))
+						FDateTime::Parse(CompletedStr, S.CompletedAt);
+
+					SO->TryGetStringField(TEXT("Notes"), S.Notes);
+					R.Stages.Add(S);
+				}
+			}
+
+			if (R.TerminalId.IsValid() && !R.ActivityId.IsEmpty())
+			{
+				GameRecords.FindOrAdd(R.TerminalId).Add(R.ActivityId, R);
+			}
+		}
+	}
+
+	// ========================================================================
+	// Done
+	// ========================================================================
 	bIsLoadComplete = true;
 	BroadcastGlobalState();
+
+	UE_LOG(LogTemp, Log,
+		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records"),
+		Terminals.Num(),
+		GameRecords.Num());
 }
 
 // ============================================================================
@@ -1064,6 +1213,7 @@ void UTerminalSubsystem::SubscribeCommands()
 			}
 		};
 
+	// ---- Lifecycle ----
 	Sub(RegisterTerminalCondition, EOutcomeTerminal::RegisterTerminalRequest,
 		RegisterTerminalHandler, &UTerminalSubsystem::HandleRegisterTerminalRequest);
 	Sub(UnregisterTerminalCondition, EOutcomeTerminal::UnregisterTerminalRequest,
@@ -1075,6 +1225,7 @@ void UTerminalSubsystem::SubscribeCommands()
 	Sub(ResetToDefaultCondition, EOutcomeTerminal::ResetToDefaultRequest,
 		ResetToDefaultHandler, &UTerminalSubsystem::HandleResetToDefaultRequest);
 
+	// ---- Access ----
 	Sub(OpenTerminalCondition, EOutcomeTerminal::OpenTerminalRequest,
 		OpenTerminalHandler, &UTerminalSubsystem::HandleOpenTerminalRequest);
 	Sub(CloseTerminalCondition, EOutcomeTerminal::CloseTerminalRequest,
@@ -1086,11 +1237,13 @@ void UTerminalSubsystem::SubscribeCommands()
 	Sub(ContextualAccessCondition, EOutcomeTerminal::ContextualAccessRequest,
 		ContextualAccessHandler, &UTerminalSubsystem::HandleContextualAccessRequest);
 
+	// ---- Files ----
 	Sub(WriteFileCondition, EOutcomeTerminal::WriteFileRequest,
 		WriteFileHandler, &UTerminalSubsystem::HandleWriteFileRequest);
 	Sub(DeleteFileCondition, EOutcomeTerminal::DeleteFileRequest,
 		DeleteFileHandler, &UTerminalSubsystem::HandleDeleteFileRequest);
 
+	// ---- Global ----
 	Sub(SetEmailCondition, EOutcomeTerminal::SetEmailContentRequest,
 		SetEmailHandler, &UTerminalSubsystem::HandleSetEmailRequest);
 	Sub(SetWebsiteCondition, EOutcomeTerminal::SetWebsiteContentRequest,
@@ -1098,8 +1251,17 @@ void UTerminalSubsystem::SubscribeCommands()
 	Sub(SetGlobalDataCondition, EOutcomeTerminal::SetGlobalDataRequest,
 		SetGlobalDataHandler, &UTerminalSubsystem::HandleSetGlobalDataRequest);
 
+	// ---- Logging ----
 	Sub(AddLogCondition, EOutcomeTerminal::AddLogRequest,
 		AddLogHandler, &UTerminalSubsystem::HandleAddLogRequest);
+
+	// ---- Game reports ----
+	Sub(ReportGameStageCondition, EOutcomeTerminal::ReportGameStageRequest,
+		ReportGameStageHandler, &UTerminalSubsystem::HandleReportGameStageRequest);
+	Sub(ReportGameResultCondition, EOutcomeTerminal::ReportGameResultRequest,
+		ReportGameResultHandler, &UTerminalSubsystem::HandleReportGameResultRequest);
+	Sub(RemoveGameRecordCondition, EOutcomeTerminal::RemoveGameRecordRequest,
+		RemoveGameRecordHandler, &UTerminalSubsystem::HandleRemoveGameRecordRequest);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -1132,7 +1294,15 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(SetWebsiteHandler, SetWebsiteCondition);
 	Unsub(SetGlobalDataHandler, SetGlobalDataCondition);
 	Unsub(AddLogHandler, AddLogCondition);
+
+	Unsub(ReportGameStageHandler, ReportGameStageCondition);
+	Unsub(ReportGameResultHandler, ReportGameResultCondition);
+	Unsub(RemoveGameRecordHandler, RemoveGameRecordCondition);
 }
+
+// ============================================================================
+// Command handlers
+// ============================================================================
 
 void UTerminalSubsystem::HandleRegisterTerminalRequest(const FOutcomeEventBase& Outcome)
 {
@@ -1246,3 +1416,152 @@ void UTerminalSubsystem::HandleAddLogRequest(const FOutcomeEventBase& Outcome)
 	AddLocalLogEntry(P->TerminalId, P->Message);
 }
 
+// ============================================================================
+// Public getters: games
+// ============================================================================
+
+bool UTerminalSubsystem::HasGameRecord(const FGuid& TerminalId, const FString& GameId) const
+{
+	const auto* Inner = GameRecords.Find(TerminalId);
+	return Inner && Inner->Contains(GameId);
+}
+
+bool UTerminalSubsystem::GetGameRecord(const FGuid& TerminalId, const FString& GameId,
+	FTerminalActivityRecord& OutRecord) const
+{
+	if (const auto* Inner = GameRecords.Find(TerminalId))
+		if (const auto* Rec = Inner->Find(GameId)) { OutRecord = *Rec; return true; }
+	return false;
+}
+
+TArray<FTerminalActivityRecord> UTerminalSubsystem::GetAllGameRecords(const FGuid& TerminalId) const
+{
+	TArray<FTerminalActivityRecord> Result;
+	if (const auto* Inner = GameRecords.Find(TerminalId))
+		Inner->GenerateValueArray(Result);
+	return Result;
+}
+
+TArray<FTerminalActivityRecord> UTerminalSubsystem::GetGameRecordsByStatus(ETerminalRecordStatus Status) const
+{
+	TArray<FTerminalActivityRecord> Result;
+	for (const auto& TermPair : GameRecords)
+		for (const auto& RecPair : TermPair.Value)
+			if (RecPair.Value.Status == Status)
+				Result.Add(RecPair.Value);
+	return Result;
+}
+
+// ============================================================================
+// Game mutators
+// ============================================================================
+
+void UTerminalSubsystem::ReportGameStage(const FGuid& TerminalId, const FString& GameId,
+	const FString& StageId, const ETerminalRecordStatus& Status, int32 Score, const FString& Notes)
+{
+	auto& Rec = EnsureRecord(GameRecords, TerminalId, GameId);
+	Rec.Status = Status;
+	Rec.LastUpdatedAt = FDateTime::UtcNow();
+
+	FTerminalStageProgress* Stage = Rec.Stages.FindByPredicate(
+		[&](const FTerminalStageProgress& S) { return S.StageId == StageId; });
+	if (!Stage)
+	{
+		FTerminalStageProgress New;
+		New.StageId = StageId;
+		Rec.Stages.Add(New);
+		Stage = &Rec.Stages.Last();
+	}
+	Stage->bCompleted = true;
+	Stage->Score = Score;
+	Stage->Notes = Notes;
+	Stage->CompletedAt = FDateTime::UtcNow();
+
+	if (UEventBusSubsystem* Bus = CachedEventBus.Get())
+	{
+		if (auto* P = Bus->CreatePayload<UTerminalActivityRecordChangedPayload>())
+		{
+			P->Setup(TerminalId, GameId, Rec);
+			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::GameRecordUpdated, P);
+		}
+	}
+}
+
+void UTerminalSubsystem::ReportGameResult(const FGuid& TerminalId, const FString& GameId,
+	bool bSuccess, int32 TotalScore, const FString& ResultData)
+{
+	auto& Rec = EnsureRecord(GameRecords, TerminalId, GameId);
+	Rec.Status = bSuccess ? ETerminalRecordStatus::Completed : ETerminalRecordStatus::Failed;
+	Rec.TotalScore = TotalScore;
+	Rec.ResultData = ResultData;
+	Rec.LastUpdatedAt = FDateTime::UtcNow();
+
+	if (UEventBusSubsystem* Bus = CachedEventBus.Get())
+	{
+		if (auto* P = Bus->CreatePayload<UTerminalActivityRecordChangedPayload>())
+		{
+			P->Setup(TerminalId, GameId, Rec);
+			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::GameRecordUpdated, P);
+		}
+	}
+}
+
+void UTerminalSubsystem::RemoveGameRecord(const FGuid& TerminalId, const FString& GameId)
+{
+	auto* Inner = GameRecords.Find(TerminalId);
+	if (!Inner) return;
+
+	// ѕустой GameId Ч удалить все игры терминала.
+	if (GameId.IsEmpty())
+	{
+		TArray<FString> Keys;
+		Inner->GetKeys(Keys);
+		for (const FString& Id : Keys)
+		{
+			if (UEventBusSubsystem* Bus = CachedEventBus.Get())
+				if (auto* P = Bus->CreatePayload<UTerminalRemoveActivityRecordPayload>())
+				{
+					P->Setup(TerminalId, Id);
+					PublishTerminalOutcome(TerminalId, EOutcomeTerminal::GameRecordRemoved, P);
+				}
+		}
+		GameRecords.Remove(TerminalId);
+		return;
+	}
+
+	if (Inner->Remove(GameId) > 0)
+	{
+		if (UEventBusSubsystem* Bus = CachedEventBus.Get())
+			if (auto* P = Bus->CreatePayload<UTerminalRemoveActivityRecordPayload>())
+			{
+				P->Setup(TerminalId, GameId);
+				PublishTerminalOutcome(TerminalId, EOutcomeTerminal::GameRecordRemoved, P);
+			}
+		if (Inner->Num() == 0) GameRecords.Remove(TerminalId);
+	}
+}
+
+// ============================================================================
+// Game report handlers
+// ============================================================================
+
+void UTerminalSubsystem::HandleReportGameStageRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalActivityStagePayload>(Outcome.Payload);
+	if (!P) return;
+	ReportGameStage(P->TerminalId, P->ActivityId, P->StageId, P->Status, P->Score, P->Notes);
+}
+
+void UTerminalSubsystem::HandleReportGameResultRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalActivityResultPayload>(Outcome.Payload);
+	if (!P) return;
+	ReportGameResult(P->TerminalId, P->ActivityId, P->bSuccess, P->TotalScore, P->ResultData);
+}
+
+void UTerminalSubsystem::HandleRemoveGameRecordRequest(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalRemoveActivityRecordPayload>(Outcome.Payload);
+	if (!P) return;
+	RemoveGameRecord(P->TerminalId, P->ActivityId);
+}
