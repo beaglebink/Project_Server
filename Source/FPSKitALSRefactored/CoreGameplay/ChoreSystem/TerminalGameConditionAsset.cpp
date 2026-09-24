@@ -55,7 +55,7 @@ void UTerminalGameConditionAsset::CompileCondition()
                 ->GetValueAsString(Asset->QueryType);
 
             FString TargetDesc = Asset->bUseTerminalFilter
-                ? FString::Printf(TEXT("Terminal=%s"), *Asset->TerminalId.ToString())
+                ? FString::Printf(TEXT("Terminal=%s"), *Asset->TerminalIdString)
                 : TEXT("any terminal");
 
             FString GameDesc = Asset->ActivityId.IsEmpty()
@@ -121,8 +121,17 @@ void UTerminalGameConditionAsset::CompileCondition()
 // ─────────────────────────────────────────────────────────────────────────────
 bool UTerminalGameConditionAsset::PassesCommonFilters(const FTerminalActivityRecord& Record) const
 {
-    if (bUseTerminalFilter && Record.TerminalId != TerminalId)
-        return false;
+    if (bUseTerminalFilter)
+    {
+        FGuid ParsedId;
+        if (!FGuid::Parse(TerminalIdString, ParsedId))
+        {
+            // Строка невалидна — фильтр не проходит.
+            return false;
+        }
+        if (Record.TerminalId != ParsedId)
+            return false;
+    }
 
     if (!ActivityId.IsEmpty() && Record.ActivityId != ActivityId)
         return false;
@@ -198,9 +207,14 @@ TArray<FTerminalActivityRecord> UTerminalGameConditionAsset::CollectCandidateRec
     // Это дешевле, чем повторять сборку под 4 комбинации фильтров.
     if (bUseTerminalFilter && !ActivityId.IsEmpty())
     {
-        // Точный лукап.
+        FGuid ParsedId;
+        if (!FGuid::Parse(TerminalIdString, ParsedId))
+        {
+            return Result; // невалидный GUID → пусто
+        }
+
         FTerminalActivityRecord Rec;
-        if (Terminal->GetGameRecord(TerminalId, ActivityId, Rec))
+        if (Terminal->GetGameRecord(ParsedId, ActivityId, Rec))
         {
             Result.Add(Rec);
         }
@@ -209,7 +223,12 @@ TArray<FTerminalActivityRecord> UTerminalGameConditionAsset::CollectCandidateRec
 
     if (bUseTerminalFilter)
     {
-        return Terminal->GetGameRecordsForTerminal(TerminalId);
+        FGuid ParsedId;
+        if (!FGuid::Parse(TerminalIdString, ParsedId))
+        {
+            return Result;
+        }
+        return Terminal->GetGameRecordsForTerminal(ParsedId);
     }
 
     if (!ActivityId.IsEmpty())

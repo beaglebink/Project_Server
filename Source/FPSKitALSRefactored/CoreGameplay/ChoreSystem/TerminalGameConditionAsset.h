@@ -37,9 +37,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal Game")
     bool bUseTerminalFilter = false;
 
+    // GUID терминала в виде 32-символьной hex-строки.
+    // Дизайнер копирует его из компонента терминала.
+    // Парсинг в FGuid — на лету, при оценке условия.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal Game",
         meta = (EditCondition = "bUseTerminalFilter", EditConditionHides))
-    FGuid TerminalId;
+    FString TerminalIdString;
 
     // ---- Фильтр по игре ----
     // Пустая строка — любая игра.
