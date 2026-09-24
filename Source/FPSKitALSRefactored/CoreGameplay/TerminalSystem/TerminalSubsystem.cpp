@@ -1439,11 +1439,20 @@ bool UTerminalSubsystem::GetGameRecord(const FGuid& TerminalId, const FString& G
 	return false;
 }
 
-TArray<FTerminalActivityRecord> UTerminalSubsystem::GetAllGameRecords(const FGuid& TerminalId) const
+TArray<FTerminalActivityRecord> UTerminalSubsystem::GetGameRecordsForTerminal(const FGuid& TerminalId) const
 {
 	TArray<FTerminalActivityRecord> Result;
 	if (const auto* Inner = GameRecords.Find(TerminalId))
 		Inner->GenerateValueArray(Result);
+	return Result;
+}
+
+TArray<FTerminalActivityRecord> UTerminalSubsystem::GetAllGameRecordsAcrossTerminals() const
+{
+	TArray<FTerminalActivityRecord> Result;
+	for (const auto& TermPair : GameRecords)
+		for (const auto& RecPair : TermPair.Value)
+			Result.Add(RecPair.Value);
 	return Result;
 }
 
@@ -1504,7 +1513,8 @@ void UTerminalSubsystem::ReportGameStarted(const FGuid& TerminalId, const FStrin
 		New.LastUpdatedAt = Now;
 		Existing = &Inner.Add(GameId, New);
 	}
-	else if (Existing->Status == ETerminalRecordStatus::Completed
+	else if (Existing->Status == ETerminalRecordStatus::GameCompleted
+		|| Existing->Status == ETerminalRecordStatus::StageCompleted
 		|| Existing->Status == ETerminalRecordStatus::Failed)
 	{
 		// Перезапуск партии: полный сброс прогресса, новый StartedAt.
@@ -1566,7 +1576,7 @@ void UTerminalSubsystem::ReportGameResult(const FGuid& TerminalId, const FString
 	bool bSuccess, int32 TotalScore, const FString& ResultData)
 {
 	auto& Rec = EnsureRecord(GameRecords, TerminalId, GameId);
-	Rec.Status = bSuccess ? ETerminalRecordStatus::Completed : ETerminalRecordStatus::Failed;
+	Rec.Status = bSuccess ? ETerminalRecordStatus::GameCompleted : ETerminalRecordStatus::Failed;
 	Rec.TotalScore = TotalScore;
 	Rec.ResultData = ResultData;
 	Rec.LastUpdatedAt = FDateTime::UtcNow();   // ← метка окончания игры

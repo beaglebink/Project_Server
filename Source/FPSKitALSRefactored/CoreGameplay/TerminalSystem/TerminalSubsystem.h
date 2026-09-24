@@ -85,11 +85,12 @@ struct FTerminalGlobalState
 UENUM(BlueprintType)
 enum class ETerminalRecordStatus : uint8
 {
-    NotStarted  UMETA(DisplayName = "Not Started"),
-    Started     UMETA(DisplayName = "Started"),
-    InProgress  UMETA(DisplayName = "In Progress"),
-    Completed   UMETA(DisplayName = "Completed"),
-    Failed      UMETA(DisplayName = "Failed")
+    NotStarted          UMETA(DisplayName = "Not Started"),
+    Started             UMETA(DisplayName = "Started"),
+    InProgress          UMETA(DisplayName = "In Progress"),
+    StageCompleted      UMETA(DisplayName = "StageCompleted"),
+    GameCompleted       UMETA(DisplayName = "GameCompleted"),
+    Failed              UMETA(DisplayName = "Failed")
 };
 
 USTRUCT(BlueprintType)
@@ -204,16 +205,24 @@ public:
     TArray<FTerminalLogEntry> GetLocalLogs(const FGuid& TerminalId) const;
 
     // ---- Games (read-only) ----
+    /** Играли ли в указанную игру на данном терминале.*/
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     bool HasGameRecord(const FGuid& TerminalId, const FString& GameId) const;
 
+	/** Получить запись о конкретной игре на конкретном терминале (если есть). */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     bool GetGameRecord(const FGuid& TerminalId, const FString& GameId,
         FTerminalActivityRecord& OutRecord) const;
 
+    /** Все записи игр, привязанные к конкретному терминалу (пустой массив, если терминал не играл). */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
-    TArray<FTerminalActivityRecord> GetAllGameRecords(const FGuid& TerminalId) const;
+    TArray<FTerminalActivityRecord> GetGameRecordsForTerminal(const FGuid& TerminalId) const;
 
+    /** Все записи игр по ВСЕМ терминалам.*/
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    TArray<FTerminalActivityRecord> GetAllGameRecordsAcrossTerminals() const;
+
+    /** Все записи игр с указанным статусом по всем терминалам. */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     TArray<FTerminalActivityRecord> GetGameRecordsByStatus(ETerminalRecordStatus Status) const;
 
