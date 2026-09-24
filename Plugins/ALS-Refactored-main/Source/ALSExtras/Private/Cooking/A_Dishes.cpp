@@ -969,7 +969,7 @@ bool AA_Dishes::CheckIfCooked()
 
 				if (i == RecipeRequirements.Num() - 1) //interval tag-final
 				{
-					if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvent == FGameplayTag::EmptyTag)
+					if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvents.Num() > 0 && RecipeRequirement.IntervalStep.EndEvents[0] == FGameplayTag::EmptyTag)
 					{
 						EventDuration = CookingTimerValue - RecipeRequirements[i].RequirementEndTime;
 						if (EventDuration >= RecipeRequirement.IntervalStep.IntervalDurationMin && EventDuration <= RecipeRequirement.IntervalStep.IntervalDurationMax)
@@ -989,7 +989,7 @@ bool AA_Dishes::CheckIfCooked()
 						break;
 					}
 				}
-				else if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvent == RecipeRequirements[i + 1].RequirementTag) //interval tag-tag
+				else if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvents.Contains(RecipeRequirements[i + 1].RequirementTag)) //interval tag-tag
 				{
 					EventDuration = RecipeRequirements[i + 1].RequirementStartTime - RecipeRequirements[i].RequirementEndTime;
 
@@ -1172,11 +1172,21 @@ void AA_Dishes::ReplaceIngredientsByCookedFood()
 		{
 			if (Requirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals))
 			{
+				FString IntervalEndEvents;
+				for (const FGameplayTag& EndEventTag : Requirement.IntervalStep.EndEvents)
+				{
+					if (!IntervalEndEvents.IsEmpty())
+					{
+						IntervalEndEvents += TEXT(", ");
+					}
+
+					IntervalEndEvents += EndEventTag.ToString();
+				}
 				DebugText += FString::Printf(
 					TEXT("Interval start event: %s --- Interval end event: %s\n")
 					TEXT("Timing Quality: %.2f\n"),
 					*Requirement.IntervalStep.StartEvent.ToString(),
-					*Requirement.IntervalStep.EndEvent.ToString(),
+					*IntervalEndEvents,
 					Requirement.StepQuality);
 			}
 		}
