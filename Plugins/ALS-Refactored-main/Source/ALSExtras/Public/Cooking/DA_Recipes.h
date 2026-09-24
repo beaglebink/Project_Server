@@ -193,7 +193,7 @@ struct FIntervalStep
 	FGameplayTag StartEvent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
-	FGameplayTag EndEvent;
+	TArray<FGameplayTag> EndEvents;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (ClampMin = 0.0f, DisplayName = "IntervalDurationMin (s)"))
 	float IntervalDurationMin = 0.0f;
