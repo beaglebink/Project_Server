@@ -85,29 +85,49 @@ struct FTerminalGlobalState
 UENUM(BlueprintType)
 enum class ETerminalRecordStatus : uint8
 {
-    NotStarted          UMETA(DisplayName = "Not Started"),
-    Started             UMETA(DisplayName = "Started"),
-    InProgress          UMETA(DisplayName = "In Progress"),
-    StageCompleted      UMETA(DisplayName = "StageCompleted"),
-    GameCompleted       UMETA(DisplayName = "GameCompleted"),
-    Failed              UMETA(DisplayName = "Failed")
+    NotStarted      UMETA(DisplayName = "Not Started"),
+    Started         UMETA(DisplayName = "Started"),
+    InProgress      UMETA(DisplayName = "In Progress"),
+    GameCompleted   UMETA(DisplayName = "Game Completed"),
+    Failed          UMETA(DisplayName = "Failed")
+};
+
+// Результат отдельного этапа. None = этап не завершался.
+UENUM(BlueprintType)
+enum class ETerminalStageResult : uint8
+{
+    None        UMETA(DisplayName = "None"),
+    Completed   UMETA(DisplayName = "Completed"),
+    Failed      UMETA(DisplayName = "Failed"),
+    Skipped     UMETA(DisplayName = "Skipped")
 };
 
 USTRUCT(BlueprintType)
 struct FTerminalStageProgress
 {
     GENERATED_BODY()
-    UPROPERTY(BlueprintReadWrite) FString StageId;
-    UPROPERTY(BlueprintReadWrite) bool    bCompleted = false;
-    UPROPERTY(BlueprintReadWrite) int32   Score = 0;
+
+    UPROPERTY(BlueprintReadWrite) FString   StageId;
+
+    // Чем закончился этап. None — ещё не завершался.
+    UPROPERTY(BlueprintReadWrite) ETerminalStageResult Result = ETerminalStageResult::None;
+
+    UPROPERTY(BlueprintReadWrite) int32     Score = 0;
+
+    // Момент окончания этапа (успех, провал или пропуск).
     UPROPERTY(BlueprintReadWrite) FDateTime CompletedAt;
-    UPROPERTY(BlueprintReadWrite) FString Notes;
+
+    UPROPERTY(BlueprintReadWrite) FString   Notes;
+
+    // Обычный C++-метод (UFUNCTION внутри USTRUCT запрещён UHT).
+    bool IsFinished() const { return Result != ETerminalStageResult::None; }
 };
 
 USTRUCT(BlueprintType)
 struct FTerminalActivityRecord
 {
     GENERATED_BODY()
+
     UPROPERTY(BlueprintReadWrite) FGuid   TerminalId;
     UPROPERTY(BlueprintReadWrite) FString ActivityId;   // GameId
     UPROPERTY(BlueprintReadWrite) ETerminalRecordStatus Status = ETerminalRecordStatus::NotStarted;
@@ -115,9 +135,19 @@ struct FTerminalActivityRecord
     UPROPERTY(BlueprintReadWrite) TArray<FTerminalStageProgress> Stages;
     UPROPERTY(BlueprintReadWrite) int32   TotalScore = 0;
 
+    // Начало текущей партии.
     UPROPERTY(BlueprintReadWrite) FDateTime StartedAt;
-    UPROPERTY(BlueprintReadWrite) FDateTime LastUpdatedAt;
+
+    // Окончание игры. Остаётся нулевым, пока игра идёт.
+    UPROPERTY(BlueprintReadWrite) FDateTime FinishedAt;
+
     UPROPERTY(BlueprintReadWrite) FString ResultData;
+
+    bool IsFinished() const
+    {
+        return Status == ETerminalRecordStatus::GameCompleted
+            || Status == ETerminalRecordStatus::Failed;
+    }
 };
 
 // ----------------------------------------------------------------------------
@@ -205,36 +235,37 @@ public:
     TArray<FTerminalLogEntry> GetLocalLogs(const FGuid& TerminalId) const;
 
     // ---- Games (read-only) ----
-    /** Играли ли в указанную игру на данном терминале.*/
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     bool HasGameRecord(const FGuid& TerminalId, const FString& GameId) const;
 
-	/** Получить запись о конкретной игре на конкретном терминале (если есть). */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     bool GetGameRecord(const FGuid& TerminalId, const FString& GameId,
         FTerminalActivityRecord& OutRecord) const;
 
-    /** Все записи игр, привязанные к конкретному терминалу (пустой массив, если терминал не играл). */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     TArray<FTerminalActivityRecord> GetGameRecordsForTerminal(const FGuid& TerminalId) const;
 
-    /** Все записи игр по ВСЕМ терминалам.*/
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     TArray<FTerminalActivityRecord> GetAllGameRecordsAcrossTerminals() const;
 
-    /** Все записи игр с указанным статусом по всем терминалам. */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     TArray<FTerminalActivityRecord> GetGameRecordsByStatus(ETerminalRecordStatus Status) const;
 
-    // ---- Поиск по ActivityId (GameId) без указания TerminalId ----
-
-    /** Проверить, есть ли где-нибудь запись с данным GameId. */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     bool HasGameRecordByActivityId(const FString& ActivityId) const;
 
-    /** Все записи с данным GameId (если одна и та же игра пройдена на нескольких терминалах). */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     TArray<FTerminalActivityRecord> GetAllGameRecordsByActivityId(const FString& ActivityId) const;
+
+    // ---- Helpers for Blueprint ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    static bool IsGameRecordFinished(const FTerminalActivityRecord& Record)
+    {
+        return Record.IsFinished();
+    }
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    bool IsGameFinishedForTerminal(const FGuid& TerminalId, const FString& GameId) const;
 
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
@@ -314,17 +345,27 @@ private:
     // ---- Logging ----
     void HandleAddLogRequest(const FOutcomeEventBase& Outcome);
 
-    // ---- Game report handlers ----
-    void HandleReportGameStartedRequest(const FOutcomeEventBase& Outcome);
-    void HandleReportGameStageRequest(const FOutcomeEventBase& Outcome);
-    void HandleReportGameResultRequest(const FOutcomeEventBase& Outcome);
-    void HandleRemoveGameRecordRequest(const FOutcomeEventBase& Outcome);
+    // ========================================================================
+    // Game command handlers (ВХОДЯЩИЕ команды от терминалов)
+    //
+    // Соответствуют EOutcomeTerminal::GameStarted / GameStageFinished /
+    // GameCompleted / GameRecordRemoved.
+    // ========================================================================
+    void HandleGameStarted(const FOutcomeEventBase& Outcome);
+    void HandleGameStageFinished(const FOutcomeEventBase& Outcome);
+    void HandleGameCompleted(const FOutcomeEventBase& Outcome);
+    void HandleGameRecordRemoved(const FOutcomeEventBase& Outcome);
 
-    // ---- Game mutators ----
+    // ========================================================================
+    // Game mutators (внутренние)
+    //
+    // Каждый мутатор меняет GameRecords и публикует исходящий отчёт
+    // EOutcomeTerminal::ReportGame* наружу.
+    // ========================================================================
     void ReportGameStarted(const FGuid& TerminalId, const FString& GameId);
-    void ReportGameStage(const FGuid& TerminalId, const FString& GameId,
-        const FString& StageId, const ETerminalRecordStatus& Status, int32 Score, const FString& Notes);
-    void ReportGameResult(const FGuid& TerminalId, const FString& GameId,
+    void ReportGameStageFinished(const FGuid& TerminalId, const FString& GameId,
+        const FString& StageId, ETerminalStageResult Result, int32 Score, const FString& Notes);
+    void ReportGameCompleted(const FGuid& TerminalId, const FString& GameId,
         bool bSuccess, int32 TotalScore, const FString& ResultData);
     void RemoveGameRecord(const FGuid& TerminalId, const FString& GameId);
 
@@ -396,11 +437,11 @@ private:
     FOutcomeHandlerHandle SetGlobalDataHandler;
     FOutcomeHandlerHandle AddLogHandler;
 
-    // ---- Game report handles ----
-    FOutcomeHandlerHandle ReportGameStartedHandler;
-    FOutcomeHandlerHandle ReportGameStageHandler;
-    FOutcomeHandlerHandle ReportGameResultHandler;
-    FOutcomeHandlerHandle RemoveGameRecordHandler;
+    // ---- Game command handles (входящие) ----
+    FOutcomeHandlerHandle GameStartedHandler;
+    FOutcomeHandlerHandle GameStageFinishedHandler;
+    FOutcomeHandlerHandle GameCompletedHandler;
+    FOutcomeHandlerHandle GameRecordRemovedHandler;
 
     // ---- Interact conditions ----
     UPROPERTY() UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
@@ -429,11 +470,11 @@ private:
     UPROPERTY() UOutcomeConditionAsset* SetGlobalDataCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* AddLogCondition = nullptr;
 
-    // ---- Game report conditions ----
-    UPROPERTY() UOutcomeConditionAsset* ReportGameStartedCondition = nullptr;
-    UPROPERTY() UOutcomeConditionAsset* ReportGameStageCondition = nullptr;
-    UPROPERTY() UOutcomeConditionAsset* ReportGameResultCondition = nullptr;
-    UPROPERTY() UOutcomeConditionAsset* RemoveGameRecordCondition = nullptr;
+    // ---- Game command conditions (входящие) ----
+    UPROPERTY() UOutcomeConditionAsset* GameStartedCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* GameStageFinishedCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* GameCompletedCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* GameRecordRemovedCondition = nullptr;
 
     bool bIsLoadComplete = true;
 

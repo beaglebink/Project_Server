@@ -1,6 +1,6 @@
 #include "TerminalGameConditionAsset.h"
-#include "../TerminalSystem/TerminalSubsystem.h"   // ETerminalRecordStatus, FTerminalActivityRecord
-#include "../TerminalSystem/TerminalTaskPayload.h" // UTerminalActivityRecordChangedPayload, UTerminalRemoveActivityRecordPayload
+#include "../TerminalSystem/TerminalSubsystem.h"   // ETerminalRecordStatus, ETerminalStageResult, FTerminalActivityRecord
+#include "../TerminalSystem/TerminalTaskPayload.h" // UTerminalGame*EventPayload, UTerminalGameRecordRemovedEventPayload
 #include "CheckRequestPayload.h"                   // ECheckCompareOp
 #include "Outcome.h"                               // EOutcomeType, EOutcomeTerminal
 #include "Engine/GameInstance.h"
@@ -74,7 +74,7 @@ void UTerminalGameConditionAsset::CompileCondition()
                     *StaticEnum<ETerminalRecordStatus>()->GetValueAsString(Asset->Status),
                     *TargetDesc, *GameDesc);
 
-            case ETerminalGameQueryType::StageCompleted:
+            case ETerminalGameQueryType::StageFinished:
                 return FString::Printf(TEXT("TerminalGame: [%s] Stage='%s' %s / %s"),
                     *QueryStr, *Asset->StageId, *TargetDesc, *GameDesc);
 
@@ -95,9 +95,11 @@ void UTerminalGameConditionAsset::CompileCondition()
                     *StaticEnum<ETerminalRecordStatus>()->GetValueAsString(Asset->Status),
                     *TargetDesc, *GameDesc);
 
-            case ETerminalGameQueryType::OnStageCompleted:
-                return FString::Printf(TEXT("TerminalGame: [%s] Stage='%s' %s / %s"),
-                    *QueryStr, *Asset->StageId, *TargetDesc, *GameDesc);
+            case ETerminalGameQueryType::OnStageFinished:
+                return FString::Printf(TEXT("TerminalGame: [%s] Stage='%s' Result=%s %s / %s"),
+                    *QueryStr, *Asset->StageId,
+                    *StaticEnum<ETerminalStageResult>()->GetValueAsString(Asset->StageResult),
+                    *TargetDesc, *GameDesc);
 
             case ETerminalGameQueryType::OnGameRecordRemoved:
                 return FString::Printf(TEXT("TerminalGame: [%s] %s / %s"),
@@ -125,10 +127,7 @@ bool UTerminalGameConditionAsset::PassesCommonFilters(const FTerminalActivityRec
     {
         FGuid ParsedId;
         if (!FGuid::Parse(TerminalIdString, ParsedId))
-        {
-            // Строка невалидна — фильтр не проходит.
             return false;
-        }
         if (Record.TerminalId != ParsedId)
             return false;
     }
@@ -144,21 +143,18 @@ bool UTerminalGameConditionAsset::EvaluateRecordState(const FTerminalActivityRec
     switch (QueryType)
     {
     case ETerminalGameQueryType::HasGameRecord:
-        // Любая запись с любым статусом, кроме "NotStarted" — формально
-        // запись существует только если по игре что-то происходило.
         return Record.Status != ETerminalRecordStatus::NotStarted;
 
     case ETerminalGameQueryType::ReachedStatus:
-        // Точное совпадение статуса.
         return Record.Status == Status;
 
-    case ETerminalGameQueryType::StageCompleted:
+    case ETerminalGameQueryType::StageFinished:
     {
         if (StageId.IsEmpty()) return false;
 
         for (const FTerminalStageProgress& S : Record.Stages)
         {
-            if (S.StageId == StageId && S.bCompleted)
+            if (S.StageId == StageId && S.Result == StageResult)
                 return true;
         }
         return false;
@@ -166,12 +162,10 @@ bool UTerminalGameConditionAsset::EvaluateRecordState(const FTerminalActivityRec
 
     case ETerminalGameQueryType::AllStagesCompleted:
     {
-        // Нет стадий — нечего завершать, условие не выполнено.
         if (Record.Stages.Num() == 0) return false;
-
         for (const FTerminalStageProgress& S : Record.Stages)
         {
-            if (!S.bCompleted) return false;
+            if (S.Result != ETerminalStageResult::Completed) return false;
         }
         return true;
     }
@@ -203,21 +197,15 @@ TArray<FTerminalActivityRecord> UTerminalGameConditionAsset::CollectCandidateRec
     UTerminalSubsystem* Terminal = GetTerminalSubsystem();
     if (!Terminal) return Result;
 
-    // Собираем максимально широко, затем фильтруем PassesCommonFilters.
-    // Это дешевле, чем повторять сборку под 4 комбинации фильтров.
     if (bUseTerminalFilter && !ActivityId.IsEmpty())
     {
         FGuid ParsedId;
         if (!FGuid::Parse(TerminalIdString, ParsedId))
-        {
-            return Result; // невалидный GUID → пусто
-        }
+            return Result;
 
         FTerminalActivityRecord Rec;
         if (Terminal->GetGameRecord(ParsedId, ActivityId, Rec))
-        {
             Result.Add(Rec);
-        }
         return Result;
     }
 
@@ -225,22 +213,22 @@ TArray<FTerminalActivityRecord> UTerminalGameConditionAsset::CollectCandidateRec
     {
         FGuid ParsedId;
         if (!FGuid::Parse(TerminalIdString, ParsedId))
-        {
             return Result;
-        }
         return Terminal->GetGameRecordsForTerminal(ParsedId);
     }
 
     if (!ActivityId.IsEmpty())
-    {
         return Terminal->GetAllGameRecordsByActivityId(ActivityId);
-    }
 
     return Terminal->GetAllGameRecordsAcrossTerminals();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Event matching
+//
+// Собираем синтетический FTerminalActivityRecord из полей события —
+// исключительно чтобы переиспользовать PassesCommonFilters + Predicate.
+// Наружу из condition-asset'а он не отдаётся, в payload'ах его нет.
 // ─────────────────────────────────────────────────────────────────────────────
 bool UTerminalGameConditionAsset::MatchGameEvent(
     const FOutcomeEventBase& Outcome,
@@ -252,32 +240,61 @@ bool UTerminalGameConditionAsset::MatchGameEvent(
     if (Outcome.OutcomeTerminal != ExpectedEvent)
         return false;
 
-    if (ExpectedEvent == EOutcomeTerminal::GameRecordUpdated)
+    FTerminalActivityRecord Proxy;
+
+    switch (ExpectedEvent)
     {
-        const UTerminalActivityRecordChangedPayload* P =
-            Cast<UTerminalActivityRecordChangedPayload>(Outcome.Payload);
-        if (!P) return false;
-
-        if (!PassesCommonFilters(P->Record)) return false;
-        return Predicate(P->Record);
-    }
-
-    if (ExpectedEvent == EOutcomeTerminal::GameRecordRemoved)
+    case EOutcomeTerminal::GameStarted:
     {
-        const UTerminalRemoveActivityRecordPayload* P =
-            Cast<UTerminalRemoveActivityRecordPayload>(Outcome.Payload);
+        const auto* P = Cast<UTerminalGameStartedEventPayload>(Outcome.Payload);
         if (!P) return false;
-
-        // Синтетическая запись для прогона общих фильтров.
-        FTerminalActivityRecord Proxy;
         Proxy.TerminalId = P->TerminalId;
         Proxy.ActivityId = P->ActivityId;
-
-        if (!PassesCommonFilters(Proxy)) return false;
-        return Predicate(Proxy);
+        Proxy.Status = ETerminalRecordStatus::Started;
+        Proxy.StartedAt = P->StartedAt;
+        break;
+    }
+    case EOutcomeTerminal::GameStageFinished:
+    {
+        const auto* P = Cast<UTerminalGameStageFinishedEventPayload>(Outcome.Payload);
+        if (!P) return false;
+        Proxy.TerminalId = P->TerminalId;
+        Proxy.ActivityId = P->ActivityId;
+        Proxy.Status = ETerminalRecordStatus::InProgress;
+        Proxy.TotalScore = P->TotalScore;
+        // Единственный этап, о котором это событие.
+        Proxy.Stages.Add(P->Stage);
+        break;
+    }
+    case EOutcomeTerminal::GameCompleted:
+    {
+        const auto* P = Cast<UTerminalGameCompletedEventPayload>(Outcome.Payload);
+        if (!P) return false;
+        Proxy.TerminalId = P->TerminalId;
+        Proxy.ActivityId = P->ActivityId;
+        Proxy.Status = P->bSuccess
+            ? ETerminalRecordStatus::GameCompleted
+            : ETerminalRecordStatus::Failed;
+        Proxy.TotalScore = P->TotalScore;
+        Proxy.ResultData = P->ResultData;
+        Proxy.StartedAt = P->StartedAt;
+        Proxy.FinishedAt = P->FinishedAt;
+        break;
+    }
+    case EOutcomeTerminal::GameRecordRemoved:
+    {
+        const auto* P = Cast<UTerminalGameRecordRemovedEventPayload>(Outcome.Payload);
+        if (!P) return false;
+        Proxy.TerminalId = P->TerminalId;
+        Proxy.ActivityId = P->ActivityId;
+        break;
+    }
+    default:
+        return false;
     }
 
-    return false;
+    if (!PassesCommonFilters(Proxy)) return false;
+    return Predicate(Proxy);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -290,23 +307,27 @@ bool UTerminalGameConditionAsset::EvaluateCondition(const FOutcomeEventBase& Out
     {
     case ETerminalGameQueryType::OnGameStatusChanged:
     {
-        return MatchGameEvent(Outcome, EOutcomeTerminal::GameRecordUpdated,
-            [this](const FTerminalActivityRecord& Rec)
+        auto Predicate = [this](const FTerminalActivityRecord& Rec)
             {
                 return Rec.Status == Status;
-            });
+            };
+
+        if (MatchGameEvent(Outcome, EOutcomeTerminal::GameStarted, Predicate)) return true;
+        if (MatchGameEvent(Outcome, EOutcomeTerminal::GameStageFinished, Predicate)) return true;
+        if (MatchGameEvent(Outcome, EOutcomeTerminal::GameCompleted, Predicate)) return true;
+        return false;
     }
 
-    case ETerminalGameQueryType::OnStageCompleted:
+    case ETerminalGameQueryType::OnStageFinished:
     {
         if (StageId.IsEmpty()) return false;
 
-        return MatchGameEvent(Outcome, EOutcomeTerminal::GameRecordUpdated,
+        return MatchGameEvent(Outcome, EOutcomeTerminal::GameStageFinished,
             [this](const FTerminalActivityRecord& Rec)
             {
                 for (const FTerminalStageProgress& S : Rec.Stages)
                 {
-                    if (S.StageId == StageId && S.bCompleted)
+                    if (S.StageId == StageId && S.Result == StageResult)
                         return true;
                 }
                 return false;

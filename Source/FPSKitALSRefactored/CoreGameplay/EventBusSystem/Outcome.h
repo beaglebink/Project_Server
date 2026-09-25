@@ -78,7 +78,9 @@ enum class EOutcomeTerminal : uint8
 {
     Default                 UMETA(DisplayName = "Default"),
 
-    // ---- Нотификации (существующие) ----
+    // ========================================================================
+    // Нотификации подсистемы о состоянии терминала
+    // ========================================================================
     TerminalOpened          UMETA(DisplayName = "Terminal Opened"),
     TerminalTaskCompleted   UMETA(DisplayName = "Terminal Task Completed"),
     TerminalClosed          UMETA(DisplayName = "Terminal Closed"),
@@ -86,43 +88,69 @@ enum class EOutcomeTerminal : uint8
     TerminalLoginSucceeded  UMETA(DisplayName = "Terminal Login Succeeded"),
     TerminalFileModified    UMETA(DisplayName = "Terminal File Modified"),
 
+    // ========================================================================
+    // Interact-события (взаимодействие с предметом)
+    // ========================================================================
     InteractSetEnabled      UMETA(DisplayName = "Interact Set Enabled"),
     InteractSetRange        UMETA(DisplayName = "Interact Set Range"),
     InteractSetTooltip      UMETA(DisplayName = "Interact Set Tooltip"),
-    TerminalCommand         UMETA(DisplayName = "Terminal command"),
+    TerminalCommand         UMETA(DisplayName = "Terminal Command"),
     InteractRegistered      UMETA(Hidden, DisplayName = "Interact Registered"),
     InteractUnregistered    UMETA(Hidden, DisplayName = "Interact Unregistered"),
 
-    // ---- Команды (Request) ----
-    RegisterTerminalRequest UMETA(DisplayName = "Register Terminal Request"),
+    // ========================================================================
+    // Команды жизненного цикла терминала
+    // ========================================================================
+    RegisterTerminalRequest   UMETA(DisplayName = "Register Terminal Request"),
     UnregisterTerminalRequest UMETA(DisplayName = "Unregister Terminal Request"),
-    SetCapabilitiesRequest  UMETA(DisplayName = "Set Capabilities Request"),
-    ApplyProfileRequest     UMETA(DisplayName = "Apply Profile Request"),
-    ResetToDefaultRequest   UMETA(DisplayName = "Reset To Default Request"),
+    SetCapabilitiesRequest    UMETA(DisplayName = "Set Capabilities Request"),
+    ApplyProfileRequest       UMETA(DisplayName = "Apply Profile Request"),
+    ResetToDefaultRequest     UMETA(DisplayName = "Reset To Default Request"),
 
+    // ========================================================================
+    // Команды доступа / аутентификации
+    // ========================================================================
     OpenTerminalRequest     UMETA(DisplayName = "Open Terminal Request"),
     CloseTerminalRequest    UMETA(DisplayName = "Close Terminal Request"),
     LoginPasswordRequest    UMETA(DisplayName = "Login Password Request"),
     LoginAccountRequest     UMETA(DisplayName = "Login Account Request"),
     ContextualAccessRequest UMETA(DisplayName = "Contextual Access Request"),
 
+    // ========================================================================
+    // Команды файловых операций
+    // ========================================================================
     WriteFileRequest        UMETA(DisplayName = "Write File Request"),
     DeleteFileRequest       UMETA(DisplayName = "Delete File Request"),
 
-    SetEmailContentRequest  UMETA(DisplayName = "Set Email Content Request"),
+    // ========================================================================
+    // Команды глобальных сервисов
+    // ========================================================================
+    SetEmailContentRequest   UMETA(DisplayName = "Set Email Content Request"),
     SetWebsiteContentRequest UMETA(DisplayName = "Set Website Content Request"),
-    SetGlobalDataRequest    UMETA(DisplayName = "Set Global Data Request"),
-    AddLogRequest           UMETA(DisplayName = "Add Log Request"),
+    SetGlobalDataRequest     UMETA(DisplayName = "Set Global Data Request"),
+    AddLogRequest            UMETA(DisplayName = "Add Log Request"),
 
-    // ---- Входные команды: отчёты от терминалов ----
-    ReportGameStartedRequest UMETA(DisplayName = "Report Game Started"),
-    ReportGameStageRequest  UMETA(DisplayName = "Report Game Stage"),
-    ReportGameResultRequest UMETA(DisplayName = "Report Game Result"),
-    RemoveGameRecordRequest UMETA(DisplayName = "Remove Game Record"),
+    // ========================================================================
+    // Игры: ВХОДЯЩИЕ команды (внешний код → подсистема)
+    //
+    // Публикует терминал (или квест, диалог и т.п.).
+    // Слушает UTerminalSubsystem.
+    // ========================================================================
+    GameStarted         UMETA(DisplayName = "Game Started"),
+    GameStageFinished   UMETA(DisplayName = "Game Stage Finished"),
+    GameCompleted       UMETA(DisplayName = "Game Completed"),
+    GameRecordRemoved   UMETA(DisplayName = "Game Record Removed"),
 
-    // ---- Исходящие нотификации ----
-    GameRecordUpdated       UMETA(DisplayName = "Game Record Updated"),
-    GameRecordRemoved       UMETA(DisplayName = "Game Record Removed")
+    // ========================================================================
+    // Игры: ИСХОДЯЩИЕ отчёты (подсистема → наружу)
+    //
+    // Публикует только UTerminalSubsystem после обработки соответствующей
+    // входящей команды. Слушают UI, Chore, Quest и прочие подписчики.
+    // ========================================================================
+    ReportGameStarted        UMETA(DisplayName = "Report Game Started"),
+    ReportGameStageFinished  UMETA(DisplayName = "Report Game Stage Finished"),
+    ReportGameCompleted      UMETA(DisplayName = "Report Game Completed"),
+    ReportGameRecordRemoved  UMETA(DisplayName = "Report Game Record Removed")
 };
 
 UENUM(BlueprintType)

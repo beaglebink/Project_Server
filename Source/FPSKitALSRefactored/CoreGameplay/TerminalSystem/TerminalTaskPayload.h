@@ -4,15 +4,17 @@
 #include "TerminalSubsystem.h"
 #include "TerminalTaskPayload.generated.h"
 
-// Payload for TerminalTask events (legacy, не связан с играми).
+// ============================================================================
+// Legacy: TerminalTask (не связан с играми)
+// ============================================================================
 UCLASS(BlueprintType, Blueprintable)
 class FPSKITALSREFACTORED_API UTerminalTaskPayload : public UOutcomePayload
 {
     GENERATED_BODY()
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "TerminalTask") FGuid TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "TerminalTask") FGuid   TerminalId;
     UPROPERTY(BlueprintReadWrite, Category = "TerminalTask") FString TaskId;
-    UPROPERTY(BlueprintReadWrite, Category = "TerminalTask") bool bSuccess = false;
+    UPROPERTY(BlueprintReadWrite, Category = "TerminalTask") bool    bSuccess = false;
 
     UFUNCTION(BlueprintCallable, Category = "TerminalTask")
     UTerminalTaskPayload* Setup(const FGuid& InTerminalId, const FString& InTaskId, bool bInSuccess)
@@ -26,59 +28,67 @@ public:
 };
 
 // ============================================================================
-// Payload'ы отчётов об играх терминала
+// ВХОДЯЩИЕ команды: отчёты от терминалов
 // ============================================================================
 
+// ---- Старт игры ----
 UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalActivityStagePayload : public UOutcomePayload
+class FPSKITALSREFACTORED_API UTerminalGameStartedPayload : public UOutcomePayload
 {
     GENERATED_BODY()
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") 
-    FGuid TerminalId;
-
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") 
-    FString ActivityId;
-
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") 
-    FString StageId;
-
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game")
-    ETerminalRecordStatus Status;
-
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") 
-    int32 Score = 0;
-
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") 
-    FString Notes;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalActivityStagePayload* Setup(const FGuid& InTid, const FString& InAid,
-        const FString& InSid, const ETerminalRecordStatus& InStatus, int32 InScore = 0, const FString& InNotes = TEXT(""))
+    UTerminalGameStartedPayload* Setup(const FGuid& InTid, const FString& InAid)
     {
-        TerminalId = InTid; 
-        ActivityId = InAid; 
-        StageId = InSid; 
-        Status = InStatus;
-        Score = InScore; 
-        Notes = InNotes;
+        TerminalId = InTid; ActivityId = InAid; return this;
+    }
+};
+
+// ---- Этап завершён (успех / провал / пропуск) ----
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalGameStageFinishedPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString StageId;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game")
+    ETerminalStageResult Result = ETerminalStageResult::Completed;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") int32   Score = 0;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString Notes;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
+    UTerminalGameStageFinishedPayload* Setup(const FGuid& InTid, const FString& InAid,
+        const FString& InSid,
+        ETerminalStageResult InResult = ETerminalStageResult::Completed,
+        int32 InScore = 0, const FString& InNotes = TEXT(""))
+    {
+        TerminalId = InTid; ActivityId = InAid; StageId = InSid;
+        Result = InResult; Score = InScore; Notes = InNotes;
         return this;
     }
 };
 
+// ---- Игра завершена ----
 UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalActivityResultPayload : public UOutcomePayload
+class FPSKITALSREFACTORED_API UTerminalGameCompletedPayload : public UOutcomePayload
 {
     GENERATED_BODY()
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") bool bSuccess = false;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") int32 TotalScore = 0;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") bool    bSuccess = false;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") int32   TotalScore = 0;
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ResultData;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalActivityResultPayload* Setup(const FGuid& InTid, const FString& InAid,
+    UTerminalGameCompletedPayload* Setup(const FGuid& InTid, const FString& InAid,
         bool bInSuccess, int32 InScore = 0, const FString& InData = TEXT(""))
     {
         TerminalId = InTid; ActivityId = InAid; bSuccess = bInSuccess;
@@ -86,29 +96,13 @@ public:
     }
 };
 
-// Лёгкий payload «игра началась» — только идентификаторы.
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalActivityStartedPayload : public UOutcomePayload
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid TerminalId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
-
-    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalActivityStartedPayload* Setup(const FGuid& InTid, const FString& InAid)
-    {
-        TerminalId = InTid; ActivityId = InAid; return this;
-    }
-};
-
-// Удаление одной игры. Пустой ActivityId — все игры терминала.
+// ---- Удаление записи (пустой ActivityId — все игры терминала) ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalRemoveActivityRecordPayload : public UOutcomePayload
 {
     GENERATED_BODY()
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
@@ -118,20 +112,96 @@ public:
     }
 };
 
-// Payload исходящей нотификации — снимок записи целиком.
+// ============================================================================
+// ИСХОДЯЩИЕ нотификации: подсистема → наружу
+//
+// Ни один payload не тащит FTerminalActivityRecord целиком.
+// Полный снимок партии (включая весь TArray<FTerminalStageProgress>)
+// читается через UTerminalSubsystem::GetGameRecord(...).
+// ============================================================================
+
+// ---- Игра началась ----
 UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalActivityRecordChangedPayload : public UOutcomePayload
+class FPSKITALSREFACTORED_API UTerminalGameStartedEventPayload : public UOutcomePayload
 {
     GENERATED_BODY()
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid TerminalId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FTerminalActivityRecord Record;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid     TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString   ActivityId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FDateTime StartedAt;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalActivityRecordChangedPayload* Setup(const FGuid& InTid, const FString& InAid,
-        const FTerminalActivityRecord& InRecord)
+    UTerminalGameStartedEventPayload* Setup(const FGuid& InTid, const FString& InAid,
+        const FDateTime& InStartedAt)
     {
-        TerminalId = InTid; ActivityId = InAid; Record = InRecord; return this;
+        TerminalId = InTid; ActivityId = InAid; StartedAt = InStartedAt; return this;
+    }
+};
+
+// ---- Этап завершён (с результатом: Completed / Failed / Skipped) ----
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalGameStageFinishedEventPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
+
+    // Один завершённый этап целиком: StageId, Result, Score, CompletedAt, Notes.
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game")
+    FTerminalStageProgress Stage;
+
+    // Накопленный счёт по партии на момент события.
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game")
+    int32 TotalScore = 0;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
+    UTerminalGameStageFinishedEventPayload* Setup(const FGuid& InTid, const FString& InAid,
+        const FTerminalStageProgress& InStage, int32 InTotalScore)
+    {
+        TerminalId = InTid; ActivityId = InAid; Stage = InStage; TotalScore = InTotalScore;
+        return this;
+    }
+};
+
+// ---- Игра завершена ----
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalGameCompletedEventPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid     TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString   ActivityId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") bool      bSuccess = false;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") int32     TotalScore = 0;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString   ResultData;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FDateTime StartedAt;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FDateTime FinishedAt;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
+    UTerminalGameCompletedEventPayload* Setup(const FGuid& InTid, const FString& InAid,
+        bool bInSuccess, int32 InTotalScore, const FString& InResultData,
+        const FDateTime& InStartedAt, const FDateTime& InFinishedAt)
+    {
+        TerminalId = InTid; ActivityId = InAid;
+        bSuccess = bInSuccess; TotalScore = InTotalScore; ResultData = InResultData;
+        StartedAt = InStartedAt; FinishedAt = InFinishedAt;
+        return this;
+    }
+};
+
+// ---- Запись удалена ----
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalGameRecordRemovedEventPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
+    UTerminalGameRecordRemovedEventPayload* Setup(const FGuid& InTid, const FString& InAid)
+    {
+        TerminalId = InTid; ActivityId = InAid; return this;
     }
 };
