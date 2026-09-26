@@ -244,7 +244,7 @@ bool UTerminalGameConditionAsset::MatchGameEvent(
 
     switch (ExpectedEvent)
     {
-    case EOutcomeTerminal::GameStarted:
+    case EOutcomeTerminal::ReportGameStarted:
     {
         const auto* P = Cast<UTerminalGameStartedEventPayload>(Outcome.Payload);
         if (!P) return false;
@@ -254,7 +254,7 @@ bool UTerminalGameConditionAsset::MatchGameEvent(
         Proxy.StartedAt = P->StartedAt;
         break;
     }
-    case EOutcomeTerminal::GameStageFinished:
+    case EOutcomeTerminal::ReportGameStageFinished:
     {
         const auto* P = Cast<UTerminalGameStageFinishedEventPayload>(Outcome.Payload);
         if (!P) return false;
@@ -262,11 +262,10 @@ bool UTerminalGameConditionAsset::MatchGameEvent(
         Proxy.ActivityId = P->ActivityId;
         Proxy.Status = ETerminalRecordStatus::InProgress;
         Proxy.TotalScore = P->TotalScore;
-        // Единственный этап, о котором это событие.
-        Proxy.Stages.Add(P->Stage);
+        Proxy.Stages.Add(P->Stage);   // единственный этап, о котором это событие
         break;
     }
-    case EOutcomeTerminal::GameCompleted:
+    case EOutcomeTerminal::ReportGameCompleted:
     {
         const auto* P = Cast<UTerminalGameCompletedEventPayload>(Outcome.Payload);
         if (!P) return false;
@@ -281,7 +280,7 @@ bool UTerminalGameConditionAsset::MatchGameEvent(
         Proxy.FinishedAt = P->FinishedAt;
         break;
     }
-    case EOutcomeTerminal::GameRecordRemoved:
+    case EOutcomeTerminal::ReportGameRecordRemoved:
     {
         const auto* P = Cast<UTerminalGameRecordRemovedEventPayload>(Outcome.Payload);
         if (!P) return false;
@@ -312,17 +311,16 @@ bool UTerminalGameConditionAsset::EvaluateCondition(const FOutcomeEventBase& Out
                 return Rec.Status == Status;
             };
 
-        if (MatchGameEvent(Outcome, EOutcomeTerminal::GameStarted, Predicate)) return true;
-        if (MatchGameEvent(Outcome, EOutcomeTerminal::GameStageFinished, Predicate)) return true;
-        if (MatchGameEvent(Outcome, EOutcomeTerminal::GameCompleted, Predicate)) return true;
+        if (MatchGameEvent(Outcome, EOutcomeTerminal::ReportGameStarted, Predicate)) return true;
+        if (MatchGameEvent(Outcome, EOutcomeTerminal::ReportGameStageFinished, Predicate)) return true;
+        if (MatchGameEvent(Outcome, EOutcomeTerminal::ReportGameCompleted, Predicate)) return true;
         return false;
     }
-
     case ETerminalGameQueryType::OnStageFinished:
     {
         if (StageId.IsEmpty()) return false;
 
-        return MatchGameEvent(Outcome, EOutcomeTerminal::GameStageFinished,
+        return MatchGameEvent(Outcome, EOutcomeTerminal::ReportGameStageFinished,
             [this](const FTerminalActivityRecord& Rec)
             {
                 for (const FTerminalStageProgress& S : Rec.Stages)
@@ -333,13 +331,11 @@ bool UTerminalGameConditionAsset::EvaluateCondition(const FOutcomeEventBase& Out
                 return false;
             });
     }
-
     case ETerminalGameQueryType::OnGameRecordRemoved:
     {
-        return MatchGameEvent(Outcome, EOutcomeTerminal::GameRecordRemoved,
+        return MatchGameEvent(Outcome, EOutcomeTerminal::ReportGameRecordRemoved,
             [](const FTerminalActivityRecord&) { return true; });
     }
-
     default:
         break;
     }

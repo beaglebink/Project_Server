@@ -1310,10 +1310,10 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(SetGlobalDataHandler, SetGlobalDataCondition);
 	Unsub(AddLogHandler, AddLogCondition);
 
-	Unsub(GameStartedHandler, GameStartedCondition);
-	Unsub(GameStageFinishedHandler, GameStageFinishedCondition);
-	Unsub(GameCompletedHandler, GameCompletedCondition);
-	Unsub(GameRecordRemovedHandler, GameRecordRemovedCondition);
+    Unsub(GameStartedHandler,       GameStartedCondition);
+    Unsub(GameStageFinishedHandler, GameStageFinishedCondition);
+    Unsub(GameCompletedHandler,     GameCompletedCondition);
+    Unsub(GameRecordRemovedHandler, GameRecordRemovedCondition);
 }
 
 // ============================================================================
@@ -1542,7 +1542,7 @@ void UTerminalSubsystem::ReportGameStarted(const FGuid& TerminalId, const FStrin
 		if (auto* P = Bus->CreatePayload<UTerminalGameStartedEventPayload>())
 		{
 			P->Setup(TerminalId, GameId, Existing->StartedAt);
-			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::ReportGameStarted, P);  // ← было GameStarted
+			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::ReportGameStarted, P);
 		}
 }
 
@@ -1583,7 +1583,7 @@ void UTerminalSubsystem::ReportGameStageFinished(const FGuid& TerminalId, const 
 		if (auto* P = Bus->CreatePayload<UTerminalGameStageFinishedEventPayload>())
 		{
 			P->Setup(TerminalId, GameId, *Stage, Rec.TotalScore);
-			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::ReportGameStageFinished, P);  // ← было GameStageFinished
+			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::ReportGameStageFinished, P);
 		}
 }
 
@@ -1604,7 +1604,7 @@ void UTerminalSubsystem::ReportGameCompleted(const FGuid& TerminalId, const FStr
 		{
 			P->Setup(TerminalId, GameId, bSuccess, Rec.TotalScore, Rec.ResultData,
 				Rec.StartedAt, Rec.FinishedAt);
-			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::ReportGameCompleted, P);  // ← было GameCompleted
+			PublishTerminalOutcome(TerminalId, EOutcomeTerminal::ReportGameCompleted, P);
 		}
 }
 
