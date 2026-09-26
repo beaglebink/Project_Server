@@ -15,12 +15,7 @@ enum class ETerminalGameQueryType : uint8
     ReachedStatus       UMETA(DisplayName = "Reached Status (state)"),
     StageFinished       UMETA(DisplayName = "Stage Finished (state)"),
     AllStagesCompleted  UMETA(DisplayName = "All Stages Completed (state)"),
-    ScoreReached        UMETA(DisplayName = "Score Reached (state)"),
-
-    // ---- Event-driven (реагируем на события подсистемы) ----
-    OnGameStatusChanged UMETA(DisplayName = "On Game Status Changed (event)"),
-    OnStageFinished     UMETA(DisplayName = "On Stage Finished (event)"),
-    OnGameRecordRemoved UMETA(DisplayName = "On Game Record Removed (event)")
+    ScoreReached        UMETA(DisplayName = "Score Reached (state)")
 };
 
 UCLASS(BlueprintType, ShowCategories = ("Terminal Game", "4 - Debug"))
@@ -49,26 +44,23 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal Game")
     FString ActivityId;
 
-    // ---- Статус (для ReachedStatus / OnGameStatusChanged) ----
+    // ---- Статус (для ReachedStatus) ----
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal Game",
-        meta = (EditCondition =
-            "QueryType == ETerminalGameQueryType::ReachedStatus || QueryType == ETerminalGameQueryType::OnGameStatusChanged",
+        meta = (EditCondition = "QueryType == ETerminalGameQueryType::ReachedStatus",
             EditConditionHides))
     ETerminalRecordStatus Status = ETerminalRecordStatus::GameCompleted;
 
-    // ---- Этап (для StageFinished / OnStageFinished) ----
-    // StageId — какой именно этап интересует.
+    // ---- Этап (для StageFinished / AllStagesCompleted) ----
+    // StageId — какой именно этап интересует (для AllStagesCompleted не используется).
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal Game",
-        meta = (EditCondition =
-            "QueryType == ETerminalGameQueryType::StageFinished || QueryType == ETerminalGameQueryType::OnStageFinished",
+        meta = (EditCondition = "QueryType == ETerminalGameQueryType::StageFinished",
             EditConditionHides))
     FString StageId;
 
     // Как именно этап должен быть завершён (Completed / Failed / Skipped).
-    // Учитывается в StageFinished (state) и OnStageFinished (event).
+    // Учитывается только в StageFinished.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal Game",
-        meta = (EditCondition =
-            "QueryType == ETerminalGameQueryType::StageFinished || QueryType == ETerminalGameQueryType::OnStageFinished",
+        meta = (EditCondition = "QueryType == ETerminalGameQueryType::StageFinished",
             EditConditionHides))
     ETerminalStageResult StageResult = ETerminalStageResult::Completed;
 
@@ -87,7 +79,7 @@ public:
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 
 private:
-    // Общие фильтры TerminalId / ActivityId — применяются и к state-, и к event-driven.
+    // Общие фильтры TerminalId / ActivityId.
     bool PassesCommonFilters(const FTerminalActivityRecord& Record) const;
 
     // Проверка одной записи в state-режиме (в зависимости от QueryType).
@@ -95,11 +87,4 @@ private:
 
     // Собирает записи, подходящие под TerminalId/ActivityId.
     TArray<FTerminalActivityRecord> CollectCandidateRecords() const;
-
-    // Извлекает данные из исходящего события (GameStarted / GameStageFinished /
-    // GameCompleted / GameRecordRemoved), строит синтетический FTerminalActivityRecord
-    // и прогоняет его через PassesCommonFilters + Predicate.
-    bool MatchGameEvent(const FOutcomeEventBase& Outcome,
-        EOutcomeTerminal ExpectedEvent,
-        const TFunctionRef<bool(const FTerminalActivityRecord&)>& Predicate) const;
 };
