@@ -16,6 +16,7 @@
 #include "Misc/Base64.h"
 #include "TerminalCommandPayload.h"
 #include "TerminalTaskPayload.h"
+#include <GameSaveSubsystem.h>
 
 namespace
 {
@@ -62,12 +63,25 @@ void UTerminalSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	SubscribeAll();
 
+	// ---- Регистрация в системе сохранения ----
+	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+	{
+		SaveSys->RegisterSaveableSubsystem(this);
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("TerminalSubsystem initialized"));
 }
 
 void UTerminalSubsystem::Deinitialize()
 {
 	UnsubscribeAll();
+
+	// Отписка от сохранения
+	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+	{
+		SaveSys->UnregisterSaveableSubsystem(this);
+	}
+
 	CachedEventBus.Reset();
 	CachedBookface.Reset();
 	CachedMessenger.Reset();
