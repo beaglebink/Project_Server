@@ -131,9 +131,13 @@ bool UTerminalGameConditionAsset::EvaluateRecordState(const FTerminalActivityRec
     {
     case ETerminalGameQueryType::HasGameRecord:
         // Любая запись, кроме "NotStarted", считается существующей.
-        return Record.Status != ETerminalRecordStatus::NotStarted;
+        return Record.Status != ETerminalRecordStatus::NotStarted || Record.Status != ETerminalRecordStatus::InProgress;
 
     case ETerminalGameQueryType::ReachedStatus:
+        // Защита от мусорных значений, прилетевших из кода/сейва.
+        if (Status == ETerminalRecordStatus::NotStarted ||
+            Status == ETerminalRecordStatus::InProgress)
+            return false;
         return Record.Status == Status;
 
     case ETerminalGameQueryType::StageFinished:
@@ -142,6 +146,8 @@ bool UTerminalGameConditionAsset::EvaluateRecordState(const FTerminalActivityRec
 
         for (const FTerminalStageProgress& S : Record.Stages)
         {
+            if(StageResult == ETerminalStageResult::None || StageResult == ETerminalStageResult::Skipped)
+                return false;
             if (S.StageId == StageId && S.Result == StageResult)
                 return true;
         }

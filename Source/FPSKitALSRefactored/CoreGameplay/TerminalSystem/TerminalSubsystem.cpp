@@ -1277,6 +1277,8 @@ void UTerminalSubsystem::SubscribeCommands()
 		GameCompletedHandler, &UTerminalSubsystem::HandleGameCompleted);
 	Sub(GameRecordRemovedCondition, EOutcomeTerminal::GameRecordRemoved,
 		GameRecordRemovedHandler, &UTerminalSubsystem::HandleGameRecordRemoved);
+	Sub(GameStageRemovedCondition, EOutcomeTerminal::GameStageRemoved,
+		GameStageRemovedHandler, &UTerminalSubsystem::HandleGameStageRemoved);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -1314,6 +1316,7 @@ void UTerminalSubsystem::UnsubscribeCommands()
     Unsub(GameStageFinishedHandler, GameStageFinishedCondition);
     Unsub(GameCompletedHandler,     GameCompletedCondition);
     Unsub(GameRecordRemovedHandler, GameRecordRemovedCondition);
+	Unsub(GameStageRemovedHandler, GameStageRemovedCondition);
 }
 
 // ============================================================================
@@ -1502,6 +1505,41 @@ TArray<FTerminalActivityRecord> UTerminalSubsystem::GetAllGameRecordsByActivityI
 	return Result;
 }
 
+bool UTerminalSubsystem::HasGameStage(const FGuid& TerminalId, const FString& GameId,
+	const FString& StageId) const
+{
+	if (StageId.IsEmpty()) return false;
+	if (const auto* Inner = GameRecords.Find(TerminalId))
+		if (const auto* Rec = Inner->Find(GameId))
+			return Rec->Stages.ContainsByPredicate(
+				[&](const FTerminalStageProgress& S) { return S.StageId == StageId; });
+	return false;
+}
+
+bool UTerminalSubsystem::GetGameStage(const FGuid& TerminalId, const FString& GameId,
+	const FString& StageId, FTerminalStageProgress& OutStage) const
+{
+	if (StageId.IsEmpty()) return false;
+	if (const auto* Inner = GameRecords.Find(TerminalId))
+		if (const auto* Rec = Inner->Find(GameId))
+			if (const FTerminalStageProgress* Found = Rec->Stages.FindByPredicate(
+				[&](const FTerminalStageProgress& S) { return S.StageId == StageId; }))
+			{
+				OutStage = *Found;
+				return true;
+			}
+	return false;
+}
+
+TArray<FTerminalStageProgress> UTerminalSubsystem::GetGameStages(const FGuid& TerminalId,
+	const FString& GameId) const
+{
+	if (const auto* Inner = GameRecords.Find(TerminalId))
+		if (const auto* Rec = Inner->Find(GameId))
+			return Rec->Stages;
+	return TArray<FTerminalStageProgress>();
+}
+
 bool UTerminalSubsystem::IsGameFinishedForTerminal(const FGuid& TerminalId, const FString& GameId) const
 {
 	if (const auto* Inner = GameRecords.Find(TerminalId))
@@ -1608,37 +1646,179 @@ void UTerminalSubsystem::ReportGameCompleted(const FGuid& TerminalId, const FStr
 		}
 }
 
-void UTerminalSubsystem::RemoveGameRecord(const FGuid& TerminalId, const FString& GameId)
+void UTerminalSubsystem::RemoveGameStage(const FGuid& TerminalId, const FString& GameId,
+	const FString& StageId)
 {
-	auto* Inner = GameRecords.Find(TerminalId);
-	if (!Inner) return;
-
+	// ---- Валидация ----
+	// Пустой GameId = «удалить этап во всех играх». Бессмысленно, блокируем.
 	if (GameId.IsEmpty())
 	{
-		TArray<FString> Keys;
-		Inner->GetKeys(Keys);
-		for (const FString& Id : Keys)
-		{
-			if (UEventBusSubsystem* Bus = CachedEventBus.Get())
-				if (auto* P = Bus->CreatePayload<UTerminalGameRecordRemovedEventPayload>())
-				{
-					P->Setup(TerminalId, Id);
-					PublishTerminalOutcome(TerminalId, EOutcomeTerminal::ReportGameRecordRemoved, P);  // ← было GameRecordRemoved
-				}
-		}
-		GameRecords.Remove(TerminalId);
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: RemoveGameStage ignored — empty GameId "
+				"(Terminal=%s, Stage='%s'). Use RemoveGameRecord to delete whole games."),
+			TerminalId.IsValid() ? *TerminalId.ToString() : TEXT("<all>"),
+			*StageId);
 		return;
 	}
 
-	if (Inner->Remove(GameId) > 0)
+	// Пустой StageId = «удалить все этапы игры». Это НЕ задача RemoveGameStage —
+	// используйте RemoveGameRecord, чтобы удалить игру целиком.
+	if (StageId.IsEmpty())
 	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: RemoveGameStage ignored — empty StageId "
+				"(Terminal=%s, Game='%s'). Use RemoveGameRecord to delete the whole game."),
+			TerminalId.IsValid() ? *TerminalId.ToString() : TEXT("<all>"),
+			*GameId);
+		return;
+	}
+
+	// ---- Собираем терминалы-кандидаты, у которых есть запись (T, GameId) ----
+	TArray<FGuid> TargetTerminals;
+
+	if (TerminalId.IsValid())
+	{
+		if (const auto* Inner = GameRecords.Find(TerminalId))
+		{
+			if (Inner->Contains(GameId))
+				TargetTerminals.Add(TerminalId);
+		}
+	}
+	else
+	{
+		for (const auto& TermPair : GameRecords)
+		{
+			if (TermPair.Value.Contains(GameId))
+				TargetTerminals.Add(TermPair.Key);
+		}
+	}
+
+	if (TargetTerminals.Num() == 0) return;
+
+	// ---- Обход: удаляем конкретный этап, собираем успешно удалённые ----
+	struct FRemovedInfo
+	{
+		FGuid   TId;
+		FString GId;
+		FString SId;
+	};
+	TArray<FRemovedInfo> Removed;
+	Removed.Reserve(TargetTerminals.Num());
+
+	for (const FGuid& TId : TargetTerminals)
+	{
+		auto* Inner = GameRecords.Find(TId);
+		if (!Inner) continue;
+
+		FTerminalActivityRecord* Rec = Inner->Find(GameId);
+		if (!Rec) continue;
+
+		// Защита: не трогаем этапы у завершённой игры — TotalScore уже зафиксирован.
+		if (Rec->IsFinished())
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("TerminalSubsystem: Cannot remove stage '%s' from finished game '%s' (Terminal=%s)"),
+				*StageId, *GameId, *TId.ToString());
+			continue;
+		}
+
+		const int32 Index = Rec->Stages.IndexOfByPredicate(
+			[&](const FTerminalStageProgress& S) { return S.StageId == StageId; });
+		if (Index == INDEX_NONE) continue;   // нечего удалять
+
+		// Запоминаем вклад этапа в общий счёт ДО удаления.
+		const ETerminalStageResult RemovedResult = Rec->Stages[Index].Result;
+		const int32               RemovedScore = Rec->Stages[Index].Score;
+
+		Rec->Stages.RemoveAt(Index);
+
+		// Откатываем вклад удалённого этапа, если он был засчитан.
+		if (RemovedResult == ETerminalStageResult::Completed)
+			Rec->TotalScore = FMath::Max(0, Rec->TotalScore - RemovedScore);
+
+		Removed.Add(FRemovedInfo{ TId, GameId, StageId });
+	}
+
+	// ---- Публикуем отчёты после всех мутаций ----
+	if (UEventBusSubsystem* Bus = CachedEventBus.Get())
+	{
+		for (const FRemovedInfo& Info : Removed)
+		{
+			if (auto* P = Bus->CreatePayload<UTerminalGameStageRemovedEventPayload>())
+			{
+				P->Setup(Info.TId, Info.GId, Info.SId);
+				PublishTerminalOutcome(Info.TId, EOutcomeTerminal::ReportGameStageRemoved, P);
+			}
+		}
+	}
+}
+
+void UTerminalSubsystem::RemoveGameRecord(const FGuid& TerminalId, const FString& GameId)
+{
+	const bool bAllTerminals = !TerminalId.IsValid();
+	const bool bAllGames = GameId.IsEmpty();
+
+	// ---- Собираем пары (TerminalId, GameId) к удалению ----
+	TArray<TPair<FGuid, FString>> Targets;
+
+	if (bAllTerminals)
+	{
+		for (const auto& TermPair : GameRecords)
+		{
+			const FGuid& TId = TermPair.Key;
+
+			if (bAllGames)
+			{
+				for (const auto& RecPair : TermPair.Value)
+					Targets.Add(TPair<FGuid, FString>(TId, RecPair.Key));
+			}
+			else if (TermPair.Value.Contains(GameId))
+			{
+				Targets.Add(TPair<FGuid, FString>(TId, GameId));
+			}
+		}
+	}
+	else
+	{
+		if (const auto* Inner = GameRecords.Find(TerminalId))
+		{
+			if (bAllGames)
+			{
+				for (const auto& RecPair : *Inner)
+					Targets.Add(TPair<FGuid, FString>(TerminalId, RecPair.Key));
+			}
+			else if (Inner->Contains(GameId))
+			{
+				Targets.Add(TPair<FGuid, FString>(TerminalId, GameId));
+			}
+		}
+	}
+
+	if (Targets.Num() == 0) return;
+
+	// ---- Удаляем и публикуем отчёт по каждому ----
+	// Итерируемся по копии Targets, а не по GameRecords, чтобы не ловить
+	// инвалидацию итераторов при удалении.
+	for (const TPair<FGuid, FString>& Target : Targets)
+	{
+		const FGuid& TId = Target.Key;
+		const FString& GId = Target.Value;
+
+		if (auto* Inner = GameRecords.Find(TId))
+		{
+			Inner->Remove(GId);
+			if (Inner->Num() == 0)
+				GameRecords.Remove(TId);
+		}
+
 		if (UEventBusSubsystem* Bus = CachedEventBus.Get())
+		{
 			if (auto* P = Bus->CreatePayload<UTerminalGameRecordRemovedEventPayload>())
 			{
-				P->Setup(TerminalId, GameId);
-				PublishTerminalOutcome(TerminalId, EOutcomeTerminal::ReportGameRecordRemoved, P);  // ← было GameRecordRemoved
+				P->Setup(TId, GId);
+				PublishTerminalOutcome(TId, EOutcomeTerminal::ReportGameRecordRemoved, P);
 			}
-		if (Inner->Num() == 0) GameRecords.Remove(TerminalId);
+		}
 	}
 }
 
@@ -1676,4 +1856,11 @@ void UTerminalSubsystem::HandleGameRecordRemoved(const FOutcomeEventBase& Outcom
 	auto* P = Cast<UTerminalRemoveActivityRecordPayload>(Outcome.Payload);
 	if (!P) return;
 	RemoveGameRecord(P->TerminalId, P->ActivityId);
+}
+
+void UTerminalSubsystem::HandleGameStageRemoved(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalGameStageRemovedPayload>(Outcome.Payload);
+	if (!P) return;
+	RemoveGameStage(P->TerminalId, P->ActivityId, P->StageId);
 }

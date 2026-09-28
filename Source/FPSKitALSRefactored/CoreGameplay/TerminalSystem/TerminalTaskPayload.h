@@ -205,3 +205,39 @@ public:
         TerminalId = InTid; ActivityId = InAid; return this;
     }
 };
+
+// ---- Удаление одного этапа конкретной игры ----
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalGameStageRemovedPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString StageId;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
+    UTerminalGameStageRemovedPayload* Setup(const FGuid& InTid,
+        const FString& InAid, const FString& InSid)
+    {
+        TerminalId = InTid; ActivityId = InAid; StageId = InSid; return this;
+    }
+};
+
+// ---- Этап удалён ----
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalGameStageRemovedEventPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString StageId;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
+    UTerminalGameStageRemovedEventPayload* Setup(const FGuid& InTid,
+        const FString& InAid, const FString& InSid)
+    {
+        TerminalId = InTid; ActivityId = InAid; StageId = InSid; return this;
+    }
+};

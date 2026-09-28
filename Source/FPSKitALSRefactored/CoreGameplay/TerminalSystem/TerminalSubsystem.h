@@ -92,11 +92,11 @@ enum class ETerminalRecordStatus : uint8
     Failed          UMETA(DisplayName = "Failed")
 };
 
-// Результат отдельного этапа. None = этап не завершался.
+// Результат отдельного этапа.
 UENUM(BlueprintType)
 enum class ETerminalStageResult : uint8
 {
-    None        UMETA(DisplayName = "None"),
+    None        UMETA(DisplayName = "None", Hidden),
     Completed   UMETA(DisplayName = "Completed"),
     Failed      UMETA(DisplayName = "Failed"),
     Skipped     UMETA(DisplayName = "Skipped")
@@ -257,6 +257,18 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     TArray<FTerminalActivityRecord> GetAllGameRecordsByActivityId(const FString& ActivityId) const;
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    bool HasGameStage(const FGuid& TerminalId, const FString& GameId,
+        const FString& StageId) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    bool GetGameStage(const FGuid& TerminalId, const FString& GameId,
+        const FString& StageId, FTerminalStageProgress& OutStage) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
+    TArray<FTerminalStageProgress> GetGameStages(const FGuid& TerminalId,
+        const FString& GameId) const;
+
     // ---- Helpers for Blueprint ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     static bool IsGameRecordFinished(const FTerminalActivityRecord& Record)
@@ -355,6 +367,7 @@ private:
     void HandleGameStageFinished(const FOutcomeEventBase& Outcome);
     void HandleGameCompleted(const FOutcomeEventBase& Outcome);
     void HandleGameRecordRemoved(const FOutcomeEventBase& Outcome);
+    void HandleGameStageRemoved(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
     // Game mutators (внутренние)
@@ -367,6 +380,7 @@ private:
         const FString& StageId, ETerminalStageResult Result, int32 Score, const FString& Notes);
     void ReportGameCompleted(const FGuid& TerminalId, const FString& GameId,
         bool bSuccess, int32 TotalScore, const FString& ResultData);
+    void RemoveGameStage(const FGuid& TerminalId, const FString& GameId, const FString& StageId);
     void RemoveGameRecord(const FGuid& TerminalId, const FString& GameId);
 
     // ---- Helpers ----
@@ -441,6 +455,7 @@ private:
     FOutcomeHandlerHandle GameStartedHandler;
     FOutcomeHandlerHandle GameStageFinishedHandler;
     FOutcomeHandlerHandle GameCompletedHandler;
+    FOutcomeHandlerHandle GameStageRemovedHandler;
     FOutcomeHandlerHandle GameRecordRemovedHandler;
 
     // ---- Interact conditions ----
@@ -474,6 +489,7 @@ private:
     UPROPERTY() UOutcomeConditionAsset* GameStartedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameStageFinishedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameCompletedCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* GameStageRemovedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameRecordRemovedCondition = nullptr;
 
     bool bIsLoadComplete = true;

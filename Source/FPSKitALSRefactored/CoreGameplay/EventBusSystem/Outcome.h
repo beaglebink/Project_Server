@@ -82,7 +82,7 @@ enum class EOutcomeTerminal : uint8
     // Нотификации подсистемы о состоянии терминала
     // ========================================================================
     TerminalOpened          UMETA(DisplayName = "Terminal Opened"),
-    TerminalTaskCompleted   UMETA(DisplayName = "Terminal Task Completed"),
+    //TerminalTaskCompleted   UMETA(DisplayName = "Terminal Task Completed"),
     TerminalClosed          UMETA(DisplayName = "Terminal Closed"),
     TerminalLoginFailed     UMETA(DisplayName = "Terminal Login Failed"),
     TerminalLoginSucceeded  UMETA(DisplayName = "Terminal Login Succeeded"),
@@ -139,6 +139,7 @@ enum class EOutcomeTerminal : uint8
     GameStarted         UMETA(DisplayName = "Game Started"),
     GameStageFinished   UMETA(DisplayName = "Game Stage Finished"),
     GameCompleted       UMETA(DisplayName = "Game Completed"),
+    GameStageRemoved    UMETA(DisplayName = "Game Stage Removed"),
     GameRecordRemoved   UMETA(DisplayName = "Game Record Removed"),
 
     // ========================================================================
@@ -149,6 +150,7 @@ enum class EOutcomeTerminal : uint8
     // ========================================================================
     ReportGameStarted        UMETA(DisplayName = "Report Game Started"),
     ReportGameStageFinished  UMETA(DisplayName = "Report Game Stage Finished"),
+    ReportGameStageRemoved   UMETA(DisplayName = "Report Game Stage Removed"),
     ReportGameCompleted      UMETA(DisplayName = "Report Game Completed"),
     ReportGameRecordRemoved  UMETA(DisplayName = "Report Game Record Removed")
 };

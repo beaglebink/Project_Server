@@ -47,7 +47,8 @@ public:
     // ---- Статус (для ReachedStatus) ----
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal Game",
         meta = (EditCondition = "QueryType == ETerminalGameQueryType::ReachedStatus",
-            EditConditionHides))
+            EditConditionHides,
+            ValidEnumValues = "Started, GameCompleted, Failed"))
     ETerminalRecordStatus Status = ETerminalRecordStatus::GameCompleted;
 
     // ---- Этап (для StageFinished / AllStagesCompleted) ----
@@ -61,7 +62,8 @@ public:
     // Учитывается только в StageFinished.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terminal Game",
         meta = (EditCondition = "QueryType == ETerminalGameQueryType::StageFinished",
-            EditConditionHides))
+            EditConditionHides,
+            ValidEnumValues = "Completed, Failed, Skipped"))
     ETerminalStageResult StageResult = ETerminalStageResult::Completed;
 
     // ---- Счёт (для ScoreReached) ----
