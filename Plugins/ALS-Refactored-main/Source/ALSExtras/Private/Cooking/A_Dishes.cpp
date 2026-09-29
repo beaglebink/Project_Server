@@ -958,7 +958,7 @@ bool AA_Dishes::CheckIfCooked()
 	//Calculate interval requirements quality
 	for (FRecipeRequirement& RecipeRequirement : CheckedRecipe.Requirements)
 	{
-		if (RecipeRequirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals))
+		if (RecipeRequirement.RequirementTag.MatchesTag(TAG_Cooking_Intervals) && RecipeRequirement.IntervalStep.EndEvents.Num() > 0)
 		{
 			TotalRecipeImportance += RecipeRequirement.RecipeImportance;
 
@@ -967,9 +967,9 @@ bool AA_Dishes::CheckIfCooked()
 				float EventDuration = 0.0f;
 				float IntervalTimingQuality = 0.0f;
 
-				if (i == RecipeRequirements.Num() - 1) //interval tag-final
+				if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag)
 				{
-					if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvents.Num() > 0 && RecipeRequirement.IntervalStep.EndEvents[0] == FGameplayTag::EmptyTag)
+					if (RecipeRequirement.IntervalStep.EndEvents[0] == FGameplayTag::EmptyTag)
 					{
 						EventDuration = CookingTimerValue - RecipeRequirements[i].RequirementEndTime;
 						if (EventDuration >= RecipeRequirement.IntervalStep.IntervalDurationMin && EventDuration <= RecipeRequirement.IntervalStep.IntervalDurationMax)
@@ -984,26 +984,30 @@ bool AA_Dishes::CheckIfCooked()
 						{
 							IntervalTimingQuality = FMath::Clamp(1 - (EventDuration - RecipeRequirement.IntervalStep.IntervalDurationMax) / RecipeRequirement.IntervalStep.LateTolerance, 0.0f, 1.0f);
 						}
-						RecipeRequirement.StepQuality = IntervalTimingQuality * RecipeRequirement.RecipeImportance;
-						DishQuality += IntervalTimingQuality * RecipeRequirement.RecipeImportance;
-						break;
 					}
-				}
-				else if (RecipeRequirement.IntervalStep.StartEvent == RecipeRequirements[i].RequirementTag && RecipeRequirement.IntervalStep.EndEvents.Contains(RecipeRequirements[i + 1].RequirementTag)) //interval tag-tag
-				{
-					EventDuration = RecipeRequirements[i + 1].RequirementStartTime - RecipeRequirements[i].RequirementEndTime;
+					else
+					{
+						for (int j = i + 1; j < RecipeRequirements.Num(); ++j)
+						{
+							if (RecipeRequirement.IntervalStep.EndEvents.Contains(RecipeRequirements[j].RequirementTag))
+							{
+								EventDuration = RecipeRequirements[j].RequirementStartTime - RecipeRequirements[i].RequirementEndTime;
 
-					if (EventDuration >= RecipeRequirement.IntervalStep.IntervalDurationMin && EventDuration <= RecipeRequirement.IntervalStep.IntervalDurationMax)
-					{
-						IntervalTimingQuality = 1.0f;
-					}
-					else if (EventDuration < RecipeRequirement.IntervalStep.IntervalDurationMin)
-					{
-						IntervalTimingQuality = FMath::Clamp(1 - (RecipeRequirement.IntervalStep.IntervalDurationMin - EventDuration) / RecipeRequirement.IntervalStep.EarlyTolerance, 0.0f, 1.0f);
-					}
-					else if (EventDuration > RecipeRequirement.IntervalStep.IntervalDurationMax)
-					{
-						IntervalTimingQuality = FMath::Clamp(1 - (EventDuration - RecipeRequirement.IntervalStep.IntervalDurationMax) / RecipeRequirement.IntervalStep.LateTolerance, 0.0f, 1.0f);
+								if (EventDuration >= RecipeRequirement.IntervalStep.IntervalDurationMin && EventDuration <= RecipeRequirement.IntervalStep.IntervalDurationMax)
+								{
+									IntervalTimingQuality = 1.0f;
+								}
+								else if (EventDuration < RecipeRequirement.IntervalStep.IntervalDurationMin)
+								{
+									IntervalTimingQuality = FMath::Clamp(1 - (RecipeRequirement.IntervalStep.IntervalDurationMin - EventDuration) / RecipeRequirement.IntervalStep.EarlyTolerance, 0.0f, 1.0f);
+								}
+								else if (EventDuration > RecipeRequirement.IntervalStep.IntervalDurationMax)
+								{
+									IntervalTimingQuality = FMath::Clamp(1 - (EventDuration - RecipeRequirement.IntervalStep.IntervalDurationMax) / RecipeRequirement.IntervalStep.LateTolerance, 0.0f, 1.0f);
+								}
+								break;
+							}
+						}
 					}
 					RecipeRequirement.StepQuality = IntervalTimingQuality * RecipeRequirement.RecipeImportance;
 					DishQuality += IntervalTimingQuality * RecipeRequirement.RecipeImportance;
