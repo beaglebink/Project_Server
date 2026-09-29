@@ -17,6 +17,7 @@ void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     Collection.InitializeDependency<UInteriorSubsystem>();
 
+    // Force initialization of the save system BEFORE us.
     // Форсируем инициализацию системы сохранения ДО нас.
     Collection.InitializeDependency<UGameSaveSubsystem>();
 
@@ -34,18 +35,21 @@ void UWorldStateSubsystem::SubscribeAllWorldStateEvents()
     if (!EventBus)
         return;
 
+    // ---- Setting a record ----
     // ---- Установка записи ----
     WorldStateAddRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateAddRecord);
     WorldStateRecordHandle = EventBus->RegisterHandler(
         WorldStateAddRecordCondition,
         FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleSetWorldStateRecord));
 
+    // ---- Removing a record ----
     // ---- Удаление записи ----
     WorldStateRemoveRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateRemoveRecord);
     WorldStateRecordRemoveHandle = EventBus->RegisterHandler(
         WorldStateRemoveRecordCondition,
         FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleRemoveWorldStateRecord));
 
+    // ---- Level loaded (InteriorSubsystem publishes after restoring snapshots) ----
     // ---- Загрузка уровня (InteriorSubsystem публикует после восстановления снапшотов) ----
     if (!LevelLoadedHandle.IsValid())
     {
@@ -116,6 +120,7 @@ void UWorldStateSubsystem::UnsubscribeAll()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WORLD STATE RECORDS — PRIVATE MUTATION METHODS
 // WORLD STATE RECORDS — ПРИВАТНЫЕ МЕТОДЫ ИЗМЕНЕНИЯ
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -130,10 +135,13 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
 
     FWorldStateRecord* Existing = WorldStateRecords.Find(Record.FactId);
 
+    // The fact is "new" if it was not in the map OR if it was marked
+    // for removal and is now coming back to life.
     // Факт "новый", если его не было в карте ИЛИ если он был помечен
     // на удаление и сейчас оживает.
     const bool bIsNewFact = (Existing == nullptr) || Existing->bPendingRemoval;
 
+    // Remember the previous value BEFORE the mutation.
     // Запоминаем предыдущее значение ДО мутации.
     FString PreviousValue;
     if (!bIsNewFact && Existing)
@@ -152,6 +160,7 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
 
     FWorldStateRecord& Stored = WorldStateRecords.Add(Record.FactId, NewRecord);
 
+    // Apply to the actor if it is on the scene.
     // Применяем к актёру, если он на сцене.
     if (AActor* Actor = FindActorByItemId(Stored.ItemId))
     {
@@ -163,6 +172,8 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
         }
     }
 
+    // We make the snapshot for the payload AFTER applying — OriginalValue may
+    // have already been captured, and the subscriber will see the current record state.
     // Снимок для payload делаем ПОСЛЕ применения — OriginalValue уже
     // мог быть захвачен, и подписчик увидит актуальное состояние записи.
     const FWorldStateRecord* Final = WorldStateRecords.Find(Record.FactId);
@@ -206,16 +217,20 @@ void UWorldStateSubsystem::RemoveWorldStateRecord(FName FactId)
         return;
     }
 
+    // Snapshot BEFORE marking — so the subscriber sees the record "as it was".
     // Снимок ДО пометки — чтобы подписчик увидел запись "как она была".
     FWorldStateRecord Snapshot = *Record;
     Snapshot.bPendingRemoval = false;
 
+    // What will be restored on the actor (if the original was captured).
     // Что будет восстановлено на актёре (если оригинал захвачен).
     const bool bHasRestored = Record->bHasOriginalValue;
     const FString RestoredValue = bHasRestored ? Record->OriginalValue : FString();
 
     Record->bPendingRemoval = true;
 
+    // We publish the event immediately — the world considers the fact inactive, even if
+    // restoration on the actor happens later (the actor is not on the scene).
     // Событие публикуем сразу — мир считает факт неактивным, даже если
     // восстановление на актёре произойдёт позже (актёра нет на сцене).
     PublishFactEvent(
@@ -226,6 +241,7 @@ void UWorldStateSubsystem::RemoveWorldStateRecord(FName FactId)
         RestoredValue,
         bHasRestored);
 
+    // If the actor exists — we finalize immediately.
     // Если актёр есть — финализируем немедленно.
     if (AActor* Actor = FindActorByItemId(Record->ItemId))
     {
@@ -255,6 +271,7 @@ void UWorldStateSubsystem::ApplyRecordsToWorld()
         return;
     }
 
+    // We collect facts, splitting them into pending removals and active ones.
     // Собираем факты, разделяя на pending removals и активные.
     TArray<FName> PendingFactIds;
     TArray<FName> ActiveFactIds;
@@ -270,6 +287,9 @@ void UWorldStateSubsystem::ApplyRecordsToWorld()
     int32 Restored = 0;
     int32 Applied = 0;
 
+    // --- Pass 1: pending removals ---
+    // They are performed BEFORE applying active facts, to return the property
+    // to its original state, and then apply the current facts on top of it.
     // --- Проход 1: pending removals ---
     // Выполняются ДО применения активных фактов, чтобы вернуть свойство
     // в исходное состояние, а затем уже наложить на него текущие факты.
@@ -287,6 +307,7 @@ void UWorldStateSubsystem::ApplyRecordsToWorld()
         }
     }
 
+    // --- Pass 2: active facts ---
     // --- Проход 2: активные факты ---
     for (const FName& FactId : ActiveFactIds)
     {
@@ -319,6 +340,7 @@ void UWorldStateSubsystem::ApplyRecordToActor(AActor* Actor, const FWorldStateRe
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// READ METHODS (public)
 // МЕТОДЫ ЧТЕНИЯ (публичные)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -512,6 +534,7 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ACTORS: spawn, lookup, index
 // АКТОРЫ: спавн, поиск, индекс
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -524,6 +547,7 @@ void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
     if (!FAC || !FAC->ItemId.IsValid())
         return;
 
+    // We collect facts for this actor, splitting them into pending removals and active ones.
     // Собираем факты для этого актёра, разделяя на pending removals и активные.
     TArray<FName> PendingFactIds;
     TArray<FName> ActiveFactIds;
@@ -538,12 +562,14 @@ void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
             ActiveFactIds.Add(Pair.Key);
     }
 
+    // --- Pass 1: pending removals ---
     // --- Проход 1: pending removals ---
     for (const FName& FactId : PendingFactIds)
     {
         TryFinalizePendingRemoval(FactId, SpawnedActor);
     }
 
+    // --- Pass 2: active facts ---
     // --- Проход 2: активные факты ---
     for (const FName& FactId : ActiveFactIds)
     {
@@ -641,6 +667,7 @@ UActorComponent* UWorldStateSubsystem::FindComponentByStableName(AActor* Actor, 
     TArray<UActorComponent*> Components;
     Actor->GetComponents(Components);
 
+    // 1st pass: exact FName match (usually native C++ components).
     // 1-й проход: точное совпадение FName (обычно нативные C++-компоненты).
     for (UActorComponent* Comp : Components)
     {
@@ -648,6 +675,7 @@ UActorComponent* UWorldStateSubsystem::FindComponentByStableName(AActor* Actor, 
             return Comp;
     }
 
+    // 2nd pass: BP components get an FName like "<VariableName>_GEN_VARIABLE".
     // 2-й проход: BP-компоненты получают FName вида "<VariableName>_GEN_VARIABLE".
     static const FString Suffix = TEXT("_GEN_VARIABLE");
     const FString TargetStr = ComponentName.ToString();
@@ -725,6 +753,7 @@ FProperty* UWorldStateSubsystem::ResolveTargetProperty(AActor* Actor, const FWor
     OutTargetObject = nullptr;
     if (!IsValid(Actor)) return nullptr;
 
+    // --- Option 1: a component is specified — we look for the property strictly in it ---
     // --- Вариант 1: указан компонент — ищем свойство строго в нём ---
     if (!Record.ComponentName.IsNone())
     {
@@ -738,6 +767,7 @@ FProperty* UWorldStateSubsystem::ResolveTargetProperty(AActor* Actor, const FWor
         return Prop;
     }
 
+    // --- Option 2: no component specified — we look for the property on the actor itself ---
     // --- Вариант 2: компонент не указан — ищем свойство на самом актёре ---
     FProperty* Prop = FindFProperty<FProperty>(Actor->GetClass(), Record.ChangeKey);
     if (!Prop || !Prop->HasAllPropertyFlags(CPF_SaveGame)) return nullptr;
@@ -752,6 +782,7 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
     FProperty* Prop = ResolveTargetProperty(Actor, Record, Target);
     if (!Prop || !Target) return false;
 
+    // --- Bool: we read it explicitly so that false doesn't turn into "" ---
     // --- Bool: читаем явно, чтобы false не превратился в "" ---
     if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
     {
@@ -760,6 +791,7 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
         return true;
     }
 
+    // --- Integer types and enums ---
     // --- Целочисленные и enum ---
     if (FIntProperty* IntProp = CastField<FIntProperty>(Prop))
     {
@@ -802,6 +834,7 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
         return true;
     }
 
+    // --- Enum: export as int32 ---
     // --- Enum: экспортируем как int32 ---
     if (FEnumProperty* EnumProp = CastField<FEnumProperty>(Prop))
     {
@@ -827,6 +860,9 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
         return true;
     }
 
+    // --- Everything else: FName, FString, FText, FGuid, structs, arrays, ... ---
+    // Standard ExportText. For these types PPF_None works correctly:
+    // an empty string = an empty value, ImportText("") will restore it.
     // --- Всё остальное: FName, FString, FText, FGuid, структуры, массивы, ... ---
     // Стандартный ExportText. Для этих типов PPF_None работает корректно:
     // пустая строка = пустое значение, ImportText("") восстановит его.
@@ -863,6 +899,7 @@ bool UWorldStateSubsystem::WritePropertyValue(AActor* Actor, const FWorldStateRe
         *Record.ChangeKey.ToString(), *Value,
         *Target->GetName(), *Actor->GetName());
 
+    // We notify the target via reflection — without parameters.
     // Уведомляем цель через рефлексию — без параметров.
     InvokeReactionFunction(Target, Record);
 
@@ -912,6 +949,8 @@ bool UWorldStateSubsystem::TryFinalizePendingRemoval(FName FactId, AActor* Actor
     WritePropertyValue(Actor, *Record, Record->OriginalValue, /*bIsRestore=*/true);
     WorldStateRecords.Remove(FactId);
 
+    // The Removed event has already been published in RemoveWorldStateRecord.
+    // We do not publish it again — otherwise subscribers would see two Removed events for one fact.
     // Событие Removed уже опубликовано в RemoveWorldStateRecord.
     // Повторно не публикуем — иначе подписчики увидят два Removed на один факт.
 
@@ -934,6 +973,7 @@ void UWorldStateSubsystem::InvokeReactionFunction(UObject* Target, const FWorldS
         return;
     }
 
+    // A UFUNCTION without parameters — just ProcessEvent with nullptr.
     // UFUNCTION без параметров — просто ProcessEvent с nullptr.
     Target->ProcessEvent(Func, nullptr);
 

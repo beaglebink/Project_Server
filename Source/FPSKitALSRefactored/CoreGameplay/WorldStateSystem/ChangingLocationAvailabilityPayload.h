@@ -4,7 +4,7 @@
 #include "ChangingLocationAvailabilityPayload.generated.h"
 
 // Payload for ChangingLocationAvailability events
-// (Payload для событий доступности локаций)
+// Payload для событий доступности локаций
 UCLASS(BlueprintType, Blueprintable)
 class FPSKITALSREFACTORED_API UChangingLocationAvailabilityPayload : public UOutcomePayload
 {
@@ -18,18 +18,19 @@ public:
 	bool bIsAvailable = false;
 
 	// Fill all fields in one call - use after CreatePayload
-	// (Заполняет все поля одним вызовом - использовать после CreatePayload)
+	// Заполняет все поля одним вызовом - использовать после CreatePayload
 	UFUNCTION(BlueprintCallable, Category = "ChangingLocationAvailabilityPayload")
 	UChangingLocationAvailabilityPayload* Setup(
 		const FString& InLocationName,
 		bool         bInIsAvailable)
 	{
-		LocationName  = InLocationName;
-		bIsAvailable  = bInIsAvailable;
+		LocationName = InLocationName;
+		bIsAvailable = bInIsAvailable;
 		return this;
 	}
 
 	// Getters
+	// Геттеры
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChangingLocationAvailabilityPayload")
 	FString GetLocationName() const { return LocationName; }
 

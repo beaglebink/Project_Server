@@ -5,6 +5,9 @@
 #include "WorldStateRecordRemovePayload.generated.h"
 
 /**
+ * Payload for the command to remove a world state record via EventBus.
+ * Removal is performed by FactId (the string identifier of the world fact).
+ *
  * Payload для команды удаления записи о состоянии мира через EventBus.
  * Удаление выполняется по FactId (строковому идентификатору мирового факта).
  */
