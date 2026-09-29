@@ -6,6 +6,7 @@
 #include "ChoreDefinition.h"
 #include "ChorePayloads.generated.h"
 
+// Payload for a mission request to perform a chore as a step
 // Payload для запроса от миссии на выполнение хоры как шага
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UChoreMissionRequestPayload : public UOutcomePayload
@@ -32,6 +33,7 @@ public:
     }
 };
 
+// Payload for the result of a chore (including mission chores)
 // Payload для результата выполнения хоры (в том числе миссионной)
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UChoreResultPayload : public UOutcomePayload
@@ -62,6 +64,7 @@ public:
     }
 };
 
+// Payload for chore control commands (published via EventBus)
 // Payload для команд управления хорами (публикуется через EventBus)
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UChoreCommandPayload : public UOutcomePayload
@@ -71,9 +74,6 @@ class FPSKITALSREFACTORED_API UChoreCommandPayload : public UOutcomePayload
 public:
     UPROPERTY(BlueprintReadWrite, Category = "Chore")
     FName ChoreId;
-
-    //UPROPERTY(BlueprintReadWrite, Category = "Chore")
-    //bool bSuccess = false;
 
     UPROPERTY(BlueprintReadWrite, Category = "Chore")
     FChorePerformanceMetrics Performance;
@@ -89,7 +89,6 @@ public:
     UChoreCommandPayload* SetupComplete(FName InChoreId, const FChorePerformanceMetrics& InPerf)
     {
         ChoreId = InChoreId;
-        //bSuccess = InSuccess;
         Performance = InPerf;
         return this;
     }
@@ -121,6 +120,7 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Chore")
     FName ChoreId;
 
+    // If true – forcibly complete the task if it is active
     // Если true – принудительно завершить задание, если оно активно
     UPROPERTY(BlueprintReadWrite, Category = "Chore")
     bool bForceRemove = false;
@@ -151,6 +151,7 @@ public:
     }
 };
 
+// Payload for the advance command / stage change notification
 // Payload для команды advance/нотификации о смене стадии
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UChoreStagePayload : public UOutcomePayload
@@ -161,11 +162,14 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
     FName ChoreId;
 
+    // When sending: index of the new stage.
     // При отправке: индекс новой стадии.
+    // On notification: current index.
     // При нотификации: текущий индекс.
     UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
     int32 StageIndex = 0;
 
+    // Filled in by the manager on notification.
     // Заполняется менеджером при нотификации.
     UPROPERTY(BlueprintReadWrite, Category = "Chore|Stage")
     FName StageKey;
@@ -189,6 +193,7 @@ public:
     }
 };
 
+// Payload for reporting when a task is paused and unpaused
 // Payload для отчета о постановке задачи на паузу и о снятии с паузы
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UChorePauseReportPayload : public UOutcomePayload
@@ -207,6 +212,9 @@ public:
     }
 };
 
+// Payload for the chore reward grant signal.
+// Published after a successful chore completion (Succeeded),
+// when the manager asks owning subsystems to grant their portions.
 // Payload для сигнала о выдаче награды за хору.
 // Публикуется после успешного завершения хоры (Succeeded),
 // когда менеджер просит owning-подсистемы выдать свои порции.
@@ -219,10 +227,13 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Chore|Reward")
     FName ChoreId;
 
+    // Display name of the chore (for UI: "Reward for package delivery").
     // Отображаемое имя хоры (для UI: "Награда за доставку посылки").
     UPROPERTY(BlueprintReadWrite, Category = "Chore|Reward")
     FText ChoreDisplayName;
 
+    // The reward set itself. The same instance goes to all owning subsystems;
+    // each takes its own portion (Money, ItemIds, Experience).
     // Сам набор награды. Один и тот же экземпляр уходит во все owning-подсистемы;
     // каждая берёт свою часть (Money, ItemIds, Experience).
     UPROPERTY(BlueprintReadWrite, Category = "Chore|Reward")

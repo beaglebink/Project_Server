@@ -32,11 +32,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History")
     int32 Threshold = 1;
 
+    // ---- NEW: the metric is selected from a list ----
     // ---- НОВОЕ: метрика выбирается из списка ----
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History",
         meta = (EditCondition = "QueryType == EChoreHistoryQueryType::BestPerformance"))
     EChorePerformanceMetric Metric = EChorePerformanceMetric::CompletionTimeSeconds;
 
+    // ---- Legacy field (for migrating old assets). Hidden from the UI. ----
     // ---- Legacy-поле (для миграции старых ассетов). Скрыто из UI. ----
     UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Metric instead."))
     FName PerformanceMetricName_DEPRECATED;
@@ -44,17 +46,21 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "History")
     ECheckCompareOp CompareOp = ECheckCompareOp::GreaterOrEqual;
 
+    // Method to get the string description of the filter
     // Метод для получения строкового описания фильтра
     UFUNCTION(BlueprintCallable, Category = "ChoreHistory")
     FString GetFilterDescription() const;
 
+    // Override the compilation method
     // Переопределяем метод компиляции
     virtual void CompileCondition() override;
 
+    // Condition evaluation method (called from the compiled condition)
     // Метод проверки условия (вызывается из скомпилированного условия)
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 
 #if WITH_EDITOR
+    // Auto-migration of the old field to the new enum on asset load/change.
     // Автомиграция старого поля в новый enum при загрузке/изменении ассета.
     virtual void PostLoad() override;
     virtual void PostEditChangeProperty(FPropertyChangedEvent& Event) override;

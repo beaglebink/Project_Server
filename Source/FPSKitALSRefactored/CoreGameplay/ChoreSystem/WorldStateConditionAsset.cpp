@@ -6,6 +6,7 @@
 #include "Misc/DefaultValueHelper.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper access to the subsystem through world contexts.
 // Вспомогательный доступ к подсистеме через контексты мира.
 // ─────────────────────────────────────────────────────────────────────────────
 static UWorldStateSubsystem* GetWorldStateSubsystem()
@@ -32,6 +33,7 @@ static UWorldStateSubsystem* GetWorldStateSubsystem()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CompileCondition: we describe the condition for debugging/logs.
 // CompileCondition: описываем условие для отладки/логов.
 // ─────────────────────────────────────────────────────────────────────────────
 void UWorldStateConditionAsset::CompileCondition()
@@ -73,6 +75,9 @@ void UWorldStateConditionAsset::CompileCondition()
             case EWorldStateConditionType::FactAdded:
             case EWorldStateConditionType::FactChanged:
             case EWorldStateConditionType::FactRemoved:
+                // For event-driven types, bMatchByCategory determines
+                // whether we filter by FactId or by Category. The description
+                // reflects exactly what is actually checked.
                 // Для event-driven типов bMatchByCategory определяет,
                 // фильтруем ли мы по FactId или по Category. Описание
                 // отражает именно то, что реально проверяется.
@@ -99,6 +104,7 @@ void UWorldStateConditionAsset::CompileCondition()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Condition evaluation
 // Оценка условия
 // ─────────────────────────────────────────────────────────────────────────────
 bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome) const
@@ -111,6 +117,9 @@ bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outco
     {
         // ─────────────────────────────────────────────────────────────────────
         // State-driven
+        // For these types, bMatchByCategory does not apply:
+        //   - "any fact of such a Category" is covered by the separate CategoryExists type;
+        //   - ValueMatches always works with a specific FactId.
         // Для этих типов bMatchByCategory не применяется:
         //   - «любой факт такой Category» покрыт отдельным типом CategoryExists;
         //   - ValueMatches всегда работает с конкретным FactId.
@@ -119,6 +128,8 @@ bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outco
     case EWorldStateConditionType::FactExists:
     {
         if (FactId.IsNone()) return false;
+        // bIncludePendingRemoval = false → records marked for removal
+        // are considered already absent.
         // bIncludePendingRemoval = false → записи, помеченные на удаление,
         // считаются уже отсутствующими.
         return WorldState->HasWorldStateRecord(FactId, /*bIncludePendingRemoval=*/false);
@@ -139,6 +150,8 @@ bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outco
             WorldState->FindWorldStateRecord(FactId, /*bIncludePendingRemoval=*/false);
         if (!Record) return false;
 
+        // Values are stored as strings (the result of ExportText).
+        // For numeric comparisons, we cast both sides to double if possible.
         // Значения хранятся как строки (результат ExportText).
         // Для числовых сравнений приводим обе стороны к double, если возможно.
         const FString& Actual = Record->SerializedValue;
@@ -184,6 +197,7 @@ bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outco
 
     // ─────────────────────────────────────────────────────────────────────
     // Event-driven
+    // bMatchByCategory determines whether we filter by FactId or by Category.
     // bMatchByCategory определяет, фильтруем ли мы по FactId или по Category.
     // ─────────────────────────────────────────────────────────────────────
 
@@ -203,6 +217,7 @@ bool UWorldStateConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outco
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Event-driven matching
+// Event-driven сопоставление
 // ─────────────────────────────────────────────────────────────────────────────
 bool UWorldStateConditionAsset::MatchFactEvent(const FOutcomeEventBase& Outcome, EOutcomeWorldState ExpectedType) const
 {

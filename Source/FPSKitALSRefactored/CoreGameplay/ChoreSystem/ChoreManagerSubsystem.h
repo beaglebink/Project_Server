@@ -42,6 +42,7 @@ struct FChoreState
     UPROPERTY(BlueprintReadOnly)
     bool bRewardIssued = false;
 
+    // ---- Stages ----
     // ---- Стадии ----
     UPROPERTY(BlueprintReadOnly)
     int32 CurrentStageIndex = 0;
@@ -56,6 +57,7 @@ struct FChoreState
     bool IsExpired = true;
 
     // ---- Pause ----
+    // ---- Пауза ----
     UPROPERTY(BlueprintReadOnly)
     bool bIsPaused = false;
 
@@ -65,6 +67,7 @@ struct FChoreState
     UPROPERTY(BlueprintReadOnly)
     FTimespan AccumulatedPauseTime;
 
+    // Remaining deadline at the moment of pause. 0 = there was no deadline.
     // Остаток дедлайна на момент паузы. 0 = дедлайна не было.
     UPROPERTY(BlueprintReadOnly)
     FTimespan PausedDeadlineRemaining = FTimespan::Zero();
@@ -103,6 +106,7 @@ public:
     virtual FString GetSaveSubsystemName() const override { return TEXT("ChoreManager"); }
     virtual bool GetIsLoadComplete() const override { return bLoadComplete; }
 
+    // ---- Public methods for state queries only (do not change state) ----
     // ---- Публичные методы только для запросов состояния (не изменяют состояние) ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     EChoreStatus GetChoreStatus(FName ChoreId) const;
@@ -116,18 +120,22 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     FChoreState GetState(FName ChoreId) const;
 
+    // ---- Returns a list of identifiers of available chores ----
     // ---- Возвращает список идентификаторов доступных заданий ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetAvailableChoreIds() const;
 
+    // ---- Returns a list of identifiers of active chores ----
     // ---- Возвращает список идентификаторов активных заданий ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetActiveChoreIds() const;
 
+    // ---- Returns a list of identifiers of accepted chores ----
     // ---- Возвращает список идентификаторов принятых заданий ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetAcceptedChoreIds() const;
 
+    // ---- Returns a list of identifiers of all successfully completed chores ----
     // ---- Возвращает список идентификаторов всех успешно выполненных заданий ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetSucceededChoreIds() const;
@@ -138,6 +146,7 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetChoreIdsByDisplayName(const FText& DisplayName) const;
 
+    // ---- Execution time ----
     // ---- Время выполнения ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query|Time")
     float GetChoreElapsedTime(FName ChoreId) const;
@@ -151,20 +160,26 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Chore Manager|Time")
     void SetChoreStartTime(FName ChoreId, FDateTime InStartTime);
 
+    // ---- Extended history queries ----
     // ---- Расширенные запросы истории ----
 
+// Has the chore ever been successfully completed?
 // Было ли задание когда-либо успешно выполнено?
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     bool WasChoreEverCompleted(FName ChoreId) const;
 
+    // Last result of the chore (Default if there are no entries)
     // Последний результат задания (Default, если записей нет)
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     EOutcomeChore GetLastOutcome(FName ChoreId) const;
 
+    // Last recorded performance of the chore
     // Последняя зафиксированная производительность задания
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     FChorePerformanceMetrics GetLastPerformance(FName ChoreId) const;
 
+    // Universal counter: filter by (ChoreId | Family | Subtype) + optionally by Result.
+    // bRequireSpecificResult = false → counts all entries matching the filter (TotalAttempts).
     // Универсальный счётчик: фильтр по (ChoreId | Family | Subtype) + опционально по Result.
     // bRequireSpecificResult = false → считает все записи, попадающие под фильтр (TotalAttempts).
     int32 GetHistoryCountByResult(
@@ -176,45 +191,56 @@ public:
         EOutcomeChore RequiredResult,
         bool bRequireSpecificResult) const;
 
+    // How many times the chore/family/subtype was successfully completed
     // Сколько раз задание/семейство/подтип было успешно завершено
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetSuccessCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
         bool bUseFamily, bool bUseSubtype) const;
 
+    // How many times it failed (FailRequest)
     // Сколько раз провалено (FailRequest)
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetFailureCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
         bool bUseFamily, bool bUseSubtype) const;
 
+    // How many times it expired by timeout (ExpireRequest)
     // Сколько раз истекло по таймауту (ExpireRequest)
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetExpireCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
         bool bUseFamily, bool bUseSubtype) const;
 
+    // How many times it was abandoned by the player (AbandonRequest)
     // Сколько раз отменено игроком (AbandonRequest)
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetAbandonCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
         bool bUseFamily, bool bUseSubtype) const;
 
+    // Any failure = Fail + Expire + Abandon
     // Любая неудача = Fail + Expire + Abandon
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetAnyFailureCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
         bool bUseFamily, bool bUseSubtype) const;
 
+    // Total number of attempts (all results) — denominator for win-rate
     // Общее число попыток (все результаты) — знаменатель для win-rate
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetTotalAttempts(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype,
         bool bUseFamily, bool bUseSubtype) const;
 
+    // Best performance with an optional "successful only" filter.
+    // We leave the existing GetBestPerformance untouched so as not to break Condition Assets.
     // Лучшая производительность с опциональным фильтром «только успешные».
     // Существующий GetBestPerformance не трогаем, чтобы не ломать Condition Assets.
     float GetBestPerformanceFiltered(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, EChorePerformanceMetric Metric, bool bSucceededOnly) const;
 
+    // ---- Methods for history conditions (used from Condition Assets) ----
     // ---- Методы для условий истории (используются из Condition Assets) ----
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     int32 GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
+    // ---- Best performance for the selected metric ----
+    // The optimization direction is set by the enum itself (see IsLowerBetterForMetric).
     // ---- Лучшая производительность по выбранной метрике ----
     // Направление оптимизации задаётся самим enum (см. IsLowerBetterForMetric).
     float GetBestPerformance(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, EChorePerformanceMetric Metric) const;
@@ -237,22 +263,32 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
     bool IsChoreMultiStage(FName ChoreId) const;
 
+    // Returns the authored stage definition (nullptr if the stage does not exist).
     // Возвращает authored-определение стадии (nullptr, если стадии нет).
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
     bool GetChoreStageDefinition(FName ChoreId, int32 StageIndex, FChoreStageDefinition& OutStage) const;
 
+    // Returns the definition of the current chore stage.
     // Возвращает определение текущей стадии хоры.
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
     bool GetChoreCurrentStageDefinition(FName ChoreId, FChoreStageDefinition& OutStage) const;
 
+    // ---- Rewards ----
     // ---- Награды ----
 
+    // Has the reward for the chore already been sent to subsystems?
+    // false — if the chore has not yet been successfully completed, was abandoned,
+    // or finished unsuccessfully.
     // Была ли награда за хору уже отправлена подсистемам?
     // false — если хора ещё не завершалась успешно, была отменена
     // или завершилась неудачно.
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Reward")
     bool WasRewardIssued(FName ChoreId) const;
 
+    // Manual request to issue the reward. Idempotent: if the reward has already
+    // been sent or the chore is not in the Succeeded status — does nothing.
+    // Used by UI/dialogs when a "grant reward by button" action is needed
+    // after the chore has already been completed.
     // Ручной запрос на выдачу награды. Идемпотентен: если награда уже
     // была отправлена или хора не в статусе Succeeded — ничего не делает.
     // Используется UI/диалогами, когда нужно «выдать награду по кнопке»
@@ -260,8 +296,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Chore Manager|Reward")
     void RequestRewardIssue(FName ChoreId);
 
+    // ---- Rewards ----
     // ---- Награды ----
 
+    // Returns the set of rewards for the chore if the author allowed showing
+    // it in advance (bShowRewardBeforeAccept == true).
+    //
+    // If the flag is false — returns false and OutRewards remains empty.
+    // In that case the player learns about the reward only at the moment of actual
+    // granting, via the ChoreRewardGranted event (UChoreRewardPayload).
     // Возвращает набор наград за хору, если автор разрешил показывать
     // его заранее (bShowRewardBeforeAccept == true).
     //
@@ -271,10 +314,12 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Reward")
     bool GetChoreRewards(FName ChoreId, FChoreRewardSet& OutRewards) const;
 
+    // Helper: is advance reward display allowed for this chore.
     // Хелпер: разрешён ли предварительный показ наград у этой хоры.
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Reward")
     bool CanShowRewardsBeforeAccept(FName ChoreId) const;
 
+    // ---- Definition registration (called internally) ----
     // ---- Регистрация определений (вызывается внутри) ----
     void RegisterChoreDefinition(UChoreDefinition* Definition);
 
@@ -282,6 +327,7 @@ protected:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
+    // ---- Internal management methods (not public) ----
     // ---- Внутренние методы управления (не публичные) ----
     void OfferChore(FName ChoreId);
     void AcceptChore(FName ChoreId);
@@ -296,6 +342,7 @@ protected:
     void RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex);
     void ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId = NAME_None);
 
+    // ---- Helper methods ----
     // ---- Вспомогательные методы ----
     void LoadAllDefinitions();
     void RegisterAvailabilityHandler(UChoreDefinition* Definition);
@@ -309,13 +356,19 @@ protected:
     void RegisterReactivationHandler(UChoreDefinition* Definition);
     void UnregisterReactivationHandler(FName ChoreId);
 
+    // Accepts an advance from the mini-game. Returns true if the state changed.
     // Принимает advance от миниигры. Возвращает true, если состояние изменено.
     void AdvanceChoreStage(FName ChoreId, int32 NewStageIndex, bool IsStart, FName NewStageKey);
 
+    // Resets the "attempt progress" (stages, pauses, metrics, time).
+    // Does not touch status, AttemptCount, AcceptTime, bRewardIssued.
     // Сбрасывает «прогресс попытки» (стадии, паузы, метрики, время).
     // Не трогает статус, AttemptCount, AcceptTime, bRewardIssued.
     void ResetAttemptState(FChoreState& State);
 
+    // Full attempt restart procedure: stops the deadline timer and
+    // resets progress. Does not change status and does not publish events —
+    // the external signal is the RetryRequest itself, from which we are called.
     // Полная процедура рестарта попытки: гасит таймер дедлайна и
     // сбрасывает прогресс. Не меняет статус и не публикует события —
     // сигналом наружу служит сам RetryRequest, из которого мы вызваны.
@@ -325,6 +378,7 @@ protected:
     void ResumeChore(FName ChoreId);
 
 private:
+    // ---- Command handlers (subscribed to EventBus) ----
     // ---- Обработчики команд (подписаны на EventBus) ----
     void HandleAcceptRequest(const FOutcomeEventBase& Outcome);
     void HandleStartRequest(const FOutcomeEventBase& Outcome);
@@ -334,9 +388,15 @@ private:
     void HandleAbandonRequest(const FOutcomeEventBase& Outcome);
     void HandleRetryRequest(const FOutcomeEventBase& Outcome);
     void HandleUnlockRequest(const FOutcomeEventBase& Outcome);
-    void HandleEvent(const FOutcomeEventBase& Outcome);          // для глобальных условий доступности
-    void HandleMissionRequest(const FOutcomeEventBase& Outcome); // для ChoreMissionRequest
-    void HandleChoreCompletion(const FOutcomeEventBase& Outcome); // для завершения обычных хор
+    // for global availability conditions
+    // для глобальных условий доступности
+    void HandleEvent(const FOutcomeEventBase& Outcome);
+    // for ChoreMissionRequest
+    // для ChoreMissionRequest
+    void HandleMissionRequest(const FOutcomeEventBase& Outcome);
+    // for completion of regular chores
+    // для завершения обычных хор
+    void HandleChoreCompletion(const FOutcomeEventBase& Outcome);
     void HandleRegisterChoreRequest(const FOutcomeEventBase& Outcome);
     void HandleUnregisterChoreRequest(const FOutcomeEventBase& Outcome);
     void HandleReacceptRequest(const FOutcomeEventBase& Outcome);
@@ -355,19 +415,24 @@ private:
     UPROPERTY()
     TObjectPtr<UOutcomeConditionAsset> ResumeRequestCondition;
 
+    // ---- Helper functions for creating conditions ----
     // ---- Вспомогательные функции для создания условий ----
     UOutcomeConditionAsset* CreateSimpleChoreCondition(EOutcomeChore ChoreType);
     UOutcomeConditionAsset* CreateSimpleMissionCondition(EOutcomeMission MissionType);
 
+    // Fills State.Performance.CompletionTimeSeconds if it is not yet set
     // Заполняет State.Performance.CompletionTimeSeconds, если оно ещё не задано
     void EnsureElapsedTimeRecorded(FChoreState& State) const;
 
+    // Extracts the metric value from a history entry.
     // Извлекает значение метрики из записи истории.
     static float ExtractMetricValue(const FChorePerformanceMetrics& Perf, EChorePerformanceMetric Metric);
 
+    // true for metrics where "better" = smaller (time, mistakes).
     // true для метрик, где «лучше» = меньше (время, ошибки).
     static bool IsLowerBetterForMetric(EChorePerformanceMetric Metric);
 
+    // ---- State ----
     // ---- Состояние ----
     UPROPERTY()
     TMap<FName, FChoreState> ActiveStates;
@@ -384,10 +449,11 @@ private:
     FTimerManager* TimerManager = nullptr;
     TMap<FName, FTimerHandle> DeadlineTimers;
 
+    // ---- Event subscription handles ----
     // ---- Хендлы подписок на события ----
-    FOutcomeHandlerHandle GlobalEventHandler;           
-    FOutcomeHandlerHandle ChoreCompletionHandler;       
-    FOutcomeHandlerHandle MissionRequestHandler;       
+    FOutcomeHandlerHandle GlobalEventHandler;
+    FOutcomeHandlerHandle ChoreCompletionHandler;
+    FOutcomeHandlerHandle MissionRequestHandler;
 
     FOutcomeHandlerHandle AcceptRequestHandler;
     FOutcomeHandlerHandle StartRequestHandler;
@@ -401,6 +467,7 @@ private:
     FOutcomeHandlerHandle UnregisterChoreRequestHandler;
     FOutcomeHandlerHandle ReacceptRequestHandler;
 
+    // ---- Conditions for subscriptions ----
     // ---- Условия для подписок ----
     UPROPERTY()
     TObjectPtr<UOutcomeConditionAsset> GlobalEventCondition;

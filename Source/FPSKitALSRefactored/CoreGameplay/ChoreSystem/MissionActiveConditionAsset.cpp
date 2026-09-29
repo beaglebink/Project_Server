@@ -26,6 +26,7 @@ void UMissionActiveConditionAsset::CompileCondition()
 
         virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
         {
+            // We ignore the event – we check the current state on each call
             // Игнорируем событие – проверяем текущее состояние при каждом вызове
             return Asset ? Asset->EvaluateCondition(Outcome) : false;
         }
@@ -54,6 +55,7 @@ bool UMissionActiveConditionAsset::EvaluateCondition(const FOutcomeEventBase& Ou
     if (MissionId.IsNone())
         return false;
 
+    // Get the MissionSubsystem
     // Получаем MissionSubsystem
     UMissionSubsystem* MissionSub = nullptr;
     if (GEngine)
@@ -76,6 +78,7 @@ bool UMissionActiveConditionAsset::EvaluateCondition(const FOutcomeEventBase& Ou
     if (!MissionSub)
         return false;
 
+    // Check mission activity
     // Проверяем активность миссии
     bool bIsActive = MissionSub->IsMissionActive(MissionId);
     return bIsActive == ExpectedActive;

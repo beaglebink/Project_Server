@@ -3,6 +3,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
+// ---- Migration utility (used in PostLoad/PostEditChangeProperty) ----
 // ---- Утилита миграции (используется в PostLoad/PostEditChangeProperty) ----
 static EChorePerformanceMetric MetricFromLegacyName(const FName& LegacyName)
 {
@@ -10,6 +11,7 @@ static EChorePerformanceMetric MetricFromLegacyName(const FName& LegacyName)
     if (LegacyName == TEXT("Accuracy"))              return EChorePerformanceMetric::Accuracy;
     if (LegacyName == TEXT("Quantity"))              return EChorePerformanceMetric::Quantity;
     if (LegacyName == TEXT("CompletionTimeSeconds")) return EChorePerformanceMetric::CompletionTimeSeconds;
+    // By default — the most "natural" metric for chore history.
     // По умолчанию — самая «естественная» метрика для истории хор.
     return EChorePerformanceMetric::CompletionTimeSeconds;
 }
@@ -80,6 +82,7 @@ FString UChoreHistoryConditionAsset::GetFilterDescription() const
 
 bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome) const
 {
+    // Check that a filter is present
     // Проверка наличия фильтра
     if (ChoreId.IsNone() && !bUseFamily && !bUseSubtype)
     {
@@ -123,6 +126,7 @@ bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Out
         break;
     case EChoreHistoryQueryType::BestPerformance:
     {
+        // ---- NEW: we pass an enum instead of a string ----
         // ---- НОВОЕ: передаём enum вместо строки ----
         float Best = ChoreManager->GetBestPerformance(ChoreId, Family, Subtype, bUseFamily, bUseSubtype, Metric);
         ActualValue = FMath::RoundToInt(Best);
@@ -150,17 +154,21 @@ bool UChoreHistoryConditionAsset::EvaluateCondition(const FOutcomeEventBase& Out
     }
 }
 
+// ---- Migration of the old FName field to the new enum ----
 // ---- Миграция старого FName-поля в новый enum ----
 #if WITH_EDITOR
 void UChoreHistoryConditionAsset::PostLoad()
 {
     Super::PostLoad();
 
+    // If the old field is set — move the value into Metric and clear the legacy one.
     // Если старое поле задано — переносим значение в Metric и очищаем legacy.
     if (!PerformanceMetricName_DEPRECATED.IsNone())
     {
         Metric = MetricFromLegacyName(PerformanceMetricName_DEPRECATED);
         PerformanceMetricName_DEPRECATED = NAME_None;
+        // Mark the package as dirty so that on the next asset save
+        // the value goes into Metric.
         // Помечаем пакет как изменённый, чтобы при следующем сохранении ассета
         // значение ушло в Metric.
         MarkPackageDirty();
@@ -171,6 +179,7 @@ void UChoreHistoryConditionAsset::PostEditChangeProperty(FPropertyChangedEvent& 
 {
     Super::PostEditChangeProperty(Event);
 
+    // In case the legacy field somehow appears in the editor — migrate it too.
     // На случай, если legacy-поле откуда-то появилось в редакторе — тоже мигрируем.
     if (!PerformanceMetricName_DEPRECATED.IsNone())
     {

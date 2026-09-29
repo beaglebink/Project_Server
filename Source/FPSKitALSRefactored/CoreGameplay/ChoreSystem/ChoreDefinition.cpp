@@ -1,4 +1,4 @@
-#include "ChoreDefinition.h"
+п»ї#include "ChoreDefinition.h"
 
 void UChoreDefinition::UpdateDeadlineFromMinutesSeconds()
 {
@@ -10,7 +10,8 @@ void UChoreDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);
 
-    // Если изменились минуты или секунды – пересчитываем дедлайн
+    // If minutes or seconds changed вЂ“ recalculate the deadline
+    // Р•СЃР»Рё РёР·РјРµРЅРёР»РёСЃСЊ РјРёРЅСѓС‚С‹ РёР»Рё СЃРµРєСѓРЅРґС‹ вЂ“ РїРµСЂРµСЃС‡РёС‚С‹РІР°РµРј РґРµРґР»Р°Р№РЅ
     if (PropertyChangedEvent.Property)
     {
         const FName PropName = PropertyChangedEvent.Property->GetFName();
@@ -27,7 +28,9 @@ void UChoreDefinition::PostLoad()
 {
     Super::PostLoad();
 
-    // При загрузке всегда пересчитываем Deadline из минут и секунд,
-    // чтобы гарантировать актуальность, даже если данные были изменены вне редактора.
+    // On load, always recalculate Deadline from minutes and seconds
+    // to guarantee it is up to date, even if the data was changed outside the editor.
+    // РџСЂРё Р·Р°РіСЂСѓР·РєРµ РІСЃРµРіРґР° РїРµСЂРµСЃС‡РёС‚С‹РІР°РµРј Deadline РёР· РјРёРЅСѓС‚ Рё СЃРµРєСѓРЅРґ,
+    // С‡С‚РѕР±С‹ РіР°СЂР°РЅС‚РёСЂРѕРІР°С‚СЊ Р°РєС‚СѓР°Р»СЊРЅРѕСЃС‚СЊ, РґР°Р¶Рµ РµСЃР»Рё РґР°РЅРЅС‹Рµ Р±С‹Р»Рё РёР·РјРµРЅРµРЅС‹ РІРЅРµ СЂРµРґР°РєС‚РѕСЂР°.
     UpdateDeadlineFromMinutesSeconds();
 }

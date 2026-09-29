@@ -1,5 +1,4 @@
-﻿// MissionConditionAsset.cpp
-#include "MissionConditionAsset.h"
+﻿#include "MissionConditionAsset.h"
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "MissionEnvelopePayload.h"
 #include "MissionProgressPayload.h"
@@ -56,6 +55,8 @@ void UMissionConditionAsset::CompileCondition()
             if (Outcome.OutcomeType != EOutcomeType::Mission)
                 return false;
 
+            // For StepReached we do not filter by subtype, so that we check on any Mission event.
+            // For the rest — we filter by subtype.
             // Для StepReached не фильтруем по подтипу, чтобы проверять при любом событии Mission.
             // Для остальных — фильтруем по подтипу.
             switch (Asset->ConditionType)
@@ -67,6 +68,7 @@ void UMissionConditionAsset::CompileCondition()
                     return false;
                 break;
             case EMissionConditionType::StepReached:
+                // We pass through any Mission events
                 // Пропускаем любые Mission-события
                 break;
             default:
@@ -112,6 +114,7 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
     if (ExpectedId.IsNone())
         return false;
 
+    // For mission completion (Completed, Failed, Abandoned)
     // Для завершения миссии (Completed, Failed, Abandoned)
     if (ConditionType == EMissionConditionType::IsCompleted ||
         ConditionType == EMissionConditionType::IsFailed ||
@@ -137,6 +140,7 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
         return Payload->EndReason == requiredReason;
     }
 
+    // For step check (StepReached)
     // Для проверки шага (StepReached)
     if (ConditionType == EMissionConditionType::StepReached)
     {

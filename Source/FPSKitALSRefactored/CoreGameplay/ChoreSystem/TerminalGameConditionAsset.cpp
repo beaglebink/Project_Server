@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Accessing the subsystem through world contexts.
 // Доступ к подсистеме через контексты мира.
 // ─────────────────────────────────────────────────────────────────────────────
 static UTerminalSubsystem* GetTerminalSubsystem()
@@ -32,6 +33,7 @@ static UTerminalSubsystem* GetTerminalSubsystem()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CompileCondition — description for logs / editor.
 // CompileCondition — описание для логов / редактора.
 // ─────────────────────────────────────────────────────────────────────────────
 void UTerminalGameConditionAsset::CompileCondition()
@@ -43,6 +45,8 @@ void UTerminalGameConditionAsset::CompileCondition()
 
         virtual bool Evaluate(const FOutcomeEventBase& Outcome) const override
         {
+            // The condition is purely state-driven and does not depend on a specific Outcome,
+            // but the call comes with any event — we simply ignore its parameters.
             // Условие чисто state-driven и не зависит от конкретного Outcome,
             // но вызов приходит с любым событием — просто игнорируем его параметры.
             return Asset ? Asset->EvaluateCondition(Outcome) : false;
@@ -106,6 +110,7 @@ void UTerminalGameConditionAsset::CompileCondition()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Filters and state evaluation
 // Фильтры и state-evaluation
 // ─────────────────────────────────────────────────────────────────────────────
 bool UTerminalGameConditionAsset::PassesCommonFilters(const FTerminalActivityRecord& Record) const
@@ -130,10 +135,12 @@ bool UTerminalGameConditionAsset::EvaluateRecordState(const FTerminalActivityRec
     switch (QueryType)
     {
     case ETerminalGameQueryType::HasGameRecord:
+        // Any record other than "NotStarted" is considered existing.
         // Любая запись, кроме "NotStarted", считается существующей.
         return Record.Status != ETerminalRecordStatus::NotStarted || Record.Status != ETerminalRecordStatus::InProgress;
 
     case ETerminalGameQueryType::ReachedStatus:
+        // Protection against garbage values coming from code/save.
         // Защита от мусорных значений, прилетевших из кода/сейва.
         if (Status == ETerminalRecordStatus::NotStarted ||
             Status == ETerminalRecordStatus::InProgress)
@@ -146,7 +153,7 @@ bool UTerminalGameConditionAsset::EvaluateRecordState(const FTerminalActivityRec
 
         for (const FTerminalStageProgress& S : Record.Stages)
         {
-            if(StageResult == ETerminalStageResult::None || StageResult == ETerminalStageResult::Skipped)
+            if (StageResult == ETerminalStageResult::None || StageResult == ETerminalStageResult::Skipped)
                 return false;
             if (S.StageId == StageId && S.Result == StageResult)
                 return true;
@@ -192,6 +199,7 @@ TArray<FTerminalActivityRecord> UTerminalGameConditionAsset::CollectCandidateRec
     UTerminalSubsystem* Terminal = GetTerminalSubsystem();
     if (!Terminal) return Result;
 
+    // Collect as broadly as possible, then filter through PassesCommonFilters.
     // Собираем максимально широко, затем фильтруем PassesCommonFilters.
     if (bUseTerminalFilter && !ActivityId.IsEmpty())
     {
@@ -220,6 +228,10 @@ TArray<FTerminalActivityRecord> UTerminalGameConditionAsset::CollectCandidateRec
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Main evaluator
+//
+// The condition is purely state-driven: Outcome is not used. The parameter is
+// kept for compatibility with IOutcomeCondition::Evaluate but is ignored.
 // Главный evaluator
 //
 // Условие чисто state-driven: Outcome не используется. Параметр оставлен для

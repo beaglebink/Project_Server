@@ -20,6 +20,7 @@ UENUM(BlueprintType)
 enum class EChoreSubtype : uint8
 {
     Default            UMETA(DisplayName = "Default"),
+    // You can add your own subtypes as needed
     // Можно добавлять свои подтипы по мере необходимости
 };
 
@@ -69,12 +70,15 @@ enum class EChorePerformanceMetric : uint8
 UENUM(BlueprintType)
 enum class EChoreAbandonBehavior : uint8
 {
+    // Fail (current behavior).
     // Провалить (текущее поведение).
     Fail               UMETA(DisplayName = "Fail"),
 
+    // Return to Available: the task becomes available for acceptance again.
     // Вернуть в Available: задание снова доступно для принятия.
     ReturnToAvailable  UMETA(DisplayName = "Return to Available"),
 
+    // Roll back to Accepted: the attempt is interrupted, but the task remains accepted.
     // Откатить в Accepted: попытка прервана, но задание остаётся принятым.
     ReturnToAccepted   UMETA(DisplayName = "Return to Accepted")
 };

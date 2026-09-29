@@ -1,5 +1,4 @@
-﻿// MissionConditionAsset.h
-#pragma once
+﻿#pragma once
 #include "CoreMinimal.h"
 #include "OutcomeConditionAsset.h"
 #include "ChoreEnums.h"

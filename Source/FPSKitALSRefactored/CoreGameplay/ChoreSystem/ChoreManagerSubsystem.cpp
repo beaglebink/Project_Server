@@ -14,6 +14,9 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
+    // Force initialization of the save system BEFORE us.
+    // Without this, GetSubsystem<UGameSaveSubsystem>() may return nullptr,
+    // and the Saveable subsystem registration will silently fail.
     // Форсируем инициализацию системы сохранения ДО нас.
     // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
     // и регистрация Saveable-подсистемы молча не сработает.
@@ -21,9 +24,11 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     TimerManager = &GetWorld()->GetTimerManager();
 
+    // Load all chore definitions
     // Загружаем все определения хор
     LoadAllDefinitions();
 
+    // ---- Creating conditions for subscriptions ----
     // ---- Создание условий для подписок ----
     GlobalEventCondition = NewObject<UOutcomeConditionAsset>(this);
     GlobalEventCondition->OperatorType = EConditionOperator::Composite;
@@ -38,6 +43,7 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     ChoreCompletionCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
     ChoreCompletionCondition->CompileCondition();
 
+    // ---- Command events ----
     // ---- Командные события ----
     AcceptRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::AcceptRequest);
     StartRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::StartRequest);
@@ -55,6 +61,7 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     PauseRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::PauseRequest);
     ResumeRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ResumeRequest);
 
+    // ---- Registering handlers in EventBus ----
     // ---- Регистрация обработчиков в EventBus ----
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
@@ -98,6 +105,7 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleResumeRequest));
     }
 
+    // ---- Registering with the save system ----
     // ---- Регистрация в системе сохранения ----
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
     {
@@ -109,6 +117,7 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UChoreManagerSubsystem::Deinitialize()
 {
+    // Unsubscribe from EventBus
     // Отписка от EventBus
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
@@ -133,12 +142,14 @@ void UChoreManagerSubsystem::Deinitialize()
         Unreg(ResumeRequestHandler);
     }
 
+    // Unsubscribe availability handlers
     // Отписка обработчиков доступности
     for (auto& Pair : ActiveStates)
     {
         UnregisterReactivationHandler(Pair.Key);
         UnregisterAvailabilityHandler(Pair.Key);
     }
+    // Clear timers
     // Очистка таймеров
     if (TimerManager)
     {
@@ -149,6 +160,7 @@ void UChoreManagerSubsystem::Deinitialize()
         DeadlineTimers.Empty();
     }
 
+    // Unsubscribe from saving
     // Отписка от сохранения
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
     {
@@ -162,6 +174,7 @@ void UChoreManagerSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
+// ---- Loading definitions ----
 // ---- Загрузка определений ----
 void UChoreManagerSubsystem::LoadAllDefinitions()
 {
@@ -199,9 +212,11 @@ bool UChoreManagerSubsystem::GetChoreRewards(FName ChoreId, FChoreRewardSet& Out
     const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (!Def) return false;
 
+    // The author forbade showing the reward in advance — do not disclose it at all.
     // Автор запретил показывать награду заранее — не раскрываем её вообще.
     if (!Def->bShowRewardBeforeAccept) return false;
 
+    // The chore has no rewards — nothing to return.
     // У хоры нет наград — возвращать нечего.
     const bool bHasAnyReward =
         Def->Rewards.Money != 0 ||
@@ -256,6 +271,7 @@ void UChoreManagerSubsystem::RegisterAvailabilityHandler(UChoreDefinition* Defin
 
     FName ChoreId = Definition->GetChoreId();
 
+    // If a handler is already registered for this task — exit
     // Если для этого задания уже зарегистрирован обработчик — выходим
     if (ActiveStates.Contains(ChoreId) && ActiveStates[ChoreId].AvailabilityHandler.IsValid())
         return;
@@ -264,24 +280,26 @@ void UChoreManagerSubsystem::RegisterAvailabilityHandler(UChoreDefinition* Defin
     if (!EventBus)
         return;
 
+    // Compile the availability condition
     // Компилируем условие доступности
     Definition->AvailabilityCondition->CompileCondition();
     if (!Definition->AvailabilityCondition->GetCondition().IsValid())
         return;
 
+    // Register a handler on the EventBus
     // Регистрируем обработчик на EventBus
     FOutcomeHandlerHandle Handle = EventBus->RegisterHandler(
-    Definition->AvailabilityCondition,
-    FOutcomeHandlerDelegate::CreateLambda([this, ChoreId](const FOutcomeEventBase&)
-        {
-            if (FChoreState* State = ActiveStates.Find(ChoreId))
+        Definition->AvailabilityCondition,
+        FOutcomeHandlerDelegate::CreateLambda([this, ChoreId](const FOutcomeEventBase&)
             {
-                if (State->Status == EChoreStatus::Unavailable)
+                if (FChoreState* State = ActiveStates.Find(ChoreId))
                 {
-                    UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+                    if (State->Status == EChoreStatus::Unavailable)
+                    {
+                        UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+                    }
                 }
-            }
-        })
+            })
     );
 
     if (Handle.IsValid())
@@ -301,15 +319,17 @@ void UChoreManagerSubsystem::UnregisterAvailabilityHandler(FName ChoreId)
     Handle.Invalidate();
 }
 
+// ---- State management ----
 // ---- Управление состоянием ----
 void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewStatus, bool bPublishEvent, bool bReactivated)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
-    if(State.Status == NewStatus) return;
+    if (State.Status == NewStatus) return;
 
     State.Status = NewStatus;
 
+    // Publish an event to EventBus (if required)
     // Публикация события в EventBus (если требуется)
     if (bPublishEvent)
     {
@@ -398,9 +418,11 @@ void UChoreManagerSubsystem::GrantRewards(FName ChoreId)
     FChoreState* State = ActiveStates.Find(ChoreId);
     if (!State) return;
 
+    // Already granted — do not grant a second time.
     // Уже выдана — второй раз не выдаём.
     if (State->bRewardIssued) return;
 
+    // Only grant the reward for a successfully completed chore.
     // Награду выдаём только за успешно завершённую хору.
     if (State->Status != EChoreStatus::Succeeded) return;
 
@@ -421,6 +443,8 @@ void UChoreManagerSubsystem::GrantRewards(FName ChoreId)
     Event.Payload = Payload;
     EventBus->PublishOutcome(Event);
 
+    // Mark immediately — subsystems must be idempotent,
+    // and a repeated call from our side will no longer pass this check.
     // Помечаем сразу — подсистемы обязаны быть идемпотентны,
     // а повторный вызов с нашей стороны уже не пройдёт эту проверку.
     State->bRewardIssued = true;
@@ -450,12 +474,14 @@ void UChoreManagerSubsystem::AddHistoryEntry(FName ChoreId, EOutcomeChore Result
     }
 }
 
+// ---- Public management methods (called only from handlers) ----
 // ---- Публичные методы управления (вызываются только из обработчиков) ----
 void UChoreManagerSubsystem::OfferChore(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
 
+    // The task is already accepted or being executed — do not touch it
     // Задание уже принято или выполняется – не трогаем
     if (State.Status == EChoreStatus::Accepted || State.Status == EChoreStatus::Active)
         return;
@@ -490,6 +516,7 @@ void UChoreManagerSubsystem::AcceptChore(FName ChoreId)
 
     if (NewStatus == EChoreStatus::Active)
     {
+        // ---- record the actual start of execution ----
         // ---- фиксируем фактический старт выполнения ----
         State.StartTime = FDateTime::UtcNow();
 
@@ -508,13 +535,16 @@ void UChoreManagerSubsystem::StartChore(FName ChoreId)
     if (State.Status != EChoreStatus::Accepted && State.Status != EChoreStatus::WaitingToStart)
         return;
 
+    // ---- record the start moment ----
     // ---- фиксируем момент старта ----
     State.StartTime = FDateTime::UtcNow();
 
+    // Recompute the deadline from the current moment (start of execution)
     // Пересчитываем дедлайн от текущего момента (начала выполнения)
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (Def)
     {
+        // If a deadline is set (non-zero), recompute from the current time
         // Если дедлайн задан (не нулевой), пересчитываем от текущего времени
         if (Def->Deadline != FTimespan::Zero())
         {
@@ -522,7 +552,7 @@ void UChoreManagerSubsystem::StartChore(FName ChoreId)
         }
         else
         {
-            State.Deadline = FDateTime::MinValue(); // без дедлайна
+            State.Deadline = FDateTime::MinValue(); // no deadline // без дедлайна
         }
     }
 
@@ -540,6 +570,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, const FChorePerformanc
     ClearDeadlineTimer(ChoreId);
 
     FChorePerformanceMetrics FinalPerformance = Performance;
+    // If the time did not come from the payload — record the actual one.
     // Если время не пришло из payload — фиксируем фактическое.
     if (FinalPerformance.CompletionTimeSeconds <= 0.0f &&
         State.StartTime != FDateTime::MinValue())
@@ -639,6 +670,7 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
 
+    // Only an accepted / waiting-to-start / active task can be abandoned.
     // Отменять можно только принятое / ожидающее старта / активное задание.
     if (State.Status != EChoreStatus::Accepted && State.Status != EChoreStatus::WaitingToStart && State.Status != EChoreStatus::Active)
     {
@@ -648,6 +680,7 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     const EChoreAbandonBehavior Behavior = Def ? Def->AbandonBehavior : EChoreAbandonBehavior::Fail;
 
+    // ---- Fail (previous behavior) ----
     // ---- Fail (прежнее поведение) ----
     ClearDeadlineTimer(ChoreId);
     EnsureElapsedTimeRecorded(State);
@@ -674,7 +707,7 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
         }
     }
 
-	// ---- ReturnToAvailable ----
+    // ---- ReturnToAvailable ----
     if (GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAccepted ||
         GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAvailable)
     {
@@ -697,6 +730,7 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
 
     State->IsExpired = false;
 
+    // ---- Scenario 1: regular retry after a failure with RequireReaccept ----
     // ---- Сценарий 1: обычный retry после провала с RequireReaccept ----
     if (State->Status == EChoreStatus::PendingReaccept)
     {
@@ -706,6 +740,9 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
         return;
     }
 
+    // ---- Scenario 2: Abandon returned the chore to its original state ----
+    // AbandonChore for ReturnToAccepted/ReturnToAvailable publishes RetryRequest,
+    // and we end up here while the status is one of "before start"/"in progress".
     // ---- Сценарий 2: Abandon вернул хору в исходное состояние ----
     // AbandonChore для ReturnToAccepted/ReturnToAvailable публикует RetryRequest,
     // и мы попадаем сюда, пока статус — один из «до старта»/«в процессе».
@@ -730,6 +767,7 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
         return;
     }
 
+    // Any other statuses — not our scenario.
     // Любые другие статусы — не наш сценарий.
 }
 
@@ -745,15 +783,17 @@ void UChoreManagerSubsystem::RevokeChore(FName ChoreId)
 
     State.IsExpired = false;
 
+    // Revoke only if the task has not yet been accepted
     // Отзываем только если задание ещё не принято
     if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
     {
-        UnregisterAvailabilityHandler(ChoreId); // отписываемся от обработчика, если есть
-        UpdateChoreState(ChoreId, EChoreStatus::Unavailable); // переводим в недоступное
+        UnregisterAvailabilityHandler(ChoreId); // unsubscribe from the handler, if any // отписываемся от обработчика, если есть
+        UpdateChoreState(ChoreId, EChoreStatus::Unavailable); // move to unavailable // переводим в недоступное
         UE_LOG(LogTemp, Log, TEXT("ChoreManager: Revoked chore '%s' (condition no longer met)"), *ChoreId.ToString());
     }
 }
 
+// ---- For missions ----
 // ---- Для миссий ----
 void UChoreManagerSubsystem::RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex)
 {
@@ -805,6 +845,7 @@ void UChoreManagerSubsystem::ReportMissionChoreResult(FName ChoreId, bool bSucce
     }
 }
 
+// ---- State queries (public) ----
 // ---- Запросы состояния (публичные) ----
 EChoreStatus UChoreManagerSubsystem::GetChoreStatus(FName ChoreId) const
 {
@@ -895,6 +936,7 @@ TArray<FName> UChoreManagerSubsystem::GetChoreIdsByDisplayName(const FText& Disp
     return Result;
 }
 
+// ---- Execution time ----
 // ---- Время выполнения ----
 float UChoreManagerSubsystem::GetChoreElapsedTime(FName ChoreId) const
 {
@@ -905,9 +947,11 @@ float UChoreManagerSubsystem::GetChoreElapsedTime(FName ChoreId) const
     {
         FTimespan Elapsed = FDateTime::UtcNow() - State.StartTime;
 
+        // Subtract the accumulated pause…
         // Вычитаем накопленную паузу…
         Elapsed -= State.AccumulatedPauseTime;
 
+        // …and the current unfinished pause, if paused right now.
         // …и текущую незавершённую паузу, если прямо сейчас на паузе.
         if (State.bIsPaused && State.PauseStartTime != FDateTime::MinValue())
         {
@@ -936,9 +980,11 @@ void UChoreManagerSubsystem::SetChoreElapsedTime(FName ChoreId, float ElapsedSec
 
     if (ElapsedSeconds < 0.0f) ElapsedSeconds = 0.0f;
 
+    // Shift StartTime so that GetChoreElapsedTime() returns the desired value.
     // Сдвигаем StartTime так, чтобы GetChoreElapsedTime() вернул нужное значение.
     State.StartTime = FDateTime::UtcNow() - FTimespan::FromSeconds(ElapsedSeconds);
 
+    // If the chore is already completed — write directly into the metrics.
     // Если хора уже завершена — пишем в метрики напрямую.
     if (State.Status != EChoreStatus::Active)
     {
@@ -1009,7 +1055,9 @@ TArray<FName> UChoreManagerSubsystem::GetSucceededChoreIds() const
     return Result;
 }
 
+// ---- Methods for history conditions ----
 // ---- Методы для условий истории ----
+// ---- Extended history queries ----
 // ---- Расширенные запросы истории ----
 
 bool UChoreManagerSubsystem::WasChoreEverCompleted(FName ChoreId) const
@@ -1054,6 +1102,7 @@ int32 UChoreManagerSubsystem::GetHistoryCountByResult(
     EOutcomeChore RequiredResult,
     bool bRequireSpecificResult) const
 {
+    // No filters — nothing to count.
     // Никаких фильтров — нечего считать.
     if (ChoreId.IsNone() && !bUseFamily && !bUseSubtype)
         return 0;
@@ -1150,6 +1199,7 @@ float UChoreManagerSubsystem::GetBestPerformanceFiltered(FName ChoreId, EChoreFa
 
 int32 UChoreManagerSubsystem::GetHistoryCount(FName ChoreId, EChoreFamily Family, EChoreSubtype Subtype, bool bUseFamily, bool bUseSubtype, bool bSucceededOnly) const
 {
+    // If no filter is set, return 0
     // Если не задан фильтр, возвращаем 0
     if (ChoreId.IsNone() && !bUseFamily && !bUseSubtype)
     {
@@ -1272,16 +1322,20 @@ bool UChoreManagerSubsystem::WasRewardIssued(FName ChoreId) const
 
 void UChoreManagerSubsystem::RequestRewardIssue(FName ChoreId)
 {
+    // Repeated calls are safe: GrantRewards protects itself.
     // Повторный вызов безопасен: GrantRewards сам себя защищает.
     GrantRewards(ChoreId);
 }
 
+// ---- Event handlers ----
 // ---- Обработчики событий ----
 void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 {
     UE_LOG(LogTemp, Log, TEXT("HandleEvent: Type=%d, Mission=%d, Chore=%d"),
         (int32)Outcome.OutcomeType, (int32)Outcome.OutcomeMission, (int32)Outcome.OutcomeChore);
 
+    // Ignore command events (they end in "Request")
+    // They must not affect task availability
     // Игнорируем командные события (заканчиваются на "Request")
     // Они не должны влиять на доступность заданий
     if (Outcome.OutcomeType == EOutcomeType::Chore)
@@ -1296,10 +1350,12 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
             Chore == EOutcomeChore::RetryRequest ||
             Chore == EOutcomeChore::UnlockRequest)
         {
-            return; // Командные события не влияют на доступность
+            return; // Command events do not affect availability // Командные события не влияют на доступность
         }
     }
 
+    // Iterate over all tasks
+// Iterate over all tasks
     // Проходим по всем заданиям
 // Проходим по всем заданиям
     for (auto& Pair : ActiveStates)
@@ -1318,6 +1374,7 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 
         bool bConditionMet = Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome);
 
+        // Log the evaluation result (can be left as Verbose)
         // Логируем результат проверки (можно оставить Verbose)
         UE_LOG(LogTemp, Verbose, TEXT("HandleEvent: Chore '%s' condition met = %s, status = %d"),
             *ChoreId.ToString(), bConditionMet ? TEXT("true") : TEXT("false"), (int32)State.Status);
@@ -1333,9 +1390,11 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
         {
             bool bShouldRevoke = true;
 
+            // Check whether the condition is event-based (should not be revoked)
             // Проверяем, является ли условие событийным (не должно отзываться)
             if (UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition))
             {
+                // For IsCompleted, IsFailed, IsAbandoned disable revocation entirely
                 // Для IsCompleted, IsFailed, IsAbandoned отключаем отзыв полностью
                 if (MissionCond->ConditionType == EMissionConditionType::IsCompleted ||
                     MissionCond->ConditionType == EMissionConditionType::IsFailed ||
@@ -1343,6 +1402,7 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
                 {
                     bShouldRevoke = false;
                 }
+                // For StepReached disable revocation only for non-mission events
                 // Для StepReached отключаем отзыв только для событий, не связанных с миссией
                 else if (MissionCond->ConditionType == EMissionConditionType::StepReached)
                 {
@@ -1353,8 +1413,8 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 
             if (UMissionConditionAsset* MissionCond = Cast<UMissionConditionAsset>(Def->AvailabilityCondition))
             {
-                if (MissionCond->ConditionType == EMissionConditionType::IsCompleted || 
-                    MissionCond->ConditionType == EMissionConditionType::IsFailed || 
+                if (MissionCond->ConditionType == EMissionConditionType::IsCompleted ||
+                    MissionCond->ConditionType == EMissionConditionType::IsFailed ||
                     MissionCond->ConditionType == EMissionConditionType::IsAbandoned)
                 {
                     UMissionAsset* MissionAsset = MissionCond->MissionAsset;
@@ -1500,6 +1560,7 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
     }
 }
 
+// ---- Implementation of command handlers ----
 // ---- Реализация обработчиков команд ----
 void UChoreManagerSubsystem::HandleAcceptRequest(const FOutcomeEventBase& Outcome)
 {
@@ -1560,6 +1621,7 @@ void UChoreManagerSubsystem::HandleUnlockRequest(const FOutcomeEventBase& Outcom
     UnlockChore(Payload->ChoreId);
 }
 
+// ---- Helper functions ----
 // ---- Вспомогательные функции ----
 UOutcomeConditionAsset* UChoreManagerSubsystem::CreateSimpleChoreCondition(EOutcomeChore ChoreType)
 {
@@ -1617,6 +1679,7 @@ void UChoreManagerSubsystem::RegisterReactivationHandler(UChoreDefinition* Defin
 
     FName ChoreId = Definition->GetChoreId();
 
+    // If an active handler already exists – do not create a new one
     // Если уже есть активный обработчик – не создаём новый
     if (ActiveStates.Contains(ChoreId) && ActiveStates[ChoreId].AvailabilityHandler.IsValid())
         return;
@@ -1625,21 +1688,25 @@ void UChoreManagerSubsystem::RegisterReactivationHandler(UChoreDefinition* Defin
     if (!EventBus)
         return;
 
+    // Compile the condition
     // Компилируем условие
     Definition->ReactivationCondition->CompileCondition();
     if (!Definition->ReactivationCondition->GetCondition().IsValid())
         return;
 
+    // Check whether the condition is satisfied right now
     // Проверяем, выполнено ли условие прямо сейчас
     FOutcomeEventBase Dummy;
     Dummy.OutcomeType = EOutcomeType::Default;
     if (Definition->ReactivationCondition->GetCondition()->Evaluate(Dummy))
     {
+        // The condition is already true – reactivate immediately
         // Условие уже истинно – реактивируем сразу
         UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
         return;
     }
 
+    // Otherwise, subscribe to the event
     // Иначе подписываемся на событие
     FOutcomeHandlerHandle Handle = EventBus->RegisterHandler(
         Definition->ReactivationCondition,
@@ -1674,9 +1741,11 @@ void UChoreManagerSubsystem::AdvanceChoreStage(FName ChoreId, int32 NewStageInde
     const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (!Def || !Def->Stages.IsValidIndex(NewStageIndex)) return;
 
+    // Not backwards
     // Не назад
     if (NewStageIndex < State->CurrentStageIndex) return;
 
+    // Take the key from the asset — the mini-game only sends the index.
     // Ключ берём из ассета — миниигра присылает только индекс.
     State->CurrentStageIndex = NewStageIndex;
     State->CurrentStageKey = Def->Stages[NewStageIndex].StageKey;
@@ -1738,6 +1807,9 @@ void UChoreManagerSubsystem::PauseChore(FName ChoreId)
     State.bIsPaused = true;
     State.PauseStartTime = FDateTime::UtcNow();
 
+    // ---- Freeze the deadline ----
+    // Stop the timer and remember the remaining time; reset the Deadline itself
+    // so that save/load doesn't "inherit" an already outdated moment in time.
     // ---- Замираем дедлайн ----
     // Снимаем таймер и запоминаем остаток; сам Deadline обнуляем,
     // чтобы save/load не «унаследовал» уже устаревший момент времени.
@@ -1773,6 +1845,7 @@ void UChoreManagerSubsystem::ResumeChore(FName ChoreId)
     if (State.Status != EChoreStatus::Active) return;
     if (!State.bIsPaused) return;
 
+    // Accumulate the pause time (for elapsed time).
     // Накопить время паузы (для elapsed-времени).
     if (State.PauseStartTime != FDateTime::MinValue())
     {
@@ -1781,6 +1854,8 @@ void UChoreManagerSubsystem::ResumeChore(FName ChoreId)
     State.PauseStartTime = FDateTime::MinValue();
     State.bIsPaused = false;
 
+    // ---- Restore the deadline ----
+    // The countdown continues from where it was stopped.
     // ---- Восстанавливаем дедлайн ----
     // Отсчёт продолжается с того места, где был остановлен.
     if (State.PausedDeadlineRemaining.GetTotalSeconds() > 0.0)
@@ -1811,6 +1886,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     OutData.SubsystemName = GetSaveSubsystemName();
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
+    // ---- States ----
     // ---- Состояния ----
     TArray<TSharedPtr<FJsonValue>> StateArray;
     for (const auto& Pair : ActiveStates)
@@ -1824,6 +1900,9 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetStringField(TEXT("AcceptTime"), State.AcceptTime.ToIso8601());
         Obj->SetStringField(TEXT("StartTime"), State.StartTime.ToIso8601());
 
+        // Save the deadline as a REMAINING number of seconds, not as an absolute timestamp,
+        // so that after loading the countdown continues exactly from where
+        // it was at the moment of saving.
         // Дедлайн сохраняем как ОСТАТОК в секундах, а не как абсолютную метку,
         // чтобы после загрузки отсчёт продолжился ровно с того места,
         // где он был на момент сохранения.
@@ -1844,6 +1923,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetBoolField(TEXT("bSucceeded"), State.bSucceeded);
         Obj->SetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
 
+        // Stages
         // Стадии
         Obj->SetNumberField(TEXT("CurrentStageIndex"), State.CurrentStageIndex);
         Obj->SetStringField(TEXT("CurrentStageKey"), State.CurrentStageKey.ToString());
@@ -1867,6 +1947,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     }
     Root->SetArrayField(TEXT("States"), StateArray);
 
+    // ---- History ----
     // ---- История ----
     TArray<TSharedPtr<FJsonValue>> HistoryArray;
     for (const FChoreHistoryEntry& Entry : History)
@@ -1887,6 +1968,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     }
     Root->SetArrayField(TEXT("History"), HistoryArray);
 
+    // ---- Serialization ----
     // ---- Сериализация ----
     FString Output;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -1916,6 +1998,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     History.Empty();
     DeadlineTimers.Empty();
 
+    // ---- States ----
     // ---- Состояния ----
     const TArray<TSharedPtr<FJsonValue>>* StateArray = nullptr;
     if (Root->TryGetArrayField(TEXT("States"), StateArray))
@@ -1947,6 +2030,8 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 State.StartTime = FDateTime::MinValue();
             }
 
+            // Restore the deadline from the remaining time: Deadline = Now + Remaining.
+            // 0 = the chore had no deadline.
             // Дедлайн восстанавливаем из остатка: Deadline = Now + Remaining.
             // 0 = дедлайна у хоры не было.
             double DeadlineRemainingSecs = 0.0;
@@ -1965,6 +2050,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             Obj->TryGetBoolField(TEXT("bSucceeded"), State.bSucceeded);
             Obj->TryGetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
 
+            // ---- Stages ----
             // ---- Стадии ----
             int32 CurrentStageInt = 0;
             Obj->TryGetNumberField(TEXT("CurrentStageIndex"), CurrentStageInt);
@@ -1988,6 +2074,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             Obj->TryGetNumberField(TEXT("PausedDeadlineSeconds"), PausedDeadlineSecs);
             State.PausedDeadlineRemaining = FTimespan::FromSeconds(PausedDeadlineSecs);
 
+            // A pause that started before saving is "restarted" on load.
             // Пауза, начавшаяся до сохранения, при загрузке «начинается заново».
             State.PauseStartTime = State.bIsPaused ? FDateTime::UtcNow() : FDateTime::MinValue();
 
@@ -2003,6 +2090,9 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
             ActiveStates.Add(State.ChoreId, State);
 
+            // Restore the deadline timer for active chores.
+            // For a chore in pause, Deadline == MinValue — the timer does not start,
+            // the countdown will resume at ResumeChore from PausedDeadlineRemaining.
             // Восстанавливаем таймер дедлайна для активных хор.
             // У хоры в паузе Deadline == MinValue — таймер не запускается,
             // отсчёт возобновится при ResumeChore из PausedDeadlineRemaining.
@@ -2027,6 +2117,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
+    // ---- History ----
     // ---- История ----
     const TArray<TSharedPtr<FJsonValue>>* HistoryArray = nullptr;
     if (Root->TryGetArrayField(TEXT("History"), HistoryArray))
@@ -2064,6 +2155,7 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
+    // After loading, re-check availability
     // После загрузки перепроверяем доступность
     EvaluateAllAvailability();
     bLoadComplete = true;
@@ -2098,6 +2190,7 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
         return;
     }
 
+    // Check whether the task exists
     // Проверяем, существует ли задание
     if (!Definitions.Contains(ChoreId))
     {
@@ -2105,11 +2198,13 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
         return;
     }
 
+    // Check the status
     // Проверяем статус
     FChoreState* State = ActiveStates.Find(ChoreId);
     if (State)
     {
         EChoreStatus Status = State->Status;
+        // Allow removal if the task is completed, expired, unavailable, or forced
         // Разрешаем удаление, если задание завершено, истекло, недоступно или принудительно
         bool bCanRemove = (Status == EChoreStatus::Unavailable) ||
             (Status == EChoreStatus::Expired) ||
@@ -2124,9 +2219,12 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
             return;
         }
 
+        // If forcibly removing an active task – complete it
         // Если принудительно удаляем активное задание – завершаем его
         if (Payload->bForceRemove && (Status == EChoreStatus::Accepted || Status == EChoreStatus::Active || Status == EChoreStatus::WaitingToStart))
         {
+            // We can call AbandonChore or simply move it to Failed
+            // Here, for simplicity, we move it to Failed and record the history
             // Можно вызвать AbandonChore или просто перевести в Failed
             // Здесь для простоты переведём в Failed и запишем историю
             if (Status == EChoreStatus::Active)
@@ -2139,6 +2237,7 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
         }
     }
 
+    // Remove from Definitions and ActiveStates
     // Удаляем из Definitions и ActiveStates
     Definitions.Remove(ChoreId);
     if (State)
@@ -2146,9 +2245,11 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
         ActiveStates.Remove(ChoreId);
     }
 
+    // Unsubscribe the availability handler, if any
     // Отписываем обработчик доступности, если есть
     UnregisterAvailabilityHandler(ChoreId);
 
+    // Stop the timer, if it is still hanging (just in case)
     // Останавливаем таймер, если он ещё висит (на всякий случай)
     ClearDeadlineTimer(ChoreId);
 
@@ -2166,6 +2267,7 @@ void UChoreManagerSubsystem::HandleReacceptRequest(const FOutcomeEventBase& Outc
     FChoreState& State = ActiveStates[ChoreId];
     if (State.Status != EChoreStatus::PendingReaccept) return;
 
+    // Reactivate the task
     // Реактивируем задание
     UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
 }

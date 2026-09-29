@@ -10,10 +10,12 @@ class FPSKITALSREFACTORED_API UMissionActiveConditionAsset : public UOutcomeCond
     GENERATED_BODY()
 
 public:
+    // Mission whose activity needs to be checked
     // Миссия, активность которой нужно проверить
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     TObjectPtr<class UMissionAsset> MissionAsset;
 
+    // Expected state: true – mission must be active, false – not active
     // Ожидаемое состояние: true – миссия должна быть активна, false – не активна
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission")
     bool ExpectedActive = true;
