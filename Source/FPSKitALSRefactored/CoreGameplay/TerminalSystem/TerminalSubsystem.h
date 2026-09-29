@@ -42,7 +42,9 @@ struct FTerminalFileEntry
     UPROPERTY(BlueprintReadWrite) FString FileName;
     UPROPERTY(BlueprintReadWrite) FString Content;
     UPROPERTY(BlueprintReadWrite) FDateTime LastModified;
-    UPROPERTY(BlueprintReadWrite) FString ParentPath; // empty = root
+    // empty = root
+    // пустой = корень
+    UPROPERTY(BlueprintReadWrite) FString ParentPath;
 };
 
 USTRUCT(BlueprintType)
@@ -79,6 +81,7 @@ struct FTerminalGlobalState
 };
 
 // ----------------------------------------------------------------------------
+// Records of completed games and their stages
 // Записи о пройденных играх и их этапах
 // ----------------------------------------------------------------------------
 
@@ -92,6 +95,7 @@ enum class ETerminalRecordStatus : uint8
     Failed          UMETA(DisplayName = "Failed")
 };
 
+// Result of an individual stage.
 // Результат отдельного этапа.
 UENUM(BlueprintType)
 enum class ETerminalStageResult : uint8
@@ -109,16 +113,19 @@ struct FTerminalStageProgress
 
     UPROPERTY(BlueprintReadWrite) FString   StageId;
 
+    // How the stage ended. None — has not been finished yet.
     // Чем закончился этап. None — ещё не завершался.
     UPROPERTY(BlueprintReadWrite) ETerminalStageResult Result = ETerminalStageResult::None;
 
     UPROPERTY(BlueprintReadWrite) int32     Score = 0;
 
+    // The moment the stage ended (success, failure, or skip).
     // Момент окончания этапа (успех, провал или пропуск).
     UPROPERTY(BlueprintReadWrite) FDateTime CompletedAt;
 
     UPROPERTY(BlueprintReadWrite) FString   Notes;
 
+    // A regular C++ method (UFUNCTION inside USTRUCT is forbidden by UHT).
     // Обычный C++-метод (UFUNCTION внутри USTRUCT запрещён UHT).
     bool IsFinished() const { return Result != ETerminalStageResult::None; }
 };
@@ -135,9 +142,11 @@ struct FTerminalActivityRecord
     UPROPERTY(BlueprintReadWrite) TArray<FTerminalStageProgress> Stages;
     UPROPERTY(BlueprintReadWrite) int32   TotalScore = 0;
 
+    // Start of the current session.
     // Начало текущей партии.
     UPROPERTY(BlueprintReadWrite) FDateTime StartedAt;
 
+    // End of the game. Remains zero while the game is running.
     // Окончание игры. Остаётся нулевым, пока игра идёт.
     UPROPERTY(BlueprintReadWrite) FDateTime FinishedAt;
 
@@ -198,6 +207,7 @@ public:
     void RemoveRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener);
 
     // ========================================================================
+    // Public GETTERS
     // Публичные ГЕТТЕРЫ
     // ========================================================================
 
@@ -358,7 +368,12 @@ private:
     void HandleAddLogRequest(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
-    // Game command handlers (ВХОДЯЩИЕ команды от терминалов)
+    // Game command handlers (INCOMING commands from terminals)
+    //
+    // Correspond to EOutcomeTerminal::GameStarted / GameStageFinished /
+    // GameCompleted / GameRecordRemoved.
+    //
+    // Обработчики игровых команд (ВХОДЯЩИЕ команды от терминалов)
     //
     // Соответствуют EOutcomeTerminal::GameStarted / GameStageFinished /
     // GameCompleted / GameRecordRemoved.
@@ -370,7 +385,12 @@ private:
     void HandleGameStageRemoved(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
-    // Game mutators (внутренние)
+    // Game mutators (internal)
+    //
+    // Each mutator changes GameRecords and publishes an outgoing report
+    // EOutcomeTerminal::ReportGame* to the outside.
+    //
+    // Игровые мутаторы (внутренние)
     //
     // Каждый мутатор меняет GameRecords и публикует исходящий отчёт
     // EOutcomeTerminal::ReportGame* наружу.
@@ -451,7 +471,8 @@ private:
     FOutcomeHandlerHandle SetGlobalDataHandler;
     FOutcomeHandlerHandle AddLogHandler;
 
-    // ---- Game command handles (входящие) ----
+    // ---- Game command handles (incoming) ----
+    // ---- Игровые хендлы команд (входящие) ----
     FOutcomeHandlerHandle GameStartedHandler;
     FOutcomeHandlerHandle GameStageFinishedHandler;
     FOutcomeHandlerHandle GameCompletedHandler;
@@ -485,7 +506,8 @@ private:
     UPROPERTY() UOutcomeConditionAsset* SetGlobalDataCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* AddLogCondition = nullptr;
 
-    // ---- Game command conditions (входящие) ----
+    // ---- Game command conditions (incoming) ----
+    // ---- Условия игровых команд (входящие) ----
     UPROPERTY() UOutcomeConditionAsset* GameStartedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameStageFinishedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameCompletedCondition = nullptr;
@@ -499,6 +521,7 @@ private:
         return RegistrationListeners;
     }
 
+    // Outer key — TerminalId, inner key — GameId.
     // Внешний ключ — TerminalId, внутренний — GameId.
     TMap<FGuid, TMap<FString, FTerminalActivityRecord>> GameRecords;
 };

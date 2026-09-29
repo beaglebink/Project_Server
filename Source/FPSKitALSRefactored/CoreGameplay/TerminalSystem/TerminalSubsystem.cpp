@@ -42,6 +42,9 @@ namespace
 // ============================================================================
 // Helper to get interface
 // ============================================================================
+// ============================================================================
+// Помощник для получения интерфейса
+// ============================================================================
 
 ITerminalProfileProvider* UTerminalSubsystem::GetProfileInterface(AActor* Actor)
 {
@@ -51,6 +54,9 @@ ITerminalProfileProvider* UTerminalSubsystem::GetProfileInterface(AActor* Actor)
 
 // ============================================================================
 // Initialization / Deinitialization
+// ============================================================================
+// ============================================================================
+// Инициализация / Деинициализация
 // ============================================================================
 
 void UTerminalSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -90,6 +96,9 @@ void UTerminalSubsystem::Deinitialize()
 
 // ============================================================================
 // Registration (from interactive items)
+// ============================================================================
+// ============================================================================
+// Регистрация (от интерактивных предметов)
 // ============================================================================
 
 void UTerminalSubsystem::SubscribeRegistration()
@@ -204,6 +213,9 @@ void UTerminalSubsystem::HandleInteractRegistration(const FOutcomeEventBase& Out
 // ============================================================================
 // Terminal management
 // ============================================================================
+// ============================================================================
+// Управление терминалами
+// ============================================================================
 
 void UTerminalSubsystem::InitializeTerminalFromProfile(FTerminalState& State, AActor* ProfileActor)
 {
@@ -307,6 +319,9 @@ void UTerminalSubsystem::ResetTerminalToDefault(const FGuid& TerminalId)
 // ============================================================================
 // Access / Authentication
 // ============================================================================
+// ============================================================================
+// Доступ / Аутентификация
+// ============================================================================
 
 bool UTerminalSubsystem::OpenTerminal(const FGuid& TerminalId)
 {
@@ -387,6 +402,9 @@ bool UTerminalSubsystem::IsTerminalAccessible(const FGuid& TerminalId) const
 
 // ============================================================================
 // Local file operations
+// ============================================================================
+// ============================================================================
+// Локальные файловые операции
 // ============================================================================
 
 bool UTerminalSubsystem::ReadLocalFile(const FGuid& TerminalId, const FString& FileName, FString& OutContent) const
@@ -479,6 +497,9 @@ TArray<FTerminalFileEntry> UTerminalSubsystem::GetFilesInDirectory(const FGuid& 
 // ============================================================================
 // Global services
 // ============================================================================
+// ============================================================================
+// Глобальные сервисы
+// ============================================================================
 
 bool UTerminalSubsystem::GetEmailContent(const FString& Account, FString& OutContent) const
 {
@@ -534,6 +555,9 @@ bool UTerminalSubsystem::SetGlobalData(const FString& Key, const FString& Value)
 // ============================================================================
 // Logging
 // ============================================================================
+// ============================================================================
+// Логирование
+// ============================================================================
 
 void UTerminalSubsystem::AddLocalLogEntry(const FGuid& TerminalId, const FString& Message)
 {
@@ -557,6 +581,9 @@ TArray<FTerminalLogEntry> UTerminalSubsystem::GetLocalLogs(const FGuid& Terminal
 // ============================================================================
 // Event publishing
 // ============================================================================
+// ============================================================================
+// Публикация событий
+// ============================================================================
 
 void UTerminalSubsystem::PublishTerminalOutcome(const FGuid& TerminalId, EOutcomeTerminal OutcomeType, UOutcomePayload* Payload)
 {
@@ -571,6 +598,9 @@ void UTerminalSubsystem::PublishTerminalOutcome(const FGuid& TerminalId, EOutcom
 
 // ============================================================================
 // EventBus handlers (InteractCommand, SetEnabled, SetRange, SetTooltip)
+// ============================================================================
+// ============================================================================
+// Обработчики EventBus (InteractCommand, SetEnabled, SetRange, SetTooltip)
 // ============================================================================
 
 void UTerminalSubsystem::SubscribeInteractCommand()
@@ -808,6 +838,9 @@ void UTerminalSubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
 // ============================================================================
 // Subscription management
 // ============================================================================
+// ============================================================================
+// Управление подписками
+// ============================================================================
 
 void UTerminalSubsystem::SubscribeAll()
 {
@@ -834,6 +867,9 @@ void UTerminalSubsystem::UnsubscribeAll()
 // ============================================================================
 // Save / Load (ISaveableSubsystem)
 // ============================================================================
+// ============================================================================
+// Сохранение / Загрузка (ISaveableSubsystem)
+// ============================================================================
 
 void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
@@ -843,6 +879,9 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 	// ========================================================================
 	// Serialize terminals
+	// ========================================================================
+	// ========================================================================
+	// Сериализация терминалов
 	// ========================================================================
 	TArray<TSharedPtr<FJsonValue>> TerminalArray;
 	for (const auto& Pair : Terminals)
@@ -860,12 +899,14 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		Obj->SetStringField(TEXT("ProfileName"), State.ProfileName);
 
 		// Capabilities
+		// Возможности
 		TArray<TSharedPtr<FJsonValue>> CapArray;
 		for (ETerminalCapability Cap : State.Capabilities)
 			CapArray.Add(MakeShared<FJsonValueNumber>(static_cast<uint8>(Cap)));
 		Obj->SetArrayField(TEXT("Capabilities"), CapArray);
 
 		// Local files
+		// Локальные файлы
 		TArray<TSharedPtr<FJsonValue>> FilesArray;
 		for (const FTerminalFileEntry& File : State.LocalFiles)
 		{
@@ -879,6 +920,7 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		Obj->SetArrayField(TEXT("LocalFiles"), FilesArray);
 
 		// Logs
+		// Логи
 		TArray<TSharedPtr<FJsonValue>> LogArray;
 		for (const FTerminalLogEntry& Log : State.LocalLogs)
 		{
@@ -895,6 +937,9 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 	// ========================================================================
 	// Serialize global state
+	// ========================================================================
+	// ========================================================================
+	// Сериализация глобального состояния
 	// ========================================================================
 	TSharedPtr<FJsonObject> GlobalObj = MakeShared<FJsonObject>();
 
@@ -917,6 +962,9 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 	// ========================================================================
 	// Serialize game records
+	// ========================================================================
+	// ========================================================================
+	// Сериализация игровых записей
 	// ========================================================================
 	TArray<TSharedPtr<FJsonValue>> GameArr;
 	for (const auto& TermPair : GameRecords)
@@ -955,6 +1003,9 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	// ========================================================================
 	// Serialize to string
 	// ========================================================================
+	// ========================================================================
+	// Сериализация в строку
+	// ========================================================================
 	FString Output;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
 	FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
@@ -987,12 +1038,18 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	// ========================================================================
 	// Reset containers
 	// ========================================================================
+	// ========================================================================
+	// Сброс контейнеров
+	// ========================================================================
 	Terminals.Empty();
 	GlobalState = FTerminalGlobalState();
 	GameRecords.Empty();
 
 	// ========================================================================
 	// Deserialize terminals
+	// ========================================================================
+	// ========================================================================
+	// Десериализация терминалов
 	// ========================================================================
 	const TArray<TSharedPtr<FJsonValue>>* TerminalArray = nullptr;
 	if (Root->TryGetArrayField(TEXT("Terminals"), TerminalArray))
@@ -1061,6 +1118,9 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	// ========================================================================
 	// Deserialize global state
 	// ========================================================================
+	// ========================================================================
+	// Десериализация глобального состояния
+	// ========================================================================
 	const TSharedPtr<FJsonObject>* GlobalObjPtr = nullptr;
 	if (Root->TryGetObjectField(TEXT("GlobalState"), GlobalObjPtr))
 	{
@@ -1090,6 +1150,9 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 	// ========================================================================
 	// Deserialize game records
+	// ========================================================================
+	// ========================================================================
+	// Десериализация игровых записей
 	// ========================================================================
 	const TArray<TSharedPtr<FJsonValue>>* GameArr = nullptr;
 	if (Root->TryGetArrayField(TEXT("GameRecords"), GameArr))
@@ -1122,6 +1185,7 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			O->TryGetStringField(TEXT("ResultData"), R.ResultData);
 
 			// ---- Stages ----
+			// ---- Этапы ----
 			const TArray<TSharedPtr<FJsonValue>>* StageArr = nullptr;
 			if (O->TryGetArrayField(TEXT("Stages"), StageArr))
 			{
@@ -1169,6 +1233,9 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	// ========================================================================
 	// Done
 	// ========================================================================
+	// ========================================================================
+	// Готово
+	// ========================================================================
 	bIsLoadComplete = true;
 	BroadcastGlobalState();
 
@@ -1180,6 +1247,9 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 // ============================================================================
 // Internal helpers
+// ============================================================================
+// ============================================================================
+// Внутренние вспомогательные функции
 // ============================================================================
 
 bool UTerminalSubsystem::IsTerminalCapable(const FGuid& TerminalId, ETerminalCapability Capability) const
@@ -1241,6 +1311,7 @@ void UTerminalSubsystem::SubscribeCommands()
 		};
 
 	// ---- Lifecycle ----
+	// ---- Жизненный цикл ----
 	Sub(RegisterTerminalCondition, EOutcomeTerminal::RegisterTerminalRequest,
 		RegisterTerminalHandler, &UTerminalSubsystem::HandleRegisterTerminalRequest);
 	Sub(UnregisterTerminalCondition, EOutcomeTerminal::UnregisterTerminalRequest,
@@ -1253,6 +1324,7 @@ void UTerminalSubsystem::SubscribeCommands()
 		ResetToDefaultHandler, &UTerminalSubsystem::HandleResetToDefaultRequest);
 
 	// ---- Access ----
+	// ---- Доступ ----
 	Sub(OpenTerminalCondition, EOutcomeTerminal::OpenTerminalRequest,
 		OpenTerminalHandler, &UTerminalSubsystem::HandleOpenTerminalRequest);
 	Sub(CloseTerminalCondition, EOutcomeTerminal::CloseTerminalRequest,
@@ -1265,12 +1337,14 @@ void UTerminalSubsystem::SubscribeCommands()
 		ContextualAccessHandler, &UTerminalSubsystem::HandleContextualAccessRequest);
 
 	// ---- Files ----
+	// ---- Файлы ----
 	Sub(WriteFileCondition, EOutcomeTerminal::WriteFileRequest,
 		WriteFileHandler, &UTerminalSubsystem::HandleWriteFileRequest);
 	Sub(DeleteFileCondition, EOutcomeTerminal::DeleteFileRequest,
 		DeleteFileHandler, &UTerminalSubsystem::HandleDeleteFileRequest);
 
 	// ---- Global ----
+	// ---- Глобальные ----
 	Sub(SetEmailCondition, EOutcomeTerminal::SetEmailContentRequest,
 		SetEmailHandler, &UTerminalSubsystem::HandleSetEmailRequest);
 	Sub(SetWebsiteCondition, EOutcomeTerminal::SetWebsiteContentRequest,
@@ -1279,6 +1353,7 @@ void UTerminalSubsystem::SubscribeCommands()
 		SetGlobalDataHandler, &UTerminalSubsystem::HandleSetGlobalDataRequest);
 
 	// ---- Logging ----
+	// ---- Логирование ----
 	Sub(AddLogCondition, EOutcomeTerminal::AddLogRequest,
 		AddLogHandler, &UTerminalSubsystem::HandleAddLogRequest);
 
@@ -1326,15 +1401,18 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(SetGlobalDataHandler, SetGlobalDataCondition);
 	Unsub(AddLogHandler, AddLogCondition);
 
-    Unsub(GameStartedHandler,       GameStartedCondition);
-    Unsub(GameStageFinishedHandler, GameStageFinishedCondition);
-    Unsub(GameCompletedHandler,     GameCompletedCondition);
-    Unsub(GameRecordRemovedHandler, GameRecordRemovedCondition);
+	Unsub(GameStartedHandler, GameStartedCondition);
+	Unsub(GameStageFinishedHandler, GameStageFinishedCondition);
+	Unsub(GameCompletedHandler, GameCompletedCondition);
+	Unsub(GameRecordRemovedHandler, GameRecordRemovedCondition);
 	Unsub(GameStageRemovedHandler, GameStageRemovedCondition);
 }
 
 // ============================================================================
 // Command handlers
+// ============================================================================
+// ============================================================================
+// Обработчики команд
 // ============================================================================
 
 void UTerminalSubsystem::HandleRegisterTerminalRequest(const FOutcomeEventBase& Outcome)
@@ -1452,6 +1530,9 @@ void UTerminalSubsystem::HandleAddLogRequest(const FOutcomeEventBase& Outcome)
 // ============================================================================
 // Public getters: games
 // ============================================================================
+// ============================================================================
+// Публичные геттеры: игры
+// ============================================================================
 
 bool UTerminalSubsystem::HasGameRecord(const FGuid& TerminalId, const FString& GameId) const
 {
@@ -1565,6 +1646,10 @@ bool UTerminalSubsystem::IsGameFinishedForTerminal(const FGuid& TerminalId, cons
 // ============================================================================
 // Game mutators
 // ============================================================================
+// ============================================================================
+// Мутаторы игр
+// ============================================================================
+
 void UTerminalSubsystem::ReportGameStarted(const FGuid& TerminalId, const FString& GameId)
 {
 	auto& Inner = GameRecords.FindOrAdd(TerminalId);
@@ -1838,6 +1923,9 @@ void UTerminalSubsystem::RemoveGameRecord(const FGuid& TerminalId, const FString
 
 // ============================================================================
 // Game report handlers
+// ============================================================================
+// ============================================================================
+// Обработчики игровых отчётов
 // ============================================================================
 // ============================================================================
 // Game command handlers (входящие команды от терминалов)

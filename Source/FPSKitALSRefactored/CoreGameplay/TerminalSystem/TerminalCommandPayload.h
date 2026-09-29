@@ -2,10 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
-#include "TerminalSubsystem.h"               // ETerminalCapability
-#include "TerminalCommandPayload.generated.h" // ← всегда последний include
+#include "TerminalSubsystem.h"
+#include "TerminalCommandPayload.generated.h" 
 
 // ============================================================================
+// Existing types
 // Существующие типы
 // ============================================================================
 
@@ -17,6 +18,7 @@ enum class ECommandObjectType : uint8
     Terminal            UMETA(DisplayName = "Terminal")
 };
 
+// Existing payload of the "test" interaction command.
 // Существующий payload «тестовой» команды взаимодействия.
 UCLASS(BlueprintType, Blueprintable)
 class FPSKITALSREFACTORED_API UTerminalCommandPayload : public UOutcomePayload
@@ -38,6 +40,15 @@ public:
 };
 
 // ============================================================================
+// NEW: command payloads for UTerminalSubsystem.
+//
+// They are sent through UEventBusSubsystem::PublishOutcome with the fields:
+//   OutcomeType     = EOutcomeType::Terminal
+//   OutcomeTerminal = EOutcomeTerminal::<X>Request
+//
+// The handlers in UTerminalSubsystem call the corresponding private
+// mutators. The public API of the subsystem is only getters.
+//
 // НОВЫЕ: командные payload'ы для UTerminalSubsystem.
 //
 // Отправляются через UEventBusSubsystem::PublishOutcome с полями:
@@ -48,6 +59,7 @@ public:
 // мутаторы. Публичный API подсистемы — только геттеры.
 // ============================================================================
 
+// ---- Common payload with a single TerminalId (for commands without extra data) --------
 // ---- Общий payload с одним TerminalId (для команд без доп. данных) --------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalIdCommandPayload : public UOutcomePayload
@@ -66,6 +78,7 @@ public:
 };
 
 // ---- Register / Unregister ------------------------------------------------
+// ---- Регистрация / Отмена регистрации ------------------------------------------------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalRegisterCommandPayload : public UOutcomePayload
 {
@@ -86,9 +99,11 @@ public:
     }
 };
 
+// Unregister uses UTerminalIdCommandPayload (only TerminalId).
 // Unregister использует UTerminalIdCommandPayload (только TerminalId).
 
 // ---- ApplyProfile ---------------------------------------------------------
+// ---- Применить профиль ---------------------------------------------------------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalApplyProfileCommandPayload : public UOutcomePayload
 {
@@ -110,6 +125,7 @@ public:
 };
 
 // ---- SetCapabilities ------------------------------------------------------
+// ---- Установить возможности ------------------------------------------------------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalSetCapabilitiesCommandPayload : public UOutcomePayload
 {
@@ -132,6 +148,7 @@ public:
 };
 
 // ---- Login (password / account) -------------------------------------------
+// ---- Вход (пароль / аккаунт) -------------------------------------------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalLoginPasswordCommandPayload : public UOutcomePayload
 {
@@ -173,6 +190,7 @@ public:
 };
 
 // ---- ContextualAccess -----------------------------------------------------
+// ---- Контекстный доступ -----------------------------------------------------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalContextualAccessCommandPayload : public UOutcomePayload
 {
@@ -194,6 +212,7 @@ public:
 };
 
 // ---- Write / Delete file --------------------------------------------------
+// ---- Запись / Удаление файла --------------------------------------------------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalWriteFileCommandPayload : public UOutcomePayload
 {
@@ -241,6 +260,7 @@ public:
 };
 
 // ---- Global services: email / website / shared data ----------------------
+// ---- Глобальные сервисы: email / website / общие данные ----------------------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalSetEmailCommandPayload : public UOutcomePayload
 {
@@ -302,6 +322,7 @@ public:
 };
 
 // ---- Add log --------------------------------------------------------------
+// ---- Добавить лог --------------------------------------------------------------
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalAddLogCommandPayload : public UOutcomePayload
 {

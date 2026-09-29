@@ -5,6 +5,7 @@
 #include "TerminalTaskPayload.generated.h"
 
 // ============================================================================
+// Legacy: TerminalTask (not related to games)
 // Legacy: TerminalTask (не связан с играми)
 // ============================================================================
 UCLASS(BlueprintType, Blueprintable)
@@ -28,9 +29,11 @@ public:
 };
 
 // ============================================================================
+// INCOMING commands: reports from terminals
 // ВХОДЯЩИЕ команды: отчёты от терминалов
 // ============================================================================
 
+// ---- Game start ----
 // ---- Старт игры ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameStartedPayload : public UOutcomePayload
@@ -47,6 +50,7 @@ public:
     }
 };
 
+// ---- Stage finished (success / failure / skip) ----
 // ---- Этап завершён (успех / провал / пропуск) ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameStageFinishedPayload : public UOutcomePayload
@@ -75,6 +79,7 @@ public:
     }
 };
 
+// ---- Game completed ----
 // ---- Игра завершена ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameCompletedPayload : public UOutcomePayload
@@ -96,6 +101,7 @@ public:
     }
 };
 
+// ---- Removing a record (empty ActivityId — all games of the terminal) ----
 // ---- Удаление записи (пустой ActivityId — все игры терминала) ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalRemoveActivityRecordPayload : public UOutcomePayload
@@ -113,6 +119,12 @@ public:
 };
 
 // ============================================================================
+// OUTGOING notifications: subsystem → outside
+// 
+// No payload carries FTerminalActivityRecord entirely.
+// The full game snapshot (including the entire TArray<FTerminalStageProgress>)
+// is read via UTerminalSubsystem::GetGameRecord(...).
+// 
 // ИСХОДЯЩИЕ нотификации: подсистема → наружу
 //
 // Ни один payload не тащит FTerminalActivityRecord целиком.
@@ -120,6 +132,7 @@ public:
 // читается через UTerminalSubsystem::GetGameRecord(...).
 // ============================================================================
 
+// ---- Game started ----
 // ---- Игра началась ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameStartedEventPayload : public UOutcomePayload
@@ -138,6 +151,7 @@ public:
     }
 };
 
+// ---- Stage finished (with result: Completed / Failed / Skipped) ----
 // ---- Этап завершён (с результатом: Completed / Failed / Skipped) ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameStageFinishedEventPayload : public UOutcomePayload
@@ -147,10 +161,12 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
 
+    // One completed stage entirely: StageId, Result, Score, CompletedAt, Notes.
     // Один завершённый этап целиком: StageId, Result, Score, CompletedAt, Notes.
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game")
     FTerminalStageProgress Stage;
 
+    // Accumulated score for the session at the time of the event.
     // Накопленный счёт по партии на момент события.
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game")
     int32 TotalScore = 0;
@@ -164,6 +180,7 @@ public:
     }
 };
 
+// ---- Game completed ----
 // ---- Игра завершена ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameCompletedEventPayload : public UOutcomePayload
@@ -190,6 +207,7 @@ public:
     }
 };
 
+// ---- Record removed ----
 // ---- Запись удалена ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameRecordRemovedEventPayload : public UOutcomePayload
@@ -206,6 +224,7 @@ public:
     }
 };
 
+// ---- Removing a single stage of a specific game ----
 // ---- Удаление одного этапа конкретной игры ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameStageRemovedPayload : public UOutcomePayload
@@ -224,6 +243,7 @@ public:
     }
 };
 
+// ---- Stage removed ----
 // ---- Этап удалён ----
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameStageRemovedEventPayload : public UOutcomePayload
