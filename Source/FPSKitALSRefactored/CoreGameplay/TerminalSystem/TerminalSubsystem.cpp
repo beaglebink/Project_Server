@@ -1814,6 +1814,7 @@ void UTerminalSubsystem::RemoveGameStage(const FGuid& TerminalId, const FString&
 		FTerminalActivityRecord* Rec = Inner->Find(GameId);
 		if (!Rec) continue;
 
+		/*
 		// Защита: не трогаем этапы у завершённой игры — TotalScore уже зафиксирован.
 		if (Rec->IsFinished())
 		{
@@ -1822,6 +1823,7 @@ void UTerminalSubsystem::RemoveGameStage(const FGuid& TerminalId, const FString&
 				*StageId, *GameId, *TId.ToString());
 			continue;
 		}
+		*/
 
 		const int32 Index = Rec->Stages.IndexOfByPredicate(
 			[&](const FTerminalStageProgress& S) { return S.StageId == StageId; });
