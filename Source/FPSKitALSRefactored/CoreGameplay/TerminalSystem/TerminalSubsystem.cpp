@@ -1650,10 +1650,10 @@ bool UTerminalSubsystem::IsGameFinishedForTerminal(const FGuid& TerminalId, cons
 // Мутаторы игр
 // ============================================================================
 
-void UTerminalSubsystem::ReportGameStarted(const FGuid& TerminalId, const FString& GameId)
+void UTerminalSubsystem::ReportGameStarted(const FGuid& TerminalId, const FString& GameId, const FDateTime& InStartedAt)
 {
 	auto& Inner = GameRecords.FindOrAdd(TerminalId);
-	const FDateTime Now = FDateTime::UtcNow();
+	//const FDateTime Now = FDateTime::UtcNow();
 
 	FTerminalActivityRecord* Existing = Inner.Find(GameId);
 	if (!Existing)
@@ -1662,16 +1662,18 @@ void UTerminalSubsystem::ReportGameStarted(const FGuid& TerminalId, const FStrin
 		New.TerminalId = TerminalId;
 		New.ActivityId = GameId;
 		New.Status = ETerminalRecordStatus::Started;
-		New.StartedAt = Now;
+		New.StartedAt = InStartedAt;
 		Existing = &Inner.Add(GameId, New);
 	}
 	else if (Existing->IsFinished())
 	{
 		Existing->Status = ETerminalRecordStatus::Started;
 		Existing->Stages.Empty();
-		Existing->TotalScore = 0;
+		FTerminalActivityRecord Rec;
+		bool IsExist = GetGameRecord(TerminalId, GameId, Rec);
+		Existing->TotalScore = IsExist ? Rec.TotalScore : 0;
 		Existing->ResultData.Empty();
-		Existing->StartedAt = Now;
+		Existing->StartedAt = InStartedAt;
 		Existing->FinishedAt = FDateTime();
 	}
 
@@ -1687,7 +1689,7 @@ void UTerminalSubsystem::ReportGameStageFinished(const FGuid& TerminalId, const 
 	const FString& StageId, ETerminalStageResult Result, int32 Score, const FString& Notes)
 {
 	auto& Rec = EnsureRecord(GameRecords, TerminalId, GameId);
-
+	/*
 	if (Rec.IsFinished())
 	{
 		UE_LOG(LogTemp, Warning,
@@ -1695,7 +1697,7 @@ void UTerminalSubsystem::ReportGameStageFinished(const FGuid& TerminalId, const 
 			*StageId, *GameId, *TerminalId.ToString());
 		return;
 	}
-
+	*/
 	Rec.Status = ETerminalRecordStatus::InProgress;
 
 	FTerminalStageProgress* Stage = Rec.Stages.FindByPredicate(
@@ -1843,7 +1845,7 @@ void UTerminalSubsystem::RemoveGameStage(const FGuid& TerminalId, const FString&
 	{
 		for (const FRemovedInfo& Info : Removed)
 		{
-			if (auto* P = Bus->CreatePayload<UTerminalGameStageRemovedEventPayload>())
+			if (auto* P = Bus->CreatePayload<UTerminalGameStageRemovedReportPayload>())
 			{
 				P->Setup(Info.TId, Info.GId, Info.SId);
 				PublishTerminalOutcome(Info.TId, EOutcomeTerminal::ReportGameStageRemoved, P);
@@ -1912,7 +1914,7 @@ void UTerminalSubsystem::RemoveGameRecord(const FGuid& TerminalId, const FString
 
 		if (UEventBusSubsystem* Bus = CachedEventBus.Get())
 		{
-			if (auto* P = Bus->CreatePayload<UTerminalGameRecordRemovedEventPayload>())
+			if (auto* P = Bus->CreatePayload<UTerminalGameRecordRemovedReportPayload>())
 			{
 				P->Setup(TId, GId);
 				PublishTerminalOutcome(TId, EOutcomeTerminal::ReportGameRecordRemoved, P);
@@ -1933,22 +1935,22 @@ void UTerminalSubsystem::RemoveGameRecord(const FGuid& TerminalId, const FString
 
 void UTerminalSubsystem::HandleGameStarted(const FOutcomeEventBase& Outcome)
 {
-	auto* P = Cast<UTerminalGameStartedPayload>(Outcome.Payload);
+	auto* P = Cast<UTerminalGameStartedEventPayload>(Outcome.Payload);
 	if (!P) return;
-	ReportGameStarted(P->TerminalId, P->ActivityId);
+	ReportGameStarted(P->TerminalId, P->ActivityId, P->StartedAt);
 }
 
 void UTerminalSubsystem::HandleGameStageFinished(const FOutcomeEventBase& Outcome)
 {
-	auto* P = Cast<UTerminalGameStageFinishedPayload>(Outcome.Payload);
+	auto* P = Cast<UTerminalGameStageFinishedEventPayload>(Outcome.Payload);
 	if (!P) return;
-	ReportGameStageFinished(P->TerminalId, P->ActivityId, P->StageId,
-		P->Result, P->Score, P->Notes);
+	ReportGameStageFinished(P->TerminalId, P->ActivityId, P->Stage.StageId,
+		P->Stage.Result, P->Stage.Score, P->Stage.Notes);
 }
 
 void UTerminalSubsystem::HandleGameCompleted(const FOutcomeEventBase& Outcome)
 {
-	auto* P = Cast<UTerminalGameCompletedPayload>(Outcome.Payload);
+	auto* P = Cast<UTerminalGameCompletedEventPayload>(Outcome.Payload);
 	if (!P) return;
 	ReportGameCompleted(P->TerminalId, P->ActivityId, P->bSuccess, P->TotalScore, P->ResultData);
 }

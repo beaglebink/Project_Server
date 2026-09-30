@@ -395,7 +395,7 @@ private:
     // Каждый мутатор меняет GameRecords и публикует исходящий отчёт
     // EOutcomeTerminal::ReportGame* наружу.
     // ========================================================================
-    void ReportGameStarted(const FGuid& TerminalId, const FString& GameId);
+    void ReportGameStarted(const FGuid& TerminalId, const FString& GameId, const FDateTime& InStartedAt);
     void ReportGameStageFinished(const FGuid& TerminalId, const FString& GameId,
         const FString& StageId, ETerminalStageResult Result, int32 Score, const FString& Notes);
     void ReportGameCompleted(const FGuid& TerminalId, const FString& GameId,

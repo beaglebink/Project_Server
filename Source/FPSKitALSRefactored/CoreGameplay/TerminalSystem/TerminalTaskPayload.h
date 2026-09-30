@@ -35,6 +35,8 @@ public:
 
 // ---- Game start ----
 // ---- Старт игры ----
+
+/*
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalGameStartedPayload : public UOutcomePayload
 {
@@ -100,7 +102,7 @@ public:
         TotalScore = InScore; ResultData = InData; return this;
     }
 };
-
+*/
 // ---- Removing a record (empty ActivityId — all games of the terminal) ----
 // ---- Удаление записи (пустой ActivityId — все игры терминала) ----
 UCLASS(BlueprintType)
@@ -210,7 +212,7 @@ public:
 // ---- Record removed ----
 // ---- Запись удалена ----
 UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalGameRecordRemovedEventPayload : public UOutcomePayload
+class FPSKITALSREFACTORED_API UTerminalGameRecordRemovedReportPayload : public UOutcomePayload
 {
     GENERATED_BODY()
 public:
@@ -218,7 +220,7 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalGameRecordRemovedEventPayload* Setup(const FGuid& InTid, const FString& InAid)
+    UTerminalGameRecordRemovedReportPayload* Setup(const FGuid& InTid, const FString& InAid)
     {
         TerminalId = InTid; ActivityId = InAid; return this;
     }
@@ -246,7 +248,7 @@ public:
 // ---- Stage removed ----
 // ---- Этап удалён ----
 UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalGameStageRemovedEventPayload : public UOutcomePayload
+class FPSKITALSREFACTORED_API UTerminalGameStageRemovedReportPayload : public UOutcomePayload
 {
     GENERATED_BODY()
 public:
@@ -255,7 +257,7 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString StageId;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalGameStageRemovedEventPayload* Setup(const FGuid& InTid,
+    UTerminalGameStageRemovedReportPayload* Setup(const FGuid& InTid,
         const FString& InAid, const FString& InSid)
     {
         TerminalId = InTid; ActivityId = InAid; StageId = InSid; return this;
