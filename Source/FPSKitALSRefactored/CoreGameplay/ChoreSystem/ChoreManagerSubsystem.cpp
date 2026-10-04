@@ -14,9 +14,6 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    // Force initialization of the save system BEFORE us.
-    // Without this, GetSubsystem<UGameSaveSubsystem>() may return nullptr,
-    // and the Saveable subsystem registration will silently fail.
     // Форсируем инициализацию системы сохранения ДО нас.
     // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
     // и регистрация Saveable-подсистемы молча не сработает.
@@ -24,11 +21,9 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     TimerManager = &GetWorld()->GetTimerManager();
 
-    // Load all chore definitions
     // Загружаем все определения хор
     LoadAllDefinitions();
 
-    // ---- Creating conditions for subscriptions ----
     // ---- Создание условий для подписок ----
     GlobalEventCondition = NewObject<UOutcomeConditionAsset>(this);
     GlobalEventCondition->OperatorType = EConditionOperator::Composite;
@@ -43,7 +38,6 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     ChoreCompletionCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
     ChoreCompletionCondition->CompileCondition();
 
-    // ---- Command events ----
     // ---- Командные события ----
     AcceptRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::AcceptRequest);
     StartRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::StartRequest);
@@ -61,7 +55,6 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     PauseRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::PauseRequest);
     ResumeRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ResumeRequest);
 
-    // ---- Registering handlers in EventBus ----
     // ---- Регистрация обработчиков в EventBus ----
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
@@ -105,11 +98,23 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleResumeRequest));
     }
 
-    // ---- Registering with the save system ----
     // ---- Регистрация в системе сохранения ----
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
     {
         SaveSys->RegisterSaveableSubsystem(this);
+    }
+
+    // ---- Availability pulse ----
+    // Раз в N секунд напрямую перепроверяем state-driven availability
+    // conditions, чтобы time-based условия срабатывали сами по себе.
+    // EventBus не задействован — pulse нужен только этой подсистеме.
+    if (TimerManager)
+    {
+        TimerManager->SetTimer(
+            AvailabilityPulseHandle,
+            FTimerDelegate::CreateUObject(this, &UChoreManagerSubsystem::EvaluateAllAvailability),
+            AvailabilityPulseIntervalSeconds,
+            /*bLoop=*/true);
     }
 
     UE_LOG(LogTemp, Log, TEXT("ChoreManagerSubsystem: Initialized."));
@@ -117,7 +122,6 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UChoreManagerSubsystem::Deinitialize()
 {
-    // Unsubscribe from EventBus
     // Отписка от EventBus
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
@@ -142,14 +146,13 @@ void UChoreManagerSubsystem::Deinitialize()
         Unreg(ResumeRequestHandler);
     }
 
-    // Unsubscribe availability handlers
     // Отписка обработчиков доступности
     for (auto& Pair : ActiveStates)
     {
         UnregisterReactivationHandler(Pair.Key);
         UnregisterAvailabilityHandler(Pair.Key);
     }
-    // Clear timers
+
     // Очистка таймеров
     if (TimerManager)
     {
@@ -158,9 +161,15 @@ void UChoreManagerSubsystem::Deinitialize()
             if (Pair.Value.IsValid()) TimerManager->ClearTimer(Pair.Value);
         }
         DeadlineTimers.Empty();
+
+        // ---- НОВОЕ: остановить pulse-таймер ----
+        if (AvailabilityPulseHandle.IsValid())
+        {
+            TimerManager->ClearTimer(AvailabilityPulseHandle);
+            AvailabilityPulseHandle.Invalidate();
+        }
     }
 
-    // Unsubscribe from saving
     // Отписка от сохранения
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
     {
@@ -462,7 +471,7 @@ void UChoreManagerSubsystem::AddHistoryEntry(FName ChoreId, EOutcomeChore Result
     Entry.ChoreId = ChoreId;
     Entry.Result = Result;
     Entry.Performance = Performance;
-    Entry.Timestamp = FDateTime::UtcNow();
+    Entry.Timestamp = GetGameTime();   // было FDateTime::UtcNow()
     History.Add(Entry);
 
     UE_LOG(LogTemp, Log, TEXT("AddHistoryEntry: History size now %d"), History.Num());
@@ -1060,6 +1069,11 @@ TArray<FName> UChoreManagerSubsystem::GetSucceededChoreIds() const
 // ---- Extended history queries ----
 // ---- Расширенные запросы истории ----
 
+FDateTime UChoreManagerSubsystem::GetGameTime() const
+{
+    return FDateTime::UtcNow() - AccumulatedOfflineTime;
+}
+
 bool UChoreManagerSubsystem::WasChoreEverCompleted(FName ChoreId) const
 {
     if (ChoreId.IsNone()) return false;
@@ -1269,6 +1283,39 @@ bool UChoreManagerSubsystem::GetLastResult(FName ChoreId) const
     {
         if (History[i].ChoreId == ChoreId)
             return History[i].Result == EOutcomeChore::CompleteRequest;
+    }
+    return false;
+}
+
+bool UChoreManagerSubsystem::GetLatestHistoryTimestamp(
+    FName ChoreId,
+    EChoreFamily Family,
+    bool bUseFamily,
+    EChoreSubtype Subtype,
+    bool bUseSubtype,
+    const TArray<EOutcomeChore>& AllowedResults,
+    FDateTime& OutTimestamp) const
+{
+    if (ChoreId.IsNone() && !bUseFamily && !bUseSubtype)
+        return false;
+
+    for (int32 i = History.Num() - 1; i >= 0; --i)
+    {
+        const FChoreHistoryEntry& Entry = History[i];
+
+        if (!ChoreId.IsNone() && Entry.ChoreId != ChoreId) continue;
+        if (AllowedResults.Num() > 0 && !AllowedResults.Contains(Entry.Result)) continue;
+
+        if (bUseFamily || bUseSubtype)
+        {
+            UChoreDefinition* Def = GetChoreDefinition(Entry.ChoreId);
+            if (!Def) continue;
+            if (bUseFamily && Def->Family != Family)  continue;
+            if (bUseSubtype && Def->Subtype != Subtype) continue;
+        }
+
+        OutTimestamp = Entry.Timestamp;
+        return true;
     }
     return false;
 }
@@ -1652,22 +1699,23 @@ void UChoreManagerSubsystem::EvaluateAllAvailability()
     for (auto& Pair : ActiveStates)
     {
         FName ChoreId = Pair.Key;
-        if (Pair.Value.Status == EChoreStatus::Unavailable)
+
+        // Проверяем и недоступные, и «ожидающие повторного предложения».
+        const EChoreStatus Status = Pair.Value.Status;
+        if (Status != EChoreStatus::Unavailable && Status != EChoreStatus::RetryAvailable)
+            continue;
+
+        UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+        if (!Def || !Def->AvailabilityCondition) continue;
+
+        if (!Def->AvailabilityCondition->GetCondition().IsValid())
+            Def->AvailabilityCondition->CompileCondition();
+        if (!Def->AvailabilityCondition->GetCondition().IsValid()) continue;
+
+        FOutcomeEventBase Dummy;
+        if (Def->AvailabilityCondition->GetCondition()->Evaluate(Dummy))
         {
-            UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-            if (Def && Def->AvailabilityCondition)
-            {
-                if (!Def->AvailabilityCondition->GetCondition().IsValid())
-                    Def->AvailabilityCondition->CompileCondition();
-                if (Def->AvailabilityCondition->GetCondition().IsValid())
-                {
-                    FOutcomeEventBase Dummy;
-                    if (Def->AvailabilityCondition->GetCondition()->Evaluate(Dummy))
-                    {
-                        OfferChore(ChoreId);
-                    }
-                }
-            }
+            OfferChore(ChoreId);
         }
     }
 }
@@ -1887,7 +1935,6 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
     // ---- States ----
-    // ---- Состояния ----
     TArray<TSharedPtr<FJsonValue>> StateArray;
     for (const auto& Pair : ActiveStates)
     {
@@ -1900,12 +1947,7 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetStringField(TEXT("AcceptTime"), State.AcceptTime.ToIso8601());
         Obj->SetStringField(TEXT("StartTime"), State.StartTime.ToIso8601());
 
-        // Save the deadline as a REMAINING number of seconds, not as an absolute timestamp,
-        // so that after loading the countdown continues exactly from where
-        // it was at the moment of saving.
-        // Дедлайн сохраняем как ОСТАТОК в секундах, а не как абсолютную метку,
-        // чтобы после загрузки отсчёт продолжился ровно с того места,
-        // где он был на момент сохранения.
+        // Дедлайн сохраняем как ОСТАТОК в секундах, а не как абсолютную метку.
         {
             double DeadlineRemainingSecs = 0.0;
             if (State.Deadline != FDateTime::MinValue())
@@ -1924,7 +1966,6 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Obj->SetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
 
         // Stages
-        // Стадии
         Obj->SetNumberField(TEXT("CurrentStageIndex"), State.CurrentStageIndex);
         Obj->SetStringField(TEXT("CurrentStageKey"), State.CurrentStageKey.ToString());
         Obj->SetBoolField(TEXT("IsStart"), State.IsStart);
@@ -1948,7 +1989,6 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     Root->SetArrayField(TEXT("States"), StateArray);
 
     // ---- History ----
-    // ---- История ----
     TArray<TSharedPtr<FJsonValue>> HistoryArray;
     for (const FChoreHistoryEntry& Entry : History)
     {
@@ -1968,7 +2008,14 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     }
     Root->SetArrayField(TEXT("History"), HistoryArray);
 
-    // ---- Serialization ----
+    // ---- НОВОЕ: offline-время ----
+    // Wall-clock момент этого сохранения — чтобы при следующей загрузке
+    // посчитать, сколько реального времени игрок провёл вне игры.
+    Root->SetStringField(TEXT("LastSaveWallClock"), FDateTime::UtcNow().ToIso8601());
+
+    // Накопленное offline-время на момент сохранения.
+    Root->SetNumberField(TEXT("AccumulatedOfflineSeconds"), AccumulatedOfflineTime.GetTotalSeconds());
+
     // ---- Сериализация ----
     FString Output;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -1998,8 +2045,30 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     History.Empty();
     DeadlineTimers.Empty();
 
+    // ---- НОВОЕ: offline-время ----
+    // Считываем накопленное offline-время из сейва (могло быть != 0,
+    // если игрок уже загружался раньше и снова сохранился).
+    double AccumulatedOfflineSecs = 0.0;
+    Root->TryGetNumberField(TEXT("AccumulatedOfflineSeconds"), AccumulatedOfflineSecs);
+    AccumulatedOfflineTime = FTimespan::FromSeconds(FMath::Max(0.0, AccumulatedOfflineSecs));
+
+    // Прибавляем разницу «сейчас − момент сохранения». Это реальное время,
+    // которое игрок был вне игры.
+    FString LastSaveWallClockStr;
+    if (Root->TryGetStringField(TEXT("LastSaveWallClock"), LastSaveWallClockStr))
+    {
+        FDateTime LastSaveWallClock;
+        if (FDateTime::ParseIso8601(*LastSaveWallClockStr, LastSaveWallClock))
+        {
+            const FTimespan Gap = FDateTime::UtcNow() - LastSaveWallClock;
+            if (Gap.GetTotalSeconds() > 0)
+            {
+                AccumulatedOfflineTime += Gap;
+            }
+        }
+    }
+
     // ---- States ----
-    // ---- Состояния ----
     const TArray<TSharedPtr<FJsonValue>>* StateArray = nullptr;
     if (Root->TryGetArrayField(TEXT("States"), StateArray))
     {
@@ -2030,10 +2099,6 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 State.StartTime = FDateTime::MinValue();
             }
 
-            // Restore the deadline from the remaining time: Deadline = Now + Remaining.
-            // 0 = the chore had no deadline.
-            // Дедлайн восстанавливаем из остатка: Deadline = Now + Remaining.
-            // 0 = дедлайна у хоры не было.
             double DeadlineRemainingSecs = 0.0;
             Obj->TryGetNumberField(TEXT("DeadlineRemainingSeconds"), DeadlineRemainingSecs);
 
@@ -2051,7 +2116,6 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             Obj->TryGetBoolField(TEXT("bRewardIssued"), State.bRewardIssued);
 
             // ---- Stages ----
-            // ---- Стадии ----
             int32 CurrentStageInt = 0;
             Obj->TryGetNumberField(TEXT("CurrentStageIndex"), CurrentStageInt);
             State.CurrentStageIndex = CurrentStageInt;
@@ -2074,8 +2138,6 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             Obj->TryGetNumberField(TEXT("PausedDeadlineSeconds"), PausedDeadlineSecs);
             State.PausedDeadlineRemaining = FTimespan::FromSeconds(PausedDeadlineSecs);
 
-            // A pause that started before saving is "restarted" on load.
-            // Пауза, начавшаяся до сохранения, при загрузке «начинается заново».
             State.PauseStartTime = State.bIsPaused ? FDateTime::UtcNow() : FDateTime::MinValue();
 
             // ---- Performance ----
@@ -2090,12 +2152,6 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
             ActiveStates.Add(State.ChoreId, State);
 
-            // Restore the deadline timer for active chores.
-            // For a chore in pause, Deadline == MinValue — the timer does not start,
-            // the countdown will resume at ResumeChore from PausedDeadlineRemaining.
-            // Восстанавливаем таймер дедлайна для активных хор.
-            // У хоры в паузе Deadline == MinValue — таймер не запускается,
-            // отсчёт возобновится при ResumeChore из PausedDeadlineRemaining.
             if (State.Status == EChoreStatus::Active && State.Deadline != FDateTime::MinValue())
             {
                 FTimespan Remaining = State.Deadline - FDateTime::UtcNow();
@@ -2118,7 +2174,6 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     }
 
     // ---- History ----
-    // ---- История ----
     const TArray<TSharedPtr<FJsonValue>>* HistoryArray = nullptr;
     if (Root->TryGetArrayField(TEXT("History"), HistoryArray))
     {
@@ -2155,8 +2210,6 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
-    // After loading, re-check availability
-    // После загрузки перепроверяем доступность
     EvaluateAllAvailability();
     bLoadComplete = true;
 }
