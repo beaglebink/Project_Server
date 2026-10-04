@@ -14,6 +14,8 @@
 #include "TerminalGameConditionAsset.h"
 #include "ChoreSystem/ChoreTimeSinceConditionAssetDetails.h"
 #include "ChoreTimeSinceConditionAsset.h"
+#include "ChoreSystem/LocationConditionAssetDetails.h"
+#include "LocationConditionAsset.h"
 
 #define LOCTEXT_NAMESPACE "FLocationEditorModule"
 
@@ -65,6 +67,11 @@ void FLocationEditorModule::StartupModule()
         FOnGetDetailCustomizationInstance::CreateStatic(&FChoreTimeSinceConditionAssetDetails::MakeInstance)
     );
 
+    PropertyModule.RegisterCustomClassLayout(
+        ULocationConditionAsset::StaticClass()->GetFName(),
+        FOnGetDetailCustomizationInstance::CreateStatic(&FLocationConditionAssetDetails::MakeInstance)
+    );
+
     PropertyModule.NotifyCustomizationModuleChanged();
 }
 
@@ -81,6 +88,7 @@ void FLocationEditorModule::ShutdownModule()
         PropertyModule.UnregisterCustomClassLayout(UWorldStateConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UTerminalGameConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UChoreTimeSinceConditionAsset::StaticClass()->GetFName());
+        PropertyModule.UnregisterCustomClassLayout(ULocationConditionAsset::StaticClass()->GetFName());
 
         PropertyModule.NotifyCustomizationModuleChanged();
     }

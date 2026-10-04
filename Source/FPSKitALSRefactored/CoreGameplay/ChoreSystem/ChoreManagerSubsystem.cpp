@@ -9,6 +9,7 @@
 #include "ChorePayloads.h"
 #include "MissionConditionAsset.h"
 #include <MissionSubsystem.h>
+#include <LocationTrackerSubsystem/LocationTrackerSubsystem.h>
 
 void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -18,6 +19,7 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
     // и регистрация Saveable-подсистемы молча не сработает.
     Collection.InitializeDependency<UGameSaveSubsystem>();
+    Collection.InitializeDependency<ULocationTrackerSubsystem>();
 
     TimerManager = &GetWorld()->GetTimerManager();
 
