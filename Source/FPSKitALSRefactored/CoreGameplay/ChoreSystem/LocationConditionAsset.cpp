@@ -31,7 +31,6 @@ ULocationTrackerSubsystem* ULocationConditionAsset::FindTracker()
 // ─────────────────────────────────────────────────────────────────────────────
 bool ULocationConditionAsset::ValidateHierarchy(FString& OutError) const
 {
-    // Проверяем по цепочке, если указано более одного уровня.
     if (TargetFloor && TargetBuilding)
     {
         UInteriorSetAsset* Parent = TargetFloor->ParentInteriorSet.LoadSynchronous();
@@ -88,12 +87,6 @@ bool ULocationConditionAsset::ResolveTargetPackageNames(TArray<FString>& OutPack
 {
     OutPackageNames.Reset();
 
-    // ── Приоритет — самое глубокое указанное поле ────────────────────────
-    // Floor > Building > Street > Region > Map.
-    // Более общие поля (если заданы вместе с более глубокими) используются
-    // только для проверки консистентности цепочки — это делает ValidateHierarchy,
-    // здесь мы её не дублируем.
-
     // ── 1. Floor ─────────────────────────────────────────────────────────
     if (TargetFloor)
     {
@@ -101,11 +94,8 @@ bool ULocationConditionAsset::ResolveTargetPackageNames(TArray<FString>& OutPack
         {
             const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
                 TargetFloor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
-
             if (!Norm.IsEmpty())
-            {
                 OutPackageNames.AddUnique(Norm);
-            }
         }
         return OutPackageNames.Num() > 0;
     }
@@ -116,16 +106,12 @@ bool ULocationConditionAsset::ResolveTargetPackageNames(TArray<FString>& OutPack
         for (const TSoftObjectPtr<UFloorAsset>& FloorRef : TargetBuilding->Floors)
         {
             UFloorAsset* Floor = FloorRef.LoadSynchronous();
-            if (!Floor) continue;
-            if (Floor->FloorLevel.IsNull()) continue;
+            if (!Floor || Floor->FloorLevel.IsNull()) continue;
 
             const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
                 Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
-
             if (!Norm.IsEmpty())
-            {
                 OutPackageNames.AddUnique(Norm);
-            }
         }
         return OutPackageNames.Num() > 0;
     }
@@ -141,16 +127,12 @@ bool ULocationConditionAsset::ResolveTargetPackageNames(TArray<FString>& OutPack
             for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Building->Floors)
             {
                 UFloorAsset* Floor = FloorRef.LoadSynchronous();
-                if (!Floor) continue;
-                if (Floor->FloorLevel.IsNull()) continue;
+                if (!Floor || Floor->FloorLevel.IsNull()) continue;
 
                 const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
                     Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
-
                 if (!Norm.IsEmpty())
-                {
                     OutPackageNames.AddUnique(Norm);
-                }
             }
         }
         return OutPackageNames.Num() > 0;
@@ -163,11 +145,8 @@ bool ULocationConditionAsset::ResolveTargetPackageNames(TArray<FString>& OutPack
         {
             const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
                 TargetRegion->RegionLevel.ToSoftObjectPath().GetLongPackageName());
-
             if (!Norm.IsEmpty())
-            {
                 OutPackageNames.AddUnique(Norm);
-            }
         }
         return OutPackageNames.Num() > 0;
     }
@@ -178,25 +157,16 @@ bool ULocationConditionAsset::ResolveTargetPackageNames(TArray<FString>& OutPack
         for (const TSoftObjectPtr<UWorldRegionAsset>& RegionRef : TargetMap->Regions)
         {
             UWorldRegionAsset* Region = RegionRef.LoadSynchronous();
-            if (!Region) continue;
-            if (Region->RegionLevel.IsNull()) continue;
+            if (!Region || Region->RegionLevel.IsNull()) continue;
 
             const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
                 Region->RegionLevel.ToSoftObjectPath().GetLongPackageName());
-
             if (!Norm.IsEmpty())
-            {
                 OutPackageNames.AddUnique(Norm);
-            }
         }
         return OutPackageNames.Num() > 0;
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("LocationConditionAsset '%s': ResolveTargetPackageNames -> [%s]"),
-        *GetName(), *FString::Join(OutPackageNames, TEXT(", ")));
-    return OutPackageNames.Num() > 0;
-
-    // ── Ничего не указано ────────────────────────────────────────────────
     return false;
 }
 
@@ -220,7 +190,6 @@ void ULocationConditionAsset::CompileCondition()
             const FString QueryStr = StaticEnum<ELocationQueryType>()
                 ->GetValueAsString(Asset->QueryType);
 
-            // Что указано в качестве цели — по самому глубокому полю.
             FString TargetDesc = TEXT("<no target>");
             if (Asset->TargetFloor)
                 TargetDesc = FString::Printf(TEXT("Floor '%s'"), *Asset->TargetFloor->GetName());
@@ -233,8 +202,6 @@ void ULocationConditionAsset::CompileCondition()
             else if (Asset->TargetMap)
                 TargetDesc = FString::Printf(TEXT("Map '%s' (any region)"), *Asset->TargetMap->GetName());
 
-            // Проверка консистентности цепочки — выводим предупреждение прямо в описание,
-            // чтобы дизайнер увидел его в редакторе.
             FString HierarchyError;
             const bool bHierarchyOk = Asset->ValidateHierarchy(HierarchyError);
             const FString HierarchyNote = bHierarchyOk
@@ -243,15 +210,10 @@ void ULocationConditionAsset::CompileCondition()
 
             switch (Asset->QueryType)
             {
-            case ELocationQueryType::CurrentlyAtTarget:
             case ELocationQueryType::HasEnteredEver:
+            case ELocationQueryType::LeftAndReturned:
                 return FString::Printf(TEXT("Location: [%s] %s%s"),
                     *QueryStr, *TargetDesc, *HierarchyNote);
-
-            case ELocationQueryType::HasEnteredRecently:
-            case ELocationQueryType::LeftAndReturned:
-                return FString::Printf(TEXT("Location: [%s] %s, window %g min%s"),
-                    *QueryStr, *TargetDesc, Asset->TimeWindowMinutes, *HierarchyNote);
 
             case ELocationQueryType::VisitCountAtLeast:
                 return FString::Printf(TEXT("Location: [%s] %s, threshold %d%s"),
@@ -273,9 +235,6 @@ void ULocationConditionAsset::CompileCondition()
 // ─────────────────────────────────────────────────────────────────────────────
 bool ULocationConditionAsset::EvaluateCondition(const FOutcomeEventBase& /*Outcome*/) const
 {
-    // ── 1. Валидация цепочки иерархии ────────────────────────────────────
-    // Если дизайнер указал несогласованные ассеты (Floor не из указанного
-    // Building, Building не из указанной Street и т.д.) — условие всегда false.
     FString HierarchyError;
     if (!ValidateHierarchy(HierarchyError))
     {
@@ -285,7 +244,6 @@ bool ULocationConditionAsset::EvaluateCondition(const FOutcomeEventBase& /*Outco
         return false;
     }
 
-    // ── 2. Достаём трекер ────────────────────────────────────────────────
     ULocationTrackerSubsystem* Tracker = FindTracker();
     if (!Tracker)
     {
@@ -295,35 +253,25 @@ bool ULocationConditionAsset::EvaluateCondition(const FOutcomeEventBase& /*Outco
         return false;
     }
 
-    // ── 3. Резолвим список целевых пакетов ───────────────────────────────
     TArray<FString> TargetPackageNames;
     if (!ResolveTargetPackageNames(TargetPackageNames) || TargetPackageNames.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning,
+        UE_LOG(LogTemp, Verbose,
             TEXT("LocationConditionAsset '%s': ResolveTargetPackageNames returned EMPTY"),
             *GetName());
         return false;
     }
 
-    // ── 4. Диагностический лог перед проверкой ───────────────────────────
-    UE_LOG(LogTemp, Warning,
+    UE_LOG(LogTemp, Verbose,
         TEXT("LocationConditionAsset '%s': QueryType=%d Targets=[%s] Current='%s'"),
         *GetName(), (int32)QueryType,
         *FString::Join(TargetPackageNames, TEXT(", ")),
         *Tracker->GetCurrentLevelPackageName());
 
-    // ── 5. Собственно проверка ───────────────────────────────────────────
     bool bResult = false;
 
     switch (QueryType)
     {
-    case ELocationQueryType::CurrentlyAtTarget:
-    {
-        const FString Current = Tracker->GetCurrentLevelPackageName();
-        bResult = TargetPackageNames.Contains(Current);
-        break;
-    }
-
     case ELocationQueryType::HasEnteredEver:
     {
         for (const FString& Pkg : TargetPackageNames)
@@ -337,26 +285,11 @@ bool ULocationConditionAsset::EvaluateCondition(const FOutcomeEventBase& /*Outco
         break;
     }
 
-    case ELocationQueryType::HasEnteredRecently:
-    {
-        const float Window = FMath::Max(0.0f, TimeWindowMinutes);
-        for (const FString& Pkg : TargetPackageNames)
-        {
-            if (Tracker->HasEnteredInWindow(Pkg, Window))
-            {
-                bResult = true;
-                break;
-            }
-        }
-        break;
-    }
-
     case ELocationQueryType::LeftAndReturned:
     {
-        const float Window = FMath::Max(0.0f, TimeWindowMinutes);
         for (const FString& Pkg : TargetPackageNames)
         {
-            if (Tracker->HasLeftAndReturned(Pkg, Window))
+            if (Tracker->HasLeftAndReturned(Pkg, /*WindowMinutes=*/0.0f))
             {
                 bResult = true;
                 break;
@@ -381,8 +314,7 @@ bool ULocationConditionAsset::EvaluateCondition(const FOutcomeEventBase& /*Outco
         break;
     }
 
-    // ── 6. Итоговый лог ──────────────────────────────────────────────────
-    UE_LOG(LogTemp, Warning,
+    UE_LOG(LogTemp, Verbose,
         TEXT("LocationConditionAsset '%s': RESULT = %s"),
         *GetName(), bResult ? TEXT("TRUE") : TEXT("false"));
 
