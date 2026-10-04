@@ -259,13 +259,10 @@ public:
     TArray<FTerminalActivityRecord> GetAllGameRecordsAcrossTerminals() const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
-    TArray<FTerminalActivityRecord> GetGameRecordsByStatus(ETerminalRecordStatus Status) const;
+    TArray<FTerminalActivityRecord> GetGameRecordsByStatus(ETerminalRecordStatus Status, const FGuid& TerminalId = FGuid()) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
-    bool HasGameRecordByActivityId(const FString& ActivityId) const;
-
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
-    TArray<FTerminalActivityRecord> GetAllGameRecordsByActivityId(const FString& ActivityId) const;
+    TArray<FTerminalActivityRecord> GetAllGameRecordsByActivityId(const FString& ActivityId, const FGuid& TerminalId = FGuid()) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     bool HasGameStage(const FGuid& TerminalId, const FString& GameId,

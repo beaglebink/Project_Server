@@ -212,7 +212,7 @@ public:
 // ---- Record removed ----
 // ---- Запись удалена ----
 UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalGameRecordRemovedReportPayload : public UOutcomePayload
+class FPSKITALSREFACTORED_API UTerminalGameRecordRemovedPayload : public UOutcomePayload
 {
     GENERATED_BODY()
 public:
@@ -220,7 +220,7 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalGameRecordRemovedReportPayload* Setup(const FGuid& InTid, const FString& InAid)
+    UTerminalGameRecordRemovedPayload* Setup(const FGuid& InTid, const FString& InAid)
     {
         TerminalId = InTid; ActivityId = InAid; return this;
     }
