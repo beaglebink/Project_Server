@@ -119,3 +119,21 @@ FFluidPoints UCoreBlueprintFunctionLibrary::GenerateFluidPointsGrid(UStaticMeshC
 
 	return FluidPoints;
 }
+
+USkeleton* UCoreBlueprintFunctionLibrary::GetAnimationSkeleton(UAnimationAsset* inAnimation)
+{
+	if (IsValid(inAnimation))
+		return inAnimation->GetSkeleton();
+
+	return nullptr;
+}
+
+bool UCoreBlueprintFunctionLibrary::CheckAnimationAndSkeletonPairing(UAnimationAsset* inAnimation, USkeletalMeshComponent* inSkeletalMeshComponent)
+{
+	USkeleton* animationSkeleton = IsValid(inAnimation) ? inAnimation->GetSkeleton() : nullptr;
+
+	USkeletalMesh* skeletalMesh = IsValid(inSkeletalMeshComponent) ? inSkeletalMeshComponent->GetSkeletalMeshAsset() : nullptr;
+	USkeleton* meshSkeleton = IsValid(skeletalMesh) ? skeletalMesh->GetSkeleton() : nullptr;
+	
+	return (IsValid(animationSkeleton) && animationSkeleton == meshSkeleton);
+}
