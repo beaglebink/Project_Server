@@ -35,11 +35,11 @@
 #include "ApplyMissionCompletionPolicyPayload.h"
 #include "SceneDataProvider.h"
 #include <UpdateActiveMissionId.h>
-//#include "SpawnGroupSubsystem.h"
 #include <LevelLoadedPayload.h>
 #include "../SpawnGroupSystem/SpawnGroupTypes.h"
 #include "SpawnGroupSpawner.h"
 #include <EnemyDamageSystem/EnemyDamageComponent.h>
+#include "../LocationTrackerSubsystem/LocationTrackerSubsystem.h"
 
 /* Converts EFloorActorType to string (Преобразует EFloorActorType в строку) */
 static FString ActorTypeToString(EFloorActorType Type);
@@ -3745,6 +3745,7 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
     // и регистрация Saveable-подсистемы молча не сработает.
     Collection.InitializeDependency<UGameSaveSubsystem>();
+	Collection.InitializeDependency<ULocationTrackerSubsystem>();
 	
 	// Register with GameSaveSubsystem to participate in saving/loading
 	// Регистрируемся в GameSaveSubsystem для участия в сохранении/загрузке

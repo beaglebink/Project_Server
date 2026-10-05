@@ -178,6 +178,9 @@ enum class EOutcomeInterior : uint8
     FloorStateSave          UMETA(DisplayName = "Floor State Save"),
     FloorStateRestore       UMETA(DisplayName = "Floor State Restore"),
     LevelLoaded             UMETA(DisplayName = "Level Loaded"),
+    LocationVisitReset      UMETA(DisplayName = "Location Visit Reset"),
+    CheckRequest            UMETA(DisplayName = "Check Request"),
+    CheckResponse           UMETA(DisplayName = "Check Response")
     //CheckRequest            UMETA(DisplayName = "Check Request"),
     //CheckResponse           UMETA(DisplayName = "Check Response")
 };

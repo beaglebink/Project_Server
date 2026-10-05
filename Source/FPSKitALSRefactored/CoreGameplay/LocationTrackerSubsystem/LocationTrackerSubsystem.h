@@ -1,14 +1,20 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ISaveableSubsystem.h"
 
-#include "OutcomeEventBase.h"                       // FOutcomeEventBase
-#include "OutcomeConditionAsset.h"                  // UOutcomeConditionAsset
-#include "../EventBusSystem/EventBusSubsystem.h"    // FOutcomeHandlerHandle, UEventBusSubsystem
+#include "OutcomeEventBase.h"
+#include "OutcomeConditionAsset.h"
+#include "../EventBusSystem/EventBusSubsystem.h"
 
 #include "LocationTrackerSubsystem.generated.h"
+
+class UWorldMapAsset;
+class UWorldRegionAsset;
+class UStreetAsset;
+class UInteriorSetAsset;
+class UFloorAsset;
 
 USTRUCT(BlueprintType)
 struct FLocationVisitState
@@ -51,21 +57,31 @@ public:
     virtual FString GetSaveSubsystemName() const override { return TEXT("LocationTracker"); }
     virtual bool GetIsLoadComplete() const override { return bLoadComplete; }
 
-    // Приводит путь/имя к «каноническому» виду:
-    //   /Game/Content/Maps/Level_X → level_x
-    // Убирает .umap, PIE-префиксы (UEDPIE_0_), приводит к lowercase.
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker")
-    static FString NormalizeLevelName(const FString& InPath);
-
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker")
     FString GetCurrentLevelPackageName() const;
+
+    static FString NormalizeLevelName(const FString& InPath);
 
     bool HasEnteredEver(const FString& NormalizedPackageName) const;
     bool HasEnteredInWindow(const FString& NormalizedPackageName, float WindowMinutes) const;
     bool HasLeftAndReturned(const FString& NormalizedPackageName, float WindowMinutes) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker")
     int32 GetEnterCount(const FString& NormalizedPackageName) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker")
     int32 GetLeaveCount(const FString& NormalizedPackageName) const;
+
     const FLocationVisitState* FindVisitState(const FString& NormalizedPackageName) const;
+
+    // Резолвер иерархии локации в список нормализованных имён пакетов сцен.
+    // Используется LocationVisitReset.
+    static bool ResolveTargetPackageNames(
+        UWorldMapAsset* TargetMap,
+        UWorldRegionAsset* TargetRegion,
+        UStreetAsset* TargetStreet,
+        UInteriorSetAsset* TargetBuilding,
+        UFloorAsset* TargetFloor,
+        TArray<FString>& OutPackageNames);
 
 private:
     FDateTime GetGameTimeNow() const;
@@ -78,6 +94,15 @@ private:
     TObjectPtr<UOutcomeConditionAsset> LocationEventCondition;
 
     FOutcomeHandlerHandle LocationEventHandler;
+
+    void HandleVisitReset(const FOutcomeEventBase& Outcome);
+
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> LocationResetCondition;
+
+    FOutcomeHandlerHandle LocationResetHandler;
+
+    FString CachedCurrentLevelPackageName;
 
     bool bSuppressNextLevelLoad = true;
     bool bLoadComplete = true;
