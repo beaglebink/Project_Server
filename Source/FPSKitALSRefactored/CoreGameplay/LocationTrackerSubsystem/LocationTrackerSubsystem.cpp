@@ -379,8 +379,6 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
         S.EnterCount++;
     }
 
-    CurrentAddress = NewAddress;
-
     // Хелпер: "DisplayName[Enter/Leave]" или "-" для пустого звена.
     auto FormatLevel = [this](ELocationLevel Level, const FGuid& Id) -> FString
         {
@@ -401,13 +399,32 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
             return FString::Printf(TEXT("%s[%d/%d]"), *Label, Enter, Leave);
         };
 
+    auto FormatAddress = [&](const FLocationVisitAddress& Addr) -> FString
+        {
+            return FString::Printf(TEXT("(M=%s, R=%s, S=%s, B=%s, F=%s)"),
+                *FormatLevel(ELocationLevel::Map, Addr.MapId),
+                *FormatLevel(ELocationLevel::Region, Addr.RegionId),
+                *FormatLevel(ELocationLevel::Street, Addr.StreetId),
+                *FormatLevel(ELocationLevel::Building, Addr.BuildingId),
+                *FormatLevel(ELocationLevel::Floor, Addr.FloorId));
+        };
+
+    // ── Тестовые логи ────────────────────────────────────────────────────
+
+    // Момент «покидаем старый адрес»: считаем, что счётчики Leave уже
+    // инкрементированы выше, но CurrentAddress ещё указывает на старый
+    // адрес. Печатаем OldAddress, чтобы было видно, откуда уходим.
     UE_LOG(LogTemp, Log,
-        TEXT("LocationTracker: Address = (M=%s, R=%s, S=%s, B=%s, F=%s)"),
-        *FormatLevel(ELocationLevel::Map, NewAddress.MapId),
-        *FormatLevel(ELocationLevel::Region, NewAddress.RegionId),
-        *FormatLevel(ELocationLevel::Street, NewAddress.StreetId),
-        *FormatLevel(ELocationLevel::Building, NewAddress.BuildingId),
-        *FormatLevel(ELocationLevel::Floor, NewAddress.FloorId));
+        TEXT("LocationTracker: Leaving    %s"),
+        *FormatAddress(OldAddress));
+
+    CurrentAddress = NewAddress;
+
+    // Момент «прибыли в новый адрес»: счётчики Enter уже инкрементированы,
+    // CurrentAddress обновлён. Печатаем NewAddress.
+    UE_LOG(LogTemp, Log,
+        TEXT("LocationTracker: Arrived at %s"),
+        *FormatAddress(NewAddress));
 }
 
 FLocationVisitState& ULocationTrackerSubsystem::FindOrAddState(ELocationLevel Level, const FGuid& Id)
