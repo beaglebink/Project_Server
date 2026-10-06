@@ -40,5 +40,10 @@ public:
 	//Fluid points grid calculation inside mesh volume
 	UFUNCTION(BlueprintCallable, Category = "Fluid Points")
 	static FFluidPoints GenerateFluidPointsGrid(UStaticMeshComponent* MeshComponent, float PointSpacing, bool bDrawDebug);
-};
 
+	UFUNCTION(BlueprintPure, Category = "Animation")
+	static USkeleton* GetAnimationSkeleton(UAnimationAsset* inAnimation);
+
+	UFUNCTION(BlueprintPure, Category = "Animation")
+	static bool CheckAnimationAndSkeletonPairing(UAnimationAsset* inAnimation, USkeletalMeshComponent* inSkeletalMeshComponent);
+};
