@@ -8,7 +8,6 @@
 #include "Serialization/JsonWriter.h"
 
 #include "LevelLoadedPayload.h"
-#include "InteriorTransitionPayload.h"
 #include "../SaveGame/GameSaveSubsystem.h"
 #include "../ChoreSystem/ChoreManagerSubsystem.h"
 #include "LocationVisitResetPayload.h"
@@ -18,7 +17,11 @@
 #include "../LocationSystem/WorldMapAsset.h"
 #include "../LocationSystem/StreetAsset.h"
 #include "../LocationSystem/InteriorSetAsset.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Утилиты
 // ─────────────────────────────────────────────────────────────────────────────
 FString ULocationTrackerSubsystem::NormalizeLevelName(const FString& InPath)
 {
@@ -30,23 +33,53 @@ FString ULocationTrackerSubsystem::NormalizeLevelName(const FString& InPath)
 
     FString Base = FPaths::GetBaseFilename(PackagePath);
 
-    // Срезаем ТОЛЬКО PIE-префикс вида "UEDPIE_<n>_".
-    // Всё остальное — часть авторского имени карты, её терять нельзя,
-    // иначе runtime и ассет дадут разные ключи.
     const int32 PIEPos = Base.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
     if (PIEPos == 0)
     {
-        int32 Cursor = PIEPos + 7;  // после "UEDPIE_"
-        while (Cursor < Base.Len() && FChar::IsDigit(Base[Cursor]))
-            ++Cursor;
-        if (Cursor < Base.Len() && Base[Cursor] == TEXT('_'))
-            ++Cursor;
+        int32 Cursor = PIEPos + 7;
+        while (Cursor < Base.Len() && FChar::IsDigit(Base[Cursor])) ++Cursor;
+        if (Cursor < Base.Len() && Base[Cursor] == TEXT('_')) ++Cursor;
         Base = Base.Mid(Cursor);
     }
-
     return Base.ToLower();
 }
 
+FString ULocationTrackerSubsystem::MakeKey(ELocationLevel Level, const FGuid& Id)
+{
+    return FString::Printf(TEXT("%d|%s"), (int32)Level, *Id.ToString());
+}
+
+static bool MatchesDisplayName(const UObject* Asset, const FText& InDisplayName)
+{
+    if (!Asset) return false;
+    const FString Target = InDisplayName.ToString();
+    if (Target.IsEmpty()) return false;
+
+    if (FProperty* Prop = Asset->GetClass()->FindPropertyByName(TEXT("DisplayName")))
+    {
+        if (const FText* Text = Prop->ContainerPtrToValuePtr<FText>(Asset))
+        {
+            if (!Text->IsEmpty())
+                return Text->ToString().Equals(Target, ESearchCase::CaseSensitive);
+        }
+    }
+    return Asset->GetName().Equals(Target, ESearchCase::CaseSensitive);
+}
+
+template<typename TAsset>
+static void LoadAllAssetsOfClass(TArray<TAsset*>& Out, const TCHAR* ClassName)
+{
+    FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+    TArray<FAssetData> List;
+    ARM.Get().GetAssetsByClass(
+        FTopLevelAssetPath(TEXT("/Script/FPSKitALSRefactored"), ClassName), List, true);
+    for (const FAssetData& AD : List)
+        if (TAsset* A = Cast<TAsset>(AD.ToSoftObjectPath().TryLoad()))
+            Out.Add(A);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialize / Deinitialize
 // ─────────────────────────────────────────────────────────────────────────────
 void ULocationTrackerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -55,15 +88,12 @@ void ULocationTrackerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     Collection.InitializeDependency<UGameSaveSubsystem>();
 
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
-    {
         SaveSys->RegisterSaveableSubsystem(this);
-    }
+
+    BuildSceneIndex();
 
     if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
     {
-        // ── Широкий handler на все Interior-события ──────────────────────
-        // Фильтруем по OutcomeType == Interior; конкретный InteriorType
-        // проверяется уже внутри HandleLocationEvent (LevelLoaded / FloorLeaving).
         LocationEventCondition = NewObject<UOutcomeConditionAsset>(this);
         LocationEventCondition->OperatorType = EConditionOperator::Composite;
         LocationEventCondition->FilterRow.OutcomeType = EOutcomeType::Interior;
@@ -77,7 +107,6 @@ void ULocationTrackerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
                 FOutcomeHandlerDelegate::CreateUObject(this, &ULocationTrackerSubsystem::HandleLocationEvent));
         }
 
-        // ── Отдельный handler на команду LocationVisitReset ──────────────
         LocationResetCondition = NewObject<UOutcomeConditionAsset>(this);
         LocationResetCondition->OperatorType = EConditionOperator::Composite;
         LocationResetCondition->FilterRow.OutcomeType = EOutcomeType::Interior;
@@ -94,358 +123,497 @@ void ULocationTrackerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
         }
     }
 
-    // Первый LevelLoaded после старта сессии не считается «входом» игрока —
-    // это восстановление мира.
-    bSuppressNextLevelLoad = true;
-
-    // Попытка получить стартовый мир, если он уже готов к этому моменту.
-    // GetWorld() в GameInstanceSubsystem обычно возвращает мир через GameInstance,
-    // и на момент Initialize он уже создан. Если nullptr — оставляем кэш пустым,
-    // тогда первый LevelLoaded отработает как '<initial>'.
-    if (UWorld* W = GetWorld())
-    {
-        CachedCurrentLevelPackageName = NormalizeLevelName(W->GetOutermost()->GetName());
-    }
-
-    UE_LOG(LogTemp, Log, TEXT("LocationTrackerSubsystem: Initialized."));
+    UE_LOG(LogTemp, Log, TEXT("LocationTrackerSubsystem: Initialized. %d scene(s) in index."),
+        SceneToAddress.Num());
 }
 
 void ULocationTrackerSubsystem::Deinitialize()
 {
     if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
     {
-        if (LocationEventHandler.IsValid())
-        {
-            EventBus->UnregisterHandler(LocationEventHandler);
-            LocationEventHandler.Invalidate();
-        }
-
-        if (LocationResetHandler.IsValid())
-        {
-            EventBus->UnregisterHandler(LocationResetHandler);
-            LocationResetHandler.Invalidate();
-        }
+        if (LocationEventHandler.IsValid()) { EventBus->UnregisterHandler(LocationEventHandler); LocationEventHandler.Invalidate(); }
+        if (LocationResetHandler.IsValid()) { EventBus->UnregisterHandler(LocationResetHandler);  LocationResetHandler.Invalidate(); }
     }
-
     LocationEventCondition = nullptr;
     LocationResetCondition = nullptr;
 
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
-    {
         SaveSys->UnregisterSaveableSubsystem(this);
-    }
 
+    SceneToAddress.Empty();
     VisitHistory.Empty();
-    CachedCurrentLevelPackageName.Empty();
+    CurrentAddress.Reset();
 
     Super::Deinitialize();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Индекс сцен → адрес
+// ─────────────────────────────────────────────────────────────────────────────
+void ULocationTrackerSubsystem::BuildSceneIndex()
+{
+    SceneToAddress.Empty();
+    LocationDisplayNames.Empty();
+
+    auto RegisterDisplayName = [this](ELocationLevel Level, const FGuid& Id, const FText& DisplayName, const FString& FallbackName)
+        {
+            if (!Id.IsValid()) return;
+
+            FText Label = DisplayName;
+            if (Label.IsEmpty())
+                Label = FText::FromString(FallbackName);
+
+            LocationDisplayNames.Add(MakeKey(Level, Id), Label);
+        };
+
+    // ── Map ──────────────────────────────────────────────────────────────
+    {
+        TArray<UWorldMapAsset*> All;
+        LoadAllAssetsOfClass(All, TEXT("WorldMapAsset"));
+        for (UWorldMapAsset* M : All)
+        {
+            if (!M) continue;
+            RegisterDisplayName(ELocationLevel::Map, M->WorldMapID, M->DisplayName, M->GetName());
+        }
+    }
+
+    // ── Region ───────────────────────────────────────────────────────────
+    {
+        TArray<UWorldRegionAsset*> All;
+        LoadAllAssetsOfClass(All, TEXT("WorldRegionAsset"));
+        for (UWorldRegionAsset* R : All)
+        {
+            if (!R) continue;
+
+            RegisterDisplayName(ELocationLevel::Region, R->WorldRegionID, R->DisplayName, R->GetName());
+
+            // Также — заполняем SceneToAddress, если у региона есть RegionLevel.
+            if (R->RegionLevel.IsNull()) continue;
+            const FString Norm = NormalizeLevelName(R->RegionLevel.ToSoftObjectPath().GetLongPackageName());
+            if (Norm.IsEmpty()) continue;
+
+            FLocationVisitAddress Addr;
+            Addr.RegionId = R->WorldRegionID;
+            if (UWorldMapAsset* M = R->ParentWorldMap.LoadSynchronous())
+                Addr.MapId = M->WorldMapID;
+
+            if (SceneToAddress.Contains(Norm))
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("LocationTracker: scene '%s' already registered (region on existing scene?). Skipping."), *Norm);
+                continue;
+            }
+            SceneToAddress.Add(Norm, Addr);
+        }
+    }
+
+    // ── Street ───────────────────────────────────────────────────────────
+    {
+        TArray<UStreetAsset*> All;
+        LoadAllAssetsOfClass(All, TEXT("StreetAsset"));
+        for (UStreetAsset* S : All)
+        {
+            if (!S) continue;
+            RegisterDisplayName(ELocationLevel::Street, S->StreetID, S->DisplayName, S->GetName());
+        }
+    }
+
+    // ── Building ─────────────────────────────────────────────────────────
+    {
+        TArray<UInteriorSetAsset*> All;
+        LoadAllAssetsOfClass(All, TEXT("InteriorSetAsset"));
+        for (UInteriorSetAsset* B : All)
+        {
+            if (!B) continue;
+            RegisterDisplayName(ELocationLevel::Building, B->InteriorSetID, B->DisplayName, B->GetName());
+        }
+    }
+
+    // ── Floor ────────────────────────────────────────────────────────────
+    {
+        TArray<UFloorAsset*> All;
+        LoadAllAssetsOfClass(All, TEXT("FloorAsset"));
+        for (UFloorAsset* F : All)
+        {
+            if (!F) continue;
+
+            RegisterDisplayName(ELocationLevel::Floor, F->FloorID, F->DisplayName, F->GetName());
+
+            // Также — заполняем SceneToAddress, если у этажа есть FloorLevel.
+            if (F->FloorLevel.IsNull()) continue;
+            const FString Norm = NormalizeLevelName(F->FloorLevel.ToSoftObjectPath().GetLongPackageName());
+            if (Norm.IsEmpty()) continue;
+
+            FLocationVisitAddress Addr;
+            Addr.FloorId = F->FloorID;
+
+            if (UInteriorSetAsset* B = F->ParentInteriorSet.LoadSynchronous())
+            {
+                Addr.BuildingId = B->InteriorSetID;
+                if (UStreetAsset* S = B->ParentStreet.LoadSynchronous())
+                {
+                    Addr.StreetId = S->StreetID;
+                    if (UWorldRegionAsset* R = S->ParentWorldRegion.LoadSynchronous())
+                    {
+                        Addr.RegionId = R->WorldRegionID;
+                        if (UWorldMapAsset* M = R->ParentWorldMap.LoadSynchronous())
+                            Addr.MapId = M->WorldMapID;
+                    }
+                }
+            }
+
+            if (SceneToAddress.Contains(Norm))
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("LocationTracker: scene '%s' already registered (two floors on same level?). Overwriting."), *Norm);
+            }
+            SceneToAddress.Add(Norm, Addr);
+        }
+    }
+
+    UE_LOG(LogTemp, Log,
+        TEXT("LocationTracker: SceneIndex built — %d scene(s), %d location name(s)."),
+        SceneToAddress.Num(), LocationDisplayNames.Num());
+}
+
+bool ULocationTrackerSubsystem::FindAddressForScene(const FString& NormScene, FLocationVisitAddress& OutAddr) const
+{
+    if (const FLocationVisitAddress* Found = SceneToAddress.Find(NormScene))
+    {
+        OutAddr = *Found;
+        return true;
+    }
+    return false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Обработка LevelLoaded
+// ─────────────────────────────────────────────────────────────────────────────
+void ULocationTrackerSubsystem::HandleLocationEvent(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType != EOutcomeType::Interior) return;
+    if (Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded) return;
+
+    ULevelLoadedPayload* P = Cast<ULevelLoadedPayload>(Outcome.Payload);
+    if (!P) return;
+
+    const FString Norm = NormalizeLevelName(P->LevelPackageName);
+    if (Norm.IsEmpty()) return;
+
+    FLocationVisitAddress NewAddr;
+    if (!FindAddressForScene(Norm, NewAddr))
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("LocationTracker: scene '%s' not in index — ignoring"), *Norm);
+        return;
+    }
+
+    // Region scene: переносим Street из текущего адреса, если регион тот же.
+    if (NewAddr.RegionId.IsValid() && !NewAddr.BuildingId.IsValid())
+    {
+        if (CurrentAddress.RegionId == NewAddr.RegionId)
+            NewAddr.StreetId = CurrentAddress.StreetId;
+    }
+
+    // Прямой переход между домами (без сцены региона): Street сохраняется,
+    // если регион не меняется.
+    if (CurrentAddress.BuildingId.IsValid() && NewAddr.BuildingId.IsValid())
+    {
+        if (CurrentAddress.RegionId == NewAddr.RegionId)
+            NewAddr.StreetId = CurrentAddress.StreetId;
+    }
+
+    ApplyAddressTransition(NewAddr);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Применение перехода адреса
+// ─────────────────────────────────────────────────────────────────────────────
+void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddress& NewAddress)
+{
+    const FLocationVisitAddress OldAddress = CurrentAddress;
+
+    if (OldAddress == NewAddress) return;
+
+    static const ELocationLevel Levels[] = {
+        ELocationLevel::Map, ELocationLevel::Region,
+        ELocationLevel::Street, ELocationLevel::Building, ELocationLevel::Floor
+    };
+
+    const FDateTime Now = GetGameTimeNow();
+
+    for (ELocationLevel L : Levels)
+    {
+        const FGuid OldId = OldAddress.Get(L);
+        const FGuid NewId = NewAddress.Get(L);
+        if (OldId == NewId) continue;
+
+        if (OldId.IsValid())
+        {
+            FLocationVisitState& S = FindOrAddState(L, OldId);
+            S.LastLeftAt = Now;
+            S.LeaveCount++;
+        }
+        if (NewId.IsValid())
+        {
+            FLocationVisitState& S = FindOrAddState(L, NewId);
+            if (S.FirstEnteredAt == FDateTime::MinValue()) S.FirstEnteredAt = Now;
+            S.LastEnteredAt = Now;
+            S.EnterCount++;
+        }
+    }
+
+    // Спецправило для Street: заход в дом → Leave[New.Street]++.
+    if (!OldAddress.BuildingId.IsValid() && NewAddress.BuildingId.IsValid() && NewAddress.StreetId.IsValid())
+    {
+        FLocationVisitState& S = FindOrAddState(ELocationLevel::Street, NewAddress.StreetId);
+        S.LastLeftAt = Now;
+        S.LeaveCount++;
+    }
+
+    // Спецправило для Street: выход из дома → Enter[Old.Street]++.
+    if (OldAddress.BuildingId.IsValid() && !NewAddress.BuildingId.IsValid() && OldAddress.StreetId.IsValid())
+    {
+        FLocationVisitState& S = FindOrAddState(ELocationLevel::Street, OldAddress.StreetId);
+        if (S.FirstEnteredAt == FDateTime::MinValue()) S.FirstEnteredAt = Now;
+        S.LastEnteredAt = Now;
+        S.EnterCount++;
+    }
+
+    CurrentAddress = NewAddress;
+
+    // Хелпер: "DisplayName[Enter/Leave]" или "-" для пустого звена.
+    auto FormatLevel = [this](ELocationLevel Level, const FGuid& Id) -> FString
+        {
+            if (!Id.IsValid()) return TEXT("-");
+
+            const FString Label = GetLocationLabel(Level, Id);
+
+            int32 Enter = 0;
+            int32 Leave = 0;
+
+            const FString Key = MakeKey(Level, Id);
+            if (const FLocationVisitState* S = VisitHistory.Find(Key))
+            {
+                Enter = S->EnterCount;
+                Leave = S->LeaveCount;
+            }
+
+            return FString::Printf(TEXT("%s[%d/%d]"), *Label, Enter, Leave);
+        };
+
+    UE_LOG(LogTemp, Log,
+        TEXT("LocationTracker: Address = (M=%s, R=%s, S=%s, B=%s, F=%s)"),
+        *FormatLevel(ELocationLevel::Map, NewAddress.MapId),
+        *FormatLevel(ELocationLevel::Region, NewAddress.RegionId),
+        *FormatLevel(ELocationLevel::Street, NewAddress.StreetId),
+        *FormatLevel(ELocationLevel::Building, NewAddress.BuildingId),
+        *FormatLevel(ELocationLevel::Floor, NewAddress.FloorId));
+}
+
+FLocationVisitState& ULocationTrackerSubsystem::FindOrAddState(ELocationLevel Level, const FGuid& Id)
+{
+    const FString Key = MakeKey(Level, Id);
+    FLocationVisitState& S = VisitHistory.FindOrAdd(Key);
+    if (!S.LocationId.IsValid())
+    {
+        S.Level = Level;
+        S.LocationId = Id;
+
+        if (const FText* Found = LocationDisplayNames.Find(Key))
+            S.DisplayName = *Found;
+    }
+    return S;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Публичные запросы
+// ─────────────────────────────────────────────────────────────────────────────
+const FLocationVisitState* ULocationTrackerSubsystem::FindVisitState(const FLocationVisitKey& Key) const
+{
+    if (!Key.IsValid()) return nullptr;
+    return VisitHistory.Find(MakeKey(Key.Level, Key.LocationId));
+}
+
+bool ULocationTrackerSubsystem::HasEnteredEver(const FLocationVisitKey& Key) const
+{
+    const FLocationVisitState* S = FindVisitState(Key);
+    return S && S->LastEnteredAt != FDateTime::MinValue();
+}
+
+bool ULocationTrackerSubsystem::HasLeftAndReturned(const FLocationVisitKey& Key) const
+{
+    const FLocationVisitState* S = FindVisitState(Key);
+    if (!S) return false;
+    if (S->EnterCount < 1) return false;
+    if (S->LastLeftAt == FDateTime::MinValue() || S->LastEnteredAt == FDateTime::MinValue()) return false;
+    return S->LastEnteredAt > S->LastLeftAt;
+}
+
+int32 ULocationTrackerSubsystem::GetEnterCount(const FLocationVisitKey& Key) const
+{
+    const FLocationVisitState* S = FindVisitState(Key);
+    return S ? S->EnterCount : 0;
+}
+
+int32 ULocationTrackerSubsystem::GetLeaveCount(const FLocationVisitKey& Key) const
+{
+    const FLocationVisitState* S = FindVisitState(Key);
+    return S ? S->LeaveCount : 0;
+}
+
 FDateTime ULocationTrackerSubsystem::GetGameTimeNow() const
 {
     if (UGameInstance* GI = GetGameInstance())
     {
         if (UChoreManagerSubsystem* CM = GI->GetSubsystem<UChoreManagerSubsystem>())
-        {
             return CM->GetGameTime();
-        }
     }
     return FDateTime::UtcNow();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-void ULocationTrackerSubsystem::HandleLocationEvent(const FOutcomeEventBase& Outcome)
+// Резолвер DisplayName → ключ
+// ─────────────────────────────────────────────────────────────────────────────
+bool ULocationTrackerSubsystem::ResolveLocationKeyByDisplayName(const FText& DisplayName, FLocationVisitKey& OutKey)
 {
-    if (Outcome.OutcomeType != EOutcomeType::Interior) return;
+    OutKey = FLocationVisitKey();
+    if (DisplayName.IsEmpty()) return false;
 
-    // ── LevelLoaded ──────────────────────────────────────────────────────
-    if (Outcome.OutcomeInterior == EOutcomeInterior::LevelLoaded)
-    {
-        ULevelLoadedPayload* P = Cast<ULevelLoadedPayload>(Outcome.Payload);
-        if (!P)
+    int32 MatchCount = 0;
+
+    auto TryAsset = [&](UObject* Asset, ELocationLevel Level, const FGuid& Id)
         {
-            UE_LOG(LogTemp, Warning, TEXT("LocationTracker: LevelLoaded with no payload"));
-            return;
-        }
+            if (!MatchesDisplayName(Asset, DisplayName)) return;
+            ++MatchCount;
+            if (MatchCount == 1) { OutKey.Level = Level; OutKey.LocationId = Id; }
+        };
 
-        const FString Norm = NormalizeLevelName(P->LevelPackageName);
-        if (Norm.IsEmpty()) return;
-
-        // «Откуда пришли» — предыдущий кэш, ещё не перезаписанный.
-        const FString PrevLevel = CachedCurrentLevelPackageName;
-
-        // Обновляем кэш текущего уровня — источник правды для FloorLeaving.
-        CachedCurrentLevelPackageName = Norm;
-
-        FLocationVisitState& State = VisitHistory.FindOrAdd(Norm);
-
-        State.LevelPackageName = Norm;
-
-        const FDateTime Now = GetGameTimeNow();
-        if (State.FirstEnteredAt == FDateTime::MinValue())
-            State.FirstEnteredAt = Now;
-        State.LastEnteredAt = Now;
-        State.EnterCount++;
-
-        UE_LOG(LogTemp, Log,
-            TEXT("LocationTracker: LevelLoaded: '%s' -> '%s' [Enter=%d Leave=%d]"),
-            PrevLevel.IsEmpty() ? TEXT("<initial>") : *PrevLevel,
-            *Norm,
-            State.EnterCount, State.LeaveCount);
-
-        /*
-        UE_LOG(LogTemp, Log,
-            TEXT("LocationTracker: LevelLoaded: '%s' -> '%s' [Enter=%d Leave=%d LastEntered=%s LastLeft=%s]"),
-            PrevLevel.IsEmpty() ? TEXT("<initial>") : *PrevLevel,
-            *Norm,
-            State.EnterCount, State.LeaveCount,
-            *State.LastEnteredAt.ToIso8601(),
-            State.LastLeftAt == FDateTime::MinValue() ? TEXT("<none>") : *State.LastLeftAt.ToIso8601());
-        */
-        return;
+    {
+        TArray<UFloorAsset*> All; LoadAllAssetsOfClass(All, TEXT("FloorAsset"));
+        for (UFloorAsset* A : All) TryAsset(A, ELocationLevel::Floor, A ? A->FloorID : FGuid());
+    }
+    {
+        TArray<UInteriorSetAsset*> All; LoadAllAssetsOfClass(All, TEXT("InteriorSetAsset"));
+        for (UInteriorSetAsset* A : All) TryAsset(A, ELocationLevel::Building, A ? A->InteriorSetID : FGuid());
+    }
+    {
+        TArray<UStreetAsset*> All; LoadAllAssetsOfClass(All, TEXT("StreetAsset"));
+        for (UStreetAsset* A : All) TryAsset(A, ELocationLevel::Street, A ? A->StreetID : FGuid());
+    }
+    {
+        TArray<UWorldRegionAsset*> All; LoadAllAssetsOfClass(All, TEXT("WorldRegionAsset"));
+        for (UWorldRegionAsset* A : All) TryAsset(A, ELocationLevel::Region, A ? A->WorldRegionID : FGuid());
+    }
+    {
+        TArray<UWorldMapAsset*> All; LoadAllAssetsOfClass(All, TEXT("WorldMapAsset"));
+        for (UWorldMapAsset* A : All) TryAsset(A, ELocationLevel::Map, A ? A->WorldMapID : FGuid());
     }
 
-    // ── FloorLeaving ─────────────────────────────────────────────────────
-    if (Outcome.OutcomeInterior == EOutcomeInterior::FloorLeaving)
+    if (MatchCount == 0)
     {
-        // Источник — последний известный уровень из LevelLoaded
-        // (или восстановленный из сейва / полученный в Initialize).
-        const FString SourceNorm = CachedCurrentLevelPackageName;
-        if (SourceNorm.IsEmpty())
-        {
-            UE_LOG(LogTemp, Warning,
-                TEXT("LocationTracker: FloorLeaving but CachedCurrentLevelPackageName is empty (no LevelLoaded yet?)"));
-            return;
-        }
-
-        // Назначение — из payload, который публикует InteriorSubsystem.
-        FString DestDesc = TEXT("<unknown>");
-        if (UInteriorTransitionPayload* TP = Cast<UInteriorTransitionPayload>(Outcome.Payload))
-        {
-            const FString DestPkg = TP->GetTargetLevelPackageName();
-            if (!DestPkg.IsEmpty())
-            {
-                const FString DestNorm = NormalizeLevelName(DestPkg);
-                if (!DestNorm.IsEmpty())
-                    DestDesc = FString::Printf(TEXT("'%s'"), *DestNorm);
-            }
-        }
-
-        FLocationVisitState& State = VisitHistory.FindOrAdd(SourceNorm);
-
-        State.LevelPackageName = SourceNorm;
-        State.LastLeftAt = GetGameTimeNow();
-        State.LeaveCount++;
-
-        UE_LOG(LogTemp, Log,
-            TEXT("LocationTracker: FloorLeaving: from='%s' [Enter=%d Leave=%d ] -> to=%s"),
-            *SourceNorm,
-            State.EnterCount, State.LeaveCount,
-            *DestDesc);
-        /*
-        UE_LOG(LogTemp, Log,
-            TEXT("LocationTracker: FloorLeaving: from='%s' [Enter=%d Leave=%d LastEntered=%s LastLeft=%s] -> to=%s"),
-            *SourceNorm,
-            State.EnterCount, State.LeaveCount,
-            State.LastEnteredAt == FDateTime::MinValue() ? TEXT("<none>") : *State.LastEnteredAt.ToIso8601(),
-            *State.LastLeftAt.ToIso8601(),
-            *DestDesc);
-        */
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-FString ULocationTrackerSubsystem::GetCurrentLevelPackageName() const
-{
-    UWorld* World = GetWorld();
-    if (!World) return FString();
-    return NormalizeLevelName(World->GetOutermost()->GetName());
-}
-
-const FLocationVisitState* ULocationTrackerSubsystem::FindVisitState(const FString& NormalizedPackageName) const
-{
-    if (NormalizedPackageName.IsEmpty()) return nullptr;
-    return VisitHistory.Find(NormalizedPackageName);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-bool ULocationTrackerSubsystem::HasEnteredEver(const FString& NormalizedPackageName) const
-{
-    const FLocationVisitState* S = FindVisitState(NormalizedPackageName);
-
-    const bool bResult = S && S->LastEnteredAt != FDateTime::MinValue();
-
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationTracker::HasEnteredEver('%s'): state=%s LastEnteredAt=%s -> %s"),
-        *NormalizedPackageName,
-        S ? TEXT("yes") : TEXT("NO"),
-        (S && S->LastEnteredAt != FDateTime::MinValue())
-        ? *S->LastEnteredAt.ToIso8601()
-        : TEXT("<none>"),
-        bResult ? TEXT("true") : TEXT("false"));
-    /*
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationTracker::HasEnteredEver('%s'): state=%s LastEnteredAt=%s -> %s"),
-        *NormalizedPackageName,
-        S ? TEXT("yes") : TEXT("NO"),
-        (S && S->LastEnteredAt != FDateTime::MinValue())
-        ? *S->LastEnteredAt.ToIso8601()
-        : TEXT("<none>"),
-        bResult ? TEXT("true") : TEXT("false"));
-    */
-    return bResult;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-bool ULocationTrackerSubsystem::HasEnteredInWindow(const FString& NormalizedPackageName, float WindowMinutes) const
-{
-    const FLocationVisitState* S = FindVisitState(NormalizedPackageName);
-
-    if (!S || S->LastEnteredAt == FDateTime::MinValue())
-    {
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationTracker::HasEnteredInWindow('%s', %g): no LastEnteredAt -> false"),
-            *NormalizedPackageName, WindowMinutes);
+        UE_LOG(LogTemp, Warning,
+            TEXT("LocationTracker: no location asset with DisplayName '%s'"),
+            *DisplayName.ToString());
         return false;
     }
-
-    if (WindowMinutes <= 0.0f)
+    if (MatchCount > 1)
     {
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationTracker::HasEnteredInWindow('%s', %g): no window limit -> true"),
-            *NormalizedPackageName, WindowMinutes);
-        return true;
+        UE_LOG(LogTemp, Warning,
+            TEXT("LocationTracker: DisplayName '%s' matched %d assets, using first"),
+            *DisplayName.ToString(), MatchCount);
     }
-
-    const FTimespan Window = FTimespan::FromMinutes(WindowMinutes);
-    const FTimespan Elapsed = GetGameTimeNow() - S->LastEnteredAt;
-    const bool bResult = (Elapsed <= Window);
-
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationTracker::HasEnteredInWindow('%s', %g): Elapsed=%llds Window=%llds -> %s"),
-        *NormalizedPackageName, WindowMinutes,
-        (int64)Elapsed.GetTotalSeconds(), (int64)Window.GetTotalSeconds(),
-        bResult ? TEXT("true") : TEXT("false"));
-
-    return bResult;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-bool ULocationTrackerSubsystem::HasLeftAndReturned(const FString& NormalizedPackageName, float WindowMinutes) const
-{
-    const FLocationVisitState* S = FindVisitState(NormalizedPackageName);
-
-    if (!S)
-    {
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationTracker::HasLeftAndReturned('%s', %g): NO STATE -> false"),
-            *NormalizedPackageName, WindowMinutes);
-        return false;
-    }
-
-    if (S->EnterCount < 1)
-    {
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationTracker::HasLeftAndReturned('%s', %g): EnterCount=%d < 1 -> false"),
-            *NormalizedPackageName, WindowMinutes, S->EnterCount);
-        return false;
-    }
-
-    if (S->LastLeftAt == FDateTime::MinValue() || S->LastEnteredAt == FDateTime::MinValue())
-    {
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationTracker::HasLeftAndReturned('%s', %g): LastEntered/LastLeft not set -> false"),
-            *NormalizedPackageName, WindowMinutes);
-        return false;
-    }
-
-    if (!(S->LastEnteredAt > S->LastLeftAt))
-    {
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationTracker::HasLeftAndReturned('%s', %g): LastEnteredAt=%s <= LastLeftAt=%s -> false"),
-            *NormalizedPackageName, WindowMinutes,
-            *S->LastEnteredAt.ToIso8601(), *S->LastLeftAt.ToIso8601());
-        return false;
-    }
-
-    if (WindowMinutes > 0.0f)
-    {
-        const FTimespan Window = FTimespan::FromMinutes(WindowMinutes);
-        const FTimespan Elapsed = GetGameTimeNow() - S->LastEnteredAt;
-        const bool bInWindow = (Elapsed <= Window);
-/*
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationTracker::HasLeftAndReturned('%s', %g): Enter=%d LastLeftAt=%s LastEnteredAt=%s Elapsed=%llds Window=%llds -> %s"),
-            *NormalizedPackageName, WindowMinutes, S->EnterCount,
-            *S->LastLeftAt.ToIso8601(), *S->LastEnteredAt.ToIso8601(),
-            (int64)Elapsed.GetTotalSeconds(), (int64)Window.GetTotalSeconds(),
-            bInWindow ? TEXT("true") : TEXT("false"));
-*/
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationTracker::HasLeftAndReturned('%s', %g): Enter=%d LastLeftAt=%s LastEnteredAt=%s Elapsed=%llds Window=%llds -> %s"),
-            *NormalizedPackageName, WindowMinutes, S->EnterCount,
-            *S->LastLeftAt.ToIso8601(), *S->LastEnteredAt.ToIso8601(),
-            (int64)Elapsed.GetTotalSeconds(), (int64)Window.GetTotalSeconds(),
-            bInWindow ? TEXT("true") : TEXT("false"));
-
-        return bInWindow;
-    }
-/*
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationTracker::HasLeftAndReturned('%s', %g): Enter=%d LastLeftAt=%s LastEnteredAt=%s (no window) -> true"),
-        *NormalizedPackageName, WindowMinutes, S->EnterCount,
-        *S->LastLeftAt.ToIso8601(), *S->LastEnteredAt.ToIso8601());
-*/
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationTracker::HasLeftAndReturned('%s', %g): Enter=%d (no window) -> true"),
-        *NormalizedPackageName, WindowMinutes, S->EnterCount);
-
     return true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-int32 ULocationTrackerSubsystem::GetEnterCount(const FString& NormalizedPackageName) const
+// HandleVisitReset
+// ─────────────────────────────────────────────────────────────────────────────
+static void CollectKeysUnderFloor(UFloorAsset* F, TArray<FLocationVisitKey>& Out)
 {
-    const FLocationVisitState* S = FindVisitState(NormalizedPackageName);
-    const int32 Result = S ? S->EnterCount : 0;
+    if (!F) return;
+    Out.Add({ ELocationLevel::Floor, F->FloorID });
+}
 
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationTracker::GetEnterCount('%s'): state=%s -> %d"),
-        *NormalizedPackageName,
-        S ? TEXT("yes") : TEXT("NO"),
-        Result);
+static void CollectKeysUnderBuilding(UInteriorSetAsset* B, TArray<FLocationVisitKey>& Out)
+{
+    if (!B) return;
+    Out.Add({ ELocationLevel::Building, B->InteriorSetID });
+    for (auto& R : B->Floors) CollectKeysUnderFloor(R.LoadSynchronous(), Out);
+}
 
-    return Result;
+static void CollectKeysUnderStreet(UStreetAsset* S, TArray<FLocationVisitKey>& Out)
+{
+    if (!S) return;
+    Out.Add({ ELocationLevel::Street, S->StreetID });
+    for (auto& R : S->InteriorSets) CollectKeysUnderBuilding(R.LoadSynchronous(), Out);
+}
+
+static void CollectKeysUnderRegion(UWorldRegionAsset* R, TArray<FLocationVisitKey>& Out)
+{
+    if (!R) return;
+    Out.Add({ ELocationLevel::Region, R->WorldRegionID });
+    for (auto& S : R->Streets) CollectKeysUnderStreet(S.LoadSynchronous(), Out);
+}
+
+static void CollectKeysUnderMap(UWorldMapAsset* M, TArray<FLocationVisitKey>& Out)
+{
+    if (!M) return;
+    Out.Add({ ELocationLevel::Map, M->WorldMapID });
+    for (auto& R : M->Regions) CollectKeysUnderRegion(R.LoadSynchronous(), Out);
+}
+
+void ULocationTrackerSubsystem::HandleVisitReset(const FOutcomeEventBase& Outcome)
+{
+    ULocationVisitResetPayload* P = Cast<ULocationVisitResetPayload>(Outcome.Payload);
+    if (!P) return;
+
+    if (P->bResetAll)
+    {
+        const int32 N = VisitHistory.Num();
+        VisitHistory.Empty();
+        UE_LOG(LogTemp, Log, TEXT("LocationTracker: Reset ALL visits (%d entries)"), N);
+        return;
+    }
+
+    TArray<FLocationVisitKey> Keys;
+    if (P->TargetFloor)         CollectKeysUnderFloor(P->TargetFloor, Keys);
+    else if (P->TargetBuilding) CollectKeysUnderBuilding(P->TargetBuilding, Keys);
+    else if (P->TargetStreet)   CollectKeysUnderStreet(P->TargetStreet, Keys);
+    else if (P->TargetRegion)   CollectKeysUnderRegion(P->TargetRegion, Keys);
+    else if (P->TargetMap)      CollectKeysUnderMap(P->TargetMap, Keys);
+
+    int32 Removed = 0;
+    for (const FLocationVisitKey& K : Keys)
+        Removed += VisitHistory.Remove(MakeKey(K.Level, K.LocationId));
+
+    UE_LOG(LogTemp, Log,
+        TEXT("LocationTracker: Reset visits under hierarchy — %d key(s) processed, %d entries removed"),
+        Keys.Num(), Removed);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-int32 ULocationTrackerSubsystem::GetLeaveCount(const FString& NormalizedPackageName) const
-{
-    const FLocationVisitState* S = FindVisitState(NormalizedPackageName);
-    const int32 Result = S ? S->LeaveCount : 0;
-
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationTracker::GetLeaveCount('%s'): state=%s -> %d"),
-        *NormalizedPackageName,
-        S ? TEXT("yes") : TEXT("NO"),
-        Result);
-
-    return Result;
-}
-
+// Save / Load
 // ─────────────────────────────────────────────────────────────────────────────
 void ULocationTrackerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
     OutData.SubsystemName = GetSaveSubsystemName();
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
+    TSharedPtr<FJsonObject> AddrObj = MakeShared<FJsonObject>();
+    AddrObj->SetStringField(TEXT("MapId"), CurrentAddress.MapId.ToString());
+    AddrObj->SetStringField(TEXT("RegionId"), CurrentAddress.RegionId.ToString());
+    AddrObj->SetStringField(TEXT("StreetId"), CurrentAddress.StreetId.ToString());
+    AddrObj->SetStringField(TEXT("BuildingId"), CurrentAddress.BuildingId.ToString());
+    AddrObj->SetStringField(TEXT("FloorId"), CurrentAddress.FloorId.ToString());
+    Root->SetObjectField(TEXT("CurrentAddress"), AddrObj);
+
     TArray<TSharedPtr<FJsonValue>> VisitsArray;
     for (const auto& Pair : VisitHistory)
     {
         const FLocationVisitState& S = Pair.Value;
         TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-        Obj->SetStringField(TEXT("LevelPackageName"), S.LevelPackageName);
+        Obj->SetNumberField(TEXT("Level"), (int32)S.Level);
+        Obj->SetStringField(TEXT("LocationId"), S.LocationId.ToString());
         Obj->SetStringField(TEXT("FirstEnteredAt"), S.FirstEnteredAt.ToIso8601());
         Obj->SetStringField(TEXT("LastEnteredAt"), S.LastEnteredAt.ToIso8601());
         Obj->SetStringField(TEXT("LastLeftAt"), S.LastLeftAt.ToIso8601());
@@ -454,10 +622,6 @@ void ULocationTrackerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         VisitsArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
     Root->SetArrayField(TEXT("Visits"), VisitsArray);
-
-    // Сохраняем текущий уровень — при следующей загрузке сейва это даст
-    // осмысленное «откуда пришли» для первого LevelLoaded в новой сессии.
-    Root->SetStringField(TEXT("CachedCurrentLevelPackageName"), CachedCurrentLevelPackageName);
 
     FString Output;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -484,19 +648,17 @@ void ULocationTrackerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     }
 
     VisitHistory.Empty();
+    CurrentAddress.Reset();
 
-    // Восстанавливаем кэш текущего уровня из сейва — при первом LevelLoaded
-    // после загрузки в логе будет осмысленное «откуда пришли».
-    // Если поля в сейве нет (старый формат) — останется пустым,
-    // и первый LevelLoaded покажет '<initial>'.
-    FString CachedLevel;
-    if (Root->TryGetStringField(TEXT("CachedCurrentLevelPackageName"), CachedLevel))
+    const TSharedPtr<FJsonObject>* AddrPtr = nullptr;
+    if (Root->TryGetObjectField(TEXT("CurrentAddress"), AddrPtr))
     {
-        CachedCurrentLevelPackageName = CachedLevel;
-    }
-    else
-    {
-        CachedCurrentLevelPackageName.Empty();
+        FString S;
+        if ((*AddrPtr)->TryGetStringField(TEXT("MapId"), S))      FGuid::Parse(S, CurrentAddress.MapId);
+        if ((*AddrPtr)->TryGetStringField(TEXT("RegionId"), S))   FGuid::Parse(S, CurrentAddress.RegionId);
+        if ((*AddrPtr)->TryGetStringField(TEXT("StreetId"), S))   FGuid::Parse(S, CurrentAddress.StreetId);
+        if ((*AddrPtr)->TryGetStringField(TEXT("BuildingId"), S)) FGuid::Parse(S, CurrentAddress.BuildingId);
+        if ((*AddrPtr)->TryGetStringField(TEXT("FloorId"), S))    FGuid::Parse(S, CurrentAddress.FloorId);
     }
 
     const TArray<TSharedPtr<FJsonValue>>* VisitsArray = nullptr;
@@ -508,191 +670,73 @@ void ULocationTrackerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             if (!Val->TryGetObject(ObjPtr)) continue;
             const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-            FLocationVisitState State;
-            Obj->TryGetStringField(TEXT("LevelPackageName"), State.LevelPackageName);
+            FLocationVisitState S;
+            int32 LevelInt = 0;
+            Obj->TryGetNumberField(TEXT("Level"), LevelInt);
+            S.Level = (ELocationLevel)LevelInt;
 
-            FString FirstStr, LastEnterStr, LastLeftStr;
+            FString IdStr;
+            if (Obj->TryGetStringField(TEXT("LocationId"), IdStr)) FGuid::Parse(IdStr, S.LocationId);
+            if (!S.LocationId.IsValid()) continue;
 
-            if (Obj->TryGetStringField(TEXT("FirstEnteredAt"), FirstStr))
-            {
-                if (!FDateTime::ParseIso8601(*FirstStr, State.FirstEnteredAt))
-                    State.FirstEnteredAt = FDateTime::MinValue();
-            }
-            else
-            {
-                State.FirstEnteredAt = FDateTime::MinValue();
-            }
+            FString Tmp;
+            if (Obj->TryGetStringField(TEXT("FirstEnteredAt"), Tmp) && !FDateTime::ParseIso8601(*Tmp, S.FirstEnteredAt))
+                S.FirstEnteredAt = FDateTime::MinValue();
+            if (Obj->TryGetStringField(TEXT("LastEnteredAt"), Tmp) && !FDateTime::ParseIso8601(*Tmp, S.LastEnteredAt))
+                S.LastEnteredAt = FDateTime::MinValue();
+            if (Obj->TryGetStringField(TEXT("LastLeftAt"), Tmp) && !FDateTime::ParseIso8601(*Tmp, S.LastLeftAt))
+                S.LastLeftAt = FDateTime::MinValue();
 
-            if (Obj->TryGetStringField(TEXT("LastEnteredAt"), LastEnterStr))
-            {
-                if (!FDateTime::ParseIso8601(*LastEnterStr, State.LastEnteredAt))
-                    State.LastEnteredAt = FDateTime::MinValue();
-            }
-            else
-            {
-                State.LastEnteredAt = FDateTime::MinValue();
-            }
+            Obj->TryGetNumberField(TEXT("EnterCount"), S.EnterCount);
+            Obj->TryGetNumberField(TEXT("LeaveCount"), S.LeaveCount);
 
-            if (Obj->TryGetStringField(TEXT("LastLeftAt"), LastLeftStr))
-            {
-                if (!FDateTime::ParseIso8601(*LastLeftStr, State.LastLeftAt))
-                    State.LastLeftAt = FDateTime::MinValue();
-            }
-            else
-            {
-                State.LastLeftAt = FDateTime::MinValue();
-            }
-
-            Obj->TryGetNumberField(TEXT("EnterCount"), State.EnterCount);
-            Obj->TryGetNumberField(TEXT("LeaveCount"), State.LeaveCount);
-
-            if (!State.LevelPackageName.IsEmpty())
-            {
-                VisitHistory.Add(State.LevelPackageName, State);
-            }
+            VisitHistory.Add(MakeKey(S.Level, S.LocationId), S);
         }
     }
 
-    bSuppressNextLevelLoad = true;
     bLoadComplete = true;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HandleVisitReset — обработчик EventBus-команды LocationVisitReset.
-// Удаляет запись о посещении указанного уровня либо всю историю целиком.
-// ─────────────────────────────────────────────────────────────────────────────
-void ULocationTrackerSubsystem::HandleVisitReset(const FOutcomeEventBase& Outcome)
+bool ULocationTrackerSubsystem::GetLocationCountsByDisplayName(
+    const FText& DisplayName,
+    int32& OutEnterCount,
+    int32& OutLeaveCount) const
 {
-    ULocationVisitResetPayload* P = Cast<ULocationVisitResetPayload>(Outcome.Payload);
-    if (!P) return;
+    OutEnterCount = 0;
+    OutLeaveCount = 0;
 
-    // ── Reset All ────────────────────────────────────────────────────────
-    if (P->bResetAll)
+    FLocationVisitKey Key;
+    if (!ResolveLocationKeyByDisplayName(DisplayName, Key))
+        return false;
+
+    const FLocationVisitState* S = FindVisitState(Key);
+    if (!S)
     {
-        const int32 Count = VisitHistory.Num();
-        VisitHistory.Empty();
-
-        UE_LOG(LogTemp, Log,
-            TEXT("LocationTracker: Reset ALL visits (cleared %d entries)"), Count);
-        return;
+        // Локация существует в ассетах, но игрок её ещё не посещал.
+        // Счётчики нулевые, но локация «известна».
+        return true;
     }
 
-    // ── Reset по иерархии локации ────────────────────────────────────────
-    TArray<FString> Targets;
-    if (!ResolveTargetPackageNames(
-        P->TargetMap, P->TargetRegion, P->TargetStreet,
-        P->TargetBuilding, P->TargetFloor, Targets)
-        || Targets.Num() == 0)
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("LocationTracker: Reset request with empty target (no assets resolved to scenes)"));
-        return;
-    }
-
-    int32 TotalRemoved = 0;
-    for (const FString& Norm : Targets)
-    {
-        TotalRemoved += VisitHistory.Remove(Norm);
-    }
-
-    UE_LOG(LogTemp, Log,
-        TEXT("LocationTracker: Reset visits for %d target scene(s), removed=%d"),
-        Targets.Num(), TotalRemoved);
+    OutEnterCount = S->EnterCount;
+    OutLeaveCount = S->LeaveCount;
+    return true;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ResolveTargetPackageNames — общий резолвер иерархии локации в список
-// нормализованных имён пакетов. Используется в LocationVisitReset.
-// ─────────────────────────────────────────────────────────────────────────────
-bool ULocationTrackerSubsystem::ResolveTargetPackageNames(
-    UWorldMapAsset* TargetMap,
-    UWorldRegionAsset* TargetRegion,
-    UStreetAsset* TargetStreet,
-    UInteriorSetAsset* TargetBuilding,
-    UFloorAsset* TargetFloor,
-    TArray<FString>& OutPackageNames)
+FString ULocationTrackerSubsystem::GetLocationLabel(ELocationLevel Level, const FGuid& Id) const
 {
-    OutPackageNames.Reset();
+    if (!Id.IsValid()) return TEXT("-");
 
-    // ── 1. Floor ─────────────────────────────────────────────────────────
-    if (TargetFloor)
+    const FString Key = MakeKey(Level, Id);
+    if (const FText* Found = LocationDisplayNames.Find(Key))
     {
-        if (!TargetFloor->FloorLevel.IsNull())
-        {
-            const FString Norm = NormalizeLevelName(
-                TargetFloor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
-            if (!Norm.IsEmpty())
-                OutPackageNames.AddUnique(Norm);
-        }
-        return OutPackageNames.Num() > 0;
+        if (!Found->IsEmpty())
+            return Found->ToString();
     }
 
-    // ── 2. Building — все этажи здания ───────────────────────────────────
-    if (TargetBuilding)
-    {
-        for (const TSoftObjectPtr<UFloorAsset>& FloorRef : TargetBuilding->Floors)
-        {
-            UFloorAsset* Floor = FloorRef.LoadSynchronous();
-            if (!Floor || Floor->FloorLevel.IsNull()) continue;
-
-            const FString Norm = NormalizeLevelName(
-                Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
-            if (!Norm.IsEmpty())
-                OutPackageNames.AddUnique(Norm);
-        }
-        return OutPackageNames.Num() > 0;
-    }
-
-    // ── 3. Street — все этажи всех зданий улицы ──────────────────────────
-    if (TargetStreet)
-    {
-        for (const TSoftObjectPtr<UInteriorSetAsset>& BuildingRef : TargetStreet->InteriorSets)
-        {
-            UInteriorSetAsset* Building = BuildingRef.LoadSynchronous();
-            if (!Building) continue;
-
-            for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Building->Floors)
-            {
-                UFloorAsset* Floor = FloorRef.LoadSynchronous();
-                if (!Floor || Floor->FloorLevel.IsNull()) continue;
-
-                const FString Norm = NormalizeLevelName(
-                    Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
-                if (!Norm.IsEmpty())
-                    OutPackageNames.AddUnique(Norm);
-            }
-        }
-        return OutPackageNames.Num() > 0;
-    }
-
-    // ── 4. Region — сцена региона ────────────────────────────────────────
-    if (TargetRegion)
-    {
-        if (!TargetRegion->RegionLevel.IsNull())
-        {
-            const FString Norm = NormalizeLevelName(
-                TargetRegion->RegionLevel.ToSoftObjectPath().GetLongPackageName());
-            if (!Norm.IsEmpty())
-                OutPackageNames.AddUnique(Norm);
-        }
-        return OutPackageNames.Num() > 0;
-    }
-
-    // ── 5. Map — сцены всех регионов карты ───────────────────────────────
-    if (TargetMap)
-    {
-        for (const TSoftObjectPtr<UWorldRegionAsset>& RegionRef : TargetMap->Regions)
-        {
-            UWorldRegionAsset* Region = RegionRef.LoadSynchronous();
-            if (!Region || Region->RegionLevel.IsNull()) continue;
-
-            const FString Norm = NormalizeLevelName(
-                Region->RegionLevel.ToSoftObjectPath().GetLongPackageName());
-            if (!Norm.IsEmpty())
-                OutPackageNames.AddUnique(Norm);
-        }
-        return OutPackageNames.Num() > 0;
-    }
-
-    return false;
+    // Фоллбэк: короткий технический ярлык, чтобы в логе всё равно было видно,
+    // что именно за локация, даже если индекс почему-то пуст.
+    const FString LevelStr = StaticEnum<ELocationLevel>()->GetValueAsString(Level);
+    return FString::Printf(TEXT("<%s:%s>"),
+        *LevelStr.Left(3),
+        *Id.ToString().Left(8));
 }

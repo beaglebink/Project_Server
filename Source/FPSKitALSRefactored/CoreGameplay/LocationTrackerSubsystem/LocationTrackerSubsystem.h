@@ -16,28 +16,98 @@ class UStreetAsset;
 class UInteriorSetAsset;
 class UFloorAsset;
 
+UENUM(BlueprintType)
+enum class ELocationLevel : uint8
+{
+    Default  UMETA(DisplayName = "None"),
+    Map      UMETA(DisplayName = "Map"),
+    Region   UMETA(DisplayName = "Region"),
+    Street   UMETA(DisplayName = "Street"),
+    Building UMETA(DisplayName = "Building"),
+    Floor    UMETA(DisplayName = "Floor")
+};
+
+USTRUCT(BlueprintType)
+struct FLocationVisitKey
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly) ELocationLevel Level = ELocationLevel::Default;
+    UPROPERTY(BlueprintReadOnly) FGuid LocationId;
+
+    bool IsValid() const { return Level != ELocationLevel::Default && LocationId.IsValid(); }
+    bool operator==(const FLocationVisitKey& Other) const
+    {
+        return Level == Other.Level && LocationId == Other.LocationId;
+    }
+};
+
 USTRUCT(BlueprintType)
 struct FLocationVisitState
 {
     GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadOnly, Category = "LocationTracker")
-    FString LevelPackageName;
+    UPROPERTY(BlueprintReadOnly) ELocationLevel Level = ELocationLevel::Default;
+    UPROPERTY(BlueprintReadOnly) FGuid LocationId;
+    UPROPERTY(BlueprintReadOnly) FText DisplayName;
 
-    UPROPERTY(BlueprintReadOnly, Category = "LocationTracker")
-    FDateTime FirstEnteredAt;
+    UPROPERTY(BlueprintReadOnly) FDateTime FirstEnteredAt;
+    UPROPERTY(BlueprintReadOnly) FDateTime LastEnteredAt;
+    UPROPERTY(BlueprintReadOnly) FDateTime LastLeftAt;
+    UPROPERTY(BlueprintReadOnly) int32 EnterCount = 0;
+    UPROPERTY(BlueprintReadOnly) int32 LeaveCount = 0;
+};
 
-    UPROPERTY(BlueprintReadOnly, Category = "LocationTracker")
-    FDateTime LastEnteredAt;
+USTRUCT(BlueprintType)
+struct FLocationVisitAddress
+{
+    GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadOnly, Category = "LocationTracker")
-    FDateTime LastLeftAt;
+    UPROPERTY(BlueprintReadOnly) FGuid MapId;
+    UPROPERTY(BlueprintReadOnly) FGuid RegionId;
+    UPROPERTY(BlueprintReadOnly) FGuid StreetId;
+    UPROPERTY(BlueprintReadOnly) FGuid BuildingId;
+    UPROPERTY(BlueprintReadOnly) FGuid FloorId;
 
-    UPROPERTY(BlueprintReadOnly, Category = "LocationTracker")
-    int32 EnterCount = 0;
+    void Reset()
+    {
+        MapId.Invalidate();
+        RegionId.Invalidate();
+        StreetId.Invalidate();
+        BuildingId.Invalidate();
+        FloorId.Invalidate();
+    }
 
-    UPROPERTY(BlueprintReadOnly, Category = "LocationTracker")
-    int32 LeaveCount = 0;
+    FGuid Get(ELocationLevel L) const
+    {
+        switch (L)
+        {
+        case ELocationLevel::Map:      return MapId;
+        case ELocationLevel::Region:   return RegionId;
+        case ELocationLevel::Street:   return StreetId;
+        case ELocationLevel::Building: return BuildingId;
+        case ELocationLevel::Floor:    return FloorId;
+        default:                       return FGuid();
+        }
+    }
+
+    void Set(ELocationLevel L, const FGuid& Id)
+    {
+        switch (L)
+        {
+        case ELocationLevel::Map:      MapId = Id; break;
+        case ELocationLevel::Region:   RegionId = Id; break;
+        case ELocationLevel::Street:   StreetId = Id; break;
+        case ELocationLevel::Building: BuildingId = Id; break;
+        case ELocationLevel::Floor:    FloorId = Id; break;
+        }
+    }
+
+    bool operator==(const FLocationVisitAddress& O) const
+    {
+        return MapId == O.MapId && RegionId == O.RegionId
+            && StreetId == O.StreetId && BuildingId == O.BuildingId && FloorId == O.FloorId;
+    }
 };
 
 UCLASS()
@@ -57,53 +127,75 @@ public:
     virtual FString GetSaveSubsystemName() const override { return TEXT("LocationTracker"); }
     virtual bool GetIsLoadComplete() const override { return bLoadComplete; }
 
-    FString GetCurrentLevelPackageName() const;
-
+    // Нормализация имени пакета сцены (убирает PIE-префикс, lowercase).
     static FString NormalizeLevelName(const FString& InPath);
 
-    bool HasEnteredEver(const FString& NormalizedPackageName) const;
-    bool HasEnteredInWindow(const FString& NormalizedPackageName, float WindowMinutes) const;
-    bool HasLeftAndReturned(const FString& NormalizedPackageName, float WindowMinutes) const;
+    // Запросы по адресу локации.
+    bool HasEnteredEver(const FLocationVisitKey& Key) const;
+    bool HasLeftAndReturned(const FLocationVisitKey& Key) const;
+    int32 GetEnterCount(const FLocationVisitKey& Key) const;
+    int32 GetLeaveCount(const FLocationVisitKey& Key) const;
+    const FLocationVisitState* FindVisitState(const FLocationVisitKey& Key) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker")
-    int32 GetEnterCount(const FString& NormalizedPackageName) const;
+    // Текущий адрес — для отладки и для других подсистем.
+    const FLocationVisitAddress& GetCurrentAddress() const { return CurrentAddress; }
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker")
-    int32 GetLeaveCount(const FString& NormalizedPackageName) const;
+    // Преобразовать DisplayName ассета локации в ключ.
+    // Ищет среди FloorAsset / InteriorSetAsset / StreetAsset / WorldRegionAsset / WorldMapAsset.
+    // Если найдено ровно одно совпадение — возвращает true и заполняет OutKey.
+    // Если найдено несколько — логирует Warning и берёт первое.
+    static bool ResolveLocationKeyByDisplayName(const FText& DisplayName, FLocationVisitKey& OutKey);
 
-    const FLocationVisitState* FindVisitState(const FString& NormalizedPackageName) const;
-
-    // Резолвер иерархии локации в список нормализованных имён пакетов сцен.
-    // Используется LocationVisitReset.
-    static bool ResolveTargetPackageNames(
-        UWorldMapAsset* TargetMap,
-        UWorldRegionAsset* TargetRegion,
-        UStreetAsset* TargetStreet,
-        UInteriorSetAsset* TargetBuilding,
-        UFloorAsset* TargetFloor,
-        TArray<FString>& OutPackageNames);
+    // Возвращает количество заходов и уходов для локации, заданной её
+    // DisplayName (совпадает с DisplayName ассета: Map / Region / Street /
+    // Building / Floor).
+    //
+    // Возврат:
+    //   true  — локация найдена, OutEnterCount/OutLeaveCount заполнены.
+    //   false — либо DisplayName пуст, либо локация не найдена.
+    //           В этом случае счётчики = 0.
+    UFUNCTION(BlueprintCallable, Category = "LocationTracker|Query", meta = (AutoCreateRefTerm = "DisplayName"))
+    bool GetLocationCountsByDisplayName(
+        const FText& DisplayName,
+        int32& OutEnterCount,
+        int32& OutLeaveCount) const;
 
 private:
-    FDateTime GetGameTimeNow() const;
     void HandleLocationEvent(const FOutcomeEventBase& Outcome);
-
-    UPROPERTY()
-    TMap<FString, FLocationVisitState> VisitHistory;
-
-    UPROPERTY()
-    TObjectPtr<UOutcomeConditionAsset> LocationEventCondition;
-
-    FOutcomeHandlerHandle LocationEventHandler;
-
     void HandleVisitReset(const FOutcomeEventBase& Outcome);
 
-    UPROPERTY()
-    TObjectPtr<UOutcomeConditionAsset> LocationResetCondition;
+    void BuildSceneIndex();
+    bool FindAddressForScene(const FString& NormalizedSceneName, FLocationVisitAddress& OutAddress) const;
 
+    void ApplyAddressTransition(const FLocationVisitAddress& NewAddress);
+
+    // Обратный индекс: ключ локации → отображаемое имя.
+    // Заполняется в BuildSceneIndex из ассетов.
+    UPROPERTY() TMap<FString, FText> LocationDisplayNames;
+
+    // Получить отображаемое имя локации по её уровню и Guid.
+    // Если имени нет — возвращает короткий технический фоллбэк "<Level:XXXXXXXX>".
+    FString GetLocationLabel(ELocationLevel Level, const FGuid& Id) const;
+
+    FLocationVisitState& FindOrAddState(ELocationLevel Level, const FGuid& Id);
+    FDateTime GetGameTimeNow() const;
+
+    static FString MakeKey(ELocationLevel Level, const FGuid& Id);
+
+    // Scene package name (normalized) → базовый адрес.
+    UPROPERTY() TMap<FString, FLocationVisitAddress> SceneToAddress;
+
+    // Ключ → состояние посещений.
+    UPROPERTY() TMap<FString, FLocationVisitState> VisitHistory;
+
+    // Текущий адрес игрока.
+    UPROPERTY() FLocationVisitAddress CurrentAddress;
+
+    UPROPERTY() TObjectPtr<UOutcomeConditionAsset> LocationEventCondition;
+    FOutcomeHandlerHandle LocationEventHandler;
+
+    UPROPERTY() TObjectPtr<UOutcomeConditionAsset> LocationResetCondition;
     FOutcomeHandlerHandle LocationResetHandler;
 
-    FString CachedCurrentLevelPackageName;
-
-    bool bSuppressNextLevelLoad = true;
     bool bLoadComplete = true;
 };

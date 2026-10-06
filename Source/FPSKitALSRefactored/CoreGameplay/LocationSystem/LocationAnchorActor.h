@@ -31,10 +31,10 @@ public:
     virtual void BeginPlay() override;
 
     // Идентификация
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Editor")
     FGuid AnchorID;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Anchor|Editor")
     FText DisplayName;
 
     // If false, this anchor does not require a destination to be considered valid.

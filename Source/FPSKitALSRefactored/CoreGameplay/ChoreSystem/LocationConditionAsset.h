@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "OutcomeConditionAsset.h"
 #include "CheckRequestPayload.h"
+#include "../LocationTrackerSubsystem/LocationTrackerSubsystem.h"   // ELocationLevel, FLocationVisitKey
 #include "LocationConditionAsset.generated.h"
 
 UENUM(BlueprintType)
@@ -22,39 +23,28 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location")
     ELocationQueryType QueryType = ELocationQueryType::HasEnteredEver;
 
-    // Имя локации, как его видит дизайнер в редакторе. Совпадает с DisplayName
-    // одного из ассетов иерархии локаций:
-    //   Floor (UFloorAsset) / Building (UInteriorSetAsset) /
-    //   Street (UStreetAsset) / Region (UWorldRegionAsset) / Map (UWorldMapAsset).
-    // Если совпадений несколько — используются все.
-    // Резолв делается один раз при CompileCondition и кэшируется.
+    // Отображаемое имя локации, как его видит дизайнер в редакторе.
+    // Совпадает с DisplayName одного из ассетов: Floor / InteriorSet / Street /
+    // WorldRegion / WorldMap. Резолвится один раз в CompileCondition.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location")
     FText TargetDisplayName;
 
-    // Операция сравнения для VisitCountAtLeast.
-    // Применяется к сумме EnterCount по всем целевым сценам.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location",
         meta = (EditCondition = "QueryType == ELocationQueryType::VisitCountAtLeast",
             EditConditionHides))
     ECheckCompareOp CompareOp = ECheckCompareOp::GreaterOrEqual;
 
-    // Порог для VisitCountAtLeast (сумма EnterCount по всем целевым сценам).
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location",
         meta = (EditCondition = "QueryType == ELocationQueryType::VisitCountAtLeast",
-            EditConditionHides, ClampMin = 1))
+            EditConditionHides, ClampMin = 0))
     int32 VisitThreshold = 1;
 
     virtual void CompileCondition() override;
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 
 private:
-    // Резолвит TargetDisplayName в список нормализованных имён пакетов сцен.
-    // Заполняет CachedTargetPackageNames. Вызывается из CompileCondition.
-    void ResolveTargets();
-
     static class ULocationTrackerSubsystem* FindTracker();
 
-    // Кэш резолва. mutable — потому что EvaluateCondition const, но нам нужно
-    // переиспользовать результат CompileCondition.
-    TArray<FString> CachedTargetPackageNames;
+    // Кэш резолва TargetDisplayName.
+    FLocationVisitKey CachedKey;
 };
