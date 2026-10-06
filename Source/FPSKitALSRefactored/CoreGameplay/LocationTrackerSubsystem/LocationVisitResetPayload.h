@@ -13,14 +13,16 @@ class UFloorAsset;
 /**
  * Payload для команды LocationVisitReset.
  *
- * В Blueprint настраивается каскадно:
- *   1. SelectRegion(Region)              — устанавливает регион
- *   2. GetAvailableStreets()             — возвращает улицы региона
- *   3. SelectStreet(Street)              — устанавливает улицу
- *   4. GetAvailableBuildings()           — возвращает дома улицы
- *   5. SelectBuilding(Building)          — устанавливает дом
- *   6. GetAvailableFloors()              — возвращает этажи дома
- *   7. SelectFloor(Floor)                — устанавливает этаж
+ * Два способа настройки:
+ *
+ *  1) Каскадный (для UI с ComboBox'ами):
+ *     SelectRegion / SelectStreet / SelectBuilding / SelectFloor — устанавливают
+ *     выбранный ассет и подтягивают/сбрасывают соседние уровни.
+ *     GetAvailable* — возвращают список ассетов для текущего контекста.
+ *
+ *  2) Прямой по DisplayName (для скриптов и настроек, где ассеты не под рукой):
+ *     SetupRegion / SetupStreet / SetupBuilding / SetupFloor — принимают FText,
+ *     совпадающий с DisplayName нужного ассета, и сами находят его в иерархии.
  *
  * Трекер сбрасывает визиты для САМОЙ ГЛУБОКОЙ выбранной локации:
  *   Floor    → одна сцена этажа
@@ -56,10 +58,12 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "LocationTracker|Target")
     TObjectPtr<UFloorAsset> TargetFloor;
 
-    // ── Каскадная настройка ─────────────────────────────────────────────
+    // ── Сбросить всё ────────────────────────────────────────────────────
 
     UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup")
     ULocationVisitResetPayload* SetupAll();
+
+    // ── Каскадная настройка (для ComboBox'ов) ────────────────────────────
 
     UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup")
     ULocationVisitResetPayload* SelectMap(UWorldMapAsset* InMap);
@@ -76,7 +80,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup")
     ULocationVisitResetPayload* SelectFloor(UFloorAsset* InFloor);
 
-    // ── Списки для каскадных комбо-боксов ───────────────────────────────
+    // ── Списки для каскадных ComboBox'ов ────────────────────────────────
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Options")
     TArray<UWorldRegionAsset*> GetAvailableRegions() const;
@@ -90,12 +94,29 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Options")
     TArray<UFloorAsset*> GetAvailableFloors() const;
 
-    // Одностадийный Setup — вся цепочка сразу, без каскада.
-    UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup")
-    ULocationVisitResetPayload* Setup(
-        UWorldMapAsset* InMap,
-        UWorldRegionAsset* InRegion,
-        UStreetAsset* InStreet,
-        UInteriorSetAsset* InBuilding,
-        UFloorAsset* InFloor);
+    // ── Прямая настройка по DisplayName ─────────────────────────────────
+    // Каждая функция:
+    //   1) Ищет ассет по DisplayName. Если у payload уже задан родитель
+    //      нужного уровня — ищет строго внутри него; иначе — по всем ассетам.
+    //   2) Устанавливает найденный ассет в соответствующее поле.
+    //   3) Подтягивает всю родительскую цепочку из soft-ссылок ассета.
+    //   4) Обнуляет все более глубокие уровни.
+    //
+    // Если ассет с таким DisplayName не найден — пишет Warning,
+    // payload не меняет.
+
+    UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup|ByName")
+    ULocationVisitResetPayload* SetupMap(const FText InDisplayName);
+
+    UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup|ByName")
+    ULocationVisitResetPayload* SetupRegion(const FText InDisplayName);
+
+    UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup|ByName")
+    ULocationVisitResetPayload* SetupStreet(const FText InDisplayName);
+
+    UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup|ByName")
+    ULocationVisitResetPayload* SetupBuilding(const FText InDisplayName);
+
+    UFUNCTION(BlueprintCallable, Category = "LocationTracker|Setup|ByName")
+    ULocationVisitResetPayload* SetupFloor(const FText InDisplayName);
 };
