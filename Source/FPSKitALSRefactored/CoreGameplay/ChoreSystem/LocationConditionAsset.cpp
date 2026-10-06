@@ -5,8 +5,53 @@
 #include "../LocationSystem/WorldMapAsset.h"
 #include "../LocationSystem/StreetAsset.h"
 #include "../LocationSystem/InteriorSetAsset.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Вспомогательное
+// ─────────────────────────────────────────────────────────────────────────────
+static bool MatchesDisplayName(const UObject* Asset, const FText& InDisplayName)
+{
+    if (!Asset) return false;
+
+    const FString Target = InDisplayName.ToString();
+    if (Target.IsEmpty()) return false;
+
+    // Сначала пробуем FText DisplayName. У всех наших ассетов (Map/Region/
+    // Street/InteriorSet/Floor) DisplayName это FText.
+    if (FProperty* Prop = Asset->GetClass()->FindPropertyByName(TEXT("DisplayName")))
+    {
+        if (const FText* DisplayNameProp = Prop->ContainerPtrToValuePtr<FText>(Asset))
+        {
+            if (!DisplayNameProp->IsEmpty())
+                return DisplayNameProp->ToString().Equals(Target, ESearchCase::CaseSensitive);
+        }
+    }
+
+    // Fallback — по имени ассета.
+    return Asset->GetName().Equals(Target, ESearchCase::CaseSensitive);
+}
+
+template<typename TAsset>
+static void CollectAllAssetsOfClass(TArray<TAsset*>& OutAssets, const TCHAR* ClassName)
+{
+    FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+    TArray<FAssetData> AssetDataList;
+    ARM.Get().GetAssetsByClass(
+        FTopLevelAssetPath(TEXT("/Script/FPSKitALSRefactored"), ClassName),
+        AssetDataList, true);
+
+    for (const FAssetData& AD : AssetDataList)
+    {
+        if (TAsset* Asset = Cast<TAsset>(AD.ToSoftObjectPath().TryLoad()))
+            OutAssets.Add(Asset);
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 ULocationTrackerSubsystem* ULocationConditionAsset::FindTracker()
@@ -29,150 +74,143 @@ ULocationTrackerSubsystem* ULocationConditionAsset::FindTracker()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-bool ULocationConditionAsset::ValidateHierarchy(FString& OutError) const
+void ULocationConditionAsset::ResolveTargets()
 {
-    if (TargetFloor && TargetBuilding)
+    CachedTargetPackageNames.Reset();
+
+    const FString Target = TargetDisplayName.ToString();
+    if (Target.IsEmpty())
     {
-        UInteriorSetAsset* Parent = TargetFloor->ParentInteriorSet.LoadSynchronous();
-        if (Parent != TargetBuilding)
-        {
-            OutError = FString::Printf(
-                TEXT("TargetFloor '%s' does not belong to TargetBuilding '%s'"),
-                *TargetFloor->GetName(), *TargetBuilding->GetName());
-            return false;
-        }
+        UE_LOG(LogTemp, Warning,
+            TEXT("LocationConditionAsset '%s': TargetDisplayName is empty"),
+            *GetName());
+        return;
     }
 
-    if (TargetBuilding && TargetStreet)
-    {
-        UStreetAsset* Parent = TargetBuilding->ParentStreet.LoadSynchronous();
-        if (Parent != TargetStreet)
+    auto AddUniquePackage = [this](const FString& Pkg)
         {
-            OutError = FString::Printf(
-                TEXT("TargetBuilding '%s' does not belong to TargetStreet '%s'"),
-                *TargetBuilding->GetName(), *TargetStreet->GetName());
-            return false;
-        }
-    }
-
-    if (TargetStreet && TargetRegion)
-    {
-        UWorldRegionAsset* Parent = TargetStreet->ParentWorldRegion.LoadSynchronous();
-        if (Parent != TargetRegion)
-        {
-            OutError = FString::Printf(
-                TEXT("TargetStreet '%s' does not belong to TargetRegion '%s'"),
-                *TargetStreet->GetName(), *TargetRegion->GetName());
-            return false;
-        }
-    }
-
-    if (TargetRegion && TargetMap)
-    {
-        UWorldMapAsset* Parent = TargetRegion->ParentWorldMap.LoadSynchronous();
-        if (Parent != TargetMap)
-        {
-            OutError = FString::Printf(
-                TEXT("TargetRegion '%s' does not belong to TargetMap '%s'"),
-                *TargetRegion->GetName(), *TargetMap->GetName());
-            return false;
-        }
-    }
-
-    return true;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-bool ULocationConditionAsset::ResolveTargetPackageNames(TArray<FString>& OutPackageNames) const
-{
-    OutPackageNames.Reset();
-
-    // ── 1. Floor ─────────────────────────────────────────────────────────
-    if (TargetFloor)
-    {
-        if (!TargetFloor->FloorLevel.IsNull())
-        {
-            const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
-                TargetFloor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
+            const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(Pkg);
             if (!Norm.IsEmpty())
-                OutPackageNames.AddUnique(Norm);
+                CachedTargetPackageNames.AddUnique(Norm);
+        };
+
+    int32 MatchCount = 0;
+
+    // ── Floor ────────────────────────────────────────────────────────────
+    {
+        TArray<UFloorAsset*> All;
+        CollectAllAssetsOfClass(All, TEXT("FloorAsset"));
+        for (UFloorAsset* F : All)
+        {
+            if (!MatchesDisplayName(F, TargetDisplayName)) continue;
+            ++MatchCount;
+            if (!F->FloorLevel.IsNull())
+                AddUniquePackage(F->FloorLevel.ToSoftObjectPath().GetLongPackageName());
         }
-        return OutPackageNames.Num() > 0;
     }
 
-    // ── 2. Building — OR по всем этажам здания ───────────────────────────
-    if (TargetBuilding)
+    // ── Building (InteriorSetAsset) — все этажи ──────────────────────────
     {
-        for (const TSoftObjectPtr<UFloorAsset>& FloorRef : TargetBuilding->Floors)
+        TArray<UInteriorSetAsset*> All;
+        CollectAllAssetsOfClass(All, TEXT("InteriorSetAsset"));
+        for (UInteriorSetAsset* B : All)
         {
-            UFloorAsset* Floor = FloorRef.LoadSynchronous();
-            if (!Floor || Floor->FloorLevel.IsNull()) continue;
-
-            const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
-                Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
-            if (!Norm.IsEmpty())
-                OutPackageNames.AddUnique(Norm);
-        }
-        return OutPackageNames.Num() > 0;
-    }
-
-    // ── 3. Street — OR по всем этажам всех зданий улицы ──────────────────
-    if (TargetStreet)
-    {
-        for (const TSoftObjectPtr<UInteriorSetAsset>& BuildingRef : TargetStreet->InteriorSets)
-        {
-            UInteriorSetAsset* Building = BuildingRef.LoadSynchronous();
-            if (!Building) continue;
-
-            for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Building->Floors)
+            if (!MatchesDisplayName(B, TargetDisplayName)) continue;
+            ++MatchCount;
+            for (const TSoftObjectPtr<UFloorAsset>& FloorRef : B->Floors)
             {
-                UFloorAsset* Floor = FloorRef.LoadSynchronous();
-                if (!Floor || Floor->FloorLevel.IsNull()) continue;
-
-                const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
-                    Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName());
-                if (!Norm.IsEmpty())
-                    OutPackageNames.AddUnique(Norm);
+                if (UFloorAsset* F = FloorRef.LoadSynchronous())
+                {
+                    if (!F->FloorLevel.IsNull())
+                        AddUniquePackage(F->FloorLevel.ToSoftObjectPath().GetLongPackageName());
+                }
             }
         }
-        return OutPackageNames.Num() > 0;
     }
 
-    // ── 4. Region — одна сцена региона ───────────────────────────────────
-    if (TargetRegion)
+    // ── Street — все этажи всех зданий улицы ─────────────────────────────
     {
-        if (!TargetRegion->RegionLevel.IsNull())
+        TArray<UStreetAsset*> All;
+        CollectAllAssetsOfClass(All, TEXT("StreetAsset"));
+        for (UStreetAsset* S : All)
         {
-            const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
-                TargetRegion->RegionLevel.ToSoftObjectPath().GetLongPackageName());
-            if (!Norm.IsEmpty())
-                OutPackageNames.AddUnique(Norm);
+            if (!MatchesDisplayName(S, TargetDisplayName)) continue;
+            ++MatchCount;
+            for (const TSoftObjectPtr<UInteriorSetAsset>& BuildingRef : S->InteriorSets)
+            {
+                if (UInteriorSetAsset* B = BuildingRef.LoadSynchronous())
+                {
+                    for (const TSoftObjectPtr<UFloorAsset>& FloorRef : B->Floors)
+                    {
+                        if (UFloorAsset* F = FloorRef.LoadSynchronous())
+                        {
+                            if (!F->FloorLevel.IsNull())
+                                AddUniquePackage(F->FloorLevel.ToSoftObjectPath().GetLongPackageName());
+                        }
+                    }
+                }
+            }
         }
-        return OutPackageNames.Num() > 0;
     }
 
-    // ── 5. Map — OR по сценам всех регионов карты ────────────────────────
-    if (TargetMap)
+    // ── Region — сцена региона ───────────────────────────────────────────
     {
-        for (const TSoftObjectPtr<UWorldRegionAsset>& RegionRef : TargetMap->Regions)
+        TArray<UWorldRegionAsset*> All;
+        CollectAllAssetsOfClass(All, TEXT("WorldRegionAsset"));
+        for (UWorldRegionAsset* R : All)
         {
-            UWorldRegionAsset* Region = RegionRef.LoadSynchronous();
-            if (!Region || Region->RegionLevel.IsNull()) continue;
-
-            const FString Norm = ULocationTrackerSubsystem::NormalizeLevelName(
-                Region->RegionLevel.ToSoftObjectPath().GetLongPackageName());
-            if (!Norm.IsEmpty())
-                OutPackageNames.AddUnique(Norm);
+            if (!MatchesDisplayName(R, TargetDisplayName)) continue;
+            ++MatchCount;
+            if (!R->RegionLevel.IsNull())
+                AddUniquePackage(R->RegionLevel.ToSoftObjectPath().GetLongPackageName());
         }
-        return OutPackageNames.Num() > 0;
     }
 
-    return false;
+    // ── Map — все регионы карты ──────────────────────────────────────────
+    {
+        TArray<UWorldMapAsset*> All;
+        CollectAllAssetsOfClass(All, TEXT("WorldMapAsset"));
+        for (UWorldMapAsset* M : All)
+        {
+            if (!MatchesDisplayName(M, TargetDisplayName)) continue;
+            ++MatchCount;
+            for (const TSoftObjectPtr<UWorldRegionAsset>& RegionRef : M->Regions)
+            {
+                if (UWorldRegionAsset* R = RegionRef.LoadSynchronous())
+                {
+                    if (!R->RegionLevel.IsNull())
+                        AddUniquePackage(R->RegionLevel.ToSoftObjectPath().GetLongPackageName());
+                }
+            }
+        }
+    }
+
+    if (MatchCount == 0)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("LocationConditionAsset '%s': no asset found with DisplayName '%s'"),
+            *GetName(), *Target);
+    }
+    else if (MatchCount > 1)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("LocationConditionAsset '%s': DisplayName '%s' matched %d assets, using all"),
+            *GetName(), *Target, MatchCount);
+    }
+
+    UE_LOG(LogTemp, Log,
+        TEXT("LocationConditionAsset '%s': DisplayName '%s' resolved to %d package(s): [%s]"),
+        *GetName(), *Target,
+        CachedTargetPackageNames.Num(),
+        *FString::Join(CachedTargetPackageNames, TEXT(", ")));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 void ULocationConditionAsset::CompileCondition()
 {
+    // Резолвим имена пакетов один раз при компиляции.
+    ResolveTargets();
+
     class FLocationCondition : public IOutcomeCondition
     {
     public:
@@ -190,37 +228,31 @@ void ULocationConditionAsset::CompileCondition()
             const FString QueryStr = StaticEnum<ELocationQueryType>()
                 ->GetValueAsString(Asset->QueryType);
 
-            FString TargetDesc = TEXT("<no target>");
-            if (Asset->TargetFloor)
-                TargetDesc = FString::Printf(TEXT("Floor '%s'"), *Asset->TargetFloor->GetName());
-            else if (Asset->TargetBuilding)
-                TargetDesc = FString::Printf(TEXT("Building '%s' (any floor)"), *Asset->TargetBuilding->GetName());
-            else if (Asset->TargetStreet)
-                TargetDesc = FString::Printf(TEXT("Street '%s' (any building/floor)"), *Asset->TargetStreet->GetName());
-            else if (Asset->TargetRegion)
-                TargetDesc = FString::Printf(TEXT("Region '%s'"), *Asset->TargetRegion->GetName());
-            else if (Asset->TargetMap)
-                TargetDesc = FString::Printf(TEXT("Map '%s' (any region)"), *Asset->TargetMap->GetName());
+            const FString TargetStr = Asset->TargetDisplayName.ToString();
 
-            FString HierarchyError;
-            const bool bHierarchyOk = Asset->ValidateHierarchy(HierarchyError);
-            const FString HierarchyNote = bHierarchyOk
-                ? FString()
-                : FString::Printf(TEXT(" [INCONSISTENT: %s]"), *HierarchyError);
+            if (Asset->CachedTargetPackageNames.Num() == 0)
+            {
+                return FString::Printf(TEXT("Location: [%s] '%s' [UNRESOLVED]"),
+                    *QueryStr, *TargetStr);
+            }
+
+            const FString PackagesStr = FString::Join(Asset->CachedTargetPackageNames, TEXT(", "));
 
             switch (Asset->QueryType)
             {
             case ELocationQueryType::HasEnteredEver:
             case ELocationQueryType::LeftAndReturned:
-                return FString::Printf(TEXT("Location: [%s] %s%s"),
-                    *QueryStr, *TargetDesc, *HierarchyNote);
+                return FString::Printf(TEXT("Location: [%s] '%s' -> {%s}"),
+                    *QueryStr, *TargetStr, *PackagesStr);
 
             case ELocationQueryType::VisitCountAtLeast:
-                return FString::Printf(TEXT("Location: [%s] %s, threshold %d%s"),
-                    *QueryStr, *TargetDesc, Asset->VisitThreshold, *HierarchyNote);
+                return FString::Printf(TEXT("Location: [%s] '%s' -> {%s}, count %s %d"),
+                    *QueryStr, *TargetStr, *PackagesStr,
+                    *StaticEnum<ECheckCompareOp>()->GetValueAsString(Asset->CompareOp),
+                    Asset->VisitThreshold);
 
             default:
-                return FString::Printf(TEXT("Location: [%s]%s"), *QueryStr, *HierarchyNote);
+                return FString::Printf(TEXT("Location: [%s] '%s'"), *QueryStr, *TargetStr);
             }
         }
 
@@ -235,88 +267,59 @@ void ULocationConditionAsset::CompileCondition()
 // ─────────────────────────────────────────────────────────────────────────────
 bool ULocationConditionAsset::EvaluateCondition(const FOutcomeEventBase& /*Outcome*/) const
 {
-    FString HierarchyError;
-    if (!ValidateHierarchy(HierarchyError))
+    if (CachedTargetPackageNames.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("LocationConditionAsset '%s': hierarchy INCONSISTENT — %s"),
-            *GetName(), *HierarchyError);
+        // CompileCondition либо не вызывался, либо ничего не зарезолвил.
+        // Тихий false — все предупреждения уже выданы в CompileCondition.
         return false;
     }
 
     ULocationTrackerSubsystem* Tracker = FindTracker();
-    if (!Tracker)
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("LocationConditionAsset '%s': Tracker NOT FOUND"),
-            *GetName());
-        return false;
-    }
-
-    TArray<FString> TargetPackageNames;
-    if (!ResolveTargetPackageNames(TargetPackageNames) || TargetPackageNames.Num() == 0)
-    {
-        UE_LOG(LogTemp, Verbose,
-            TEXT("LocationConditionAsset '%s': ResolveTargetPackageNames returned EMPTY"),
-            *GetName());
-        return false;
-    }
-
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationConditionAsset '%s': QueryType=%d Targets=[%s] Current='%s'"),
-        *GetName(), (int32)QueryType,
-        *FString::Join(TargetPackageNames, TEXT(", ")),
-        *Tracker->GetCurrentLevelPackageName());
-
-    bool bResult = false;
+    if (!Tracker) return false;
 
     switch (QueryType)
     {
     case ELocationQueryType::HasEnteredEver:
     {
-        for (const FString& Pkg : TargetPackageNames)
+        for (const FString& Pkg : CachedTargetPackageNames)
         {
             if (Tracker->HasEnteredEver(Pkg))
-            {
-                bResult = true;
-                break;
-            }
+                return true;
         }
-        break;
+        return false;
     }
 
     case ELocationQueryType::LeftAndReturned:
     {
-        for (const FString& Pkg : TargetPackageNames)
+        for (const FString& Pkg : CachedTargetPackageNames)
         {
-            if (Tracker->HasLeftAndReturned(Pkg, /*WindowMinutes=*/0.0f))
-            {
-                bResult = true;
-                break;
-            }
+            if (Tracker->HasLeftAndReturned(Pkg, 0.0f))
+                return true;
         }
-        break;
+        return false;
     }
 
     case ELocationQueryType::VisitCountAtLeast:
     {
         int32 Total = 0;
-        for (const FString& Pkg : TargetPackageNames)
+        for (const FString& Pkg : CachedTargetPackageNames)
         {
             Total += Tracker->GetEnterCount(Pkg);
         }
-        bResult = (Total >= VisitThreshold);
-        break;
+
+        switch (CompareOp)
+        {
+        case ECheckCompareOp::Equal:          return Total == VisitThreshold;
+        case ECheckCompareOp::NotEqual:       return Total != VisitThreshold;
+        case ECheckCompareOp::Less:           return Total < VisitThreshold;
+        case ECheckCompareOp::LessOrEqual:    return Total <= VisitThreshold;
+        case ECheckCompareOp::Greater:        return Total > VisitThreshold;
+        case ECheckCompareOp::GreaterOrEqual: return Total >= VisitThreshold;
+        default:                              return false;
+        }
     }
 
     default:
-        bResult = false;
-        break;
+        return false;
     }
-
-    UE_LOG(LogTemp, Verbose,
-        TEXT("LocationConditionAsset '%s': RESULT = %s"),
-        *GetName(), bResult ? TEXT("TRUE") : TEXT("false"));
-
-    return bResult;
 }

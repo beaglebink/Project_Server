@@ -5,18 +5,12 @@
 #include "CheckRequestPayload.h"
 #include "LocationConditionAsset.generated.h"
 
-class UWorldMapAsset;
-class UWorldRegionAsset;
-class UStreetAsset;
-class UInteriorSetAsset;
-class UFloorAsset;
-
 UENUM(BlueprintType)
 enum class ELocationQueryType : uint8
 {
-    LeftAndReturned     UMETA(DisplayName = "Left And Returned"),
-    HasEnteredEver      UMETA(DisplayName = "Has Entered Ever"),
-    VisitCountAtLeast   UMETA(DisplayName = "Visit Count At Least")
+    HasEnteredEver      UMETA(DisplayName = "Has Entered Ever (state)"),
+    LeftAndReturned     UMETA(DisplayName = "Left And Returned (state)"),
+    VisitCountAtLeast   UMETA(DisplayName = "Visit Count At Least (state)")
 };
 
 UCLASS(BlueprintType, ShowCategories = ("Location", "4 - Debug"))
@@ -26,32 +20,23 @@ class FPSKITALSREFACTORED_API ULocationConditionAsset : public UOutcomeCondition
 
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location")
-    ELocationQueryType QueryType = ELocationQueryType::LeftAndReturned;
+    ELocationQueryType QueryType = ELocationQueryType::HasEnteredEver;
 
-    // ── Иерархия цели ────────────────────────────────────────────────────
-    // Заполняйте до нужной глубины. Используется САМОЕ ГЛУБОКОЕ указанное поле:
-    //   Floor   → одна сцена этажа.
-    //   Building (без Floor) → «любой из этажей этого здания».
-    //   Street   (без Building) → «любой этаж любого здания этой улицы».
-    //   Region   (без Street) → сцена региона.
-    //   Map      (без Region) → любая сцена региона из этой карты.
-    // Более общие поля, если они заданы вместе с более глубокими,
-    // используются только для проверки консистентности цепочки.
+    // Имя локации, как его видит дизайнер в редакторе. Совпадает с DisplayName
+    // одного из ассетов иерархии локаций:
+    //   Floor (UFloorAsset) / Building (UInteriorSetAsset) /
+    //   Street (UStreetAsset) / Region (UWorldRegionAsset) / Map (UWorldMapAsset).
+    // Если совпадений несколько — используются все.
+    // Резолв делается один раз при CompileCondition и кэшируется.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location")
+    FText TargetDisplayName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location|Target")
-    TObjectPtr<UWorldMapAsset> TargetMap;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location|Target")
-    TObjectPtr<UWorldRegionAsset> TargetRegion;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location|Target")
-    TObjectPtr<UStreetAsset> TargetStreet;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location|Target")
-    TObjectPtr<UInteriorSetAsset> TargetBuilding;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location|Target")
-    TObjectPtr<UFloorAsset> TargetFloor;
+    // Операция сравнения для VisitCountAtLeast.
+    // Применяется к сумме EnterCount по всем целевым сценам.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location",
+        meta = (EditCondition = "QueryType == ELocationQueryType::VisitCountAtLeast",
+            EditConditionHides))
+    ECheckCompareOp CompareOp = ECheckCompareOp::GreaterOrEqual;
 
     // Порог для VisitCountAtLeast (сумма EnterCount по всем целевым сценам).
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location",
@@ -63,11 +48,13 @@ public:
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 
 private:
-    // Собирает нормализованные имена пакетов сцен, соответствующих цели.
-    bool ResolveTargetPackageNames(TArray<FString>& OutPackageNames) const;
-
-    // Проверка консистентности цепочки (Floor ⊆ Building ⊆ Street ⊆ Region ⊆ Map).
-    bool ValidateHierarchy(FString& OutError) const;
+    // Резолвит TargetDisplayName в список нормализованных имён пакетов сцен.
+    // Заполняет CachedTargetPackageNames. Вызывается из CompileCondition.
+    void ResolveTargets();
 
     static class ULocationTrackerSubsystem* FindTracker();
+
+    // Кэш резолва. mutable — потому что EvaluateCondition const, но нам нужно
+    // переиспользовать результат CompileCondition.
+    TArray<FString> CachedTargetPackageNames;
 };
