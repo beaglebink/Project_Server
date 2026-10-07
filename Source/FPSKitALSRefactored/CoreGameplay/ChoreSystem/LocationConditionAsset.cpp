@@ -21,9 +21,18 @@ ULocationTrackerSubsystem* ULocationConditionAsset::FindTracker()
 void ULocationConditionAsset::CompileCondition()
 {
     // Резолвим DisplayName в ключ один раз.
+    //
+    // PreferredLevel позволяет ограничить поиск одним уровнем иерархии.
+    // Это важно, когда DisplayName уникален только внутри своего уровня:
+    // например, улица и дом на ней могут называться одинаково
+    // («Sea street 1»), и без ограничения резолв сядет на первое
+    // совпадение (порядок обхода по умолчанию — Floor → Building → Street → Region → Map).
     CachedKey = FLocationVisitKey();
     if (!TargetDisplayName.IsEmpty())
-        ULocationTrackerSubsystem::ResolveLocationKeyByDisplayName(TargetDisplayName, CachedKey);
+    {
+        ULocationTrackerSubsystem::ResolveLocationKeyByDisplayName(
+            TargetDisplayName, CachedKey, PreferredLevel);
+    }
 
     class FLocationCondition : public IOutcomeCondition
     {

@@ -29,6 +29,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location")
     FText TargetDisplayName;
 
+    // Ограничение по уровню иерархии при резолве TargetDisplayName.
+    //
+    // Default  — прежнее поведение: обход всех типов, приоритет
+    //            Floor → Building → Street → Region → Map. Подходит,
+    //            когда DisplayName уникален в проекте.
+    // Floor / Building / Street / Region / Map — искать только среди ассетов
+    //            указанного уровня. Нужно, когда DisplayName может совпасть
+    //            у разных типов (например, улица и одноимённый дом на ней).
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location")
+    ELocationLevel PreferredLevel = ELocationLevel::Default;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Location",
         meta = (EditCondition = "QueryType == ELocationQueryType::VisitCountAtLeast",
             EditConditionHides))

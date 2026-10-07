@@ -307,16 +307,19 @@ void ULocationTrackerSubsystem::HandleLocationEvent(const FOutcomeEventBase& Out
         return;
     }
 
-    // Region scene: переносим Street из текущего адреса, если регион тот же.
-    if (NewAddr.RegionId.IsValid() && !NewAddr.BuildingId.IsValid())
-    {
-        if (CurrentAddress.RegionId == NewAddr.RegionId)
-            NewAddr.StreetId = CurrentAddress.StreetId;
-    }
-
-    // Прямой переход между домами (без сцены региона): Street сохраняется,
-    // если регион не меняется.
-    if (CurrentAddress.BuildingId.IsValid() && NewAddr.BuildingId.IsValid())
+    // Перенос Street имеет смысл ТОЛЬКО для региональных сцен.
+    //
+    // У региональной сцены известен RegionId/MapId, но нет BuildingId
+    // и StreetId. Если игрок не покидал регион (например, прошёл
+    // «этаж → улица этого же региона»), улица логически остаётся прежней,
+    // и взять её больше неоткуда — сохраняем из старого адреса.
+    //
+    // Для этажных сцен StreetId уже правильный: он собран каскадом
+    // FloorAsset → InteriorSetAsset → StreetAsset в BuildSceneIndex.
+    // Перезаписывать его старым нельзя — иначе телепорт в дом на другой
+    // улице «унаследует» прежнюю улицу (баг, который ломал переходы
+    // между улицами и регионами).
+    if (!NewAddr.BuildingId.IsValid() && NewAddr.RegionId.IsValid())
     {
         if (CurrentAddress.RegionId == NewAddr.RegionId)
             NewAddr.StreetId = CurrentAddress.StreetId;
@@ -349,10 +352,21 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
 
         if (OldId.IsValid())
         {
-            FLocationVisitState& S = FindOrAddState(L, OldId);
-            S.LastLeftAt = Now;
-            S.LeaveCount++;
+            // Для Street: если старый адрес уже был внутри дома, то «уход
+            // с улицы» был засчитан в момент входа в тот дом (см. спецправило
+            // ниже). Второй раз Leave[Street] писать не нужно — иначе при
+            // переходе дом→дом на разных улицах получился бы двойной Leave.
+            const bool bSkipLeaveForStreet =
+                (L == ELocationLevel::Street && OldAddress.BuildingId.IsValid());
+
+            if (!bSkipLeaveForStreet)
+            {
+                FLocationVisitState& S = FindOrAddState(L, OldId);
+                S.LastLeftAt = Now;
+                S.LeaveCount++;
+            }
         }
+
         if (NewId.IsValid())
         {
             FLocationVisitState& S = FindOrAddState(L, NewId);
@@ -362,16 +376,37 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
         }
     }
 
-    // Спецправило для Street: заход в дом → Leave[New.Street]++.
-    if (!OldAddress.BuildingId.IsValid() && NewAddress.BuildingId.IsValid() && NewAddress.StreetId.IsValid())
+    // Спецправило Street: «оказались в доме на улице S» → Leave[S]++.
+    //
+    // Модель: находиться в доме на улице S = не быть на улице S. Поэтому
+    // в момент прибытия в дом нужно зафиксировать уход с улицы. Правило
+    // срабатывает при любом из трёх случаев:
+    //
+    //   • улица S → дом на S          — зашли с самой улицы;
+    //   • дом на S1 → дом на S2       — телепорт между домами разных улиц;
+    //   • пусто → дом на S            — загрузка игры прямо в дом.
+    //
+    // В кейсе «дом на S → дом на S» (переход между домами одной улицы)
+    // правило молчит: мы уже «ушли» с S в момент входа в первый дом,
+    // а между домами на улицу не выходили.
+    if (NewAddress.BuildingId.IsValid()
+        && NewAddress.StreetId.IsValid()
+        && (OldAddress.StreetId != NewAddress.StreetId || !OldAddress.BuildingId.IsValid()))
     {
         FLocationVisitState& S = FindOrAddState(ELocationLevel::Street, NewAddress.StreetId);
         S.LastLeftAt = Now;
         S.LeaveCount++;
     }
 
-    // Спецправило для Street: выход из дома → Enter[Old.Street]++.
-    if (OldAddress.BuildingId.IsValid() && !NewAddress.BuildingId.IsValid() && OldAddress.StreetId.IsValid())
+    // Спецправило Street: «вышли из дома на ту же улицу» → Enter[Street]++.
+    //
+    // Требует совпадения улиц. Это отсекает кейс «дом S1 → улица S2»:
+    // Enter[S2] уже дал главный цикл, а Enter[S1] не нужен — с S1 мы
+    // ушли ещё при входе в её дом и на её улицу не возвращались.
+    if (OldAddress.BuildingId.IsValid()
+        && !NewAddress.BuildingId.IsValid()
+        && OldAddress.StreetId.IsValid()
+        && OldAddress.StreetId == NewAddress.StreetId)
     {
         FLocationVisitState& S = FindOrAddState(ELocationLevel::Street, OldAddress.StreetId);
         if (S.FirstEnteredAt == FDateTime::MinValue()) S.FirstEnteredAt = Now;
@@ -410,18 +445,12 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
         };
 
     // ── Тестовые логи ────────────────────────────────────────────────────
-
-    // Момент «покидаем старый адрес»: считаем, что счётчики Leave уже
-    // инкрементированы выше, но CurrentAddress ещё указывает на старый
-    // адрес. Печатаем OldAddress, чтобы было видно, откуда уходим.
     UE_LOG(LogTemp, Log,
         TEXT("LocationTracker: Leaving    %s"),
         *FormatAddress(OldAddress));
 
     CurrentAddress = NewAddress;
 
-    // Момент «прибыли в новый адрес»: счётчики Enter уже инкрементированы,
-    // CurrentAddress обновлён. Печатаем NewAddress.
     UE_LOG(LogTemp, Log,
         TEXT("LocationTracker: Arrived at %s"),
         *FormatAddress(NewAddress));
@@ -491,7 +520,10 @@ FDateTime ULocationTrackerSubsystem::GetGameTimeNow() const
 // ─────────────────────────────────────────────────────────────────────────────
 // Резолвер DisplayName → ключ
 // ─────────────────────────────────────────────────────────────────────────────
-bool ULocationTrackerSubsystem::ResolveLocationKeyByDisplayName(const FText& DisplayName, FLocationVisitKey& OutKey)
+bool ULocationTrackerSubsystem::ResolveLocationKeyByDisplayName(
+    const FText& DisplayName,
+    FLocationVisitKey& OutKey,
+    ELocationLevel PreferredLevel)
 {
     OutKey = FLocationVisitKey();
     if (DisplayName.IsEmpty()) return false;
@@ -502,35 +534,80 @@ bool ULocationTrackerSubsystem::ResolveLocationKeyByDisplayName(const FText& Dis
         {
             if (!MatchesDisplayName(Asset, DisplayName)) return;
             ++MatchCount;
-            if (MatchCount == 1) { OutKey.Level = Level; OutKey.LocationId = Id; }
+            if (MatchCount == 1)
+            {
+                OutKey.Level = Level;
+                OutKey.LocationId = Id;
+            }
         };
 
+    auto ScanFloors = [&]()
+        {
+            TArray<UFloorAsset*> All; LoadAllAssetsOfClass(All, TEXT("FloorAsset"));
+            for (UFloorAsset* A : All) TryAsset(A, ELocationLevel::Floor, A ? A->FloorID : FGuid());
+        };
+    auto ScanBuildings = [&]()
+        {
+            TArray<UInteriorSetAsset*> All; LoadAllAssetsOfClass(All, TEXT("InteriorSetAsset"));
+            for (UInteriorSetAsset* A : All) TryAsset(A, ELocationLevel::Building, A ? A->InteriorSetID : FGuid());
+        };
+    auto ScanStreets = [&]()
+        {
+            TArray<UStreetAsset*> All; LoadAllAssetsOfClass(All, TEXT("StreetAsset"));
+            for (UStreetAsset* A : All) TryAsset(A, ELocationLevel::Street, A ? A->StreetID : FGuid());
+        };
+    auto ScanRegions = [&]()
+        {
+            TArray<UWorldRegionAsset*> All; LoadAllAssetsOfClass(All, TEXT("WorldRegionAsset"));
+            for (UWorldRegionAsset* A : All) TryAsset(A, ELocationLevel::Region, A ? A->WorldRegionID : FGuid());
+        };
+    auto ScanMaps = [&]()
+        {
+            TArray<UWorldMapAsset*> All; LoadAllAssetsOfClass(All, TEXT("WorldMapAsset"));
+            for (UWorldMapAsset* A : All) TryAsset(A, ELocationLevel::Map, A ? A->WorldMapID : FGuid());
+        };
+
+    if (PreferredLevel == ELocationLevel::Default)
     {
-        TArray<UFloorAsset*> All; LoadAllAssetsOfClass(All, TEXT("FloorAsset"));
-        for (UFloorAsset* A : All) TryAsset(A, ELocationLevel::Floor, A ? A->FloorID : FGuid());
+        // Прежнее поведение: обходим все типы, приоритет от Floor к Map.
+        // Сохранён для обратной совместимости.
+        ScanFloors();
+        ScanBuildings();
+        ScanStreets();
+        ScanRegions();
+        ScanMaps();
     }
+    else
     {
-        TArray<UInteriorSetAsset*> All; LoadAllAssetsOfClass(All, TEXT("InteriorSetAsset"));
-        for (UInteriorSetAsset* A : All) TryAsset(A, ELocationLevel::Building, A ? A->InteriorSetID : FGuid());
-    }
-    {
-        TArray<UStreetAsset*> All; LoadAllAssetsOfClass(All, TEXT("StreetAsset"));
-        for (UStreetAsset* A : All) TryAsset(A, ELocationLevel::Street, A ? A->StreetID : FGuid());
-    }
-    {
-        TArray<UWorldRegionAsset*> All; LoadAllAssetsOfClass(All, TEXT("WorldRegionAsset"));
-        for (UWorldRegionAsset* A : All) TryAsset(A, ELocationLevel::Region, A ? A->WorldRegionID : FGuid());
-    }
-    {
-        TArray<UWorldMapAsset*> All; LoadAllAssetsOfClass(All, TEXT("WorldMapAsset"));
-        for (UWorldMapAsset* A : All) TryAsset(A, ELocationLevel::Map, A ? A->WorldMapID : FGuid());
+        // Явно указанный уровень: смотрим только ассеты этого класса.
+        // Это устраняет неоднозначность, когда DisplayName уникален
+        // только внутри своего уровня.
+        switch (PreferredLevel)
+        {
+        case ELocationLevel::Floor:    ScanFloors();    break;
+        case ELocationLevel::Building: ScanBuildings(); break;
+        case ELocationLevel::Street:   ScanStreets();   break;
+        case ELocationLevel::Region:   ScanRegions();   break;
+        case ELocationLevel::Map:      ScanMaps();      break;
+        default: break;
+        }
     }
 
     if (MatchCount == 0)
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("LocationTracker: no location asset with DisplayName '%s'"),
-            *DisplayName.ToString());
+        if (PreferredLevel == ELocationLevel::Default)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("LocationTracker: no location asset with DisplayName '%s'"),
+                *DisplayName.ToString());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("LocationTracker: no location asset with DisplayName '%s' at level %s"),
+                *DisplayName.ToString(),
+                *StaticEnum<ELocationLevel>()->GetValueAsString(PreferredLevel));
+        }
         return false;
     }
     if (MatchCount > 1)

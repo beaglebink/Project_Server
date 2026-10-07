@@ -142,9 +142,19 @@ public:
 
     // Преобразовать DisplayName ассета локации в ключ.
     // Ищет среди FloorAsset / InteriorSetAsset / StreetAsset / WorldRegionAsset / WorldMapAsset.
+    //
+    // PreferredLevel == Default  — прежнее поведение: обход всех типов,
+    //                              приоритет от Floor к Map.
+    // PreferredLevel != Default  — искать только среди ассетов указанного уровня.
+    //                              Полезно, когда DisplayName уникален не глобально,
+    //                              а только внутри своего уровня.
+    //
     // Если найдено ровно одно совпадение — возвращает true и заполняет OutKey.
     // Если найдено несколько — логирует Warning и берёт первое.
-    static bool ResolveLocationKeyByDisplayName(const FText& DisplayName, FLocationVisitKey& OutKey);
+    static bool ResolveLocationKeyByDisplayName(
+        const FText& DisplayName,
+        FLocationVisitKey& OutKey,
+        ELocationLevel PreferredLevel = ELocationLevel::Default);
 
     // Возвращает количество заходов и уходов для локации, заданной её
     // DisplayName (совпадает с DisplayName ассета: Map / Region / Street /
