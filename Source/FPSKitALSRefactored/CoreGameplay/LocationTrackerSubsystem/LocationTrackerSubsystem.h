@@ -173,6 +173,7 @@ public:
 private:
     void HandleLocationEvent(const FOutcomeEventBase& Outcome);
     void HandleVisitReset(const FOutcomeEventBase& Outcome);
+    void HandleStreetTransition(const FOutcomeEventBase& Outcome);
 
     void BuildSceneIndex();
     bool FindAddressForScene(const FString& NormalizedSceneName, FLocationVisitAddress& OutAddress) const;
@@ -206,6 +207,11 @@ private:
 
     UPROPERTY() TObjectPtr<UOutcomeConditionAsset> LocationResetCondition;
     FOutcomeHandlerHandle LocationResetHandler;
+
+    // ---- StreetTransition ----
+    // Подписка на команды «игрок перешёл на улицу» от триггеров на уровнях.
+    UPROPERTY() TObjectPtr<UOutcomeConditionAsset> StreetTransitionCondition;
+    FOutcomeHandlerHandle StreetTransitionHandler;
 
     bool bLoadComplete = true;
 };

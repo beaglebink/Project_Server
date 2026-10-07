@@ -11,6 +11,7 @@
 #include "../SaveGame/GameSaveSubsystem.h"
 #include "../ChoreSystem/ChoreManagerSubsystem.h"
 #include "LocationVisitResetPayload.h"
+#include "LocationStreetTransitionPayload.h"
 
 #include "../LocationSystem/FloorAsset.h"
 #include "../LocationSystem/WorldRegionAsset.h"
@@ -121,6 +122,21 @@ void ULocationTrackerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
                 LocationResetCondition,
                 FOutcomeHandlerDelegate::CreateUObject(this, &ULocationTrackerSubsystem::HandleVisitReset));
         }
+
+        StreetTransitionCondition = NewObject<UOutcomeConditionAsset>(this);
+        StreetTransitionCondition->OperatorType = EConditionOperator::Composite;
+        StreetTransitionCondition->FilterRow.OutcomeType = EOutcomeType::Interior;
+        StreetTransitionCondition->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+        StreetTransitionCondition->FilterRow.InteriorType = EOutcomeInterior::StreetTransition;
+        StreetTransitionCondition->FilterRow.InteriorComparison = EConditionComparison::Equals;
+        StreetTransitionCondition->CompileCondition();
+
+        if (StreetTransitionCondition->GetCondition().IsValid())
+        {
+            StreetTransitionHandler = EventBus->RegisterHandler(
+                StreetTransitionCondition,
+                FOutcomeHandlerDelegate::CreateUObject(this, &ULocationTrackerSubsystem::HandleStreetTransition));
+        }
     }
 
     UE_LOG(LogTemp, Log, TEXT("LocationTrackerSubsystem: Initialized. %d scene(s) in index."),
@@ -131,14 +147,18 @@ void ULocationTrackerSubsystem::Deinitialize()
 {
     if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
     {
-        if (LocationEventHandler.IsValid()) { EventBus->UnregisterHandler(LocationEventHandler); LocationEventHandler.Invalidate(); }
-        if (LocationResetHandler.IsValid()) { EventBus->UnregisterHandler(LocationResetHandler);  LocationResetHandler.Invalidate(); }
+        if (LocationEventHandler.IsValid()) { EventBus->UnregisterHandler(LocationEventHandler);   LocationEventHandler.Invalidate(); }
+        if (LocationResetHandler.IsValid()) { EventBus->UnregisterHandler(LocationResetHandler);   LocationResetHandler.Invalidate(); }
+        if (StreetTransitionHandler.IsValid()) { EventBus->UnregisterHandler(StreetTransitionHandler);StreetTransitionHandler.Invalidate(); }
     }
     LocationEventCondition = nullptr;
     LocationResetCondition = nullptr;
+    StreetTransitionCondition = nullptr;
 
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+    {
         SaveSys->UnregisterSaveableSubsystem(this);
+    }
 
     SceneToAddress.Empty();
     VisitHistory.Empty();
@@ -308,17 +328,6 @@ void ULocationTrackerSubsystem::HandleLocationEvent(const FOutcomeEventBase& Out
     }
 
     // Перенос Street имеет смысл ТОЛЬКО для региональных сцен.
-    //
-    // У региональной сцены известен RegionId/MapId, но нет BuildingId
-    // и StreetId. Если игрок не покидал регион (например, прошёл
-    // «этаж → улица этого же региона»), улица логически остаётся прежней,
-    // и взять её больше неоткуда — сохраняем из старого адреса.
-    //
-    // Для этажных сцен StreetId уже правильный: он собран каскадом
-    // FloorAsset → InteriorSetAsset → StreetAsset в BuildSceneIndex.
-    // Перезаписывать его старым нельзя — иначе телепорт в дом на другой
-    // улице «унаследует» прежнюю улицу (баг, который ломал переходы
-    // между улицами и регионами).
     if (!NewAddr.BuildingId.IsValid() && NewAddr.RegionId.IsValid())
     {
         if (CurrentAddress.RegionId == NewAddr.RegionId)
@@ -354,8 +363,7 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
         {
             // Для Street: если старый адрес уже был внутри дома, то «уход
             // с улицы» был засчитан в момент входа в тот дом (см. спецправило
-            // ниже). Второй раз Leave[Street] писать не нужно — иначе при
-            // переходе дом→дом на разных улицах получился бы двойной Leave.
+            // ниже). Второй раз Leave[Street] писать не нужно.
             const bool bSkipLeaveForStreet =
                 (L == ELocationLevel::Street && OldAddress.BuildingId.IsValid());
 
@@ -377,18 +385,6 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
     }
 
     // Спецправило Street: «оказались в доме на улице S» → Leave[S]++.
-    //
-    // Модель: находиться в доме на улице S = не быть на улице S. Поэтому
-    // в момент прибытия в дом нужно зафиксировать уход с улицы. Правило
-    // срабатывает при любом из трёх случаев:
-    //
-    //   • улица S → дом на S          — зашли с самой улицы;
-    //   • дом на S1 → дом на S2       — телепорт между домами разных улиц;
-    //   • пусто → дом на S            — загрузка игры прямо в дом.
-    //
-    // В кейсе «дом на S → дом на S» (переход между домами одной улицы)
-    // правило молчит: мы уже «ушли» с S в момент входа в первый дом,
-    // а между домами на улицу не выходили.
     if (NewAddress.BuildingId.IsValid()
         && NewAddress.StreetId.IsValid()
         && (OldAddress.StreetId != NewAddress.StreetId || !OldAddress.BuildingId.IsValid()))
@@ -399,10 +395,6 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
     }
 
     // Спецправило Street: «вышли из дома на ту же улицу» → Enter[Street]++.
-    //
-    // Требует совпадения улиц. Это отсекает кейс «дом S1 → улица S2»:
-    // Enter[S2] уже дал главный цикл, а Enter[S1] не нужен — с S1 мы
-    // ушли ещё при входе в её дом и на её улицу не возвращались.
     if (OldAddress.BuildingId.IsValid()
         && !NewAddress.BuildingId.IsValid()
         && OldAddress.StreetId.IsValid()
@@ -569,8 +561,6 @@ bool ULocationTrackerSubsystem::ResolveLocationKeyByDisplayName(
 
     if (PreferredLevel == ELocationLevel::Default)
     {
-        // Прежнее поведение: обходим все типы, приоритет от Floor к Map.
-        // Сохранён для обратной совместимости.
         ScanFloors();
         ScanBuildings();
         ScanStreets();
@@ -579,9 +569,6 @@ bool ULocationTrackerSubsystem::ResolveLocationKeyByDisplayName(
     }
     else
     {
-        // Явно указанный уровень: смотрим только ассеты этого класса.
-        // Это устраняет неоднозначность, когда DisplayName уникален
-        // только внутри своего уровня.
         switch (PreferredLevel)
         {
         case ELocationLevel::Floor:    ScanFloors();    break;
@@ -683,6 +670,48 @@ void ULocationTrackerSubsystem::HandleVisitReset(const FOutcomeEventBase& Outcom
     UE_LOG(LogTemp, Log,
         TEXT("LocationTracker: Reset visits under hierarchy — %d key(s) processed, %d entries removed"),
         Keys.Num(), Removed);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HandleStreetTransition — команда «игрок перешёл на улицу»
+// ─────────────────────────────────────────────────────────────────────────────
+void ULocationTrackerSubsystem::HandleStreetTransition(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType != EOutcomeType::Interior) return;
+    if (Outcome.OutcomeInterior != EOutcomeInterior::StreetTransition) return;
+
+    ULocationStreetTransitionPayload* P = Cast<ULocationStreetTransitionPayload>(Outcome.Payload);
+    if (!P || !P->TargetStreet) return;
+
+    const FGuid TargetStreetId = P->TargetStreet->StreetID;
+    if (!TargetStreetId.IsValid())
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("LocationTracker: StreetTransition payload has invalid StreetID"));
+        return;
+    }
+
+    // Собираем новый адрес: игрок на улице — Building/Floor пусты.
+    // Регион и карта берутся из иерархии самой улицы, чтобы корректно
+    // отработать переход в другой регион/карту.
+    FLocationVisitAddress NewAddr;
+    NewAddr.StreetId = TargetStreetId;
+
+    if (UWorldRegionAsset* Region = P->TargetStreet->ParentWorldRegion.LoadSynchronous())
+    {
+        NewAddr.RegionId = Region->WorldRegionID;
+        if (UWorldMapAsset* Map = Region->ParentWorldMap.LoadSynchronous())
+            NewAddr.MapId = Map->WorldMapID;
+    }
+
+    // Идемпотентность: если адрес уже в точности такой — игнорируем.
+    // Это отсекает повторные срабатывания при нахождении на улице.
+    if (CurrentAddress == NewAddr)
+    {
+        return;
+    }
+
+    ApplyAddressTransition(NewAddr);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -806,8 +835,6 @@ bool ULocationTrackerSubsystem::GetLocationCountsByDisplayName(
     const FLocationVisitState* S = FindVisitState(Key);
     if (!S)
     {
-        // Локация существует в ассетах, но игрок её ещё не посещал.
-        // Счётчики нулевые, но локация «известна».
         return true;
     }
 
@@ -827,8 +854,6 @@ FString ULocationTrackerSubsystem::GetLocationLabel(ELocationLevel Level, const 
             return Found->ToString();
     }
 
-    // Фоллбэк: короткий технический ярлык, чтобы в логе всё равно было видно,
-    // что именно за локация, даже если индекс почему-то пуст.
     const FString LevelStr = StaticEnum<ELocationLevel>()->GetValueAsString(Level);
     return FString::Printf(TEXT("<%s:%s>"),
         *LevelStr.Left(3),
