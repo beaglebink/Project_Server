@@ -41,9 +41,11 @@
 #include <EnemyDamageSystem/EnemyDamageComponent.h>
 #include "../LocationTrackerSubsystem/LocationTrackerSubsystem.h"
 
-/* Converts EFloorActorType to string (Преобразует EFloorActorType в строку) */
+/* Converts EFloorActorType to string */
+/* Преобразует EFloorActorType в строку */
 static FString ActorTypeToString(EFloorActorType Type);
-/* Converts string to EFloorActorType (Преобразует строку в EFloorActorType) */
+/* Converts string to EFloorActorType */
+/* Преобразует строку в EFloorActorType */
 static EFloorActorType StringToActorType(const FString& Str);
 
 // Removes mission snapshots from the map
@@ -75,7 +77,8 @@ auto RemoveMissionSnapshots = [](TMap<FInteriorFloorKey, TMap<FName, TArray<FFlo
 // Определяет, нужно ли пропустить актора на основе политики конверта
 static bool ShouldUseActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
 {
-	// Look for entry by channel / Ищем запись для канала
+	// Look for entry by channel
+	// Ищем запись для канала
 	const FEnvelopeChannelEntry* FoundEntry = nullptr;
 	bool IsResetPolicy = false;
 	bool IsPartialPolicy = false;
@@ -212,6 +215,7 @@ auto RemoveMissionFromPopulationMap = [](TMap<FInteriorFloorKey, TMap<FName, FFl
 		return bRemovedAny;
 	};
 
+// Copies mission-spawned actors to the global map, removing all mission entries before adding.
 // Копирует спавненных миссией акторов в глобальную карту, удаляя все записи миссии перед добавлением.
 auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& MissionSpawnedMap,
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets>& GlobalMap,
@@ -227,6 +231,7 @@ auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorP
 
 		FFloorPopulationBuckets& GlobalBuckets = GlobalMap.FindOrAdd(FloorKey);
 
+		// Remove all records of this mission from the global map
 		// Удаляем все записи этой миссии из глобальной карты
 		auto RemoveAllRecords = [&](const TArray<FFloorPopulationRecord>& MissionRecs, TArray<FFloorPopulationRecord>& GlobalArr)
 			{
@@ -241,6 +246,7 @@ auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorP
 		RemoveAllRecords(Buckets->NPCSpawners, GlobalBuckets.NPCSpawners);
 		RemoveAllRecords(Buckets->Debris, GlobalBuckets.Debris);
 
+		// Add only those records that should be preserved according to the policy
 		// Добавляем только те записи, которые должны сохраниться согласно политике
 		bool bCopied = false;
 		auto AddUnique = [&](const TArray<FFloorPopulationRecord>& Source, TArray<FFloorPopulationRecord>& Dest)
@@ -269,6 +275,7 @@ auto CopyMissionSpawnedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorP
 		return bCopied;
 	};
 
+// Copies mission-destroyed actors to the global map, with the same cleanup logic.
 // Копирует уничтоженных миссией акторов в глобальную карту, с той же логикой очистки.
 auto CopyMissionDestroyedToGlobal = [](TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& MissionDestroyedMap,
 	TMap<FInteriorFloorKey, FFloorPopulationBuckets>& GlobalMap,
@@ -372,17 +379,20 @@ auto RemoveFromMissionDestroyedByActorIdForFloor = [](TMap<FInteriorFloorKey, TM
 	{
 		if (!ItemId.IsValid()) return false;
 
-		// Find the map for the given floor / Находим карту для заданного этажа
+		// Find the map for the given floor
+		// Находим карту для заданного этажа
 		auto* PerFloor = MissionDestroyedMap.Find(FloorKey);
 		if (!PerFloor) return false;
 
-		// Find the buckets for the given mission / Находим бакеты для заданной миссии
+		// Find the buckets for the given mission
+		// Находим бакеты для заданной миссии
 		auto* Buckets = PerFloor->Find(MissionId);
 		if (!Buckets) return false;
 
 		bool bRemoved = false;
 
-		// Lambda to remove from a specific array / Лямбда для удаления из конкретного массива
+		// Lambda to remove from a specific array
+		// Лямбда для удаления из конкретного массива
 		auto RemoveFromArray = [&](TArray<FFloorPopulationRecord>& Arr)
 			{
 				int32 OldCount = Arr.Num();
@@ -416,7 +426,8 @@ auto RemoveFromMissionDestroyedByActorIdForFloor = [](TMap<FInteriorFloorKey, TM
 // Вспомогательные функции для постоянного населения (фильтрация по каналам)
 // -----------------------------------------------------------------------------
 
-// Copies records for a specific channel / Копирует записи для указанного канала
+// Copies records for a specific channel
+// Копирует записи для указанного канала
 static void CopyRecordsForChannelHelper(const TArray<FFloorPopulationRecord>& Source, TArray<FFloorPopulationRecord>& Dest, EEnvelopeChannel Channel)
 {
 	for (const FFloorPopulationRecord& Rec : Source)
@@ -429,7 +440,8 @@ static void CopyRecordsForChannelHelper(const TArray<FFloorPopulationRecord>& So
 	}
 }
 
-// Removes records for a specific channel / Удаляет записи для указанного канала
+// Removes records for a specific channel
+// Удаляет записи для указанного канала
 static void RemoveRecordsForChannelHelper(TArray<FFloorPopulationRecord>& Records, EEnvelopeChannel Channel)
 {
 	Records.RemoveAll([Channel](const FFloorPopulationRecord& Rec) {
@@ -437,7 +449,8 @@ static void RemoveRecordsForChannelHelper(TArray<FFloorPopulationRecord>& Record
 		});
 }
 
-// Checks if an actor ID exists in the spawned map / Проверяет, существует ли ID актора в карте спавна
+// Checks if an actor ID exists in the spawned map
+// Проверяет, существует ли ID актора в карте спавна
 auto ContainsActorIdInSpawned = [](const TMap<FInteriorFloorKey, FFloorPopulationBuckets>& SpawnedMap, const FGuid& TargetActorId) -> bool
 	{
 		if (!TargetActorId.IsValid()) return false;
@@ -493,7 +506,8 @@ auto ContainsActorIdInSpawnedNew = [](const TMap<FInteriorFloorKey, FFloorPopula
 // Вспомогательные функции сериализации JSON для структур снимков
 // -----------------------------------------------------------------------------
 
-// Converts FTransform to JSON object / Преобразует FTransform в JSON-объект
+// Converts FTransform to JSON object
+// Преобразует FTransform в JSON-объект
 static TSharedPtr<FJsonObject> TransformToJsonObject(const FTransform& Transform)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
@@ -518,7 +532,8 @@ static TSharedPtr<FJsonObject> TransformToJsonObject(const FTransform& Transform
 	return Obj;
 }
 
-// Creates FTransform from JSON object / Создает FTransform из JSON-объекта
+// Creates FTransform from JSON object
+// Создает FTransform из JSON-объекта
 static FTransform TransformFromJsonObject(const TSharedPtr<FJsonObject>& Obj)
 {
 	if (!Obj.IsValid()) return FTransform::Identity;
@@ -542,7 +557,8 @@ static FTransform TransformFromJsonObject(const TSharedPtr<FJsonObject>& Obj)
 	return FTransform(Rot, Loc, Scale);
 }
 
-// Converts property entry to JSON / Преобразует запись свойства в JSON
+// Converts property entry to JSON
+// Преобразует запись свойства в JSON
 static TSharedPtr<FJsonObject> PropertyEntryToJson(const FFloorSavedPropertyEntry& Entry)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
@@ -551,7 +567,8 @@ static TSharedPtr<FJsonObject> PropertyEntryToJson(const FFloorSavedPropertyEntr
 	return Obj;
 }
 
-// Creates property entry from JSON / Создает запись свойства из JSON
+// Creates property entry from JSON
+// Создает запись свойства из JSON
 static FFloorSavedPropertyEntry PropertyEntryFromJson(const TSharedPtr<FJsonObject>& Obj)
 {
 	FFloorSavedPropertyEntry Entry;
@@ -563,7 +580,8 @@ static FFloorSavedPropertyEntry PropertyEntryFromJson(const TSharedPtr<FJsonObje
 	return Entry;
 }
 
-// Converts component state to JSON / Преобразует состояние компонента в JSON
+// Converts component state to JSON
+// Преобразует состояние компонента в JSON
 static TSharedPtr<FJsonObject> ComponentStateToJson(const FFloorSavedComponentState& State)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
@@ -596,7 +614,8 @@ static TSharedPtr<FJsonObject> ComponentStateToJson(const FFloorSavedComponentSt
 	return Obj;
 }
 
-// Creates component state from JSON / Создает состояние компонента из JSON
+// Creates component state from JSON
+// Создает состояние компонента из JSON
 static FFloorSavedComponentState ComponentStateFromJson(const TSharedPtr<FJsonObject>& Obj)
 {
 	FFloorSavedComponentState State;
@@ -638,7 +657,8 @@ static FFloorSavedComponentState ComponentStateFromJson(const TSharedPtr<FJsonOb
 	return State;
 }
 
-// Converts actor state to JSON / Преобразует состояние актора в JSON
+// Converts actor state to JSON
+// Преобразует состояние актора в JSON
 static TSharedPtr<FJsonObject> ActorStateToJson(const FFloorSavedActorState& State)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
@@ -659,6 +679,7 @@ static TSharedPtr<FJsonObject> ActorStateToJson(const FFloorSavedActorState& Sta
 		CompArray.Add(MakeShared<FJsonValueObject>(ComponentStateToJson(Comp)));
 	Obj->SetArrayField(TEXT("ComponentStates"), CompArray);
 
+	// Serializing EnemyStates
 	// Сериализация EnemyStates
 	TArray<TSharedPtr<FJsonValue>> EnemyStatesArray;
 	for (const FSpawnedEnemyState& ES : State.EnemyStates)
@@ -675,7 +696,8 @@ static TSharedPtr<FJsonObject> ActorStateToJson(const FFloorSavedActorState& Sta
 	return Obj;
 }
 
-// Creates actor state from JSON / Создает состояние актора из JSON
+// Creates actor state from JSON
+// Создает состояние актора из JSON
 static FFloorSavedActorState ActorStateFromJson(const TSharedPtr<FJsonObject>& Obj)
 {
 	FFloorSavedActorState State;
@@ -709,6 +731,7 @@ static FFloorSavedActorState ActorStateFromJson(const TSharedPtr<FJsonObject>& O
 				State.ComponentStates.Add(ComponentStateFromJson(Val->AsObject()));
 	}
 
+	// Deserializing EnemyStates
 	// Десериализация EnemyStates
 	const TArray<TSharedPtr<FJsonValue>>* EnemyStatesArray;
 	if (Obj->TryGetArrayField(TEXT("EnemyStates"), EnemyStatesArray))
@@ -731,7 +754,8 @@ static FFloorSavedActorState ActorStateFromJson(const TSharedPtr<FJsonObject>& O
 	return State;
 }
 
-// Serializes floor state snapshots to JSON / Сериализует снимки состояния этажа в JSON
+// Serializes floor state snapshots to JSON
+// Сериализует снимки состояния этажа в JSON
 static TSharedPtr<FJsonValue> SerializeFloorStateSnapshots(const TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>& Snapshots)
 {
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
@@ -746,7 +770,8 @@ static TSharedPtr<FJsonValue> SerializeFloorStateSnapshots(const TMap<FInteriorF
 	return MakeShared<FJsonValueObject>(Root);
 }
 
-// Deserializes floor state snapshots from JSON / Десериализует снимки состояния этажа из JSON
+// Deserializes floor state snapshots from JSON
+// Десериализует снимки состояния этажа из JSON
 static void DeserializeFloorStateSnapshots(const TSharedPtr<FJsonValue>& JsonValue, TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>>& OutSnapshots)
 {
 	OutSnapshots.Empty();
@@ -772,7 +797,8 @@ static void DeserializeFloorStateSnapshots(const TSharedPtr<FJsonValue>& JsonVal
 	}
 }
 
-// Serializes mission floor snapshots to JSON / Сериализует снимки этажей миссий в JSON
+// Serializes mission floor snapshots to JSON
+// Сериализует снимки этажей миссий в JSON
 static TSharedPtr<FJsonValue> SerializeMissionFloorSnapshots(const TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>>& Snapshots)
 {
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
@@ -792,7 +818,8 @@ static TSharedPtr<FJsonValue> SerializeMissionFloorSnapshots(const TMap<FInterio
 	return MakeShared<FJsonValueObject>(Root);
 }
 
-// Deserializes mission floor snapshots from JSON / Десериализует снимки этажей миссий из JSON
+// Deserializes mission floor snapshots from JSON
+// Десериализует снимки этажей миссий из JSON
 static void DeserializeMissionFloorSnapshots(const TSharedPtr<FJsonValue>& JsonValue, TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>>& OutSnapshots)
 {
 	OutSnapshots.Empty();
@@ -1093,7 +1120,8 @@ static void RestoreActorSnapshot(AActor* Actor, const FFloorSavedActorState& Sna
 // Вспомогательные функции сериализации JSON для структур населения
 // -----------------------------------------------------------------------------
 
-// Converts EFloorActorType to string / Преобразует EFloorActorType в строку
+// Converts EFloorActorType to string
+// Преобразует EFloorActorType в строку
 static FString ActorTypeToString(EFloorActorType Type)
 {
 	switch (Type)
@@ -1112,7 +1140,8 @@ static FString ActorTypeToString(EFloorActorType Type)
 	}
 }
 
-// Converts string to EFloorActorType / Преобразует строку в EFloorActorType
+// Converts string to EFloorActorType
+// Преобразует строку в EFloorActorType
 static EFloorActorType StringToActorType(const FString& Str)
 {
 	if (Str == TEXT("HeavyFurniture")) return EFloorActorType::HeavyFurniture;
@@ -1128,7 +1157,8 @@ static EFloorActorType StringToActorType(const FString& Str)
 	return EFloorActorType::LightItem;
 }
 
-// Converts a population record to JSON / Преобразует запись о населении в JSON
+// Converts a population record to JSON
+// Преобразует запись о населении в JSON
 static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationRecord& Record)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
@@ -1144,6 +1174,7 @@ static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationReco
 	Obj->SetStringField(TEXT("ActorInstanceName"), Record.ActorInstanceName);
 	Obj->SetBoolField(TEXT("bIsRuntimeSpawn"), Record.bIsRuntimeSpawn);
 
+	// GameplayTagContainer → array of strings
 	// GameplayTagContainer → массив строк
 	TArray<TSharedPtr<FJsonValue>> GameplayTagArray;
 	for (const FGameplayTag& Tag : Record.GameplayTagContainer)
@@ -1152,6 +1183,7 @@ static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationReco
 	}
 	Obj->SetArrayField(TEXT("GameplayTags"), GameplayTagArray);
 
+	// TextTags → array of strings
 	// TextTags → массив строк
 	TArray<TSharedPtr<FJsonValue>> TextTagArray;
 	for (const FName& Tag : Record.TextTags)
@@ -1163,7 +1195,8 @@ static TSharedPtr<FJsonObject> PopulationRecordToJson(const FFloorPopulationReco
 	return Obj;
 }
 
-// Creates a population record from JSON / Создает запись о населении из JSON
+// Creates a population record from JSON
+// Создает запись о населении из JSON
 static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObject>& Obj)
 {
 	FFloorPopulationRecord Record;
@@ -1190,6 +1223,7 @@ static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObj
 	Obj->TryGetStringField(TEXT("ActorInstanceName"), Record.ActorInstanceName);
 	Obj->TryGetBoolField(TEXT("bIsRuntimeSpawn"), Record.bIsRuntimeSpawn);
 
+	// Restoring GameplayTagContainer from array
 	// Восстановление GameplayTagContainer из массива
 	const TArray<TSharedPtr<FJsonValue>>* GameplayTagArray;
 	if (Obj->TryGetArrayField(TEXT("GameplayTags"), GameplayTagArray))
@@ -1205,6 +1239,7 @@ static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObj
 		}
 	}
 
+	// Restoring TextTags from array
 	// Восстановление TextTags из массива
 	const TArray<TSharedPtr<FJsonValue>>* TextTagArray;
 	if (Obj->TryGetArrayField(TEXT("TextTags"), TextTagArray))
@@ -1220,7 +1255,8 @@ static FFloorPopulationRecord PopulationRecordFromJson(const TSharedPtr<FJsonObj
 
 	return Record;
 }
-// Converts population buckets to JSON / Преобразует бакеты населения в JSON
+// Converts population buckets to JSON
+// Преобразует бакеты населения в JSON
 static TSharedPtr<FJsonObject> PopulationBucketsToJson(const FFloorPopulationBuckets& Buckets)
 {
 	TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
@@ -1239,7 +1275,8 @@ static TSharedPtr<FJsonObject> PopulationBucketsToJson(const FFloorPopulationBuc
 	return Obj;
 }
 
-// Creates population buckets from JSON / Создает бакеты населения из JSON
+// Creates population buckets from JSON
+// Создает бакеты населения из JSON
 static FFloorPopulationBuckets PopulationBucketsFromJson(const TSharedPtr<FJsonObject>& Obj)
 {
 	FFloorPopulationBuckets Buckets;
@@ -1268,7 +1305,8 @@ static FFloorPopulationBuckets PopulationBucketsFromJson(const TSharedPtr<FJsonO
 	return Buckets;
 }
 
-// Serializes a population map to JSON / Сериализует карту населения в JSON
+// Serializes a population map to JSON
+// Сериализует карту населения в JSON
 static TSharedPtr<FJsonValue> SerializePopulationMap(const TMap<FInteriorFloorKey, FFloorPopulationBuckets>& Map)
 {
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
@@ -1280,7 +1318,8 @@ static TSharedPtr<FJsonValue> SerializePopulationMap(const TMap<FInteriorFloorKe
 	return MakeShared<FJsonValueObject>(Root);
 }
 
-// Deserializes a population map from JSON / Десериализует карту населения из JSON
+// Deserializes a population map from JSON
+// Десериализует карту населения из JSON
 static void DeserializePopulationMap(const TSharedPtr<FJsonValue>& JsonValue, TMap<FInteriorFloorKey, FFloorPopulationBuckets>& OutMap)
 {
 	OutMap.Empty();
@@ -1299,7 +1338,8 @@ static void DeserializePopulationMap(const TSharedPtr<FJsonValue>& JsonValue, TM
 	}
 }
 
-// Serializes a mission population map to JSON / Сериализует карту населения миссий в JSON
+// Serializes a mission population map to JSON
+// Сериализует карту населения миссий в JSON
 static TSharedPtr<FJsonValue> SerializeMissionPopulationMap(const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& Map)
 {
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
@@ -1316,7 +1356,8 @@ static TSharedPtr<FJsonValue> SerializeMissionPopulationMap(const TMap<FInterior
 	return MakeShared<FJsonValueObject>(Root);
 }
 
-// Deserializes a mission population map from JSON / Десериализует карту населения миссий из JSON
+// Deserializes a mission population map from JSON
+// Десериализует карту населения миссий из JSON
 static void DeserializeMissionPopulationMap(const TSharedPtr<FJsonValue>& JsonValue,
 	TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& OutMap)
 {
@@ -1405,6 +1446,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 	case EMissionEndReason::None:
 	{
 		// Normal save during mission step
+		// Обычное сохранение в процессе шага миссии
 		JobSpacePolicy = Envelope.RuntimePolicy;
 		PolicyChannels = Envelope.RuntimePolicyChannels;
 		break;
@@ -1412,6 +1454,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 	case EMissionEndReason::Completed:
 	{
 		// Handle mission completed
+		// Обработка завершения миссии
 		JobSpacePolicy = Envelope.NextStagePolicy;
 		PolicyChannels = Envelope.NextStagePolicyChannels;
 		break;
@@ -1419,6 +1462,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 	case EMissionEndReason::Failed:
 	{
 		// Handle mission failed
+		// Обработка провала миссии
 		JobSpacePolicy = Envelope.MissionFailedPolicy;
 		PolicyChannels = Envelope.MissionFailedPolicyChannels;
 		break;
@@ -1426,6 +1470,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 	case EMissionEndReason::Abandoned:
 	{
 		// Handle mission restarted
+		// Обработка перезапуска миссии
 		JobSpacePolicy = Envelope.MissionAbandonedPolicy;
 		PolicyChannels = Envelope.MissionAbandonedChannels;
 		break;
@@ -1534,7 +1579,7 @@ void UInteriorSubsystem::SaveFloorActorsState(const FGuid& InteriorSetId, const 
 			}
 			}
 
-			
+
 			Snapshot.ItemId = Comp->ItemId;
 			SnapshotActor(Actor, Snapshot);
 
@@ -1744,6 +1789,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 					{
 					case EJobSpacePolicy::Reset:
 					{
+						// in this case the data will not be saved
 						// в этом случае данные не будут сохранены
 						Spawner->IsUseStoreSpawnParameters = false;
 						break;
@@ -1800,6 +1846,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 						{
 						case EJobSpacePolicy::Reset:
 						{
+							// in this case the data will not be saved
 							// в этом случае данные не будут сохранены
 							Spawner->IsUseStoreSpawnParameters = false;
 							break;
@@ -1920,6 +1967,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 		}
 		case EFloorActorType::StableActor:
 		{
+			// will be implemented later
 			// будет реализовано позже
 			break;
 		}
@@ -2356,23 +2404,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 										Spawner->Restore = false;
 									}
 								}
-								/*
-								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-								if (Spawner)
-								{
-									if (Spawner->GetAliveGhostCount() > 0)
-									{
-										//Spawner->IsFullRespawn = true;
-									}
-									else
-									{
-										//Spawner->IsFullRespawn = false;
-										Spawner->CurrentStatus = ESpawnGroupStatus::Active;
-									}
-									Spawner->IsFullRespawn = true;
-									Spawner->Restore = false;
-								}
-								*/
 							}
 						}
 					}
@@ -2516,6 +2547,7 @@ int32 UInteriorSubsystem::GetActorCountForCurrentFloor(EInteriorActorCountType C
 	if (!World)
 		return 0;
 
+	// Function to check type match
 	// Функция проверки соответствия типу
 	auto MatchesFilter = [&FilterTypes](EFloorActorType Type) -> bool
 		{
@@ -2524,6 +2556,7 @@ int32 UInteriorSubsystem::GetActorCountForCurrentFloor(EInteriorActorCountType C
 			return FilterTypes.Contains(Type);
 		};
 
+	// Counting records in the array with filter
 	// Подсчёт записей в массиве с фильтром
 	auto CountRecords = [&MatchesFilter](const TArray<FFloorPopulationRecord>& Records) -> int32
 		{
@@ -2542,6 +2575,7 @@ int32 UInteriorSubsystem::GetActorCountForCurrentFloor(EInteriorActorCountType C
 	{
 	case EInteriorActorCountType::Registered:
 	{
+		// Count all actors on the level with UFloorAssignmentComponent
 		// Считаем все акторы на уровне с UFloorAssignmentComponent
 		for (TActorIterator<AActor> It(World); It; ++It)
 		{
@@ -2559,6 +2593,7 @@ int32 UInteriorSubsystem::GetActorCountForCurrentFloor(EInteriorActorCountType C
 
 	case EInteriorActorCountType::Spawned:
 	{
+		// Use only mission spawns (MissionSpawnedActorsByInteriorFloor)
 		// Используем только миссионные спавны (MissionSpawnedActorsByInteriorFloor)
 		if (const TMap<FName, FFloorPopulationBuckets>* PerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
 		{
@@ -2577,6 +2612,7 @@ int32 UInteriorSubsystem::GetActorCountForCurrentFloor(EInteriorActorCountType C
 
 	case EInteriorActorCountType::Destroyed:
 	{
+		// Use only mission removals (MissionDestroyedActorsByInteriorFloor)
 		// Используем только миссионные удаления (MissionDestroyedActorsByInteriorFloor)
 		if (const TMap<FName, FFloorPopulationBuckets>* PerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
 		{
@@ -2638,7 +2674,7 @@ int32 UInteriorSubsystem::GetDestroyedTagCountForCurrentFloor(ETagType TagType, 
 	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
 		return 0;
 
-	const FFloorPopulationBuckets* Buckets = AllDestroyedActorsByInteriorFloor.Find(CurrentKey); 
+	const FFloorPopulationBuckets* Buckets = AllDestroyedActorsByInteriorFloor.Find(CurrentKey);
 	if (!Buckets)
 		return 0;
 
@@ -2704,11 +2740,13 @@ int32 UInteriorSubsystem::GetSpawnedActorCountForCurrentFloor(TSubclassOf<AActor
 			int32 Count = 0;
 			for (const FFloorPopulationRecord& Rec : Records)
 			{
+				// Filter by class and type
 				// Фильтр по классу и типу
 				if (ActorClass && Rec.SourceClass != ActorClass)
 					continue;
 				if (Rec.ActorType != ActorType)
 					continue;
+				// Count only alive spawns (not destroyed)
 				// Учитываем только живые спавны (не уничтоженные)
 				if (!IsDestroyed(Rec.ActorId))
 					Count++;
@@ -2806,21 +2844,8 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 	{
 		for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
 		{
-			/*
-			if (bNeedTeleportToAnchor)
-			{
-				if (It->AnchorID == AnchorID)
-				{
-					FoundAnchor = *It;
-					break;
-				}
-			}
-			else
-			{
-			*/
-				FoundAnchor = *It;
-				break;
-			//}
+			FoundAnchor = *It;
+			break;
 		}
 	}
 
@@ -2838,12 +2863,12 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			{
 				FGuid FloorId = FloorAsset->FloorID;
 				CurrentKey = FInteriorFloorKey(InteriorSetId, FloorId);
-				//bHaveKey = true;
 			}
 		}
 	}
 
 
+	// Helper lambda to remove a record by ActorId from buckets
 	// Вспомогательная лямбда для удаления записи по ActorId из бакетов
 	auto RemoveByActorIdFromBuckets = [](FFloorPopulationBuckets& Buckets, const FGuid& ActorId)
 		{
@@ -2900,6 +2925,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
+		// ---- Create a record for the spawn ----
 		// ---- Создаём запись для спавна ----
 		FFloorPopulationRecord NewRecord;
 		NewRecord.ActorType = P->ActorType;
@@ -2909,8 +2935,9 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		NewRecord.SourceClass = P->ActorClass;
 		NewRecord.GameplayTagContainer = P->GameplayTagContainer;
 		NewRecord.TextTags = P->TextTags;
-		NewRecord.bIsRuntimeSpawn = P->bIsRuntimeSpawn;   // <-- сохраняем флаг
+		NewRecord.bIsRuntimeSpawn = P->bIsRuntimeSpawn;   // <-- save the flag // <-- сохраняем флаг
 
+		// ---- Global spawn map (for conditions) ----
 		// ---- Глобальная карта спавнов (для условий) ----
 		{
 			if (CurrentKey.IsValid())
@@ -2929,6 +2956,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
+		// ---- Global placed map (for restore) ----
 		// ---- Глобальная карта размещённых (для восстановления) ----
 		//if (!IsMissionWorld)
 		{
@@ -2948,6 +2976,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
+		// ---- Mission spawn map (if mission) ----
 		// ---- Миссионная карта спавнов (если миссия) ----
 		if (IsMissionWorld)
 		{
@@ -3014,6 +3043,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
+		// ---- Create a record for removal ----
 		// ---- Создаём запись для удаления ----
 		FFloorPopulationRecord NewRecordMission;
 		NewRecordMission.ActorType = P->ActorType;
@@ -3023,8 +3053,9 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		NewRecordMission.SourceClass = P->ActorClass;
 		NewRecordMission.GameplayTagContainer = P->GameplayTagContainer;
 		NewRecordMission.TextTags = P->TextTags;
-		NewRecordMission.bIsRuntimeSpawn = P->bIsRuntimeSpawn;   // <-- сохраняем флаг
+		NewRecordMission.bIsRuntimeSpawn = P->bIsRuntimeSpawn;   // <-- save the flag // <-- сохраняем флаг
 
+		// ---- Global destroyed map (shared) ----
 		// ---- Глобальная карта удалённых (общая) ----
 		{
 			FFloorPopulationBuckets& GlobalDestroyedBuckets = AllDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
@@ -3040,6 +3071,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
+		// ---- Global destroyed spawned map (if the object was spawned) ----
 		// ---- Глобальная карта удалённых спавненных (если объект был спавнен) ----
 		if (P->bIsRuntimeSpawn)
 		{
@@ -3057,6 +3089,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		}
 		else
 		{
+			// ---- Global destroyed original map (original objects) ----
 			// ---- Глобальная карта удалённых оригинальных (изначальные объекты) ----
 			FFloorPopulationBuckets& DestroyedOriginalBuckets = AllDestroyedOriginalActorsByInteriorFloor.FindOrAdd(CurrentKey);
 			RemoveByActorIdFromBuckets(DestroyedOriginalBuckets, P->ItemId);
@@ -3071,6 +3104,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			}
 		}
 
+		// ---- Remove the record from the global spawn map (AllSpawnedActorsByInteriorFloor) ----
 		// ---- Удаляем запись из глобальной карты спавнов (AllSpawnedActorsByInteriorFloor) ----
 		{
 			FFloorPopulationBuckets* SpawnedBuckets = AllSpawnedActorsByInteriorFloor.Find(CurrentKey);
@@ -3078,6 +3112,7 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 				RemoveByActorIdFromBuckets(*SpawnedBuckets, P->ItemId);
 		}
 
+		// ---- Remove the record from SpawnedActorsByInteriorFloor (placed map) ----
 		// ---- Удаляем запись из SpawnedActorsByInteriorFloor (карта размещённых) ----
 		/*
 		{
@@ -3087,9 +3122,11 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 		}
 		*/
 
+		// ---- Mission logic (only if there is a mission) ----
 		// ---- Миссионная логика (только если есть миссия) ----
 		if (!MissionId.IsNone() && CurrentKey.IsValid())
 		{
+			// Add to the mission destroyed map
 			// Добавляем в миссионную карту удалённых
 			TMap<FName, FFloorPopulationBuckets>& PerMissionDestroy = MissionDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 			FFloorPopulationBuckets& MissionBuckets = PerMissionDestroy.FindOrAdd(MissionId);
@@ -3103,15 +3140,6 @@ void UInteriorSubsystem::HandlePlacementRegistration(const FOutcomeEventBase& Ou
 			case EFloorActorType::Debris:         MissionBuckets.Debris.Add(NewRecordMission); break;
 			default: break;
 			}
-
-			/*
-			// Удаляем из миссионной карты спавнов (если объект был в ней)
-			if (ContainsActorIdInMissionSpawnedForFloor(MissionSpawnedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId))
-			{
-				RemoveFromMissionDestroyedByActorIdForFloor(MissionDestroyedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId);
-			}
-			RemoveFromMissionSpawnedByActorIdForFloor(MissionSpawnedActorsByInteriorFloor, CurrentKey, MissionId, P->ItemId);
-			*/
 		}
 	}
 }
@@ -3328,11 +3356,12 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 		// Reuse existing payload P (contains SourceFloor info)
 		FOutcomeEventBase Ev;
 		Ev.OutcomeType = EOutcomeType::Interior;
-		Ev.OutcomeInterior = EOutcomeInterior::FloorLeaving; // notify listeners that we're leaving this floor / уведомить слушателей, что мы покидаем этаж
+		Ev.OutcomeInterior = EOutcomeInterior::FloorLeaving; // notify listeners that we're leaving this floor // уведомить слушателей, что мы покидаем этаж
 		Ev.Payload = P;
 		EventBus->PublishOutcome(Ev);
 	}
-	// Then standard local broadcast / Затем стандартный локальный broadcast
+	// Then standard local broadcast
+	// Затем стандартный локальный broadcast
 	OnFloorExiting.Broadcast(P->SourceFloor);
 	SaveLoadFromDisk.Broadcast(true);
 
@@ -3715,23 +3744,6 @@ void UInteriorSubsystem::UnsubscribePlacementRegistration()
 		Unreg(PlacementUnregisterHandle, PlacementUnregisterConditionAsset);
 	}
 }
-/*
-void UInteriorSubsystem::ClearSpawnGroup(const FSpawnGroupId& GroupId, ESpawnGroupResolutionReason Reason)
-{
-
-}
-
-void UInteriorSubsystem::ResetSpawnGroup(const FSpawnGroupId& GroupId)
-{
-
-}
-
-FSpawnGroupState UInteriorSubsystem::GetSpawnGroupState(const FSpawnGroupId& GroupId) const
-{
-
-	return FSpawnGroupState();
-}
-*/
 // -----------------------------------------------------------------------------
 // Initialize / Deinitialize
 // Инициализация / деинициализация
@@ -3741,12 +3753,15 @@ void UInteriorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-    // Форсируем инициализацию системы сохранения ДО нас.
-    // Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
-    // и регистрация Saveable-подсистемы молча не сработает.
-    Collection.InitializeDependency<UGameSaveSubsystem>();
+	// Force initialization of the save system BEFORE us.
+	// Without this, GetSubsystem<UGameSaveSubsystem>() may return nullptr,
+	// and the Saveable subsystem registration will silently fail.
+	// Форсируем инициализацию системы сохранения ДО нас.
+	// Без этого GetSubsystem<UGameSaveSubsystem>() может вернуть nullptr,
+	// и регистрация Saveable-подсистемы молча не сработает.
+	Collection.InitializeDependency<UGameSaveSubsystem>();
 	Collection.InitializeDependency<ULocationTrackerSubsystem>();
-	
+
 	// Register with GameSaveSubsystem to participate in saving/loading
 	// Регистрируемся в GameSaveSubsystem для участия в сохранении/загрузке
 	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
@@ -3798,12 +3813,13 @@ void UInteriorSubsystem::Deinitialize()
 	CachedEventBus = nullptr;
 
 	UnsubscribeFromSpawnActor();
-	
+
+	// Unsubscribe from saving
 	// Отписка от сохранения
-    if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
-    {
-        SaveSys->UnregisterSaveableSubsystem(this);
-    }
+	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+	{
+		SaveSys->UnregisterSaveableSubsystem(this);
+	}
 
 	Super::Deinitialize();
 }
@@ -4022,7 +4038,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 								break;
 							}
 						}
-
 
 						for (const auto& MissionPair : *PerFloor)
 						{
@@ -4368,6 +4383,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 	if (!IsMissionWorld)
 		return;
 
+	// ---- Collect IDs of destroyed objects for this mission ----
 	// ---- Собираем ID удалённых объектов для этой миссии ----
 	TSet<FGuid> DestroyedIds;
 	if (auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
@@ -4387,6 +4403,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 		}
 	}
 
+	// ---- Apply spawns that occurred during the mission ----
 	// ---- Применяем спавны, произошедшие во время миссии ----
 	if (auto* SpawnedMapPerFloor = MissionSpawnedActorsByInteriorFloor.Find(CurrentKey))
 	{
@@ -4396,6 +4413,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 				{
 					if (ShouldUseActor(FindedEnvelope, FloorActorTypeToEnvelopeChannel(ActorType), EMissionEndReason::None, true))
 					{
+						// Filter out records, excluding destroyed ones
 						// Фильтруем записи, исключая удалённые
 						TArray<FFloorPopulationRecord> FilteredRecords;
 						for (const FFloorPopulationRecord& Rec : Records)
@@ -4419,6 +4437,7 @@ void UInteriorSubsystem::SpawnMissionActorsFromCurrentFloor(FName MissionId)
 		}
 	}
 
+	// ---- Apply removals that occurred during the mission (they are already saved in the maps, but we also remove objects if they exist) ----
 	// ---- Применяем удаления, произошедшие во время миссии (они уже сохранены в картах, но мы также удаляем объекты, если они существуют) ----
 	if (auto* DestroyedMapPerFloor = MissionDestroyedActorsByInteriorFloor.Find(CurrentKey))
 	{
@@ -5065,7 +5084,8 @@ void UInteriorSubsystem::StoreCurrentLevelComplete(FMissionEnvelope Envelope, FN
 }
 
 void UInteriorSubsystem::ApplySpawnGroupPolicy(const FSpawnGroupId& GroupId, EChannelPolicy Policy, EMissionEndReason Reason)
-{}
+{
+}
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)
 {
@@ -5227,7 +5247,8 @@ void UInteriorSubsystem::TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLe
 
 	if (Comp->ItemId.IsValid())
 	{
-		// publish event / публикуем событие
+		// publish event
+		// публикуем событие
 		if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
 		{
 			UFloorPlacementPayload* Payload = EventBus->CreatePayload<UFloorPlacementPayload>();
@@ -5282,7 +5303,7 @@ void UInteriorSubsystem::SpawnRecords(const TArray<FFloorPopulationRecord>& Reco
 	for (const FFloorPopulationRecord& Rec : Records)
 	{
 		if (!Rec.SourceClass) continue;
-		if (FindActorByItemId(Rec.ActorId)) continue; // do not spawn again / не спавним повторно
+		if (FindActorByItemId(Rec.ActorId)) continue; // do not spawn again // не спавним повторно
 		FActorSpawnParameters Params;
 		AActor* Spawned = GetWorld()->SpawnActor<AActor>(Rec.SourceClass, Rec.WorldTransform, Params);
 		if (!Spawned) continue;
@@ -5307,6 +5328,7 @@ void UInteriorSubsystem::DestroyRecords(const TArray<FFloorPopulationRecord>& Re
 }
 
 // ============================================================================
+// Separate counting of destroyed objects (spawned vs original)
 // Раздельный подсчёт удалённых объектов (спавненные vs оригинальные)
 // ============================================================================
 
@@ -5325,12 +5347,15 @@ int32 UInteriorSubsystem::GetDestroyedSpawnedActorCountForCurrentFloor(TSubclass
 			int32 Count = 0;
 			for (const FFloorPopulationRecord& Rec : Records)
 			{
+				// Class check (if specified)
 				// Проверка класса (если задан)
 				if (ActorClass && Rec.SourceClass != ActorClass)
 					continue;
+				// Type check
 				// Проверка типа
 				if (Rec.ActorType != ActorType)
 					continue;
+				// All records in this map are spawned, so the additional flag is not required
 				// Все записи в этой карте – заспавненные, поэтому дополнительный флаг не требуется
 				Count++;
 			}
@@ -5462,6 +5487,7 @@ int32 UInteriorSubsystem::GetDestroyedOriginalTagCountForCurrentFloor(ETagType T
 }
 
 // ============================================================================
+// Remaining (alive) spawned objects
 // Оставшиеся (живые) заспавненные объекты
 // ============================================================================
 
@@ -5576,6 +5602,7 @@ int32 UInteriorSubsystem::GetRemainingOriginalActorCountForCurrentFloor(TSubclas
 	if (!World)
 		return 0;
 
+	// --- 1. Count the total number of existing objects (with the component and filters) ---
 	// --- 1. Подсчёт общего количества существующих объектов (с компонентом и фильтрами) ---
 	int32 TotalExisting = 0;
 	for (TActorIterator<AActor> It(World); It; ++It)
@@ -5584,23 +5611,28 @@ int32 UInteriorSubsystem::GetRemainingOriginalActorCountForCurrentFloor(TSubclas
 		if (!IsValid(Actor))
 			continue;
 
+		// Filter by class
 		// Фильтр по классу
 		if (ActorClass && !Actor->IsA(ActorClass))
 			continue;
 
+		// Check for the FloorAssignment component
 		// Проверка наличия компонента FloorAssignment
 		UFloorAssignmentComponent* Comp = Actor->FindComponentByClass<UFloorAssignmentComponent>();
 		if (!Comp)
 			continue;
 
+		// Filter by type 
 		// Фильтр по типу 
 		if (Comp->ActorType == ActorType)
 			TotalExisting++;
 	}
 
+	// --- 2. Number of alive spawned objects (with the same filters) ---
 	// --- 2. Количество живых заспавненных объектов (с теми же фильтрами) ---
 	int32 AliveSpawned = GetSpawnedActorCountForCurrentFloor(ActorClass, ActorType);
 
+	// --- 3. Original existing = total - alive spawns ---
 	// --- 3. Оригинальные существующие = общие - живые спавны ---
 	return TotalExisting - AliveSpawned;
 }
@@ -5611,6 +5643,7 @@ int32 UInteriorSubsystem::GetRemainingOriginalTagCountForCurrentFloor(ETagType T
 	if (!World)
 		return 0;
 
+	// --- 1. Total number of existing objects with the tag ---
 	// --- 1. Общее количество существующих объектов с тегом ---
 	int32 TotalExisting = 0;
 	for (TActorIterator<AActor> It(World); It; ++It)
@@ -5639,9 +5672,11 @@ int32 UInteriorSubsystem::GetRemainingOriginalTagCountForCurrentFloor(ETagType T
 			TotalExisting++;
 	}
 
+	// --- 2. Number of alive spawned objects with the tag ---
 	// --- 2. Количество живых заспавненных объектов с тегом ---
 	int32 AliveSpawnedTag = GetSpawnedTagCountForCurrentFloor(TagType, TextTag, GameplayTag);
 
+	// --- 3. Original existing with the tag = total - alive spawns with the tag ---
 	// --- 3. Оригинальные существующие с тегом = общие - живые спавны с тегом ---
 	return TotalExisting - AliveSpawnedTag;
 }
@@ -5652,6 +5687,7 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 	if (!World)
 		return;
 
+	// Determine CurrentKey from the first anchor found (we can use the saved one)
 	// Определяем CurrentKey по первому попавшемуся якорю (можно использовать сохранённый)
 	ALocationAnchorActor* FoundAnchor = nullptr;
 	for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
@@ -5679,6 +5715,7 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 	if (!CurrentKey.InteriorSetId.IsValid() || !CurrentKey.FloorId.IsValid())
 		return;
 
+	// ---- Find the active mission for the current floor ----
 	// ---- Находим активную миссию для текущего этажа ----
 	FMissionEnvelope ActiveEnvelope;
 	bool bMissionFound = false;
@@ -5706,12 +5743,14 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 		if (bMissionFound) break;
 	}
 
+	// ---- Clear the All maps ----
 	// ---- Очищаем All-карты ----
 	AllSpawnedActorsByInteriorFloor.Remove(CurrentKey);
 	AllDestroyedActorsByInteriorFloor.Remove(CurrentKey);
 	AllDestroyedSpawnedActorsByInteriorFloor.Remove(CurrentKey);
 	AllDestroyedOriginalActorsByInteriorFloor.Remove(CurrentKey);
 
+	// ---- Collect alive ItemIds ----
 	// ---- Собираем живые ItemId ----
 	TSet<FGuid> AliveItemIds;
 	for (TActorIterator<AActor> It(World); It; ++It)
@@ -5725,9 +5764,11 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 		}
 	}
 
+	// ---- Collect records into a map with priority for mission records ----
 	// ---- Собираем записи в карту с приоритетом миссионных ----
 	TMap<FGuid, FFloorPopulationRecord> RecordMap;
 
+	// 1. Add global records (persistent)
 	// 1. Добавляем глобальные записи (постоянные)
 	auto AddGlobalBuckets = [&](const FFloorPopulationBuckets& Buckets)
 		{
@@ -5750,6 +5791,7 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 	if (const FFloorPopulationBuckets* Destroyed = DestroyedActorsByInteriorFloor.Find(CurrentKey))
 		AddGlobalBuckets(*Destroyed);
 
+	// 2. Add mission records (they override global ones) with filtering by policy
 	// 2. Добавляем миссионные записи (перезаписывают глобальные) с фильтрацией по политике
 	if (bMissionFound)
 	{
@@ -5785,6 +5827,7 @@ void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()
 		}
 	}
 
+	// ---- Distribute into the All maps ----
 	// ---- Распределяем по All-картам ----
 	FFloorPopulationBuckets& AllSpawned = AllSpawnedActorsByInteriorFloor.FindOrAdd(CurrentKey);
 	FFloorPopulationBuckets& AllDestroyed = AllDestroyedActorsByInteriorFloor.FindOrAdd(CurrentKey);
