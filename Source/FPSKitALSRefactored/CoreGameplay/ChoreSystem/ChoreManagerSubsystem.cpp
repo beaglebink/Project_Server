@@ -1701,11 +1701,22 @@ void UChoreManagerSubsystem::EvaluateAllAvailability()
     for (auto& Pair : ActiveStates)
     {
         FName ChoreId = Pair.Key;
+        FChoreState& State = Pair.Value;
+        const EChoreStatus Status = State.Status;
 
-        // Проверяем и недоступные, и «ожидающие повторного предложения».
-        const EChoreStatus Status = Pair.Value.Status;
-        if (Status != EChoreStatus::Unavailable && Status != EChoreStatus::RetryAvailable)
-            continue;
+        // Обрабатываем только те статусы, которые реально могут измениться
+        // от переоценки availability condition:
+        //   Unavailable / RetryAvailable → Available (если условие стало true),
+        //   Available / Offered          → Unavailable (если условие стало false).
+        //
+        // Второе критично для условий с временным окном: окно истекает без
+        // внешнего события, и pulse — единственный, кто это заметит.
+        const bool bCanBeOffered =
+            (Status == EChoreStatus::Unavailable || Status == EChoreStatus::RetryAvailable);
+        const bool bCanBeRevoked =
+            (Status == EChoreStatus::Available || Status == EChoreStatus::Offered);
+
+        if (!bCanBeOffered && !bCanBeRevoked) continue;
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
         if (!Def || !Def->AvailabilityCondition) continue;
@@ -1715,9 +1726,22 @@ void UChoreManagerSubsystem::EvaluateAllAvailability()
         if (!Def->AvailabilityCondition->GetCondition().IsValid()) continue;
 
         FOutcomeEventBase Dummy;
-        if (Def->AvailabilityCondition->GetCondition()->Evaluate(Dummy))
+        const bool bConditionMet = Def->AvailabilityCondition->GetCondition()->Evaluate(Dummy);
+
+        if (bCanBeOffered && bConditionMet)
         {
             OfferChore(ChoreId);
+        }
+        else if (bCanBeRevoked && !bConditionMet)
+        {
+            // Отзываем по pulse ТОЛЬКО state-driven условия. Event-driven
+            // (MissionCondition, WorldState FactAdded/…, композиты с ними)
+            // при Dummy-payload возвращают false, и это не значит, что
+            // состояние изменилось — их отзыв должен идти по событию.
+            if (Def->AvailabilityCondition->IsStateDriven())
+            {
+                RevokeChore(ChoreId);
+            }
         }
     }
 }

@@ -24,6 +24,8 @@ public:
 
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 
+    virtual bool IsStateDriven() const override { return true; }
+
 private:
     FName GetEffectiveMissionId() const;
     FText GetDisplayName() const;

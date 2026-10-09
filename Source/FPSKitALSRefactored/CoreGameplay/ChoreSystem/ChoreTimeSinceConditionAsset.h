@@ -57,6 +57,8 @@ public:
     virtual void CompileCondition() override;
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 
+    virtual bool IsStateDriven() const override { return true; }
+
 private:
     // Разворачивает Trigger в список разрешённых EOutcomeChore.
     void BuildAllowedResults(TArray<EOutcomeChore>& OutResults) const;

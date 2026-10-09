@@ -50,6 +50,8 @@ public:
             EditConditionHides, ClampMin = 0))
     int32 VisitThreshold = 1;
 
+    virtual bool IsStateDriven() const override { return true; }
+
     virtual void CompileCondition() override;
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 

@@ -246,6 +246,18 @@ public:
 
 	// ===== C++ ONLY =====
 
+	// true  — состояние условия определяется текущим состоянием мира
+	//         (Location, ChoreHistory, TimeSince, MissionActive, Terminal,
+	//          WorldState FactExists/CategoryExists/ValueMatches).
+	//         Такие условия безопасно переоценивать по таймеру (pulse)
+	//         без приходящего события.
+	//
+	// false — по умолчанию. Event-driven условия (MissionCondition,
+	//         WorldState FactAdded/Changed/Removed) при вызове с Dummy
+	//         возвращают false, и это не значит «условие стало ложным»,
+	//         поэтому их нельзя отзывать по pulse.
+	virtual bool IsStateDriven() const { return false; }
+
 	TSharedPtr<IOutcomeCondition> GetCondition() const { return CompiledCondition; }
 
 protected:

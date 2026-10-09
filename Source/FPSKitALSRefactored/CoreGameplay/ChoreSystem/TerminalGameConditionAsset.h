@@ -91,6 +91,8 @@ public:
             EditConditionHides))
     ECheckCompareOp ScoreCompareOp = ECheckCompareOp::GreaterOrEqual;
 
+    virtual bool IsStateDriven() const override { return true; }
+
     virtual void CompileCondition() override;
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
 

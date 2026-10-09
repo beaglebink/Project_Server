@@ -73,6 +73,20 @@ public:
             EditConditionHides))
     ECheckCompareOp CompareOp = ECheckCompareOp::Equal;
 
+    virtual bool IsStateDriven() const override
+    {
+        switch (ConditionType)
+        {
+        case EWorldStateConditionType::FactExists:
+        case EWorldStateConditionType::CategoryExists:
+        case EWorldStateConditionType::ValueMatches:
+            return true;
+        default:
+            // FactAdded / FactChanged / FactRemoved — event-driven.
+            return false;
+        }
+    }
+
     virtual void CompileCondition() override;
 
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;

@@ -55,6 +55,8 @@ public:
     // Переопределяем метод компиляции
     virtual void CompileCondition() override;
 
+    virtual bool IsStateDriven() const override { return true; }
+
     // Condition evaluation method (called from the compiled condition)
     // Метод проверки условия (вызывается из скомпилированного условия)
     bool EvaluateCondition(const FOutcomeEventBase& Outcome) const;
