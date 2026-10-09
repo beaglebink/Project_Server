@@ -1,6 +1,5 @@
 #include "ChoreSystem/ChoreTimeSinceConditionAssetDetails.h"
 #include "DetailLayoutBuilder.h"
-#include "CoreGameplay/ChoreSystem/ChoreTimeSinceConditionAsset.h"
 
 TSharedRef<IDetailCustomization> FChoreTimeSinceConditionAssetDetails::MakeInstance()
 {

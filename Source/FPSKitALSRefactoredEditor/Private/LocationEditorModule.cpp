@@ -13,7 +13,6 @@
 #include "ChoreSystem/TerminalGameConditionAssetDetails.h"
 #include "TerminalGameConditionAsset.h"
 #include "ChoreSystem/ChoreTimeSinceConditionAssetDetails.h"
-#include "ChoreTimeSinceConditionAsset.h"
 #include "ChoreSystem/LocationConditionAssetDetails.h"
 #include "LocationConditionAsset.h"
 #include "ChoreSystem/TimeWindowConditionAssetDetails.h"
@@ -65,11 +64,6 @@ void FLocationEditorModule::StartupModule()
     );
 
     PropertyModule.RegisterCustomClassLayout(
-        UChoreTimeSinceConditionAsset::StaticClass()->GetFName(),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FChoreTimeSinceConditionAssetDetails::MakeInstance)
-    );
-
-    PropertyModule.RegisterCustomClassLayout(
         ULocationConditionAsset::StaticClass()->GetFName(),
         FOnGetDetailCustomizationInstance::CreateStatic(&FLocationConditionAssetDetails::MakeInstance)
     );
@@ -95,7 +89,6 @@ void FLocationEditorModule::ShutdownModule()
         PropertyModule.UnregisterCustomClassLayout(UMissionActiveConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UWorldStateConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UTerminalGameConditionAsset::StaticClass()->GetFName());
-        PropertyModule.UnregisterCustomClassLayout(UChoreTimeSinceConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(ULocationConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UTimeWindowConditionAsset::StaticClass()->GetFName());  // ← новое
 
