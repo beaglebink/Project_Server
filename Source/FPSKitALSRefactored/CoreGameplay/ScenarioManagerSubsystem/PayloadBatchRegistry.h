@@ -13,9 +13,9 @@ enum class EBatchSubsystem : uint8
     Terminal    UMETA(DisplayName = "Terminal"),
     WorldState  UMETA(DisplayName = "World State"),
     Chore       UMETA(DisplayName = "Chore"),
-    Actor       UMETA(DisplayName = "Actor"),
-    Inventory   UMETA(DisplayName = "Inventory"),
-    Interior    UMETA(DisplayName = "Interior"),
+    //Actor       UMETA(DisplayName = "Actor"),
+    //Inventory   UMETA(DisplayName = "Inventory"),
+    //Interior    UMETA(DisplayName = "Interior"),
     SpawnGroup  UMETA(DisplayName = "Spawn Group")
 };
 

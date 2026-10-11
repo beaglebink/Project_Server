@@ -15,7 +15,6 @@ public class FPSKitALSRefactored : ModuleRules
             "EnhancedInput",
             "UMG",
             "Niagara",
-            "GameplayTags",
             "InputCore",
             "Slate",
             "SlateCore",
