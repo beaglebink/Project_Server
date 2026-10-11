@@ -8,6 +8,7 @@
 #include "../InteractionSystem/InteractiveSubsystemMethods.h"
 #include "../SaveGame/ISaveableSubsystem.h"
 #include "WorldStateTypes.h"
+#include "Engine/World.h"
 #include "WorldStateSubsystem.generated.h"
 
 class UInteractiveItemComponent;
@@ -70,6 +71,9 @@ public:
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
     virtual FString GetSaveSubsystemName() const override { return TEXT("WorldStateSubsystem"); }
     virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
+
+protected:
+    void OnWorldBeginPlay(UWorld& InWorld);
 
 private:
     void SubscribeAllWorldStateEvents();
@@ -147,4 +151,7 @@ private:
     TMap<FName, FWorldStateRecord> WorldStateRecords;
 
     bool IsLoadComplete = true;
+
+    FDelegateHandle WorldBeginPlayHandle;
+    bool bDeferredFirstReevaluate = false;
 };
