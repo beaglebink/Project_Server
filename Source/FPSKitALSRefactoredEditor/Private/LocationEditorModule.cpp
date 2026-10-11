@@ -1,4 +1,5 @@
-﻿#include "LocationEditorModule.h"
+﻿// LocationEditorModule.cpp
+#include "LocationEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "LocationAnchorActorDetails.h"
@@ -18,6 +19,9 @@
 #include "ChoreSystem/TimeWindowConditionAssetDetails.h"
 #include "ConditionStateSubsystem/TimeWindowConditionAsset.h"
 
+#include "PayloadBatchEntry.h"
+#include "PayloadBatchEntryCustomization.h"
+
 #define LOCTEXT_NAMESPACE "FLocationEditorModule"
 
 void FLocationEditorModule::StartupModule()
@@ -27,52 +31,45 @@ void FLocationEditorModule::StartupModule()
         FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
     }
 
-    FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+    FPropertyEditorModule& PropertyModule =
+        FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-    // Регистрация для ALocationAnchorActor
     PropertyModule.RegisterCustomClassLayout(
         FName(TEXT("LocationAnchorActor")),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FLocationAnchorActorDetails::MakeInstance)
-    );
+        FOnGetDetailCustomizationInstance::CreateStatic(&FLocationAnchorActorDetails::MakeInstance));
 
-    // Регистрация для UChoreHistoryConditionAsset
     PropertyModule.RegisterCustomClassLayout(
         UChoreHistoryConditionAsset::StaticClass()->GetFName(),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FChoreHistoryConditionAssetDetails::MakeInstance)
-    );
+        FOnGetDetailCustomizationInstance::CreateStatic(&FChoreHistoryConditionAssetDetails::MakeInstance));
 
-    // Регистрация для UMissionConditionAsset
     PropertyModule.RegisterCustomClassLayout(
         UMissionConditionAsset::StaticClass()->GetFName(),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FMissionConditionAssetDetails::MakeInstance)
-    );
+        FOnGetDetailCustomizationInstance::CreateStatic(&FMissionConditionAssetDetails::MakeInstance));
 
-    // Регистрация для UMissionActiveConditionAsset
     PropertyModule.RegisterCustomClassLayout(
         UMissionActiveConditionAsset::StaticClass()->GetFName(),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FMissionActiveConditionAssetDetails::MakeInstance)
-    );
+        FOnGetDetailCustomizationInstance::CreateStatic(&FMissionActiveConditionAssetDetails::MakeInstance));
 
     PropertyModule.RegisterCustomClassLayout(
         UWorldStateConditionAsset::StaticClass()->GetFName(),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FWorldStateConditionAssetDetails::MakeInstance)
-    );
+        FOnGetDetailCustomizationInstance::CreateStatic(&FWorldStateConditionAssetDetails::MakeInstance));
 
     PropertyModule.RegisterCustomClassLayout(
         UTerminalGameConditionAsset::StaticClass()->GetFName(),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FTerminalGameConditionAssetDetails::MakeInstance)
-    );
+        FOnGetDetailCustomizationInstance::CreateStatic(&FTerminalGameConditionAssetDetails::MakeInstance));
 
     PropertyModule.RegisterCustomClassLayout(
         ULocationConditionAsset::StaticClass()->GetFName(),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FLocationConditionAssetDetails::MakeInstance)
-    );
+        FOnGetDetailCustomizationInstance::CreateStatic(&FLocationConditionAssetDetails::MakeInstance));
 
-    // ← новое
     PropertyModule.RegisterCustomClassLayout(
         UTimeWindowConditionAsset::StaticClass()->GetFName(),
-        FOnGetDetailCustomizationInstance::CreateStatic(&FTimeWindowConditionAssetDetails::MakeInstance)
-    );
+        FOnGetDetailCustomizationInstance::CreateStatic(&FTimeWindowConditionAssetDetails::MakeInstance));
+
+    // Регистрация для entry — оставляем на будущее, даже если UE её не применит.
+    PropertyModule.RegisterCustomClassLayout(
+        UPayloadBatchEntry::StaticClass()->GetFName(),
+        FOnGetDetailCustomizationInstance::CreateStatic(&FPayloadBatchEntryCustomization::MakeInstance));
 
     PropertyModule.NotifyCustomizationModuleChanged();
 }
@@ -81,7 +78,8 @@ void FLocationEditorModule::ShutdownModule()
 {
     if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
     {
-        FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+        FPropertyEditorModule& PropertyModule =
+            FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
         PropertyModule.UnregisterCustomClassLayout(FName(TEXT("LocationAnchorActor")));
         PropertyModule.UnregisterCustomClassLayout(UChoreHistoryConditionAsset::StaticClass()->GetFName());
@@ -90,7 +88,8 @@ void FLocationEditorModule::ShutdownModule()
         PropertyModule.UnregisterCustomClassLayout(UWorldStateConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UTerminalGameConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(ULocationConditionAsset::StaticClass()->GetFName());
-        PropertyModule.UnregisterCustomClassLayout(UTimeWindowConditionAsset::StaticClass()->GetFName());  // ← новое
+        PropertyModule.UnregisterCustomClassLayout(UTimeWindowConditionAsset::StaticClass()->GetFName());
+        PropertyModule.UnregisterCustomClassLayout(UPayloadBatchEntry::StaticClass()->GetFName());
 
         PropertyModule.NotifyCustomizationModuleChanged();
     }

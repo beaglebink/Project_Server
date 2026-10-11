@@ -17,7 +17,7 @@ class FPSKITALSREFACTORED_API UWorldStateRecordRemovePayload : public UOutcomePa
     GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FName FactId;
 
     UFUNCTION(BlueprintCallable, Category = "WorldState")

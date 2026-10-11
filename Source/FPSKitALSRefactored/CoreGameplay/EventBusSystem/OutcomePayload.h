@@ -9,8 +9,8 @@
 // (Базовый класс для всех объектов payload событий)
 // (C++ и Blueprint наследуют его для передачи дополнительных данных)
 
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType, Blueprintable) 
 class FPSKITALSREFACTORED_API UOutcomePayload : public UObject
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 };

@@ -8,6 +8,7 @@
 
 // Payload for a mission request to perform a chore as a step
 // Payload для запроса от миссии на выполнение хоры как шага
+/*
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UChoreMissionRequestPayload : public UOutcomePayload
 {
@@ -32,6 +33,7 @@ public:
         return this;
     }
 };
+*/
 
 // Payload for the result of a chore (including mission chores)
 // Payload для результата выполнения хоры (в том числе миссионной)
@@ -72,10 +74,10 @@ class FPSKITALSREFACTORED_API UChoreCommandPayload : public UOutcomePayload
     GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chore")
     FName ChoreId;
 
-    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chore")
     FChorePerformanceMetrics Performance;
 
     UFUNCTION(BlueprintCallable, Category = "Chore")
@@ -140,7 +142,7 @@ class FPSKITALSREFACTORED_API UChoreReacceptPayload : public UOutcomePayload
     GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "Chore")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chore")
     FName ChoreId;
 
     UFUNCTION(BlueprintCallable, Category = "Chore")
@@ -201,7 +203,7 @@ class FPSKITALSREFACTORED_API UChorePauseReportPayload : public UOutcomePayload
     GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "Chore|Reward")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chore|Reward")
     FName ChoreId;
 
     UFUNCTION(BlueprintCallable, Category = "Chore|Reward")

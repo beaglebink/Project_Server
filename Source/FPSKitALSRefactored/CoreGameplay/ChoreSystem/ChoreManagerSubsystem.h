@@ -265,7 +265,7 @@ protected:
     void RetryChore(FName ChoreId);
     void UnlockChore(FName ChoreId);
     void RevokeChore(FName ChoreId);
-    void RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex);
+    //void RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex);
     void ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId = NAME_None);
 
     void LoadAllDefinitions();
@@ -297,7 +297,7 @@ private:
     void HandleRetryRequest(const FOutcomeEventBase& Outcome);
     void HandleUnlockRequest(const FOutcomeEventBase& Outcome);
     void HandleEvent(const FOutcomeEventBase& Outcome);
-    void HandleMissionRequest(const FOutcomeEventBase& Outcome);
+    //void HandleMissionRequest(const FOutcomeEventBase& Outcome);
     void HandleChoreCompletion(const FOutcomeEventBase& Outcome);
     void HandleRegisterChoreRequest(const FOutcomeEventBase& Outcome);
     void HandleUnregisterChoreRequest(const FOutcomeEventBase& Outcome);

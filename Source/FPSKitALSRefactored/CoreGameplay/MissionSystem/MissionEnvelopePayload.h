@@ -22,15 +22,15 @@ class FPSKITALSREFACTORED_API UMissionEnvelopePayload : public UOutcomePayload
 
 public:
     // Стабильный FName-идентификатор миссии (имя ассета UMissionAsset)
-    UPROPERTY(BlueprintReadWrite, Category = "MissionEnvelope")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionEnvelope")
     FName MissionId;
 
     // Ссылка на ассет миссии (заполняется до публикации события)
-    UPROPERTY(BlueprintReadWrite, Category = "MissionEnvelope")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionEnvelope")
     TObjectPtr<class UMissionAsset> MissionAsset;
 
     // Причина завершения (заполняется при MissionCompleted/Failed/Abandoned)
-    UPROPERTY(BlueprintReadWrite, Category = "MissionEnvelope")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionEnvelope")
     EMissionEndReason EndReason = EMissionEndReason::None;
 
     // Удобный Setup для C++ и Blueprint

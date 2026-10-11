@@ -64,8 +64,8 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
         GlobalEventHandler = EventBus->RegisterHandler(GlobalEventCondition,
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleEvent));
 
-        MissionRequestHandler = EventBus->RegisterHandler(MissionRequestCondition,
-            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleMissionRequest));
+        //MissionRequestHandler = EventBus->RegisterHandler(MissionRequestCondition,
+        //    FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleMissionRequest));
 
         ChoreCompletionHandler = EventBus->RegisterHandler(ChoreCompletionCondition,
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleChoreCompletion));
@@ -806,6 +806,7 @@ void UChoreManagerSubsystem::RevokeChore(FName ChoreId)
 
 // ---- For missions ----
 // ---- Для миссий ----
+/*
 void UChoreManagerSubsystem::RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex)
 {
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
@@ -832,6 +833,7 @@ void UChoreManagerSubsystem::RequestMissionChore(FName MissionId, FName ChoreId,
     Event.Payload = Payload;
     EventBus->PublishOutcome(Event);
 }
+*/
 
 void UChoreManagerSubsystem::ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId)
 {
@@ -1483,7 +1485,7 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
         }
     }
 }
-
+/*
 void UChoreManagerSubsystem::HandleMissionRequest(const FOutcomeEventBase& Outcome)
 {
     if (Outcome.OutcomeMission != EOutcomeMission::ChoreStepRequest)
@@ -1525,6 +1527,7 @@ void UChoreManagerSubsystem::HandleMissionRequest(const FOutcomeEventBase& Outco
         EventBus->PublishOutcome(Event);
     }
 }
+*/
 
 void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outcome)
 {

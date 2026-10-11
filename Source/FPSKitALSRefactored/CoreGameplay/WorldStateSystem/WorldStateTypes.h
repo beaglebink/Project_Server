@@ -34,37 +34,37 @@ struct FPSKITALSREFACTORED_API FWorldStateRecord
     //
     // Строковый уникальный идентификатор факта. Например "DoorOpened_MainEntrance".
     // Служит ключом карты WorldStateRecords и используется для удаления записи.
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FName FactId;
 
     // Human-readable description of the fact (for UI, debugging, logs).
     // Человекочитаемое описание факта (для UI, дебага, логов).
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FString Description;
 
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     EWorldStateChangeCategory Category = EWorldStateChangeCategory::Custom;
 
     // ---- Where to apply ----
     // ---- Куда применять ----
     // Object identifier (FGuid from UFloorAssignmentComponent).
     // Идентификатор объекта (FGuid из UFloorAssignmentComponent).
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FGuid ItemId;
 
     // NAME_None → the property is looked up on the actor itself.
     // NAME_None → свойство ищется на самом актёре.
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FName ComponentName = NAME_None;
 
     // Name of the FProperty marked with CPF_SaveGame.
     // Имя FProperty, помеченного CPF_SaveGame.
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FName ChangeKey;
 
     // ---- Values ----
     // ---- Значения ----
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FString SerializedValue;
 
     FString OriginalValue;
@@ -78,10 +78,10 @@ struct FPSKITALSREFACTORED_API FWorldStateRecord
     //
     // Имя UFUNCTION без параметров, вызываемой на целевом объекте после
     // применения значения. NAME_None — реакция не вызывается.
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FName ReactionFunctionName = NAME_None;
 
-    UPROPERTY(BlueprintReadWrite, Category = "WorldState")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
     FString Timestamp;
 
     FWorldStateRecord() = default;

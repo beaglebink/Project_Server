@@ -1,4 +1,4 @@
-using UnrealBuildTool;
+﻿using UnrealBuildTool;
 using System.IO;
 using System.Collections.Generic;
 
@@ -18,9 +18,12 @@ public class FPSKitALSRefactoredEditor : ModuleRules
         });
 
         string RuntimeModuleBase = Path.GetFullPath(Path.Combine(ModuleDirectory, "..", "FPSKitALSRefactored"));
+
+        // Пути к папкам рантайм-модуля, из которых editor-модуль включает хедеры
+        PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "Public"));
         PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "CoreGameplay", "LocationSystem"));
         PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "CoreGameplay", "ChoreSystem"));
-        PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "Public"));
+        PrivateIncludePaths.Add(Path.Combine(RuntimeModuleBase, "CoreGameplay", "ScenarioManagerSubsystem")); // ← для PayloadBatchEntry.h
 
         PrivateIncludePaths.Add("FPSKitALSRefactoredEditor/Private");
     }
