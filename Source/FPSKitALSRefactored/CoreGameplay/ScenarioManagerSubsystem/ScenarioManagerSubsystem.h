@@ -48,6 +48,9 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Scenario Manager|Debug")
     FString GetDebugStateString() const;
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Scenario Manager|Query")
+    bool IsStepActive(const UPayloadBatchAsset* Step) const;
+
 protected:
     // ---- Инициализация ----
     void LoadAllSteps();

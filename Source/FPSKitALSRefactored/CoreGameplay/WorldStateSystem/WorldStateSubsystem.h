@@ -180,4 +180,6 @@ private:
     static const FName InteractComponentMarker;
     static const FName InteractEnabledPropertyName;
     static const FName InteractReactionFuncName;
+
+    AActor* FindActorByRuntimeInteractId(const FGuid& RuntimeItemId) const;
 };

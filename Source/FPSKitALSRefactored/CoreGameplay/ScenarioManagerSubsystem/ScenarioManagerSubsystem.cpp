@@ -302,6 +302,11 @@ FString UScenarioManagerSubsystem::GetDebugStateString() const
     return FString::Printf(TEXT("Tags [%s] | Active steps [%s]"), *TagsStr, *StepsStr);
 }
 
+bool UScenarioManagerSubsystem::IsStepActive(const UPayloadBatchAsset* Step) const
+{
+    if (!Step) return false;
+    return ActiveStepIds.Contains(Step->GetPrimaryAssetId());
+}
 // =============================================================================
 // Reevaluation
 // =============================================================================

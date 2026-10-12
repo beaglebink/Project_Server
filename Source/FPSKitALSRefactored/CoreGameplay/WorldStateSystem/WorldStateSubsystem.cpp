@@ -1128,34 +1128,75 @@ void UWorldStateSubsystem::SubscribeInteractSetEnabled()
         InteractSetEnabledHandles.Num());
 }
 
+AActor* UWorldStateSubsystem::FindActorByRuntimeInteractId(const FGuid& RuntimeItemId) const
+{
+    UWorld* World = GetWorld();
+    if (!World) return nullptr;
+
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!IsValid(Actor)) continue;
+
+        TInlineComponentArray<UInteractiveItemComponent*> Comps;
+        Actor->GetComponents<UInteractiveItemComponent>(Comps);
+        for (UInteractiveItemComponent* Comp : Comps)
+        {
+            if (Comp && Comp->GetItemId() == RuntimeItemId)
+                return Actor;
+        }
+    }
+    return nullptr;
+}
+
 void UWorldStateSubsystem::HandleInteractSetEnabled(const FOutcomeEventBase& Outcome)
 {
     UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload);
-    if (!P || !P->ItemId.IsValid())
+    if (!P) return;
+
+    // Резолвим persistent ID: сначала из TargetActor, потом — из runtime-ItemId.
+    FGuid PersistentId = P->TargetActor.ActorPersistentId;
+
+    if (!PersistentId.IsValid() && P->ItemId.IsValid())
     {
+        if (AActor* Actor = FindActorByRuntimeInteractId(P->ItemId))
+        {
+            if (UFloorAssignmentComponent* FAC =
+                Actor->FindComponentByClass<UFloorAssignmentComponent>())
+            {
+                PersistentId = FAC->ItemId;
+            }
+        }
+    }
+
+    if (!PersistentId.IsValid())
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("WorldStateSubsystem: InteractSetEnabled — no valid actor identifier "
+                "(TargetActor.PersistentId invalid, runtime ItemId=%s)"),
+            *P->ItemId.ToString());
         return;
     }
 
-    // Строим персистентную запись.
     FWorldStateRecord Record;
-    Record.FactId = MakeInteractEnabledFactId(P->ItemId);
+    Record.FactId = MakeInteractEnabledFactId(PersistentId);
     Record.Description = FString::Printf(
-        TEXT("Interact %s on actor ID '%s'"),
+        TEXT("Interact %s on %s"),
         P->bEnabled ? TEXT("enabled") : TEXT("disabled"),
-        *P->ItemId.ToString());
+        P->TargetActor.ActorLabel.IsEmpty()
+        ? *PersistentId.ToString()
+        : *P->TargetActor.ActorLabel);
     Record.Category = EWorldStateChangeCategory::InteractiveObject;
-    Record.ItemId = P->ItemId;
+    Record.ItemId = PersistentId;
     Record.ComponentName = InteractComponentMarker;
-    Record.ChangeKey = InteractEnabledPropertyName;   // bInteractionEnabled
+    Record.ChangeKey = InteractEnabledPropertyName;
     Record.SerializedValue = P->bEnabled ? TEXT("True") : TEXT("False");
-    Record.ReactionFunctionName = InteractReactionFuncName;      // RefreshInteractState
+    Record.ReactionFunctionName = InteractReactionFuncName;
 
     UE_LOG(LogTemp, Log,
-        TEXT("WorldStateSubsystem: InteractSetEnabled persisted FactId='%s' value=%s (actor ID '%s')"),
-        *Record.FactId.ToString(), *Record.SerializedValue, *P->ItemId.ToString());
+        TEXT("WorldStateSubsystem: InteractSetEnabled → FactId='%s' value=%s (persistentId=%s, label=%s)"),
+        *Record.FactId.ToString(), *Record.SerializedValue,
+        *PersistentId.ToString(), *P->TargetActor.ActorLabel);
 
-    // SetWorldStateRecord сам применит запись к актёру,
-    // если он уже на сцене (SetActive через RefreshInteractState).
     SetWorldStateRecord(Record);
-
 }

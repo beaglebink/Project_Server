@@ -22,6 +22,12 @@
 #include "PayloadBatchEntry.h"
 #include "PayloadBatchEntryCustomization.h"
 
+#include "SceneActorRefCustomization.h"
+#include "SceneActorRef.h"
+
+#include "ChoreSystem/ScenarioConditionAssetDetails.h"
+#include "ScenarioConditionAsset.h"
+
 #define LOCTEXT_NAMESPACE "FLocationEditorModule"
 
 void FLocationEditorModule::StartupModule()
@@ -71,6 +77,15 @@ void FLocationEditorModule::StartupModule()
         UPayloadBatchEntry::StaticClass()->GetFName(),
         FOnGetDetailCustomizationInstance::CreateStatic(&FPayloadBatchEntryCustomization::MakeInstance));
 
+    PropertyModule.RegisterCustomPropertyTypeLayout(
+        FSceneActorRef::StaticStruct()->GetFName(),
+        FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSceneActorRefCustomization::MakeInstance));
+
+    PropertyModule.RegisterCustomClassLayout(
+        UScenarioConditionAsset::StaticClass()->GetFName(),
+        FOnGetDetailCustomizationInstance::CreateStatic(&FScenarioConditionAssetDetails::MakeInstance)
+    );
+
     PropertyModule.NotifyCustomizationModuleChanged();
 }
 
@@ -90,6 +105,8 @@ void FLocationEditorModule::ShutdownModule()
         PropertyModule.UnregisterCustomClassLayout(ULocationConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UTimeWindowConditionAsset::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UPayloadBatchEntry::StaticClass()->GetFName());
+        PropertyModule.UnregisterCustomPropertyTypeLayout(FSceneActorRef::StaticStruct()->GetFName());
+        PropertyModule.UnregisterCustomClassLayout(UScenarioConditionAsset::StaticClass()->GetFName());
 
         PropertyModule.NotifyCustomizationModuleChanged();
     }
