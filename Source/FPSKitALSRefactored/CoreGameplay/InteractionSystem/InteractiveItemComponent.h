@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+п»ї// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -47,14 +47,9 @@ public:
 	// Called by Picker on interaction button press
 	void DoInteractiveUse(ACharacter* IIUser);
 
-	// Убираем проблему линковки — делаем реализацию inline в заголовке.
-	// Можно вызывать и из C++ и из BP.
+	// РР·РјРµРЅРµРЅРёРµ РёРЅС‚РµСЂР°РєС‚РёРІРЅРѕСЃС‚Рё (РІРєР»СЋС‡РµРЅРёРµ/РІС‹РєР»СЋС‡РµРЅРёРµ) С‡РµСЂРµР· EventBus. Р’С‹Р·С‹РІР°РµС‚СЃСЏ РёР· Blueprint РёР»Рё C++.
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
-	void SetIsActive(bool Active) 
-	{
-		bInteractionEnabled = Active;
-		SetActive(Active);
-	}
+	void SetIsActive(bool Active);
 
 	// Returns unique ID of this item - used in all EventBus messages
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteractiveItem")
@@ -67,7 +62,7 @@ public:
 /**
  * Called by UWorldStateSubsystem after it writes bInteractionEnabled via reflection.
  * Re-applies the state to the actual component flag (SetActive) and notifies listeners.
- * No parameters — это обязательное условие для FWorldStateRecord::ReactionFunctionName.
+ * No parameters вЂ” СЌС‚Рѕ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ СѓСЃР»РѕРІРёРµ РґР»СЏ FWorldStateRecord::ReactionFunctionName.
  */
 	UFUNCTION()
 	void RefreshInteractState()
@@ -92,6 +87,11 @@ public:
 protected:
 	// Legacy: handler when subsystem publishes InteractEnabled via EventBus (kept)
 	void OnInteractEnabledOutcome(const FOutcomeEventBase& Outcome);
+
+protected:
+	// Current state - maintained by subsystem updates via EventBus
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, SaveGame, Category = "InteractiveItem|State", meta = (AllowPrivateAccess = "true"))
+	bool bInteractionEnabled = false;
 
 public:
 	// Events
@@ -138,10 +138,6 @@ public:
 private:
 	// Auto-generated unique ID at BeginPlay
 	FGuid ItemId;
-
-	// Current state - maintained by subsystem updates via EventBus
-	UPROPERTY(BlueprintReadWrite, SaveGame, Category = "InteractiveItem|State", meta = (AllowPrivateAccess = "true"))
-	bool bInteractionEnabled = true;
 
 	UPROPERTY(BlueprintReadWrite, SaveGame, Category = "InteractiveItem|State", meta = (AllowPrivateAccess = "true"))
 	FText CurrentTooltip;

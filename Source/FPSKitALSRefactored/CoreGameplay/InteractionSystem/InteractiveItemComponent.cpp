@@ -256,3 +256,10 @@ void UInteractiveItemComponent::SetTooltip(const FText& NewTooltip)
 	UE_LOG(LogTemp, Log, TEXT("InteractiveItemComponent: Tooltip set ItemId=%s Tooltip=%s"),
 		*ItemId.ToString(), *CurrentTooltip.ToString());
 }
+
+void UInteractiveItemComponent::SetIsActive(bool Active)
+{
+	bInteractionEnabled = Active;
+	SetActive(Active);
+}
+

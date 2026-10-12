@@ -146,7 +146,7 @@ void ALocationAnchorActor::BeginPlay()
             }
         }
 
-        Comp->SetIsActive(bValidLink);
+        //Comp->SetIsActive(bValidLink);
     }
 }
 
