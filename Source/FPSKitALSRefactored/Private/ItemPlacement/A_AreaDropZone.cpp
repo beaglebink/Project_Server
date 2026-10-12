@@ -72,3 +72,28 @@ void AA_AreaDropZone::SetMeshMaterialAndState(int32 NewState, bool IsPlacing)
 		}
 	}
 }
+
+TMap<FGameplayTag, int32> AA_AreaDropZone::UpdateInAreaItemsList()
+{
+	TMap<FGameplayTag, int32> InAreaItemTags;
+
+	if (!bIsActive)
+	{
+		return InAreaItemTags;
+	}
+
+	TArray <AActor*> OverlappingActors;
+	DropZoneMesh->GetOverlappingActors(OverlappingActors);
+
+	for (AActor* OverlappedActor : OverlappingActors)
+	{
+		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(OverlappedActor))
+		{
+			if (ItemsNames.Contains(InteractableActor->Name))
+			{
+				++InAreaItemTags.FindOrAdd(InteractableActor->Tag);
+			}
+		}
+	}
+	return InAreaItemTags;
+}

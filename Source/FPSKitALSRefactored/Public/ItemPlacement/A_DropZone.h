@@ -12,8 +12,8 @@ UCLASS()
 class FPSKITALSREFACTORED_API AA_DropZone : public AActor, public II_PowerConnection
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	AA_DropZone();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -31,7 +31,7 @@ public:
 	TSubclassOf<AA_InteractableActor> ItemClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|WireConnector")
-	FString WirePlugInConnectorType{""};
+	FString WirePlugInConnectorType{ "" };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropZone|WireConnector")
 	uint8 bIsPowerOn : 1{false};
@@ -60,4 +60,8 @@ public:
 
 private:
 	uint8 IsPlacingOnScene : 1{true};
+
+public:
+	UPROPERTY(EditAnywhere, Category = "DropZone|ActiveState", meta = (AllowPrivateAccess = "true"))
+	uint8 bIsActive : 1{true};
 };
