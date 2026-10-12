@@ -51,4 +51,10 @@ public:
 
 private:
 	uint8 IsPlacingOnScene : 1{true};
+
+public:
+	UPROPERTY(EditAnywhere, Category = "DropZone|ActiveState", meta = (AllowPrivateAccess = "true"))
+	uint8 bIsActive : 1{true};
+
+	TMap<FGameplayTag, int32> UpdateInAreaItemsList();
 };
