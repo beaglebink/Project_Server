@@ -3186,7 +3186,7 @@ void UInteriorSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
 			ExecuteInteractCommandOnOwner(P->ItemId, Owner, P->Picker);
 	}
 }
-
+/*
 void UInteriorSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 {
 	const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload);
@@ -3194,7 +3194,7 @@ void UInteriorSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 	if (const FInteractItemRecord* Rec = RegisteredItems.Find(P->ItemId))
 		ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
 }
-
+*/
 void UInteriorSubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
 {
 	const UInteractSetRangePayload* P = Cast<UInteractSetRangePayload>(Outcome.Payload);
@@ -3524,7 +3524,7 @@ void UInteriorSubsystem::SubscribeAll()
 				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleInteractCommand));
 		}
 	}
-
+	/*
 	if (!SetEnabledHandle.IsValid())
 	{
 		SetEnabledConditionAsset = NewObject<UOutcomeConditionAsset>(this);
@@ -3542,7 +3542,7 @@ void UInteriorSubsystem::SubscribeAll()
 				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSetEnabled));
 		}
 	}
-
+	*/
 	if (!SetRangeHandle.IsValid())
 	{
 		SetRangeConditionAsset = NewObject<UOutcomeConditionAsset>(this);

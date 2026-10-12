@@ -257,7 +257,7 @@ public:
 private:
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
     void HandleInteractCommand(const FOutcomeEventBase& Outcome);
-    void HandleSetEnabled(const FOutcomeEventBase& Outcome);
+    //void HandleSetEnabled(const FOutcomeEventBase& Outcome);
     void HandleSetRange(const FOutcomeEventBase& Outcome);
     void HandleSetTooltip(const FOutcomeEventBase& Outcome);
     void HandleFloorStateSave(const FOutcomeEventBase& Outcome);

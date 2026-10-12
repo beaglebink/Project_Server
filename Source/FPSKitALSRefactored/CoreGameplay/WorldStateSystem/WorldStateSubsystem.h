@@ -63,6 +63,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "WorldStateSubsystem|State")
     TArray<FWorldStateRecord> GetRecordsByCategory(EWorldStateChangeCategory Category, bool bIncludePendingRemoval = false) const;
 
+    // Детерминированный FactId для факта «интерактивность» одного актёра.
+    // Можно вызывать снаружи, чтобы вручную снять override через
+    // UWorldStateRecordRemovePayload с этим FactId.
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "WorldStateSubsystem|Interact")
+    static FName MakeInteractEnabledFactId(const FGuid& ActorPersistentId);
+
     // ===== C++ getters (without reflection) =====
     // ===== C++-геттеры (без рефлексии) =====
     const FWorldStateRecord* FindWorldStateRecord(FName FactId, bool bIncludePendingRemoval = false) const;
@@ -88,9 +94,9 @@ private:
 
     // ---- SUBSCRIPTION HANDLES ----
     // ---- ХЕНДЛЫ ПОДПИСОК ----
-    FOutcomeHandlerHandle WorldStateRecordHandle;
-    FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
-    FOutcomeHandlerHandle LevelLoadedHandle;
+    //FOutcomeHandlerHandle WorldStateRecordHandle;
+    //FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
+    //FOutcomeHandlerHandle LevelLoadedHandle;
 
     UPROPERTY()
     UOutcomeConditionAsset* LevelLoadedConditionAsset = nullptr;
@@ -154,4 +160,24 @@ private:
 
     FDelegateHandle WorldBeginPlayHandle;
     bool bDeferredFirstReevaluate = false;
+
+    // ---- InteractSetEnabled subscription ----
+    void SubscribeInteractSetEnabled();
+    void HandleInteractSetEnabled(const FOutcomeEventBase& Outcome);
+
+    FOutcomeHandlerHandle WorldStateRecordHandle;
+    FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
+    FOutcomeHandlerHandle LevelLoadedHandle;
+
+    // Четыре подписки (Actor/Inventory/Terminal/Interior) — все ведут в один handler.
+    TArray<FOutcomeHandlerHandle> InteractSetEnabledHandles;
+    UPROPERTY()
+    TArray<TObjectPtr<UOutcomeConditionAsset>> InteractSetEnabledConditions;
+
+    // Маркер, который в FWorldStateRecord::ComponentName говорит:
+    // "резолви первый UInteractiveItemComponent на актёре".
+    // Нужен, потому что FName компонента в BP не фиксирован.
+    static const FName InteractComponentMarker;
+    static const FName InteractEnabledPropertyName;
+    static const FName InteractReactionFuncName;
 };

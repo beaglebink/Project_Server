@@ -211,7 +211,8 @@ enum class EOutcomeWorldState : uint8
     WorldStateRemoveRecord      UMETA(DisplayName = "Removing State Record"),
     WorldStateFactAdded         UMETA(DisplayName = "Fact Added"),
     WorldStateFactChanged       UMETA(DisplayName = "Fact Changed"),
-    WorldStateFactRemoved       UMETA(DisplayName = "Fact Removed")
+    WorldStateFactRemoved       UMETA(DisplayName = "Fact Removed"),
+	InteractionEnabledChanged   UMETA(DisplayName = "Interaction Enabled Changed"),
     //ChangingExteriorDoorAvailability UMETA(DisplayName = "Changing Exterior Door Availability"),
     //CheckRequest                UMETA(DisplayName = "Check Request"),
     //CheckResponse               UMETA(DisplayName = "Check Response")

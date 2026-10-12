@@ -34,7 +34,7 @@ void UActorStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     // Subscribe set enabled (explicit — does not depend on SubscribeRegistration state)
     // (Подписать обработчик установки enabled явно — не зависит от статуса SubscribeRegistration)
-    SubscribeSetEnabled();
+    //SubscribeSetEnabled();
 
     // Subscribe set range (explicit — does not depend on SubscribeRegistration state)
     // (Подписать обработчик установки диапазона явно — не зависит от статуса SubscribeRegistration)
@@ -178,7 +178,7 @@ void UActorStateSubsystem::UnsubscribeAll()
 	UnsubscribeDialogueStarted();
 	UnsubscribeMissionOrGhost();
 	UnsubscribeInteractCommand();
-	UnsubscribeSetEnabled();
+	//UnsubscribeSetEnabled();
 	UnsubscribeSetRange();
 	UnsubscribeSetTooltip();
 	UnsubscribeRegistration();
@@ -355,7 +355,7 @@ void UActorStateSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcom
 		}
 	}
 }
-
+/*
 void UActorStateSubsystem::SubscribeSetEnabled()
 {
 	if (!CachedEventBus.IsValid() || SetEnabledHandle.IsValid()) return;
@@ -377,7 +377,8 @@ void UActorStateSubsystem::SubscribeSetEnabled()
 		UE_LOG(LogTemp, Log, TEXT("ActorStateSubsystem: Subscribed to SetEnabled (handle=%u)"), SetEnabledHandle.GetId());
 	}
 }
-
+*/
+/*
 void UActorStateSubsystem::UnsubscribeSetEnabled()
 {
 	if (!CachedEventBus.IsValid() || !SetEnabledHandle.IsValid()) return;
@@ -385,7 +386,8 @@ void UActorStateSubsystem::UnsubscribeSetEnabled()
 	SetEnabledHandle.Invalidate();
 	SetEnabledConditionAsset = nullptr;
 }
-
+*/
+/*
 void UActorStateSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 {
 	if (const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload))
@@ -396,7 +398,7 @@ void UActorStateSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 		}
 	}
 }
-
+*/
 void UActorStateSubsystem::SubscribeSetRange()
 {
 	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;

@@ -102,11 +102,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void UnsubscribeInteractCommand();
 
-	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
-	void SubscribeSetEnabled();
+	//UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	//void SubscribeSetEnabled();
 
-	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
-	void UnsubscribeSetEnabled();
+	//UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
+	//void UnsubscribeSetEnabled();
 
 	UFUNCTION(BlueprintCallable, Category = "ActorStateSubsystem|Handlers")
 	void SubscribeSetRange();
@@ -126,7 +126,7 @@ private:
 	void HandleDialogueStarted(const FOutcomeEventBase& Outcome);
 	void HandleMissionOrGhost(const FOutcomeEventBase& Outcome);
 	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
-	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
+	//void HandleSetEnabled(const FOutcomeEventBase& Outcome);
 	void HandleSetRange(const FOutcomeEventBase& Outcome);
 	void HandleSetTooltip(const FOutcomeEventBase& Outcome);
 

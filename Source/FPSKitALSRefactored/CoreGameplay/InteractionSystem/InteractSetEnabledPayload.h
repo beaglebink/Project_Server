@@ -15,11 +15,11 @@ class FPSKITALSREFACTORED_API UInteractSetEnabledPayload : public UOutcomePayloa
 
 public:
 	// ID интерактивного элемента — UInteractiveItemComponent::GetItemId()
-	UPROPERTY(BlueprintReadWrite, Category = "InteractSetEnabled")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractSetEnabled")
 	FGuid ItemId;
 
 	// true = включить, false = выключить
-	UPROPERTY(BlueprintReadWrite, Category = "InteractSetEnabled")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractSetEnabled")
 	bool bEnabled = true;
 
 	UFUNCTION(BlueprintCallable, Category = "InteractSetEnabled")

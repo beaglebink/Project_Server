@@ -106,6 +106,7 @@ const TArray<FCommandSpec>& FPayloadBatchRegistry::GetSpecs()
         // ======================= SPAWN GROUP =======================
 
         // ======================= WORLD STATE =======================
+        MakeWorldState("WorldState.InteractionEnable", UInteractSetEnabledPayload::StaticClass(),       EOutcomeWorldState::InteractionEnabledChanged),
         MakeWorldState("WorldState.WorldStateAddRecord", UWorldStateRecordPayload::StaticClass(),       EOutcomeWorldState::WorldStateAddRecord),
         MakeWorldState("WorldState.WorldStateRemoveRecord",      UWorldStateRecordRemovePayload::StaticClass(), EOutcomeWorldState::WorldStateRemoveRecord)
         //MakeWorldState("WorldState.WorldStateFactAdded",   UWorldStateFactChangedPayload::StaticClass(), EOutcomeWorldState::WorldStateFactAdded),

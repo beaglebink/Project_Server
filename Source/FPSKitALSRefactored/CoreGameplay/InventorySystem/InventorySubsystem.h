@@ -80,11 +80,11 @@ public:
 	void UnsubscribeInteractCommand();
 
 	// ----- SetEnabled (вкл/выкл интеракции) -----
-	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
-	void SubscribeSetEnabled();
+	//UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	//void SubscribeSetEnabled();
 
-	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
-	void UnsubscribeSetEnabled();
+	//UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	//void UnsubscribeSetEnabled();
 
 	// ----- SetRange (изменение радиуса) -----
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
@@ -106,7 +106,7 @@ private:
 	void HandleInteractCommand(const FOutcomeEventBase& Outcome);
 
 	// Handlers for new commands
-	void HandleSetEnabled(const FOutcomeEventBase& Outcome);
+	//void HandleSetEnabled(const FOutcomeEventBase& Outcome);
 	void HandleSetRange(const FOutcomeEventBase& Outcome);
 	void HandleSetTooltip(const FOutcomeEventBase& Outcome);
 

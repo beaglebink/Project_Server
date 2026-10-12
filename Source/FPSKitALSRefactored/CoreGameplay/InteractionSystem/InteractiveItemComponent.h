@@ -50,7 +50,11 @@ public:
 	// ”бираем проблему линковки Ч делаем реализацию inline в заголовке.
 	// ћожно вызывать и из C++ и из BP.
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
-	void SetIsActive(bool Active) { SetActive(Active); }
+	void SetIsActive(bool Active) 
+	{
+		bInteractionEnabled = Active;
+		SetActive(Active);
+	}
 
 	// Returns unique ID of this item - used in all EventBus messages
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteractiveItem")
@@ -59,6 +63,23 @@ public:
 	// Apply state update received from subsystem via EventBus
 	UFUNCTION(BlueprintCallable, Category = "InteractiveItem")
 	void ApplyStateFromPayload(const UInteractItemStatePayload* Payload);
+
+/**
+ * Called by UWorldStateSubsystem after it writes bInteractionEnabled via reflection.
+ * Re-applies the state to the actual component flag (SetActive) and notifies listeners.
+ * No parameters Ч это об€зательное условие дл€ FWorldStateRecord::ReactionFunctionName.
+ */
+	UFUNCTION()
+	void RefreshInteractState()
+	{
+		SetActive(bInteractionEnabled);
+		OnInteractStateChanged.Broadcast(bInteractionEnabled, CurrentTooltip);
+
+		UE_LOG(LogTemp, Log,
+			TEXT("InteractiveItemComponent: RefreshInteractState ItemId=%s Enabled=%s"),
+			*ItemId.ToString(),
+			bInteractionEnabled ? TEXT("true") : TEXT("false"));
+	}
 
 	// Called by subsystem after it processed registration (notification)
 	UFUNCTION()
@@ -119,7 +140,10 @@ private:
 	FGuid ItemId;
 
 	// Current state - maintained by subsystem updates via EventBus
+	UPROPERTY(BlueprintReadWrite, SaveGame, Category = "InteractiveItem|State", meta = (AllowPrivateAccess = "true"))
 	bool bInteractionEnabled = true;
+
+	UPROPERTY(BlueprintReadWrite, SaveGame, Category = "InteractiveItem|State", meta = (AllowPrivateAccess = "true"))
 	FText CurrentTooltip;
 
 	UPROPERTY()

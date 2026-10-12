@@ -30,7 +30,7 @@ void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	SubscribeInteractCommand();
 
 	// Subscribe set-enabled handler explicitly
-	SubscribeSetEnabled();
+	//SubscribeSetEnabled();
 
 	// Subscribe set-range handler explicitly
 	SubscribeSetRange();
@@ -142,7 +142,7 @@ void UInventorySubsystem::SubscribeInteractCommand()
 		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to InteractCommand (handle=%u)"), InteractCommandHandle.GetId());
 	}
 }
-
+/*
 void UInventorySubsystem::SubscribeSetEnabled()
 {
 	// Диагностическое логирование — чтобы точно видеть, почему обработчик может не зарегистрироваться.
@@ -188,7 +188,7 @@ void UInventorySubsystem::SubscribeSetEnabled()
 		UE_LOG(LogTemp, Error, TEXT("InventorySubsystem: SetEnabledCondition compiled to INVALID -> handler NOT registered"));
 	}
 }
-
+*/
 void UInventorySubsystem::SubscribeSetRange()
 {
 	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;
@@ -262,7 +262,7 @@ void UInventorySubsystem::UnsubscribeInteractCommand()
 	}
 	InteractCommandConditionAsset = nullptr;
 }
-
+/*
 void UInventorySubsystem::UnsubscribeSetEnabled()
 {
 	if (!CachedEventBus.IsValid() || !SetEnabledHandle.IsValid()) return;
@@ -270,7 +270,7 @@ void UInventorySubsystem::UnsubscribeSetEnabled()
 	SetEnabledHandle.Invalidate();
 	SetEnabledConditionAsset = nullptr;
 }
-
+*/
 void UInventorySubsystem::UnsubscribeSetRange()
 {
 	if (!CachedEventBus.IsValid() || !SetRangeHandle.IsValid()) return;
@@ -291,7 +291,7 @@ void UInventorySubsystem::UnsubscribeAll()
 {
 	UnsubscribeItemAcquired();
 	UnsubscribeInteractCommand();
-	UnsubscribeSetEnabled();
+	//UnsubscribeSetEnabled();
 	UnsubscribeSetRange();
 	UnsubscribeSetTooltip();
 	UnsubscribeRegistration();
@@ -399,7 +399,7 @@ void UInventorySubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome
 		}
 	}
 }
-
+/*
 void UInventorySubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 {
 	if (const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload))
@@ -410,7 +410,7 @@ void UInventorySubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 		}
 	}
 }
-
+*/
 void UInventorySubsystem::HandleSetRange(const FOutcomeEventBase& Outcome)
 {
 	if (const UInteractSetRangePayload* P = Cast<UInteractSetRangePayload>(Outcome.Payload))

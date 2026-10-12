@@ -641,7 +641,7 @@ void UTerminalSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
 		}
 	}
 }
-
+/*
 void UTerminalSubsystem::SubscribeSetEnabled()
 {
 	if (!CachedEventBus.IsValid() || SetEnabledHandle.IsValid()) return;
@@ -660,7 +660,8 @@ void UTerminalSubsystem::SubscribeSetEnabled()
 		);
 	}
 }
-
+*/
+/*
 void UTerminalSubsystem::UnsubscribeSetEnabled()
 {
 	if (!CachedEventBus.IsValid() || !SetEnabledHandle.IsValid()) return;
@@ -668,7 +669,8 @@ void UTerminalSubsystem::UnsubscribeSetEnabled()
 	SetEnabledHandle.Invalidate();
 	SetEnabledConditionAsset = nullptr;
 }
-
+*/
+/*
 void UTerminalSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 {
 	const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload);
@@ -676,7 +678,7 @@ void UTerminalSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
 	if (const FTerminalInteractRecord* Rec = RegisteredItems.Find(P->ItemId))
 		ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
 }
-
+*/
 void UTerminalSubsystem::SubscribeSetRange()
 {
 	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;
@@ -846,7 +848,7 @@ void UTerminalSubsystem::SubscribeAll()
 {
 	SubscribeRegistration();
 	SubscribeInteractCommand();
-	SubscribeSetEnabled();
+	//SubscribeSetEnabled();
 	SubscribeSetRange();
 	SubscribeSetTooltip();
 	SubscribeTestInteractCommand();
@@ -857,7 +859,7 @@ void UTerminalSubsystem::UnsubscribeAll()
 {
 	UnsubscribeRegistration();
 	UnsubscribeInteractCommand();
-	UnsubscribeSetEnabled();
+	//UnsubscribeSetEnabled();
 	UnsubscribeSetRange();
 	UnsubscribeSetTooltip();
 	UnsubscribeTestInteractCommand();

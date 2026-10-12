@@ -10,6 +10,17 @@
 #include "WorldStateFactChangedPayload.h"
 #include "LevelLoadedPayload.h"
 #include <InteriorSubsystem.h>
+#include "InteractiveItemComponent.h"       // для FindComponentByClass<UInteractiveItemComponent>
+#include "InteractSetEnabledPayload.h"      // для Cast<UInteractSetEnabledPayload>
+
+const FName UWorldStateSubsystem::InteractComponentMarker = FName(TEXT("__InteractItemComponent__"));
+const FName UWorldStateSubsystem::InteractEnabledPropertyName = FName(TEXT("bInteractionEnabled"));
+const FName UWorldStateSubsystem::InteractReactionFuncName = FName(TEXT("RefreshInteractState"));
+
+FName UWorldStateSubsystem::MakeInteractEnabledFactId(const FGuid& ActorPersistentId)
+{
+    return FName(*FString::Printf(TEXT("InteractEnabled_%s"), *ActorPersistentId.ToString()));
+}
 
 void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -68,6 +79,9 @@ void UWorldStateSubsystem::SubscribeAllWorldStateEvents()
                 FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleLevelLoaded));
         }
     }
+
+    // ---- Interact SetEnabled facts (persisted for scene reload / save-load) ----
+    SubscribeInteractSetEnabled();
 }
 
 void UWorldStateSubsystem::Deinitialize()
@@ -109,10 +123,19 @@ void UWorldStateSubsystem::UnsubscribeAll()
                     Handle.Invalidate();
                 }
             };
+
         Unreg(WorldStateRecordHandle);
         Unreg(WorldStateRecordRemoveHandle);
         Unreg(LevelLoadedHandle);
+
+        for (FOutcomeHandlerHandle& H : InteractSetEnabledHandles)
+        {
+            Unreg(H);
+        }
     }
+
+    InteractSetEnabledHandles.Empty();
+    InteractSetEnabledConditions.Empty();
 
     LevelLoadedConditionAsset = nullptr;
 
@@ -664,6 +687,14 @@ UActorComponent* UWorldStateSubsystem::FindComponentByStableName(AActor* Actor, 
     if (!IsValid(Actor) || ComponentName.IsNone())
         return nullptr;
 
+// ── Special marker: routes Interact-Enabled facts to the first
+//    UInteractiveItemComponent on the actor. Нужен, потому что FName
+//    BP-компонента не фиксирован (InteractComp_GEN_VARIABLE и т.п.).
+    if (ComponentName == InteractComponentMarker)
+    {
+        return Actor->FindComponentByClass<UInteractiveItemComponent>();
+    }
+
     TArray<UActorComponent*> Components;
     Actor->GetComponents(Components);
 
@@ -1018,4 +1049,113 @@ void UWorldStateSubsystem::PublishFactEvent(
     Ev.Payload = P;
 
     Bus->PublishOutcome(Ev);
+}
+
+void UWorldStateSubsystem::SubscribeInteractSetEnabled()
+{
+    // Идемпотентность: повторный вызов — no-op.
+    if (InteractSetEnabledHandles.Num() > 0)
+        return;
+
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (!EventBus) return;
+
+    // UInteractSetEnabledPayload может прилететь в любой из этих категорий.
+    const EOutcomeType Categories[] =
+    {
+        EOutcomeType::Actor,
+        EOutcomeType::Inventory,
+        EOutcomeType::Terminal,
+        EOutcomeType::Interior
+    };
+
+    //for (EOutcomeType Category : Categories)
+    //{
+        UOutcomeConditionAsset* Cond = NewObject<UOutcomeConditionAsset>(this);
+        Cond->OperatorType = EConditionOperator::Composite;
+        Cond->FilterRow.OutcomeType = EOutcomeType::WorldState;
+        Cond->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		Cond->FilterRow.WorldStateType = EOutcomeWorldState::InteractionEnabledChanged;
+		Cond->FilterRow.WorldStateComparison = EConditionComparison::Equals;
+
+
+        /*
+        switch (Category)
+        {
+        case EOutcomeType::Actor:
+            Cond->FilterRow.ActorType = EOutcomeActor::InteractSetEnabled;
+            Cond->FilterRow.ActorComparison = EConditionComparison::Equals;
+            break;
+        case EOutcomeType::Inventory:
+            Cond->FilterRow.ObjectType = EOutcomeInventory::InteractSetEnabled;
+            Cond->FilterRow.ObjectComparison = EConditionComparison::Equals;
+            break;
+        case EOutcomeType::Terminal:
+            Cond->FilterRow.TerminalType = EOutcomeTerminal::InteractSetEnabled;
+            Cond->FilterRow.TerminalComparison = EConditionComparison::Equals;
+            break;
+        case EOutcomeType::Interior:
+            Cond->FilterRow.InteriorType = EOutcomeInterior::InteractSetEnabled;
+            Cond->FilterRow.InteriorComparison = EConditionComparison::Equals;
+            break;
+        default: break;
+        }
+        */
+
+
+        Cond->CompileCondition();
+        if (!Cond->GetCondition().IsValid())
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("WorldStateSubsystem: failed to compile InteractSetEnabled condition for category %d"),
+                static_cast<int32>(EOutcomeType::WorldState));
+        }
+
+        FOutcomeHandlerHandle H = EventBus->RegisterHandler(
+            Cond,
+            FOutcomeHandlerDelegate::CreateUObject(
+                this, &UWorldStateSubsystem::HandleInteractSetEnabled));
+
+        if (H.IsValid())
+        {
+            InteractSetEnabledConditions.Add(Cond);
+            InteractSetEnabledHandles.Add(H);
+        }
+    //}
+
+    UE_LOG(LogTemp, Log,
+        TEXT("WorldStateSubsystem: subscribed to InteractSetEnabled for %d categories"),
+        InteractSetEnabledHandles.Num());
+}
+
+void UWorldStateSubsystem::HandleInteractSetEnabled(const FOutcomeEventBase& Outcome)
+{
+    UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload);
+    if (!P || !P->ItemId.IsValid())
+    {
+        return;
+    }
+
+    // Строим персистентную запись.
+    FWorldStateRecord Record;
+    Record.FactId = MakeInteractEnabledFactId(P->ItemId);
+    Record.Description = FString::Printf(
+        TEXT("Interact %s on actor ID '%s'"),
+        P->bEnabled ? TEXT("enabled") : TEXT("disabled"),
+        *P->ItemId.ToString());
+    Record.Category = EWorldStateChangeCategory::InteractiveObject;
+    Record.ItemId = P->ItemId;
+    Record.ComponentName = InteractComponentMarker;
+    Record.ChangeKey = InteractEnabledPropertyName;   // bInteractionEnabled
+    Record.SerializedValue = P->bEnabled ? TEXT("True") : TEXT("False");
+    Record.ReactionFunctionName = InteractReactionFuncName;      // RefreshInteractState
+
+    UE_LOG(LogTemp, Log,
+        TEXT("WorldStateSubsystem: InteractSetEnabled persisted FactId='%s' value=%s (actor ID '%s')"),
+        *Record.FactId.ToString(), *Record.SerializedValue, *P->ItemId.ToString());
+
+    // SetWorldStateRecord сам применит запись к актёру,
+    // если он уже на сцене (SetActive через RefreshInteractState).
+    SetWorldStateRecord(Record);
+
 }
