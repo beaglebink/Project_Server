@@ -24,7 +24,6 @@
 
 #include "SceneActorRefCustomization.h"
 #include "SceneActorRef.h"
-#include "WorldStateActorRef.h"
 
 #include "ChoreSystem/ScenarioConditionAssetDetails.h"
 #include "ScenarioConditionAsset.h"
@@ -73,7 +72,6 @@ void FLocationEditorModule::StartupModule()
         UTimeWindowConditionAsset::StaticClass()->GetFName(),
         FOnGetDetailCustomizationInstance::CreateStatic(&FTimeWindowConditionAssetDetails::MakeInstance));
 
-    // Регистрация для entry — оставляем на будущее, даже если UE её не применит.
     PropertyModule.RegisterCustomClassLayout(
         UPayloadBatchEntry::StaticClass()->GetFName(),
         FOnGetDetailCustomizationInstance::CreateStatic(&FPayloadBatchEntryCustomization::MakeInstance));
@@ -82,17 +80,9 @@ void FLocationEditorModule::StartupModule()
         UScenarioConditionAsset::StaticClass()->GetFName(),
         FOnGetDetailCustomizationInstance::CreateStatic(&FScenarioConditionAssetDetails::MakeInstance));
 
-    // ── ActorRef-структуры ────────────────────────────────────────────────
-    // Один и тот же customization для двух типов. Набор актёров в пикере
-    // определяется через meta = (SceneActorFilter = "...") на UPROPERTY,
-    // на которой висит структура.
-
+    // ── ActorRef-структура ────────────────────────────────────────────────
     PropertyModule.RegisterCustomPropertyTypeLayout(
         FSceneActorRef::StaticStruct()->GetFName(),
-        FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSceneActorRefCustomization::MakeInstance));
-
-    PropertyModule.RegisterCustomPropertyTypeLayout(
-        FWorldStateActorRef::StaticStruct()->GetFName(),
         FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSceneActorRefCustomization::MakeInstance));
 
     PropertyModule.NotifyCustomizationModuleChanged();
@@ -116,9 +106,7 @@ void FLocationEditorModule::ShutdownModule()
         PropertyModule.UnregisterCustomClassLayout(UPayloadBatchEntry::StaticClass()->GetFName());
         PropertyModule.UnregisterCustomClassLayout(UScenarioConditionAsset::StaticClass()->GetFName());
 
-        // ── ActorRef-структуры ────────────────────────────────────────────
         PropertyModule.UnregisterCustomPropertyTypeLayout(FSceneActorRef::StaticStruct()->GetFName());
-        PropertyModule.UnregisterCustomPropertyTypeLayout(FWorldStateActorRef::StaticStruct()->GetFName());
 
         PropertyModule.NotifyCustomizationModuleChanged();
     }

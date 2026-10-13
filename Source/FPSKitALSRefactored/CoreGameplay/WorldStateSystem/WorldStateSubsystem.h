@@ -41,12 +41,7 @@ public:
     // ===== READ METHODS =====
     // bIncludePendingRemoval:
     //   false (default) — records with bPendingRemoval = true are ignored
-    //   true                 — such records are included in the result
-    //
-    // ===== МЕТОДЫ ЧТЕНИЯ =====
-    // bIncludePendingRemoval:
-    //   false (по умолчанию) — записи с bPendingRemoval = true игнорируются
-    //   true                 — такие записи включаются в результат
+    //   true            — such records are included in the result
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "WorldStateSubsystem|State")
     bool HasWorldStateRecord(FName FactId, bool bIncludePendingRemoval = false) const;
@@ -70,9 +65,9 @@ public:
     static FName MakeInteractEnabledFactId(const FGuid& ActorPersistentId);
 
     // ===== C++ getters (without reflection) =====
-    // ===== C++-геттеры (без рефлексии) =====
     const FWorldStateRecord* FindWorldStateRecord(FName FactId, bool bIncludePendingRemoval = false) const;
 
+    // ===== ISaveableSubsystem =====
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
     virtual FString GetSaveSubsystemName() const override { return TEXT("WorldStateSubsystem"); }
@@ -82,27 +77,24 @@ protected:
     void OnWorldBeginPlay(UWorld& InWorld);
 
 private:
+    // ---- SETUP ----
     void SubscribeAllWorldStateEvents();
     UOutcomeConditionAsset* CreateSimpleWorldStateCondition(EOutcomeWorldState WorldStateType);
 
     // ---- HANDLERS ----
-    // ---- ОБРАБОТЧИКИ ----
     void HandleSetWorldStateRecord(const FOutcomeEventBase& Outcome);
     void HandleRemoveWorldStateRecord(const FOutcomeEventBase& Outcome);
     void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
     void HandleActorSpawned(AActor* SpawnedActor);
 
     // ---- SUBSCRIPTION HANDLES ----
-    // ---- ХЕНДЛЫ ПОДПИСОК ----
-    //FOutcomeHandlerHandle WorldStateRecordHandle;
-    //FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
-    //FOutcomeHandlerHandle LevelLoadedHandle;
+    FOutcomeHandlerHandle WorldStateRecordHandle;
+    FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
+    FOutcomeHandlerHandle LevelLoadedHandle;
 
     UPROPERTY()
     UOutcomeConditionAsset* LevelLoadedConditionAsset = nullptr;
 
-    // ---- SUBSCRIPTION TO SPAWN ----
-    // ---- ПОДПИСКА НА СПАВН ----
     FDelegateHandle ActorSpawnedHandle;
     TWeakObjectPtr<UWorld> SubscribedWorld;
 
@@ -110,7 +102,6 @@ private:
     void UnsubscribeFromActorSpawned();
 
     // ---- STATE MUTATION ----
-    // ---- ИЗМЕНЕНИЕ СОСТОЯНИЯ ----
     void SetWorldStateRecord(const FWorldStateRecord& Record);
     void RemoveWorldStateRecord(FName FactId);
     void ApplyRecordsToWorld();
@@ -121,17 +112,16 @@ private:
 
     // Publishes a fact event with a full snapshot of the record.
     //   PreviousValue — for Changed (empty string for Added/Removed).
-    //   RestoredValue / bHasRestoredValue — for Removed (for Added/Changed
-    //   an empty string and false are passed).
-    //
-    // Публикует событие факта с полным снимком записи.
-    //   PreviousValue — для Changed (пустая строка для Added/Removed).
-    //   RestoredValue / bHasRestoredValue — для Removed (для Added/Changed
-    //   передаются пустая строка и false).
-    void PublishFactEvent(FName FactId, const FWorldStateRecord& RecordSnapshot, EOutcomeWorldState EventType, const FString& PreviousValue = FString(), const FString& RestoredValue = FString(), bool bHasRestoredValue = false) const;
+    //   RestoredValue / bHasRestoredValue — for Removed.
+    void PublishFactEvent(
+        FName FactId,
+        const FWorldStateRecord& RecordSnapshot,
+        EOutcomeWorldState EventType,
+        const FString& PreviousValue = FString(),
+        const FString& RestoredValue = FString(),
+        bool bHasRestoredValue = false) const;
 
     // ---- LOOKUP ----
-    // ---- ПОИСК ----
     AActor* FindActorByItemId(const FGuid& ItemId) const;
     void BuildActorIndex(TMap<FGuid, AActor*>& OutIndex) const;
     UActorComponent* FindComponentByStableName(AActor* Actor, FName ComponentName) const;
@@ -142,7 +132,6 @@ private:
     void InvokeReactionFunction(UObject* Target, const FWorldStateRecord& Record) const;
 
     // ---- PER-ITEM LISTENERS ----
-    // ---- СЛУШАТЕЛИ PER-ITEM ----
     TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -151,9 +140,7 @@ private:
     }
 
     // ---- STORAGE ----
-    // ---- ХРАНИЛИЩЕ ----
     // Key — FactId.
-    // Ключ — FactId.
     TMap<FName, FWorldStateRecord> WorldStateRecords;
 
     bool IsLoadComplete = true;
@@ -165,18 +152,12 @@ private:
     void SubscribeInteractSetEnabled();
     void HandleInteractSetEnabled(const FOutcomeEventBase& Outcome);
 
-    FOutcomeHandlerHandle WorldStateRecordHandle;
-    FOutcomeHandlerHandle WorldStateRecordRemoveHandle;
-    FOutcomeHandlerHandle LevelLoadedHandle;
-
-    // Четыре подписки (Actor/Inventory/Terminal/Interior) — все ведут в один handler.
     TArray<FOutcomeHandlerHandle> InteractSetEnabledHandles;
     UPROPERTY()
     TArray<TObjectPtr<UOutcomeConditionAsset>> InteractSetEnabledConditions;
 
     // Маркер, который в FWorldStateRecord::ComponentName говорит:
     // "резолви первый UInteractiveItemComponent на актёре".
-    // Нужен, потому что FName компонента в BP не фиксирован.
     static const FName InteractComponentMarker;
     static const FName InteractEnabledPropertyName;
     static const FName InteractReactionFuncName;

@@ -13,18 +13,6 @@ enum class ESceneAssetKind : uint8
     Region  UMETA(DisplayName = "Region")
 };
 
-/**
- * Цель — актёр на сцене. Сцена задаётся одним из двух способов:
- *   - Floor  → берём UFloorAsset::FloorLevel;
- *   - Region → берём UWorldRegionAsset::RegionLevel.
- *
- * Редакторный пикер резолвит уровень из выбранного ассета и предлагает
- * только тех актёров, у которых есть оба компонента — FloorAssignmentComponent
- * (для persistent ID) и InteractiveItemComponent (для самой интеракции).
- *
- * Persistent ID — это UFloorAssignmentComponent::ItemId. Он стабилен и
- * сохраняется в .uasset, поэтому подходит для хранения в payload.
- */
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FSceneActorRef
 {
@@ -34,19 +22,17 @@ struct FPSKITALSREFACTORED_API FSceneActorRef
     ESceneAssetKind SceneKind = ESceneAssetKind::Floor;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Scene Actor",
-        meta = (EditCondition = "SceneKind == ESceneAssetKind::Floor",
-            EditConditionHides))
+        meta = (EditCondition = "SceneKind == ESceneAssetKind::Floor", EditConditionHides))
     TSoftObjectPtr<UFloorAsset> SceneFloor;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Scene Actor",
-        meta = (EditCondition = "SceneKind == ESceneAssetKind::Region",
-            EditConditionHides))
+        meta = (EditCondition = "SceneKind == ESceneAssetKind::Region", EditConditionHides))
     TSoftObjectPtr<UWorldRegionAsset> SceneRegion;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Scene Actor")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Scene Actor")
     FGuid ActorPersistentId;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Scene Actor")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Scene Actor")
     FString ActorLabel;
 
     bool IsValid() const

@@ -10,11 +10,8 @@
 #include "WorldStateFactChangedPayload.h"
 #include "LevelLoadedPayload.h"
 #include <InteriorSubsystem.h>
-#include "InteractiveItemComponent.h"       // для FindComponentByClass<UInteractiveItemComponent>
-#include "InteractSetEnabledPayload.h"      // для Cast<UInteractSetEnabledPayload>
-#include "WorldStateActorRef.h"
-#include "FloorAsset.h"
-#include "WorldRegionAsset.h"
+#include "InteractiveItemComponent.h"
+#include "InteractSetEnabledPayload.h"
 
 const FName UWorldStateSubsystem::InteractComponentMarker = FName(TEXT("__InteractItemComponent__"));
 const FName UWorldStateSubsystem::InteractEnabledPropertyName = FName(TEXT("bInteractionEnabled"));
@@ -30,9 +27,6 @@ void UWorldStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     Super::Initialize(Collection);
 
     Collection.InitializeDependency<UInteriorSubsystem>();
-
-    // Force initialization of the save system BEFORE us.
-    // Форсируем инициализацию системы сохранения ДО нас.
     Collection.InitializeDependency<UGameSaveSubsystem>();
 
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
@@ -50,21 +44,18 @@ void UWorldStateSubsystem::SubscribeAllWorldStateEvents()
         return;
 
     // ---- Setting a record ----
-    // ---- Установка записи ----
     WorldStateAddRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateAddRecord);
     WorldStateRecordHandle = EventBus->RegisterHandler(
         WorldStateAddRecordCondition,
         FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleSetWorldStateRecord));
 
     // ---- Removing a record ----
-    // ---- Удаление записи ----
     WorldStateRemoveRecordCondition = CreateSimpleWorldStateCondition(EOutcomeWorldState::WorldStateRemoveRecord);
     WorldStateRecordRemoveHandle = EventBus->RegisterHandler(
         WorldStateRemoveRecordCondition,
         FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleRemoveWorldStateRecord));
 
-    // ---- Level loaded (InteriorSubsystem publishes after restoring snapshots) ----
-    // ---- Загрузка уровня (InteriorSubsystem публикует после восстановления снапшотов) ----
+    // ---- Level loaded ----
     if (!LevelLoadedHandle.IsValid())
     {
         LevelLoadedConditionAsset = NewObject<UOutcomeConditionAsset>(this);
@@ -83,7 +74,7 @@ void UWorldStateSubsystem::SubscribeAllWorldStateEvents()
         }
     }
 
-    // ---- Interact SetEnabled facts (persisted for scene reload / save-load) ----
+    // ---- Interact SetEnabled facts ----
     SubscribeInteractSetEnabled();
 }
 
@@ -146,8 +137,7 @@ void UWorldStateSubsystem::UnsubscribeAll()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLD STATE RECORDS — PRIVATE MUTATION METHODS
-// WORLD STATE RECORDS — ПРИВАТНЫЕ МЕТОДЫ ИЗМЕНЕНИЯ
+// WORLD STATE RECORDS — MUTATION
 // ─────────────────────────────────────────────────────────────────────────────
 
 void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
@@ -180,7 +170,7 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
 
     FWorldStateRecord& Stored = WorldStateRecords.Add(Record.FactId, NewRecord);
 
-    // Применяем к актёру, если он на сцене.
+    // Apply to the actor if it is on the scene.
     if (AActor* Actor = FindActorByItemId(Stored.ActorRef.ActorPersistentId))
     {
         CaptureOriginalValueIfMissing(Record.FactId, Actor);
@@ -240,6 +230,8 @@ void UWorldStateSubsystem::RemoveWorldStateRecord(FName FactId)
 
     Record->bPendingRemoval = true;
 
+    // Publish the event immediately — the world considers the fact inactive,
+    // even if restoration on the actor happens later.
     PublishFactEvent(
         FactId,
         Snapshot,
@@ -337,8 +329,7 @@ void UWorldStateSubsystem::ApplyRecordToActor(AActor* Actor, const FWorldStateRe
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// READ METHODS (public)
-// МЕТОДЫ ЧТЕНИЯ (публичные)
+// READ METHODS
 // ─────────────────────────────────────────────────────────────────────────────
 
 bool UWorldStateSubsystem::HasWorldStateRecord(FName FactId, bool bIncludePendingRemoval) const
@@ -413,30 +404,30 @@ void UWorldStateSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         const FWorldStateRecord& Rec = Pair.Value;
         TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 
-        // ---- Идентификация факта ----
+        // ---- Identification ----
         Obj->SetStringField(TEXT("FactId"), Rec.FactId.ToString());
         Obj->SetStringField(TEXT("Description"), Rec.Description);
         Obj->SetNumberField(TEXT("Category"), static_cast<int32>(Rec.Category));
 
-        // ---- ActorRef (замена прежнему ItemId) ----
+        // ---- ActorRef ----
         Obj->SetNumberField(TEXT("ActorSceneKind"), static_cast<int32>(Rec.ActorRef.SceneKind));
         Obj->SetStringField(TEXT("ActorSceneFloor"), Rec.ActorRef.SceneFloor.ToString());
         Obj->SetStringField(TEXT("ActorSceneRegion"), Rec.ActorRef.SceneRegion.ToString());
         Obj->SetStringField(TEXT("ActorPersistentId"), Rec.ActorRef.ActorPersistentId.ToString());
         Obj->SetStringField(TEXT("ActorLabel"), Rec.ActorRef.ActorLabel);
 
-        // ---- Куда применять ----
+        // ---- Target ----
         Obj->SetStringField(TEXT("ComponentName"),
             Rec.ComponentName.IsNone() ? FString() : Rec.ComponentName.ToString());
         Obj->SetStringField(TEXT("ChangeKey"), Rec.ChangeKey.ToString());
 
-        // ---- Значения ----
+        // ---- Values ----
         Obj->SetStringField(TEXT("Value"), Rec.SerializedValue);
         Obj->SetStringField(TEXT("OriginalValue"), Rec.OriginalValue);
         Obj->SetBoolField(TEXT("bHasOriginalValue"), Rec.bHasOriginalValue);
         Obj->SetBoolField(TEXT("bPendingRemoval"), Rec.bPendingRemoval);
 
-        // ---- Реакция и таймстамп ----
+        // ---- Reaction and timestamp ----
         Obj->SetStringField(TEXT("ReactionFunctionName"),
             Rec.ReactionFunctionName.IsNone() ? FString() : Rec.ReactionFunctionName.ToString());
         Obj->SetStringField(TEXT("Timestamp"), Rec.Timestamp);
@@ -490,7 +481,6 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         if (!Val->TryGetObject(ObjPtr)) continue;
         const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-        // ---- Локальные переменные для всех полей ----
         FString FactIdStr, Description, ChangeKeyStr, ComponentNameStr;
         FString Value, OriginalValue, ReactionFunctionNameStr, Timestamp;
         FString ActorSceneFloorStr, ActorSceneRegionStr, ActorPersistentIdStr, ActorLabelStr;
@@ -499,7 +489,6 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         bool bHasOriginalValue = false;
         bool bPendingRemoval = false;
 
-        // ---- Читаем все поля ----
         Obj->TryGetStringField(TEXT("FactId"), FactIdStr);
         Obj->TryGetStringField(TEXT("Description"), Description);
         Obj->TryGetNumberField(TEXT("Category"), CategoryInt);
@@ -528,7 +517,6 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             continue;
         }
 
-        // ---- Собираем запись ----
         FWorldStateRecord Record;
         Record.FactId = FName(*FactIdStr);
         Record.Description = Description;
@@ -549,17 +537,17 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         FGuid::Parse(ActorPersistentIdStr, Record.ActorRef.ActorPersistentId);
         Record.ActorRef.ActorLabel = ActorLabelStr;
 
-        // ---- Куда применять ----
+        // ---- Target ----
         Record.ChangeKey = FName(*ChangeKeyStr);
         Record.ComponentName = ComponentNameStr.IsEmpty() ? NAME_None : FName(*ComponentNameStr);
 
-        // ---- Значения ----
+        // ---- Values ----
         Record.SerializedValue = Value;
         Record.OriginalValue = OriginalValue;
         Record.bHasOriginalValue = bHasOriginalValue;
         Record.bPendingRemoval = bPendingRemoval;
 
-        // ---- Реакция и таймстамп ----
+        // ---- Reaction and timestamp ----
         Record.ReactionFunctionName = ReactionFunctionNameStr.IsEmpty()
             ? NAME_None
             : FName(*ReactionFunctionNameStr);
@@ -578,8 +566,7 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ACTORS: spawn, lookup, index
-// АКТОРЫ: спавн, поиск, индекс
+// ACTORS: spawn / lookup / index
 // ─────────────────────────────────────────────────────────────────────────────
 
 void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
@@ -604,11 +591,13 @@ void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
             ActiveFactIds.Add(Pair.Key);
     }
 
+    // --- Pass 1: pending removals ---
     for (const FName& FactId : PendingFactIds)
     {
         TryFinalizePendingRemoval(FactId, SpawnedActor);
     }
 
+    // --- Pass 2: active facts ---
     for (const FName& FactId : ActiveFactIds)
     {
         FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
@@ -702,9 +691,8 @@ UActorComponent* UWorldStateSubsystem::FindComponentByStableName(AActor* Actor, 
     if (!IsValid(Actor) || ComponentName.IsNone())
         return nullptr;
 
-// ── Special marker: routes Interact-Enabled facts to the first
-//    UInteractiveItemComponent on the actor. Нужен, потому что FName
-//    BP-компонента не фиксирован (InteractComp_GEN_VARIABLE и т.п.).
+    // ── Special marker: routes Interact-Enabled facts to the first
+    //    UInteractiveItemComponent on the actor.
     if (ComponentName == InteractComponentMarker)
     {
         return Actor->FindComponentByClass<UInteractiveItemComponent>();
@@ -713,16 +701,14 @@ UActorComponent* UWorldStateSubsystem::FindComponentByStableName(AActor* Actor, 
     TArray<UActorComponent*> Components;
     Actor->GetComponents(Components);
 
-    // 1st pass: exact FName match (usually native C++ components).
-    // 1-й проход: точное совпадение FName (обычно нативные C++-компоненты).
+    // 1st pass: exact FName match.
     for (UActorComponent* Comp : Components)
     {
         if (IsValid(Comp) && Comp->GetFName() == ComponentName)
             return Comp;
     }
 
-    // 2nd pass: BP components get an FName like "<VariableName>_GEN_VARIABLE".
-    // 2-й проход: BP-компоненты получают FName вида "<VariableName>_GEN_VARIABLE".
+    // 2nd pass: BP components get FName like "<VariableName>_GEN_VARIABLE".
     static const FString Suffix = TEXT("_GEN_VARIABLE");
     const FString TargetStr = ComponentName.ToString();
 
@@ -746,9 +732,9 @@ UActorComponent* UWorldStateSubsystem::FindComponentByStableName(AActor* Actor, 
     return nullptr;
 }
 
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // Level loaded handler
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 
 void UWorldStateSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 {
@@ -799,8 +785,7 @@ FProperty* UWorldStateSubsystem::ResolveTargetProperty(AActor* Actor, const FWor
     OutTargetObject = nullptr;
     if (!IsValid(Actor)) return nullptr;
 
-    // --- Option 1: a component is specified — we look for the property strictly in it ---
-    // --- Вариант 1: указан компонент — ищем свойство строго в нём ---
+    // --- Option 1: a component is specified ---
     if (!Record.ComponentName.IsNone())
     {
         UActorComponent* Comp = FindComponentByStableName(Actor, Record.ComponentName);
@@ -813,8 +798,7 @@ FProperty* UWorldStateSubsystem::ResolveTargetProperty(AActor* Actor, const FWor
         return Prop;
     }
 
-    // --- Option 2: no component specified — we look for the property on the actor itself ---
-    // --- Вариант 2: компонент не указан — ищем свойство на самом актёре ---
+    // --- Option 2: no component specified ---
     FProperty* Prop = FindFProperty<FProperty>(Actor->GetClass(), Record.ChangeKey);
     if (!Prop || !Prop->HasAllPropertyFlags(CPF_SaveGame)) return nullptr;
 
@@ -828,8 +812,7 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
     FProperty* Prop = ResolveTargetProperty(Actor, Record, Target);
     if (!Prop || !Target) return false;
 
-    // --- Bool: we read it explicitly so that false doesn't turn into "" ---
-    // --- Bool: читаем явно, чтобы false не превратился в "" ---
+    // --- Bool ---
     if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
     {
         OutValue = BoolProp->GetPropertyValue_InContainer(Target)
@@ -838,7 +821,6 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
     }
 
     // --- Integer types and enums ---
-    // --- Целочисленные и enum ---
     if (FIntProperty* IntProp = CastField<FIntProperty>(Prop))
     {
         OutValue = FString::FromInt(IntProp->GetPropertyValue_InContainer(Target));
@@ -881,7 +863,6 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
     }
 
     // --- Enum: export as int32 ---
-    // --- Enum: экспортируем как int32 ---
     if (FEnumProperty* EnumProp = CastField<FEnumProperty>(Prop))
     {
         FNumericProperty* Underlying = EnumProp->GetUnderlyingProperty();
@@ -906,12 +887,7 @@ bool UWorldStateSubsystem::TryReadPropertyValue(AActor* Actor, const FWorldState
         return true;
     }
 
-    // --- Everything else: FName, FString, FText, FGuid, structs, arrays, ... ---
-    // Standard ExportText. For these types PPF_None works correctly:
-    // an empty string = an empty value, ImportText("") will restore it.
-    // --- Всё остальное: FName, FString, FText, FGuid, структуры, массивы, ... ---
-    // Стандартный ExportText. Для этих типов PPF_None работает корректно:
-    // пустая строка = пустое значение, ImportText("") восстановит его.
+    // --- Everything else ---
     Prop->ExportText_InContainer(0, OutValue, Target, nullptr, Target, PPF_None);
     return true;
 }
@@ -945,8 +921,6 @@ bool UWorldStateSubsystem::WritePropertyValue(AActor* Actor, const FWorldStateRe
         *Record.ChangeKey.ToString(), *Value,
         *Target->GetName(), *Actor->GetName());
 
-    // We notify the target via reflection — without parameters.
-    // Уведомляем цель через рефлексию — без параметров.
     InvokeReactionFunction(Target, Record);
 
     return true;
@@ -996,9 +970,6 @@ bool UWorldStateSubsystem::TryFinalizePendingRemoval(FName FactId, AActor* Actor
     WorldStateRecords.Remove(FactId);
 
     // The Removed event has already been published in RemoveWorldStateRecord.
-    // We do not publish it again — otherwise subscribers would see two Removed events for one fact.
-    // Событие Removed уже опубликовано в RemoveWorldStateRecord.
-    // Повторно не публикуем — иначе подписчики увидят два Removed на один факт.
 
     return true;
 }
@@ -1019,8 +990,6 @@ void UWorldStateSubsystem::InvokeReactionFunction(UObject* Target, const FWorldS
         return;
     }
 
-    // A UFUNCTION without parameters — just ProcessEvent with nullptr.
-    // UFUNCTION без параметров — просто ProcessEvent с nullptr.
     Target->ProcessEvent(Func, nullptr);
 
     UE_LOG(LogTemp, Verbose,
@@ -1066,81 +1035,45 @@ void UWorldStateSubsystem::PublishFactEvent(
     Bus->PublishOutcome(Ev);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// InteractSetEnabled → WorldState fact
+// ─────────────────────────────────────────────────────────────────────────────
+
 void UWorldStateSubsystem::SubscribeInteractSetEnabled()
 {
-    // Идемпотентность: повторный вызов — no-op.
     if (InteractSetEnabledHandles.Num() > 0)
         return;
 
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
 
-    // UInteractSetEnabledPayload может прилететь в любой из этих категорий.
-    const EOutcomeType Categories[] =
+    UOutcomeConditionAsset* Cond = NewObject<UOutcomeConditionAsset>(this);
+    Cond->OperatorType = EConditionOperator::Composite;
+    Cond->FilterRow.OutcomeType = EOutcomeType::WorldState;
+    Cond->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+    Cond->FilterRow.WorldStateType = EOutcomeWorldState::InteractionEnabledChanged;
+    Cond->FilterRow.WorldStateComparison = EConditionComparison::Equals;
+
+    Cond->CompileCondition();
+    if (!Cond->GetCondition().IsValid())
     {
-        EOutcomeType::Actor,
-        EOutcomeType::Inventory,
-        EOutcomeType::Terminal,
-        EOutcomeType::Interior
-    };
+        UE_LOG(LogTemp, Warning,
+            TEXT("WorldStateSubsystem: failed to compile InteractSetEnabled condition"));
+        return;
+    }
 
-    //for (EOutcomeType Category : Categories)
-    //{
-        UOutcomeConditionAsset* Cond = NewObject<UOutcomeConditionAsset>(this);
-        Cond->OperatorType = EConditionOperator::Composite;
-        Cond->FilterRow.OutcomeType = EOutcomeType::WorldState;
-        Cond->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-		Cond->FilterRow.WorldStateType = EOutcomeWorldState::InteractionEnabledChanged;
-		Cond->FilterRow.WorldStateComparison = EConditionComparison::Equals;
+    FOutcomeHandlerHandle H = EventBus->RegisterHandler(
+        Cond,
+        FOutcomeHandlerDelegate::CreateUObject(this, &UWorldStateSubsystem::HandleInteractSetEnabled));
 
-
-        /*
-        switch (Category)
-        {
-        case EOutcomeType::Actor:
-            Cond->FilterRow.ActorType = EOutcomeActor::InteractSetEnabled;
-            Cond->FilterRow.ActorComparison = EConditionComparison::Equals;
-            break;
-        case EOutcomeType::Inventory:
-            Cond->FilterRow.ObjectType = EOutcomeInventory::InteractSetEnabled;
-            Cond->FilterRow.ObjectComparison = EConditionComparison::Equals;
-            break;
-        case EOutcomeType::Terminal:
-            Cond->FilterRow.TerminalType = EOutcomeTerminal::InteractSetEnabled;
-            Cond->FilterRow.TerminalComparison = EConditionComparison::Equals;
-            break;
-        case EOutcomeType::Interior:
-            Cond->FilterRow.InteriorType = EOutcomeInterior::InteractSetEnabled;
-            Cond->FilterRow.InteriorComparison = EConditionComparison::Equals;
-            break;
-        default: break;
-        }
-        */
-
-
-        Cond->CompileCondition();
-        if (!Cond->GetCondition().IsValid())
-        {
-            UE_LOG(LogTemp, Warning,
-                TEXT("WorldStateSubsystem: failed to compile InteractSetEnabled condition for category %d"),
-                static_cast<int32>(EOutcomeType::WorldState));
-        }
-
-        FOutcomeHandlerHandle H = EventBus->RegisterHandler(
-            Cond,
-            FOutcomeHandlerDelegate::CreateUObject(
-                this, &UWorldStateSubsystem::HandleInteractSetEnabled));
-
-        if (H.IsValid())
-        {
-            InteractSetEnabledConditions.Add(Cond);
-            InteractSetEnabledHandles.Add(H);
-        }
-    //}
+    if (H.IsValid())
+    {
+        InteractSetEnabledConditions.Add(Cond);
+        InteractSetEnabledHandles.Add(H);
+    }
 
     UE_LOG(LogTemp, Log,
-        TEXT("WorldStateSubsystem: subscribed to InteractSetEnabled for %d categories"),
-        InteractSetEnabledHandles.Num());
+        TEXT("WorldStateSubsystem: subscribed to InteractSetEnabled"));
 }
 
 AActor* UWorldStateSubsystem::FindActorByRuntimeInteractId(const FGuid& RuntimeItemId) const
@@ -1202,7 +1135,7 @@ void UWorldStateSubsystem::HandleInteractSetEnabled(const FOutcomeEventBase& Out
         : *P->TargetActor.ActorLabel);
     Record.Category = EWorldStateChangeCategory::InteractiveObject;
 
-    // Runtime-путь: заполняем ActorRef напрямую, без редакторного пикера.
+    // Runtime path: fill ActorRef directly, bypassing the editor picker.
     Record.ActorRef.ActorPersistentId = PersistentId;
     Record.ActorRef.ActorLabel = P->TargetActor.ActorLabel;
 
@@ -1217,4 +1150,16 @@ void UWorldStateSubsystem::HandleInteractSetEnabled(const FOutcomeEventBase& Out
         *PersistentId.ToString(), *P->TargetActor.ActorLabel);
 
     SetWorldStateRecord(Record);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OnWorldBeginPlay — deferred first re-evaluation hook (optional, hook-safe)
+// ─────────────────────────────────────────────────────────────────────────────
+
+void UWorldStateSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+    // Intentionally left as a hook — WorldStateRecords may already contain
+    // facts from ApplySaveData, and ApplyRecordsToWorld is safe to call here.
+    // If the subsystem is used without a save/load cycle, this is a no-op.
+    bDeferredFirstReevaluate = false;
 }

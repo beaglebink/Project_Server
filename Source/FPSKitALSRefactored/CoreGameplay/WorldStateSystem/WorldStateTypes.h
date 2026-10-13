@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "WorldStateActorRef.h"
+#include "SceneActorRef.h"
 #include "WorldStateTypes.generated.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,10 +35,10 @@ struct FPSKITALSREFACTORED_API FWorldStateRecord
     EWorldStateChangeCategory Category = EWorldStateChangeCategory::Custom;
 
     // ---- Where to apply ----
-    // ---- Куда применять ----
+    // Фильтр пикера в details panel: только актёры с UFloorAssignmentComponent.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState",
         meta = (SceneActorFilter = "FloorAssignmentOnly"))
-    FWorldStateActorRef ActorRef;
+    FSceneActorRef ActorRef;
 
     // NAME_None → свойство ищется на самом актёре.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldState")
