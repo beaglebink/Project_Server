@@ -6,6 +6,7 @@
 
 class AA_DropZone;
 class AA_AreaDropZone;
+class AA_DropZoneGridVisual;
 class AA_InteractableActor;
 
 USTRUCT(BlueprintType)
@@ -16,22 +17,19 @@ struct FDropZonePlacementZone
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TSubclassOf<AA_InteractableActor> ItemClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones", meta = (ClampMin = 0))
-	int32 DropZoneQuantity;
+	FVector ItemMeshSize{ 0.0f,0.0f,0.0f };
 
-	TArray<AA_DropZone*> DropZones;
+	int32 ItemsRows = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|AreaMesh")
-	UStaticMeshComponent* DropZoneMesh;
+	int32 ItemsColumns = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|AreaMeshMaterial")
-	UMaterialInterface* DropZoneMeshMaterial;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|AreaMeshSize")
-	FVector DropZoneMeshSize;
+	int32 DropZoneQuantity = 0;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* DMI_MeshMaterial;
+	AA_DropZoneGridVisual* DropZoneGridVisual;
+
+	UPROPERTY()
+	TArray<AA_DropZone*> DropZones;
 };
 
 UCLASS()
@@ -57,6 +55,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TSubclassOf<AA_DropZone> DropZoneClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
+	TSubclassOf<AA_DropZoneGridVisual> DropZoneGridVisualClass;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	AA_AreaDropZone* AreaDropZone;
