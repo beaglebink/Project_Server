@@ -26,7 +26,8 @@ class FPSKITALSREFACTORED_API UInteractSetEnabledPayload : public UOutcomePayloa
 
 public:
     // --- Designer-facing ---
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractSetEnabled")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteractSetEnabled",
+        meta = (SceneActorFilter = "InteractiveItem"))
     FSceneActorRef TargetActor;
 
     // --- Runtime-facing ---

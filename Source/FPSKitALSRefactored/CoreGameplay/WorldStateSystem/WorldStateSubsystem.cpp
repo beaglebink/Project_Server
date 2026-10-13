@@ -12,6 +12,9 @@
 #include <InteriorSubsystem.h>
 #include "InteractiveItemComponent.h"       // для FindComponentByClass<UInteractiveItemComponent>
 #include "InteractSetEnabledPayload.h"      // для Cast<UInteractSetEnabledPayload>
+#include "WorldStateActorRef.h"
+#include "FloorAsset.h"
+#include "WorldRegionAsset.h"
 
 const FName UWorldStateSubsystem::InteractComponentMarker = FName(TEXT("__InteractItemComponent__"));
 const FName UWorldStateSubsystem::InteractEnabledPropertyName = FName(TEXT("bInteractionEnabled"));
@@ -158,14 +161,8 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
 
     FWorldStateRecord* Existing = WorldStateRecords.Find(Record.FactId);
 
-    // The fact is "new" if it was not in the map OR if it was marked
-    // for removal and is now coming back to life.
-    // Факт "новый", если его не было в карте ИЛИ если он был помечен
-    // на удаление и сейчас оживает.
     const bool bIsNewFact = (Existing == nullptr) || Existing->bPendingRemoval;
 
-    // Remember the previous value BEFORE the mutation.
-    // Запоминаем предыдущее значение ДО мутации.
     FString PreviousValue;
     if (!bIsNewFact && Existing)
     {
@@ -183,9 +180,8 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
 
     FWorldStateRecord& Stored = WorldStateRecords.Add(Record.FactId, NewRecord);
 
-    // Apply to the actor if it is on the scene.
     // Применяем к актёру, если он на сцене.
-    if (AActor* Actor = FindActorByItemId(Stored.ItemId))
+    if (AActor* Actor = FindActorByItemId(Stored.ActorRef.ActorPersistentId))
     {
         CaptureOriginalValueIfMissing(Record.FactId, Actor);
 
@@ -195,10 +191,6 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
         }
     }
 
-    // We make the snapshot for the payload AFTER applying — OriginalValue may
-    // have already been captured, and the subscriber will see the current record state.
-    // Снимок для payload делаем ПОСЛЕ применения — OriginalValue уже
-    // мог быть захвачен, и подписчик увидит актуальное состояние записи.
     const FWorldStateRecord* Final = WorldStateRecords.Find(Record.FactId);
     const FWorldStateRecord Snapshot = Final ? *Final : Stored;
 
@@ -206,7 +198,7 @@ void UWorldStateSubsystem::SetWorldStateRecord(const FWorldStateRecord& Record)
         TEXT("WorldStateSubsystem: SetRecord FactId='%s' (%s) ItemId=%s Component='%s' Key='%s' Value='%s' Original='%s' (captured=%s)"),
         *Record.FactId.ToString(),
         bIsNewFact ? TEXT("ADDED") : TEXT("CHANGED"),
-        *Record.ItemId.ToString(),
+        *Snapshot.ActorRef.ActorPersistentId.ToString(),
         Record.ComponentName.IsNone() ? TEXT("<actor>") : *Record.ComponentName.ToString(),
         *Record.ChangeKey.ToString(),
         *Record.SerializedValue,
@@ -240,22 +232,14 @@ void UWorldStateSubsystem::RemoveWorldStateRecord(FName FactId)
         return;
     }
 
-    // Snapshot BEFORE marking — so the subscriber sees the record "as it was".
-    // Снимок ДО пометки — чтобы подписчик увидел запись "как она была".
     FWorldStateRecord Snapshot = *Record;
     Snapshot.bPendingRemoval = false;
 
-    // What will be restored on the actor (if the original was captured).
-    // Что будет восстановлено на актёре (если оригинал захвачен).
     const bool bHasRestored = Record->bHasOriginalValue;
     const FString RestoredValue = bHasRestored ? Record->OriginalValue : FString();
 
     Record->bPendingRemoval = true;
 
-    // We publish the event immediately — the world considers the fact inactive, even if
-    // restoration on the actor happens later (the actor is not on the scene).
-    // Событие публикуем сразу — мир считает факт неактивным, даже если
-    // восстановление на актёре произойдёт позже (актёра нет на сцене).
     PublishFactEvent(
         FactId,
         Snapshot,
@@ -264,9 +248,7 @@ void UWorldStateSubsystem::RemoveWorldStateRecord(FName FactId)
         RestoredValue,
         bHasRestored);
 
-    // If the actor exists — we finalize immediately.
-    // Если актёр есть — финализируем немедленно.
-    if (AActor* Actor = FindActorByItemId(Record->ItemId))
+    if (AActor* Actor = FindActorByItemId(Record->ActorRef.ActorPersistentId))
     {
         if (TryFinalizePendingRemoval(FactId, Actor))
         {
@@ -294,8 +276,6 @@ void UWorldStateSubsystem::ApplyRecordsToWorld()
         return;
     }
 
-    // We collect facts, splitting them into pending removals and active ones.
-    // Собираем факты, разделяя на pending removals и активные.
     TArray<FName> PendingFactIds;
     TArray<FName> ActiveFactIds;
 
@@ -311,17 +291,12 @@ void UWorldStateSubsystem::ApplyRecordsToWorld()
     int32 Applied = 0;
 
     // --- Pass 1: pending removals ---
-    // They are performed BEFORE applying active facts, to return the property
-    // to its original state, and then apply the current facts on top of it.
-    // --- Проход 1: pending removals ---
-    // Выполняются ДО применения активных фактов, чтобы вернуть свойство
-    // в исходное состояние, а затем уже наложить на него текущие факты.
     for (const FName& FactId : PendingFactIds)
     {
         FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
         if (!Record) continue;
 
-        AActor** ActorPtr = ActorByItemId.Find(Record->ItemId);
+        AActor** ActorPtr = ActorByItemId.Find(Record->ActorRef.ActorPersistentId);
         if (!ActorPtr || !IsValid(*ActorPtr)) continue;
 
         if (TryFinalizePendingRemoval(FactId, *ActorPtr))
@@ -331,13 +306,12 @@ void UWorldStateSubsystem::ApplyRecordsToWorld()
     }
 
     // --- Pass 2: active facts ---
-    // --- Проход 2: активные факты ---
     for (const FName& FactId : ActiveFactIds)
     {
         FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
         if (!Record) continue;
 
-        AActor** ActorPtr = ActorByItemId.Find(Record->ItemId);
+        AActor** ActorPtr = ActorByItemId.Find(Record->ActorRef.ActorPersistentId);
         if (!ActorPtr || !IsValid(*ActorPtr)) continue;
 
         AActor* Actor = *ActorPtr;
@@ -397,7 +371,7 @@ TArray<FWorldStateRecord> UWorldStateSubsystem::GetRecordsForItem(const FGuid& I
     TArray<FWorldStateRecord> Result;
     for (const auto& Pair : WorldStateRecords)
     {
-        if (Pair.Value.ItemId != ItemId) continue;
+        if (Pair.Value.ActorRef.ActorPersistentId != ItemId) continue;
         if (!bIncludePendingRemoval && Pair.Value.bPendingRemoval) continue;
         Result.Add(Pair.Value);
     }
@@ -438,20 +412,35 @@ void UWorldStateSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     {
         const FWorldStateRecord& Rec = Pair.Value;
         TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+
+        // ---- Идентификация факта ----
         Obj->SetStringField(TEXT("FactId"), Rec.FactId.ToString());
         Obj->SetStringField(TEXT("Description"), Rec.Description);
         Obj->SetNumberField(TEXT("Category"), static_cast<int32>(Rec.Category));
-        Obj->SetStringField(TEXT("ItemId"), Rec.ItemId.ToString());
+
+        // ---- ActorRef (замена прежнему ItemId) ----
+        Obj->SetNumberField(TEXT("ActorSceneKind"), static_cast<int32>(Rec.ActorRef.SceneKind));
+        Obj->SetStringField(TEXT("ActorSceneFloor"), Rec.ActorRef.SceneFloor.ToString());
+        Obj->SetStringField(TEXT("ActorSceneRegion"), Rec.ActorRef.SceneRegion.ToString());
+        Obj->SetStringField(TEXT("ActorPersistentId"), Rec.ActorRef.ActorPersistentId.ToString());
+        Obj->SetStringField(TEXT("ActorLabel"), Rec.ActorRef.ActorLabel);
+
+        // ---- Куда применять ----
         Obj->SetStringField(TEXT("ComponentName"),
             Rec.ComponentName.IsNone() ? FString() : Rec.ComponentName.ToString());
         Obj->SetStringField(TEXT("ChangeKey"), Rec.ChangeKey.ToString());
+
+        // ---- Значения ----
         Obj->SetStringField(TEXT("Value"), Rec.SerializedValue);
         Obj->SetStringField(TEXT("OriginalValue"), Rec.OriginalValue);
         Obj->SetBoolField(TEXT("bHasOriginalValue"), Rec.bHasOriginalValue);
         Obj->SetBoolField(TEXT("bPendingRemoval"), Rec.bPendingRemoval);
+
+        // ---- Реакция и таймстамп ----
         Obj->SetStringField(TEXT("ReactionFunctionName"),
             Rec.ReactionFunctionName.IsNone() ? FString() : Rec.ReactionFunctionName.ToString());
         Obj->SetStringField(TEXT("Timestamp"), Rec.Timestamp);
+
         RecordsArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
 
@@ -501,22 +490,34 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         if (!Val->TryGetObject(ObjPtr)) continue;
         const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
 
-        FString FactIdStr, Description, ItemIdStr, ChangeKeyStr, ComponentNameStr;
+        // ---- Локальные переменные для всех полей ----
+        FString FactIdStr, Description, ChangeKeyStr, ComponentNameStr;
         FString Value, OriginalValue, ReactionFunctionNameStr, Timestamp;
+        FString ActorSceneFloorStr, ActorSceneRegionStr, ActorPersistentIdStr, ActorLabelStr;
         int32 CategoryInt = 0;
+        int32 ActorSceneKindInt = 0;
         bool bHasOriginalValue = false;
         bool bPendingRemoval = false;
 
+        // ---- Читаем все поля ----
         Obj->TryGetStringField(TEXT("FactId"), FactIdStr);
         Obj->TryGetStringField(TEXT("Description"), Description);
         Obj->TryGetNumberField(TEXT("Category"), CategoryInt);
-        Obj->TryGetStringField(TEXT("ItemId"), ItemIdStr);
-        Obj->TryGetStringField(TEXT("ChangeKey"), ChangeKeyStr);
+
+        Obj->TryGetNumberField(TEXT("ActorSceneKind"), ActorSceneKindInt);
+        Obj->TryGetStringField(TEXT("ActorSceneFloor"), ActorSceneFloorStr);
+        Obj->TryGetStringField(TEXT("ActorSceneRegion"), ActorSceneRegionStr);
+        Obj->TryGetStringField(TEXT("ActorPersistentId"), ActorPersistentIdStr);
+        Obj->TryGetStringField(TEXT("ActorLabel"), ActorLabelStr);
+
         Obj->TryGetStringField(TEXT("ComponentName"), ComponentNameStr);
+        Obj->TryGetStringField(TEXT("ChangeKey"), ChangeKeyStr);
+
         Obj->TryGetStringField(TEXT("Value"), Value);
         Obj->TryGetStringField(TEXT("OriginalValue"), OriginalValue);
         Obj->TryGetBoolField(TEXT("bHasOriginalValue"), bHasOriginalValue);
         Obj->TryGetBoolField(TEXT("bPendingRemoval"), bPendingRemoval);
+
         Obj->TryGetStringField(TEXT("ReactionFunctionName"), ReactionFunctionNameStr);
         Obj->TryGetStringField(TEXT("Timestamp"), Timestamp);
 
@@ -527,21 +528,41 @@ void UWorldStateSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             continue;
         }
 
-        FGuid ItemId;
-        if (!FGuid::Parse(ItemIdStr, ItemId)) continue;
-
+        // ---- Собираем запись ----
         FWorldStateRecord Record;
         Record.FactId = FName(*FactIdStr);
         Record.Description = Description;
         Record.Category = static_cast<EWorldStateChangeCategory>(CategoryInt);
-        Record.ItemId = ItemId;
+
+        // ---- ActorRef ----
+        Record.ActorRef.SceneKind = static_cast<ESceneAssetKind>(ActorSceneKindInt);
+        if (!ActorSceneFloorStr.IsEmpty())
+        {
+            Record.ActorRef.SceneFloor =
+                TSoftObjectPtr<UFloorAsset>(FSoftObjectPath(ActorSceneFloorStr));
+        }
+        if (!ActorSceneRegionStr.IsEmpty())
+        {
+            Record.ActorRef.SceneRegion =
+                TSoftObjectPtr<UWorldRegionAsset>(FSoftObjectPath(ActorSceneRegionStr));
+        }
+        FGuid::Parse(ActorPersistentIdStr, Record.ActorRef.ActorPersistentId);
+        Record.ActorRef.ActorLabel = ActorLabelStr;
+
+        // ---- Куда применять ----
         Record.ChangeKey = FName(*ChangeKeyStr);
         Record.ComponentName = ComponentNameStr.IsEmpty() ? NAME_None : FName(*ComponentNameStr);
+
+        // ---- Значения ----
         Record.SerializedValue = Value;
         Record.OriginalValue = OriginalValue;
         Record.bHasOriginalValue = bHasOriginalValue;
         Record.bPendingRemoval = bPendingRemoval;
-        Record.ReactionFunctionName = ReactionFunctionNameStr.IsEmpty() ? NAME_None : FName(*ReactionFunctionNameStr);
+
+        // ---- Реакция и таймстамп ----
+        Record.ReactionFunctionName = ReactionFunctionNameStr.IsEmpty()
+            ? NAME_None
+            : FName(*ReactionFunctionNameStr);
         Record.Timestamp = Timestamp;
 
         WorldStateRecords.Add(Record.FactId, Record);
@@ -570,14 +591,12 @@ void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
     if (!FAC || !FAC->ItemId.IsValid())
         return;
 
-    // We collect facts for this actor, splitting them into pending removals and active ones.
-    // Собираем факты для этого актёра, разделяя на pending removals и активные.
     TArray<FName> PendingFactIds;
     TArray<FName> ActiveFactIds;
 
     for (const auto& Pair : WorldStateRecords)
     {
-        if (Pair.Value.ItemId != FAC->ItemId) continue;
+        if (Pair.Value.ActorRef.ActorPersistentId != FAC->ItemId) continue;
 
         if (Pair.Value.bPendingRemoval)
             PendingFactIds.Add(Pair.Key);
@@ -585,15 +604,11 @@ void UWorldStateSubsystem::HandleActorSpawned(AActor* SpawnedActor)
             ActiveFactIds.Add(Pair.Key);
     }
 
-    // --- Pass 1: pending removals ---
-    // --- Проход 1: pending removals ---
     for (const FName& FactId : PendingFactIds)
     {
         TryFinalizePendingRemoval(FactId, SpawnedActor);
     }
 
-    // --- Pass 2: active facts ---
-    // --- Проход 2: активные факты ---
     for (const FName& FactId : ActiveFactIds)
     {
         FWorldStateRecord* Record = WorldStateRecords.Find(FactId);
@@ -1154,7 +1169,6 @@ void UWorldStateSubsystem::HandleInteractSetEnabled(const FOutcomeEventBase& Out
     UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload);
     if (!P) return;
 
-    // Резолвим persistent ID: сначала из TargetActor, потом — из runtime-ItemId.
     FGuid PersistentId = P->TargetActor.ActorPersistentId;
 
     if (!PersistentId.IsValid() && P->ItemId.IsValid())
@@ -1187,7 +1201,11 @@ void UWorldStateSubsystem::HandleInteractSetEnabled(const FOutcomeEventBase& Out
         ? *PersistentId.ToString()
         : *P->TargetActor.ActorLabel);
     Record.Category = EWorldStateChangeCategory::InteractiveObject;
-    Record.ItemId = PersistentId;
+
+    // Runtime-путь: заполняем ActorRef напрямую, без редакторного пикера.
+    Record.ActorRef.ActorPersistentId = PersistentId;
+    Record.ActorRef.ActorLabel = P->TargetActor.ActorLabel;
+
     Record.ComponentName = InteractComponentMarker;
     Record.ChangeKey = InteractEnabledPropertyName;
     Record.SerializedValue = P->bEnabled ? TEXT("True") : TEXT("False");

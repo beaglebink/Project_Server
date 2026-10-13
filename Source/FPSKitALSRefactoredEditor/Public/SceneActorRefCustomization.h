@@ -1,12 +1,25 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "SceneActorRef.h"
+#include "Input/Reply.h"
+#include "Widgets/SWidget.h"
 
 class IPropertyHandle;
-template<typename T> class SComboBox;
+class AActor;
 
+/**
+ * Единый customization для FSceneActorRef и FWorldStateActorRef.
+ *
+ * Раскладка (в порядке отображения):
+ *   SceneKind → SceneFloor / SceneRegion → Actor (picker).
+ *
+ * Набор актёров в пикере определяется meta SceneActorFilter на UPROPERTY,
+ * на которой висит структура:
+ *   - "InteractiveItem"     → FloorAssignmentComponent + InteractiveItemComponent;
+ *   - "FloorAssignmentOnly" → только FloorAssignmentComponent.
+ *   При отсутствии meta используется "InteractiveItem".
+ */
 class FSceneActorRefCustomization : public IPropertyTypeCustomization
 {
 public:
@@ -15,39 +28,44 @@ public:
     virtual void CustomizeHeader(
         TSharedRef<IPropertyHandle> StructPropertyHandle,
         FDetailWidgetRow& HeaderRow,
-        IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+        IPropertyTypeCustomizationUtils& Utils) override;
 
     virtual void CustomizeChildren(
         TSharedRef<IPropertyHandle> StructPropertyHandle,
         IDetailChildrenBuilder& ChildBuilder,
-        IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+        IPropertyTypeCustomizationUtils& Utils) override;
 
 private:
-    void OnSceneChanged();
-    void OnSceneKindChanged();
-    void RebuildActorList();
-    void OnActorSelected(TSharedPtr<FGuid> NewSelection, ESelectInfo::Type SelectInfo);
-    TSharedRef<SWidget> MakeActorComboItem(TSharedPtr<FGuid> Item);
+    enum class EFilterMode : uint8
+    {
+        InteractiveItem,
+        FloorAssignmentOnly
+    };
+
+    EFilterMode ReadFilterMode(const TSharedRef<IPropertyHandle>& StructPropertyHandle) const;
+    bool ActorMatchesFilter(AActor* Actor, EFilterMode Mode) const;
+
+    // Резолвит UWorld по текущему SceneKind + SceneFloor/SceneRegion.
+    UWorld* ResolveSceneWorld() const;
+
+    // Список актёров текущего уровня, подходящих фильтру.
+    TArray<AActor*> CollectCandidateActors() const;
+
+    // Текст для превью в header и для кнопки пикера.
     FText GetCurrentActorLabel() const;
 
-    // --- Handles ---
+    // Меню пикера и обработчики выбора.
+    TSharedRef<SWidget> OnGenerateActorMenu();
+    FReply OnActorSelected(TWeakObjectPtr<AActor> WeakActor);
+    FReply OnClearSelection();
+
+    // ---- Handles ----
+    TSharedPtr<IPropertyHandle> StructHandle;
     TSharedPtr<IPropertyHandle> SceneKindHandle;
     TSharedPtr<IPropertyHandle> SceneFloorHandle;
     TSharedPtr<IPropertyHandle> SceneRegionHandle;
-    TSharedPtr<IPropertyHandle> ActorPersistentIdHandle;
+    TSharedPtr<IPropertyHandle> PersistentIdHandle;
     TSharedPtr<IPropertyHandle> ActorLabelHandle;
 
-    // --- Utils ---
-    TSharedPtr<IPropertyUtilities> PropertyUtilities;
-
-    // --- Helpers ---
-    ESceneAssetKind GetSceneKindFromHandle() const;
-    UWorld* ResolveWorldFromSceneSelection() const;
-
-    FGuid GetActorGuidFromHandle() const;
-    void  SetActorGuidOnHandle(const FGuid& NewGuid) const;
-
-    TArray<TSharedPtr<FGuid>> ActorOptions;
-    TMap<FGuid, FString>      ActorLabels;
-    TSharedPtr<SComboBox<TSharedPtr<FGuid>>> ActorComboBox;
+    EFilterMode CurrentFilterMode = EFilterMode::InteractiveItem;
 };
