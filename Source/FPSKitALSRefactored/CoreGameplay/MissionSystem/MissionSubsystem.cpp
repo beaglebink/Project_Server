@@ -215,8 +215,12 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission %s"),
 			*P->MissionName.ToString());
 
-		FName MissionName = P->MissionName;
+		FName MissionName;
 
+		if (P->Asset)
+		{
+			MissionName = FName(*P->Asset->DisplayName.ToString());
+		}
 
 		FActiveMissionEntry* ActiveMission = ActiveMissions.Find(MissionName);
 		UMissionController* Controller = ActiveMission ? ActiveMission->Controller : nullptr;
@@ -231,15 +235,23 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 		FName ConflictedMissionName;
 		if (MissionAsset)
 		{
-			if (MissionAsset->Envelopes.IsValidIndex(ActiveMission->MissionStep + 1))
+			if (ActiveMission)
 			{
-				FMissionEnvelope& Envelope = MissionAsset->Envelopes[ActiveMission->MissionStep + 1];
-
-				if (IsMissionConflict(MissionName, Envelope, ConflictedMissionName))
+				if (MissionAsset->Envelopes.IsValidIndex(ActiveMission->MissionStep + 1))
 				{
-					UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s'  conflicts with '%s'"), *MissionName.ToString(), *ConflictedMissionName.ToString());
-					return;
+					FMissionEnvelope& Envelope = MissionAsset->Envelopes[ActiveMission->MissionStep + 1];
+
+					if (IsMissionConflict(MissionName, Envelope, ConflictedMissionName))
+					{
+						UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s'  conflicts with '%s'"), *MissionName.ToString(), *ConflictedMissionName.ToString());
+						return;
+					}
 				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: No active mission entry found for '%s'"), *MissionName.ToString());
+				return;
 			}
 
 			int32 StepIndex = ActiveMission->MissionStep;
@@ -367,7 +379,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 		UMissionEnvelopePayload* Payload = EventBus->CreatePayload<UMissionEnvelopePayload>();
 		if (Payload)
 		{
-			Payload->Setup(MissionId, nullptr, EMissionEndReason::None);
+			Payload->Setup(nullptr, EMissionEndReason::None);
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Mission;
 			Ev.OutcomeMission = EOutcomeMission::MissionActivated;

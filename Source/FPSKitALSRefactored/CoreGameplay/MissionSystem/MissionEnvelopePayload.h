@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
 #include "MissionEnvelopeTypes.h"
+#include "MissionAsset.h"
 #include "MissionEnvelopePayload.generated.h"
 
 // ??? UMissionEnvelopePayload ???????????????????????????????????????????????????
@@ -22,7 +23,7 @@ class FPSKITALSREFACTORED_API UMissionEnvelopePayload : public UOutcomePayload
 
 public:
     // Стабильный FName-идентификатор миссии (имя ассета UMissionAsset)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionEnvelope")
+    //UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "MissionEnvelope")
     FName MissionId;
 
     // Ссылка на ассет миссии (заполняется до публикации события)
@@ -35,9 +36,13 @@ public:
 
     // Удобный Setup для C++ и Blueprint
     UFUNCTION(BlueprintCallable, Category = "MissionEnvelope")
-    UMissionEnvelopePayload* Setup(FName InMissionId, UMissionAsset* InAsset, EMissionEndReason InEndReason = EMissionEndReason::Completed)
+    UMissionEnvelopePayload* Setup(/*FName InMissionId, */UMissionAsset* InAsset, EMissionEndReason InEndReason = EMissionEndReason::Completed)
     {
-        MissionId   = InMissionId;
+        //MissionId   = InMissionId;
+        if(InAsset)
+        {
+            MissionId = InAsset->GetMissionId();
+		}
         MissionAsset = InAsset;
         EndReason   = InEndReason;
         return this;

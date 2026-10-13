@@ -74,7 +74,7 @@ const TArray<FCommandSpec>& FPayloadBatchRegistry::GetSpecs()
     {
         // ========================= MISSION =========================
         MakeMission("Mission.Activate",        UMissionEnvelopePayload::StaticClass(),        EOutcomeMission::MissionActivated),
-        MakeMission("Mission.Update",          UMissionEnvelopePayload::StaticClass(),        EOutcomeMission::MissionUpdate),
+        //MakeMission("Mission.Update",          UMissionEnvelopePayload::StaticClass(),        EOutcomeMission::MissionUpdate),
         MakeMission("Mission.Progress",        UMissionProgressPayload::StaticClass(),        EOutcomeMission::MissionProgress),
         MakeMission("Mission.Complete",        UMissionEnvelopePayload::StaticClass(),        EOutcomeMission::MissionCompleted),
         //MakeMission("Mission.ReleaseSnapshot", UReleaseMissionSnapshotPayload::StaticClass(), EOutcomeMission::MissionCompleted),

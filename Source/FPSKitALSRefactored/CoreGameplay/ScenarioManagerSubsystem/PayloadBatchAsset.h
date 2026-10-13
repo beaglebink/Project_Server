@@ -12,6 +12,12 @@ class FPSKITALSREFACTORED_API UPayloadBatchAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "1. Batch")
+    FText ScenarioStepName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "1. Batch")
+    FText ScenarioDescription;
+
     // ===================== Обычные команды (активация шага) =====================
     UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "1. Batch|Activation")
     TArray<TObjectPtr<UPayloadBatchEntry>> Entries;

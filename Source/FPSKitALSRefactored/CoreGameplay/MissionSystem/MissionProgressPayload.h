@@ -10,17 +10,23 @@ class FPSKITALSREFACTORED_API UMissionProgressPayload : public UOutcomePayload
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionProgress")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionProgress")
     FName MissionName;
 
-    // Новое поле: индекс достигнутого шага
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionProgress")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionProgress")
+    UMissionAsset* Asset;
+
+    // Индекс достигнутого шага
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionProgress")
     int32 StepIndex = -1;
 
     UFUNCTION(BlueprintCallable, Category = "MissionProgress")
-    UMissionProgressPayload* Setup(FName InMissionName, int32 InStepIndex = -1)
+    UMissionProgressPayload* Setup(/*FName InMissionName, */UMissionAsset* InAsset, int32 InStepIndex = -1)
     {
-        MissionName = InMissionName;
+        if (InAsset)
+        {
+            MissionName = InAsset->GetMissionId();
+        }
         StepIndex = InStepIndex;
         return this;
     }

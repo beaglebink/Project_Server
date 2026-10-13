@@ -77,6 +77,8 @@ void UInteractiveItemComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	SetIsActive(bInteractionEnabled);
+
 	ItemId = FGuid::NewGuid();
 	CurrentTooltip = InteractiveTooltipText;
 

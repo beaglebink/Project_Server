@@ -84,14 +84,16 @@ public:
 	UFUNCTION()
 	void OnUnregisteredBySubsystem(UInteractItemRegistrationPayload* Payload);
 
+	// Current state - maintained by subsystem updates via EventBus
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, SaveGame, Category = "InteractiveItem|State", meta = (AllowPrivateAccess = "true"))
+	bool bInteractionEnabled = true;
+
 protected:
 	// Legacy: handler when subsystem publishes InteractEnabled via EventBus (kept)
 	void OnInteractEnabledOutcome(const FOutcomeEventBase& Outcome);
 
 protected:
-	// Current state - maintained by subsystem updates via EventBus
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, SaveGame, Category = "InteractiveItem|State", meta = (AllowPrivateAccess = "true"))
-	bool bInteractionEnabled = false;
+
 
 public:
 	// Events
