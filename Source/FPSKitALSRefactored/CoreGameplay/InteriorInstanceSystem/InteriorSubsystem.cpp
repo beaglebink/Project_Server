@@ -3259,6 +3259,29 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 		return;
 	}
 
+	// === Guard: не обрабатываем переход, если мы уже не на исходном уровне ===
+	// (например, событие всё-таки пришло с задержкой или мир уже сменился)
+	if (P->SourceFloor.IsValid())
+	{
+		if (UFloorAsset* SourceFloorAsset = P->SourceFloor.Get())
+		{
+			const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+			const FString SourcePackage =
+				SourceFloorAsset->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+
+			if (!SourcePackage.IsEmpty() &&
+				NormalizeLevelName(CurrentLevelName) != NormalizeLevelName(SourcePackage))
+			{
+				UE_LOG(LogTemp, Warning,
+					TEXT("InteriorSubsystem: HandleFloorTransition skipped — current level '%s' "
+						"does not match source floor '%s'."),
+					*CurrentLevelName, *SourcePackage);
+				return;
+			}
+		}
+	}
+	// === /Guard ===
+
 	TransitionPayloadCache = P;
 	UWorld* W = GetWorld();
 	if (!W)
@@ -3356,12 +3379,11 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 		// Reuse existing payload P (contains SourceFloor info)
 		FOutcomeEventBase Ev;
 		Ev.OutcomeType = EOutcomeType::Interior;
-		Ev.OutcomeInterior = EOutcomeInterior::FloorLeaving; // notify listeners that we're leaving this floor // уведомить слушателей, что мы покидаем этаж
+		Ev.OutcomeInterior = EOutcomeInterior::FloorLeaving; // notify listeners that we're leaving this floor / уведомить слушателей, что мы покидаем этаж
 		Ev.Payload = P;
 		EventBus->PublishOutcome(Ev);
 	}
-	// Then standard local broadcast
-	// Затем стандартный локальный broadcast
+	// Then standard local broadcast / Затем стандартный локальный broadcast
 	OnFloorExiting.Broadcast(P->SourceFloor);
 	SaveLoadFromDisk.Broadcast(true);
 

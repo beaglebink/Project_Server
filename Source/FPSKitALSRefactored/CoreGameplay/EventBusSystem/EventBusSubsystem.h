@@ -143,6 +143,11 @@ private:
     bool bIsProcessingPending = false;
     FCriticalSection HandlersCriticalSection;
 
+// События, которые нельзя откладывать в очередь реентерабельных публикаций.
+// Если такое событие публикуется из обработчика другого события, оно должно
+// быть обработано немедленно, до возврата управления наружу.
+    bool IsCriticalImmediateEvent(const FOutcomeEventBase& Outcome) const;
+
     struct FPendingOperation
     {
         enum class EType : uint8 { Register, Unregister } Type = EType::Unregister;
