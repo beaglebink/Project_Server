@@ -134,23 +134,25 @@ FSceneActorRef USceneActorRefFunctionLibrary::MakeSceneActorRefFromActor(AActor*
 FSceneActorRef USceneActorRefFunctionLibrary::FindSceneActorRefByLabelOnFloor(
     UFloorAsset* FloorAsset, const FString& ActorLabel)
 {
-    FSceneActorRef Result;
-    if (AActor* Actor = FindActorByLabelOnFloor(FloorAsset, ActorLabel))
-    {
-        Result = MakeSceneActorRefFromActor(Actor);
-    }
-    return Result;
+    if (!FloorAsset)
+        return FSceneActorRef();
+
+    UWorld* World = ResolveWorldFromSoftLevel(FloorAsset->FloorLevel);
+    AActor* Actor = FindActorByLabelInWorld(World, ActorLabel);
+
+    return MakeSceneActorRefFromActor(Actor);
 }
 
 FSceneActorRef USceneActorRefFunctionLibrary::FindSceneActorRefByLabelOnRegion(
     UWorldRegionAsset* RegionAsset, const FString& ActorLabel)
 {
-    FSceneActorRef Result;
-    if (AActor* Actor = FindActorByLabelOnRegion(RegionAsset, ActorLabel))
-    {
-        Result = MakeSceneActorRefFromActor(Actor);
-    }
-    return Result;
+    if (!RegionAsset)
+        return FSceneActorRef();
+
+    UWorld* World = ResolveWorldFromSoftLevel(RegionAsset->RegionLevel);
+    AActor* Actor = FindActorByLabelInWorld(World, ActorLabel);
+
+    return MakeSceneActorRefFromActor(Actor);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -177,25 +179,9 @@ TArray<AActor*> USceneActorRefFunctionLibrary::GetActorsFromRegionAsset(
     return CollectActorsFromWorld(World, bRequireFloorAssignment);
 }
 
-AActor* USceneActorRefFunctionLibrary::FindActorByLabelOnFloor(
-    UFloorAsset* FloorAsset, const FString& ActorLabel)
-{
-    if (!FloorAsset)
-        return nullptr;
-
-    UWorld* World = ResolveWorldFromSoftLevel(FloorAsset->FloorLevel);
-    return FindActorByLabelInWorld(World, ActorLabel);
-}
-
-AActor* USceneActorRefFunctionLibrary::FindActorByLabelOnRegion(
-    UWorldRegionAsset* RegionAsset, const FString& ActorLabel)
-{
-    if (!RegionAsset)
-        return nullptr;
-
-    UWorld* World = ResolveWorldFromSoftLevel(RegionAsset->RegionLevel);
-    return FindActorByLabelInWorld(World, ActorLabel);
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Поиск по persistent id в текущем game world
+// ─────────────────────────────────────────────────────────────────────────────
 
 AActor* USceneActorRefFunctionLibrary::FindActorByPersistentId(const FGuid& PersistentId)
 {
