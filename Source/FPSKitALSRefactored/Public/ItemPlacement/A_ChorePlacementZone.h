@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "SaveSubsystems/I_SaveableObject.h"
 #include "A_ChorePlacementZone.generated.h"
 
 class AA_DropZone;
@@ -33,7 +34,7 @@ struct FDropZonePlacementZone
 };
 
 UCLASS()
-class FPSKITALSREFACTORED_API AA_ChorePlacementZone : public AActor
+class FPSKITALSREFACTORED_API AA_ChorePlacementZone : public AActor, public II_SaveableObject
 {
 	GENERATED_BODY()
 
@@ -50,6 +51,21 @@ protected:
 	virtual void Destroyed() override;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChorePlacement")
+	uint8 bIsAutoAcivated : 1{true};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ChorePlacement|SourceZone")
+	UStaticMeshComponent* SourceZoneMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ChorePlacement|SourceZone")
+	UMaterialInterface* SourceZoneMeshMaterial;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* DMI_SourceZoneMeshMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|Name")
+	FName ChorePlacementZoneName;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TSubclassOf<AA_AreaDropZone> AreaDropZoneClass;
 
@@ -65,4 +81,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TArray<FDropZonePlacementZone> DropZonePlacementZones;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ChorePlacement|DropZones")
+	TArray<AA_InteractableActor*> SourcePlacedItems;
+
+	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
+	void SetActivateChorePlacementZone(bool bActivate);
+
+	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
+	void ResetChorePlacementZone();
 };
