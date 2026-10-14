@@ -8,11 +8,42 @@ AA_ChorePlacementZone::AA_ChorePlacementZone()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+	SourceZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SourceZoneMesh"));
+
+	SourceZoneMesh->SetupAttachment(RootComponent);
+	SourceZoneMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	SourceZoneMesh->SetCollisionResponseToAllChannels(ECR_Overlap);
 }
 
 void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+
+	// Set the material for the SourceZoneMesh
+	if (SourceZoneMeshMaterial)
+	{
+		if (!DMI_SourceZoneMeshMaterial)
+		{
+			DMI_SourceZoneMeshMaterial = SourceZoneMesh->CreateDynamicMaterialInstance(0, SourceZoneMeshMaterial);
+		}
+		else
+		{
+			SourceZoneMesh->SetMaterial(0, DMI_SourceZoneMeshMaterial);
+		}
+	}
+
+	// Update source placed items
+	//TSet<AActor*> OverlappingActors;
+	//SourceZoneMesh->GetOverlappingActors(OverlappingActors, AA_InteractableActor::StaticClass());
+	//SourcePlacedItems.Empty();
+	//for (AActor* Actor : OverlappingActors)
+	//{
+	//	if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Actor))
+	//	{
+	//		SourcePlacedItems.Add(InteractableActor);
+	//	}
+	//}
 
 	// AreaDropZone actor
 	if (!AreaDropZone && AreaDropZoneClass)
@@ -80,7 +111,7 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 				for (int32 Column = 0; Column < DropZonePlacementZone.ItemsColumns; ++Column)
 				{
 					int32 Index = Row * DropZonePlacementZone.ItemsColumns + Column;
-					if (DropZonePlacementZone.DropZones.IsValidIndex(Index))
+					if (DropZonePlacementZone.DropZones.IsValidIndex(Index) && IsValid(DropZonePlacementZone.DropZones[Index]))
 					{
 						FVector LocationOffset = FVector(Row * DropZonePlacementZone.ItemMeshSize.X, -Column * DropZonePlacementZone.ItemMeshSize.Y, 0.0f);
 						DropZonePlacementZone.DropZones[Index]->SetActorLocation(DropZonesGridStartLocation + LocationOffset);
@@ -100,6 +131,25 @@ void AA_ChorePlacementZone::Tick(float DeltaTime)
 void AA_ChorePlacementZone::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (DMI_SourceZoneMeshMaterial)
+	{
+		DMI_SourceZoneMeshMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.0f);
+	}
+
+	SetActivateChorePlacementZone(bIsAutoAcivated);
+
+	// Update source placed items
+	TSet<AActor*> OverlappingActors;
+	SourceZoneMesh->GetOverlappingActors(OverlappingActors, AA_InteractableActor::StaticClass());
+	SourcePlacedItems.Empty();
+	for (AActor* Actor : OverlappingActors)
+	{
+		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Actor))
+		{
+			SourcePlacedItems.Add(InteractableActor);
+		}
+	}
 
 }
 
@@ -131,4 +181,28 @@ void AA_ChorePlacementZone::Destroyed()
 	}
 
 	Super::Destroyed();
+}
+
+void AA_ChorePlacementZone::SetActivateChorePlacementZone(bool bActivate)
+{
+	if (AreaDropZone)
+	{
+		AreaDropZone->bIsActive = bActivate;
+	}
+
+	for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
+	{
+		for (AA_DropZone* DropZone : DropZonePlacementZone.DropZones)
+		{
+			if (DropZone)
+			{
+				DropZone->bIsActive = bActivate;
+			}
+		}
+	}
+}
+
+void AA_ChorePlacementZone::ResetChorePlacementZone()
+{
+
 }

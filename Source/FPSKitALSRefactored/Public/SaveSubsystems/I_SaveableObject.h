@@ -50,4 +50,11 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyBackupSaveData(const FGlobalBackupData& SaveData);
+
+	// ChorePlacement save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	FGlobalBackupData CollectChorePlacementSaveData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyChorePlacementSaveData(const FGlobalBackupData& SaveData);
 };
