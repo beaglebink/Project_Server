@@ -32,7 +32,6 @@ void AA_KitchenObject::BeginPlay()
 {
 	Super::BeginPlay();
 
-	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 		{
 			TSet<AActor*> OverlappingActors;
@@ -58,6 +57,13 @@ void AA_KitchenObject::BeginPlay()
 			}
 
 		}, 0.5f, true);
+}
+
+void AA_KitchenObject::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void AA_KitchenObject::Destroyed()

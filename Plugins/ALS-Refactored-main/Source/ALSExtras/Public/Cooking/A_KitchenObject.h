@@ -22,6 +22,8 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	virtual void Destroyed() override;
 
 private:
@@ -33,6 +35,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CookingSettings", meta = (AllowPrivateAccess = true))
 	TArray<AA_Dishes*> PlacedDishes;
+
+	UPROPERTY()
+	FTimerHandle TimerHandle;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CookingSettings")
