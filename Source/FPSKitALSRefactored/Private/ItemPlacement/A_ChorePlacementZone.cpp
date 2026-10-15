@@ -14,6 +14,7 @@ AA_ChorePlacementZone::AA_ChorePlacementZone()
 	SourceZoneMesh->SetupAttachment(RootComponent);
 	SourceZoneMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SourceZoneMesh->SetCollisionResponseToAllChannels(ECR_Overlap);
+	SourceZoneMesh->SetRelativeLocation(FVector(0.0f, -200.0f, 0.0f));
 }
 
 void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
@@ -33,23 +34,12 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 		}
 	}
 
-	// Update source placed items
-	//TSet<AActor*> OverlappingActors;
-	//SourceZoneMesh->GetOverlappingActors(OverlappingActors, AA_InteractableActor::StaticClass());
-	//SourcePlacedItems.Empty();
-	//for (AActor* Actor : OverlappingActors)
-	//{
-	//	if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Actor))
-	//	{
-	//		SourcePlacedItems.Add(InteractableActor);
-	//	}
-	//}
-
 	// AreaDropZone actor
 	if (!AreaDropZone && AreaDropZoneClass)
 	{
 		AreaDropZone = GetWorld()->SpawnActor<AA_AreaDropZone>(AreaDropZoneClass, GetActorTransform());
 		AreaDropZone->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		AreaDropZone->SetActorRelativeLocation(FVector(0.0f, 100.0f, 0.0f));
 	}
 
 	// DropZones actors
@@ -138,19 +128,6 @@ void AA_ChorePlacementZone::BeginPlay()
 	}
 
 	SetActivateChorePlacementZone(bIsAutoAcivated);
-
-	// Update source placed items
-	TSet<AActor*> OverlappingActors;
-	SourceZoneMesh->GetOverlappingActors(OverlappingActors, AA_InteractableActor::StaticClass());
-	SourcePlacedItems.Empty();
-	for (AActor* Actor : OverlappingActors)
-	{
-		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Actor))
-		{
-			SourcePlacedItems.Add(InteractableActor);
-		}
-	}
-
 }
 
 void AA_ChorePlacementZone::Destroyed()
@@ -205,4 +182,26 @@ void AA_ChorePlacementZone::SetActivateChorePlacementZone(bool bActivate)
 void AA_ChorePlacementZone::ResetChorePlacementZone()
 {
 
+}
+
+void AA_ChorePlacementZone::UpdateSourcePlacedItems()
+{
+	SourcePlacedItems.Empty();
+
+	TArray<FOverlapResult> Overlaps;
+	FVector BoxExtent{ 100.0f,100.0f,100.0f };
+	BoxExtent *= SourceZoneMesh->GetComponentScale() / 2.0f;
+	FCollisionShape Shape = FCollisionShape::MakeBox(BoxExtent);
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	GetWorld()->OverlapMultiByChannel(Overlaps, SourceZoneMesh->GetComponentLocation(), SourceZoneMesh->GetComponentQuat(), ECC_WorldDynamic, Shape, Params);
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Result.GetActor()))
+		{
+			SourcePlacedItems.AddUnique(InteractableActor);
+		}
+	}
 }

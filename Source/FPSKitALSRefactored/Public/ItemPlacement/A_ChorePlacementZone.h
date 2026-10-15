@@ -81,6 +81,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TArray<FDropZonePlacementZone> DropZonePlacementZones;
 
+	UFUNCTION(CallInEditor, Category = "ChorePlacement|DropZones")
+	void UpdateSourcePlacedItems();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ChorePlacement|DropZones")
 	TArray<AA_InteractableActor*> SourcePlacedItems;
 
