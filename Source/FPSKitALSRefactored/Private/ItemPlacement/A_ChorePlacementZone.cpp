@@ -3,6 +3,8 @@
 #include "ItemPlacement/A_AreaDropZone.h"
 #include "ItemPlacement/A_DropZoneGridVisual.h"
 #include "PythonContainers/A_InteractableActor.h"
+#include "FloorAssignmentComponent.h"
+#include "ProceduralMeshComponent.h"
 
 AA_ChorePlacementZone::AA_ChorePlacementZone()
 {
@@ -181,12 +183,34 @@ void AA_ChorePlacementZone::SetActivateChorePlacementZone(bool bActivate)
 
 void AA_ChorePlacementZone::ResetChorePlacementZone()
 {
+	for (const auto& [ItemId, ItemData] : SourcePlacedItems)
+	{
+		ItemData.ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		ItemData.ItemActor->AttachingDropZone = nullptr;
+		ItemData.ItemActor->SetActorTransform(ItemData.ItemDefaultTransform);
+		ItemData.ItemActor->bIsHeld = false;
+		ItemData.ItemActor->bIsAttached = false;
 
+		if (ItemData.ItemActor->Implements<UInteractiveActorInterface>())
+		{
+			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
+			UProceduralMeshComponent* ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
+			if (StaticMeshComponent)
+			{
+				StaticMeshComponent->SetSimulatePhysics(true);
+			}
+			if (ProceduralMeshComponent)
+			{
+				ProceduralMeshComponent->SetSimulatePhysics(true);
+			}
+		}
+	}
 }
 
 void AA_ChorePlacementZone::UpdateSourcePlacedItems()
 {
 	SourcePlacedItems.Empty();
+	SourcePlacedItemTags.Empty();
 
 	TArray<FOverlapResult> Overlaps;
 	FVector BoxExtent{ 100.0f,100.0f,100.0f };
@@ -201,7 +225,16 @@ void AA_ChorePlacementZone::UpdateSourcePlacedItems()
 	{
 		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Result.GetActor()))
 		{
-			SourcePlacedItems.AddUnique(InteractableActor);
+			FSourceItemData ItemData;
+			ItemData.ItemActor = InteractableActor;
+			ItemData.ItemDefaultTransform = InteractableActor->GetActorTransform();
+			FGuid ItemId;
+			if (UFloorAssignmentComponent* FloorAssignmentComp = InteractableActor->FindComponentByClass<UFloorAssignmentComponent>())
+			{
+				ItemId = FloorAssignmentComp->GetItemId();
+			}
+			SourcePlacedItems.FindOrAdd(ItemId) = ItemData;
+			SourcePlacedItemTags.Add(InteractableActor->Tag);
 		}
 	}
 }

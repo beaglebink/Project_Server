@@ -33,6 +33,18 @@ struct FDropZonePlacementZone
 	TArray<AA_DropZone*> DropZones;
 };
 
+USTRUCT(BlueprintType)
+struct FSourceItemData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	AA_InteractableActor* ItemActor;
+
+	UPROPERTY()
+	FTransform ItemDefaultTransform;
+};
+
 UCLASS()
 class FPSKITALSREFACTORED_API AA_ChorePlacementZone : public AActor, public II_SaveableObject
 {
@@ -84,8 +96,11 @@ public:
 	UFUNCTION(CallInEditor, Category = "ChorePlacement|DropZones")
 	void UpdateSourcePlacedItems();
 
+	UPROPERTY()
+	TMap<FGuid, FSourceItemData> SourcePlacedItems;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ChorePlacement|DropZones")
-	TArray<AA_InteractableActor*> SourcePlacedItems;
+	TArray<FGameplayTag> SourcePlacedItemTags;
 
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
 	void SetActivateChorePlacementZone(bool bActivate);
