@@ -220,9 +220,9 @@ void AA_Dishes::BeginPlay()
 
 	PrevLocation = GetActorLocation();
 
-	FTimerHandle TimerHandle;
 	GetWorldTimerManager().SetTimer(TimerHandle, [this]()
 		{
+			OverlappingActors_Ingredients.Empty();
 			CollisionShape->GetOverlappingActors(OverlappingActors_Ingredients, AA_Cookable::StaticClass());
 
 			// Check if ingredient doesn't belong any dish
@@ -414,10 +414,18 @@ void AA_Dishes::BeginPlay()
 	}
 }
 
+void AA_Dishes::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Clear the timer when the actor is destroyed or the game ends
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+	GetWorldTimerManager().ClearTimer(CookingTimerHandle);
+
+	Super::EndPlay(EndPlayReason);
+}
+
 void AA_Dishes::Destroyed()
 {
 	Super::Destroyed();
-
 }
 
 void AA_Dishes::PourLiquid(float DeltaTime)

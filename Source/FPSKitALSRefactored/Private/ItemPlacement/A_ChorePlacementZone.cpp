@@ -3,6 +3,9 @@
 #include "ItemPlacement/A_AreaDropZone.h"
 #include "ItemPlacement/A_DropZoneGridVisual.h"
 #include "PythonContainers/A_InteractableActor.h"
+#include "FloorAssignmentComponent.h"
+#include "ProceduralMeshComponent.h"
+#include "SaveSubsystems/GIS_ChorePlacement.h"
 
 AA_ChorePlacementZone::AA_ChorePlacementZone()
 {
@@ -10,10 +13,13 @@ AA_ChorePlacementZone::AA_ChorePlacementZone()
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	SourceZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SourceZoneMesh"));
+	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
 
 	SourceZoneMesh->SetupAttachment(RootComponent);
+
 	SourceZoneMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SourceZoneMesh->SetCollisionResponseToAllChannels(ECR_Overlap);
+	SourceZoneMesh->SetRelativeLocation(FVector(0.0f, -200.0f, 0.0f));
 }
 
 void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
@@ -33,23 +39,12 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 		}
 	}
 
-	// Update source placed items
-	//TSet<AActor*> OverlappingActors;
-	//SourceZoneMesh->GetOverlappingActors(OverlappingActors, AA_InteractableActor::StaticClass());
-	//SourcePlacedItems.Empty();
-	//for (AActor* Actor : OverlappingActors)
-	//{
-	//	if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Actor))
-	//	{
-	//		SourcePlacedItems.Add(InteractableActor);
-	//	}
-	//}
-
 	// AreaDropZone actor
 	if (!AreaDropZone && AreaDropZoneClass)
 	{
 		AreaDropZone = GetWorld()->SpawnActor<AA_AreaDropZone>(AreaDropZoneClass, GetActorTransform());
 		AreaDropZone->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		AreaDropZone->SetActorRelativeLocation(FVector(0.0f, 100.0f, 0.0f));
 	}
 
 	// DropZones actors
@@ -139,18 +134,14 @@ void AA_ChorePlacementZone::BeginPlay()
 
 	SetActivateChorePlacementZone(bIsAutoAcivated);
 
-	// Update source placed items
-	TSet<AActor*> OverlappingActors;
-	SourceZoneMesh->GetOverlappingActors(OverlappingActors, AA_InteractableActor::StaticClass());
-	SourcePlacedItems.Empty();
-	for (AActor* Actor : OverlappingActors)
+	if (UGameInstance* GI = GetGameInstance())
 	{
-		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Actor))
+		if (UGIS_ChorePlacement* ChoreSys = GI->GetSubsystem<UGIS_ChorePlacement>())
 		{
-			SourcePlacedItems.Add(InteractableActor);
+			ChoreSys->AddSaveableObject(this);
+			ChoreSys->ApplyChorePlacementData(this);
 		}
 	}
-
 }
 
 void AA_ChorePlacementZone::Destroyed()
@@ -183,6 +174,38 @@ void AA_ChorePlacementZone::Destroyed()
 	Super::Destroyed();
 }
 
+void AA_ChorePlacementZone::UpdateSourcePlacedItems()
+{
+	SourcePlacedItems.Empty();
+	SourcePlacedItemTags.Empty();
+
+	TArray<FOverlapResult> Overlaps;
+	FVector BoxExtent{ 100.0f,100.0f,100.0f };
+	BoxExtent *= SourceZoneMesh->GetComponentScale() / 2.0f;
+	FCollisionShape Shape = FCollisionShape::MakeBox(BoxExtent);
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	GetWorld()->OverlapMultiByChannel(Overlaps, SourceZoneMesh->GetComponentLocation(), SourceZoneMesh->GetComponentQuat(), ECC_WorldDynamic, Shape, Params);
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(Result.GetActor()))
+		{
+			FSourceItemData ItemData;
+			ItemData.ItemActor = InteractableActor;
+			ItemData.ItemDefaultTransform = InteractableActor->GetActorTransform();
+			FGuid ItemId;
+			if (UFloorAssignmentComponent* FloorAssignmentComp = InteractableActor->FindComponentByClass<UFloorAssignmentComponent>())
+			{
+				ItemId = FloorAssignmentComp->GetItemId();
+			}
+			SourcePlacedItems.FindOrAdd(ItemId) = ItemData;
+			SourcePlacedItemTags.Add(InteractableActor->Tag);
+		}
+	}
+}
+
 void AA_ChorePlacementZone::SetActivateChorePlacementZone(bool bActivate)
 {
 	if (AreaDropZone)
@@ -204,5 +227,36 @@ void AA_ChorePlacementZone::SetActivateChorePlacementZone(bool bActivate)
 
 void AA_ChorePlacementZone::ResetChorePlacementZone()
 {
+	for (const auto& [ItemId, ItemData] : SourcePlacedItems)
+	{
+		ItemData.ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		ItemData.ItemActor->AttachingDropZone = nullptr;
+		ItemData.ItemActor->SetActorTransform(ItemData.ItemDefaultTransform);
+		ItemData.ItemActor->bIsHeld = false;
+		ItemData.ItemActor->bIsAttached = false;
 
+		if (ItemData.ItemActor->Implements<UInteractiveActorInterface>())
+		{
+			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
+			UProceduralMeshComponent* ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
+			if (StaticMeshComponent)
+			{
+				StaticMeshComponent->SetSimulatePhysics(true);
+			}
+			if (ProceduralMeshComponent)
+			{
+				ProceduralMeshComponent->SetSimulatePhysics(true);
+			}
+		}
+	}
+}
+
+FSaveItemData AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementation()
+{
+	return FSaveItemData();
+}
+
+void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const FSaveItemData& SaveData)
+{
+	int a = 10;
 }

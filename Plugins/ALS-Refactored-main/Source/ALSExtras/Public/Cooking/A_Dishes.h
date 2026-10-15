@@ -112,6 +112,8 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	virtual void Destroyed() override;
 
 private:
@@ -127,8 +129,12 @@ private:
 	TArray<AA_Spices*> Spices;
 
 	UPROPERTY()
-	TMap<FGameplayTag, int32> IngredientCountMap;
+	FTimerHandle TimerHandle;
 
+	UPROPERTY()
+	TMap<FGameplayTag, int32> IngredientCountMap;
+		
+	UPROPERTY()
 	TSet<AActor*> OverlappingActors_Ingredients;
 
 	TSet<AActor*> OverlappingActors_Spices;

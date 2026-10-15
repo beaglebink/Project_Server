@@ -9,6 +9,7 @@ class AA_DropZone;
 class AA_AreaDropZone;
 class AA_DropZoneGridVisual;
 class AA_InteractableActor;
+class UFloorAssignmentComponent;
 
 USTRUCT(BlueprintType)
 struct FDropZonePlacementZone
@@ -31,6 +32,18 @@ struct FDropZonePlacementZone
 
 	UPROPERTY()
 	TArray<AA_DropZone*> DropZones;
+};
+
+USTRUCT(BlueprintType)
+struct FSourceItemData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	AA_InteractableActor* ItemActor;
+
+	UPROPERTY()
+	FTransform ItemDefaultTransform;
 };
 
 UCLASS()
@@ -81,12 +94,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TArray<FDropZonePlacementZone> DropZonePlacementZones;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UFloorAssignmentComponent* FloorAssignmentComponent;
+
+	UFUNCTION(CallInEditor, Category = "ChorePlacement|DropZones")
+	void UpdateSourcePlacedItems();
+
+	UPROPERTY()
+	TMap<FGuid, FSourceItemData> SourcePlacedItems;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ChorePlacement|DropZones")
-	TArray<AA_InteractableActor*> SourcePlacedItems;
+	TArray<FGameplayTag> SourcePlacedItemTags;
 
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
 	void SetActivateChorePlacementZone(bool bActivate);
 
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
 	void ResetChorePlacementZone();
+
+	// II_SaveableObject interface
+	virtual FSaveItemData CollectChorePlacementSaveData_Implementation() override;
+
+	virtual void ApplyChorePlacementSaveData_Implementation(const FSaveItemData& SaveData) override;
 };

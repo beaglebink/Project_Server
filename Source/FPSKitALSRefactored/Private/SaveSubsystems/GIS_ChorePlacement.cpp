@@ -1,5 +1,6 @@
 #include "SaveSubsystems/GIS_ChorePlacement.h"
 #include <GameSaveSubsystem.h>
+#include "FloorAssignmentComponent.h"
 
 void UGIS_ChorePlacement::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -39,16 +40,10 @@ void UGIS_ChorePlacement::CollectSaveData(FSubsystemSaveData& OutData)
 			continue;
 		}
 
-		TMap<FString, FText> SaveDataMap = II_SaveableObject::Execute_CollectTextFilesSaveData(SaveableObject);
+		FSaveItemData SaveDataMap = II_SaveableObject::Execute_CollectChorePlacementSaveData(SaveableObject);
 
-		TSharedPtr<FJsonObject> ComputerProfile = MakeShared<FJsonObject>();
 
-		for (const auto& Pair : SaveDataMap)
-		{
-			ComputerProfile->SetStringField(Pair.Key, Pair.Value.ToString());
-		}
 
-		Root->SetObjectField(SaveableObject->GetName(), ComputerProfile);
 	}
 
 	FString JsonString;
@@ -62,8 +57,6 @@ void UGIS_ChorePlacement::ApplySaveData(const FSubsystemSaveData& InData)
 {
 
 	bIsLoadComplete = false;
-
-	CachedProfilesTextFilesData.Empty();
 
 	if (InData.SerializedData.IsEmpty())
 	{
@@ -80,29 +73,11 @@ void UGIS_ChorePlacement::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
-	for (const auto& ProfilePair : Root->Values)
-	{
-		const TSharedPtr<FJsonObject>* ProfileJson = nullptr;
 
-		if (!Root->TryGetObjectField(ProfilePair.Key, ProfileJson))
-		{
-			continue;
-		}
 
-		TMap<FString, FText> SaveDataMap;
 
-		for (const auto& FilePair : (*ProfileJson)->Values)
-		{
-			FString Value;
 
-			if (FilePair.Value->TryGetString(Value))
-			{
-				SaveDataMap.Add(FilePair.Key, FText::FromString(Value));
-			}
-		}
 
-		CachedProfilesTextFilesData.Add(FName(ProfilePair.Key), MoveTemp(SaveDataMap));
-	}
 
 	bIsLoadComplete = true;
 }
@@ -121,21 +96,25 @@ void UGIS_ChorePlacement::AddSaveableObject(UObject* NewSaveableObject)
 	}
 }
 
-void UGIS_ChorePlacement::ApplyChorePlacementData_Implementation(UObject* ChorePlacementObject)
+void UGIS_ChorePlacement::ApplyChorePlacementData_Implementation(AActor* ChorePlacementZone)
 {
-	if (!ChorePlacementObject || !ChorePlacementObject->Implements<UI_SaveableObject>())
+	if (!ChorePlacementZone || !ChorePlacementZone->Implements<UI_SaveableObject>())
 	{
 		return;
 	}
 
-	const FName ProfileName(*ChorePlacementObject->GetName());
+	FGuid ActorID;
+	if (UFloorAssignmentComponent* FloorAssignmentComp = ChorePlacementZone->FindComponentByClass<UFloorAssignmentComponent>())
+	{
+		ActorID = FloorAssignmentComp->GetItemId();
+	}
 
-	const TMap<FString, FText>* FoundData = CachedProfilesTextFilesData.Find(ProfileName);
+	const FSaveItemData* FoundData = CachedChorePlacementZoneData.Find(ActorID);
 
 	if (!FoundData)
 	{
 		return;
 	}
 
-	//II_SaveableObject::Execute_ApplyTextFilesSaveData(ProfileObject, *FoundData);
+	II_SaveableObject::Execute_ApplyChorePlacementSaveData(ChorePlacementZone, *FoundData);
 }

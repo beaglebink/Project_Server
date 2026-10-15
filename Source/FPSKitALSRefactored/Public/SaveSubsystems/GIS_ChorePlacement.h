@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ISaveableSubsystem.h"
-#include "SaveSubsystems/I_SaveableObject.h"
+#include "ItemPlacement/A_ChorePlacementZone.h"
 #include "GIS_ChorePlacement.generated.h"
 
 UCLASS()
@@ -34,10 +34,10 @@ public:
 	void AddSaveableObject(UObject* NewSaveableObject);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveableObject")
-	void ApplyChorePlacementData(UObject* ChorePlacementObject);
+	void ApplyChorePlacementData(AActor* ChorePlacementZone);
 
 private:
-	TMap<FName, TMap<FString, FText>> CachedProfilesTextFilesData;
+	TMap<FGuid, FSaveItemData> CachedChorePlacementZoneData;
 
 	bool bIsLoadComplete = false;
 };

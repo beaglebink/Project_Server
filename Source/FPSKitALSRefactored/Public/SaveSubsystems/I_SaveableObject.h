@@ -5,6 +5,18 @@
 #include "Core/CubixonCoreData.h"
 #include "I_SaveableObject.generated.h"
 
+USTRUCT(BlueprintType)
+struct FSaveItemData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid ItemId;
+
+	UPROPERTY()
+	FTransform ItemDefaultTransform;
+};
+
 UINTERFACE(MinimalAPI, BlueprintType)
 class UI_SaveableObject : public UInterface
 {
@@ -53,8 +65,8 @@ public:
 
 	// ChorePlacement save data collection and application functions
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	FGlobalBackupData CollectChorePlacementSaveData();
+	FSaveItemData CollectChorePlacementSaveData();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyChorePlacementSaveData(const FGlobalBackupData& SaveData);
+	void ApplyChorePlacementSaveData(const FSaveItemData& SaveData);
 };
