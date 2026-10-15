@@ -43,4 +43,6 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionEnvelope")
     EMissionEndReason GetEndReason() const { return EndReason; }
+
+    virtual void OnBeforePublish(const FCommandSpec* Spec, const UPayloadBatchEntry* Entry) override;
 };

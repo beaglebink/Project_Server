@@ -3,6 +3,7 @@
 #include "FloorPlacementPayload.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "InteriorSubsystem.h"   
 
 UFloorAssignmentComponent::UFloorAssignmentComponent()
 {
@@ -55,10 +56,25 @@ void UFloorAssignmentComponent::BeginPlay()
             }
         }
     }
+    if (ItemId.IsValid())
+    {
+        if (UInteriorSubsystem* Subsystem = GetInteriorSubsystem())
+        {
+            Subsystem->RegisterFloorActor(GetOwner(), ItemId);
+        }
+    }
 }
 
 void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    if (ItemId.IsValid())
+    {
+        if (UInteriorSubsystem* Subsystem = GetInteriorSubsystem())
+        {
+            Subsystem->UnregisterFloorActor(ItemId);
+        }
+    }
+
     if (SnapshotChannel == ESnapshotChannel::None || !ItemId.IsValid())
         return;
 
@@ -112,6 +128,18 @@ void UFloorAssignmentComponent::PostEditImport()
         ProtectedItemId = ItemId;
         MarkPackageDirty();
     }
+}
+
+UInteriorSubsystem* UFloorAssignmentComponent::GetInteriorSubsystem() const
+{
+    if (UWorld* W = GetWorld())
+    {
+        if (UGameInstance* GI = W->GetGameInstance())
+        {
+            return GI->GetSubsystem<UInteriorSubsystem>();
+        }
+    }
+    return nullptr;
 }
 
 void UFloorAssignmentComponent::MarkPackageDirty()
@@ -181,4 +209,12 @@ void UFloorAssignmentComponent::Registrate(EFloorActorType Type, FGuid ForceItem
 
     // Публикуем событие обновления регистрации (теги уже установлены в Blueprint)
     PublishRegistration();
+
+    if (ItemId.IsValid())
+    {
+        if (UInteriorSubsystem* Subsystem = GetInteriorSubsystem())
+        {
+            Subsystem->RegisterFloorActor(GetOwner(), ItemId);
+        }
+    }
 }

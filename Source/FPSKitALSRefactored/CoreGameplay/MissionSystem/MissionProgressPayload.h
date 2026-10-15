@@ -2,6 +2,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
+#include "MissionAsset.h"
 #include "MissionProgressPayload.generated.h"
 
 UCLASS(BlueprintType, Blueprintable)
@@ -36,4 +37,6 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionProgress")
     int32 GetStepIndex() const { return StepIndex; }
+
+    virtual void OnBeforePublish(const FCommandSpec* Spec, const UPayloadBatchEntry* Entry) override;
 };

@@ -6,6 +6,8 @@
 #include "GameplayTagContainer.h"
 #include "FloorAssignmentComponent.generated.h"
 
+class UInteriorSubsystem;
+
 UENUM(BlueprintType)
 enum class ESnapshotChannel : uint8
 {
@@ -70,4 +72,6 @@ protected:
 
 private:
     bool IsRuntimeSpawned = false;
+
+    UInteriorSubsystem* GetInteriorSubsystem() const;
 };

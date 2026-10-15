@@ -89,6 +89,8 @@ void UPayloadBatchAsset::ExecuteEntry(UObject* WorldContextObject, UPayloadBatch
         if (!ToPublish) return;
     }
 
+    ToPublish->OnBeforePublish(Spec, Entry);
+
     // 2) FOutcomeEventBase + route из реестра.
     FOutcomeEventBase Event;
     FPayloadBatchRegistry::ApplyRouteToEvent(Spec->Route, Event);

@@ -228,6 +228,33 @@ public:
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Check")
     int32 GetRemainingOriginalTagCountForCurrentFloor(ETagType TagType, const FName& TextTag, const FGameplayTag& GameplayTag) const;
 
+    // === Живой реестр акторов с UFloorAssignmentComponent ===
+
+    /** Зарегистрировать актора по ItemId (перезаписывает, если такой уже был). */
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Registry")
+    void RegisterFloorActor(AActor* Actor, const FGuid& ItemId);
+
+    /** Убрать актора из реестра по ItemId. */
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Registry")
+    void UnregisterFloorActor(const FGuid& ItemId);
+
+    /** Получить актора по ItemId (nullptr, если его нет/уничтожен). */
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorSubsystem|Registry")
+    AActor* GetFloorActorByItemId(const FGuid& ItemId) const;
+
+    /** Получить все живые акторы реестра. */
+    UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Registry")
+    void GetAllRegisteredFloorActors(TArray<AActor*>& OutActors) const;
+
+    /** Сколько живых записей в реестре. */
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorSubsystem|Registry")
+    int32 GetRegisteredFloorActorCount() const { return RegisteredFloorActors.Num(); }
+
+    /** Полная очистка реестра (например, при смене уровня). */
+    void ClearRegisteredFloorActors();
+
+    // === /Живой реестр ===
+
     // Public методы для доступа к картам (возвращаем const ссылки)
     const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& GetMissionSpawnedActors() const { return MissionSpawnedActorsByInteriorFloor; }
     const TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>>& GetMissionDestroyedActors() const { return MissionDestroyedActorsByInteriorFloor; }
@@ -388,4 +415,7 @@ private:
 
     bool IsLoadComplete = true;
 	bool IsPostLoadMapComplete = false; 
+
+    /** ItemId -> актор. Weak — не держим актора живым. */
+    TMap<FGuid, TWeakObjectPtr<AActor>> RegisteredFloorActors;
 };

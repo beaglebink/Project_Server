@@ -3917,6 +3917,8 @@ void UInteriorSubsystem::Deinitialize()
 
 	UnsubscribeFromSpawnActor();
 
+	RegisteredFloorActors.Empty();
+
 	// Unsubscribe from saving
 	// Отписка от сохранения
 	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
@@ -5346,8 +5348,6 @@ void UInteriorSubsystem::TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLe
 	UFloorAssignmentComponent* Comp = SpawnedActor->FindComponentByClass<UFloorAssignmentComponent>();
 	if (!Comp || Comp->SnapshotChannel == ESnapshotChannel::None) return;
 
-	// If an actor with this ItemId is already registered in SpawnedActorsByInteriorFloor, skip registration
-	// Если актор с таким ItemId уже зарегистрирован в SpawnedActorsByInteriorFloor, пропускаем регистрацию
 	if (ContainsActorIdInSpawned(SpawnedActorsByInteriorFloorTemp, Comp->ItemId))
 	{
 		return;
@@ -5355,8 +5355,9 @@ void UInteriorSubsystem::TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLe
 
 	if (Comp->ItemId.IsValid())
 	{
-		// publish event
-		// публикуем событие
+		//RegisterFloorActor(SpawnedActor, Comp->ItemId);
+
+		// publish event (существующая логика)
 		if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
 		{
 			UFloorPlacementPayload* Payload = EventBus->CreatePayload<UFloorPlacementPayload>();
@@ -5379,7 +5380,10 @@ void UInteriorSubsystem::TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLe
 		if (UWorld* World = GetWorld())
 		{
 			FTimerHandle RetryHandle;
-			World->GetTimerManager().SetTimer(RetryHandle, FTimerDelegate::CreateUObject(this, &UInteriorSubsystem::TryRegisterActor, SpawnedActor, AttemptsLeft - 1), 0.05f, false);
+			World->GetTimerManager().SetTimer(
+				RetryHandle,
+				FTimerDelegate::CreateUObject(this, &UInteriorSubsystem::TryRegisterActor, SpawnedActor, AttemptsLeft - 1),
+				0.05f, false);
 		}
 	}
 }
@@ -5787,6 +5791,49 @@ int32 UInteriorSubsystem::GetRemainingOriginalTagCountForCurrentFloor(ETagType T
 	// --- 3. Original existing with the tag = total - alive spawns with the tag ---
 	// --- 3. Оригинальные существующие с тегом = общие - живые спавны с тегом ---
 	return TotalExisting - AliveSpawnedTag;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Живой реестр Floor-акторов
+// ─────────────────────────────────────────────────────────────────────────────
+
+void UInteriorSubsystem::RegisterFloorActor(AActor* Actor, const FGuid& ItemId)
+{
+	if (!IsValid(Actor) || !ItemId.IsValid())
+		return;
+
+	RegisteredFloorActors.Add(ItemId, Actor);
+}
+
+void UInteriorSubsystem::UnregisterFloorActor(const FGuid& ItemId)
+{
+	if (!ItemId.IsValid())
+		return;
+
+	RegisteredFloorActors.Remove(ItemId);
+}
+
+AActor* UInteriorSubsystem::GetFloorActorByItemId(const FGuid& ItemId) const
+{
+	if (const TWeakObjectPtr<AActor>* Found = RegisteredFloorActors.Find(ItemId))
+		return Found->Get();
+	return nullptr;
+}
+
+void UInteriorSubsystem::GetAllRegisteredFloorActors(TArray<AActor*>& OutActors) const
+{
+	OutActors.Reset();
+	OutActors.Reserve(RegisteredFloorActors.Num());
+	for (const TPair<FGuid, TWeakObjectPtr<AActor>>& Pair : RegisteredFloorActors)
+	{
+		if (AActor* A = Pair.Value.Get())
+			OutActors.Add(A);
+	}
+}
+
+void UInteriorSubsystem::ClearRegisteredFloorActors()
+{
+	RegisteredFloorActors.Empty();
 }
 
 void UInteriorSubsystem::RebuildPopulationMapsForCurrentFloor()

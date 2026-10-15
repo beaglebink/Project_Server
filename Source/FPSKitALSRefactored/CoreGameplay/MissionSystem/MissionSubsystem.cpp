@@ -221,6 +221,10 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 		{
 			MissionName = FName(*P->Asset->DisplayName.ToString());
 		}
+		else
+		{
+			MissionName = P->MissionName;
+		}
 
 		FActiveMissionEntry* ActiveMission = ActiveMissions.Find(MissionName);
 		UMissionController* Controller = ActiveMission ? ActiveMission->Controller : nullptr;
