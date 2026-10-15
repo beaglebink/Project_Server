@@ -1677,7 +1677,9 @@ bool UInteriorSubsystem::ShouldSaveEnemyStates(ASpawnGroupSpawner* Spawner, cons
 	return false;
 }
 
-void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId, const FGuid& FloorId, FName MissionId, EMissionEndReason Reason/*, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry>& Channels*/)
+void UInteriorSubsystem::SaveFloorActorsStateComplete(
+	const FGuid& InteriorSetId, const FGuid& FloorId,
+	FName MissionId, EMissionEndReason Reason/*, EJobSpacePolicy JobSpacePolicy, const TArray<FEnvelopeChannelEntry>& Channels*/)
 {
 	UWorld* W = GetWorld();
 	if (!W) return;
@@ -1687,7 +1689,7 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 	auto MissionInterior = ActiveMissions.Find(MissionId);
 	FMissionEnvelope Envelope = FMissionEnvelope();
 	TArray<FMissionEnvelope> Envelopes;
-	int32 MissionStep;
+	int32 MissionStep = 0;
 	if (MissionInterior)
 	{
 		MissionStep = MissionInterior->MissionStep;
@@ -1703,9 +1705,67 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 		return;
 	}
 
+	// ─────────────────────────────────────────────────────────────────────
+	// Ветка 1: сцена миссии НЕ открыта — работаем только со снапшотами
+	// ─────────────────────────────────────────────────────────────────────
+	if (!IsCurrentFloorInMissionScope(Envelope, FloorId))
+	{
+		TMap<FName, TArray<FFloorSavedActorState>>* PerFloor =
+			MissionFloorSnapshots.Find(Key);
+		TArray<FFloorSavedActorState>* MissionSnapshots =
+			PerFloor ? PerFloor->Find(MissionId) : nullptr;
+
+		if (!MissionSnapshots || MissionSnapshots->IsEmpty())
+		{
+			// Снапшотов нет — миссия не влияла на эту сцену, ничего не делаем.
+			return;
+		}
+
+		// Выборочно применяем политику к постоянному хранилищу.
+		TArray<FFloorSavedActorState>& FloorSnapshots =
+			FloorStateSnapshots.FindOrAdd(Key);
+
+		for (const FFloorSavedActorState& Snapshot : *MissionSnapshots)
+		{
+			const EEnvelopeChannel Channel =
+				FloorActorTypeToEnvelopeChannel(Snapshot.ActorType);
+
+			if (!ShouldUseActor(Envelope, Channel, Reason, /*IsRead=*/false))
+			{
+				// Reset — постоянное хранилище не трогаем.
+				continue;
+			}
+
+			const int32 Idx = FloorSnapshots.IndexOfByPredicate(
+				[&](const FFloorSavedActorState& S) { return S.ItemId == Snapshot.ItemId; });
+			if (Idx != INDEX_NONE)
+				FloorSnapshots[Idx] = Snapshot;
+			else
+				FloorSnapshots.Add(Snapshot);
+		}
+
+		// Переносим mission-спавны / mission-удаления в глобальные карты.
+		CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor,
+			SpawnedActorsByInteriorFloor, Envelope, Reason, Key, MissionId);
+		CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor,
+			DestroyedActorsByInteriorFloor, Envelope, Reason, Key, MissionId);
+
+		// При окончании/смене шага — очищаем mission-снапшоты этого этажа.
+		if (Reason != EMissionEndReason::None && PerFloor)
+		{
+			PerFloor->Remove(MissionId);
+			if (PerFloor->Num() == 0)
+				MissionFloorSnapshots.Remove(Key);
+		}
+		return;
+	}
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Ветка 2: мы на этой сцене — существующая логика (перебор акторов)
+	// ─────────────────────────────────────────────────────────────────────
 	if (Reason != EMissionEndReason::None)
 	{
-		auto* PerFloor = MissionFloorSnapshots.Find(CurrentKey);
+		auto* PerFloor = MissionFloorSnapshots.Find(Key); // было CurrentKey
 		if (PerFloor)
 		{
 			PerFloor->Remove(MissionId);
@@ -1714,8 +1774,10 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 
 	// Existing logic: save to MissionFloorSnapshots[Key][MissionId]
 	// существующая логика: сохраняем в MissionFloorSnapshots[Key][MissionId]
-	TMap<FName, TArray<FFloorSavedActorState>>& PerFloorMission = MissionFloorSnapshots.FindOrAdd(Key);
-	TArray<FFloorSavedActorState>& BucketMission = PerFloorMission.FindOrAdd(MissionId);
+	TMap<FName, TArray<FFloorSavedActorState>>& PerFloorMission =
+		MissionFloorSnapshots.FindOrAdd(Key);
+	TArray<FFloorSavedActorState>& BucketMission =
+		PerFloorMission.FindOrAdd(MissionId);
 
 	TMap<FGuid, int32> ExistingIndex;
 	for (int32 i = 0; i < BucketMission.Num(); ++i)
@@ -1994,7 +2056,6 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 			if (int32* FoundFloorIdx = ExistingFloorIndex.Find(Snapshot.ItemId))
 			{
 				BucketFloor[*FoundFloorIdx] = Snapshot;
-
 			}
 			else
 			{
@@ -2034,28 +2095,26 @@ void UInteriorSubsystem::SaveFloorActorsStateComplete(const FGuid& InteriorSetId
 				++AddedCount;
 			}
 
-
 			if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(ChildFloorComp->ActorType), Reason, false))
 			{
 				if (int32* FoundFloorIdx = ExistingFloorIndex.Find(ChildSnapshot.ItemId))
 				{
 					BucketFloor[*FoundFloorIdx] = ChildSnapshot;
-
 				}
 				else
 				{
 					BucketFloor.Add(ChildSnapshot);
 					ExistingFloorIndex.Add(BucketFloor.Last().ItemId, BucketFloor.Num() - 1);
 				}
-
 			}
 		}
 	}
 
-	CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, Envelope, Reason, CurrentKey, MissionId);
-	CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, Envelope, Reason, CurrentKey, MissionId);
+	// Копируем mission-спавны / mission-удаления в глобальные карты.
+	// Было CurrentKey — стало Key (иначе при обработке «чужого» этажа портим данные).
+	CopyMissionSpawnedToGlobal(MissionSpawnedActorsByInteriorFloor, SpawnedActorsByInteriorFloor, Envelope, Reason, Key, MissionId);
+	CopyMissionDestroyedToGlobal(MissionDestroyedActorsByInteriorFloor, DestroyedActorsByInteriorFloor, Envelope, Reason, Key, MissionId);
 }
-
 
 // -----------------------------------------------------------------------------
 // RestoreFloorActorsState
@@ -3169,6 +3228,28 @@ bool UInteriorSubsystem::IsCurrentWorldMissionConst(const FMissionEnvelope& Enve
 	}
 
 	return IsMissionWorld;
+}
+
+bool UInteriorSubsystem::IsCurrentFloorInMissionScope(const FMissionEnvelope& Envelope, const FGuid& FloorId) const
+{
+	UWorld* W = GetWorld();
+	if (!W) return false;
+
+	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(W, true);
+	const FString NormCurrent = NormalizeLevelName(CurrentLevelName);
+
+	for (const TSoftObjectPtr<UFloorAsset>& ScopeRef : Envelope.Scope.InteriorScopes)
+	{
+		UFloorAsset* Floor = ScopeRef.Get();
+		if (!Floor) continue;
+		if (Floor->FloorID != FloorId) continue;
+
+		const FString ScopeLevel =
+			Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+		if (NormalizeLevelName(ScopeLevel) == NormCurrent)
+			return true;
+	}
+	return false;
 }
 
 // -----------------------------------------------------------------------------
@@ -5003,7 +5084,12 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 			StoreCurrentLevelComplete(Envelope, MissionId, P->EndReason);
 
 			ActiveMissions.Remove(MissionId);
-			MissionFloorSnapshots.Find(CurrentKey)->Remove(MissionId);
+
+			TMap<FName, TArray<FFloorSavedActorState>>* MissionSnapshots = MissionFloorSnapshots.Find(CurrentKey);
+			if(MissionSnapshots)
+			{
+				MissionSnapshots->Remove(MissionId);
+			}
 		}
 		RemoveMissionSnapshots(MissionFloorSnapshots, MissionId);
 		RemoveMissionFromPopulationMap(MissionSpawnedActorsByInteriorFloor, MissionId);
@@ -5098,10 +5184,10 @@ void UInteriorSubsystem::StoreCurrentLevelComplete(FMissionEnvelope Envelope, FN
 		// Также нормализуем текущее имя уровня (на случай если оно с префиксом)
 		FString NormCurrent = NormalizeLevelName(CurrentLevelName);
 
-		if (NormTarget == NormCurrent)
-		{
+		//if (NormTarget == NormCurrent)
+		//{
 			SaveFloorActorsStateComplete(InteriorSetID, FloorGuid, MissionId, EndReason);
-		}
+		//}
 	}
 }
 

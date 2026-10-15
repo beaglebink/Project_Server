@@ -235,6 +235,8 @@ public:
     void HandlePlacementRegistration(const FOutcomeEventBase& Outcome);
 
     bool IsCurrentWorldMissionConst(const FMissionEnvelope& Envelope);
+    // Возвращает true, если этаж FloorId из Envelope.Scope соответствует текущей сцене.
+    bool IsCurrentFloorInMissionScope(const FMissionEnvelope& Envelope, const FGuid& FloorId) const;
 
     void RestoreMissionFloorState(FName MissionId, int32 CurrentMissionStep, const FInteriorFloorKey& FloorKey);
     void FloorSpawnActorsFromType(TArray<FFloorPopulationRecord>& Array, const FMissionEnvelope& Envelope, FInteriorFloorKey Key);

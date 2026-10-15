@@ -36,20 +36,10 @@ public:
 
     // Удобный Setup для C++ и Blueprint
     UFUNCTION(BlueprintCallable, Category = "MissionEnvelope")
-    UMissionEnvelopePayload* Setup(/*FName InMissionId, */UMissionAsset* InAsset, EMissionEndReason InEndReason = EMissionEndReason::Completed)
-    {
-        //MissionId   = InMissionId;
-        if(InAsset)
-        {
-            MissionId = InAsset->GetMissionId();
-		}
-        MissionAsset = InAsset;
-        EndReason   = InEndReason;
-        return this;
-    }
+    UMissionEnvelopePayload* Setup(/*FName InMissionId, */UMissionAsset* InAsset, EMissionEndReason InEndReason = EMissionEndReason::Completed);
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionEnvelope")
-    FName GetMissionId() const { return MissionId; }
+    FName GetMissionId() const { return MissionAsset->GetMissionId(); }
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionEnvelope")
     EMissionEndReason GetEndReason() const { return EndReason; }

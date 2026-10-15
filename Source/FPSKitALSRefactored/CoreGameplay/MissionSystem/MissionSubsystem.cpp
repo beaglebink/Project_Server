@@ -597,7 +597,7 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 			P->EndReason = EndReason;
 
 			FOutcomeEventBase Ev;
-			Ev.OutcomeType = EOutcomeType::Mission;   
+			Ev.OutcomeType = EOutcomeType::Interior;   
 			Ev.OutcomeMission = EOutcomeMission::MissionCompleted;
 			Ev.Payload = P;
 			EventBus->PublishOutcome(Ev);
