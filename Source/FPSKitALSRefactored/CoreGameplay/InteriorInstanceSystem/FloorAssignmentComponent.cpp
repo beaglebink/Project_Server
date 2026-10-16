@@ -3,7 +3,8 @@
 #include "FloorPlacementPayload.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
-#include "InteriorSubsystem.h"   
+#include "InteriorSubsystem.h"
+#include "SaveSubsystems/WS_ActorRegistry.h"
 
 UFloorAssignmentComponent::UFloorAssignmentComponent()
 {
@@ -17,6 +18,12 @@ void UFloorAssignmentComponent::BeginPlay()
     if (ProtectedItemId.IsValid())
     {
         ItemId = ProtectedItemId;
+    }
+
+	// Register the actor in the Actor Registry world subsystem
+    if (UWS_ActorRegistry* RegistrySubSystem = GetWorld()->GetSubsystem<UWS_ActorRegistry>())
+    {
+		RegistrySubSystem->RegisterActor(GetOwner(), ItemId);
     }
 
     if (SnapshotChannel == ESnapshotChannel::Snapshot && ItemId.IsValid())
@@ -73,6 +80,12 @@ void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
         {
             Subsystem->UnregisterFloorActor(ItemId);
         }
+    }
+
+    // UnRegister the actor in the Actor Registry world subsystem
+    if (UWS_ActorRegistry* RegistrySubSystem = GetWorld()->GetSubsystem<UWS_ActorRegistry>())
+    {
+        RegistrySubSystem->UnregisterActor(ItemId);
     }
 
     if (SnapshotChannel == ESnapshotChannel::None || !ItemId.IsValid())

@@ -1,6 +1,7 @@
 #include "ItemPlacement/A_DropZone.h"
 #include "Components/SphereComponent.h"
 #include "PythonContainers/A_InteractableActor.h"
+#include "FloorAssignmentComponent.h"
 
 AA_DropZone::AA_DropZone()
 {
@@ -9,6 +10,7 @@ AA_DropZone::AA_DropZone()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
 	ItemSphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("ItemSphereCollision"));
+	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
 
 	DropZoneMesh->SetupAttachment(RootComponent);
 	ItemSphereCollision->SetupAttachment(RootComponent);

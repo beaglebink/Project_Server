@@ -58,6 +58,8 @@ void UGIS_ChorePlacement::ApplySaveData(const FSubsystemSaveData& InData)
 
 	bIsLoadComplete = false;
 
+	CachedChorePlacementZoneData.Empty();
+
 	if (InData.SerializedData.IsEmpty())
 	{
 		bIsLoadComplete = true;

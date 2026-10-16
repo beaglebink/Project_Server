@@ -6,6 +6,7 @@
 #include "FloorAssignmentComponent.h"
 #include "ProceduralMeshComponent.h"
 #include "SaveSubsystems/GIS_ChorePlacement.h"
+#include "SaveSubsystems/WS_ActorRegistry.h"
 
 AA_ChorePlacementZone::AA_ChorePlacementZone()
 {
@@ -251,12 +252,105 @@ void AA_ChorePlacementZone::ResetChorePlacementZone()
 	}
 }
 
-FSaveItemData AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementation()
+TArray<FSaveItemData> AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementation()
 {
-	return FSaveItemData();
+	TArray<FSaveItemData> SaveDataArray;
+
+	for (const auto& [ItemId, ItemData] : SourcePlacedItems)
+	{
+		FSaveItemData SaveData;
+		SaveData.ItemId = ItemId;
+
+		FGuid AttachingDropZoneId;
+		if (ItemData.ItemActor->AttachingDropZone)
+		{
+			if (UFloorAssignmentComponent* FloorAssignmentComp = ItemData.ItemActor->AttachingDropZone->GetComponentByClass<UFloorAssignmentComponent>())
+			{
+				AttachingDropZoneId = FloorAssignmentComp->GetItemId();
+				SaveData.AttachingDropZoneId = AttachingDropZoneId;
+			}
+		}
+		else
+		{
+			SaveData.ItemTransform = ItemData.ItemActor->GetActorTransform();
+			SaveData.bIsHeld = ItemData.ItemActor->bIsHeld;
+			SaveData.bIsAttached = ItemData.ItemActor->bIsAttached;
+			if (ItemData.ItemActor->Implements<UInteractiveActorInterface>())
+			{
+				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
+				UProceduralMeshComponent* ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
+				if (StaticMeshComponent)
+				{
+					SaveData.bHasSimulatedPhysics = StaticMeshComponent->IsSimulatingPhysics();
+				}
+				if (ProceduralMeshComponent)
+				{
+					SaveData.bHasSimulatedPhysics = ProceduralMeshComponent->IsSimulatingPhysics();
+				}
+			}
+		}
+
+		SaveDataArray.Add(SaveData);
+	}
+
+	return SaveDataArray;
 }
 
-void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const FSaveItemData& SaveData)
+void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const TArray<FSaveItemData>& SaveDataArray)
 {
-	int a = 10;
+	UWS_ActorRegistry* ActorRegistrySubsystem = GetGameInstance()->GetSubsystem<UWS_ActorRegistry>();
+	if (!ActorRegistrySubsystem)
+	{
+		return;
+	}
+
+	for (const FSaveItemData& SavedData : SaveDataArray)
+	{
+		AA_InteractableActor* ItemActor = Cast<AA_InteractableActor>(ActorRegistrySubsystem->FindActorByGuid(SavedData.ItemId));
+		if (!ItemActor)
+		{
+			continue;
+		}
+
+		UStaticMeshComponent* StaticMeshComponent = nullptr;
+		UProceduralMeshComponent* ProceduralMeshComponent = nullptr;
+		if (ItemActor->Implements<UInteractiveActorInterface>())
+		{
+			StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemActor));
+			ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemActor));
+		}
+
+		AA_DropZone* AttachingDropZone = Cast<AA_DropZone>(ActorRegistrySubsystem->FindActorByGuid(SavedData.AttachingDropZoneId));
+		if (AttachingDropZone)
+		{
+			ItemActor->AttachingDropZone = AttachingDropZone;
+			AttachingDropZone->bIsOccupied = true;
+			AttachingDropZone->SetMeshMaterialAndState(0, false);
+
+			if (StaticMeshComponent)
+			{
+				StaticMeshComponent->SetSimulatePhysics(false);
+			}
+			if (ProceduralMeshComponent)
+			{
+				ProceduralMeshComponent->SetSimulatePhysics(false);
+			}
+			ItemActor->AttachToActor(AttachingDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		}
+		else
+		{
+			ItemActor->SetActorTransform(SavedData.ItemTransform);
+			ItemActor->bIsHeld = SavedData.bIsHeld;
+			ItemActor->bIsAttached = SavedData.bIsAttached;
+
+			if (StaticMeshComponent)
+			{
+				StaticMeshComponent->SetSimulatePhysics(SavedData.bHasSimulatedPhysics);
+			}
+			if (ProceduralMeshComponent)
+			{
+				ProceduralMeshComponent->SetSimulatePhysics(SavedData.bHasSimulatedPhysics);
+			}
+		}
+	}
 }

@@ -113,7 +113,7 @@ public:
 	void ResetChorePlacementZone();
 
 	// II_SaveableObject interface
-	virtual FSaveItemData CollectChorePlacementSaveData_Implementation() override;
+	virtual TArray<FSaveItemData> CollectChorePlacementSaveData_Implementation() override;
 
-	virtual void ApplyChorePlacementSaveData_Implementation(const FSaveItemData& SaveData) override;
+	virtual void ApplyChorePlacementSaveData_Implementation(const TArray<FSaveItemData>& SaveDataArray) override;
 };

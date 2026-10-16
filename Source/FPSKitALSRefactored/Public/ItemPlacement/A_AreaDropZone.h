@@ -44,6 +44,9 @@ public:
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_MeshMaterial;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UFloorAssignmentComponent* FloorAssignmentComponent;
+
 	UPROPERTY()
 	TArray<FName> ItemsNames;
 
