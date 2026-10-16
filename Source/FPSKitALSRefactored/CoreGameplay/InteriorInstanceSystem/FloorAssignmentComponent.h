@@ -65,10 +65,24 @@ public:
     // Пометить уровень грязным (для сохранения)
     void MarkPackageDirty();
 
+/** Заполняет InteriorSetId / FloorId / имена по данным текущего уровня.
+ *  В редакторе — только из ассетов (AssetRegistry).
+ *  В рантайме — из ALocationAnchorActor в текущем мире. */
+    UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
+    void AutoFillFloorIdsFromWorld();
+
+#if WITH_EDITOR
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "FloorAssignment")
+    void AutoFillFromCurrentLevel();
+
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void PostEditImport() override;   // Обработка дублирования и копирования
+    virtual void OnRegister() override;
 
 private:
     bool IsRuntimeSpawned = false;

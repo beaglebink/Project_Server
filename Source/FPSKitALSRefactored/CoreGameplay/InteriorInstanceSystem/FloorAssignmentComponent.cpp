@@ -1,10 +1,96 @@
 ﻿#include "FloorAssignmentComponent.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "FloorPlacementPayload.h"
-#include "Engine/World.h"
-#include "Engine/GameInstance.h"
 #include "InteriorSubsystem.h"
 #include "SaveSubsystems/WS_ActorRegistry.h"
+#include "FloorAsset.h"
+#include "../LocationSystem/InteriorSetAsset.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "EngineUtils.h"
+#include "Misc/Paths.h"
+#include "Misc/PackageName.h"
+
+#if WITH_EDITOR
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
+#else
+#include "../LocationSystem/LocationAnchorActor.h"
+#endif
+
+namespace
+{
+	static FString NormalizeLevelName_FA(const FString& InPath)
+	{
+		if (InPath.IsEmpty()) return FString();
+
+		FString PackagePath = InPath;
+		if (PackagePath.Contains(TEXT(".")))
+			PackagePath = FPackageName::ObjectPathToPackageName(PackagePath);
+
+		FString Base = FPaths::GetBaseFilename(PackagePath);
+
+		const int32 PIEPos = Base.Find(TEXT("UEDPIE_"), ESearchCase::IgnoreCase);
+		if (PIEPos != INDEX_NONE)
+		{
+			const int32 MPos = Base.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
+			if (MPos != INDEX_NONE && MPos + 3 < Base.Len())
+				Base = Base.Mid(MPos + 3);
+			else if (PIEPos + 6 < Base.Len())
+				Base = Base.Mid(PIEPos + 6);
+		}
+
+		return Base.ToLower();
+	}
+
+	/** Общий код применения найденного FloorAsset к компоненту.
+	 *  Всегда перезаписывает FloorId/InteriorSetId/… , ItemId не перегенерируется
+	 *  если уже валиден. */
+	static bool ApplyFloorToComponent_FA(
+		UFloorAssignmentComponent* Comp,
+		UFloorAsset* Floor)
+	{
+		if (!Comp || !IsValid(Floor) || !Floor->FloorID.IsValid())
+			return false;
+
+		Comp->FloorId = Floor->FloorID;
+		Comp->FloorName = Floor->DisplayName.IsEmpty()
+			? FText::FromName(Floor->GetFName())
+			: Floor->DisplayName;
+
+		Comp->InteriorSetId.Invalidate();
+		Comp->InteriorSetName = FText::GetEmpty();
+
+		if (Floor->InteriorSetID.IsValid())
+			Comp->InteriorSetId = Floor->InteriorSetID;
+
+		if (!Floor->ParentInteriorSet.IsNull())
+		{
+			if (UInteriorSetAsset* IS = Floor->ParentInteriorSet.LoadSynchronous())
+			{
+				if (!Comp->InteriorSetId.IsValid())
+					Comp->InteriorSetId = IS->InteriorSetID;
+
+				Comp->InteriorSetName = IS->DisplayName.IsEmpty()
+					? FText::FromName(IS->GetFName())
+					: IS->DisplayName;
+			}
+		}
+
+		// ItemId — идентичность актора, не перегенерируем без нужды.
+		if (!Comp->ItemId.IsValid() && !Comp->ProtectedItemId.IsValid())
+		{
+			Comp->ItemId = FGuid::NewGuid();
+			Comp->ProtectedItemId = Comp->ItemId;
+		}
+		else if (!Comp->ItemId.IsValid())
+		{
+			Comp->ItemId = Comp->ProtectedItemId;
+		}
+
+		return true;
+	}
+}
 
 UFloorAssignmentComponent::UFloorAssignmentComponent()
 {
@@ -14,6 +100,8 @@ UFloorAssignmentComponent::UFloorAssignmentComponent()
 void UFloorAssignmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	AutoFillFloorIdsFromWorld();
 
 	if (ProtectedItemId.IsValid())
 	{
@@ -73,6 +161,17 @@ void UFloorAssignmentComponent::BeginPlay()
 			Subsystem->RegisterFloorActor(GetOwner(), ItemId);
 		}
 	}
+}
+
+void UFloorAssignmentComponent::OnRegister()
+{
+	Super::OnRegister();
+
+	// В редакторе BeginPlay не вызывается, поэтому авто-заполнение делаем здесь —
+	// это сработает при размещении актора на сцене, загрузке уровня и undo/redo.
+	// В рантайме вызов безопасен: если данные уже заполнены из BeginPlay,
+	// повторное заполнение даст тот же результат.
+	AutoFillFloorIdsFromWorld();
 }
 
 void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -143,8 +242,13 @@ void UFloorAssignmentComponent::PostEditImport()
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+		// Свежий идентификатор — при копировании актора ItemId должен стать новым.
 		ItemId = FGuid::NewGuid();
 		ProtectedItemId = ItemId;
+
+		// В редакторе данные этажа перечитываются из ассетов под текущий уровень.
+		AutoFillFloorIdsFromWorld();
+
 		MarkPackageDirty();
 	}
 }
@@ -220,13 +324,14 @@ void UFloorAssignmentComponent::PublishRegistration()
 
 void UFloorAssignmentComponent::Registrate(EFloorActorType Type, FGuid ForceItemId /*= FGuid()*/)
 {
+	AutoFillFloorIdsFromWorld();
+
 	ItemId = ForceItemId.IsValid() ? ForceItemId : ItemId.IsValid() ? ItemId : FGuid::NewGuid();
 	ProtectedItemId = ItemId;
 	SnapshotChannel = ESnapshotChannel::Snapshot;
 	ActorType = Type;
 	MarkPackageDirty();
 
-	// Публикуем событие обновления регистрации (теги уже установлены в Blueprint)
 	PublishRegistration();
 
 	if (ItemId.IsValid())
@@ -237,3 +342,79 @@ void UFloorAssignmentComponent::Registrate(EFloorActorType Type, FGuid ForceItem
 		}
 	}
 }
+
+void UFloorAssignmentComponent::AutoFillFloorIdsFromWorld()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+#if WITH_EDITOR
+	// ─── Редактор: источник данных — только ассеты, якоря на сцене игнорируем ──
+	const FString CurrentPackage = World->GetOutermost()->GetName();
+	if (CurrentPackage.IsEmpty()) return;
+
+	const FString NormCurrent = NormalizeLevelName_FA(CurrentPackage);
+
+	FAssetRegistryModule& ARM =
+		FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UFloorAsset::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+
+	TArray<FAssetData> FloorAssets;
+	ARM.Get().GetAssets(Filter, FloorAssets);
+
+	for (const FAssetData& AD : FloorAssets)
+	{
+		UFloorAsset* Floor = Cast<UFloorAsset>(AD.GetAsset());
+		if (!Floor) Floor = Cast<UFloorAsset>(AD.ToSoftObjectPath().TryLoad());
+		if (!Floor || Floor->FloorLevel.IsNull()) continue;
+
+		const FString FloorPkg = Floor->FloorLevel.ToSoftObjectPath().GetLongPackageName();
+		if (NormalizeLevelName_FA(FloorPkg) == NormCurrent)
+		{
+			ApplyFloorToComponent_FA(this, Floor);
+			return;
+		}
+	}
+#else
+	// ─── Рантайм: AssetRegistry недоступен (Shipping), используем якорь на сцене ──
+	for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
+	{
+		ALocationAnchorActor* Anchor = *It;
+		if (!IsValid(Anchor)) continue;
+
+		if (UFloorAsset* Floor = Anchor->OwnerFloor.LoadSynchronous())
+		{
+			ApplyFloorToComponent_FA(this, Floor);
+			return;
+		}
+	}
+#endif
+}
+
+#if WITH_EDITOR
+void UFloorAssignmentComponent::AutoFillFromCurrentLevel()
+{
+	AutoFillFloorIdsFromWorld();
+	MarkPackageDirty();
+}
+
+void UFloorAssignmentComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropName = PropertyChangedEvent.GetPropertyName();
+
+	// Триггерим, когда пользователь ставит SnapshotChannel=Snapshot
+	// (это означает «зарегистрировать актора на этом уровне»).
+	if (PropName == GET_MEMBER_NAME_CHECKED(UFloorAssignmentComponent, SnapshotChannel))
+	{
+		if (SnapshotChannel == ESnapshotChannel::Snapshot)
+		{
+			AutoFillFloorIdsFromWorld();
+		}
+	}
+}
+#endif
