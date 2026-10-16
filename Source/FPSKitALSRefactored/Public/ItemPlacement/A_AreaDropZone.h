@@ -6,6 +6,7 @@
 #include "A_AreaDropZone.generated.h"
 
 class AA_InteractableActor;
+class UFloorAssignmentComponent;
 
 UCLASS()
 class FPSKITALSREFACTORED_API AA_AreaDropZone : public AActor

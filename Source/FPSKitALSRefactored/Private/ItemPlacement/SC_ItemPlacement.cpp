@@ -224,22 +224,16 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 
 			if (Item->Implements<UInteractiveActorInterface>())
 			{
-				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item));
-				UProceduralMeshComponent* ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item));
-				if (StaticMeshComponent || ProceduralMeshComponent)
+				UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item));
+				if (PrimitiveComponent)
 				{
-
 					if (AA_DropZone* DropZone = Cast<AA_DropZone>(ChoosenDropZone))
 					{
 						if (DropZone->bIsActive)
 						{
-							if (StaticMeshComponent)
+							if (PrimitiveComponent)
 							{
-								StaticMeshComponent->SetSimulatePhysics(false);
-							}
-							if (ProceduralMeshComponent)
-							{
-								ProceduralMeshComponent->SetSimulatePhysics(false);
+								PrimitiveComponent->SetSimulatePhysics(false);
 							}
 
 							Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
@@ -286,13 +280,9 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 
 					if (AA_BagDropZone* BagDropZone = Cast<AA_BagDropZone>(ChoosenDropZone))
 					{
-						if (StaticMeshComponent)
+						if (PrimitiveComponent)
 						{
-							StaticMeshComponent->SetSimulatePhysics(false);
-						}
-						if (ProceduralMeshComponent)
-						{
-							ProceduralMeshComponent->SetSimulatePhysics(false);
+							PrimitiveComponent->SetSimulatePhysics(false);
 						}
 
 						Item->AttachToActor(ChoosenDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
@@ -306,19 +296,14 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 	{
 		if (Item->Implements<UInteractiveActorInterface>())
 		{
-			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item));
-			UProceduralMeshComponent* ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item));
-			if (StaticMeshComponent || ProceduralMeshComponent)
+			UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item));
+			if (PrimitiveComponent)
 			{
 				if (Item->AttachingDropZone && Item->AttachingDropZone->bIsActive)
 				{
-					if (StaticMeshComponent)
+					if (PrimitiveComponent)
 					{
-						StaticMeshComponent->SetSimulatePhysics(true);
-					}
-					if (ProceduralMeshComponent)
-					{
-						ProceduralMeshComponent->SetSimulatePhysics(true);
+						PrimitiveComponent->SetSimulatePhysics(true);
 					}
 					Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 					Item->AttachingDropZone->bIsOccupied = false;
@@ -345,7 +330,7 @@ void USC_ItemPlacement::AttachReleasedItemToDropZone(AA_InteractableActor* Item,
 
 				if (Item->GetAttachParentActor())
 				{
-					StaticMeshComponent->SetSimulatePhysics(true);
+					PrimitiveComponent->SetSimulatePhysics(true);
 					Item->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 				}
 			}

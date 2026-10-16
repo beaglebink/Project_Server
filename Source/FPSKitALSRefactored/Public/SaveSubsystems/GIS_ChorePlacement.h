@@ -37,7 +37,7 @@ public:
 	void ApplyChorePlacementData(AActor* ChorePlacementZone);
 
 private:
-	TMap<FGuid, FSaveItemData> CachedChorePlacementZoneData;
+	TMap<FGuid, TArray<FSaveItemData>> CachedChorePlacementZoneData;
 
 	bool bIsLoadComplete = false;
 };

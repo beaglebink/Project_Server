@@ -238,15 +238,10 @@ void AA_ChorePlacementZone::ResetChorePlacementZone()
 
 		if (ItemData.ItemActor->Implements<UInteractiveActorInterface>())
 		{
-			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
-			UProceduralMeshComponent* ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
-			if (StaticMeshComponent)
+			UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
+			if (PrimitiveComponent)
 			{
-				StaticMeshComponent->SetSimulatePhysics(true);
-			}
-			if (ProceduralMeshComponent)
-			{
-				ProceduralMeshComponent->SetSimulatePhysics(true);
+				PrimitiveComponent->SetSimulatePhysics(true);
 			}
 		}
 	}
@@ -277,15 +272,10 @@ TArray<FSaveItemData> AA_ChorePlacementZone::CollectChorePlacementSaveData_Imple
 			SaveData.bIsAttached = ItemData.ItemActor->bIsAttached;
 			if (ItemData.ItemActor->Implements<UInteractiveActorInterface>())
 			{
-				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
-				UProceduralMeshComponent* ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
-				if (StaticMeshComponent)
+				UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemData.ItemActor));
+				if (PrimitiveComponent)
 				{
-					SaveData.bHasSimulatedPhysics = StaticMeshComponent->IsSimulatingPhysics();
-				}
-				if (ProceduralMeshComponent)
-				{
-					SaveData.bHasSimulatedPhysics = ProceduralMeshComponent->IsSimulatingPhysics();
+					SaveData.bHasSimulatedPhysics = PrimitiveComponent->IsSimulatingPhysics();
 				}
 			}
 		}
@@ -298,7 +288,7 @@ TArray<FSaveItemData> AA_ChorePlacementZone::CollectChorePlacementSaveData_Imple
 
 void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const TArray<FSaveItemData>& SaveDataArray)
 {
-	UWS_ActorRegistry* ActorRegistrySubsystem = GetGameInstance()->GetSubsystem<UWS_ActorRegistry>();
+	UWS_ActorRegistry* ActorRegistrySubsystem = GetWorld()->GetSubsystem<UWS_ActorRegistry>();
 	if (!ActorRegistrySubsystem)
 	{
 		return;
@@ -312,12 +302,10 @@ void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const TAr
 			continue;
 		}
 
-		UStaticMeshComponent* StaticMeshComponent = nullptr;
-		UProceduralMeshComponent* ProceduralMeshComponent = nullptr;
+		UPrimitiveComponent* PrimitiveComponent = nullptr;
 		if (ItemActor->Implements<UInteractiveActorInterface>())
 		{
-			StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemActor));
-			ProceduralMeshComponent = Cast<UProceduralMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemActor));
+			PrimitiveComponent = Cast<UPrimitiveComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemActor));
 		}
 
 		AA_DropZone* AttachingDropZone = Cast<AA_DropZone>(ActorRegistrySubsystem->FindActorByGuid(SavedData.AttachingDropZoneId));
@@ -327,13 +315,9 @@ void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const TAr
 			AttachingDropZone->bIsOccupied = true;
 			AttachingDropZone->SetMeshMaterialAndState(0, false);
 
-			if (StaticMeshComponent)
+			if (PrimitiveComponent)
 			{
-				StaticMeshComponent->SetSimulatePhysics(false);
-			}
-			if (ProceduralMeshComponent)
-			{
-				ProceduralMeshComponent->SetSimulatePhysics(false);
+				PrimitiveComponent->SetSimulatePhysics(false);
 			}
 			ItemActor->AttachToActor(AttachingDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 		}
@@ -343,13 +327,9 @@ void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const TAr
 			ItemActor->bIsHeld = SavedData.bIsHeld;
 			ItemActor->bIsAttached = SavedData.bIsAttached;
 
-			if (StaticMeshComponent)
+			if (PrimitiveComponent)
 			{
-				StaticMeshComponent->SetSimulatePhysics(SavedData.bHasSimulatedPhysics);
-			}
-			if (ProceduralMeshComponent)
-			{
-				ProceduralMeshComponent->SetSimulatePhysics(SavedData.bHasSimulatedPhysics);
+				PrimitiveComponent->SetSimulatePhysics(SavedData.bHasSimulatedPhysics);
 			}
 		}
 	}

@@ -40,7 +40,7 @@ void UGIS_ChorePlacement::CollectSaveData(FSubsystemSaveData& OutData)
 			continue;
 		}
 
-		FSaveItemData SaveDataMap = II_SaveableObject::Execute_CollectChorePlacementSaveData(SaveableObject);
+		TArray<FSaveItemData> SaveDataArray = II_SaveableObject::Execute_CollectChorePlacementSaveData(SaveableObject);
 
 
 
@@ -111,7 +111,7 @@ void UGIS_ChorePlacement::ApplyChorePlacementData_Implementation(AActor* ChorePl
 		ActorID = FloorAssignmentComp->GetItemId();
 	}
 
-	const FSaveItemData* FoundData = CachedChorePlacementZoneData.Find(ActorID);
+	TArray<FSaveItemData>* FoundData = CachedChorePlacementZoneData.Find(ActorID);
 
 	if (!FoundData)
 	{

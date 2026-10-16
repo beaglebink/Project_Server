@@ -7,6 +7,7 @@
 
 class AA_InteractableActor;
 class USphereComponent;
+class UFloorAssignmentComponent;
 
 UCLASS()
 class FPSKITALSREFACTORED_API AA_DropZone : public AActor, public II_PowerConnection

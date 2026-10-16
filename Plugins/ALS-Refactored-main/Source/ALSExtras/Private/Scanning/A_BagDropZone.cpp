@@ -53,11 +53,11 @@ void AA_BagDropZone::PackItemIntoBag(AA_InteractableActor* Item)
 {
 	if (Item->Implements<UInteractiveActorInterface>())
 	{
-		if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item)))
+		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(Item)))
 		{
-			StaticMeshComponent->SetSimulatePhysics(false);
-			StaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			StaticMeshComponent->SetVisibility(false);
+			PrimitiveComponent->SetSimulatePhysics(false);
+			PrimitiveComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			PrimitiveComponent->SetVisibility(false);
 			PackedItems.Add(Item);
 		}
 	}
