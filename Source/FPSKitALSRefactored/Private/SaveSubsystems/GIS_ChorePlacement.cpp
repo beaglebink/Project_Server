@@ -42,8 +42,38 @@ void UGIS_ChorePlacement::CollectSaveData(FSubsystemSaveData& OutData)
 
 		TArray<FSaveItemData> SaveDataArray = II_SaveableObject::Execute_CollectChorePlacementSaveData(SaveableObject);
 
+		FGuid SaveableObjectID;
+		if (AA_ChorePlacementZone* ChorePlacementZone = Cast<AA_ChorePlacementZone>(SaveableObject))
+		{
+			if (UFloorAssignmentComponent* FloorAssignmentComp = ChorePlacementZone->GetComponentByClass<UFloorAssignmentComponent>())
+			{
+				SaveableObjectID = FloorAssignmentComp->GetItemId();
+			}
+		}
+		if (!SaveableObjectID.IsValid())
+		{
+			continue;
+		}
 
+		FString ZoneKey = SaveableObjectID.ToString();
 
+		TArray<TSharedPtr<FJsonValue>> ItemsJsonArray;
+
+		for (const FSaveItemData& SaveItemData : SaveDataArray)
+		{
+			TSharedPtr<FJsonObject> ItemJson = MakeShared<FJsonObject>();
+
+			ItemJson->SetStringField(TEXT("ItemId"), SaveItemData.ItemId.ToString());
+			ItemJson->SetStringField(TEXT("AttachingDropZoneId"), SaveItemData.AttachingDropZoneId.ToString());
+			ItemJson->SetStringField(TEXT("ItemTransform"), SaveItemData.ItemTransform.ToString());
+			ItemJson->SetBoolField(TEXT("bIsHeld"), SaveItemData.bIsHeld);
+			ItemJson->SetBoolField(TEXT("bIsAttached"), SaveItemData.bIsAttached);
+			ItemJson->SetBoolField(TEXT("bHasSimulatedPhysics"), SaveItemData.bHasSimulatedPhysics);
+
+			ItemsJsonArray.Add(MakeShared<FJsonValueObject>(ItemJson));
+		}
+
+		Root->SetArrayField(ZoneKey, ItemsJsonArray);
 	}
 
 	FString JsonString;
@@ -75,11 +105,64 @@ void UGIS_ChorePlacement::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
+	for (const auto& ZonePair : Root->Values)
+	{
+		TArray<FSaveItemData> SaveDataArray;
 
+		const TArray<TSharedPtr<FJsonValue>>* ItemsJsonArray = nullptr;
 
+		if (!ZonePair.Value->TryGetArray(ItemsJsonArray))
+		{
+			continue;
+		}
 
+		for (const TSharedPtr<FJsonValue>& ItemJsonValue : *ItemsJsonArray)
+		{
+			const TSharedPtr<FJsonObject>* ItemJsonObjPtr = nullptr;
 
+			if (!ItemJsonValue->TryGetObject(ItemJsonObjPtr))
+			{
+				continue;
+			}
+			TSharedPtr<FJsonObject> ItemJsonObj = *ItemJsonObjPtr;
 
+			FSaveItemData SaveItemData;
+
+			FString ItemIdStr;
+			ItemJsonObj->TryGetStringField(TEXT("ItemId"), ItemIdStr);
+			SaveItemData.ItemId = ItemIdStr.IsEmpty() ? FGuid() : FGuid(ItemIdStr);
+
+			FString AttachingDropZoneIdStr;
+			ItemJsonObj->TryGetStringField(TEXT("AttachingDropZoneId"), AttachingDropZoneIdStr);
+			SaveItemData.AttachingDropZoneId = AttachingDropZoneIdStr.IsEmpty() ? FGuid() : FGuid(AttachingDropZoneIdStr);
+
+			if (!SaveItemData.AttachingDropZoneId.IsValid())
+			{
+				FString TransformString;
+				ItemJsonObj->TryGetStringField(TEXT("ItemTransform"), TransformString);
+				if (!TransformString.IsEmpty())
+				{
+					if (!SaveItemData.ItemTransform.InitFromString(TransformString))
+					{
+						UE_LOG(LogTemp, Log, TEXT("Failed to parse ItemTransform from string: %s"), *TransformString);
+					}
+				}
+				bool TempBool = false;
+				ItemJsonObj->TryGetBoolField(TEXT("bIsHeld"), TempBool);
+				SaveItemData.bIsHeld = TempBool;
+				TempBool = false;
+				ItemJsonObj->TryGetBoolField(TEXT("bIsAttached"), TempBool);
+				SaveItemData.bIsAttached = TempBool;
+				TempBool = false;
+				ItemJsonObj->TryGetBoolField(TEXT("bHasSimulatedPhysics"), TempBool);
+				SaveItemData.bHasSimulatedPhysics = TempBool;
+			}
+
+			SaveDataArray.Add(SaveItemData);
+		}
+
+		CachedChorePlacementZoneData.Add(FGuid(ZonePair.Key), SaveDataArray);
+	}
 
 	bIsLoadComplete = true;
 }
