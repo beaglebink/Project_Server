@@ -1,5 +1,6 @@
-// PayloadBatchRegistry.cpp
 #include "PayloadBatchRegistry.h"
+#include "SpawnGroupSystem/SpawnGroupCommandPayload.h"
+#include "SpawnGroupSystem/SpawnGroupConfigurePayload.h"
 
 // --- Пути подгони под свой проект. Если все заголовки лежат в разных
 // --- папках модуля, указывай относительный путь от корня модуля.
@@ -108,7 +109,6 @@ const TArray<FCommandSpec>& FPayloadBatchRegistry::GetSpecs()
         MakeChore("Chore.Resume",                   UChoreCommandPayload::StaticClass(),                    EOutcomeChore::ResumeRequest),
 
         // ======================= SPAWN GROUP =======================
-        // === NEW: команды от ScenarioManager ===
         MakeSpawnGroup("SpawnGroup.Configure",
             USpawnGroupConfigurePayload::StaticClass(),
             EOutcomeSpawnGroup::SpawnGroupConfigure),
@@ -118,7 +118,6 @@ const TArray<FCommandSpec>& FPayloadBatchRegistry::GetSpecs()
         MakeSpawnGroup("SpawnGroup.DestroyRemaining",
             USpawnGroupCommandPayload::StaticClass(),
             EOutcomeSpawnGroup::SpawnGroupDestroyRemaining),
-            // === /NEW ===
 
             // ======================= WORLD STATE =======================
             MakeWorldState("WorldState.InteractionEnable",      UInteractSetEnabledPayload::StaticClass(),    EOutcomeWorldState::InteractionEnabledChanged),

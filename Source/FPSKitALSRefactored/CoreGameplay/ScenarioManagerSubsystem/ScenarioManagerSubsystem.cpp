@@ -368,18 +368,18 @@ void UScenarioManagerSubsystem::ExecuteStepDeactivation(UPayloadBatchAsset* Step
 {
     if (!Step) return;
 
-    // 1. Выполняем DeactivationEntries: для загруженных спавнеров они
-    //    применяются сразу, для незагруженных — попадают в очередь как вклады
-    //    того же шага (SourceStepId = Step).
+    // 1. Сначала DeactivationEntries: для загруженных спавнеров применится сразу,
+    //    для незагруженных — ляжет в очередь с SourceStepId = Step.
     Step->ExecuteEntriesInternal(this, Step->DeactivationEntries);
 
-    // 2. Чистим всё, что этот шаг когда-либо положил в очередь спавна.
+    // 2. Вычищаем всё, что этот шаг положил в очередь — команды не применятся
+    //    к спавнерам, до которых игрок так и не дошёл.
     if (USpawnGroupSubsystem* SpawnSys = GetGameInstance()->GetSubsystem<USpawnGroupSubsystem>())
     {
         SpawnSys->ClearPendingCommandsForStep(Step->GetPrimaryAssetId());
     }
 }
-    
+
 // =============================================================================
 // EventBus handler
 // =============================================================================

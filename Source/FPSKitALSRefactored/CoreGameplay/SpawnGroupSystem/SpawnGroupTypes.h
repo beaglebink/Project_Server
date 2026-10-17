@@ -117,37 +117,17 @@ struct FSpawnGroupState
 {
     GENERATED_BODY()
 
-    UPROPERTY()
-    FGuid GroupId;
+    UPROPERTY() FGuid GroupId;
+    UPROPERTY() ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
+    UPROPERTY() ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::None;
+    UPROPERTY() FName LastMissionContext;
+    UPROPERTY() int32 VisitIndex = 0;
+    UPROPERTY() int32 KilledCount = 0;
+    UPROPERTY() TMap<FName, int32> TypeKilled;
+    UPROPERTY() TArray<FSpawnSlotState> Slots;
+    UPROPERTY() bool bStoreSpawnParameters = false;
 
-    UPROPERTY()
-    ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
+    UPROPERTY() bool bBlockNewSpawn = false;
 
-    UPROPERTY()
-    ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::None;
-
-    UPROPERTY()
-    FName LastMissionContext;
-
-    UPROPERTY()
-    int32 VisitIndex = 0;
-
-    UPROPERTY()
-    int32 KilledCount = 0;
-
-    UPROPERTY()
-    TMap<FName, int32> TypeKilled;
-
-    UPROPERTY()
-    TArray<FSpawnSlotState> Slots;
-
-    UPROPERTY()
-    bool bStoreSpawnParameters = false;
-
-    // NEW: запрет на будущий спавн группы (например, после DestroyRemaining)
-    UPROPERTY()
-    bool bBlockNewSpawn = false;
-
-    UPROPERTY()
-    TArray<FSpawnedEnemyState> EnemyStates;
+    UPROPERTY() TArray<FSpawnedEnemyState> EnemyStates;
 };

@@ -96,10 +96,10 @@ void UPayloadBatchAsset::ExecuteEntry(UObject* WorldContextObject, UPayloadBatch
     FPayloadBatchRegistry::ApplyRouteToEvent(Spec->Route, Event);
     Event.Payload = ToPublish;
 
-    // 3) NEW: отметка шага-источника — для отката отложенных эффектов.
+    // 3) Отметка шага-источника — для отката отложенных эффектов.
     Event.SourceStepId = GetPrimaryAssetId();
 
-    // 4) Публикуем.
+	// 4) Публикация в шину.
     Bus->PublishOutcome(Event);
 }
 

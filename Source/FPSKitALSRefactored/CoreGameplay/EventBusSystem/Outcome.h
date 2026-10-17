@@ -191,16 +191,12 @@ enum class EOutcomeSpawnGroup : uint8
 {
     Default                 UMETA(DisplayName = "Default"),
     SpawnGroupActivated     UMETA(DisplayName = "Spawn Group Activated"),
-    //SpawnGroupDeactivated   UMETA(DisplayName = "Spawn Group Deactivated"),
     SpawnGroupCleared       UMETA(DisplayName = "Spawn Group Cleared"),
-    //SpawnGroupEnabled       UMETA(DisplayName = "Spawn Group Enabled"),
     SpawnGroupDisabled      UMETA(DisplayName = "Spawn Group Disabled"),
     SpawnGroupReset         UMETA(DisplayName = "Spawn Group Reset"),
     SpawnGroupRegister      UMETA(DisplayName = "Spawn Group Register"),
     SpawnGroupUnregister    UMETA(DisplayName = "Spawn Group Unregister"),
     GhostCaptured           UMETA(DisplayName = "Ghost Captured"),
-    //CheckRequest            UMETA(DisplayName = "Check Request"),
-    //CheckResponse           UMETA(DisplayName = "Check Response")
 
     SpawnGroupConfigure         UMETA(DisplayName = "Spawn Group Configure"),
     SpawnGroupDestroyRemaining  UMETA(DisplayName = "Spawn Group Destroy Remaining")
