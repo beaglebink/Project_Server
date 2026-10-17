@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Outcome.h"
 #include "OutcomePayload.h"
-#include "GameplayTagContainer.h"          // ← NEW
+#include "GameplayTagContainer.h"
 #include "OutcomeEventBase.generated.h"
 
 USTRUCT(BlueprintType)
@@ -35,4 +35,10 @@ struct FOutcomeEventBase
 
     UPROPERTY(BlueprintReadWrite, Category = "Outcome|Tags")
     TArray<FGameplayTag> TagsToRemove;
+
+    // ===== источник события (для отката отложенных эффектов) =====
+    // Заполняется UPayloadBatchAsset::ExecuteEntry автоматически.
+    // Невалидное значение — событие опубликовано напрямую из C++/BP, не из шага.
+    UPROPERTY(BlueprintReadWrite, Category = "Outcome|Source")
+    FPrimaryAssetId SourceStepId;
 };

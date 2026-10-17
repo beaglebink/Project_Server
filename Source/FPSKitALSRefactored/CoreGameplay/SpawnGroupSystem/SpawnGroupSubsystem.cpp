@@ -16,6 +16,7 @@
 #include "InteriorSetAsset.h"
 #include "GhostCapturedPayload.h"
 #include "../LocationSystem/LocationAnchorActor.h"
+#include "SpawnGroupConfigurePayload.h"
 
 // ============================================================================
 // Helper function to count slots by predicate
@@ -47,6 +48,8 @@ void USpawnGroupSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
         SaveSys->RegisterSaveableSubsystem(this);
+
+    bLevelLoaded = false;
 }
 
 void USpawnGroupSubsystem::Deinitialize()
@@ -55,10 +58,13 @@ void USpawnGroupSubsystem::Deinitialize()
     SpawnerByItemId.Empty();
     GroupIdToItemId.Empty();
     PersistentGroupStates.Empty();
+    PendingSpawnerCommands.Empty();
     CachedEventBus.Reset();
 
     if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
         SaveSys->UnregisterSaveableSubsystem(this);
+
+    bLevelLoaded = false;
 
     Super::Deinitialize();
 }
@@ -147,6 +153,21 @@ void USpawnGroupSubsystem::SubscribeEvents()
         if (Cond->GetCondition().IsValid())
             GhostCapturedHandle = EventBus->RegisterHandler(Cond, FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleGhostCaptured));
     }
+
+    if (!ConfigureHandle.IsValid())
+    {
+        UOutcomeConditionAsset* Cond = CreateCondition(EOutcomeSpawnGroup::SpawnGroupConfigure);
+        if (Cond->GetCondition().IsValid())
+            ConfigureHandle = EventBus->RegisterHandler(Cond,
+                FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleSpawnGroupConfigure));
+    }
+    if (!DestroyRemainingHandle.IsValid())
+    {
+        UOutcomeConditionAsset* Cond = CreateCondition(EOutcomeSpawnGroup::SpawnGroupDestroyRemaining);
+        if (Cond->GetCondition().IsValid())
+            DestroyRemainingHandle = EventBus->RegisterHandler(Cond,
+                FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleSpawnGroupDestroyRemaining));
+    }
 }
 
 void USpawnGroupSubsystem::UnsubscribeEvents()
@@ -169,6 +190,10 @@ void USpawnGroupSubsystem::UnsubscribeEvents()
     Unreg(ClearHandle);
     Unreg(ResetHandle);
     Unreg(GhostCapturedHandle);
+    Unreg(LevelLoadedHandle);
+    Unreg(FloorLeavingHandle);
+    Unreg(ConfigureHandle);
+    Unreg(DestroyRemainingHandle);
 }
 
 // ============================================================================
@@ -196,11 +221,29 @@ void USpawnGroupSubsystem::HandleSpawnGroupRegister(const FOutcomeEventBase& Out
                 }
             }
         }
+
         if (Spawner)
         {
             SpawnerByItemId.Add(P->SpawnerId, Spawner);
             GroupIdToItemId.Add(P->GroupId, P->SpawnerId);
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: Registered spawner for group %s"), *P->GroupId.ToString());
+
+            // Применяем pending только если уровень уже готов.
+            // Если спавнер регистрируется в момент загрузки уровня (BeginPlay),
+            // LevelLoaded ещё не пришёл — оставляем pending в очереди,
+            // их применит HandleLevelLoaded.
+            if (bLevelLoaded)
+            {
+                ApplyPendingCommandsToSpawner(Spawner);
+                UE_LOG(LogTemp, Log,
+                    TEXT("SpawnGroupSubsystem: Registered spawner for group %s (level ready, pending applied)"),
+                    *P->GroupId.ToString());
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log,
+                    TEXT("SpawnGroupSubsystem: Registered spawner for group %s (level not ready, pending deferred to LevelLoaded)"),
+                    *P->GroupId.ToString());
+            }
         }
     }
 }
@@ -226,39 +269,76 @@ void USpawnGroupSubsystem::HandleSpawnGroupUnregister(const FOutcomeEventBase& O
 
 void USpawnGroupSubsystem::HandleSpawnGroupActivated(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
-        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupActivated)
+    if (Outcome.OutcomeType != EOutcomeType::SpawnGroup ||
+        Outcome.OutcomeSpawnGroup != EOutcomeSpawnGroup::SpawnGroupActivated)
+        return;
+
+    USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
+    if (!P) return;
+
+    if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(P->GroupId))
     {
-        USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
-        if (!P) return;
-        ActivateSpawnGroupInternal(P->GroupId);
+        Spawner->SpawnGroupInternal();
+        return;
     }
+
+    // NEW: спавнер не загружен — ставим вклад в очередь.
+    FStepSpawnerPending Contribution;
+    Contribution.SourceStepId = Outcome.SourceStepId;
+    Contribution.bPendingActivate = true;
+    AddContribution(P->GroupId, Contribution);
+
+    UE_LOG(LogTemp, Log,
+        TEXT("SpawnGroupSubsystem: deferred SpawnGroupActivated for Group %s (step %s)"),
+        *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
 }
 
 void USpawnGroupSubsystem::HandleSpawnGroupCleared(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
-        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupCleared)
+    if (Outcome.OutcomeType != EOutcomeType::SpawnGroup ||
+        Outcome.OutcomeSpawnGroup != EOutcomeSpawnGroup::SpawnGroupCleared)
+        return;
+
+    USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
+    if (!P) return;
+
+    if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(P->GroupId))
     {
-        USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
-        if (!P) return;
-        ClearSpawnGroupInternal(P->GroupId, P->Reason);
+        Spawner->ClearGroup(P->Reason);
+        return;
     }
+
+    FStepSpawnerPending Contribution;
+    Contribution.SourceStepId = Outcome.SourceStepId;
+    Contribution.bPendingDestroyRemaining = true;
+    Contribution.DestroyReason = P->Reason;
+    AddContribution(P->GroupId, Contribution);
+
+    UE_LOG(LogTemp, Log,
+        TEXT("SpawnGroupSubsystem: deferred SpawnGroupCleared for Group %s (step %s)"),
+        *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
 }
 
 void USpawnGroupSubsystem::HandleSpawnGroupReset(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType == EOutcomeType::SpawnGroup &&
-        Outcome.OutcomeSpawnGroup == EOutcomeSpawnGroup::SpawnGroupReset)
+    if (Outcome.OutcomeType != EOutcomeType::SpawnGroup ||
+        Outcome.OutcomeSpawnGroup != EOutcomeSpawnGroup::SpawnGroupReset)
+        return;
+
+    USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
+    if (!P) return;
+
+    if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(P->GroupId))
     {
-        USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
-        if (!P) return;
-        ResetSpawnGroupInternal(P->GroupId);
+        Spawner->ResetGroup();
+        return;
     }
 }
 
 void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
 {
+    bLevelLoaded = false;
+
     if (Outcome.OutcomeType != EOutcomeType::Interior ||
         Outcome.OutcomeInterior != EOutcomeInterior::FloorLeaving)
         return;
@@ -324,6 +404,186 @@ void USpawnGroupSubsystem::HandleGhostCaptured(const FOutcomeEventBase& Outcome)
 }
 
 // ============================================================================
+// NEW: Configure / DestroyRemaining handlers + pending queue
+// ============================================================================
+
+void USpawnGroupSubsystem::HandleSpawnGroupConfigure(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType != EOutcomeType::SpawnGroup ||
+        Outcome.OutcomeSpawnGroup != EOutcomeSpawnGroup::SpawnGroupConfigure)
+        return;
+
+    USpawnGroupConfigurePayload* P = Cast<USpawnGroupConfigurePayload>(Outcome.Payload);
+    if (!P || !P->GroupId.IsValid()) return;
+
+    if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(P->GroupId))
+    {
+        ApplyConfigureToSpawner(Spawner, P);
+        UE_LOG(LogTemp, Log,
+            TEXT("SpawnGroupSubsystem: applied Configure to loaded spawner %s"),
+            *P->GroupId.ToString());
+        return;
+    }
+
+    FStepSpawnerPending Contribution;
+    Contribution.SourceStepId = Outcome.SourceStepId;
+    Contribution.Config = DuplicateObject<USpawnGroupConfigurePayload>(P, this);
+    AddContribution(P->GroupId, Contribution);
+
+    UE_LOG(LogTemp, Log,
+        TEXT("SpawnGroupSubsystem: deferred Configure for Group %s (step %s)"),
+        *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
+}
+
+void USpawnGroupSubsystem::HandleSpawnGroupDestroyRemaining(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType != EOutcomeType::SpawnGroup ||
+        Outcome.OutcomeSpawnGroup != EOutcomeSpawnGroup::SpawnGroupDestroyRemaining)
+        return;
+
+    USpawnGroupCommandPayload* P = Cast<USpawnGroupCommandPayload>(Outcome.Payload);
+    if (!P) return;
+
+    if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(P->GroupId))
+    {
+        // Загруженный спавнер: убить живых и запретить будущий спавн
+        Spawner->ClearGroup(P->Reason);
+        Spawner->BlockNewSpawn = true;
+        Spawner->IsStoreSpawnParameters = true;
+
+        UE_LOG(LogTemp, Log,
+            TEXT("SpawnGroupSubsystem: applied DestroyRemaining to loaded spawner %s (BlockNewSpawn=true)"),
+            *P->GroupId.ToString());
+        return;
+    }
+    
+    // Отложенный вклад: пометим, что при регистрации спавнера нужно и почистить, и запретить
+    FStepSpawnerPending Contribution;
+    Contribution.SourceStepId = Outcome.SourceStepId;
+    Contribution.bPendingDestroyRemaining = true;
+    Contribution.DestroyReason = P->Reason;
+    Contribution.bBlockFutureSpawn = true;   // NEW
+    AddContribution(P->GroupId, Contribution);
+
+    UE_LOG(LogTemp, Log,
+        TEXT("SpawnGroupSubsystem: deferred DestroyRemaining for Group %s (step %s, BlockFutureSpawn=true)"),
+        *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
+}
+
+void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, const USpawnGroupConfigurePayload* P)
+{
+    if (!Spawner || !P) return;
+
+    if (P->bApplyStatus)                 Spawner->CurrentStatus = P->Status;
+    if (P->bApplyBlockNewSpawn)          Spawner->BlockNewSpawn = P->bBlockNewSpawn;
+    if (P->bApplyIsStoreSpawnParameters) Spawner->IsStoreSpawnParameters = P->bIsStoreSpawnParameters;
+    if (P->bApplyIsFullRespawn)          Spawner->IsFullRespawn = P->bIsFullRespawn;
+    if (P->bApplyEnemyTags)              Spawner->EnemyTags = P->EnemyTags;
+    if (P->bApplyEnemyGameplayTags)      Spawner->EnemyGameplayTags.AppendTags(P->EnemyGameplayTags);
+}
+
+void USpawnGroupSubsystem::AddContribution(const FGuid& GroupId, const FStepSpawnerPending& Contribution)
+{
+    if (!GroupId.IsValid()) return;
+
+    FSpawnerPendingList& List = PendingSpawnerCommands.FindOrAdd(GroupId);
+    TArray<FStepSpawnerPending>& Items = List.Items;
+
+    // Мержим с уже существующим вкладом того же шага
+    for (FStepSpawnerPending& Existing : Items)
+    {
+        if (Existing.SourceStepId == Contribution.SourceStepId)
+        {
+            if (Contribution.Config)
+                Existing.Config = Contribution.Config;
+            if (Contribution.bPendingActivate)
+                Existing.bPendingActivate = true;
+            if (Contribution.bPendingDestroyRemaining)
+            {
+                Existing.bPendingDestroyRemaining = true;
+                Existing.DestroyReason = Contribution.DestroyReason;
+            }
+            if (Contribution.bBlockFutureSpawn)          // NEW
+                Existing.bBlockFutureSpawn = true;       // NEW
+            return;
+        }
+    }
+
+    Items.Add(Contribution);
+}
+
+void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spawner)
+{
+    if (!Spawner) return;
+
+    const FGuid GroupId = Spawner->GetRuntimeGroupId();
+    if (!GroupId.IsValid()) return;
+
+    FSpawnerPendingList* List = PendingSpawnerCommands.Find(GroupId);
+    if (!List || List->Items.Num() == 0) return;
+
+    // Применяем вклады в порядке поступления
+    for (const FStepSpawnerPending& C : List->Items)
+    {
+        if (C.Config)
+        {
+            ApplyConfigureToSpawner(Spawner, C.Config);
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Configure (step %s) to spawner %s"),
+                *C.SourceStepId.ToString(), *GroupId.ToString());
+        }
+        if (C.bPendingActivate)
+        {
+            Spawner->SpawnGroupInternal();
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Activate (step %s) to spawner %s"),
+                *C.SourceStepId.ToString(), *GroupId.ToString());
+        }
+        if (C.bPendingDestroyRemaining)
+        {
+            Spawner->ClearGroup(C.DestroyReason);
+
+            // NEW: если вклад требовал запретить будущий спавн — ставим флаг
+            if (C.bBlockFutureSpawn)
+            {
+                Spawner->BlockNewSpawn = true;
+                Spawner->IsStoreSpawnParameters = true;
+            }
+
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred DestroyRemaining (step %s) to spawner %s (BlockNewSpawn=%s)"),
+                *C.SourceStepId.ToString(), *GroupId.ToString(),
+                C.bBlockFutureSpawn ? TEXT("true") : TEXT("false"));
+        }
+    }
+
+    PendingSpawnerCommands.Remove(GroupId);
+}
+
+void USpawnGroupSubsystem::ClearPendingCommandsForStep(FPrimaryAssetId StepId)
+{
+    if (!StepId.IsValid()) return;
+
+    int32 Removed = 0;
+    for (auto It = PendingSpawnerCommands.CreateIterator(); It; ++It)
+    {
+        FSpawnerPendingList& List = It->Value;
+        TArray<FStepSpawnerPending>& Items = List.Items;
+
+        const int32 Before = Items.Num();
+        Items.RemoveAll([&](const FStepSpawnerPending& P) { return P.SourceStepId == StepId; });
+        Removed += (Before - Items.Num());
+
+        if (Items.Num() == 0)
+            It.RemoveCurrent();
+    }
+
+    if (Removed > 0)
+    {
+        UE_LOG(LogTemp, Log,
+            TEXT("SpawnGroupSubsystem: cleared %d pending contributions for step %s"),
+            Removed, *StepId.ToString());
+    }
+}
+
+// ============================================================================
 // Internal control methods
 // Внутренние методы управления
 // ============================================================================
@@ -360,6 +620,7 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     State.GroupId = Spawner->GetRuntimeGroupId();
     State.Status = Spawner->GetCurrentStatus();
     State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
+    State.bBlockNewSpawn = Spawner->BlockNewSpawn;
     State.KilledCount = Spawner->GetKilledCount();
 
     // Always save slots (even if IsStoreSpawnParameters == false)
@@ -413,6 +674,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.GroupId = Spawner->GetRuntimeGroupId();
         State.Status = Spawner->GetCurrentStatus();
         State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
+        State.bBlockNewSpawn = Spawner->BlockNewSpawn;               // NEW
         State.KilledCount = Spawner->GetKilledCount();
 
         // Always save slots
@@ -441,6 +703,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetNumberField(TEXT("Status"), static_cast<uint8>(GroupPair.Value.Status));
             StateObj->SetNumberField(TEXT("ResolutionReason"), static_cast<uint8>(GroupPair.Value.ResolutionReason));
             StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
+            StateObj->SetBoolField(TEXT("bBlockNewSpawn"), GroupPair.Value.bBlockNewSpawn);       // NEW
             StateObj->SetNumberField(TEXT("KilledCount"), GroupPair.Value.KilledCount);
 
             // ---- Always serialize Slots ----
@@ -489,6 +752,67 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     }
 
     Root->SetObjectField(TEXT("PersistentGroupStates"), GroupsObj);
+
+    // ========================================================================
+    // PendingSpawnerCommands
+    // ========================================================================
+    // Очередь отложенных команд, сгруппированная по GroupId.
+    // Внутри каждой группы — список вкладов от разных шагов сценария.
+    // Это позволяет при деактивации шага убрать только его вклад,
+    // не затрагивая команды других шагов, таргетящих ту же GroupId.
+    // ========================================================================
+    TSharedPtr<FJsonObject> PendingRoot = MakeShared<FJsonObject>();
+    for (const auto& Pair : PendingSpawnerCommands)
+    {
+        if (Pair.Value.Items.Num() == 0) continue;
+
+        TArray<TSharedPtr<FJsonValue>> ContributionsArr;
+        for (const FStepSpawnerPending& C : Pair.Value.Items)
+        {
+            TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+            Obj->SetStringField(TEXT("SourceStepId"), C.SourceStepId.ToString());
+            Obj->SetBoolField(TEXT("bPendingActivate"), C.bPendingActivate);
+            Obj->SetBoolField(TEXT("bPendingDestroyRemaining"), C.bPendingDestroyRemaining);
+            Obj->SetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);      // NEW
+            Obj->SetNumberField(TEXT("DestroyReason"), static_cast<uint8>(C.DestroyReason));
+
+            if (C.Config)
+            {
+                TSharedPtr<FJsonObject> Cfg = MakeShared<FJsonObject>();
+                Cfg->SetStringField(TEXT("GroupId"), C.Config->GroupId.ToString());
+                Cfg->SetBoolField(TEXT("bApplyStatus"), C.Config->bApplyStatus);
+                Cfg->SetNumberField(TEXT("Status"), static_cast<uint8>(C.Config->Status));
+                Cfg->SetBoolField(TEXT("bApplyBlockNewSpawn"), C.Config->bApplyBlockNewSpawn);
+                Cfg->SetBoolField(TEXT("bBlockNewSpawn"), C.Config->bBlockNewSpawn);
+                Cfg->SetBoolField(TEXT("bApplyIsStoreSpawnParameters"), C.Config->bApplyIsStoreSpawnParameters);
+                Cfg->SetBoolField(TEXT("bIsStoreSpawnParameters"), C.Config->bIsStoreSpawnParameters);
+                Cfg->SetBoolField(TEXT("bApplyIsFullRespawn"), C.Config->bApplyIsFullRespawn);
+                Cfg->SetBoolField(TEXT("bIsFullRespawn"), C.Config->bIsFullRespawn);
+                Cfg->SetBoolField(TEXT("bApplyEnemyTags"), C.Config->bApplyEnemyTags);
+
+                TArray<TSharedPtr<FJsonValue>> TagsArr;
+                for (const FName& T : C.Config->EnemyTags)
+                    TagsArr.Add(MakeShared<FJsonValueString>(T.ToString()));
+                Cfg->SetArrayField(TEXT("EnemyTags"), TagsArr);
+
+                Cfg->SetBoolField(TEXT("bApplyEnemyGameplayTags"), C.Config->bApplyEnemyGameplayTags);
+                TArray<TSharedPtr<FJsonValue>> GTagsArr;
+                for (const FGameplayTag& T : C.Config->EnemyGameplayTags)
+                    GTagsArr.Add(MakeShared<FJsonValueString>(T.ToString()));
+                Cfg->SetArrayField(TEXT("EnemyGameplayTags"), GTagsArr);
+
+                Obj->SetObjectField(TEXT("Config"), Cfg);
+            }
+
+            ContributionsArr.Add(MakeShared<FJsonValueObject>(Obj));
+        }
+
+        PendingRoot->SetArrayField(Pair.Key.ToString(), ContributionsArr);
+    }
+    Root->SetObjectField(TEXT("PendingSpawnerCommands"), PendingRoot);
+    // ========================================================================
+    // /PendingSpawnerCommands
+    // ========================================================================
 
     FString Output;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -553,6 +877,10 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                         State.bStoreSpawnParameters = (*StateObj)->GetBoolField(TEXT("bStoreSpawnParameters"));
                     else
                         State.bStoreSpawnParameters = false;
+
+                    // NEW: bBlockNewSpawn
+                    if ((*StateObj)->HasField(TEXT("bBlockNewSpawn")))
+                        State.bBlockNewSpawn = (*StateObj)->GetBoolField(TEXT("bBlockNewSpawn"));
 
                     // ---- Deserialize Slots (always) ----
                     // ---- Десериализуем Slots (всегда) ----
@@ -639,6 +967,101 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             PersistentGroupStates.Add(Key, FloorGroups);
         }
     }
+
+    // ========================================================================
+    // PendingSpawnerCommands
+    // ========================================================================
+    // Очередь отложенных команд: GroupId -> FSpawnerPendingList.
+    // Восстанавливается полностью, включая SourceStepId — чтобы после загрузки
+    // ScenarioManager всё ещё мог отменить вклад того шага, который был активен.
+    // ========================================================================
+    PendingSpawnerCommands.Empty();
+
+    const TSharedPtr<FJsonObject>* PendingObj = nullptr;
+    if (Root->TryGetObjectField(TEXT("PendingSpawnerCommands"), PendingObj))
+    {
+        for (const auto& Pair : (*PendingObj)->Values)
+        {
+            FGuid GroupGuid;
+            if (!FGuid::Parse(Pair.Key, GroupGuid)) continue;
+            if (Pair.Value->Type != EJson::Array) continue;
+
+            TArray<FStepSpawnerPending> Contributions;
+            for (const auto& Val : Pair.Value->AsArray())
+            {
+                if (Val->Type != EJson::Object) continue;
+                TSharedPtr<FJsonObject> Obj = Val->AsObject();
+
+                FStepSpawnerPending C;
+
+                FString StepStr;
+                if (Obj->TryGetStringField(TEXT("SourceStepId"), StepStr))
+                    C.SourceStepId = FPrimaryAssetId::FromString(StepStr);
+
+                Obj->TryGetBoolField(TEXT("bPendingActivate"), C.bPendingActivate);
+                Obj->TryGetBoolField(TEXT("bPendingDestroyRemaining"), C.bPendingDestroyRemaining);
+                Obj->TryGetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);    // NEW
+
+                int32 ReasonInt = 0;
+                if (Obj->TryGetNumberField(TEXT("DestroyReason"), ReasonInt))
+                    C.DestroyReason = static_cast<ESpawnGroupResolutionReason>(ReasonInt);
+
+                const TSharedPtr<FJsonObject>* CfgObj = nullptr;
+                if (Obj->TryGetObjectField(TEXT("Config"), CfgObj))
+                {
+                    USpawnGroupConfigurePayload* Cfg = NewObject<USpawnGroupConfigurePayload>(this);
+
+                    FString GroupStr;
+                    (*CfgObj)->TryGetStringField(TEXT("GroupId"), GroupStr);
+                    FGuid::Parse(GroupStr, Cfg->GroupId);
+
+                    (*CfgObj)->TryGetBoolField(TEXT("bApplyStatus"), Cfg->bApplyStatus);
+                    int32 StatusInt = 0;
+                    if ((*CfgObj)->TryGetNumberField(TEXT("Status"), StatusInt))
+                        Cfg->Status = static_cast<ESpawnGroupStatus>(StatusInt);
+
+                    (*CfgObj)->TryGetBoolField(TEXT("bApplyBlockNewSpawn"), Cfg->bApplyBlockNewSpawn);
+                    (*CfgObj)->TryGetBoolField(TEXT("bBlockNewSpawn"), Cfg->bBlockNewSpawn);
+
+                    (*CfgObj)->TryGetBoolField(TEXT("bApplyIsStoreSpawnParameters"), Cfg->bApplyIsStoreSpawnParameters);
+                    (*CfgObj)->TryGetBoolField(TEXT("bIsStoreSpawnParameters"), Cfg->bIsStoreSpawnParameters);
+
+                    (*CfgObj)->TryGetBoolField(TEXT("bApplyIsFullRespawn"), Cfg->bApplyIsFullRespawn);
+                    (*CfgObj)->TryGetBoolField(TEXT("bIsFullRespawn"), Cfg->bIsFullRespawn);
+
+                    (*CfgObj)->TryGetBoolField(TEXT("bApplyEnemyTags"), Cfg->bApplyEnemyTags);
+                    const TArray<TSharedPtr<FJsonValue>>* TagsArr = nullptr;
+                    if ((*CfgObj)->TryGetArrayField(TEXT("EnemyTags"), TagsArr))
+                        for (const auto& V : *TagsArr)
+                            Cfg->EnemyTags.Add(FName(*V->AsString()));
+
+                    (*CfgObj)->TryGetBoolField(TEXT("bApplyEnemyGameplayTags"), Cfg->bApplyEnemyGameplayTags);
+                    const TArray<TSharedPtr<FJsonValue>>* GTagsArr = nullptr;
+                    if ((*CfgObj)->TryGetArrayField(TEXT("EnemyGameplayTags"), GTagsArr))
+                        for (const auto& V : *GTagsArr)
+                        {
+                            FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*V->AsString()), false);
+                            if (Tag.IsValid())
+                                Cfg->EnemyGameplayTags.AddTag(Tag);
+                        }
+
+                    C.Config = Cfg;
+                }
+
+                Contributions.Add(C);
+            }
+
+            if (Contributions.Num() > 0)
+            {
+                FSpawnerPendingList List;
+                List.Items = MoveTemp(Contributions);
+                PendingSpawnerCommands.Add(GroupGuid, MoveTemp(List));
+            }
+        }
+    }
+    // ========================================================================
+    // /PendingSpawnerCommands
+    // ========================================================================
 
     bIsLoadComplete = true;
 }
@@ -1198,6 +1621,10 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
         return;
 
+    // Уровень готов: OnPostLoadMap завершил восстановление снапшотов,
+    // спавнеры текущего уровня уже прошли BeginPlay и зарегистрированы.
+    bLevelLoaded = true;
+
     // Determine current floor key
     // Определяем текущий ключ этажа
     ALocationAnchorActor* FoundAnchor = nullptr;
@@ -1216,8 +1643,9 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         }
     }
 
-    // Restore spawner states from PersistentGroupStates
-    // Восстанавливаем состояние спавнеров из PersistentGroupStates
+    // ========================================================================
+    // 1) Restore spawner states from PersistentGroupStates (existing logic)
+    // ========================================================================
     for (const auto& Pair : SpawnerByItemId)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
@@ -1236,14 +1664,44 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         if (!State) continue;
 
         // Restore spawner flag (if changed at runtime)
-        // Восстанавливаем флаг спавнера (если изменился в рантайме)
         Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
+        Spawner->BlockNewSpawn = State->bBlockNewSpawn;            // NEW
 
         // Restore ghosts without modifying AllSlots and without destroying existing ones
-        // Восстанавливаем призраков без изменения AllSlots и без уничтожения существующих
         if (State->bStoreSpawnParameters)
             Spawner->RestoreFromStateWithoutCleanup(*State);
         else
             Spawner->SpawnGroup();
+    }
+
+    // ========================================================================
+    // 2) NEW: apply pending commands to registered spawners
+    // ========================================================================
+    // Уровень готов, все спавнеры зарегистрированы. Применяем накопленные
+    // pending-команды: Configure → Activate → DestroyRemaining.
+    //
+    // Идём по снимку ключей, потому что ApplyPendingCommandsToSpawner
+    // удаляет ключи из PendingSpawnerCommands — итерироваться по нему
+    // напрямую нельзя.
+    TArray<FGuid> PendingGroupIds;
+    PendingSpawnerCommands.GetKeys(PendingGroupIds);
+
+    for (const FGuid& GroupId : PendingGroupIds)
+    {
+        ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId);
+        if (!Spawner)
+        {
+            // Спавнер не на этом уровне — оставляем pending до следующего LevelLoaded
+            UE_LOG(LogTemp, Verbose,
+                TEXT("SpawnGroupSubsystem: pending for Group %s still waiting (spawner not on current level)"),
+                *GroupId.ToString());
+            continue;
+        }
+
+        UE_LOG(LogTemp, Log,
+            TEXT("SpawnGroupSubsystem: applying pending to spawner %s (LevelLoaded)"),
+            *GroupId.ToString());
+
+        ApplyPendingCommandsToSpawner(Spawner);
     }
 }

@@ -13,6 +13,10 @@
 #include "WorldStateSystem/WorldStateFactChangedPayload.h"
 #include "ChoreSystem/ChorePayloads.h"
 
+// --- NEW: SpawnGroup payloads ---
+#include "SpawnGroupSystem/SpawnGroupCommandPayload.h"
+#include "SpawnGroupSystem/SpawnGroupConfigurePayload.h"
+
 static FCommandSpec MakeMission(FName Name, TSubclassOf<UOutcomePayload> Class, EOutcomeMission Sub)
 {
     FCommandSpec S;
@@ -82,9 +86,9 @@ const TArray<FCommandSpec>& FPayloadBatchRegistry::GetSpecs()
         // ========================= TERMINAL ========================
         //MakeTerminal("Terminal.Register",         UTerminalRegisterCommandPayload::StaticClass(),        EOutcomeTerminal::RegisterTerminalRequest),
         //MakeTerminal("Terminal.Unregister",       UTerminalIdCommandPayload::StaticClass(),              EOutcomeTerminal::UnregisterTerminalRequest),
-        // 
+        //
         //MakeTerminal("Terminal.ApplyProfile",     UTerminalApplyProfileCommandPayload::StaticClass(),    EOutcomeTerminal::ApplyProfileRequest),
-        // 
+        //
         //MakeTerminal("Terminal.SetCapabilities",  UTerminalSetCapabilitiesCommandPayload::StaticClass(), EOutcomeTerminal::SetCapabilitiesRequest),
         //MakeTerminal("Terminal.LoginPassword",    UTerminalLoginPasswordCommandPayload::StaticClass(),   EOutcomeTerminal::LoginPasswordRequest),
         //MakeTerminal("Terminal.LoginAccount",     UTerminalLoginAccountCommandPayload::StaticClass(),    EOutcomeTerminal::LoginAccountRequest),
@@ -98,20 +102,31 @@ const TArray<FCommandSpec>& FPayloadBatchRegistry::GetSpecs()
         //MakeTerminal("Terminal.AddLog",           UTerminalAddLogCommandPayload::StaticClass(),          EOutcomeTerminal::AddLogRequest),
 
         // ======================= CHORE =======================
-		MakeChore("Chore.Start",                    UChoreCommandPayload::StaticClass(),                    EOutcomeChore::StartRequest),
+        MakeChore("Chore.Start",                    UChoreCommandPayload::StaticClass(),                    EOutcomeChore::StartRequest),
         MakeChore("Chore.Reaccept",                 UChoreCommandPayload::StaticClass(),                    EOutcomeChore::ReacceptRequest),
         MakeChore("Chore.Pause",                    UChoreCommandPayload::StaticClass(),                    EOutcomeChore::PauseRequest),
-		MakeChore("Chore.Resume",                   UChoreCommandPayload::StaticClass(),                    EOutcomeChore::ResumeRequest),
+        MakeChore("Chore.Resume",                   UChoreCommandPayload::StaticClass(),                    EOutcomeChore::ResumeRequest),
 
         // ======================= SPAWN GROUP =======================
+        // === NEW: команды от ScenarioManager ===
+        MakeSpawnGroup("SpawnGroup.Configure",
+            USpawnGroupConfigurePayload::StaticClass(),
+            EOutcomeSpawnGroup::SpawnGroupConfigure),
+        MakeSpawnGroup("SpawnGroup.Start",
+            USpawnGroupCommandPayload::StaticClass(),
+            EOutcomeSpawnGroup::SpawnGroupActivated),
+        MakeSpawnGroup("SpawnGroup.DestroyRemaining",
+            USpawnGroupCommandPayload::StaticClass(),
+            EOutcomeSpawnGroup::SpawnGroupDestroyRemaining),
+            // === /NEW ===
 
-        // ======================= WORLD STATE =======================
-        MakeWorldState("WorldState.InteractionEnable", UInteractSetEnabledPayload::StaticClass(),       EOutcomeWorldState::InteractionEnabledChanged),
-        MakeWorldState("WorldState.WorldStateAddRecord", UWorldStateRecordPayload::StaticClass(),       EOutcomeWorldState::WorldStateAddRecord),
-        MakeWorldState("WorldState.WorldStateRemoveRecord",      UWorldStateRecordRemovePayload::StaticClass(), EOutcomeWorldState::WorldStateRemoveRecord)
-        //MakeWorldState("WorldState.WorldStateFactAdded",   UWorldStateFactChangedPayload::StaticClass(), EOutcomeWorldState::WorldStateFactAdded),
-		//MakeWorldState("WorldState.WorldStateFactChanged", UWorldStateFactChangedPayload::StaticClass(), EOutcomeWorldState::WorldStateFactChanged),
-		//MakeWorldState("WorldState.WorldStateFactRemoved", UWorldStateFactChangedPayload::StaticClass(), EOutcomeWorldState::WorldStateFactRemoved)
+            // ======================= WORLD STATE =======================
+            MakeWorldState("WorldState.InteractionEnable",      UInteractSetEnabledPayload::StaticClass(),    EOutcomeWorldState::InteractionEnabledChanged),
+            MakeWorldState("WorldState.WorldStateAddRecord",    UWorldStateRecordPayload::StaticClass(),      EOutcomeWorldState::WorldStateAddRecord),
+            MakeWorldState("WorldState.WorldStateRemoveRecord", UWorldStateRecordRemovePayload::StaticClass(),EOutcomeWorldState::WorldStateRemoveRecord)
+            //MakeWorldState("WorldState.WorldStateFactAdded",   UWorldStateFactChangedPayload::StaticClass(), EOutcomeWorldState::WorldStateFactAdded),
+            //MakeWorldState("WorldState.WorldStateFactChanged", UWorldStateFactChangedPayload::StaticClass(), EOutcomeWorldState::WorldStateFactChanged),
+            //MakeWorldState("WorldState.WorldStateFactRemoved", UWorldStateFactChangedPayload::StaticClass(), EOutcomeWorldState::WorldStateFactRemoved)
     };
     return Specs;
 }
@@ -145,4 +160,5 @@ void FPayloadBatchRegistry::ApplyRouteToEvent(const FCommandRoute& Route, FOutco
     Event.OutcomeWorldState = Route.OutcomeWorldState;
     Event.OutcomeChore = Route.OutcomeChore;
     // Event.Payload заполняется снаружи (в ExecuteEntry).
+    // Event.SourceStepId заполняется вызывающей стороной (UPayloadBatchAsset::ExecuteEntry).
 }

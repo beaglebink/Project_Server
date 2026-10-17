@@ -11,6 +11,7 @@
 #include <MissionSubsystem.h>
 #include <SpawnGroupSubsystem.h>
 #include <TerminalSystem/TerminalSubsystem.h>
+#include "SpawnGroupSystem/SpawnGroupSpawner.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogScenario, Log, All);
 
@@ -366,9 +367,19 @@ void UScenarioManagerSubsystem::ExecuteStepActivation(UPayloadBatchAsset* Step)
 void UScenarioManagerSubsystem::ExecuteStepDeactivation(UPayloadBatchAsset* Step)
 {
     if (!Step) return;
-    Step->ExecuteEntriesInternal(this, Step->DeactivationEntries);
-}
 
+    // 1. Выполняем DeactivationEntries: для загруженных спавнеров они
+    //    применяются сразу, для незагруженных — попадают в очередь как вклады
+    //    того же шага (SourceStepId = Step).
+    Step->ExecuteEntriesInternal(this, Step->DeactivationEntries);
+
+    // 2. Чистим всё, что этот шаг когда-либо положил в очередь спавна.
+    if (USpawnGroupSubsystem* SpawnSys = GetGameInstance()->GetSubsystem<USpawnGroupSubsystem>())
+    {
+        SpawnSys->ClearPendingCommandsForStep(Step->GetPrimaryAssetId());
+    }
+}
+    
 // =============================================================================
 // EventBus handler
 // =============================================================================

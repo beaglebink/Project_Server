@@ -481,6 +481,13 @@ void ASpawnGroupSpawner::SpawnGroup()
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: SpawnGroupAsset is null"), *GetName());
         return;
     }
+
+    if (BlockNewSpawn)
+    {
+        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: BlockNewSpawn is set, skipping spawn"), *GetName());
+        return;
+    }
+
     if (CurrentStatus == ESpawnGroupStatus::Suppressed)
     {
         UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Group CurrentStatus Suppressed, skip spawn"), *GetName());

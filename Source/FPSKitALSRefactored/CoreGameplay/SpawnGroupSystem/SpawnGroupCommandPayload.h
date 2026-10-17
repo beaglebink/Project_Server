@@ -11,10 +11,10 @@ class FPSKITALSREFACTORED_API USpawnGroupCommandPayload : public UOutcomePayload
     GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     FGuid GroupId;
 
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     ESpawnGroupResolutionReason Reason = ESpawnGroupResolutionReason::None;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
