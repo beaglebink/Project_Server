@@ -2229,18 +2229,10 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
 // --- добавлен новый хелпер: восстанавливает actors напрямую из переданного массива снимков
 int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope)
 {
-	if (!W)
-	{
-		return 0;
-	}
-
-	if (Snapshots.IsEmpty())
-	{
-		return 0;
-	}
+	if (!W) return 0;
+	if (Snapshots.IsEmpty()) return 0;
 
 	// Collect all actors on the current level that have FloorAssignmentComponent
-	// Собираем всех акторов текущего уровня, имеющих FloorAssignmentComponent
 	TMap<FGuid, AActor*> ActorByItemId;
 	for (TActorIterator<AActor> It(W); It; ++It)
 	{
@@ -2277,7 +2269,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 	int32 Restored = 0;
 
 	// First pass: root actors (without relative transform)
-	// First pass: root actors (без относительного преобразования)
 	for (const FFloorSavedActorState& Snapshot : Snapshots)
 	{
 		if (Snapshot.bHasRelativeTransform) continue;
@@ -2301,11 +2292,17 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 								{
 								case EEnvelopeChannel::SpawnGroups:
 								{
+									ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+									if (Spawner)
+									{
+										// NEW: Устанавливаем флаг, что InteriorSubsystem уже обработал этот спавнер
+										Spawner->bWasRestoredByMission = true;
+									}
+
 									switch (Envelope.RuntimePolicy)
 									{
 									case EJobSpacePolicy::Freeze:
 									{
-										ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 										if (Spawner)
 										{
 											if (Spawner && Snapshot.EnemyStates.Num() > 0)
@@ -2316,7 +2313,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 											}
 
 											Spawner->IsUseStoreSpawnParameters = true;
-											//Spawner->Restore = false;
 											Spawner->Restore = false;
 										}
 
@@ -2324,7 +2320,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 									}
 									case EJobSpacePolicy::Reset:
 									{
-										ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 										if (Spawner)
 										{
 											Spawner->IsUseStoreSpawnParameters = false;
@@ -2345,7 +2340,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 									{
 										if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
 										{
-											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 											if (Spawner)
 											{
 												Spawner->Restore = false;
@@ -2363,7 +2357,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 
 										if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Freeze))
 										{
-											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 											if (Spawner)
 											{
 												if (Spawner && Snapshot.EnemyStates.Num() > 0)
@@ -2379,7 +2372,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 
 										if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
 										{
-											ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
 											if (Spawner)
 											{
 												if (Spawner && Snapshot.EnemyStates.Num() > 0)
@@ -2408,7 +2400,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 													if (Spawner->GetKilledCount() + Spawner->GetCapturedCount() != DesiredCount)
 													{
 														Spawner->ResetKilledCount();
-														//Spawner->CurrentStatus = ESpawnGroupStatus::Active;
 														Spawner->Restore = false;
 														if (Spawner->GetSpawnedCount() > 0)
 														{
@@ -2423,7 +2414,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 
 															Spawner->IsResetToAlive = true;
 														}
-
 													}
 													else
 													{
@@ -2451,7 +2441,6 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 								{
 									Spawner->IsUseStoreSpawnParameters = false;
 
-									//Spawner->ResetGroup();
 									if (Spawner->GetAliveGhostCount() > 0)
 									{
 										Spawner->IsFullRespawn = true;
@@ -2472,13 +2461,11 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 						++Restored;
 					}
 				}
-
 			}
 		}
 	}
 
 	// Second pass: child actors (with relative transform)
-	// Second pass: child actors (с относительным преобразованием)
 	for (const FFloorSavedActorState& Snapshot : Snapshots)
 	{
 		if (!Snapshot.bHasRelativeTransform) continue;

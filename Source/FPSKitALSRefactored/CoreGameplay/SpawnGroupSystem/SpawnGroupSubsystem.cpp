@@ -271,6 +271,9 @@ void USpawnGroupSubsystem::HandleSpawnGroupActivated(const FOutcomeEventBase& Ou
     if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(P->GroupId))
     {
         Spawner->SpawnGroupInternal();
+
+        // Если SourceStepId пуст, значит активация пришла от триггера/вручную, а не из шага сценария
+        Spawner->bIsManuallyActivated = !Outcome.SourceStepId.IsValid();
         return;
     }
 
@@ -624,13 +627,14 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
 
     FSpawnGroupState State;
     State.GroupId = Spawner->GetRuntimeGroupId();
-    State.Status = Spawner->GetCurrentStatus();
+
+    // Если спавнер был активирован вручную, сохраняем его как Inactive, чтобы он не спавнился при возврате
+    State.Status = Spawner->bIsManuallyActivated ? ESpawnGroupStatus::Inactive : Spawner->GetCurrentStatus();
+
     State.bStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
     State.bBlockNewSpawn = Spawner->BlockNewSpawn;
     State.KilledCount = Spawner->GetKilledCount();
-
     State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
-
     State.Slots = Spawner->GetAllSlots();
     State.TypeKilled = Spawner->GetTypeKilled();
 
@@ -1630,35 +1634,43 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
         if (!State) continue;
 
-        // ФИКС: Проверяем статус из сохранения, а не из свежесозданного актора (который всегда Inactive).
-        // Если в сохранении спавнер был активен, мы должны его восстановить.
-        if (State->Status == ESpawnGroupStatus::Suppressed ||
-            State->Status == ESpawnGroupStatus::Cleared ||
-            State->Status == ESpawnGroupStatus::Inactive)
+        // ФИКС: Если спавнер уже был восстановлен миссией (InteriorSubsystem), 
+        // мы НЕ перезаписываем его состояние из PersistentGroupStates.
+        // Логика Freeze / ResetUnlessCleared уже применила нужные изменения (KilledCount, PendingEnemyStates и т.д.).
+        if (!Spawner->bWasRestoredByMission)
         {
-            continue;
+            if (State->Status == ESpawnGroupStatus::Suppressed ||
+                State->Status == ESpawnGroupStatus::Cleared ||
+                State->Status == ESpawnGroupStatus::Inactive)
+            {
+                continue;
+            }
+
+            if (!State->SpawnGroupAssetOverride.IsNull())
+            {
+                Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
+            }
+
+            Spawner->CurrentStatus = State->Status;
+            Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
+            Spawner->BlockNewSpawn = State->bBlockNewSpawn;
+
+            if (State->bStoreSpawnParameters)
+            {
+                Spawner->RestoreFromStateWithoutCleanup(*State);
+                continue; // Уже восстановлено, пропускаем вызов SpawnGroup()
+            }
+            else
+            {
+                // Передаем сохраненные счетчики убийств перед вызовом SpawnGroup()
+                Spawner->SetKilledState(State->KilledCount, State->TypeKilled);
+            }
         }
 
-        if (!State->SpawnGroupAssetOverride.IsNull())
-        {
-            Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
-        }
-
-        // Принудительно применяем статус из сохранения
-        Spawner->CurrentStatus = State->Status;
-        Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
-        Spawner->BlockNewSpawn = State->bBlockNewSpawn;
-
-        if (State->bStoreSpawnParameters)
-        {
-            Spawner->RestoreFromStateWithoutCleanup(*State);
-        }
-        else
-        {
-            // Передаем сохраненные счетчики убийств перед вызовом SpawnGroup()
-            Spawner->SetKilledState(State->KilledCount, State->TypeKilled);
-            Spawner->SpawnGroup();
-        }
+        // Если bWasRestoredByMission == true, вызываем SpawnGroup().
+        // Он использует PendingEnemyStates (для Freeze) или сброшенный KilledCount (для ResetUnlessCleared), 
+        // которые подготовил InteriorSubsystem.
+        Spawner->SpawnGroup();
     }
 
     // Применяем pending-команды по GroupId

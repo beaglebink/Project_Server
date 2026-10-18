@@ -1,6 +1,4 @@
 // SpawnGroupSpawner.h
-// SpawnGroupSpawner.h
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -108,7 +106,7 @@ public:
     FGameplayTagContainer EnemyGameplayTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-	bool DebugSpawnPoints = false;
+    bool DebugSpawnPoints = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     bool IsSavingHealth = true;
@@ -117,6 +115,12 @@ public:
 
     bool IsFullRespawn = false;
     bool AllSpawned = false;
+
+    // Флаг: true, если спавнер был активирован вручную (не через шаг сценария)
+    bool bIsManuallyActivated = false;
+
+    // NEW: Флаг: true, если спавнер уже был восстановлен логикой миссии в InteriorSubsystem
+    bool bWasRestoredByMission = false;
 
     const TMap<FName, int32>& GetTypeKilled() const { return TypeKilled; }
     void RestoreFromState(const FSpawnGroupState& State);
@@ -202,7 +206,7 @@ public:
     void CaptureGhost(AActor* Ghost);
 
     UFUNCTION(BlueprintImplementableEvent, Category = "SpawnGroup")
-	void OnGhostSpawned_BP(AActor* Ghost);
+    void OnGhostSpawned_BP(AActor* Ghost);
 
     void MarkSlotCaptured(const FGuid& ItemId);
 

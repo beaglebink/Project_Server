@@ -547,6 +547,7 @@ void ASpawnGroupSpawner::SpawnGroup()
     // старых слотов и призраков.
     // ========================================================================
     SafeDestroyAllGhosts(); // Уничтожает старых, очищает SpawnedGhosts, AllSlots и SpawnedCount
+    bHasPublishedClear = false;
 
     // Если SafeDestroyAllGhosts не сбрасывает таймер (хотя должен), подстрахуемся:
     World->GetTimerManager().ClearTimer(TimerHandle);
@@ -1209,6 +1210,9 @@ void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
             }
             IsResetToAlive = false;
         }
+
+        SpawnedCount = State.Slots.Num();
+        AllSlots = State.Slots;
 
         SpawnedCount = AllSlots.Num();
         for (const FSpawnSlotState& Slot : State.Slots)
