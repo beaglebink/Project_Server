@@ -17,7 +17,8 @@
 #include "GhostCapturedPayload.h"
 #include "../LocationSystem/LocationAnchorActor.h"
 #include "SpawnGroupConfigurePayload.h"
-#include "../InteriorInstanceSystem/InteriorSubsystem.h"
+//#include "../InteriorInstanceSystem/InteriorSubsystem.h"
+#include "ResetSpawnerSnapshotPayload.h"
 
 // ============================================================================
 // Helper function to count slots by predicate
@@ -465,16 +466,26 @@ void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, 
             Spawner->ResetSpawnerForNewConfiguration();
             Spawner->SpawnGroupAsset = P->NewSpawnGroupAsset;
 
-            // 2. Приказываем InteriorSubsystem забыть старый снэпшот этого спавнера
-            if (UInteriorSubsystem* InteriorSys = GetGameInstance()->GetSubsystem<UInteriorSubsystem>())
+            // 2. Отправляем событие в EventBus, чтобы InteriorSubsystem очистил снэпшот
+            if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
             {
-                InteriorSys->ResetSpawnerSnapshot(Spawner->GetRuntimeGroupId());
+                UResetSpawnerSnapshotPayload* Payload = EventBus->CreatePayload<UResetSpawnerSnapshotPayload>();
+                if (Payload)
+                {
+                    Payload->Setup(Spawner->GetRuntimeGroupId());
+
+                    FOutcomeEventBase Ev;
+                    Ev.OutcomeType = EOutcomeType::Interior;
+                    Ev.OutcomeInterior = EOutcomeInterior::ResetSpawnerSnapshot;
+                    Ev.Payload = Payload;
+                    EventBus->PublishOutcome(Ev);
+                }
             }
 
-            // 3. Сразу обновляем кэш SpawnGroupSubsystem, чтобы при уходе с этажа сохранился новый ассет
+            // 3. Сразу обновляем кэш SpawnGroupSubsystem
             UpdateSpawnerStateInCache(Spawner);
 
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: SpawnGroupAsset changed for spawner %s. Old state and snapshots cleared."), *Spawner->GetName());
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: SpawnGroupAsset changed for spawner %s. Requested snapshot reset via EventBus."), *Spawner->GetName());
         }
         else
         {

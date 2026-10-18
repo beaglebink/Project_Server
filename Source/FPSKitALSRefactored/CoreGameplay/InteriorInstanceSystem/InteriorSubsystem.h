@@ -16,6 +16,7 @@
 #include "MissionAsset.h"
 #include <SpawnGroupAsset.h>
 #include "InteriorCheckTypes.h"
+#include "ResetSpawnerSnapshotPayload.h"
 #include "InteriorSubsystem.generated.h"
 
 class UMissionController;
@@ -102,13 +103,6 @@ public:
     void UnsubscribeFromSpawnActor();
     void OnActorSpawned(AActor* SpawnedActor);
     void TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLeft);
-
-
-    // Удаляет сохраненный снэпшот для конкретного актора (по ItemId)
-// во всех хранилищах (FloorStateSnapshots и MissionFloorSnapshots).
-    void ResetSpawnerSnapshot(const FGuid& ItemId);
-
-
 
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
     void SubscribeInteractionRegistration();
@@ -304,6 +298,7 @@ private:
     void HandleCompleteMission(const FOutcomeEventBase& Outcome);
     void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
     void StoreCurrentLevelComplete(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
+    void HandleResetSpawnerSnapshot(const FOutcomeEventBase& Outcome);
 
     void ApplySpawnGroupPolicy(const FSpawnGroupId& GroupId, EChannelPolicy Policy, EMissionEndReason Reason);
 
@@ -315,6 +310,12 @@ private:
     AActor* FindActorByItemId(const FGuid& ItemId) const;
     void RemoveRecordsForChannel(TArray<FFloorPopulationRecord>& Records, EEnvelopeChannel Channel);
 
+    // Удаляет сохраненный снэпшот для конкретного актора (по ItemId)
+// во всех хранилищах (FloorStateSnapshots и MissionFloorSnapshots).
+    void ResetSpawnerSnapshot(const FGuid& ItemId);
+
+    FOutcomeHandlerHandle ResetSpawnerSnapshotHandle;
+    UPROPERTY() UOutcomeConditionAsset* ResetSpawnerSnapshotConditionAsset = nullptr;
     TMap<FGuid, FInteractItemRecord> RegisteredItems;
     TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;

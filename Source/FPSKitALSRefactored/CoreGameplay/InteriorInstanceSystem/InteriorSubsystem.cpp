@@ -3790,6 +3790,24 @@ void UInteriorSubsystem::SubscribeAll()
 		}
 	}
 
+	// Register handler for Spawner Snapshot Reset
+	if (!ResetSpawnerSnapshotHandle.IsValid())
+	{
+		ResetSpawnerSnapshotConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		ResetSpawnerSnapshotConditionAsset->OperatorType = EConditionOperator::Composite;
+		ResetSpawnerSnapshotConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		ResetSpawnerSnapshotConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		ResetSpawnerSnapshotConditionAsset->FilterRow.InteriorType = EOutcomeInterior::ResetSpawnerSnapshot;
+		ResetSpawnerSnapshotConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		ResetSpawnerSnapshotConditionAsset->CompileCondition();
+
+		if (ResetSpawnerSnapshotConditionAsset->GetCondition().IsValid())
+		{
+			ResetSpawnerSnapshotHandle = EventBus->RegisterHandler(
+				ResetSpawnerSnapshotConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleResetSpawnerSnapshot));
+		}
+	}
 }
 
 void UInteriorSubsystem::SubscribePlacementRegistration()
@@ -4253,13 +4271,20 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
 }
 
+void UInteriorSubsystem::HandleResetSpawnerSnapshot(const FOutcomeEventBase& Outcome)
+{
+	if (UResetSpawnerSnapshotPayload* P = Cast<UResetSpawnerSnapshotPayload>(Outcome.Payload))
+	{
+		ResetSpawnerSnapshot(P->ItemId);
+	}
+}
+
+// Метод теперь приватный
 void UInteriorSubsystem::ResetSpawnerSnapshot(const FGuid& ItemId)
 {
 	if (!ItemId.IsValid()) return;
 
 	// Список SaveGame-свойств спавнера, которые описывают его рантайм-состояние.
-	// ВАЖНО: НЕ удаляем SpawnGroupAsset, CurrentStatus, BlockNewSpawn, IsStoreSpawnParameters, 
-	// так как они нужны для того, чтобы HandleLevelLoaded не пропустил спавнер.
 	static const TSet<FName> StatePropertiesToClear = {
 		TEXT("KilledCount"),
 		TEXT("TypeKilled"),
@@ -4272,7 +4297,7 @@ void UInteriorSubsystem::ResetSpawnerSnapshot(const FGuid& ItemId)
 		{
 			if (State.ItemId != ItemId) return;
 
-			// 1. Очищаем сохраненных призраков (чтобы не восстанавливались старые враги)
+			// 1. Очищаем сохраненных призраков
 			State.EnemyStates.Empty();
 
 			// 2. Удаляем свойства динамического состояния из снэпшота актора
@@ -4303,7 +4328,7 @@ void UInteriorSubsystem::ResetSpawnerSnapshot(const FGuid& ItemId)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Cleared previous state traces for Spawner ItemId %s (KilledCount, Slots, Enemies removed)"), *ItemId.ToString());
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Cleared previous state traces for Spawner ItemId %s via EventBus"), *ItemId.ToString());
 }
 
 void UInteriorSubsystem::SubscribeInteractionRegistration() { SubscribeAll(); }
@@ -4383,6 +4408,8 @@ void UInteriorSubsystem::UnsubscribeAll()
 		UnregisterHandle(FloorStateSaveHandle, FloorStateSaveConditionAsset);
 		UnregisterHandle(FloorStateRestoreHandle, FloorStateRestoreConditionAsset);
 		UnregisterHandle(FloorTransitionHandle, FloorTransitionConditionAsset);
+
+		UnregisterHandle(ResetSpawnerSnapshotHandle, ResetSpawnerSnapshotConditionAsset);
 	}
 
 	RegisteredItems.Empty();

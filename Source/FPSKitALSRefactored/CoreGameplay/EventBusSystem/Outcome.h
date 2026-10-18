@@ -181,7 +181,8 @@ enum class EOutcomeInterior : uint8
     LocationVisitReset          UMETA(DisplayName = "Location Visit Reset"),
     CheckRequest                UMETA(DisplayName = "Check Request"),
     CheckResponse               UMETA(DisplayName = "Check Response"),
-    StreetTransition            UMETA(DisplayName = "Street Transition")
+    StreetTransition            UMETA(DisplayName = "Street Transition"),
+    ResetSpawnerSnapshot        UMETA(DisplayName = "Reset Spawner Snapshot")
     //CheckRequest            UMETA(DisplayName = "Check Request"),
     //CheckResponse           UMETA(DisplayName = "Check Response")
 };
