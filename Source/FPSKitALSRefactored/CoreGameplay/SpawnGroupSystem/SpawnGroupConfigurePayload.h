@@ -6,29 +6,31 @@
 #include "GameplayTagContainer.h"
 #include "SpawnGroupConfigurePayload.generated.h"
 
+class USpawnGroupAsset;
+
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API USpawnGroupConfigurePayload : public USpawnGroupLocationPayloadBase
 {
     GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bApplyStatus = false;
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
+    // ГЛАВНОЕ ПОЛЕ: Сам ассет, который мы передаем спавнеру
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure")
+    TObjectPtr<USpawnGroupAsset> NewSpawnGroupAsset = nullptr;
 
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bApplyBlockNewSpawn = false;
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bBlockNewSpawn = false;
+    // ---- Ниже минимальные настройки самого актора-спавнера (опционально) ----
 
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bApplyIsStoreSpawnParameters = false;
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bIsStoreSpawnParameters = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime")
+    bool bApplyStatus = false;
 
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bApplyIsFullRespawn = false;
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bIsFullRespawn = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime", meta = (EditCondition = "bApplyStatus"))
+    ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
 
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bApplyEnemyTags = false;
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") TArray<FName> EnemyTags;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime")
+    bool bApplyBlockNewSpawn = false;
 
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") bool bApplyEnemyGameplayTags = false;
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup|Configure") FGameplayTagContainer EnemyGameplayTags;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime", meta = (EditCondition = "bApplyBlockNewSpawn"))
+    bool bBlockNewSpawn = false;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Configure")
     USpawnGroupConfigurePayload* Setup(const FGuid& InGroupId) { GroupId = InGroupId; return this; }

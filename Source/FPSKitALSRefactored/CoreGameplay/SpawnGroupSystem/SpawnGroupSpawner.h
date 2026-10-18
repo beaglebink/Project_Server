@@ -34,9 +34,14 @@ protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
+    UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
+    void ResetSpawnerForNewConfiguration();
+
+    void SetKilledState(int32 InKilledCount, const TMap<FName, int32>& InTypeKilled);
+
     // ===== Configuration =====
     // ===== Конфигурация =====
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup")
     TObjectPtr<USpawnGroupAsset> SpawnGroupAsset;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")

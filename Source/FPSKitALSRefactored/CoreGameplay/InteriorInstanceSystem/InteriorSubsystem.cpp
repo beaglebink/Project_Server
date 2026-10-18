@@ -4253,6 +4253,59 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
 }
 
+void UInteriorSubsystem::ResetSpawnerSnapshot(const FGuid& ItemId)
+{
+	if (!ItemId.IsValid()) return;
+
+	// Список SaveGame-свойств спавнера, которые описывают его рантайм-состояние.
+	// ВАЖНО: НЕ удаляем SpawnGroupAsset, CurrentStatus, BlockNewSpawn, IsStoreSpawnParameters, 
+	// так как они нужны для того, чтобы HandleLevelLoaded не пропустил спавнер.
+	static const TSet<FName> StatePropertiesToClear = {
+		TEXT("KilledCount"),
+		TEXT("TypeKilled"),
+		TEXT("StoredState"),
+		TEXT("AllSlots"),
+		TEXT("StoredSpawnParameters")
+	};
+
+	auto CleanSnapshot = [&](FFloorSavedActorState& State)
+		{
+			if (State.ItemId != ItemId) return;
+
+			// 1. Очищаем сохраненных призраков (чтобы не восстанавливались старые враги)
+			State.EnemyStates.Empty();
+
+			// 2. Удаляем свойства динамического состояния из снэпшота актора
+			State.ActorProperties.RemoveAll([&](const FFloorSavedPropertyEntry& Prop)
+				{
+					return StatePropertiesToClear.Contains(Prop.PropertyName);
+				});
+		};
+
+	// 1. Чистим глобальные снэпшоты этажа (FloorStateSnapshots)
+	for (auto& Pair : FloorStateSnapshots)
+	{
+		for (auto& State : Pair.Value)
+		{
+			CleanSnapshot(State);
+		}
+	}
+
+	// 2. Чистим снэпшоты миссий (MissionFloorSnapshots)
+	for (auto& FloorPair : MissionFloorSnapshots)
+	{
+		for (auto& MissionPair : FloorPair.Value)
+		{
+			for (auto& State : MissionPair.Value)
+			{
+				CleanSnapshot(State);
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Cleared previous state traces for Spawner ItemId %s (KilledCount, Slots, Enemies removed)"), *ItemId.ToString());
+}
+
 void UInteriorSubsystem::SubscribeInteractionRegistration() { SubscribeAll(); }
 void UInteriorSubsystem::UnsubscribeInteractionRegistration() { UnsubscribeAll(); }
 

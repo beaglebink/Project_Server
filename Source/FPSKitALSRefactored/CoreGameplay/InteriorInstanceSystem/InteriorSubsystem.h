@@ -103,6 +103,13 @@ public:
     void OnActorSpawned(AActor* SpawnedActor);
     void TryRegisterActor(AActor* SpawnedActor, int32 AttemptsLeft);
 
+
+    // Удаляет сохраненный снэпшот для конкретного актора (по ItemId)
+// во всех хранилищах (FloorStateSnapshots и MissionFloorSnapshots).
+    void ResetSpawnerSnapshot(const FGuid& ItemId);
+
+
+
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")
     void SubscribeInteractionRegistration();
     UFUNCTION(BlueprintCallable, Category = "InteriorSubsystem|Interaction")

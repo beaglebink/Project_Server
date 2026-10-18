@@ -104,18 +104,18 @@ public:
 
     // Spawn points (if not specified, use default anchors)
     // Точки спавна (если не указаны, использовать якоря по умолчанию)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Placement")
-    TArray<FSpawnPoint> SpawnPoints;
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Placement")
+    //TArray<FSpawnPoint> SpawnPoints;
 
     // Can the group be "partially cleared"
     // Может ли группа быть "частично зачищена"
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Policy")
-    bool bAllowPartialClear = true;
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Policy")
+    //bool bAllowPartialClear = true;
 
     // Override – condition for "cleared" (e.g., capture a specific NPC)
     // Переопределение – условие "очищено" (например, захватить определённого NPC)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Completion")
-    UClass* CompletionConditionClass; // inherits from UGroupCompletionCondition // наследник UGroupCompletionCondition
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SpawnGroup|Completion")
+    //UClass* CompletionConditionClass; // inherits from UGroupCompletionCondition // наследник UGroupCompletionCondition
 
     virtual FPrimaryAssetId GetPrimaryAssetId() const override
     {

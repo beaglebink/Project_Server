@@ -322,6 +322,41 @@ void ASpawnGroupSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
     Super::EndPlay(EndPlayReason);
 }
 
+void ASpawnGroupSpawner::ResetSpawnerForNewConfiguration()
+{
+    // 1. Уничтожаем всех заспавненных врагов и останавливаем таймер спавна
+    SafeDestroyAllGhosts();
+
+    // 2. Очищаем слоты и счетчики убийств
+    AllSlots.Empty();
+    KilledCount = 0;
+    TypeKilled.Empty();
+
+    // 3. Очищаем сохраненные состояния врагов и точки спавна
+    StoredSpawnParameters.Empty();
+    PendingEnemyStates.Empty();
+
+    // 4. Сбрасываем флаги состояния
+    IsStoreSpawnParameters = false;
+    IsFullRespawn = false;
+    Restore = false;
+    AllSpawned = false;
+    bHasPublishedClear = false;
+    IsResetToAlive = false;
+
+    // 5. Сбрасываем статус и снимаем блокировку
+    CurrentStatus = ESpawnGroupStatus::Inactive;
+    BlockNewSpawn = false;
+
+    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Reset for new configuration (all ghosts destroyed, counters cleared)"), *GetName());
+}
+
+void ASpawnGroupSpawner::SetKilledState(int32 InKilledCount, const TMap<FName, int32>& InTypeKilled)
+{
+    KilledCount = InKilledCount;
+    TypeKilled = InTypeKilled;
+}
+
 void ASpawnGroupSpawner::SetStates(const FSpawnGroupState& State)
 {
     StoredState = State;
@@ -348,6 +383,9 @@ void ASpawnGroupSpawner::SafeDestroyAllGhosts()
         }
     }
     SpawnedGhosts.Empty();
+
+    // ФИКС: очищаем слоты, чтобы старые данные не мешали новому спавну
+    AllSlots.Empty();
     SpawnedCount = 0;
 
     if (GetWorld())
@@ -454,7 +492,10 @@ void ASpawnGroupSpawner::RestoreFromState(const FSpawnGroupState& State)
         SafeDestroyAllGhosts();
         TypeKilled = State.TypeKilled;
         KilledCount = 0;
-        for (const auto& Pair : TypeKilled) KilledCount += Pair.Value;
+        for (const auto& Pair : TypeKilled)
+        {
+            KilledCount += Pair.Value;
+        }
     }
 
     CurrentStatus = State.Status;
@@ -500,6 +541,18 @@ void ASpawnGroupSpawner::SpawnGroup()
         return;
     }
 
+    // ========================================================================
+    // ФИКС: Очищаем следы предыдущей конфигурации перед любым новым спавном.
+    // Это гарантирует, что при смене пула на список (или наоборот) не останется
+    // старых слотов и призраков.
+    // ========================================================================
+    SafeDestroyAllGhosts(); // Уничтожает старых, очищает SpawnedGhosts, AllSlots и SpawnedCount
+
+    // Если SafeDestroyAllGhosts не сбрасывает таймер (хотя должен), подстрахуемся:
+    World->GetTimerManager().ClearTimer(TimerHandle);
+    bHasPublishedClear = false;
+    // ========================================================================
+
     if (SpawnGroupAsset->Composition.bUsePool)
     {
         // Desired count of each class
@@ -528,19 +581,12 @@ void ASpawnGroupSpawner::SpawnGroup()
             }
         }
 
-        SpawnedCount = SpawnedGhosts.Num();
+        // SpawnedCount уже сброшен в 0 в SafeDestroyAllGhosts()
         int32 NeedSpawnCount = 0;
 
-        if (SpawnGroupAsset->Composition.bUsePool)
+        for (auto Pool : SpawnGroupAsset->Composition.ActorsPool)
         {
-            for (auto Pool : SpawnGroupAsset->Composition.ActorsPool)
-            {
-                NeedSpawnCount = NeedSpawnCount + Pool.Count;
-            }
-        }
-        else
-        {
-            NeedSpawnCount = SpawnGroupAsset->Composition.Count;
+            NeedSpawnCount = NeedSpawnCount + Pool.Count;
         }
 
         FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, DesiredCounts, NeedSpawnCount, World]()
@@ -557,10 +603,8 @@ void ASpawnGroupSpawner::SpawnGroup()
 
                 if (NeedSpawnCount <= SpawnedCount + KilledCount + GetCapturedCount())
                 {
-                    //KilledCount = SpawnGroupAsset->Composition.Count;//DesiredCounts.Num();
                     World->GetTimerManager().ClearTimer(TimerHandle);
-                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
-                        *GetName(), SpawnedGhosts.Num());
+                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"), *GetName(), SpawnedGhosts.Num());
                     AllSpawned = true;
                     return;
                 }
@@ -587,8 +631,7 @@ void ASpawnGroupSpawner::SpawnGroup()
                     if (const FSpawnedEnemyState* State = FindStateForActor(Ghost))
                     {
                         DeserializeAndApplyState(Ghost, *State);
-                        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"),
-                            *GetName(), *State->ItemId.ToString());
+                        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"), *GetName(), *State->ItemId.ToString());
                     }
 
                     SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
@@ -598,7 +641,6 @@ void ASpawnGroupSpawner::SpawnGroup()
                 }
 
                 UpdateGroupStatus();
-
             });
 
         World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
@@ -612,7 +654,6 @@ void ASpawnGroupSpawner::SpawnGroup()
 
         ClassesToSpawn = SpawnGroupAsset->Composition.ActorClasses;
         DesiredCount = SpawnGroupAsset->Composition.Count;
-
 
         if (ClassesToSpawn.Num() <= 0 || !ClassesToSpawn.IsValidIndex(SpawnedCount))
         {
@@ -629,10 +670,7 @@ void ASpawnGroupSpawner::SpawnGroup()
             FinalClasses.Add(ClassesToSpawn[i % ClassesToSpawn.Num()]);
         }
 
-        // Spawn them
-        // Спавним
-        SpawnedGhosts.Empty();
-        bHasPublishedClear = false;
+        // Очистка SpawnedGhosts и SpawnedCount уже произошла в начале метода
 
         FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, FinalClasses, World, DesiredCount]()
             {
@@ -659,8 +697,7 @@ void ASpawnGroupSpawner::SpawnGroup()
                     World->GetTimerManager().ClearTimer(TimerHandle);
                     OnAllSpawned.Broadcast();
 
-                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
-                        *GetName(), SpawnedGhosts.Num());
+                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"), *GetName(), SpawnedGhosts.Num());
                     return;
                 }
 
@@ -692,8 +729,7 @@ void ASpawnGroupSpawner::SpawnGroup()
                     if (const FSpawnedEnemyState* State = FindStateForActor(Ghost))
                     {
                         DeserializeAndApplyState(Ghost, *State);
-                        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"),
-                            *GetName(), *State->ItemId.ToString());
+                        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"), *GetName(), *State->ItemId.ToString());
                     }
 
                     SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));

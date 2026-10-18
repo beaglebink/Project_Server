@@ -17,6 +17,7 @@
 #include "GhostCapturedPayload.h"
 #include "../LocationSystem/LocationAnchorActor.h"
 #include "SpawnGroupConfigurePayload.h"
+#include "../InteriorInstanceSystem/InteriorSubsystem.h"
 
 // ============================================================================
 // Helper function to count slots by predicate
@@ -456,12 +457,33 @@ void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, 
 {
     if (!Spawner || !P) return;
 
+    if (P->NewSpawnGroupAsset)
+    {
+        if (Spawner->SpawnGroupAsset != P->NewSpawnGroupAsset)
+        {
+            // 1. Сбрасываем состояние самого актора
+            Spawner->ResetSpawnerForNewConfiguration();
+            Spawner->SpawnGroupAsset = P->NewSpawnGroupAsset;
+
+            // 2. Приказываем InteriorSubsystem забыть старый снэпшот этого спавнера
+            if (UInteriorSubsystem* InteriorSys = GetGameInstance()->GetSubsystem<UInteriorSubsystem>())
+            {
+                InteriorSys->ResetSpawnerSnapshot(Spawner->GetRuntimeGroupId());
+            }
+
+            // 3. Сразу обновляем кэш SpawnGroupSubsystem, чтобы при уходе с этажа сохранился новый ассет
+            UpdateSpawnerStateInCache(Spawner);
+
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: SpawnGroupAsset changed for spawner %s. Old state and snapshots cleared."), *Spawner->GetName());
+        }
+        else
+        {
+            Spawner->SpawnGroupAsset = P->NewSpawnGroupAsset;
+        }
+    }
+
     if (P->bApplyStatus)                 Spawner->CurrentStatus = P->Status;
     if (P->bApplyBlockNewSpawn)          Spawner->BlockNewSpawn = P->bBlockNewSpawn;
-    if (P->bApplyIsStoreSpawnParameters) Spawner->IsStoreSpawnParameters = P->bIsStoreSpawnParameters;
-    if (P->bApplyIsFullRespawn)          Spawner->IsFullRespawn = P->bIsFullRespawn;
-    if (P->bApplyEnemyTags)              Spawner->EnemyTags = P->EnemyTags;
-    if (P->bApplyEnemyGameplayTags)      Spawner->EnemyGameplayTags.AppendTags(P->EnemyGameplayTags);
 }
 
 void USpawnGroupSubsystem::AddContribution(const FGuid& GroupId, const FStepSpawnerPending& Contribution)
@@ -596,12 +618,9 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     State.bBlockNewSpawn = Spawner->BlockNewSpawn;
     State.KilledCount = Spawner->GetKilledCount();
 
-    // Always save slots (even if IsStoreSpawnParameters == false)
-    // Всегда сохраняем слоты (даже если IsStoreSpawnParameters == false)
-    State.Slots = Spawner->GetAllSlots();
+    State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
 
-    // Save TypeKilled for backward compatibility (if needed)
-    // Сохраняем TypeKilled для обратной совместимости (если нужно)
+    State.Slots = Spawner->GetAllSlots();
     State.TypeKilled = Spawner->GetTypeKilled();
 
     TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
@@ -650,6 +669,9 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.bBlockNewSpawn = Spawner->BlockNewSpawn;
         State.KilledCount = Spawner->GetKilledCount();
 
+        // Сохраняем переназначенный ассет
+        State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
+
         // Always save slots
         // Всегда сохраняем слоты
         State.Slots = Spawner->GetAllSlots();
@@ -678,6 +700,12 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
             StateObj->SetBoolField(TEXT("bBlockNewSpawn"), GroupPair.Value.bBlockNewSpawn);
             StateObj->SetNumberField(TEXT("KilledCount"), GroupPair.Value.KilledCount);
+
+            // Сохраняем путь к ассету, если он был переопределен
+            if (!GroupPair.Value.SpawnGroupAssetOverride.IsNull())
+            {
+                StateObj->SetStringField(TEXT("SpawnGroupAssetPath"), GroupPair.Value.SpawnGroupAssetOverride.ToSoftObjectPath().GetLongPackageName());
+            }
 
             // ---- Always serialize Slots ----
             // ---- Всегда сериализуем Slots ----
@@ -729,11 +757,6 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     // ========================================================================
     // PendingSpawnerCommands
     // ========================================================================
-    // Очередь отложенных команд, сгруппированная по GroupId.
-    // Внутри каждой группы — список вкладов от разных шагов сценария.
-    // Это позволяет при деактивации шага убрать только его вклад,
-    // не затрагивая команды других шагов, таргетящих ту же GroupId.
-    // ========================================================================
     TSharedPtr<FJsonObject> PendingRoot = MakeShared<FJsonObject>();
     for (const auto& Pair : PendingSpawnerCommands)
     {
@@ -752,26 +775,16 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             if (C.Config)
             {
                 TSharedPtr<FJsonObject> Cfg = MakeShared<FJsonObject>();
+
+                if (C.Config->NewSpawnGroupAsset)
+                {
+                    Cfg->SetStringField(TEXT("NewSpawnGroupAsset"), C.Config->NewSpawnGroupAsset->GetPathName());
+                }
+
                 Cfg->SetBoolField(TEXT("bApplyStatus"), C.Config->bApplyStatus);
                 Cfg->SetNumberField(TEXT("Status"), static_cast<uint8>(C.Config->Status));
                 Cfg->SetBoolField(TEXT("bApplyBlockNewSpawn"), C.Config->bApplyBlockNewSpawn);
                 Cfg->SetBoolField(TEXT("bBlockNewSpawn"), C.Config->bBlockNewSpawn);
-                Cfg->SetBoolField(TEXT("bApplyIsStoreSpawnParameters"), C.Config->bApplyIsStoreSpawnParameters);
-                Cfg->SetBoolField(TEXT("bIsStoreSpawnParameters"), C.Config->bIsStoreSpawnParameters);
-                Cfg->SetBoolField(TEXT("bApplyIsFullRespawn"), C.Config->bApplyIsFullRespawn);
-                Cfg->SetBoolField(TEXT("bIsFullRespawn"), C.Config->bIsFullRespawn);
-                Cfg->SetBoolField(TEXT("bApplyEnemyTags"), C.Config->bApplyEnemyTags);
-
-                TArray<TSharedPtr<FJsonValue>> TagsArr;
-                for (const FName& T : C.Config->EnemyTags)
-                    TagsArr.Add(MakeShared<FJsonValueString>(T.ToString()));
-                Cfg->SetArrayField(TEXT("EnemyTags"), TagsArr);
-
-                Cfg->SetBoolField(TEXT("bApplyEnemyGameplayTags"), C.Config->bApplyEnemyGameplayTags);
-                TArray<TSharedPtr<FJsonValue>> GTagsArr;
-                for (const FGameplayTag& T : C.Config->EnemyGameplayTags)
-                    GTagsArr.Add(MakeShared<FJsonValueString>(T.ToString()));
-                Cfg->SetArrayField(TEXT("EnemyGameplayTags"), GTagsArr);
 
                 Obj->SetObjectField(TEXT("Config"), Cfg);
             }
@@ -782,9 +795,6 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         PendingRoot->SetArrayField(Pair.Key.ToString(), ContributionsArr);
     }
     Root->SetObjectField(TEXT("PendingSpawnerCommands"), PendingRoot);
-    // ========================================================================
-    // /PendingSpawnerCommands
-    // ========================================================================
 
     FString Output;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -850,9 +860,15 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     else
                         State.bStoreSpawnParameters = false;
 
-                    // bBlockNewSpawn
                     if ((*StateObj)->HasField(TEXT("bBlockNewSpawn")))
                         State.bBlockNewSpawn = (*StateObj)->GetBoolField(TEXT("bBlockNewSpawn"));
+
+                    // Восстанавливаем путь к переназначенному ассету
+                    FString AssetPath;
+                    if ((*StateObj)->TryGetStringField(TEXT("SpawnGroupAssetPath"), AssetPath) && !AssetPath.IsEmpty())
+                    {
+                        State.SpawnGroupAssetOverride = TSoftObjectPtr<USpawnGroupAsset>(FSoftObjectPath(AssetPath));
+                    }
 
                     // ---- Deserialize Slots (always) ----
                     // ---- Десериализуем Slots (всегда) ----
@@ -943,10 +959,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     // ========================================================================
     // PendingSpawnerCommands
     // ========================================================================
-    // Очередь отложенных команд: GroupId -> FSpawnerPendingList.
-    // Восстанавливается полностью, включая SourceStepId — чтобы после загрузки
-    // ScenarioManager всё ещё мог отменить вклад того шага, который был активен.
-    // ========================================================================
     PendingSpawnerCommands.Empty();
 
     const TSharedPtr<FJsonObject>* PendingObj = nullptr;
@@ -983,6 +995,12 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 {
                     USpawnGroupConfigurePayload* Cfg = NewObject<USpawnGroupConfigurePayload>(this);
 
+                    FString NewAssetPath;
+                    if ((*CfgObj)->TryGetStringField(TEXT("NewSpawnGroupAsset"), NewAssetPath) && !NewAssetPath.IsEmpty())
+                    {
+                        Cfg->NewSpawnGroupAsset = LoadObject<USpawnGroupAsset>(nullptr, *NewAssetPath);
+                    }
+
                     (*CfgObj)->TryGetBoolField(TEXT("bApplyStatus"), Cfg->bApplyStatus);
                     int32 StatusInt = 0;
                     if ((*CfgObj)->TryGetNumberField(TEXT("Status"), StatusInt))
@@ -990,28 +1008,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
                     (*CfgObj)->TryGetBoolField(TEXT("bApplyBlockNewSpawn"), Cfg->bApplyBlockNewSpawn);
                     (*CfgObj)->TryGetBoolField(TEXT("bBlockNewSpawn"), Cfg->bBlockNewSpawn);
-
-                    (*CfgObj)->TryGetBoolField(TEXT("bApplyIsStoreSpawnParameters"), Cfg->bApplyIsStoreSpawnParameters);
-                    (*CfgObj)->TryGetBoolField(TEXT("bIsStoreSpawnParameters"), Cfg->bIsStoreSpawnParameters);
-
-                    (*CfgObj)->TryGetBoolField(TEXT("bApplyIsFullRespawn"), Cfg->bApplyIsFullRespawn);
-                    (*CfgObj)->TryGetBoolField(TEXT("bIsFullRespawn"), Cfg->bIsFullRespawn);
-
-                    (*CfgObj)->TryGetBoolField(TEXT("bApplyEnemyTags"), Cfg->bApplyEnemyTags);
-                    const TArray<TSharedPtr<FJsonValue>>* TagsArr = nullptr;
-                    if ((*CfgObj)->TryGetArrayField(TEXT("EnemyTags"), TagsArr))
-                        for (const auto& V : *TagsArr)
-                            Cfg->EnemyTags.Add(FName(*V->AsString()));
-
-                    (*CfgObj)->TryGetBoolField(TEXT("bApplyEnemyGameplayTags"), Cfg->bApplyEnemyGameplayTags);
-                    const TArray<TSharedPtr<FJsonValue>>* GTagsArr = nullptr;
-                    if ((*CfgObj)->TryGetArrayField(TEXT("EnemyGameplayTags"), GTagsArr))
-                        for (const auto& V : *GTagsArr)
-                        {
-                            FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*V->AsString()), false);
-                            if (Tag.IsValid())
-                                Cfg->EnemyGameplayTags.AddTag(Tag);
-                        }
 
                     C.Config = Cfg;
                 }
@@ -1027,9 +1023,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             }
         }
     }
-    // ========================================================================
-    // /PendingSpawnerCommands
-    // ========================================================================
 
     bIsLoadComplete = true;
 }
@@ -1608,15 +1601,13 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         }
     }
 
-    // Восстановление из PersistentGroupStates (existing)
+    // Восстановление из PersistentGroupStates
     for (const auto& Pair : SpawnerByItemId)
     {
         ASpawnGroupSpawner* Spawner = Pair.Value.Get();
         if (!Spawner || !IsValid(Spawner)) continue;
-        if (Spawner->Restore || !Spawner->SpawnGroupAsset ||
-            Spawner->CurrentStatus == ESpawnGroupStatus::Suppressed ||
-            Spawner->CurrentStatus == ESpawnGroupStatus::Cleared ||
-            Spawner->CurrentStatus == ESpawnGroupStatus::Inactive)
+
+        if (Spawner->Restore || !Spawner->SpawnGroupAsset)
             continue;
 
         FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
@@ -1628,17 +1619,38 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
         if (!State) continue;
 
+        // ФИКС: Проверяем статус из сохранения, а не из свежесозданного актора (который всегда Inactive).
+        // Если в сохранении спавнер был активен, мы должны его восстановить.
+        if (State->Status == ESpawnGroupStatus::Suppressed ||
+            State->Status == ESpawnGroupStatus::Cleared ||
+            State->Status == ESpawnGroupStatus::Inactive)
+        {
+            continue;
+        }
+
+        if (!State->SpawnGroupAssetOverride.IsNull())
+        {
+            Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
+        }
+
+        // Принудительно применяем статус из сохранения
+        Spawner->CurrentStatus = State->Status;
         Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
-        Spawner->BlockNewSpawn = State->bBlockNewSpawn;   // NEW
+        Spawner->BlockNewSpawn = State->bBlockNewSpawn;
 
         if (State->bStoreSpawnParameters)
+        {
             Spawner->RestoreFromStateWithoutCleanup(*State);
+        }
         else
+        {
+            // Передаем сохраненные счетчики убийств перед вызовом SpawnGroup()
+            Spawner->SetKilledState(State->KilledCount, State->TypeKilled);
             Spawner->SpawnGroup();
+        }
     }
 
-    // Применяем pending-команды по GroupId к зарегистрированным спавнерам.
-    // Итерируемся по снимку ключей, т.к. ApplyPendingCommandsToSpawner удаляет из карты.
+    // Применяем pending-команды по GroupId
     TArray<FGuid> PendingGroupIds;
     PendingSpawnerCommands.GetKeys(PendingGroupIds);
 
@@ -1646,16 +1658,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
     {
         if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId))
         {
-            UE_LOG(LogTemp, Log,
-                TEXT("SpawnGroupSubsystem: applying pending to spawner %s (LevelLoaded)"),
-                *GroupId.ToString());
             ApplyPendingCommandsToSpawner(Spawner);
-        }
-        else
-        {
-            UE_LOG(LogTemp, Verbose,
-                TEXT("SpawnGroupSubsystem: pending for Group %s still waiting (spawner not on current level)"),
-                *GroupId.ToString());
         }
     }
 }

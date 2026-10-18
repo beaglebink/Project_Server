@@ -112,6 +112,8 @@ struct FSpawnSlotState
     TArray<FName> TextTags;
 };
 
+class USpawnGroupAsset;
+
 USTRUCT(BlueprintType)
 struct FSpawnGroupState
 {
@@ -126,8 +128,10 @@ struct FSpawnGroupState
     UPROPERTY() TMap<FName, int32> TypeKilled;
     UPROPERTY() TArray<FSpawnSlotState> Slots;
     UPROPERTY() bool bStoreSpawnParameters = false;
-
     UPROPERTY() bool bBlockNewSpawn = false;
+
+    // NEW: сохранение переназначенного ассета
+    UPROPERTY() TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride;
 
     UPROPERTY() TArray<FSpawnedEnemyState> EnemyStates;
 };
