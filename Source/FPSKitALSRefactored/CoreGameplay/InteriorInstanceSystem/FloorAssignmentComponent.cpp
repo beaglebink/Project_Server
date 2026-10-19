@@ -35,9 +35,32 @@ namespace
 		{
 			const int32 MPos = Base.Find(TEXT("_M_"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PIEPos);
 			if (MPos != INDEX_NONE && MPos + 3 < Base.Len())
+			{
+				// Стриминговый саблевел: берём всё после "_M_"
 				Base = Base.Mid(MPos + 3);
-			else if (PIEPos + 6 < Base.Len())
-				Base = Base.Mid(PIEPos + 6);
+			}
+			else
+			{
+				// Пропускаем "UEDPIE_" (7 символов: U E D P I E _)
+				int32 Start = PIEPos + 7;
+
+				// Пропускаем номер PIE-инстанса (может быть многозначным: 0, 10, 123…)
+				while (Start < Base.Len() && FChar::IsDigit(Base[Start]))
+				{
+					++Start;
+				}
+
+				// Пропускаем разделитель "_" после номера инстанса
+				if (Start < Base.Len() && Base[Start] == TEXT('_'))
+				{
+					++Start;
+				}
+
+				if (Start < Base.Len())
+				{
+					Base = Base.Mid(Start);
+				}
+			}
 		}
 
 		return Base.ToLower();
@@ -84,6 +107,7 @@ namespace
 UFloorAssignmentComponent::UFloorAssignmentComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+
 }
 
 void UFloorAssignmentComponent::BeginPlay()
