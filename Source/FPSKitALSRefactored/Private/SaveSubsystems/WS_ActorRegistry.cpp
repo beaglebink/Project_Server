@@ -12,6 +12,6 @@ void UWS_ActorRegistry::UnregisterActor(const FGuid& Guid)
 
 AActor* UWS_ActorRegistry::FindActorByGuid(const FGuid& Guid) const
 {
-	AActor* FoundActor = *(GuidToActorMap.Find(Guid));
+	AActor* FoundActor = GuidToActorMap.Find(Guid) ? *GuidToActorMap.Find(Guid) : nullptr;
 	return IsValid(FoundActor) ? FoundActor : nullptr;
 }
