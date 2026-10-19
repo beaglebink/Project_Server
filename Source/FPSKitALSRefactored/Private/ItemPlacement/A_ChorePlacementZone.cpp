@@ -141,7 +141,12 @@ void AA_ChorePlacementZone::BeginPlay()
 		if (UGIS_ChorePlacement* ChoreSys = GI->GetSubsystem<UGIS_ChorePlacement>())
 		{
 			ChoreSys->AddSaveableObject(this);
-			ChoreSys->ApplyChorePlacementData(this);
+
+			// Delay the application of chore placement data to the next tick to ensure that all actors are properly initialized
+			GetWorld()->GetTimerManager().SetTimerForNextTick([this, ChoreSys]()
+				{
+					ChoreSys->ApplyChorePlacementData(this);
+				});
 		}
 	}
 }

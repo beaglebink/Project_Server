@@ -58,7 +58,6 @@ void AA_DropZone::Tick(float DeltaTime)
 void AA_DropZone::BeginPlay()
 {
 	Super::BeginPlay();
-
 	IsPlacingOnScene = false;
 	SetMeshMaterialAndState(0, IsPlacingOnScene);
 }
