@@ -3958,10 +3958,10 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 		bNeedTeleportToAnchor = ISceneDataProvider::Execute_GetNeedTeleportToAnchor(GI);
 	}
 
-
 	if (bNeedTeleportToAnchor && !HasPendingAnchorID())
 	{
-		return;
+		bNeedTeleportToAnchor = false;
+
 	}
 
 	const FGuid AnchorID = GetPendingAnchorID();

@@ -541,205 +541,223 @@ void ASpawnGroupSpawner::SpawnGroup()
         return;
     }
 
-    // ========================================================================
-    // ФИКС: Очищаем следы предыдущей конфигурации перед любым новым спавном.
-    // Это гарантирует, что при смене пула на список (или наоборот) не останется
-    // старых слотов и призраков.
-    // ========================================================================
+    // Сбрасываем следы предыдущей конфигурации
     SafeDestroyAllGhosts(); // Уничтожает старых, очищает SpawnedGhosts, AllSlots и SpawnedCount
     bHasPublishedClear = false;
 
-    // Если SafeDestroyAllGhosts не сбрасывает таймер (хотя должен), подстрахуемся:
-    World->GetTimerManager().ClearTimer(TimerHandle);
+    if (TimerHandle.IsValid())
+    {
+        World->GetTimerManager().ClearTimer(TimerHandle);
+    }
     bHasPublishedClear = false;
-    // ========================================================================
+
+    // Слабые указатели для безопасного захвата в лямбду
+    TWeakObjectPtr<ASpawnGroupSpawner> WeakThis(this);
+    TWeakObjectPtr<UWorld>             WeakWorld(World);
 
     if (SpawnGroupAsset->Composition.bUsePool)
     {
-        // Desired count of each class
-        // Желаемое количество каждого класса
+        // --- Pool-ветка --------------------------------------------------
         TMap<UClass*, int32> DesiredCounts;
-
         for (const FSpawnTypeCount& TypeCount : SpawnGroupAsset->Composition.ActorsPool)
         {
             DesiredCounts.Add(TypeCount.ActorClass, TypeCount.Count);
         }
 
         TArray<TSubclassOf<AActor>> ClassesToSpawn;
-
-        // Subtract already killed (TypeKilled)
-        // Вычитаем уже убитых (TypeKilled)
-
         for (const auto& Pair : DesiredCounts)
         {
             UClass* Class = Pair.Key;
-            int32 Desired = Pair.Value;
-            int32 Killed = TypeKilled.FindRef(Class->GetFName());
-            int32 Need = FMath::Max(0, Desired - Killed);
+            int32   Desired = Pair.Value;
+            int32   Killed = TypeKilled.FindRef(Class->GetFName());
+            int32   Need = FMath::Max(0, Desired - Killed);
             for (int32 i = 0; i < Need; ++i)
             {
                 ClassesToSpawn.Add(Class);
             }
         }
 
-        // SpawnedCount уже сброшен в 0 в SafeDestroyAllGhosts()
-        int32 NeedSpawnCount = 0;
+        // Количество, которое РЕАЛЬНО нужно заспавнить.
+        // Именно с ним и надо сравнивать SpawnedCount, а не с суммой по пулам.
+        const int32 TotalToSpawn = ClassesToSpawn.Num();
 
-        for (auto Pool : SpawnGroupAsset->Composition.ActorsPool)
-        {
-            NeedSpawnCount = NeedSpawnCount + Pool.Count;
-        }
-
-        FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, ClassesToSpawn, DesiredCounts, NeedSpawnCount, World]()
+        FTimerDelegate Delegate = FTimerDelegate::CreateLambda(
+            [WeakThis, WeakWorld, ClassesToSpawn, TotalToSpawn]()
             {
-                ASpawnVolume* Location = GetRandomSpawnLocation();
-
-                if (ClassesToSpawn.Num() <= 0 || !ClassesToSpawn.IsValidIndex(SpawnedCount))
+                ASpawnGroupSpawner* Self = WeakThis.Get();
+                UWorld* W = WeakWorld.Get();
+                if (!Self || !W)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
-                    World->GetTimerManager().ClearTimer(TimerHandle);
-                    AllSpawned = true;
                     return;
                 }
 
-                if (NeedSpawnCount <= SpawnedCount + KilledCount + GetCapturedCount())
+                // 1) Сначала — «всё ли заспавнено».
+                if (TotalToSpawn <= 0 || Self->SpawnedCount >= TotalToSpawn)
                 {
-                    World->GetTimerManager().ClearTimer(TimerHandle);
-                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"), *GetName(), SpawnedGhosts.Num());
-                    AllSpawned = true;
+                    if (Self->TimerHandle.IsValid())
+                    {
+                        W->GetTimerManager().ClearTimer(Self->TimerHandle);
+                    }
+                    Self->AllSpawned = true;
+                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: All spawned (%d/%d)"),
+                        *Self->GetName(), Self->SpawnedCount, TotalToSpawn);
                     return;
                 }
 
-                TSubclassOf<AActor> SpawnedClass = ClassesToSpawn[SpawnedCount];
-                FTransform SpawnTransform;
-
-                if (IsStoreSpawnParameters && StoredSpawnParameters.Num() > 0)
+                // 2) Только теперь — проверка индекса.
+                if (!ClassesToSpawn.IsValidIndex(Self->SpawnedCount))
                 {
-                    SpawnTransform = StoredSpawnParameters.FindRef(SpawnedClass);
-                    StoredSpawnParameters.Remove(SpawnedClass);
+                    UE_LOG(LogTemp, Warning,
+                        TEXT("SpawnGroupSpawner [%s]: Invalid index ClassesToSpawn (%d/%d)"),
+                        *Self->GetName(), Self->SpawnedCount, TotalToSpawn);
+                    if (Self->TimerHandle.IsValid())
+                    {
+                        W->GetTimerManager().ClearTimer(Self->TimerHandle);
+                    }
+                    Self->AllSpawned = true;
+                    return;
+                }
+
+                ASpawnVolume* Location = Self->GetRandomSpawnLocation();
+                TSubclassOf<AActor>    SpawnedClass = ClassesToSpawn[Self->SpawnedCount];
+                FTransform             SpawnTransform;
+
+                if (Self->IsStoreSpawnParameters && Self->StoredSpawnParameters.Num() > 0)
+                {
+                    SpawnTransform = Self->StoredSpawnParameters.FindRef(SpawnedClass);
+                    Self->StoredSpawnParameters.Remove(SpawnedClass);
                 }
                 else
                 {
-                    SpawnTransform = GetTransformFromLocation(Location);
+                    SpawnTransform = Self->GetTransformFromLocation(Location);
                 }
 
-                AActor* Ghost = SpawnSingleGhost(SpawnedClass, SpawnTransform);
+                AActor* Ghost = Self->SpawnSingleGhost(SpawnedClass, SpawnTransform);
                 if (Ghost)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Spawned Ghost [%s] Type [%s]"), *GetName(), *Ghost->GetName(), *SpawnedClass->GetName());
-                    SpawnedCount++;
+                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Spawned Ghost [%s] Type [%s]"),
+                        *Self->GetName(), *Ghost->GetName(), *SpawnedClass->GetName());
 
-                    if (const FSpawnedEnemyState* State = FindStateForActor(Ghost))
+                    Self->SpawnedCount++;
+
+                    if (const FSpawnedEnemyState* State = Self->FindStateForActor(Ghost))
                     {
-                        DeserializeAndApplyState(Ghost, *State);
-                        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"), *GetName(), *State->ItemId.ToString());
+                        Self->DeserializeAndApplyState(Ghost, *State);
+                        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"),
+                            *Self->GetName(), *State->ItemId.ToString());
                     }
 
-                    SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
-                    Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
-
-                    OnGhostSpawned.Broadcast(Ghost);
+                    Self->SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
+                    Ghost->OnDestroyed.AddDynamic(Self, &ASpawnGroupSpawner::OnGhostDestroyed);
+                    Self->OnGhostSpawned.Broadcast(Ghost);
                 }
 
-                UpdateGroupStatus();
+                Self->UpdateGroupStatus();
             });
 
         World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
     }
     else
     {
-        // Determine classes for spawning
-        // Определяем классы для спавна
-        TArray<TSubclassOf<AAlsCharacter>> ClassesToSpawn;
-        int32 DesiredCount = 0;
+        // --- Non-pool ветка ----------------------------------------------
+        TArray<TSubclassOf<AAlsCharacter>> ClassesToSpawn = SpawnGroupAsset->Composition.ActorClasses;
+        const int32 DesiredCount = SpawnGroupAsset->Composition.Count;
 
-        ClassesToSpawn = SpawnGroupAsset->Composition.ActorClasses;
-        DesiredCount = SpawnGroupAsset->Composition.Count;
-
-        if (ClassesToSpawn.Num() <= 0 || !ClassesToSpawn.IsValidIndex(SpawnedCount))
+        if (ClassesToSpawn.Num() <= 0 || DesiredCount <= 0)
         {
-            UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
-            World->GetTimerManager().ClearTimer(TimerHandle);
+            UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid config for non-pool spawn"), *GetName());
+            if (TimerHandle.IsValid())
+            {
+                World->GetTimerManager().ClearTimer(TimerHandle);
+            }
             return;
         }
 
-        // If more Count is specified than classes, cycle through classes repeatedly
-        // Если указано больше Count, чем классов, циклически повторяем классы
         TArray<TSubclassOf<AActor>> FinalClasses;
         for (int32 i = 0; i < DesiredCount; ++i)
         {
             FinalClasses.Add(ClassesToSpawn[i % ClassesToSpawn.Num()]);
         }
 
-        // Очистка SpawnedGhosts и SpawnedCount уже произошла в начале метода
+        const int32 TotalFinal = FinalClasses.Num();
 
-        FTimerDelegate Delegate = FTimerDelegate::CreateLambda([this, FinalClasses, World, DesiredCount]()
+        FTimerDelegate Delegate = FTimerDelegate::CreateLambda(
+            [WeakThis, WeakWorld, FinalClasses, TotalFinal, DesiredCount]()
             {
-                ASpawnVolume* Location = GetRandomSpawnLocation();
-
-                if (!FinalClasses.IsValidIndex(SpawnedCount % FinalClasses.Num()))
+                ASpawnGroupSpawner* Self = WeakThis.Get();
+                UWorld* W = WeakWorld.Get();
+                if (!Self || !W)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *GetName());
-                    World->GetTimerManager().ClearTimer(TimerHandle);
                     return;
                 }
 
-                if (DesiredCount <= KilledCount)
+                if (DesiredCount <= Self->KilledCount)
                 {
-                    KilledCount = DesiredCount;
-                    World->GetTimerManager().ClearTimer(TimerHandle);
+                    Self->KilledCount = DesiredCount;
+                    if (Self->TimerHandle.IsValid())
+                    {
+                        W->GetTimerManager().ClearTimer(Self->TimerHandle);
+                    }
+                    Self->AllSpawned = true;
                     return;
                 }
 
-                if (SpawnedCount >= DesiredCount - KilledCount)
+                if (Self->SpawnedCount >= DesiredCount - Self->KilledCount)
                 {
-                    // All ghosts spawned
-                    // Все призраки заспавнены
-                    World->GetTimerManager().ClearTimer(TimerHandle);
-                    OnAllSpawned.Broadcast();
-
-                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"), *GetName(), SpawnedGhosts.Num());
+                    if (Self->TimerHandle.IsValid())
+                    {
+                        W->GetTimerManager().ClearTimer(Self->TimerHandle);
+                    }
+                    Self->OnAllSpawned.Broadcast();
+                    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Spawned %d ghosts"),
+                        *Self->GetName(), Self->SpawnedGhosts.Num());
                     return;
                 }
 
-                TSubclassOf<AActor> SpawnedClass = FinalClasses[SpawnedCount % FinalClasses.Num()];
-                FTransform SpawnTransform;
-
-                if (IsStoreSpawnParameters && StoredSpawnParameters.Num() > 0)
+                if (TotalFinal <= 0 || !FinalClasses.IsValidIndex(Self->SpawnedCount % TotalFinal))
                 {
-                    SpawnTransform = StoredSpawnParameters.FindRef(SpawnedClass);
+                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Invalid index for FinalClasses"), *Self->GetName());
+                    if (Self->TimerHandle.IsValid())
+                    {
+                        W->GetTimerManager().ClearTimer(Self->TimerHandle);
+                    }
+                    return;
+                }
+
+                ASpawnVolume* Location = Self->GetRandomSpawnLocation();
+                TSubclassOf<AActor> SpawnedClass = FinalClasses[Self->SpawnedCount % TotalFinal];
+                FTransform          SpawnTransform;
+
+                if (Self->IsStoreSpawnParameters && Self->StoredSpawnParameters.Num() > 0)
+                {
+                    SpawnTransform = Self->StoredSpawnParameters.FindRef(SpawnedClass);
                 }
                 else
                 {
-                    SpawnTransform = GetTransformFromLocation(Location);
+                    SpawnTransform = Self->GetTransformFromLocation(Location);
                 }
 
-                if (FinalClasses.Num() == 0)
-                {
-                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: FinalClasses is empty, cannot spawn"), *GetName());
-                    World->GetTimerManager().ClearTimer(TimerHandle);
-                    return;
-                }
-
-                AActor* Ghost = SpawnSingleGhost(SpawnedClass, SpawnTransform);
+                AActor* Ghost = Self->SpawnSingleGhost(SpawnedClass, SpawnTransform);
                 if (Ghost)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Spawned Ghost [%s] Type [%s]"), *GetName(), *Ghost->GetName(), *SpawnedClass->GetName());
-                    SpawnedCount++;
+                    UE_LOG(LogTemp, Warning, TEXT("SpawnGroupSpawner [%s]: Spawned Ghost [%s] Type [%s]"),
+                        *Self->GetName(), *Ghost->GetName(), *SpawnedClass->GetName());
 
-                    if (const FSpawnedEnemyState* State = FindStateForActor(Ghost))
+                    Self->SpawnedCount++;
+
+                    if (const FSpawnedEnemyState* State = Self->FindStateForActor(Ghost))
                     {
-                        DeserializeAndApplyState(Ghost, *State);
-                        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"), *GetName(), *State->ItemId.ToString());
+                        Self->DeserializeAndApplyState(Ghost, *State);
+                        UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Applied saved state for ItemId %s"),
+                            *Self->GetName(), *State->ItemId.ToString());
                     }
 
-                    SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
-                    Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
-
-                    OnGhostSpawned.Broadcast(Ghost);
+                    Self->SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
+                    Ghost->OnDestroyed.AddDynamic(Self, &ASpawnGroupSpawner::OnGhostDestroyed);
+                    Self->OnGhostSpawned.Broadcast(Ghost);
                 }
 
-                UpdateGroupStatus();
+                Self->UpdateGroupStatus();
             });
 
         World->GetTimerManager().SetTimer(TimerHandle, Delegate, SpawnInterval, true);
