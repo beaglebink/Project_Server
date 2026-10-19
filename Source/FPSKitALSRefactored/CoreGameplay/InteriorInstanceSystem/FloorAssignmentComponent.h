@@ -55,7 +55,7 @@ public:
     FGuid GetFloorId() const { return FloorId; }
 
     UFUNCTION(BlueprintCallable, Category = "FloorAssignment")
-    void Registrate(EFloorActorType Type, FGuid ForceItemId = FGuid());
+    void Registrate(EFloorActorType Type, const ESnapshotChannel& Channel = ESnapshotChannel::None, FGuid ForceItemId = FGuid());
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "FloorAssignment")
     FGuid GetItemId() const { return ProtectedItemId; }
