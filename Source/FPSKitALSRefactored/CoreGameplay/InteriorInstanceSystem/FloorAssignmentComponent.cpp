@@ -77,17 +77,6 @@ namespace
 			}
 		}
 
-		// ItemId — идентичность актора, не перегенерируем без нужды.
-		if (!Comp->ItemId.IsValid() && !Comp->ProtectedItemId.IsValid())
-		{
-			Comp->ItemId = FGuid::NewGuid();
-			Comp->ProtectedItemId = Comp->ItemId;
-		}
-		else if (!Comp->ItemId.IsValid())
-		{
-			Comp->ItemId = Comp->ProtectedItemId;
-		}
-
 		return true;
 	}
 }
