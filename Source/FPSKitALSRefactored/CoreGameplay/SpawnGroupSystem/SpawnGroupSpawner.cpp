@@ -766,11 +766,13 @@ void ASpawnGroupSpawner::SpawnGroup()
 
 void ASpawnGroupSpawner::ClearGroup(ESpawnGroupResolutionReason Reason)
 {
-    if (CurrentStatus == ESpawnGroupStatus::Cleared)
-    {
-        UE_LOG(LogTemp, Verbose, TEXT("SpawnGroupSpawner [%s]: Already cleared, skip"), *GetName());
-        return;
-    }
+    //if (CurrentStatus == ESpawnGroupStatus::Cleared)
+    //{
+    //    UE_LOG(LogTemp, Verbose, TEXT("SpawnGroupSpawner [%s]: Already cleared, skip"), *GetName());
+   //     return;
+   // }
+
+    SafeDestroyAllGhosts();
 
     // Mark all slots as killed (using State)
     // Помечаем все слоты как убитые (используем State)
@@ -1018,9 +1020,9 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
 
 void ASpawnGroupSpawner::PublishGhostClearedEvent(ESpawnGroupResolutionReason Reason)
 {
-    if (!CachedEventBus.IsValid() || !SpawnGroupAsset) return;
+    if (!SpawnGroupAsset) return;
 
-    UEventBusSubsystem* EventBus = CachedEventBus.Get();
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus) return;
 
     UGhostClearedPayload* Payload = EventBus->CreatePayload<UGhostClearedPayload>();

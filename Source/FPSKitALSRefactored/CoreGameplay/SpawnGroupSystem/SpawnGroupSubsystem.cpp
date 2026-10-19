@@ -1,7 +1,4 @@
-﻿// SpawnGroupSubsystem.cpp
-// SpawnGroupSubsystem.cpp
-
-#include "SpawnGroupSubsystem.h"
+﻿#include "SpawnGroupSubsystem.h"
 #include "SpawnGroupSpawner.h"
 #include "SpawnGroupCommandPayload.h"
 #include "SpawnGroupRegistrationPayload.h"
@@ -329,6 +326,11 @@ void USpawnGroupSubsystem::HandleFloorLeaving(const FOutcomeEventBase& Outcome)
 {
     bLevelLoaded = false;
 
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(LevelLoadedTimerHandle);
+    }
+
     if (Outcome.OutcomeType != EOutcomeType::Interior ||
         Outcome.OutcomeInterior != EOutcomeInterior::FloorLeaving)
         return;
@@ -546,12 +548,6 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
             UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Configure (step %s) to spawner %s"),
                 *C.SourceStepId.ToString(), *GroupId.ToString());
         }
-        if (C.bPendingActivate)
-        {
-            Spawner->SpawnGroupInternal();
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Activate (step %s) to spawner %s"),
-                *C.SourceStepId.ToString(), *GroupId.ToString());
-        }
         if (C.bPendingDestroyRemaining)
         {
             Spawner->ClearGroup(C.DestroyReason);
@@ -563,6 +559,12 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
             UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred DestroyRemaining (step %s) to spawner %s (BlockNewSpawn=%s)"),
                 *C.SourceStepId.ToString(), *GroupId.ToString(),
                 C.bBlockFutureSpawn ? TEXT("true") : TEXT("false"));
+        }
+        if (C.bPendingActivate)
+        {
+            Spawner->SpawnGroupInternal();
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Activate (step %s) to spawner %s"),
+                *C.SourceStepId.ToString(), *GroupId.ToString());
         }
     }
     PendingSpawnerCommands.Remove(GroupId);
@@ -1597,91 +1599,133 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
         return;
 
+    // Выставляем флаг, что уровень загружен (pending-команды теперь могут применяться)
     bLevelLoaded = true;
 
-    // Определяем текущий ключ этажа
-    ALocationAnchorActor* FoundAnchor = nullptr;
-    for (TActorIterator<ALocationAnchorActor> It(World); It; ++It)
-    {
-        FoundAnchor = *It;
-        break;
-    }
-    if (FoundAnchor)
-    {
-        UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
-        UInteriorSetAsset* InteriorAsset = FoundAnchor->OwnerInteriorSet.LoadSynchronous();
-        if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid() && FloorAsset && FloorAsset->FloorID.IsValid())
+    // Отменяем предыдущий таймер, если он еще не сработал
+    World->GetTimerManager().ClearTimer(LevelLoadedTimerHandle);
+
+    // Создаем лямбду с отложенной логикой
+        UWorld* LocalWorld = GetWorld();
+        if (!LocalWorld) return;
+
+        // Определяем текущий ключ этажа
+        ALocationAnchorActor* FoundAnchor = nullptr;
+        for (TActorIterator<ALocationAnchorActor> It(LocalWorld); It; ++It)
         {
-            CurrentFloorKey = FInteriorFloorKey(InteriorAsset->InteriorSetID, FloorAsset->FloorID);
+            FoundAnchor = *It;
+            break;
         }
-    }
-
-    // Восстановление из PersistentGroupStates
-    for (const auto& Pair : SpawnerByItemId)
-    {
-        ASpawnGroupSpawner* Spawner = Pair.Value.Get();
-        if (!Spawner || !IsValid(Spawner)) continue;
-
-        if (Spawner->Restore || !Spawner->SpawnGroupAsset)
-            continue;
-
-        FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
-        if (!FloorKey.FloorId.IsValid()) continue;
-
-        TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
-        if (!FloorStates) continue;
-
-        FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
-        if (!State) continue;
-
-        // ФИКС: Если спавнер уже был восстановлен миссией (InteriorSubsystem), 
-        // мы НЕ перезаписываем его состояние из PersistentGroupStates.
-        // Логика Freeze / ResetUnlessCleared уже применила нужные изменения (KilledCount, PendingEnemyStates и т.д.).
-        if (!Spawner->bWasRestoredByMission)
+        if (FoundAnchor)
         {
-            if (State->Status == ESpawnGroupStatus::Suppressed ||
-                State->Status == ESpawnGroupStatus::Cleared ||
-                State->Status == ESpawnGroupStatus::Inactive)
+            UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
+            UInteriorSetAsset* InteriorAsset = FoundAnchor->OwnerInteriorSet.LoadSynchronous();
+            if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid() && FloorAsset && FloorAsset->FloorID.IsValid())
             {
+                CurrentFloorKey = FInteriorFloorKey(InteriorAsset->InteriorSetID, FloorAsset->FloorID);
+            }
+        }
+
+        // Восстановление из PersistentGroupStates
+        for (const auto& Pair : SpawnerByItemId)
+        {
+            ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+            if (!Spawner || !IsValid(Spawner)) continue;
+
+            if (Spawner->Restore || !Spawner->SpawnGroupAsset)
                 continue;
+
+            FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
+            if (!FloorKey.FloorId.IsValid()) continue;
+
+            UpdateSpawnerStateInCache(Spawner);
+
+            TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey);
+            if (!FloorStates) continue;
+
+            FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
+            if (!State) continue;
+
+            // ФИКС: Если спавнер уже был восстановлен миссией (InteriorSubsystem), 
+            // мы НЕ перезаписываем его состояние из PersistentGroupStates.
+            // Логика Freeze / ResetUnlessCleared уже применила нужные изменения (KilledCount, PendingEnemyStates и т.д.).
+            if (!Spawner->bWasRestoredByMission)
+            {
+                if (State->Status == ESpawnGroupStatus::Suppressed ||
+                    State->Status == ESpawnGroupStatus::Cleared ||
+                    State->Status == ESpawnGroupStatus::Inactive)
+                {
+                    //Spawner->AllSpawned = true;
+                    continue;
+                }
+
+                if (!State->SpawnGroupAssetOverride.IsNull())
+                {
+                    Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
+                }
+
+                Spawner->CurrentStatus = State->Status;
+                Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
+                Spawner->BlockNewSpawn = State->bBlockNewSpawn;
+
+                if (State->bStoreSpawnParameters)
+                {
+                    Spawner->RestoreFromStateWithoutCleanup(*State);
+                    continue; // Уже восстановлено, пропускаем вызов SpawnGroup()
+                }
+                else
+                {
+                    // Передаем сохраненные счетчики убийств перед вызовом SpawnGroup()
+                    Spawner->SetKilledState(State->KilledCount, State->TypeKilled);
+                }
             }
 
-            if (!State->SpawnGroupAssetOverride.IsNull())
-            {
-                Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
-            }
-
-            Spawner->CurrentStatus = State->Status;
-            Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
-            Spawner->BlockNewSpawn = State->bBlockNewSpawn;
-
-            if (State->bStoreSpawnParameters)
-            {
-                Spawner->RestoreFromStateWithoutCleanup(*State);
-                continue; // Уже восстановлено, пропускаем вызов SpawnGroup()
-            }
-            else
-            {
-                // Передаем сохраненные счетчики убийств перед вызовом SpawnGroup()
-                Spawner->SetKilledState(State->KilledCount, State->TypeKilled);
-            }
+            // Если bWasRestoredByMission == true, вызываем SpawnGroup().
+            // Он использует PendingEnemyStates (для Freeze) или сброшенный KilledCount (для ResetUnlessCleared), 
+            // которые подготовил InteriorSubsystem.
+            Spawner->SpawnGroup();
         }
 
-        // Если bWasRestoredByMission == true, вызываем SpawnGroup().
-        // Он использует PendingEnemyStates (для Freeze) или сброшенный KilledCount (для ResetUnlessCleared), 
-        // которые подготовил InteriorSubsystem.
-        Spawner->SpawnGroup();
-    }
-
-    // Применяем pending-команды по GroupId
-    TArray<FGuid> PendingGroupIds;
-    PendingSpawnerCommands.GetKeys(PendingGroupIds);
-
-    for (const FGuid& GroupId : PendingGroupIds)
-    {
-        if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId))
+        FTimerDelegate Delegate = FTimerDelegate::CreateWeakLambda(this, [this]()
         {
-            ApplyPendingCommandsToSpawner(Spawner);
-        }
-    }
+			bool AllSpawnersReady = true;
+            for (const auto& Pair : SpawnerByItemId)
+            {
+                ASpawnGroupSpawner* Spawner = Pair.Value.Get();
+                if (!Spawner || !IsValid(Spawner)) continue;
+                if (Spawner->CurrentStatus == ESpawnGroupStatus::Active)
+                {
+                    if (!Spawner->AllSpawned)
+                    {
+                        AllSpawnersReady = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    // Если спавнер не активен, считаем его готовым
+					continue;
+                }
+            }
+
+            if (AllSpawnersReady)
+            {
+				UWorld* World = GetWorld();
+				World->GetTimerManager().ClearTimer(LevelLoadedTimerHandle);
+                // Применяем pending-команды по GroupId
+                TArray<FGuid> PendingGroupIds;
+                PendingSpawnerCommands.GetKeys(PendingGroupIds);
+
+                for (const FGuid& GroupId : PendingGroupIds)
+                {
+                    if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId))
+                    {
+                        ApplyPendingCommandsToSpawner(Spawner);
+                    }
+                }
+            }
+        });
+
+    // Запускаем лямбду с отсрочкой 0.5 секунды
+    World->GetTimerManager().SetTimer(LevelLoadedTimerHandle, Delegate, 0.5f, true);
 }

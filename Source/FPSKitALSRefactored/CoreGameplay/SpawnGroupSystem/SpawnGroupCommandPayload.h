@@ -13,7 +13,7 @@ class FPSKITALSREFACTORED_API USpawnGroupCommandPayload : public USpawnGroupLoca
 public:
     // GroupId находится в базовом классе.
 
-    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     ESpawnGroupResolutionReason Reason = ESpawnGroupResolutionReason::None;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
