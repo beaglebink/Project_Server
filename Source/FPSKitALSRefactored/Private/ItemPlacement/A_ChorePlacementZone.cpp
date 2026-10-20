@@ -45,7 +45,10 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 	if (!AreaDropZone && AreaDropZoneClass)
 	{
 		AreaDropZone = GetWorld()->SpawnActor<AA_AreaDropZone>(AreaDropZoneClass, GetActorTransform());
-		AreaDropZone->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		if (!IsValid(AreaDropZone->ParentActor))
+		{
+			AreaDropZone->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		}
 		AreaDropZone->SetActorRelativeLocation(FVector(0.0f, 100.0f, 0.0f));
 	}
 
@@ -55,17 +58,13 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 		for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
 		{
 			// Create the DropZoneGridVisual actor for this placement zone
-			FVector DropZonesGridStartLocation{ 0.0f,0.0f,0.0f };
+			FVector DropZonesGridStartLocationOffset{ 0.0f,0.0f,0.0f };
 			if (!DropZonePlacementZone.DropZoneGridVisual)
 			{
 				FActorSpawnParameters Params;
 				Params.Owner = this;
 				DropZonePlacementZone.DropZoneGridVisual = GetWorld()->SpawnActor<AA_DropZoneGridVisual>(DropZoneGridVisualClass, GetActorTransform(), Params);
 				DropZonePlacementZone.DropZoneGridVisual->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-			}
-			else if (DropZonePlacementZone.DropZoneGridVisual->GetRootComponent())
-			{
-				DropZonesGridStartLocation = DropZonePlacementZone.DropZoneGridVisual->GetDropZoneGridVisualStartLocation();
 			}
 
 			// Count the number of items that can fit in the drop zone based on the item mesh size and the drop zone mesh size
@@ -75,23 +74,32 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 				{
 					if (ItemCDO->StaticMesh && ItemCDO->StaticMesh->GetStaticMesh() && DropZonePlacementZone.DropZoneGridVisual->GetRootComponent())
 					{
-						DropZonePlacementZone.ItemMeshSize = ItemCDO->StaticMesh->GetStaticMesh()->GetBounds().BoxExtent * 2.2f;
-
-						FVector DropZoneMeshSize = DropZonePlacementZone.DropZoneGridVisual->GetRootComponent()->Bounds.BoxExtent * 2.0f;
+						DropZonePlacementZone.ItemMeshSize = ItemCDO->StaticMesh->GetStaticMesh()->GetBoundingBox().GetSize() * (1.0f + GapSizeBetweenInPercent);
+						FVector DropZoneMeshSize(FVector::ZeroVector);
+						if (UStaticMeshComponent* StaticMeshComponent = DropZonePlacementZone.DropZoneGridVisual->FindComponentByClass<UStaticMeshComponent>())
+						{
+							if (StaticMeshComponent->GetStaticMesh())
+							{
+								DropZoneMeshSize = StaticMeshComponent->GetStaticMesh()->GetBoundingBox().GetSize() * StaticMeshComponent->GetComponentScale();
+							}
+						}
 
 						DropZonePlacementZone.ItemsRows = FMath::FloorToInt(DropZoneMeshSize.X / DropZonePlacementZone.ItemMeshSize.X);
 						DropZonePlacementZone.ItemsColumns = FMath::FloorToInt(DropZoneMeshSize.Y / DropZonePlacementZone.ItemMeshSize.Y);
 						DropZonePlacementZone.DropZoneQuantity = DropZonePlacementZone.ItemsRows * DropZonePlacementZone.ItemsColumns;
 					}
 				}
-				DropZonesGridStartLocation += FVector(DropZonePlacementZone.ItemMeshSize.X / 2.0f, -DropZonePlacementZone.ItemMeshSize.Y / 2.0f, 0.0f); // Adjust the starting location to center the grid of drop zones within the drop zone mesh
+				DropZonesGridStartLocationOffset = FVector(DropZonePlacementZone.ItemMeshSize.X / 2.0f, -DropZonePlacementZone.ItemMeshSize.Y / 2.0f, 0.0f); // Adjust the starting location to center the grid of drop zones within the drop zone mesh
 
 				while (DropZonePlacementZone.DropZones.Num() < DropZonePlacementZone.DropZoneQuantity)
 				{
 					AA_DropZone* DropZone = GetWorld()->SpawnActorDeferred<AA_DropZone>(DropZoneClass, GetActorTransform(), this);
 					DropZone->ItemClass = DropZonePlacementZone.ItemClass;
 					DropZone->FinishSpawning(GetActorTransform());
-					DropZone->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+					if (!IsValid(DropZone->ParentActor))
+					{
+						DropZone->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					}
 					DropZonePlacementZone.DropZones.Add(DropZone);
 				}
 			}
@@ -111,11 +119,19 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 					if (DropZonePlacementZone.DropZones.IsValidIndex(Index) && IsValid(DropZonePlacementZone.DropZones[Index]))
 					{
 						FVector LocationOffset = FVector(Row * DropZonePlacementZone.ItemMeshSize.X, -Column * DropZonePlacementZone.ItemMeshSize.Y, 0.0f);
-						DropZonePlacementZone.DropZones[Index]->SetActorLocation(DropZonesGridStartLocation + LocationOffset);
+						FTransform GridTransform = DropZonePlacementZone.DropZoneGridVisual->GetTransform();
+						GridTransform.SetLocation(GridTransform.TransformPositionNoScale(DropZonesGridStartLocationOffset));
+						DropZonePlacementZone.DropZones[Index]->SetActorLocation(GridTransform.TransformPositionNoScale(LocationOffset));
+						DropZonePlacementZone.DropZones[Index]->SetActorRotation(DropZonePlacementZone.DropZoneGridVisual->GetActorRotation());
 					}
 				}
 			}
 		}
+	}
+
+	if (IsValid(ParentActor))
+	{
+		AttachToActor(ParentActor, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	}
 }
 

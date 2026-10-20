@@ -44,16 +44,6 @@ void AA_DropZoneGridVisual::BeginPlay()
 	}
 }
 
-FVector AA_DropZoneGridVisual::GetDropZoneGridVisualStartLocation() const
-{
-	if (!DropZoneMeshComponent->GetStaticMesh())
-	{
-		return FVector::ZeroVector;
-	}
-
-	return GetActorLocation() - FVector(DropZoneMeshComponent->GetStaticMesh()->GetBounds().BoxExtent.X * DropZoneMeshComponent->GetComponentScale().X, -DropZoneMeshComponent->GetStaticMesh()->GetBounds().BoxExtent.Y * DropZoneMeshComponent->GetComponentScale().Y, 0.0f);
-}
-
 #if WITH_EDITOR
 void AA_DropZoneGridVisual::PostEditMove(bool bFinished)
 {

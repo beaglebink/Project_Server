@@ -20,23 +20,12 @@ void AA_AreaDropZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (ItemsClasses.Num() > 0)
-	{
-		for (const TSubclassOf<AA_InteractableActor>& ItemClass : ItemsClasses)
-		{
-			if (!ItemClass)
-			{
-				continue;
-			}
-
-			if (AA_InteractableActor* Item = ItemClass->GetDefaultObject<AA_InteractableActor>())
-			{
-				ItemsNames.Add(Item->Name);
-			}
-		}
-	}
-
 	SetMeshMaterialAndState(0, IsPlacingOnScene);
+
+	if (IsValid(ParentActor))
+	{
+		AttachToActor(ParentActor, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	}
 }
 
 void AA_AreaDropZone::Tick(float DeltaTime)
@@ -75,14 +64,15 @@ void AA_AreaDropZone::SetMeshMaterialAndState(int32 NewState, bool IsPlacing)
 	}
 }
 
-TMap<FGameplayTag, int32> AA_AreaDropZone::UpdateInAreaItemsList()
+void AA_AreaDropZone::UpdateInAreaItemsList()
 {
-	TMap<FGameplayTag, int32> InAreaItemTags;
-
 	if (!bIsActive)
 	{
-		return InAreaItemTags;
+		return;
 	}
+
+	CorrectItemsList.Empty();
+	WrongItemsList.Empty();
 
 	TArray <AActor*> OverlappingActors;
 	DropZoneMesh->GetOverlappingActors(OverlappingActors);
@@ -91,11 +81,14 @@ TMap<FGameplayTag, int32> AA_AreaDropZone::UpdateInAreaItemsList()
 	{
 		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(OverlappedActor))
 		{
-			if (ItemsNames.Contains(InteractableActor->Name))
+			if (ItemsTags.Contains(InteractableActor->Tag))
 			{
-				++InAreaItemTags.FindOrAdd(InteractableActor->Tag);
+				++CorrectItemsList.FindOrAdd(InteractableActor->Tag);
+			}
+			else
+			{
+				++WrongItemsList.FindOrAdd(InteractableActor->Tag);
 			}
 		}
 	}
-	return InAreaItemTags;
 }

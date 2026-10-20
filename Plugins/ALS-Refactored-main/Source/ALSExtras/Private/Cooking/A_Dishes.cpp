@@ -121,7 +121,7 @@ void AA_Dishes::Tick(float DeltaTime)
 
 		if (AttachedMesh->DoesSocketExist(AttachedSocketName))
 		{
-			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), DeltaTime, 5.0f));
+			SetActorLocation(FMath::VInterpTo(GetActorLocation(), AttachedMesh->GetSocketLocation(AttachedSocketName), DeltaTime, InterpSpeed));
 		}
 	}
 

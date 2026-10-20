@@ -64,6 +64,12 @@ protected:
 	virtual void Destroyed() override;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|ParentActor")
+	AActor* ParentActor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChorePlacement")
+	FName ChoreId;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChorePlacement")
 	uint8 bIsAutoAcivated : 1{true};
 
@@ -76,9 +82,6 @@ public:
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_SourceZoneMeshMaterial;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|Name")
-	FName ChorePlacementZoneName;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TSubclassOf<AA_AreaDropZone> AreaDropZoneClass;
 
@@ -87,6 +90,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TSubclassOf<AA_DropZoneGridVisual> DropZoneGridVisualClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones", meta = (ClampMin = 0.0f, ClampMax = 1.0f))
+	float GapSizeBetweenInPercent = 0.1f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	AA_AreaDropZone* AreaDropZone;

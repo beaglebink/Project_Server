@@ -8,6 +8,14 @@
 class AA_InteractableActor;
 class UFloorAssignmentComponent;
 
+UENUM(BlueprintType)
+enum class EWrongItemBehavior : uint8
+{
+	Ignore,
+	CountAsMistake,
+	BlockCompletion
+};
+
 UCLASS()
 class FPSKITALSREFACTORED_API AA_AreaDropZone : public AActor
 {
@@ -24,14 +32,14 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Items")
-	uint8 bShouldCheckItemsByTag : 1{false};
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|ParentActor")
+	AActor* ParentActor;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Items", meta = (EditCondition = "bShouldCheckItemsByTag", EditConditionHides))
-	TArray<FGameplayTag> ItemsTags;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropZone|Items")
+	TMap<FGameplayTag, int32> ItemsTags;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Items", meta = (EditCondition = "!bShouldCheckItemsByTag", EditConditionHides))
-	TArray<TSubclassOf<AA_InteractableActor>> ItemsClasses;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|WrongItemsBehavior")
+	EWrongItemBehavior ItemBehavior;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DropZone|AreaMesh")
 	UStaticMeshComponent* DropZoneMesh;
@@ -45,9 +53,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	UFloorAssignmentComponent* FloorAssignmentComponent;
 
-	UPROPERTY()
-	TArray<FName> ItemsNames;
-
 	void SetMeshMaterialAndState(int32 NewState, bool IsPlacing);
 
 private:
@@ -57,5 +62,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "DropZone|ActiveState", meta = (AllowPrivateAccess = "true"))
 	uint8 bIsActive : 1{true};
 
-	TMap<FGameplayTag, int32> UpdateInAreaItemsList();
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DropZone|Items")
+	TMap<FGameplayTag, int32> CorrectItemsList;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DropZone|Items")
+	TMap<FGameplayTag, int32> WrongItemsList;
+
+	void UpdateInAreaItemsList();
 };
