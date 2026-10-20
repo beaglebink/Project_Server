@@ -39,9 +39,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DropZone|AreaMeshMaterial")
 	UMaterialInterface* DropZoneMeshMaterial;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|AreaMeshSize")
-	FVector DropZoneMeshSize{ 100.0f, 100.0f, 100.0f };
-
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_MeshMaterial;
 

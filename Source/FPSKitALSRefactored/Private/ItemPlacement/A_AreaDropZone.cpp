@@ -35,7 +35,6 @@ void AA_AreaDropZone::OnConstruction(const FTransform& Transform)
 		}
 	}
 
-	DropZoneMesh->SetWorldScale3D(DropZoneMeshSize / 100.0f);
 	SetMeshMaterialAndState(0, IsPlacingOnScene);
 }
 
