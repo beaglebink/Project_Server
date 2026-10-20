@@ -119,7 +119,12 @@ public:
     // Флаг: true, если спавнер был активирован вручную (не через шаг сценария)
     bool bIsManuallyActivated = false;
 
-    // NEW: Флаг: true, если спавнер уже был восстановлен логикой миссии в InteriorSubsystem
+    // если false — HandleLevelLoaded не вызывает SpawnGroup() при возврате
+    // на сцену. Управляется через SpawnGroup.Configure (bApplyAutoRespawnOnLevelLoaded).
+    // Внешняя активация (триггер/BP, pending SpawnGroup.Start) при этом продолжает работать.
+    bool bAutoRespawnOnLevelLoaded = true;
+
+    // true — если спавнер уже восстановлен логикой миссии в InteriorSubsystem
     bool bWasRestoredByMission = false;
 
     const TMap<FName, int32>& GetTypeKilled() const { return TypeKilled; }

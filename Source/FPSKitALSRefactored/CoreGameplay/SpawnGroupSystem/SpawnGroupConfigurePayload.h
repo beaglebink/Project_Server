@@ -29,6 +29,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime")
     bool bApplyBlockNewSpawn = false;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime")
+    bool bApplyAutoRespawnOnLevelLoaded = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime",
+        meta = (EditCondition = "bApplyAutoRespawnOnLevelLoaded", EditConditionHides))
+    bool bAutoRespawnOnLevelLoaded = true;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime", meta = (EditCondition = "bApplyBlockNewSpawn"))
     bool bBlockNewSpawn = false;
 

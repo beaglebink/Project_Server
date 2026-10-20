@@ -130,8 +130,9 @@ struct FSpawnGroupState
     UPROPERTY() bool bStoreSpawnParameters = false;
     UPROPERTY() bool bBlockNewSpawn = false;
 
-    // NEW: сохранение переназначенного ассета
-    UPROPERTY() TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride;
+    // NEW: если false — HandleLevelLoaded не будет спавнить врагов из этого состояния
+    UPROPERTY() bool bAutoRespawnOnLevelLoaded = true;
 
+    UPROPERTY() TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride;
     UPROPERTY() TArray<FSpawnedEnemyState> EnemyStates;
 };

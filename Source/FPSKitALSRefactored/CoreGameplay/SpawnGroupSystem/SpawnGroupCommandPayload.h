@@ -11,10 +11,14 @@ class FPSKITALSREFACTORED_API USpawnGroupCommandPayload : public USpawnGroupLoca
     GENERATED_BODY()
 
 public:
-    // GroupId ��������� � ������� ������.
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    UPROPERTY(BlueprintReadWrite, Category = "SpawnGroup")
     ESpawnGroupResolutionReason Reason = ESpawnGroupResolutionReason::None;
+
+    // NEW: если true — после ухода с этажа спавнер сохраняется как Inactive,
+    // и при возврате враги не восстанавливаются.
+    // Дизайнер включает галочку в шаге сценария, когда нужен "одноразовый" спавн.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    bool bPreventAutoRespawn = false;
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
     USpawnGroupCommandPayload* Setup(const FGuid& InGroupId,

@@ -269,19 +269,22 @@ void USpawnGroupSubsystem::HandleSpawnGroupActivated(const FOutcomeEventBase& Ou
     {
         Spawner->SpawnGroupInternal();
 
-        // Если SourceStepId пуст, значит активация пришла от триггера/вручную, а не из шага сценария
-        Spawner->bIsManuallyActivated = !Outcome.SourceStepId.IsValid();
+        // true — если команда пришла не из шага сценария (триггер/BP)
+        // ИЛИ дизайнер явно включил bPreventAutoRespawn в payload
+        Spawner->bIsManuallyActivated = !Outcome.SourceStepId.IsValid() || P->bPreventAutoRespawn;
         return;
     }
 
     FStepSpawnerPending C;
     C.SourceStepId = Outcome.SourceStepId;
     C.bPendingActivate = true;
+    C.bPreventAutoRespawn = P->bPreventAutoRespawn;   // NEW
     AddContribution(P->GroupId, C);
 
     UE_LOG(LogTemp, Log,
-        TEXT("SpawnGroupSubsystem: deferred SpawnGroupActivated for Group %s (step %s)"),
-        *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
+        TEXT("SpawnGroupSubsystem: deferred SpawnGroupActivated for Group %s (step %s, preventRespawn=%s)"),
+        *P->GroupId.ToString(), *Outcome.SourceStepId.ToString(),
+        P->bPreventAutoRespawn ? TEXT("true") : TEXT("false"));
 }
 
 void USpawnGroupSubsystem::HandleSpawnGroupCleared(const FOutcomeEventBase& Outcome)
@@ -504,6 +507,18 @@ void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, 
 
     if (P->bApplyStatus)                 Spawner->CurrentStatus = P->Status;
     if (P->bApplyBlockNewSpawn)          Spawner->BlockNewSpawn = P->bBlockNewSpawn;
+
+    if (P->bApplyAutoRespawnOnLevelLoaded)
+    {
+        Spawner->bAutoRespawnOnLevelLoaded = P->bAutoRespawnOnLevelLoaded;
+
+        // Если включаем автоспавн — сбрасываем "ручной" флаг, чтобы
+        // Status в следующий раз сохранился как Active, а не Inactive.
+        if (P->bAutoRespawnOnLevelLoaded)
+        {
+            Spawner->bIsManuallyActivated = false;
+        }
+    }
 }
 
 void USpawnGroupSubsystem::AddContribution(const FGuid& GroupId, const FStepSpawnerPending& Contribution)
@@ -528,6 +543,8 @@ void USpawnGroupSubsystem::AddContribution(const FGuid& GroupId, const FStepSpaw
             }
             if (Contribution.bBlockFutureSpawn)
                 Existing.bBlockFutureSpawn = true;
+            if (Contribution.bPreventAutoRespawn)
+                Existing.bPreventAutoRespawn = true;    // NEW
             return;
         }
     }
@@ -544,6 +561,11 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
     FSpawnerPendingList* List = PendingSpawnerCommands.Find(GroupId);
     if (!List || List->Items.Num() == 0) return;
 
+    // ============================================================
+    // Pass 1: сначала применяем все Configs.
+    // Это гарантирует, что флаги вида bAutoRespawnOnLevelLoaded
+    // уже актуальны к моменту, когда мы решим, применять ли Activate.
+    // ============================================================
     for (const FStepSpawnerPending& C : List->Items)
     {
         if (C.Config)
@@ -552,6 +574,13 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
             UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Configure (step %s) to spawner %s"),
                 *C.SourceStepId.ToString(), *GroupId.ToString());
         }
+    }
+
+    // ============================================================
+    // Pass 2: применяем Activate / Destroy.
+    // ============================================================
+    for (const FStepSpawnerPending& C : List->Items)
+    {
         if (C.bPendingDestroyRemaining)
         {
             Spawner->ClearGroup(C.DestroyReason);
@@ -560,17 +589,32 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
                 Spawner->BlockNewSpawn = true;
                 Spawner->IsStoreSpawnParameters = true;
             }
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred DestroyRemaining (step %s) to spawner %s (BlockNewSpawn=%s)"),
-                *C.SourceStepId.ToString(), *GroupId.ToString(),
-                C.bBlockFutureSpawn ? TEXT("true") : TEXT("false"));
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred DestroyRemaining (step %s) to spawner %s"),
+                *C.SourceStepId.ToString(), *GroupId.ToString());
         }
+
         if (C.bPendingActivate)
         {
+            // ФИКС: если автоспавн отключён, не применяем pending Activate от шагов сценария.
+            // Триггеры, активирующие загруженный спавнер, идут через HandleSpawnGroupActivated
+            // (SourceStepId там невалиден — их не трогаем).
+            if (!Spawner->bAutoRespawnOnLevelLoaded && C.SourceStepId.IsValid())
+            {
+                UE_LOG(LogTemp, Log,
+                    TEXT("SpawnGroupSubsystem: skip pending Activate for %s — auto-respawn disabled (step %s)"),
+                    *GroupId.ToString(), *C.SourceStepId.ToString());
+                continue;
+            }
+
             Spawner->SpawnGroupInternal();
+            Spawner->bIsManuallyActivated = !C.SourceStepId.IsValid();
+
             UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Activate (step %s) to spawner %s"),
                 *C.SourceStepId.ToString(), *GroupId.ToString());
         }
     }
+
+    UpdateSpawnerStateInCache(Spawner);
     PendingSpawnerCommands.Remove(GroupId);
 }
 
@@ -641,6 +685,9 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     State.bBlockNewSpawn = Spawner->BlockNewSpawn;
     State.KilledCount = Spawner->GetKilledCount();
     State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
+
+    State.bAutoRespawnOnLevelLoaded = Spawner->bAutoRespawnOnLevelLoaded;
+
     State.Slots = Spawner->GetAllSlots();
     State.TypeKilled = Spawner->GetTypeKilled();
 
@@ -693,6 +740,9 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         // Сохраняем переназначенный ассет
         State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
 
+        // ФИКС: копируем флаг с актора в состояние — иначе при Save уйдёт дефолт true
+        State.bAutoRespawnOnLevelLoaded = Spawner->bAutoRespawnOnLevelLoaded;
+
         // Always save slots
         // Всегда сохраняем слоты
         State.Slots = Spawner->GetAllSlots();
@@ -720,6 +770,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetNumberField(TEXT("ResolutionReason"), static_cast<uint8>(GroupPair.Value.ResolutionReason));
             StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
             StateObj->SetBoolField(TEXT("bBlockNewSpawn"), GroupPair.Value.bBlockNewSpawn);
+            StateObj->SetBoolField(TEXT("bAutoRespawnOnLevelLoaded"), GroupPair.Value.bAutoRespawnOnLevelLoaded);
             StateObj->SetNumberField(TEXT("KilledCount"), GroupPair.Value.KilledCount);
 
             // Сохраняем путь к ассету, если он был переопределен
@@ -791,6 +842,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             Obj->SetBoolField(TEXT("bPendingActivate"), C.bPendingActivate);
             Obj->SetBoolField(TEXT("bPendingDestroyRemaining"), C.bPendingDestroyRemaining);
             Obj->SetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);
+            Obj->SetBoolField(TEXT("bPreventAutoRespawn"), C.bPreventAutoRespawn);
             Obj->SetNumberField(TEXT("DestroyReason"), static_cast<uint8>(C.DestroyReason));
 
             if (C.Config)
@@ -806,6 +858,9 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
                 Cfg->SetNumberField(TEXT("Status"), static_cast<uint8>(C.Config->Status));
                 Cfg->SetBoolField(TEXT("bApplyBlockNewSpawn"), C.Config->bApplyBlockNewSpawn);
                 Cfg->SetBoolField(TEXT("bBlockNewSpawn"), C.Config->bBlockNewSpawn);
+
+                Cfg->SetBoolField(TEXT("bApplyAutoRespawnOnLevelLoaded"), C.Config->bApplyAutoRespawnOnLevelLoaded);
+                Cfg->SetBoolField(TEXT("bAutoRespawnOnLevelLoaded"), C.Config->bAutoRespawnOnLevelLoaded);
 
                 Obj->SetObjectField(TEXT("Config"), Cfg);
             }
@@ -883,6 +938,11 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
                     if ((*StateObj)->HasField(TEXT("bBlockNewSpawn")))
                         State.bBlockNewSpawn = (*StateObj)->GetBoolField(TEXT("bBlockNewSpawn"));
+
+                    if ((*StateObj)->HasField(TEXT("bAutoRespawnOnLevelLoaded")))
+                        State.bAutoRespawnOnLevelLoaded = (*StateObj)->GetBoolField(TEXT("bAutoRespawnOnLevelLoaded"));
+                    else
+                        State.bAutoRespawnOnLevelLoaded = true;
 
                     // Восстанавливаем путь к переназначенному ассету
                     FString AssetPath;
@@ -1006,6 +1066,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 Obj->TryGetBoolField(TEXT("bPendingActivate"), C.bPendingActivate);
                 Obj->TryGetBoolField(TEXT("bPendingDestroyRemaining"), C.bPendingDestroyRemaining);
                 Obj->TryGetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);
+                Obj->TryGetBoolField(TEXT("bPreventAutoRespawn"), C.bPreventAutoRespawn);
 
                 int32 ReasonInt = 0;
                 if (Obj->TryGetNumberField(TEXT("DestroyReason"), ReasonInt))
@@ -1029,6 +1090,9 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
                     (*CfgObj)->TryGetBoolField(TEXT("bApplyBlockNewSpawn"), Cfg->bApplyBlockNewSpawn);
                     (*CfgObj)->TryGetBoolField(TEXT("bBlockNewSpawn"), Cfg->bBlockNewSpawn);
+
+                    (*CfgObj)->TryGetBoolField(TEXT("bApplyAutoRespawnOnLevelLoaded"), Cfg->bApplyAutoRespawnOnLevelLoaded);
+                    (*CfgObj)->TryGetBoolField(TEXT("bAutoRespawnOnLevelLoaded"), Cfg->bAutoRespawnOnLevelLoaded);
 
                     C.Config = Cfg;
                 }
@@ -1603,22 +1667,15 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
         Outcome.OutcomeInterior != EOutcomeInterior::LevelLoaded)
         return;
 
-    // Выставляем флаг, что уровень загружен (pending-команды теперь могут применяться)
     bLevelLoaded = true;
-
-    // Отменяем предыдущий таймер, если он еще не сработал
     World->GetTimerManager().ClearTimer(LevelLoadedTimerHandle);
 
-    // Создаем лямбду с отложенной логикой
     FTimerDelegate Delegate = FTimerDelegate::CreateWeakLambda(this, [this]()
         {
-            // Если за время ожидания мы ушли с этажа, отменяем восстановление
             if (!bLevelLoaded) return;
-
             UWorld* LocalWorld = GetWorld();
             if (!LocalWorld) return;
 
-            // Определяем текущий ключ этажа
             ALocationAnchorActor* FoundAnchor = nullptr;
             for (TActorIterator<ALocationAnchorActor> It(LocalWorld); It; ++It)
             {
@@ -1629,20 +1686,31 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
             {
                 UFloorAsset* FloorAsset = FoundAnchor->OwnerFloor.LoadSynchronous();
                 UInteriorSetAsset* InteriorAsset = FoundAnchor->OwnerInteriorSet.LoadSynchronous();
-                if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid() && FloorAsset && FloorAsset->FloorID.IsValid())
+                if (InteriorAsset && InteriorAsset->InteriorSetID.IsValid() &&
+                    FloorAsset && FloorAsset->FloorID.IsValid())
                 {
                     CurrentFloorKey = FInteriorFloorKey(InteriorAsset->InteriorSetID, FloorAsset->FloorID);
                 }
             }
 
-            // Восстановление из PersistentGroupStates
+            TSet<FGuid> GroupsWithPendingActivate;
+            for (const auto& Pair : PendingSpawnerCommands)
+            {
+                for (const FStepSpawnerPending& C : Pair.Value.Items)
+                {
+                    if (C.bPendingActivate)
+                    {
+                        GroupsWithPendingActivate.Add(Pair.Key);
+                        break;
+                    }
+                }
+            }
+
             for (const auto& Pair : SpawnerByItemId)
             {
                 ASpawnGroupSpawner* Spawner = Pair.Value.Get();
                 if (!Spawner || !IsValid(Spawner)) continue;
-
-                if (Spawner->Restore || !Spawner->SpawnGroupAsset)
-                    continue;
+                if (Spawner->Restore || !Spawner->SpawnGroupAsset) continue;
 
                 FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
                 if (!FloorKey.FloorId.IsValid()) continue;
@@ -1653,51 +1721,84 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
                 FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
                 if (!State) continue;
 
-                // ВСЕГДА применяем новые настройки из кэша, чтобы переопределить снапшот
-                if (!State->SpawnGroupAssetOverride.IsNull())
+                // ============================================================
+                // Вычисляем ЭФФЕКТИВНЫЙ bAutoRespawnOnLevelLoaded:
+                //   сначала из кэша (State), затем перекрываем pending Config
+                //   (pending Config хронологически новее — Step B применился позже Step A).
+                // ============================================================
+                bool bEffectiveAutoRespawn = State->bAutoRespawnOnLevelLoaded;
+                if (FSpawnerPendingList* PendingList = PendingSpawnerCommands.Find(Pair.Key))
                 {
-                    Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
+                    for (const FStepSpawnerPending& C : PendingList->Items)
+                    {
+                        if (C.Config && C.Config->bApplyAutoRespawnOnLevelLoaded)
+                        {
+                            bEffectiveAutoRespawn = C.Config->bAutoRespawnOnLevelLoaded;
+                        }
+                    }
                 }
-                Spawner->BlockNewSpawn = State->bBlockNewSpawn;
 
+                // Применяем настройки на актор (нужно для корректного сохранения при следующем FloorLeaving)
+                if (!State->SpawnGroupAssetOverride.IsNull())
+                    Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
+
+                Spawner->BlockNewSpawn = State->bBlockNewSpawn;
+                Spawner->bAutoRespawnOnLevelLoaded = bEffectiveAutoRespawn;
+                Spawner->CurrentStatus = State->Status;
+                Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
+                Spawner->SetKilledState(State->KilledCount, State->TypeKilled);
+
+                // ============================================================
+                // Блокирующие проверки — вне зависимости от bWasRestoredByMission
+                // ============================================================
+
+                // 1) Статус не позволяет спавн
+                if (State->Status == ESpawnGroupStatus::Suppressed ||
+                    State->Status == ESpawnGroupStatus::Cleared ||
+                    State->Status == ESpawnGroupStatus::Inactive)
+                {
+                    UE_LOG(LogTemp, Log,
+                        TEXT("SpawnGroupSubsystem: skip spawner %s (status=%s)"),
+                        *Pair.Key.ToString(), *UEnum::GetValueAsString(State->Status));
+                    continue;
+                }
+
+                // 2) Автоспавн отключён — не спавним.
+                // Внешние триггеры на сцене продолжат работать (HandleSpawnGroupActivated).
+                if (!bEffectiveAutoRespawn)
+                {
+                    UE_LOG(LogTemp, Log,
+                        TEXT("SpawnGroupSubsystem: auto-respawn disabled for %s — skipping SpawnGroup"),
+                        *Pair.Key.ToString());
+                    continue;
+                }
+
+                // 3) Есть pending Activate — пусть его обработает ApplyPendingCommandsToSpawner.
+                if (GroupsWithPendingActivate.Contains(Pair.Key))
+                {
+                    UE_LOG(LogTemp, Log,
+                        TEXT("SpawnGroupSubsystem: skipping restore SpawnGroup for %s — pending Activate will handle it"),
+                        *Pair.Key.ToString());
+                    continue;
+                }
+
+                // ============================================================
+                // Восстановление / спавн
+                // ============================================================
                 if (!Spawner->bWasRestoredByMission)
                 {
-                    if (State->Status == ESpawnGroupStatus::Suppressed ||
-                        State->Status == ESpawnGroupStatus::Cleared ||
-                        State->Status == ESpawnGroupStatus::Inactive)
-                    {
-                        Spawner->CurrentStatus = State->Status;
-                        continue;
-                    }
-
-                    Spawner->CurrentStatus = State->Status;
-                    Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
-
                     if (State->bStoreSpawnParameters)
                     {
                         Spawner->RestoreFromStateWithoutCleanup(*State);
-                        continue; // Уже восстановлено, пропускаем вызов SpawnGroup()
+                        continue;
                     }
-                    else
-                    {
-                        Spawner->SetKilledState(State->KilledCount, State->TypeKilled);
-                    }
-                }
-                else
-                {
-                    // Если миссия уже восстановила спавнер, мы всё равно должны обновить статус и ассет
-                    Spawner->CurrentStatus = State->Status;
-                    Spawner->IsStoreSpawnParameters = State->bStoreSpawnParameters;
                 }
 
-                // Вызываем спавн (он использует новый SpawnGroupAsset)
                 Spawner->SpawnGroup();
             }
 
-            // Применяем pending-команды по GroupId
             TArray<FGuid> PendingGroupIds;
             PendingSpawnerCommands.GetKeys(PendingGroupIds);
-
             for (const FGuid& GroupId : PendingGroupIds)
             {
                 if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(GroupId))
@@ -1707,6 +1808,5 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
             }
         });
 
-    // Запускаем лямбду с отсрочкой 0.5 секунды
     World->GetTimerManager().SetTimer(LevelLoadedTimerHandle, Delegate, 0.5f, false);
 }
