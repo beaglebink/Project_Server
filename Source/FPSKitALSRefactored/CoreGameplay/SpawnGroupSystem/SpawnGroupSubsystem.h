@@ -25,7 +25,6 @@ struct FStepSpawnerPending
     UPROPERTY() bool bPendingActivate = false;
     UPROPERTY() bool bPendingDestroyRemaining = false;
     UPROPERTY() bool bBlockFutureSpawn = false;
-    UPROPERTY() bool bPreventAutoRespawn = false;
     UPROPERTY() ESpawnGroupResolutionReason DestroyReason = ESpawnGroupResolutionReason::ScriptedRemoval;
 };
 
