@@ -335,13 +335,13 @@ void UFloorAssignmentComponent::PublishRegistration()
 	Bus->PublishOutcome(Ev);
 }
 
-void UFloorAssignmentComponent::Registrate(EFloorActorType Type, FGuid ForceItemId /*= FGuid()*/)
+void UFloorAssignmentComponent::Registrate(EFloorActorType Type, const ESnapshotChannel& Channel, FGuid ForceItemId /*= FGuid()*/)
 {
 	AutoFillFloorIdsFromWorld();
 
 	ItemId = ForceItemId.IsValid() ? ForceItemId : ItemId.IsValid() ? ItemId : FGuid::NewGuid();
 	ProtectedItemId = ItemId;
-	SnapshotChannel = ESnapshotChannel::Snapshot;
+	SnapshotChannel = Channel;
 	ActorType = Type;
 	MarkPackageDirty();
 

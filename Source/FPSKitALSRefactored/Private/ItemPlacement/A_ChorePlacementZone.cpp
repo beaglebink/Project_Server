@@ -15,6 +15,7 @@ AA_ChorePlacementZone::AA_ChorePlacementZone()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	SourceZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SourceZoneMesh"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
+	FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 
 	SourceZoneMesh->SetupAttachment(RootComponent);
 

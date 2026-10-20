@@ -9,6 +9,7 @@ AA_AreaDropZone::AA_AreaDropZone()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
+	FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 
 	DropZoneMesh->SetupAttachment(RootComponent);
 

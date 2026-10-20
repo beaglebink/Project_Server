@@ -52,7 +52,7 @@ public:
     bool bAllowRespawn = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    float SpawnInterval = 0.1f;
+    float SpawnInterval = 0.05f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Placement")
     TArray<TObjectPtr<ASpawnVolume>> SpawnLocations;

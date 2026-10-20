@@ -15,19 +15,34 @@
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Возвращает label актёра в редакторе и его внутреннее имя в рантайме.
+ *  AActor::GetActorLabel() существует только в WITH_EDITOR-сборках. */
+static FString GetActorLabelSafe(const AActor* Actor)
+{
+    if (!Actor)
+        return FString();
+
+#if WITH_EDITOR
+    return Actor->GetActorLabel();
+#else
+    return Actor->GetName();
+#endif
+}
+
 static UWorld* ResolveWorldFromSoftLevel(const TSoftObjectPtr<UWorld>& SoftLevel)
 {
     if (SoftLevel.IsNull())
         return nullptr;
 
+    // Рантайм: берём только уже загруженный мир.
     if (UWorld* Loaded = SoftLevel.Get())
         return Loaded;
 
 #if WITH_EDITOR
+    // Редактор: подгружаем пакет по требованию, чтобы работать с неоткрытыми уровнями.
     const FSoftObjectPath Path = SoftLevel.ToSoftObjectPath();
     const FString PackageName = Path.GetLongPackageName();
-    UPackage* Package = LoadPackage(nullptr, *PackageName, LOAD_None);
-    if (Package)
+    if (UPackage* Package = LoadPackage(nullptr, *PackageName, LOAD_None))
     {
         return UWorld::FindWorldInPackage(Package);
     }
@@ -78,7 +93,7 @@ static AActor* FindActorByLabelInWorld(UWorld* World, const FString& Label)
         if (!FAC || !FAC->ItemId.IsValid())
             continue;
 
-        if (Actor->GetActorLabel().Equals(Label, ESearchCase::CaseSensitive))
+        if (GetActorLabelSafe(Actor).Equals(Label, ESearchCase::CaseSensitive))
             return Actor;
     }
 
@@ -122,7 +137,7 @@ FSceneActorRef USceneActorRefFunctionLibrary::MakeSceneActorRefFromActor(AActor*
         Ref.ActorPersistentId = FAC->ItemId;
     }
 
-    Ref.ActorLabel = TargetActor->GetActorLabel();
+    Ref.ActorLabel = GetActorLabelSafe(TargetActor);
 
     return Ref;
 }
