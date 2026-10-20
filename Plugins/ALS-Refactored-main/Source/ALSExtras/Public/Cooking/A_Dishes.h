@@ -228,6 +228,9 @@ public:
 	// Placing settings
 	uint8 bIsPlacing : 1{false};
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LocationInterpolation", meta = (ClampMin = 0.1f, ClampMax = 10.0f))
+	float InterpSpeed = 5.0f;
+
 	FTimerHandle AttachTimerHandle;
 	UFUNCTION(BlueprintCallable, Category = "CookingSettings")
 	void AttachDishToHand(ACharacter* PlayerCharacter, FName SocketName);

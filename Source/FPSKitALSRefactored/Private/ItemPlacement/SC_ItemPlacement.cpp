@@ -126,25 +126,22 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 	{
 		if (AreaDropZone->bIsActive)
 		{
-			if (AreaDropZone->bShouldCheckItemsByTag)
+			if (HoldItem->Implements<UI_ScannableObject>())
 			{
-				if (HoldItem->Implements<UI_ScannableObject>())
+				FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(HoldItem);
+				if (AreaDropZone->ItemsTags.Contains(ScannableData.ItemTypeTag) && ScannableData.bHasBeenScanned)
 				{
-					FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(HoldItem);
-					if (AreaDropZone->ItemsTags.Contains(ScannableData.ItemTypeTag) && ScannableData.bHasBeenScanned)
-					{
-						ChoosenDropZones.Add(AreaDropZone);
-						AreaDropZone->SetMeshMaterialAndState(3, false);
-					}
-					else
-					{
-						AreaDropZone->SetMeshMaterialAndState(2, false);
-					}
+					ChoosenDropZones.Add(AreaDropZone);
+					AreaDropZone->SetMeshMaterialAndState(3, false);
+				}
+				else
+				{
+					AreaDropZone->SetMeshMaterialAndState(2, false);
 				}
 			}
 			else
 			{
-				if (AreaDropZone->ItemsNames.Contains(HoldItem->Name))
+				if (AreaDropZone->ItemsTags.Contains(HoldItem->Tag))
 				{
 					ChoosenDropZones.Add(AreaDropZone);
 					AreaDropZone->SetMeshMaterialAndState(3, false);

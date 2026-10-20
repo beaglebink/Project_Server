@@ -11,6 +11,7 @@ AA_DropZone::AA_DropZone()
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
 	ItemSphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("ItemSphereCollision"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
+	FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 
 	DropZoneMesh->SetupAttachment(RootComponent);
 	ItemSphereCollision->SetupAttachment(RootComponent);

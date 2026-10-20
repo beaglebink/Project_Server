@@ -29,8 +29,6 @@ public:
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_MeshMaterial;
 
-	FVector GetDropZoneGridVisualStartLocation() const;
-
 private:
 #if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;
