@@ -337,7 +337,7 @@ void ASpawnGroupSpawner::ResetSpawnerForNewConfiguration()
     PendingEnemyStates.Empty();
 
     // 4. Сбрасываем флаги состояния
-    IsStoreSpawnParameters = false;
+    //IsStoreSpawnParameters = false;
     IsFullRespawn = false;
     Restore = false;
     AllSpawned = false;
@@ -541,7 +541,36 @@ void ASpawnGroupSpawner::SpawnGroup()
         return;
     }
 
-    // Сбрасываем следы предыдущей конфигурации
+    // ========================================================================
+    // ФИКС: Если мы используем сохранение параметров и у нас уже есть слоты,
+    // значит мы вернулись на сцену или загрузились из сохранения.
+    // Мы должны восстановить врагов на их точных позициях из AllSlots.
+    // ========================================================================
+    if (IsStoreSpawnParameters && AllSlots.Num() > 0)
+    {
+        FSpawnGroupState TempState;
+        TempState.Status = CurrentStatus;
+        TempState.bStoreSpawnParameters = true;
+        TempState.Slots = AllSlots;
+
+        // Очищаем старых призраков (это также очистит AllSlots, поэтому мы сохранили их в TempState)
+        SafeDestroyAllGhosts();
+        bHasPublishedClear = false;
+
+        if (TimerHandle.IsValid())
+        {
+            World->GetTimerManager().ClearTimer(TimerHandle);
+        }
+
+        // Восстанавливаем врагов из сохраненных слотов
+        RestoreFromStateWithoutCleanup(TempState);
+        return;
+    }
+
+    // ========================================================================
+    // Если слотов нет (первый запуск после смены конфигурации), 
+    // генерируем новые позиции. Они автоматически сохранятся в AllSlots.
+    // ========================================================================
     SafeDestroyAllGhosts(); // Уничтожает старых, очищает SpawnedGhosts, AllSlots и SpawnedCount
     bHasPublishedClear = false;
 
@@ -577,8 +606,6 @@ void ASpawnGroupSpawner::SpawnGroup()
             }
         }
 
-        // Количество, которое РЕАЛЬНО нужно заспавнить.
-        // Именно с ним и надо сравнивать SpawnedCount, а не с суммой по пулам.
         const int32 TotalToSpawn = ClassesToSpawn.Num();
 
         FTimerDelegate Delegate = FTimerDelegate::CreateLambda(
@@ -604,7 +631,7 @@ void ASpawnGroupSpawner::SpawnGroup()
                     return;
                 }
 
-                // 2) Только теперь — проверка индекса.
+                // 2) Проверка индекса.
                 if (!ClassesToSpawn.IsValidIndex(Self->SpawnedCount))
                 {
                     UE_LOG(LogTemp, Warning,
@@ -620,16 +647,15 @@ void ASpawnGroupSpawner::SpawnGroup()
 
                 ASpawnVolume* Location = Self->GetRandomSpawnLocation();
                 TSubclassOf<AActor>    SpawnedClass = ClassesToSpawn[Self->SpawnedCount];
-                FTransform             SpawnTransform;
 
-                if (Self->IsStoreSpawnParameters && Self->StoredSpawnParameters.Num() > 0)
+                // Если слотов не было, всегда берем случайную позицию.
+                // SpawnSingleGhost -> AddSpawnSlot автоматически сохранит эту позицию в AllSlots.
+                FTransform SpawnTransform = Self->GetTransformFromLocation(Location);
+
+                // Восстанавливаем StoredSpawnParameters для совместимости (опционально)
+                if (Self->IsStoreSpawnParameters)
                 {
-                    SpawnTransform = Self->StoredSpawnParameters.FindRef(SpawnedClass);
-                    Self->StoredSpawnParameters.Remove(SpawnedClass);
-                }
-                else
-                {
-                    SpawnTransform = Self->GetTransformFromLocation(Location);
+                    Self->StoredSpawnParameters.Add(SpawnedClass, SpawnTransform);
                 }
 
                 AActor* Ghost = Self->SpawnSingleGhost(SpawnedClass, SpawnTransform);
@@ -726,15 +752,15 @@ void ASpawnGroupSpawner::SpawnGroup()
 
                 ASpawnVolume* Location = Self->GetRandomSpawnLocation();
                 TSubclassOf<AActor> SpawnedClass = FinalClasses[Self->SpawnedCount % TotalFinal];
-                FTransform          SpawnTransform;
 
-                if (Self->IsStoreSpawnParameters && Self->StoredSpawnParameters.Num() > 0)
+                // Если слотов не было, всегда берем случайную позицию.
+                // SpawnSingleGhost -> AddSpawnSlot автоматически сохранит эту позицию в AllSlots.
+                FTransform SpawnTransform = Self->GetTransformFromLocation(Location);
+
+                // Восстанавливаем StoredSpawnParameters для совместимости (опционально)
+                if (Self->IsStoreSpawnParameters)
                 {
-                    SpawnTransform = Self->StoredSpawnParameters.FindRef(SpawnedClass);
-                }
-                else
-                {
-                    SpawnTransform = Self->GetTransformFromLocation(Location);
+                    Self->StoredSpawnParameters.Add(SpawnedClass, SpawnTransform);
                 }
 
                 AActor* Ghost = Self->SpawnSingleGhost(SpawnedClass, SpawnTransform);

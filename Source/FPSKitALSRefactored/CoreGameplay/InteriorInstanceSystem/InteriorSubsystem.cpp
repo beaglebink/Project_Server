@@ -4277,7 +4277,9 @@ void UInteriorSubsystem::ResetSpawnerSnapshot(const FGuid& ItemId)
 		TEXT("TypeKilled"),
 		TEXT("StoredState"),
 		TEXT("AllSlots"),
-		TEXT("StoredSpawnParameters")
+		TEXT("StoredSpawnParameters"),
+		TEXT("SpawnGroupAsset"), // <-- ДОБАВЛЕНО: Сбрасываем старый ассет
+		TEXT("CurrentStatus")    // <-- ДОБАВЛЕНО: Сбрасываем старый статус
 	};
 
 	auto CleanSnapshot = [&](FFloorSavedActorState& State)
