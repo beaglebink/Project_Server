@@ -90,6 +90,9 @@ public:
     UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup")
     bool IsStoreSpawnParameters = false;
 
+    UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup")
+    bool bManualActivationOnly = false;
+
     UPROPERTY(SaveGame)
     bool IsUseStoreSpawnParameters = false;
 
@@ -110,9 +113,6 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     bool IsSavingHealth = true;
-
-    UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup")
-    bool bManualActivationOnly = false;
 
     bool IsResetToAlive = false;
 

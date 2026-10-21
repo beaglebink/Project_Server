@@ -10,17 +10,10 @@ class FPSKITALSREFACTORED_API USpawnGroupManualActivationPayload : public USpawn
     GENERATED_BODY()
 
 public:
-    // true  — спавнер работает только по внешним командам (триггер / BP).
-    //         Активация из шагов сценария игнорируется.
-    // false — обычный режим.
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
-    bool bManualActivationOnly = true;
-
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
-    USpawnGroupManualActivationPayload* Setup(const FGuid& InGroupId, bool bInManualActivationOnly = true)
+    USpawnGroupManualActivationPayload* Setup(const FGuid& InGroupId)
     {
         GroupId = InGroupId;
-        bManualActivationOnly = bInManualActivationOnly;
         return this;
     }
 };

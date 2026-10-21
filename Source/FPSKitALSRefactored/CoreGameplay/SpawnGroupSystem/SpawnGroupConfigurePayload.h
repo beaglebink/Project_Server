@@ -15,18 +15,11 @@ class FPSKITALSREFACTORED_API USpawnGroupConfigurePayload : public USpawnGroupLo
     GENERATED_BODY()
 
 public:
-    // ============================================================
     // Asset
-    // ============================================================
-
-    // Новый ассет группы. nullptr = не менять.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Asset")
     TObjectPtr<USpawnGroupAsset> NewSpawnGroupAsset = nullptr;
 
-    // ============================================================
-    // Runtime: Status
-    // ============================================================
-
+    // Status
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Runtime",
         meta = (InlineEditConditionToggle))
     bool bApplyStatus = false;
@@ -35,10 +28,7 @@ public:
         meta = (EditCondition = "bApplyStatus"))
     ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
 
-    // ============================================================
-    // Runtime: BlockNewSpawn
-    // ============================================================
-
+    // BlockNewSpawn
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Runtime",
         meta = (InlineEditConditionToggle))
     bool bApplyBlockNewSpawn = false;
@@ -47,10 +37,7 @@ public:
         meta = (EditCondition = "bApplyBlockNewSpawn"))
     bool bBlockNewSpawn = false;
 
-    // ============================================================
-    // Runtime: Manual activation
-    // ============================================================
-
+    // Manual activation
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Runtime",
         meta = (InlineEditConditionToggle))
     bool bApplyManualActivationOnly = false;
@@ -59,10 +46,7 @@ public:
         meta = (EditCondition = "bApplyManualActivationOnly"))
     bool bManualActivationOnly = false;
 
-    // ============================================================
-    // Runtime: Store spawn parameters (позиции/ориентации врагов)
-    // ============================================================
-
+    // Store spawn parameters
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Runtime",
         meta = (InlineEditConditionToggle))
     bool bApplyStoreSpawnParameters = false;
@@ -71,10 +55,7 @@ public:
         meta = (EditCondition = "bApplyStoreSpawnParameters"))
     bool IsStoreSpawnParameters = false;
 
-    // ============================================================
-    // Runtime: Saving health
-    // ============================================================
-
+    // Saving health
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Runtime",
         meta = (InlineEditConditionToggle))
     bool bApplySavingHealth = false;
@@ -83,10 +64,7 @@ public:
         meta = (EditCondition = "bApplySavingHealth"))
     bool IsSavingHealth = true;
 
-    // ============================================================
-    // Behaviour: spawn on BeginPlay
-    // ============================================================
-
+    // Spawn on BeginPlay
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Behaviour",
         meta = (InlineEditConditionToggle))
     bool bApplySpawnOnBeginPlay = false;
@@ -95,10 +73,7 @@ public:
         meta = (EditCondition = "bApplySpawnOnBeginPlay"))
     bool bSpawnOnBeginPlay = false;
 
-    // ============================================================
-    // Behaviour: destroy on clear
-    // ============================================================
-
+    // Destroy on clear
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Behaviour",
         meta = (InlineEditConditionToggle))
     bool bApplyDestroyOnClear = false;
@@ -107,10 +82,7 @@ public:
         meta = (EditCondition = "bApplyDestroyOnClear"))
     bool bDestroyOnClear = false;
 
-    // ============================================================
-    // Behaviour: allow respawn
-    // ============================================================
-
+    // Allow respawn
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Behaviour",
         meta = (InlineEditConditionToggle))
     bool bApplyAllowRespawn = false;
@@ -119,10 +91,7 @@ public:
         meta = (EditCondition = "bApplyAllowRespawn"))
     bool bAllowRespawn = false;
 
-    // ============================================================
-    // Spawn: interval
-    // ============================================================
-
+    // Spawn interval
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Spawn",
         meta = (InlineEditConditionToggle))
     bool bApplySpawnInterval = false;
@@ -131,10 +100,7 @@ public:
         meta = (EditCondition = "bApplySpawnInterval", ClampMin = "0.0", UIMin = "0.0"))
     float SpawnInterval = 0.05f;
 
-    // ============================================================
-    // Spawn: offset
-    // ============================================================
-
+    // Spawn offset
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Spawn",
         meta = (InlineEditConditionToggle))
     bool bApplySpawnOffset = false;
@@ -143,10 +109,7 @@ public:
         meta = (EditCondition = "bApplySpawnOffset"))
     FVector SpawnOffset = FVector::ZeroVector;
 
-    // ============================================================
-    // Spawn: default rotation
-    // ============================================================
-
+    // Default spawn rotation
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Spawn",
         meta = (InlineEditConditionToggle))
     bool bApplyDefaultSpawnRotation = false;
@@ -155,10 +118,7 @@ public:
         meta = (EditCondition = "bApplyDefaultSpawnRotation"))
     FRotator DefaultSpawnRotation = FRotator::ZeroRotator;
 
-    // ============================================================
-    // Spawn: locations (soft refs, чтобы не тянуть уровни при загрузке payload)
-    // ============================================================
-
+    // Spawn locations (soft)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Spawn",
         meta = (InlineEditConditionToggle))
     bool bApplySpawnLocations = false;
@@ -167,10 +127,7 @@ public:
         meta = (EditCondition = "bApplySpawnLocations"))
     TArray<TSoftObjectPtr<ASpawnVolume>> SpawnLocations;
 
-    // ============================================================
-    // Tags: применяются к НОВЫМ врагам (уже заспавненных не меняет)
-    // ============================================================
-
+    // Enemy tags
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Tags",
         meta = (InlineEditConditionToggle))
     bool bApplyEnemyTags = false;
@@ -187,10 +144,7 @@ public:
         meta = (EditCondition = "bApplyEnemyGameplayTags"))
     FGameplayTagContainer EnemyGameplayTags;
 
-    // ============================================================
     // Debug
-    // ============================================================
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Debug",
         meta = (InlineEditConditionToggle))
     bool bApplyDebugSpawnPoints = false;
@@ -198,10 +152,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Debug",
         meta = (EditCondition = "bApplyDebugSpawnPoints"))
     bool DebugSpawnPoints = false;
-
-    // ============================================================
-    // Helper
-    // ============================================================
 
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup|Configure")
     USpawnGroupConfigurePayload* Setup(const FGuid& InGroupId)

@@ -94,23 +94,12 @@ struct FSpawnSlotState
 {
     GENERATED_BODY()
 
-    UPROPERTY()
-    FGuid ItemId;
-
-    UPROPERTY()
-    TSubclassOf<AActor> ActorClass = nullptr;
-
-    UPROPERTY()
-    FTransform SpawnTransform = FTransform::Identity;
-
-    UPROPERTY()
-    EGhostState State = EGhostState::Alive;
-
-    UPROPERTY()
-    FGameplayTagContainer GameplayTags;
-
-    UPROPERTY()
-    TArray<FName> TextTags;
+    UPROPERTY() FGuid ItemId;
+    UPROPERTY() TSubclassOf<AActor> ActorClass = nullptr;
+    UPROPERTY() FTransform SpawnTransform = FTransform::Identity;
+    UPROPERTY() EGhostState State = EGhostState::Alive;
+    UPROPERTY() FGameplayTagContainer GameplayTags;
+    UPROPERTY() TArray<FName> TextTags;
 };
 
 USTRUCT()
@@ -127,5 +116,7 @@ struct FSpawnGroupState
     UPROPERTY() TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride = nullptr;
     UPROPERTY() TArray<FSpawnSlotState> Slots;
     UPROPERTY() TMap<FName, int32> TypeKilled;
+
+    // NEW: если true Ч спавнер игнорирует активацию из шагов сценари€.
     UPROPERTY() bool bManualActivationOnly = false;
 };
