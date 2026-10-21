@@ -530,6 +530,42 @@ void USpawnGroupSubsystem::HandleSpawnGroupSetManualActivation(const FOutcomeEve
         *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
 }
 
+void USpawnGroupSubsystem::AddContribution(const FGuid& GroupId, const FStepSpawnerPending& Contribution)
+{
+    if (!GroupId.IsValid()) return;
+
+    FSpawnerPendingList& List = PendingSpawnerCommands.FindOrAdd(GroupId);
+    TArray<FStepSpawnerPending>& Items = List.Items;
+
+    for (FStepSpawnerPending& Existing : Items)
+    {
+        if (Existing.SourceStepId == Contribution.SourceStepId)
+        {
+            if (Contribution.Config)
+                Existing.Config = Contribution.Config;
+            if (Contribution.bPendingActivate)
+                Existing.bPendingActivate = true;
+            if (Contribution.bPendingDestroyRemaining)
+            {
+                Existing.bPendingDestroyRemaining = true;
+                Existing.DestroyReason = Contribution.DestroyReason;
+            }
+            if (Contribution.bBlockFutureSpawn)
+                Existing.bBlockFutureSpawn = true;
+
+            // NEW
+            if (Contribution.bPendingSetManualActivation)
+            {
+                Existing.bPendingSetManualActivation = true;
+                Existing.bManualActivationOnly = Contribution.bManualActivationOnly;
+            }
+
+            return;
+        }
+    }
+    Items.Add(Contribution);
+}
+
 void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, const USpawnGroupConfigurePayload* P)
 {
     if (!Spawner || !P) return;
@@ -575,42 +611,21 @@ void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, 
 
     if (P->bApplyStatus)                 Spawner->CurrentStatus = P->Status;
     if (P->bApplyBlockNewSpawn)          Spawner->BlockNewSpawn = P->bBlockNewSpawn;
-}
 
-void USpawnGroupSubsystem::AddContribution(const FGuid& GroupId, const FStepSpawnerPending& Contribution)
-{
-    if (!GroupId.IsValid()) return;
-
-    FSpawnerPendingList& List = PendingSpawnerCommands.FindOrAdd(GroupId);
-    TArray<FStepSpawnerPending>& Items = List.Items;
-
-    for (FStepSpawnerPending& Existing : Items)
+    // NEW: если дизайнер попросил — сразу активируем спавн с новой конфигурацией.
+    // Это эквивалент «Configure + Start» в одном entry.
+    if (P->bAutoActivateAfterConfigure)
     {
-        if (Existing.SourceStepId == Contribution.SourceStepId)
-        {
-            if (Contribution.Config)
-                Existing.Config = Contribution.Config;
-            if (Contribution.bPendingActivate)
-                Existing.bPendingActivate = true;
-            if (Contribution.bPendingDestroyRemaining)
-            {
-                Existing.bPendingDestroyRemaining = true;
-                Existing.DestroyReason = Contribution.DestroyReason;
-            }
-            if (Contribution.bBlockFutureSpawn)
-                Existing.bBlockFutureSpawn = true;
+        Spawner->SpawnGroupInternal();
 
-            // NEW
-            if (Contribution.bPendingSetManualActivation)
-            {
-                Existing.bPendingSetManualActivation = true;
-                Existing.bManualActivationOnly = Contribution.bManualActivationOnly;
-            }
+        // Сразу обновляем кэш, чтобы новое состояние (включая будущие слоты)
+        // консистентно сохранялось при уходе с этажа.
+        UpdateSpawnerStateInCache(Spawner);
 
-            return;
-        }
+        UE_LOG(LogTemp, Log,
+            TEXT("SpawnGroupSubsystem: auto-activated spawner %s after Configure"),
+            *Spawner->GetName());
     }
-    Items.Add(Contribution);
 }
 
 void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spawner)
@@ -625,12 +640,28 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
 
     for (const FStepSpawnerPending& C : List->Items)
     {
+        // 1. Configure — применяем первым, чтобы к моменту активации
+        // ассет и статус уже были актуальными.
         if (C.Config)
         {
             ApplyConfigureToSpawner(Spawner, C.Config);
             UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Configure (step %s) to spawner %s"),
                 *C.SourceStepId.ToString(), *GroupId.ToString());
         }
+
+        // 2. SetManualActivation — ставим флаг ДО активации, чтобы отфильтровать
+        // сценарный Start из того же шага.
+        if (C.bPendingSetManualActivation)
+        {
+            Spawner->bManualActivationOnly = C.bManualActivationOnly;
+            UpdateSpawnerStateInCache(Spawner);
+
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred SetManualActivation(%s) (step %s) to spawner %s"),
+                C.bManualActivationOnly ? TEXT("true") : TEXT("false"),
+                *C.SourceStepId.ToString(), *GroupId.ToString());
+        }
+
+        // 3. DestroyRemaining
         if (C.bPendingDestroyRemaining)
         {
             Spawner->ClearGroup(C.DestroyReason);
@@ -644,21 +675,9 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
                 C.bBlockFutureSpawn ? TEXT("true") : TEXT("false"));
         }
 
-        // NEW: применяем ручной режим ДО активации, чтобы блокировать
-        // сценарную активацию из того же шага.
-        if (C.bPendingSetManualActivation)
-        {
-            Spawner->bManualActivationOnly = C.bManualActivationOnly;
-            UpdateSpawnerStateInCache(Spawner);
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred SetManualActivation(%s) (step %s) to spawner %s"),
-                C.bManualActivationOnly ? TEXT("true") : TEXT("false"),
-                *C.SourceStepId.ToString(), *GroupId.ToString());
-        }
-
+        // 4. Активация — уважаем manual-only для сценарных SourceStepId.
         if (C.bPendingActivate)
         {
-            // NEW: если активация пришла из сценария (SourceStepId валиден),
-            // а спавнер в ручном режиме — пропускаем.
             if (C.SourceStepId.IsValid() && Spawner->bManualActivationOnly)
             {
                 UE_LOG(LogTemp, Log,
@@ -672,6 +691,7 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
                 *C.SourceStepId.ToString(), *GroupId.ToString());
         }
     }
+
     PendingSpawnerCommands.Remove(GroupId);
 }
 

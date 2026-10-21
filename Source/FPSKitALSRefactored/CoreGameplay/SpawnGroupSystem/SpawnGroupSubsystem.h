@@ -27,10 +27,9 @@ struct FStepSpawnerPending
     UPROPERTY() bool bPendingDestroyRemaining = false;
     UPROPERTY() bool bBlockFutureSpawn = false;
     UPROPERTY() ESpawnGroupResolutionReason DestroyReason = ESpawnGroupResolutionReason::ScriptedRemoval;
-
-    // NEW
     UPROPERTY() bool bPendingSetManualActivation = false;
     UPROPERTY() bool bManualActivationOnly = false;
+    UPROPERTY() bool bPendingAutoActivate = false;
 };
 
 // Обёртка (UHT не поддерживает TMap<K, TArray<USTRUCT>>).

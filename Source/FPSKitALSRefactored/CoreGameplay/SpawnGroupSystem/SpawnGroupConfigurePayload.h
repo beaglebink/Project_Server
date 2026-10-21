@@ -18,6 +18,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure")
     TObjectPtr<USpawnGroupAsset> NewSpawnGroupAsset = nullptr;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure")
+    bool bAutoActivateAfterConfigure = false;
+
     // ---- Ниже минимальные настройки самого актора-спавнера (опционально) ----
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Runtime")
