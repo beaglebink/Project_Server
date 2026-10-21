@@ -612,20 +612,7 @@ void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, 
     if (P->bApplyStatus)                 Spawner->CurrentStatus = P->Status;
     if (P->bApplyBlockNewSpawn)          Spawner->BlockNewSpawn = P->bBlockNewSpawn;
 
-    // NEW: если дизайнер попросил — сразу активируем спавн с новой конфигурацией.
-    // Это эквивалент «Configure + Start» в одном entry.
-    if (P->bAutoActivateAfterConfigure)
-    {
-        Spawner->SpawnGroupInternal();
-
-        // Сразу обновляем кэш, чтобы новое состояние (включая будущие слоты)
-        // консистентно сохранялось при уходе с этажа.
-        UpdateSpawnerStateInCache(Spawner);
-
-        UE_LOG(LogTemp, Log,
-            TEXT("SpawnGroupSubsystem: auto-activated spawner %s after Configure"),
-            *Spawner->GetName());
-    }
+    // Никакой активации здесь нет — активация только через SpawnGroup.Start.
 }
 
 void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spawner)
