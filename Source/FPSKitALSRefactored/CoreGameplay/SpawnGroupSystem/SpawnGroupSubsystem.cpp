@@ -17,6 +17,216 @@
 //#include "../InteriorInstanceSystem/InteriorSubsystem.h"
 #include "ResetSpawnerSnapshotPayload.h"
 
+static TSharedPtr<FJsonObject> SerializeConfigurePayload(const USpawnGroupConfigurePayload* P)
+{
+    if (!P) return nullptr;
+
+    TSharedPtr<FJsonObject> Cfg = MakeShared<FJsonObject>();
+
+    // Asset
+    if (P->NewSpawnGroupAsset)
+    {
+        Cfg->SetStringField(TEXT("NewSpawnGroupAsset"), P->NewSpawnGroupAsset->GetPathName());
+    }
+
+    // Runtime
+    Cfg->SetBoolField(TEXT("bApplyStatus"), P->bApplyStatus);
+    Cfg->SetNumberField(TEXT("Status"), static_cast<uint8>(P->Status));
+    Cfg->SetBoolField(TEXT("bApplyBlockNewSpawn"), P->bApplyBlockNewSpawn);
+    Cfg->SetBoolField(TEXT("bBlockNewSpawn"), P->bBlockNewSpawn);
+    Cfg->SetBoolField(TEXT("bApplyManualActivationOnly"), P->bApplyManualActivationOnly);
+    Cfg->SetBoolField(TEXT("bManualActivationOnly"), P->bManualActivationOnly);
+    Cfg->SetBoolField(TEXT("bApplyStoreSpawnParameters"), P->bApplyStoreSpawnParameters);
+    Cfg->SetBoolField(TEXT("IsStoreSpawnParameters"), P->IsStoreSpawnParameters);
+    Cfg->SetBoolField(TEXT("bApplySavingHealth"), P->bApplySavingHealth);
+    Cfg->SetBoolField(TEXT("IsSavingHealth"), P->IsSavingHealth);
+
+    // Behaviour
+    Cfg->SetBoolField(TEXT("bApplySpawnOnBeginPlay"), P->bApplySpawnOnBeginPlay);
+    Cfg->SetBoolField(TEXT("bSpawnOnBeginPlay"), P->bSpawnOnBeginPlay);
+    Cfg->SetBoolField(TEXT("bApplyDestroyOnClear"), P->bApplyDestroyOnClear);
+    Cfg->SetBoolField(TEXT("bDestroyOnClear"), P->bDestroyOnClear);
+    Cfg->SetBoolField(TEXT("bApplyAllowRespawn"), P->bApplyAllowRespawn);
+    Cfg->SetBoolField(TEXT("bAllowRespawn"), P->bAllowRespawn);
+
+    // Spawn
+    Cfg->SetBoolField(TEXT("bApplySpawnInterval"), P->bApplySpawnInterval);
+    Cfg->SetNumberField(TEXT("SpawnInterval"), P->SpawnInterval);
+    Cfg->SetBoolField(TEXT("bApplySpawnOffset"), P->bApplySpawnOffset);
+    {
+        TSharedPtr<FJsonObject> Off = MakeShared<FJsonObject>();
+        Off->SetNumberField(TEXT("X"), P->SpawnOffset.X);
+        Off->SetNumberField(TEXT("Y"), P->SpawnOffset.Y);
+        Off->SetNumberField(TEXT("Z"), P->SpawnOffset.Z);
+        Cfg->SetObjectField(TEXT("SpawnOffset"), Off);
+    }
+    Cfg->SetBoolField(TEXT("bApplyDefaultSpawnRotation"), P->bApplyDefaultSpawnRotation);
+    {
+        TSharedPtr<FJsonObject> Rot = MakeShared<FJsonObject>();
+        Rot->SetNumberField(TEXT("Pitch"), P->DefaultSpawnRotation.Pitch);
+        Rot->SetNumberField(TEXT("Yaw"), P->DefaultSpawnRotation.Yaw);
+        Rot->SetNumberField(TEXT("Roll"), P->DefaultSpawnRotation.Roll);
+        Cfg->SetObjectField(TEXT("DefaultSpawnRotation"), Rot);
+    }
+
+    // SpawnLocations — пути
+    Cfg->SetBoolField(TEXT("bApplySpawnLocations"), P->bApplySpawnLocations);
+    {
+        TArray<TSharedPtr<FJsonValue>> LocArr;
+        for (const TSoftObjectPtr<ASpawnVolume>& SoftVol : P->SpawnLocations)
+        {
+            if (SoftVol.IsNull()) continue;
+            LocArr.Add(MakeShared<FJsonValueString>(
+                SoftVol.ToSoftObjectPath().GetLongPackageName()));
+        }
+        Cfg->SetArrayField(TEXT("SpawnLocations"), LocArr);
+    }
+
+    // Tags
+    Cfg->SetBoolField(TEXT("bApplyEnemyTags"), P->bApplyEnemyTags);
+    {
+        TArray<TSharedPtr<FJsonValue>> TagsArr;
+        for (const FName& Tag : P->EnemyTags)
+            TagsArr.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+        Cfg->SetArrayField(TEXT("EnemyTags"), TagsArr);
+    }
+
+    Cfg->SetBoolField(TEXT("bApplyEnemyGameplayTags"), P->bApplyEnemyGameplayTags);
+    {
+        TArray<TSharedPtr<FJsonValue>> TagsArr;
+        for (const FGameplayTag& Tag : P->EnemyGameplayTags)
+            TagsArr.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+        Cfg->SetArrayField(TEXT("EnemyGameplayTags"), TagsArr);
+    }
+
+    // Debug
+    Cfg->SetBoolField(TEXT("bApplyDebugSpawnPoints"), P->bApplyDebugSpawnPoints);
+    Cfg->SetBoolField(TEXT("DebugSpawnPoints"), P->DebugSpawnPoints);
+
+    return Cfg;
+}
+
+static USpawnGroupConfigurePayload* DeserializeConfigurePayload(
+    const TSharedPtr<FJsonObject>& Cfg, UObject* Outer)
+{
+    if (!Cfg.IsValid()) return nullptr;
+
+    USpawnGroupConfigurePayload* P = NewObject<USpawnGroupConfigurePayload>(Outer);
+
+    // Asset
+    FString AssetPath;
+    if (Cfg->TryGetStringField(TEXT("NewSpawnGroupAsset"), AssetPath) && !AssetPath.IsEmpty())
+    {
+        P->NewSpawnGroupAsset = LoadObject<USpawnGroupAsset>(nullptr, *AssetPath);
+    }
+
+    // Runtime
+    Cfg->TryGetBoolField(TEXT("bApplyStatus"), P->bApplyStatus);
+    {
+        int32 Val = 0;
+        if (Cfg->TryGetNumberField(TEXT("Status"), Val))
+            P->Status = static_cast<ESpawnGroupStatus>(Val);
+    }
+    Cfg->TryGetBoolField(TEXT("bApplyBlockNewSpawn"), P->bApplyBlockNewSpawn);
+    Cfg->TryGetBoolField(TEXT("bBlockNewSpawn"), P->bBlockNewSpawn);
+    Cfg->TryGetBoolField(TEXT("bApplyManualActivationOnly"), P->bApplyManualActivationOnly);
+    Cfg->TryGetBoolField(TEXT("bManualActivationOnly"), P->bManualActivationOnly);
+    Cfg->TryGetBoolField(TEXT("bApplyStoreSpawnParameters"), P->bApplyStoreSpawnParameters);
+    Cfg->TryGetBoolField(TEXT("IsStoreSpawnParameters"), P->IsStoreSpawnParameters);
+    Cfg->TryGetBoolField(TEXT("bApplySavingHealth"), P->bApplySavingHealth);
+    Cfg->TryGetBoolField(TEXT("IsSavingHealth"), P->IsSavingHealth);
+
+    // Behaviour
+    Cfg->TryGetBoolField(TEXT("bApplySpawnOnBeginPlay"), P->bApplySpawnOnBeginPlay);
+    Cfg->TryGetBoolField(TEXT("bSpawnOnBeginPlay"), P->bSpawnOnBeginPlay);
+    Cfg->TryGetBoolField(TEXT("bApplyDestroyOnClear"), P->bApplyDestroyOnClear);
+    Cfg->TryGetBoolField(TEXT("bDestroyOnClear"), P->bDestroyOnClear);
+    Cfg->TryGetBoolField(TEXT("bApplyAllowRespawn"), P->bApplyAllowRespawn);
+    Cfg->TryGetBoolField(TEXT("bAllowRespawn"), P->bAllowRespawn);
+
+    // Spawn
+    Cfg->TryGetBoolField(TEXT("bApplySpawnInterval"), P->bApplySpawnInterval);
+    Cfg->TryGetNumberField(TEXT("SpawnInterval"), P->SpawnInterval);
+
+    Cfg->TryGetBoolField(TEXT("bApplySpawnOffset"), P->bApplySpawnOffset);
+    {
+        const TSharedPtr<FJsonObject>* OffObj = nullptr;
+        if (Cfg->TryGetObjectField(TEXT("SpawnOffset"), OffObj))
+        {
+            double X = 0, Y = 0, Z = 0;
+            (*OffObj)->TryGetNumberField(TEXT("X"), X);
+            (*OffObj)->TryGetNumberField(TEXT("Y"), Y);
+            (*OffObj)->TryGetNumberField(TEXT("Z"), Z);
+            P->SpawnOffset = FVector(X, Y, Z);
+        }
+    }
+
+    Cfg->TryGetBoolField(TEXT("bApplyDefaultSpawnRotation"), P->bApplyDefaultSpawnRotation);
+    {
+        const TSharedPtr<FJsonObject>* RotObj = nullptr;
+        if (Cfg->TryGetObjectField(TEXT("DefaultSpawnRotation"), RotObj))
+        {
+            double Pitch = 0, Yaw = 0, Roll = 0;
+            (*RotObj)->TryGetNumberField(TEXT("Pitch"), Pitch);
+            (*RotObj)->TryGetNumberField(TEXT("Yaw"), Yaw);
+            (*RotObj)->TryGetNumberField(TEXT("Roll"), Roll);
+            P->DefaultSpawnRotation = FRotator(Pitch, Yaw, Roll);
+        }
+    }
+
+    // SpawnLocations
+    Cfg->TryGetBoolField(TEXT("bApplySpawnLocations"), P->bApplySpawnLocations);
+    {
+        const TArray<TSharedPtr<FJsonValue>>* LocArr = nullptr;
+        if (Cfg->TryGetArrayField(TEXT("SpawnLocations"), LocArr))
+        {
+            for (const TSharedPtr<FJsonValue>& Val : *LocArr)
+            {
+                if (Val->Type != EJson::String) continue;
+                P->SpawnLocations.Add(
+                    TSoftObjectPtr<ASpawnVolume>(FSoftObjectPath(Val->AsString())));
+            }
+        }
+    }
+
+    // Tags
+    Cfg->TryGetBoolField(TEXT("bApplyEnemyTags"), P->bApplyEnemyTags);
+    {
+        const TArray<TSharedPtr<FJsonValue>>* TagsArr = nullptr;
+        if (Cfg->TryGetArrayField(TEXT("EnemyTags"), TagsArr))
+        {
+            for (const TSharedPtr<FJsonValue>& Val : *TagsArr)
+            {
+                if (Val->Type == EJson::String)
+                    P->EnemyTags.Add(FName(*Val->AsString()));
+            }
+        }
+    }
+
+    Cfg->TryGetBoolField(TEXT("bApplyEnemyGameplayTags"), P->bApplyEnemyGameplayTags);
+    {
+        const TArray<TSharedPtr<FJsonValue>>* TagsArr = nullptr;
+        if (Cfg->TryGetArrayField(TEXT("EnemyGameplayTags"), TagsArr))
+        {
+            for (const TSharedPtr<FJsonValue>& Val : *TagsArr)
+            {
+                if (Val->Type == EJson::String)
+                {
+                    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Val->AsString()), false);
+                    if (Tag.IsValid())
+                        P->EnemyGameplayTags.AddTag(Tag);
+                }
+            }
+        }
+    }
+
+    // Debug
+    Cfg->TryGetBoolField(TEXT("bApplyDebugSpawnPoints"), P->bApplyDebugSpawnPoints);
+    Cfg->TryGetBoolField(TEXT("DebugSpawnPoints"), P->DebugSpawnPoints);
+
+    return P;
+}
+
 // ============================================================================
 // Helper function to count slots by predicate
 // Вспомогательная функция для подсчёта слотов по предикату
@@ -570,49 +780,86 @@ void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, 
 {
     if (!Spawner || !P) return;
 
-    if (P->NewSpawnGroupAsset)
+    // ============================================================
+    // 1. Asset
+    // ============================================================
+    if (P->NewSpawnGroupAsset && Spawner->SpawnGroupAsset != P->NewSpawnGroupAsset)
     {
-        if (Spawner->SpawnGroupAsset != P->NewSpawnGroupAsset)
+        ESpawnGroupStatus OldStatus = Spawner->GetCurrentStatus();
+
+        // Сбрасываем состояние и ставим новый ассет
+        Spawner->ResetSpawnerForNewConfiguration();
+        Spawner->SpawnGroupAsset = P->NewSpawnGroupAsset;
+        Spawner->CurrentStatus = OldStatus;
+
+        // Чистим снапшот в InteriorSubsystem через EventBus
+        if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
         {
-            // Запоминаем старый статус, чтобы спавнер не стал Inactive
-            ESpawnGroupStatus OldStatus = Spawner->GetCurrentStatus();
-
-            // 1. Сбрасываем состояние самого актора
-            Spawner->ResetSpawnerForNewConfiguration();
-            Spawner->SpawnGroupAsset = P->NewSpawnGroupAsset;
-            Spawner->CurrentStatus = OldStatus; // Восстанавливаем статус
-
-            // 2. Отправляем событие в EventBus, чтобы InteriorSubsystem очистил снэпшот
-            if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+            UResetSpawnerSnapshotPayload* Payload = EventBus->CreatePayload<UResetSpawnerSnapshotPayload>();
+            if (Payload)
             {
-                UResetSpawnerSnapshotPayload* Payload = EventBus->CreatePayload<UResetSpawnerSnapshotPayload>();
-                if (Payload)
-                {
-                    Payload->Setup(Spawner->GetRuntimeGroupId());
+                Payload->Setup(Spawner->GetRuntimeGroupId());
 
-                    FOutcomeEventBase Ev;
-                    Ev.OutcomeType = EOutcomeType::Interior;
-                    Ev.OutcomeInterior = EOutcomeInterior::ResetSpawnerSnapshot;
-                    Ev.Payload = Payload;
-                    EventBus->PublishOutcome(Ev);
-                }
+                FOutcomeEventBase Ev;
+                Ev.OutcomeType = EOutcomeType::Interior;
+                Ev.OutcomeInterior = EOutcomeInterior::ResetSpawnerSnapshot;
+                Ev.Payload = Payload;
+                EventBus->PublishOutcome(Ev);
             }
-
-            // 3. Сразу обновляем кэш SpawnGroupSubsystem
-            UpdateSpawnerStateInCache(Spawner);
-
-            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: SpawnGroupAsset changed for spawner %s. Requested snapshot reset via EventBus."), *Spawner->GetName());
         }
-        else
+
+        UE_LOG(LogTemp, Log,
+            TEXT("SpawnGroupSubsystem: SpawnGroupAsset changed for spawner %s"),
+            *Spawner->GetName());
+    }
+    else if (P->NewSpawnGroupAsset)
+    {
+        Spawner->SpawnGroupAsset = P->NewSpawnGroupAsset;
+    }
+
+    // ============================================================
+    // 2. Runtime overrides — каждое поле опционально
+    // ============================================================
+    if (P->bApplyStatus)                Spawner->CurrentStatus = P->Status;
+    if (P->bApplyBlockNewSpawn)         Spawner->BlockNewSpawn = P->bBlockNewSpawn;
+    if (P->bApplyManualActivationOnly)  Spawner->bManualActivationOnly = P->bManualActivationOnly;
+    if (P->bApplyStoreSpawnParameters)  Spawner->IsStoreSpawnParameters = P->IsStoreSpawnParameters;
+    if (P->bApplySavingHealth)          Spawner->IsSavingHealth = P->IsSavingHealth;
+
+    // Behaviour
+    if (P->bApplySpawnOnBeginPlay)      Spawner->bSpawnOnBeginPlay = P->bSpawnOnBeginPlay;
+    if (P->bApplyDestroyOnClear)        Spawner->bDestroyOnClear = P->bDestroyOnClear;
+    if (P->bApplyAllowRespawn)          Spawner->bAllowRespawn = P->bAllowRespawn;
+
+    // Spawn params
+    if (P->bApplySpawnInterval)         Spawner->SpawnInterval = P->SpawnInterval;
+    if (P->bApplySpawnOffset)           Spawner->SpawnOffset = P->SpawnOffset;
+    if (P->bApplyDefaultSpawnRotation)  Spawner->DefaultSpawnRotation = P->DefaultSpawnRotation;
+
+    // SpawnLocations — soft refs, разрешаем синхронно
+    if (P->bApplySpawnLocations)
+    {
+        Spawner->SpawnLocations.Empty();
+        for (const TSoftObjectPtr<ASpawnVolume>& SoftVol : P->SpawnLocations)
         {
-            Spawner->SpawnGroupAsset = P->NewSpawnGroupAsset;
+            if (ASpawnVolume* Vol = SoftVol.LoadSynchronous())
+            {
+                Spawner->SpawnLocations.Add(Vol);
+            }
         }
     }
 
-    if (P->bApplyStatus)                 Spawner->CurrentStatus = P->Status;
-    if (P->bApplyBlockNewSpawn)          Spawner->BlockNewSpawn = P->bBlockNewSpawn;
+    // Tags — применяются к НОВЫМ врагам при следующем SpawnGroup
+    if (P->bApplyEnemyTags)             Spawner->EnemyTags = P->EnemyTags;
+    if (P->bApplyEnemyGameplayTags)     Spawner->EnemyGameplayTags = P->EnemyGameplayTags;
 
-    // Никакой активации здесь нет — активация только через SpawnGroup.Start.
+    // Debug
+    if (P->bApplyDebugSpawnPoints)      Spawner->DebugSpawnPoints = P->DebugSpawnPoints;
+
+    // ============================================================
+    // 3. Обновляем кэш после любых изменений
+    // ============================================================
+    UpdateSpawnerStateInCache(Spawner);
 }
 
 void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spawner)
@@ -826,8 +1073,6 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.bStoreSpawnParameters = bPreserveSlots;
         State.bBlockNewSpawn = Spawner->BlockNewSpawn;
         State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
-
-        // NEW: пользовательский флаг ручного режима — сохраняем всегда
         State.bManualActivationOnly = Spawner->bManualActivationOnly;
 
         if (bPreserveSlots)
@@ -838,14 +1083,13 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
                 ? Spawner->GetTypeKilled()
                 : TMap<FName, int32>();
         }
-        // иначе Slots/KilledCount/TypeKilled остаются пустыми
 
         TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
         FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
     }
 
     // ============================================================
-    // Сериализация — без изменений
+    // Сериализация PersistentGroupStates
     // ============================================================
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
     TSharedPtr<FJsonObject> GroupsObj = MakeShared<FJsonObject>();
@@ -874,6 +1118,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
                     GroupPair.Value.SpawnGroupAssetOverride.ToSoftObjectPath().GetLongPackageName());
             }
 
+            // ----- Slots -----
             TArray<TSharedPtr<FJsonValue>> SlotsArray;
             for (const FSpawnSlotState& Slot : GroupPair.Value.Slots)
             {
@@ -907,6 +1152,7 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             }
             StateObj->SetArrayField(TEXT("Slots"), SlotsArray);
 
+            // ----- TypeKilled -----
             if (GroupPair.Value.TypeKilled.Num() > 0)
             {
                 TSharedPtr<FJsonObject> TypeKilledObj = MakeShared<FJsonObject>();
@@ -922,7 +1168,9 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
     Root->SetObjectField(TEXT("PersistentGroupStates"), GroupsObj);
 
-    // ---- PendingSpawnerCommands — без изменений ----
+    // ============================================================
+    // PendingSpawnerCommands — с сериализацией Config через хелпер
+    // ============================================================
     TSharedPtr<FJsonObject> PendingRoot = MakeShared<FJsonObject>();
     for (const auto& Pair : PendingSpawnerCommands)
     {
@@ -937,23 +1185,14 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             Obj->SetBoolField(TEXT("bPendingDestroyRemaining"), C.bPendingDestroyRemaining);
             Obj->SetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);
             Obj->SetNumberField(TEXT("DestroyReason"), static_cast<uint8>(C.DestroyReason));
-
             Obj->SetBoolField(TEXT("bPendingSetManualActivation"), C.bPendingSetManualActivation);
             Obj->SetBoolField(TEXT("bManualActivationOnly"), C.bManualActivationOnly);
 
             if (C.Config)
             {
-                TSharedPtr<FJsonObject> Cfg = MakeShared<FJsonObject>();
-                if (C.Config->NewSpawnGroupAsset)
-                {
-                    Cfg->SetStringField(TEXT("NewSpawnGroupAsset"),
-                        C.Config->NewSpawnGroupAsset->GetPathName());
-                }
-                Cfg->SetBoolField(TEXT("bApplyStatus"), C.Config->bApplyStatus);
-                Cfg->SetNumberField(TEXT("Status"), static_cast<uint8>(C.Config->Status));
-                Cfg->SetBoolField(TEXT("bApplyBlockNewSpawn"), C.Config->bApplyBlockNewSpawn);
-                Cfg->SetBoolField(TEXT("bBlockNewSpawn"), C.Config->bBlockNewSpawn);
-                Obj->SetObjectField(TEXT("Config"), Cfg);
+                TSharedPtr<FJsonObject> Cfg = SerializeConfigurePayload(C.Config);
+                if (Cfg.IsValid())
+                    Obj->SetObjectField(TEXT("Config"), Cfg);
             }
 
             ContributionsArr.Add(MakeShared<FJsonValueObject>(Obj));
@@ -986,6 +1225,9 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         return;
     }
 
+    // ============================================================
+    // PersistentGroupStates
+    // ============================================================
     PersistentGroupStates.Empty();
 
     const TSharedPtr<FJsonObject>* GroupsObjPtr = nullptr;
@@ -1039,6 +1281,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                         State.SpawnGroupAssetOverride = TSoftObjectPtr<USpawnGroupAsset>(FSoftObjectPath(AssetPath));
                     }
 
+                    // ----- Slots -----
                     const TArray<TSharedPtr<FJsonValue>>* SlotsArray = nullptr;
                     if ((*StateObj)->TryGetArrayField(TEXT("Slots"), SlotsArray))
                     {
@@ -1082,7 +1325,8 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                                 {
                                     if (Val->Type == EJson::String)
                                     {
-                                        FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Val->AsString()));
+                                        FGameplayTag Tag = FGameplayTag::RequestGameplayTag(
+                                            FName(*Val->AsString()), /*ErrorIfNotFound=*/false);
                                         if (Tag.IsValid())
                                             Slot.GameplayTags.AddTag(Tag);
                                     }
@@ -1103,6 +1347,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                         }
                     }
 
+                    // ----- TypeKilled -----
                     const TSharedPtr<FJsonObject>* TypeKilledObj = nullptr;
                     if ((*StateObj)->TryGetObjectField(TEXT("TypeKilled"), TypeKilledObj))
                     {
@@ -1114,8 +1359,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                         }
                     }
 
-                    // NEW: защита от старого битого сейва — если bStoreSpawnParameters = true,
-                    // но слотов нет, сбрасываем флаг, чтобы HandleLevelLoaded не шёл в слот-ветку.
+                    // Защита от старого битого сейва: bStoreSpawnParameters = true, но слотов нет
                     if (State.bStoreSpawnParameters && State.Slots.Num() == 0)
                     {
                         State.bStoreSpawnParameters = false;
@@ -1128,9 +1372,9 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
-    // ========================================================================
-    // PendingSpawnerCommands
-    // ========================================================================
+    // ============================================================
+    // PendingSpawnerCommands — с десериализацией Config через хелпер
+    // ============================================================
     PendingSpawnerCommands.Empty();
 
     const TSharedPtr<FJsonObject>* PendingObj = nullptr;
@@ -1167,23 +1411,7 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 const TSharedPtr<FJsonObject>* CfgObj = nullptr;
                 if (Obj->TryGetObjectField(TEXT("Config"), CfgObj))
                 {
-                    USpawnGroupConfigurePayload* Cfg = NewObject<USpawnGroupConfigurePayload>(this);
-
-                    FString NewAssetPath;
-                    if ((*CfgObj)->TryGetStringField(TEXT("NewSpawnGroupAsset"), NewAssetPath) && !NewAssetPath.IsEmpty())
-                    {
-                        Cfg->NewSpawnGroupAsset = LoadObject<USpawnGroupAsset>(nullptr, *NewAssetPath);
-                    }
-
-                    (*CfgObj)->TryGetBoolField(TEXT("bApplyStatus"), Cfg->bApplyStatus);
-                    int32 StatusInt = 0;
-                    if ((*CfgObj)->TryGetNumberField(TEXT("Status"), StatusInt))
-                        Cfg->Status = static_cast<ESpawnGroupStatus>(StatusInt);
-
-                    (*CfgObj)->TryGetBoolField(TEXT("bApplyBlockNewSpawn"), Cfg->bApplyBlockNewSpawn);
-                    (*CfgObj)->TryGetBoolField(TEXT("bBlockNewSpawn"), Cfg->bBlockNewSpawn);
-
-                    C.Config = Cfg;
+                    C.Config = DeserializeConfigurePayload(*CfgObj, this);
                 }
 
                 Contributions.Add(C);
