@@ -13,6 +13,7 @@
 #include "WorldStateSystem/WorldStateRecordRemovePayload.h"
 #include "WorldStateSystem/WorldStateFactChangedPayload.h"
 #include "ChoreSystem/ChorePayloads.h"
+#include "SpawnGroupSystem/SpawnGroupManualActivationPayload.h"
 
 // --- NEW: SpawnGroup payloads ---
 #include "SpawnGroupSystem/SpawnGroupCommandPayload.h"
@@ -118,6 +119,9 @@ const TArray<FCommandSpec>& FPayloadBatchRegistry::GetSpecs()
         MakeSpawnGroup("SpawnGroup.DestroyRemaining",
             USpawnGroupCommandPayload::StaticClass(),
             EOutcomeSpawnGroup::SpawnGroupDestroyRemaining),
+        MakeSpawnGroup("SpawnGroup.SetManualActivation",
+            USpawnGroupManualActivationPayload::StaticClass(),
+            EOutcomeSpawnGroup::SpawnGroupSetManualActivation),
 
             // ======================= WORLD STATE =======================
             MakeWorldState("WorldState.InteractionEnable",      UInteractSetEnabledPayload::StaticClass(),    EOutcomeWorldState::InteractionEnabledChanged),

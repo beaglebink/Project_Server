@@ -201,7 +201,8 @@ enum class EOutcomeSpawnGroup : uint8
     GhostCaptured           UMETA(DisplayName = "Ghost Captured"),
 
     SpawnGroupConfigure         UMETA(DisplayName = "Spawn Group Configure"),
-    SpawnGroupDestroyRemaining  UMETA(DisplayName = "Spawn Group Destroy Remaining")
+    SpawnGroupDestroyRemaining  UMETA(DisplayName = "Spawn Group Destroy Remaining"),
+    SpawnGroupSetManualActivation   UMETA(DisplayName = "Spawn Group Set Manual Activation")
 };
 
 UENUM(BlueprintType)

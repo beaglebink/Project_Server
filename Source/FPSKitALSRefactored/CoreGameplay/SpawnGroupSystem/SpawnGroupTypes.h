@@ -118,30 +118,14 @@ struct FSpawnGroupState
 {
     GENERATED_BODY()
 
-    UPROPERTY()
-    FGuid GroupId;
-
-    UPROPERTY()
-    ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
-
-    UPROPERTY()
-    ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::ScriptedRemoval;
-
-    UPROPERTY()
-    bool bStoreSpawnParameters = false;
-
-    UPROPERTY()
-    bool bBlockNewSpawn = false;
-
-    UPROPERTY()
-    int32 KilledCount = 0;
-
-    UPROPERTY()
-    TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride = nullptr;
-
-    UPROPERTY()
-    TArray<FSpawnSlotState> Slots;
-
-    UPROPERTY()
-    TMap<FName, int32> TypeKilled;
+    UPROPERTY() FGuid GroupId;
+    UPROPERTY() ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
+    UPROPERTY() ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::ScriptedRemoval;
+    UPROPERTY() bool bStoreSpawnParameters = false;
+    UPROPERTY() bool bBlockNewSpawn = false;
+    UPROPERTY() int32 KilledCount = 0;
+    UPROPERTY() TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride = nullptr;
+    UPROPERTY() TArray<FSpawnSlotState> Slots;
+    UPROPERTY() TMap<FName, int32> TypeKilled;
+    UPROPERTY() bool bManualActivationOnly = false;
 };

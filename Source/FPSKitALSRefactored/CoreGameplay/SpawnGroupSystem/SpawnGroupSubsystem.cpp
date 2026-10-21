@@ -166,6 +166,13 @@ void USpawnGroupSubsystem::SubscribeEvents()
             DestroyRemainingHandle = EventBus->RegisterHandler(Cond,
                 FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleSpawnGroupDestroyRemaining));
     }
+    if (!SetManualActivationHandle.IsValid())
+    {
+        UOutcomeConditionAsset* Cond = CreateCondition(EOutcomeSpawnGroup::SpawnGroupSetManualActivation);
+        if (Cond->GetCondition().IsValid())
+            SetManualActivationHandle = EventBus->RegisterHandler(Cond,
+                FOutcomeHandlerDelegate::CreateUObject(this, &USpawnGroupSubsystem::HandleSpawnGroupSetManualActivation));
+    }
 }
 
 void USpawnGroupSubsystem::UnsubscribeEvents()
@@ -192,6 +199,7 @@ void USpawnGroupSubsystem::UnsubscribeEvents()
     Unreg(FloorLeavingHandle);
     Unreg(ConfigureHandle);
     Unreg(DestroyRemainingHandle);
+    Unreg(SetManualActivationHandle);
 }
 
 // ============================================================================
@@ -267,6 +275,33 @@ void USpawnGroupSubsystem::HandleSpawnGroupActivated(const FOutcomeEventBase& Ou
 
     if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(P->GroupId))
     {
+        // NEW: если спавнер в ручном режиме и активация пришла из шага сценария
+        // (SourceStepId валиден) — игнорируем, сценарий не должен его будить.
+        // Внешние команды (триггер / BP с пустым SourceStepId) работают как обычно.
+        if (Outcome.SourceStepId.IsValid())
+        {
+            bool bManual = Spawner->bManualActivationOnly;
+
+            // Кэш может содержать более свежий флаг, чем поле на акторе
+            // (например, если SetManualActivation пришёл, пока актор не был загружен).
+            FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
+            if (TMap<FGuid, FSpawnGroupState>* FloorStates = PersistentGroupStates.Find(FloorKey))
+            {
+                if (FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId()))
+                {
+                    bManual = State->bManualActivationOnly;
+                }
+            }
+
+            if (bManual)
+            {
+                UE_LOG(LogTemp, Log,
+                    TEXT("SpawnGroupSubsystem: ignored scripted activation for manual-only spawner %s (step %s)"),
+                    *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
+                return;
+            }
+        }
+
         Spawner->SpawnGroupInternal();
 
         // Источник активации (шаг сценария / триггер / ручная команда)
@@ -462,6 +497,39 @@ void USpawnGroupSubsystem::HandleSpawnGroupDestroyRemaining(const FOutcomeEventB
         *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
 }
 
+void USpawnGroupSubsystem::HandleSpawnGroupSetManualActivation(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType != EOutcomeType::SpawnGroup ||
+        Outcome.OutcomeSpawnGroup != EOutcomeSpawnGroup::SpawnGroupSetManualActivation)
+        return;
+
+    USpawnGroupManualActivationPayload* P = Cast<USpawnGroupManualActivationPayload>(Outcome.Payload);
+    if (!P || !P->GroupId.IsValid()) return;
+
+    if (ASpawnGroupSpawner* Spawner = FindSpawnerByItemId(P->GroupId))
+    {
+        Spawner->bManualActivationOnly = P->bManualActivationOnly;
+        UpdateSpawnerStateInCache(Spawner);
+
+        UE_LOG(LogTemp, Log,
+            TEXT("SpawnGroupSubsystem: SetManualActivation(%s) applied to loaded spawner %s"),
+            P->bManualActivationOnly ? TEXT("true") : TEXT("false"),
+            *P->GroupId.ToString());
+        return;
+    }
+
+    FStepSpawnerPending C;
+    C.SourceStepId = Outcome.SourceStepId;
+    C.bPendingSetManualActivation = true;
+    C.bManualActivationOnly = P->bManualActivationOnly;
+    AddContribution(P->GroupId, C);
+
+    UE_LOG(LogTemp, Log,
+        TEXT("SpawnGroupSubsystem: deferred SetManualActivation(%s) for Group %s (step %s)"),
+        P->bManualActivationOnly ? TEXT("true") : TEXT("false"),
+        *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
+}
+
 void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, const USpawnGroupConfigurePayload* P)
 {
     if (!Spawner || !P) return;
@@ -531,6 +599,14 @@ void USpawnGroupSubsystem::AddContribution(const FGuid& GroupId, const FStepSpaw
             }
             if (Contribution.bBlockFutureSpawn)
                 Existing.bBlockFutureSpawn = true;
+
+            // NEW
+            if (Contribution.bPendingSetManualActivation)
+            {
+                Existing.bPendingSetManualActivation = true;
+                Existing.bManualActivationOnly = Contribution.bManualActivationOnly;
+            }
+
             return;
         }
     }
@@ -567,8 +643,30 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
                 *C.SourceStepId.ToString(), *GroupId.ToString(),
                 C.bBlockFutureSpawn ? TEXT("true") : TEXT("false"));
         }
+
+        // NEW: применяем ручной режим ДО активации, чтобы блокировать
+        // сценарную активацию из того же шага.
+        if (C.bPendingSetManualActivation)
+        {
+            Spawner->bManualActivationOnly = C.bManualActivationOnly;
+            UpdateSpawnerStateInCache(Spawner);
+            UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred SetManualActivation(%s) (step %s) to spawner %s"),
+                C.bManualActivationOnly ? TEXT("true") : TEXT("false"),
+                *C.SourceStepId.ToString(), *GroupId.ToString());
+        }
+
         if (C.bPendingActivate)
         {
+            // NEW: если активация пришла из сценария (SourceStepId валиден),
+            // а спавнер в ручном режиме — пропускаем.
+            if (C.SourceStepId.IsValid() && Spawner->bManualActivationOnly)
+            {
+                UE_LOG(LogTemp, Log,
+                    TEXT("SpawnGroupSubsystem: skipped deferred Activate for manual-only spawner %s (step %s)"),
+                    *GroupId.ToString(), *C.SourceStepId.ToString());
+                continue;
+            }
+
             Spawner->SpawnGroupInternal();
             UE_LOG(LogTemp, Log, TEXT("SpawnGroupSubsystem: applied deferred Activate (step %s) to spawner %s"),
                 *C.SourceStepId.ToString(), *GroupId.ToString());
@@ -649,6 +747,10 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     State.bBlockNewSpawn = Spawner->BlockNewSpawn;
     State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;   // ассет сохраняем всегда
 
+    // NEW: флаг ручного режима — это пользовательская настройка,
+    // а не runtime-состояние миссии, поэтому сохраняем всегда.
+    State.bManualActivationOnly = Spawner->bManualActivationOnly;
+
     if (bPreserveKills)
     {
         State.KilledCount = Spawner->GetKilledCount();
@@ -712,6 +814,9 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.bBlockNewSpawn = Spawner->BlockNewSpawn;
         State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;   // ассет сохраняем всегда
 
+        // NEW: пользовательский флаг ручного режима — сохраняем всегда
+        State.bManualActivationOnly = Spawner->bManualActivationOnly;
+
         if (bPreserveKills)
         {
             State.KilledCount = Spawner->GetKilledCount();
@@ -746,6 +851,9 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
             StateObj->SetBoolField(TEXT("bBlockNewSpawn"), GroupPair.Value.bBlockNewSpawn);
             StateObj->SetNumberField(TEXT("KilledCount"), GroupPair.Value.KilledCount);
+
+            // NEW
+            StateObj->SetBoolField(TEXT("bManualActivationOnly"), GroupPair.Value.bManualActivationOnly);
 
             if (!GroupPair.Value.SpawnGroupAssetOverride.IsNull())
             {
@@ -816,6 +924,10 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             Obj->SetBoolField(TEXT("bPendingDestroyRemaining"), C.bPendingDestroyRemaining);
             Obj->SetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);
             Obj->SetNumberField(TEXT("DestroyReason"), static_cast<uint8>(C.DestroyReason));
+
+            // NEW
+            Obj->SetBoolField(TEXT("bPendingSetManualActivation"), C.bPendingSetManualActivation);
+            Obj->SetBoolField(TEXT("bManualActivationOnly"), C.bManualActivationOnly);
 
             if (C.Config)
             {
@@ -905,6 +1017,10 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
                     if ((*StateObj)->HasField(TEXT("bBlockNewSpawn")))
                         State.bBlockNewSpawn = (*StateObj)->GetBoolField(TEXT("bBlockNewSpawn"));
+
+                    // NEW
+                    if ((*StateObj)->HasField(TEXT("bManualActivationOnly")))
+                        State.bManualActivationOnly = (*StateObj)->GetBoolField(TEXT("bManualActivationOnly"));
 
                     FString AssetPath;
                     if ((*StateObj)->TryGetStringField(TEXT("SpawnGroupAssetPath"), AssetPath) && !AssetPath.IsEmpty())
@@ -1023,6 +1139,10 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 Obj->TryGetBoolField(TEXT("bPendingActivate"), C.bPendingActivate);
                 Obj->TryGetBoolField(TEXT("bPendingDestroyRemaining"), C.bPendingDestroyRemaining);
                 Obj->TryGetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);
+
+                // NEW
+                Obj->TryGetBoolField(TEXT("bPendingSetManualActivation"), C.bPendingSetManualActivation);
+                Obj->TryGetBoolField(TEXT("bManualActivationOnly"), C.bManualActivationOnly);
 
                 int32 ReasonInt = 0;
                 if (Obj->TryGetNumberField(TEXT("DestroyReason"), ReasonInt))
@@ -1694,6 +1814,10 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
                     Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
                 }
                 Spawner->BlockNewSpawn = State->bBlockNewSpawn;
+
+                // NEW: восстанавливаем флаг ручного режима до любых дальнейших проверок,
+                // чтобы он применялся и в случае bWasRestoredByMission, и в общем случае.
+                Spawner->bManualActivationOnly = State->bManualActivationOnly;
 
                 // InteriorSubsystem уже восстановил этот спавнер по политике
                 // (bWasRestoredByMission проставляется в RestoreFromSnapshotArray).

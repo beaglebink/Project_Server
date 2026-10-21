@@ -10,6 +10,7 @@
 #include "SpawnGroupCommandPayload.h"
 #include "SpawnGroupConfigurePayload.h"
 #include "ISaveableSubsystem.h"
+#include "SpawnGroupManualActivationPayload.h"
 #include "SpawnGroupSubsystem.generated.h"
 
 class ASpawnGroupSpawner;
@@ -26,6 +27,10 @@ struct FStepSpawnerPending
     UPROPERTY() bool bPendingDestroyRemaining = false;
     UPROPERTY() bool bBlockFutureSpawn = false;
     UPROPERTY() ESpawnGroupResolutionReason DestroyReason = ESpawnGroupResolutionReason::ScriptedRemoval;
+
+    // NEW
+    UPROPERTY() bool bPendingSetManualActivation = false;
+    UPROPERTY() bool bManualActivationOnly = false;
 };
 
 // Обёртка (UHT не поддерживает TMap<K, TArray<USTRUCT>>).
@@ -180,6 +185,7 @@ private:
     void HandleLevelLoaded(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupConfigure(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupDestroyRemaining(const FOutcomeEventBase& Outcome);
+    void HandleSpawnGroupSetManualActivation(const FOutcomeEventBase& Outcome);
 
     ASpawnGroupSpawner* FindSpawnerByItemId(const FGuid& ItemId) const;
     ASpawnGroupSpawner* FindSpawnerByGroupId(const FGuid& GroupId) const;
@@ -194,8 +200,14 @@ private:
     void ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spawner);
     void AddContribution(const FGuid& GroupId, const FStepSpawnerPending& Contribution);
 
-    UPROPERTY() TMap<FGuid, TWeakObjectPtr<ASpawnGroupSpawner>> SpawnerByItemId;
-    UPROPERTY() TMap<FGuid, FGuid> GroupIdToItemId;
+    UPROPERTY() 
+    TMap<FGuid, TWeakObjectPtr<ASpawnGroupSpawner>> SpawnerByItemId;
+
+    UPROPERTY() 
+    TMap<FGuid, FGuid> GroupIdToItemId;
+
+    UPROPERTY() 
+    UOutcomeConditionAsset* SetManualActivationConditionAsset = nullptr;
 
     TMap<FInteriorFloorKey, TMap<FGuid, FSpawnGroupState>> PersistentGroupStates;
 
@@ -211,6 +223,7 @@ private:
     FOutcomeHandlerHandle GhostCapturedHandle;
     FOutcomeHandlerHandle ConfigureHandle;
     FOutcomeHandlerHandle DestroyRemainingHandle;
+    FOutcomeHandlerHandle SetManualActivationHandle;
 
     UPROPERTY() TMap<FGuid, FSpawnerPendingList> PendingSpawnerCommands;
 
