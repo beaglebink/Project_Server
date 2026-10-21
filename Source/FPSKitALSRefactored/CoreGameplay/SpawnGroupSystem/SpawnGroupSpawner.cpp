@@ -324,31 +324,31 @@ void ASpawnGroupSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ASpawnGroupSpawner::ResetSpawnerForNewConfiguration()
 {
-    // 1. Уничтожаем всех заспавненных врагов и останавливаем таймер спавна
+    // Уничтожаем всех заспавненных врагов и останавливаем таймер
     SafeDestroyAllGhosts();
 
-    // 2. Очищаем слоты и счетчики убийств
-    AllSlots.Empty();
-    KilledCount = 0;
-    TypeKilled.Empty();
+    // NEW: если пользователь хочет сохранять позиции и состояния врагов —
+    // не стираем AllSlots/счётчики/StoredSpawnParameters/PendingEnemyStates.
+    if (!IsStoreSpawnParameters)
+    {
+        AllSlots.Empty();
+        KilledCount = 0;
+        TypeKilled.Empty();
+        StoredSpawnParameters.Empty();
+        PendingEnemyStates.Empty();
+    }
 
-    // 3. Очищаем сохраненные состояния врагов и точки спавна
-    StoredSpawnParameters.Empty();
-    PendingEnemyStates.Empty();
-
-    // 4. Сбрасываем флаги состояния
-    //IsStoreSpawnParameters = false;
     IsFullRespawn = false;
     Restore = false;
     AllSpawned = false;
     bHasPublishedClear = false;
     IsResetToAlive = false;
 
-    // 5. Сбрасываем статус и снимаем блокировку
     CurrentStatus = ESpawnGroupStatus::Inactive;
     BlockNewSpawn = false;
 
-    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Reset for new configuration (all ghosts destroyed, counters cleared)"), *GetName());
+    UE_LOG(LogTemp, Log, TEXT("SpawnGroupSpawner [%s]: Reset for new configuration (IsStoreSpawnParameters=%s)"),
+        *GetName(), IsStoreSpawnParameters ? TEXT("true") : TEXT("false"));
 }
 
 void ASpawnGroupSpawner::SetKilledState(int32 InKilledCount, const TMap<FName, int32>& InTypeKilled)

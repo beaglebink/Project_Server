@@ -743,28 +743,30 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
 
     const bool bPreserveKills = PreserveMode != ESpawnerPreserveMode::None;
 
+    // NEW: слоты — это позиции врагов. Пользователь хочет их сохранять
+    // независимо от политики миссии через IsStoreSpawnParameters.
+    const bool bPreserveSlots = bPreserveKills || Spawner->IsStoreSpawnParameters;
+
     FSpawnGroupState State;
     State.GroupId = Spawner->GetRuntimeGroupId();
 
     State.Status = bPreserveKills
         ? Spawner->GetCurrentStatus()
-        : ESpawnGroupStatus::Inactive;          // нет миссии / Reset → при возврате не автоспавнится
+        : ESpawnGroupStatus::Inactive;
 
-    State.bStoreSpawnParameters = bPreserveKills && Spawner->IsStoreSpawnParameters;
+    State.bStoreSpawnParameters = bPreserveSlots;
     State.bBlockNewSpawn = Spawner->BlockNewSpawn;
-    State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;   // ассет сохраняем всегда
-
-    // NEW: флаг ручного режима — это пользовательская настройка,
-    // а не runtime-состояние миссии, поэтому сохраняем всегда.
+    State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
     State.bManualActivationOnly = Spawner->bManualActivationOnly;
 
-    if (bPreserveKills)
+    if (bPreserveSlots)
     {
-        State.KilledCount = Spawner->GetKilledCount();
         State.Slots = Spawner->GetAllSlots();
-        State.TypeKilled = Spawner->GetTypeKilled();
+        State.KilledCount = bPreserveKills ? Spawner->GetKilledCount() : 0;
+        State.TypeKilled = bPreserveKills
+            ? Spawner->GetTypeKilled()
+            : TMap<FName, int32>();
     }
-    // иначе — пустые массивы и KilledCount = 0 по умолчанию
 
     TMap<FGuid, FSpawnGroupState>& FloorStates = PersistentGroupStates.FindOrAdd(FloorKey);
     FloorStates.Add(Spawner->GetRuntimeGroupId(), State);
@@ -806,29 +808,35 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         if (!FloorKey.FloorId.IsValid()) continue;
 
         // ============================================================
-        // Политика миссии — единственный источник истины для «убийств».
-        // Запрашиваем через EventBus.
+        // Два независимых источника истины:
+        //   bPreserveKills — политика миссии (Freeze / Partial / ...);
+        //   IsStoreSpawnParameters — явный запрос дизайнера на сохранение
+        //                            позиций/слотов врагов.
+        // Слоты сохраняем, если ХОТЯ БЫ ОДИН из них требует.
         // ============================================================
         ESpawnerPreserveMode PreserveMode = GetPreserveModeViaEventBus(FloorKey);
         const bool bPreserveKills = (PreserveMode != ESpawnerPreserveMode::None);
+        const bool bPreserveSlots = bPreserveKills || Spawner->IsStoreSpawnParameters;
 
         FSpawnGroupState State;
         State.GroupId = Spawner->GetRuntimeGroupId();
         State.Status = bPreserveKills
             ? Spawner->GetCurrentStatus()
             : ESpawnGroupStatus::Inactive;
-        State.bStoreSpawnParameters = bPreserveKills && Spawner->IsStoreSpawnParameters;
+        State.bStoreSpawnParameters = bPreserveSlots;
         State.bBlockNewSpawn = Spawner->BlockNewSpawn;
-        State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;   // ассет сохраняем всегда
+        State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
 
         // NEW: пользовательский флаг ручного режима — сохраняем всегда
         State.bManualActivationOnly = Spawner->bManualActivationOnly;
 
-        if (bPreserveKills)
+        if (bPreserveSlots)
         {
-            State.KilledCount = Spawner->GetKilledCount();
             State.Slots = Spawner->GetAllSlots();
-            State.TypeKilled = Spawner->GetTypeKilled();
+            State.KilledCount = bPreserveKills ? Spawner->GetKilledCount() : 0;
+            State.TypeKilled = bPreserveKills
+                ? Spawner->GetTypeKilled()
+                : TMap<FName, int32>();
         }
         // иначе Slots/KilledCount/TypeKilled остаются пустыми
 
@@ -858,8 +866,6 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetBoolField(TEXT("bStoreSpawnParameters"), GroupPair.Value.bStoreSpawnParameters);
             StateObj->SetBoolField(TEXT("bBlockNewSpawn"), GroupPair.Value.bBlockNewSpawn);
             StateObj->SetNumberField(TEXT("KilledCount"), GroupPair.Value.KilledCount);
-
-            // NEW
             StateObj->SetBoolField(TEXT("bManualActivationOnly"), GroupPair.Value.bManualActivationOnly);
 
             if (!GroupPair.Value.SpawnGroupAssetOverride.IsNull())
@@ -932,7 +938,6 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             Obj->SetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);
             Obj->SetNumberField(TEXT("DestroyReason"), static_cast<uint8>(C.DestroyReason));
 
-            // NEW
             Obj->SetBoolField(TEXT("bPendingSetManualActivation"), C.bPendingSetManualActivation);
             Obj->SetBoolField(TEXT("bManualActivationOnly"), C.bManualActivationOnly);
 
@@ -1025,7 +1030,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     if ((*StateObj)->HasField(TEXT("bBlockNewSpawn")))
                         State.bBlockNewSpawn = (*StateObj)->GetBoolField(TEXT("bBlockNewSpawn"));
 
-                    // NEW
                     if ((*StateObj)->HasField(TEXT("bManualActivationOnly")))
                         State.bManualActivationOnly = (*StateObj)->GetBoolField(TEXT("bManualActivationOnly"));
 
@@ -1110,6 +1114,13 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                         }
                     }
 
+                    // NEW: защита от старого битого сейва — если bStoreSpawnParameters = true,
+                    // но слотов нет, сбрасываем флаг, чтобы HandleLevelLoaded не шёл в слот-ветку.
+                    if (State.bStoreSpawnParameters && State.Slots.Num() == 0)
+                    {
+                        State.bStoreSpawnParameters = false;
+                    }
+
                     FloorGroups.Add(GroupId, State);
                 }
             }
@@ -1146,8 +1157,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 Obj->TryGetBoolField(TEXT("bPendingActivate"), C.bPendingActivate);
                 Obj->TryGetBoolField(TEXT("bPendingDestroyRemaining"), C.bPendingDestroyRemaining);
                 Obj->TryGetBoolField(TEXT("bBlockFutureSpawn"), C.bBlockFutureSpawn);
-
-                // NEW
                 Obj->TryGetBoolField(TEXT("bPendingSetManualActivation"), C.bPendingSetManualActivation);
                 Obj->TryGetBoolField(TEXT("bManualActivationOnly"), C.bManualActivationOnly);
 
@@ -1836,14 +1845,28 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
                 // ---- Политика миссии через EventBus ----
                 ESpawnerPreserveMode PreserveMode = GetPreserveModeViaEventBus(FloorKey);
 
-                // ---- None (нет миссии / Reset): чистый сброс, не активируем ----
+                // ---- None (нет миссии / Reset): чистое состояние, не активируем ----
                 if (PreserveMode == ESpawnerPreserveMode::None)
                 {
                     Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
-                    Spawner->IsStoreSpawnParameters = false;
                     Spawner->Restore = false;
                     Spawner->IsFullRespawn = false;
                     Spawner->IsResetToAlive = false;
+
+                    // NEW: если пользователь просил сохранять позиции —
+                    // восстанавливаем слоты, но БЕЗ спавна актёров.
+                    // Спавн произойдёт только по внешней команде (Start / триггер),
+                    // и SpawnGroup() увидит IsStoreSpawnParameters = true + непустые AllSlots.
+                    if (State->bStoreSpawnParameters && State->Slots.Num() > 0)
+                    {
+                        Spawner->IsStoreSpawnParameters = true;
+                        Spawner->GetSlotsMutable() = State->Slots;
+                    }
+                    else
+                    {
+                        Spawner->IsStoreSpawnParameters = false;
+                    }
+
                     continue;
                 }
 
