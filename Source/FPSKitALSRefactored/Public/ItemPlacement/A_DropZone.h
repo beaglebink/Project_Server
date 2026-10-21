@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/I_PowerConnection.h"
+#include "NativeGameplayTags.h"
 #include "A_DropZone.generated.h"
 
 class AA_InteractableActor;
@@ -54,6 +55,9 @@ public:
 
 	UPROPERTY()
 	FName ItemName;
+
+	UPROPERTY()
+	FGameplayTag ItemTag;
 
 	UPROPERTY()
 	uint8 bIsOccupied : 1{false};

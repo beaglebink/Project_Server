@@ -81,9 +81,12 @@ void AA_AreaDropZone::UpdateInAreaItemsList()
 	{
 		if (AA_InteractableActor* InteractableActor = Cast<AA_InteractableActor>(OverlappedActor))
 		{
-			if (ItemsTags.Contains(InteractableActor->Tag))
+			int32* Required = ItemsTags.Find(InteractableActor->Tag);
+			int32& Correct = CorrectItemsList.FindOrAdd(InteractableActor->Tag);
+
+			if (Required && Correct < *Required)
 			{
-				++CorrectItemsList.FindOrAdd(InteractableActor->Tag);
+				++Correct;
 			}
 			else
 			{

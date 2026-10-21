@@ -150,7 +150,7 @@ void AA_ChorePlacementZone::BeginPlay()
 		DMI_SourceZoneMeshMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.0f);
 	}
 
-	SetActivateChorePlacementZone(bIsAutoAcivated);
+	SetChoreStatus(bIsAutoAcivated ? EChoreStatus::Active : EChoreStatus::Inactive);
 
 	if (UGameInstance* GI = GetGameInstance())
 	{
@@ -165,6 +165,13 @@ void AA_ChorePlacementZone::BeginPlay()
 				});
 		}
 	}
+}
+
+void AA_ChorePlacementZone::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void AA_ChorePlacementZone::Destroyed()
@@ -229,23 +236,67 @@ void AA_ChorePlacementZone::UpdateSourcePlacedItems()
 	}
 }
 
-void AA_ChorePlacementZone::SetActivateChorePlacementZone(bool bActivate)
+void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 {
-	if (AreaDropZone)
+	switch (NewStatus)
 	{
-		AreaDropZone->bIsActive = bActivate;
-	}
-
-	for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
+	case EChoreStatus::Inactive:
+	case EChoreStatus::Active:
 	{
-		for (AA_DropZone* DropZone : DropZonePlacementZone.DropZones)
+		if (AreaDropZone)
 		{
-			if (DropZone)
+			AreaDropZone->bIsActive = NewStatus == EChoreStatus::Active;
+		}
+
+		for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
+		{
+			for (AA_DropZone* DropZone : DropZonePlacementZone.DropZones)
 			{
-				DropZone->bIsActive = bActivate;
+				if (DropZone)
+				{
+					DropZone->bIsActive = NewStatus == EChoreStatus::Active;
+				}
 			}
 		}
+
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		if (NewStatus == EChoreStatus::Active && ResultBroadcast == EResultBroadcast::Auto)
+		{
+			GetWorldTimerManager().SetTimer(AutoResultTimerHandle, [this]()
+				{
+					FChoreResult ChoreResult = GetResultState();
+					if (ChoreResult.bResult)
+					{
+						GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+						PublicResultState(ChoreResult);
+					}
+				}, 0.5f, true);
+		}
+		break;
 	}
+	case EChoreStatus::Completed:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::Abandoned:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::Failed:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+EChoreStatus AA_ChorePlacementZone::GetChoreStatus() const
+{
+	return ChoreStatus;
 }
 
 void AA_ChorePlacementZone::ResetChorePlacementZone()
@@ -267,6 +318,94 @@ void AA_ChorePlacementZone::ResetChorePlacementZone()
 			}
 		}
 	}
+}
+
+FChoreResult AA_ChorePlacementZone::GetResultState()
+{
+	FChoreResult ChoreResult;
+
+	// Check AreaDropZone items lists
+	AreaDropZone->UpdateInAreaItemsList();
+	ChoreResult.SuccessedItems.Append(AreaDropZone->CorrectItemsList);
+	ChoreResult.FailedItems.Append(AreaDropZone->WrongItemsList);
+
+	for (const auto& [ItemTag, ItemQuantity] : AreaDropZone->ItemsTags)
+	{
+		const int32* SuccessedQuantity = ChoreResult.SuccessedItems.Find(ItemTag);
+		const int32 Placed = SuccessedQuantity ? *SuccessedQuantity : 0;
+		if (Placed < ItemQuantity)
+		{
+			ChoreResult.MissedItems.FindOrAdd(ItemTag) += ItemQuantity - Placed;
+		}
+	}
+
+	// Check DropZone items presence
+	for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
+	{
+		for (AA_DropZone* DropZone : DropZonePlacementZone.DropZones)
+		{
+			if (DropZone->bIsOccupied)
+			{
+				++ChoreResult.SuccessedItems.FindOrAdd(DropZone->ItemTag);
+			}
+			else
+			{
+				++ChoreResult.MissedItems.FindOrAdd(DropZone->ItemTag);
+			}
+		}
+	}
+
+	switch (ItemBehavior)
+	{
+	case EWrongItemBehavior::Ignore:
+	{
+		ChoreResult.FailedItems.Empty();
+		// fallthrough: bResult is counted as in CountAsMistake
+	}
+	case EWrongItemBehavior::CountAsMistake:
+	{
+		ChoreResult.bResult = ChoreResult.MissedItems.IsEmpty();
+		break;
+	}
+	case EWrongItemBehavior::BlockCompletion:
+	{
+		ChoreResult.bResult = ChoreResult.MissedItems.IsEmpty() && ChoreResult.FailedItems.IsEmpty();
+		break;
+	}
+	default:
+		break;
+	}
+
+	return ChoreResult;
+}
+
+FGameplayTag AA_ChorePlacementZone::PublicResultState_Implementation(const FChoreResult& ChoreResult)
+{
+	FString ResultText = FString::Printf(TEXT("Chore result: %s\n"), ChoreResult.bResult ? "Successed" : "Failed");
+	ResultText += TEXT("Successed\n");
+	ResultText += TEXT("--------------------------\n");
+	for (auto& [ItemTag, ItemQuantity] : ChoreResult.SuccessedItems)
+	{
+		ResultText += FString::Printf(TEXT("%s %d\n"), *ItemTag.ToString(), ItemQuantity);
+	}
+
+	ResultText += TEXT("Missed\n");
+	ResultText += TEXT("--------------------------\n");
+	for (auto& [ItemTag, ItemQuantity] : ChoreResult.MissedItems)
+	{
+		ResultText += FString::Printf(TEXT("%s %d\n"), *ItemTag.ToString(), ItemQuantity);
+	}
+
+	ResultText += TEXT("Failed\n");
+	ResultText += TEXT("--------------------------\n");
+	for (auto& [ItemTag, ItemQuantity] : ChoreResult.FailedItems)
+	{
+		ResultText += FString::Printf(TEXT("%s %d\n"), *ItemTag.ToString(), ItemQuantity);
+	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Green, *ResultText);
+
+	return ChoreResult.bResult ? CompletedTag : FailedTag;
 }
 
 TArray<FSaveItemData> AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementation()

@@ -126,7 +126,7 @@ void USC_ItemPlacement::OnCheckerSphereOverlapBegin(UPrimitiveComponent* Overlap
 	{
 		if (AreaDropZone->bIsActive)
 		{
-			if (HoldItem->Implements<UI_ScannableObject>())
+			if (AreaDropZone->bShouldCheckForScan && HoldItem->Implements<UI_ScannableObject>())
 			{
 				FScannableActorData ScannableData = II_ScannableObject::Execute_GetScannableObjectInfo(HoldItem);
 				if (AreaDropZone->ItemsTags.Contains(ScannableData.ItemTypeTag) && ScannableData.bHasBeenScanned)

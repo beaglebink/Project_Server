@@ -8,14 +8,6 @@
 class AA_InteractableActor;
 class UFloorAssignmentComponent;
 
-UENUM(BlueprintType)
-enum class EWrongItemBehavior : uint8
-{
-	Ignore,
-	CountAsMistake,
-	BlockCompletion
-};
-
 UCLASS()
 class FPSKITALSREFACTORED_API AA_AreaDropZone : public AActor
 {
@@ -35,11 +27,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|ParentActor")
 	AActor* ParentActor;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|Scanner")
+	uint8 bShouldCheckForScan : 1{false};
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropZone|Items")
 	TMap<FGameplayTag, int32> ItemsTags;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|WrongItemsBehavior")
-	EWrongItemBehavior ItemBehavior;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DropZone|AreaMesh")
 	UStaticMeshComponent* DropZoneMesh;
