@@ -483,27 +483,17 @@ void USpawnGroupSubsystem::HandleSpawnGroupActivated(const FOutcomeEventBase& Ou
                 }
             }
 
-            // Start с bReapplyOnLevelLoad = true — явный сигнал «включить автоспавн»:
-            // снимает manual и активирует.
-            const bool bWantsAutoActivation = P->bReapplyOnLevelLoad;
-
-            if (bManual)
+            // bReapplyOnLevelLoad = true — единственный способ «включить авто-спавн».
+            // Снимаем manual, чтобы последующие перезагрузки уровня тоже спавнили.
+            // Для bReapplyOnLevelLoad = false manual НЕ трогаем — это явный
+            // однократный спавн из только что активированного шага.
+            if (bManual && P->bReapplyOnLevelLoad)
             {
-                if (bWantsAutoActivation)
-                {
-                    Spawner->bManualActivationOnly = false;
-                    UpdateSpawnerStateInCache(Spawner);
-                    UE_LOG(LogTemp, Log,
-                        TEXT("SpawnGroupSubsystem: spawner %s cleared manual mode via Start(bReapplyOnLevelLoad=true)"),
-                        *Spawner->GetName());
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Log,
-                        TEXT("SpawnGroupSubsystem: ignored scripted activation for manual-only spawner %s (step %s)"),
-                        *P->GroupId.ToString(), *Outcome.SourceStepId.ToString());
-                    return;
-                }
+                Spawner->bManualActivationOnly = false;
+                UpdateSpawnerStateInCache(Spawner);
+                UE_LOG(LogTemp, Log,
+                    TEXT("SpawnGroupSubsystem: spawner %s exited manual mode via Start(bReapplyOnLevelLoad=true)"),
+                    *Spawner->GetName());
             }
         }
 
@@ -878,17 +868,16 @@ void USpawnGroupSubsystem::ApplyPendingCommandsToSpawner(ASpawnGroupSpawner* Spa
         {
             if (C.SourceStepId.IsValid() && Spawner->bManualActivationOnly)
             {
+                // То же правило, что и в HandleSpawnGroupActivated:
+                // - bReapplyOnLevelLoad = true  → снимаем manual;
+                // - bReapplyOnLevelLoad = false → manual оставляем, но спавним.
                 if (C.bPendingWantsAutoActivation)
                 {
                     Spawner->bManualActivationOnly = false;
                     UpdateSpawnerStateInCache(Spawner);
-                }
-                else
-                {
                     UE_LOG(LogTemp, Log,
-                        TEXT("SpawnGroupSubsystem: skipped deferred Activate for manual-only spawner %s (step %s)"),
-                        *GroupId.ToString(), *C.SourceStepId.ToString());
-                    continue;
+                        TEXT("SpawnGroupSubsystem: spawner %s exited manual mode via deferred Start(bReapplyOnLevelLoad=true)"),
+                        *GroupId.ToString());
                 }
             }
 
