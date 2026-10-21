@@ -27,7 +27,7 @@ enum class EWrongItemBehavior : uint8
 };
 
 UENUM(BlueprintType)
-enum class EChoreStatus : uint8
+enum class EChoreZoneStatus : uint8
 {
 	Inactive,
 	Active,
@@ -174,17 +174,14 @@ private:
 	FTimerHandle AutoResultTimerHandle;
 
 	UPROPERTY()
-	EChoreStatus ChoreStatus;
+	EChoreZoneStatus ChoreStatus;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
-	void SetActivateChorePlacementZone(bool bActivate);
+	void SetChoreStatus(EChoreZoneStatus NewStatus);
 
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
-	void SetChoreStatus(EChoreStatus NewStatus);
-
-	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
-	EChoreStatus GetChoreStatus()const;
+	EChoreZoneStatus GetChoreStatus()const;
 
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
 	void ResetChorePlacementZone();

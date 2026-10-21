@@ -150,7 +150,7 @@ void AA_ChorePlacementZone::BeginPlay()
 		DMI_SourceZoneMeshMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.0f);
 	}
 
-	SetChoreStatus(bIsAutoAcivated ? EChoreStatus::Active : EChoreStatus::Inactive);
+	SetChoreStatus(bIsAutoAcivated ? EChoreZoneStatus::Active : EChoreZoneStatus::Inactive);
 
 	if (UGameInstance* GI = GetGameInstance())
 	{
@@ -236,16 +236,16 @@ void AA_ChorePlacementZone::UpdateSourcePlacedItems()
 	}
 }
 
-void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
+void AA_ChorePlacementZone::SetChoreStatus(EChoreZoneStatus NewStatus)
 {
 	switch (NewStatus)
 	{
-	case EChoreStatus::Inactive:
-	case EChoreStatus::Active:
+	case EChoreZoneStatus::Inactive:
+	case EChoreZoneStatus::Active:
 	{
 		if (AreaDropZone)
 		{
-			AreaDropZone->bIsActive = NewStatus == EChoreStatus::Active;
+			AreaDropZone->bIsActive = NewStatus == EChoreZoneStatus::Active;
 		}
 
 		for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
@@ -254,13 +254,13 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 			{
 				if (DropZone)
 				{
-					DropZone->bIsActive = NewStatus == EChoreStatus::Active;
+					DropZone->bIsActive = NewStatus == EChoreZoneStatus::Active;
 				}
 			}
 		}
 
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
-		if (NewStatus == EChoreStatus::Active && ResultBroadcast == EResultBroadcast::Auto)
+		if (NewStatus == EChoreZoneStatus::Active && ResultBroadcast == EResultBroadcast::Auto)
 		{
 			GetWorldTimerManager().SetTimer(AutoResultTimerHandle, [this]()
 				{
@@ -274,17 +274,17 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 		}
 		break;
 	}
-	case EChoreStatus::Completed:
+	case EChoreZoneStatus::Completed:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
-	case EChoreStatus::Abandoned:
+	case EChoreZoneStatus::Abandoned:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
-	case EChoreStatus::Failed:
+	case EChoreZoneStatus::Failed:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
@@ -294,7 +294,7 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 	}
 }
 
-EChoreStatus AA_ChorePlacementZone::GetChoreStatus() const
+EChoreZoneStatus AA_ChorePlacementZone::GetChoreStatus() const
 {
 	return ChoreStatus;
 }
