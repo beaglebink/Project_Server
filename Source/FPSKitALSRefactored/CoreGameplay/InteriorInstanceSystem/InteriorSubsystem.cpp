@@ -75,10 +75,12 @@ auto RemoveMissionSnapshots = [](TMap<FInteriorFloorKey, TMap<FName, TArray<FFlo
 
 // Determines whether an actor should be skipped based on envelope policy
 // Определяет, нужно ли пропустить актора на основе политики конверта
-static bool ShouldUseActor(const FMissionEnvelope& Envelope, EEnvelopeChannel ActorChannel, EMissionEndReason Reason, bool IsRead)
+static bool ShouldUseActor(
+	const FMissionEnvelope& Envelope,
+	EEnvelopeChannel ActorChannel,
+	EMissionEndReason Reason,
+	bool IsRead)
 {
-	// Look for entry by channel
-	// Ищем запись для канала
 	const FEnvelopeChannelEntry* FoundEntry = nullptr;
 	bool IsResetPolicy = false;
 	bool IsPartialPolicy = false;
@@ -86,81 +88,63 @@ static bool ShouldUseActor(const FMissionEnvelope& Envelope, EEnvelopeChannel Ac
 	switch (Reason)
 	{
 	case EMissionEndReason::None:
-	{
 		IsResetPolicy = Envelope.RuntimePolicy == EJobSpacePolicy::Reset;
 		IsPartialPolicy = Envelope.RuntimePolicy == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.RuntimePolicyChannels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
+			[ActorChannel](const FEnvelopeChannelEntry& E) { return E.Channel == ActorChannel; });
 		break;
-	}
 	case EMissionEndReason::Completed:
-	{
 		IsResetPolicy = Envelope.NextStagePolicy == EJobSpacePolicy::Reset;
 		IsPartialPolicy = Envelope.NextStagePolicy == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.NextStagePolicyChannels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
+			[ActorChannel](const FEnvelopeChannelEntry& E) { return E.Channel == ActorChannel; });
 		break;
-	}
 	case EMissionEndReason::Failed:
-	{
 		IsResetPolicy = Envelope.MissionFailedPolicy == EJobSpacePolicy::Reset;
 		IsPartialPolicy = Envelope.MissionFailedPolicy == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.MissionFailedPolicyChannels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
+			[ActorChannel](const FEnvelopeChannelEntry& E) { return E.Channel == ActorChannel; });
 		break;
-	}
 	case EMissionEndReason::Abandoned:
-	{
 		IsResetPolicy = Envelope.MissionAbandonedPolicy == EJobSpacePolicy::Reset;
 		IsPartialPolicy = Envelope.MissionAbandonedPolicy == EJobSpacePolicy::Partial;
 		FoundEntry = Envelope.MissionAbandonedChannels.FindByPredicate(
-			[ActorChannel](const FEnvelopeChannelEntry& Entry)
-			{
-				return Entry.Channel == ActorChannel;
-			});
+			[ActorChannel](const FEnvelopeChannelEntry& E) { return E.Channel == ActorChannel; });
 		break;
 	}
-	}
 
+	// ---- READ path / END-of-mission ----
 	if (IsRead || Reason != EMissionEndReason::None)
 	{
-		if (IsResetPolicy)
-		{
-			return false;
-		}
+		if (IsResetPolicy) return false;
 
 		if (!FoundEntry)
 		{
-			if (IsPartialPolicy)
-			{
-				return false;
-			}
+			if (IsPartialPolicy) return false;
 			return true;
 		}
 
 		if (IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Freeze)
-		{
 			return true;
-		}
-		else
-		{
-			return !(IsResetPolicy || (IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Reset));
-		}
-	}
-	else
-	{
-		return true;
+
+		return !(IsResetPolicy ||
+			(IsPartialPolicy && FoundEntry->Policy == EChannelPolicy::Reset));
 	}
 
+	// ---- WRITE path (Reason=None, IsRead=false) ----
+	// Сохраняем в FloorStateSnapshots только по политике, требующей
+	// сохранения состояния актора.
+	if (Envelope.RuntimePolicy == EJobSpacePolicy::Freeze)
+		return true;
+
+	if (Envelope.RuntimePolicy == EJobSpacePolicy::Partial)
+	{
+		if (!FoundEntry) return false;
+		return FoundEntry->Policy == EChannelPolicy::Freeze ||
+			FoundEntry->Policy == EChannelPolicy::ResetUnlessCleared;
+	}
+
+	return false;
 }
 
 // Checks if the given actor ID exists in the mission-spawned actors for the specified floor
@@ -2226,18 +2210,23 @@ int32 UInteriorSubsystem::RestoreFloorActorsState(const FGuid& InteriorSetId, in
 }
 
 // --- New helper: restores actors directly from a given snapshot array
-// --- добавлен новый хелпер: восстанавливает actors напрямую из переданного массива снимков
-int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloorSavedActorState>& Snapshots, const FGuid& InteriorSetId, const FGuid& FloorId, const FMissionEnvelope Envelope)
+int32 UInteriorSubsystem::RestoreFromSnapshotArray(
+	UWorld* W,
+	const TArray<FFloorSavedActorState>& Snapshots,
+	const FGuid& InteriorSetId,
+	const FGuid& FloorId,
+	const FMissionEnvelope Envelope)
 {
 	if (!W) return 0;
 	if (Snapshots.IsEmpty()) return 0;
 
-	// Collect all actors on the current level that have FloorAssignmentComponent
+	// ---- Собираем актёров этажа по ItemId ----
 	TMap<FGuid, AActor*> ActorByItemId;
 	for (TActorIterator<AActor> It(W); It; ++It)
 	{
 		AActor* Actor = *It;
 		if (!IsValid(Actor)) continue;
+
 		if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
 		{
 			if (C->SnapshotChannel != ESnapshotChannel::None)
@@ -2268,204 +2257,185 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 
 	int32 Restored = 0;
 
-	// First pass: root actors (without relative transform)
+	// ============================================================
+	// First pass: root actors
+	// ============================================================
 	for (const FFloorSavedActorState& Snapshot : Snapshots)
 	{
 		if (Snapshot.bHasRelativeTransform) continue;
 		if (AActor** ActorPtr = ActorByItemId.Find(Snapshot.ItemId))
 		{
 			AActor* Actor = *ActorPtr;
-			if (IsValid(Actor))
+			if (!IsValid(Actor)) continue;
+
+			UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>();
+			if (!C) continue;
+
+			if (Envelope.IsValid())
 			{
-				if (UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+				if (IsCurrentWorldMissionConst(Envelope))
 				{
-					if (Envelope.IsValid())
+					if (ShouldUseActor(Envelope,
+						FloorActorTypeToEnvelopeChannel(C->ActorType),
+						EMissionEndReason::None,
+						/*IsRead=*/true))
 					{
-						if (IsCurrentWorldMissionConst(Envelope))
+						RestoreActorSnapshot(Actor, Snapshot, true);
+						++Restored;
+
+						switch (FloorActorTypeToEnvelopeChannel(C->ActorType))
 						{
-							if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(C->ActorType), EMissionEndReason::None, true))
+						case EEnvelopeChannel::SpawnGroups:
+						{
+							ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
+							if (Spawner)
 							{
-								RestoreActorSnapshot(Actor, Snapshot, true);
-								++Restored;
+								Spawner->bWasRestoredByMission = true;
 
-								switch (FloorActorTypeToEnvelopeChannel(C->ActorType))
+								switch (Envelope.RuntimePolicy)
 								{
-								case EEnvelopeChannel::SpawnGroups:
+								case EJobSpacePolicy::Freeze:
 								{
-									ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-									if (Spawner)
+									if (Snapshot.EnemyStates.Num() > 0)
 									{
-										// NEW: Устанавливаем флаг, что InteriorSubsystem уже обработал этот спавнер
-										Spawner->bWasRestoredByMission = true;
+										Spawner->RestoreEnemyStates(Snapshot.EnemyStates);
+										UE_LOG(LogTemp, Log,
+											TEXT("InteriorSubsystem: Restored %d enemy states for spawner %s (Freeze)"),
+											Snapshot.EnemyStates.Num(), *Actor->GetName());
 									}
+									Spawner->IsUseStoreSpawnParameters = true;
+									Spawner->Restore = false;
+									break;
+								}
 
-									switch (Envelope.RuntimePolicy)
+								case EJobSpacePolicy::Reset:
+								{
+									Spawner->IsUseStoreSpawnParameters = false;
+									Spawner->Restore = false;
+									Spawner->IsFullRespawn =
+										(Spawner->GetAliveGhostCount() == Spawner->GetNeedSpasnedCount());
+									break;
+								}
+
+								case EJobSpacePolicy::Partial:
+								{
+									// ---- Freeze канал ----
+									if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels,
+										EEnvelopeChannel::SpawnGroups,
+										EChannelPolicy::Freeze))
 									{
-									case EJobSpacePolicy::Freeze:
-									{
-										if (Spawner)
+										if (Snapshot.EnemyStates.Num() > 0)
 										{
-											if (Spawner && Snapshot.EnemyStates.Num() > 0)
-											{
-												Spawner->RestoreEnemyStates(Snapshot.EnemyStates);
-												UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Restored %d enemy states for spawner %s"),
-													Snapshot.EnemyStates.Num(), *Actor->GetName());
-											}
+											Spawner->RestoreEnemyStates(Snapshot.EnemyStates);
+											UE_LOG(LogTemp, Log,
+												TEXT("InteriorSubsystem: Restored %d enemy states for spawner %s (Partial+Freeze)"),
+												Snapshot.EnemyStates.Num(), *Actor->GetName());
+										}
+										Spawner->IsUseStoreSpawnParameters = true;
+										Spawner->Restore = false;
+									}
+									// ---- ResetUnlessCleared канал ----
+									else if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels,
+										EEnvelopeChannel::SpawnGroups,
+										EChannelPolicy::ResetUnlessCleared))
+									{
+										Spawner->IsUseStoreSpawnParameters = false;
+										Spawner->Restore = false;
 
-											Spawner->IsUseStoreSpawnParameters = true;
-											Spawner->Restore = false;
+										// Полный ожидаемый состав
+										int32 DesiredCount = 0;
+										if (Spawner->SpawnGroupAsset)
+										{
+											if (Spawner->SpawnGroupAsset->Composition.bUsePool)
+												for (const auto& Pool : Spawner->SpawnGroupAsset->Composition.ActorsPool)
+													DesiredCount += Pool.Count;
+											else
+												DesiredCount = Spawner->SpawnGroupAsset->Composition.Count;
 										}
 
-										break;
-									}
-									case EJobSpacePolicy::Reset:
-									{
-										if (Spawner)
+										const int32 Resolved =
+											Spawner->GetKilledCount() + Spawner->GetCapturedCount();
+										const bool bFullyCleared =
+											(DesiredCount > 0 && Resolved >= DesiredCount);
+
+										if (bFullyCleared)
 										{
-											Spawner->IsUseStoreSpawnParameters = false;
+											// Полностью убита → НЕ разворачиваем.
+											// Остаётся Cleared до следующей активации.
+											Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
+											Spawner->Restore = true;
+										}
+										else
+										{
+											// Частично убита → Reset в полный состав.
+											Spawner->ResetKilledCount();
 											Spawner->Restore = false;
-											if (Spawner->GetAliveGhostCount() == Spawner->GetNeedSpasnedCount())
+
+											if (Spawner->GetSpawnedCount() > 0)
 											{
+												// Слоты уже есть — SpawnGroup() с
+												// IsFullRespawn=true развернёт полный состав.
 												Spawner->IsFullRespawn = true;
 											}
 											else
 											{
+												// Слотов нет — воскрешаем все и просим
+												// SpawnGroup() развернуть их.
 												Spawner->IsFullRespawn = false;
+												Spawner->CurrentStatus = ESpawnGroupStatus::Active;
+												Spawner->SetAliveAllGhosts();
+												Spawner->IsResetToAlive = true;
 											}
 										}
-
-										break;
 									}
-									case EJobSpacePolicy::Partial:
-									{
-										if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Reset))
-										{
-											if (Spawner)
-											{
-												Spawner->Restore = false;
-
-												if (Spawner->GetAliveGhostCount() == Spawner->GetNeedSpasnedCount())
-												{
-													Spawner->IsFullRespawn = true;
-												}
-												else
-												{
-													Spawner->IsFullRespawn = false;
-												}
-											}
-										}
-
-										if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::Freeze))
-										{
-											if (Spawner)
-											{
-												if (Spawner && Snapshot.EnemyStates.Num() > 0)
-												{
-													Spawner->RestoreEnemyStates(Snapshot.EnemyStates);
-													UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Restored %d enemy states for spawner %s"),
-														Snapshot.EnemyStates.Num(), *Actor->GetName());
-												}
-
-												Spawner->Restore = false;
-											}
-										}
-
-										if (HasChannelWithPolicy(Envelope.RuntimePolicyChannels, EEnvelopeChannel::SpawnGroups, EChannelPolicy::ResetUnlessCleared))
-										{
-											if (Spawner)
-											{
-												if (Spawner && Snapshot.EnemyStates.Num() > 0)
-												{
-													Spawner->RestoreEnemyStates(Snapshot.EnemyStates);
-													UE_LOG(LogTemp, Log, TEXT("InteriorSubsystem: Restored %d enemy states for spawner %s"),
-														Snapshot.EnemyStates.Num(), *Actor->GetName());
-												}
-
-												Spawner->IsUseStoreSpawnParameters = false;
-												if (Spawner->CurrentStatus != ESpawnGroupStatus::Cleared && Spawner->CurrentStatus != ESpawnGroupStatus::Suppressed)
-												{
-													int32 DesiredCount = 0;
-													if (Spawner->SpawnGroupAsset->Composition.bUsePool)
-													{
-														for (auto Pool : Spawner->SpawnGroupAsset->Composition.ActorsPool)
-														{
-															DesiredCount += Pool.Count;
-														}
-													}
-													else
-													{
-														DesiredCount = Spawner->SpawnGroupAsset->Composition.Count;
-													}
-
-													if (Spawner->GetKilledCount() + Spawner->GetCapturedCount() != DesiredCount)
-													{
-														Spawner->ResetKilledCount();
-														Spawner->Restore = false;
-														if (Spawner->GetSpawnedCount() > 0)
-														{
-															Spawner->IsFullRespawn = true;
-														}
-														else
-														{
-															Spawner->IsFullRespawn = false;
-															Spawner->CurrentStatus = ESpawnGroupStatus::Active;
-
-															Spawner->SetAliveAllGhosts();
-
-															Spawner->IsResetToAlive = true;
-														}
-													}
-													else
-													{
-														Spawner->CurrentStatus = ESpawnGroupStatus::Cleared;
-														Spawner->Restore = true;
-													}
-												}
-											}
-										}
-										break;
-									}
-									}
-									break;
-								}
-								case EEnvelopeChannel::ActorPlacement:
-								{
 									break;
 								}
 								}
 							}
-							else
-							{
-								ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor);
-								if (Spawner)
-								{
-									Spawner->IsUseStoreSpawnParameters = false;
+							break;
+						}
 
-									if (Spawner->GetAliveGhostCount() > 0)
-									{
-										Spawner->IsFullRespawn = true;
-										Spawner->Restore = false;
-									}
-									else
-									{
-										Spawner->IsFullRespawn = false;
-										Spawner->Restore = false;
-									}
-								}
-							}
+						case EEnvelopeChannel::ActorPlacement:
+						default:
+							break;
 						}
 					}
 					else
 					{
-						RestoreActorSnapshot(Actor, Snapshot, true);
-						++Restored;
+						// Миссия активна, но политика запрещает восстановление.
+						if (ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor))
+						{
+							Spawner->IsUseStoreSpawnParameters = false;
+							Spawner->Restore = false;
+							Spawner->IsFullRespawn = (Spawner->GetAliveGhostCount() > 0);
+						}
 					}
 				}
+			}
+			else
+			{
+				// Нет Envelope (нет активной миссии) — state-поля спавнера
+				// НЕ восстанавливаем. Общие SaveGame-свойства — да.
+				if (ASpawnGroupSpawner* Spawner = Cast<ASpawnGroupSpawner>(Actor))
+				{
+					Spawner->ResetKilledCount();
+					Spawner->CurrentStatus = ESpawnGroupStatus::Inactive;
+					Spawner->IsUseStoreSpawnParameters = false;
+					Spawner->BlockNewSpawn = false;
+					Spawner->Restore = false;
+					Spawner->IsFullRespawn = false;
+					Spawner->IsResetToAlive = false;
+					Spawner->bWasRestoredByMission = false;
+				}
+				RestoreActorSnapshot(Actor, Snapshot, true);
+				++Restored;
 			}
 		}
 	}
 
-	// Second pass: child actors (with relative transform)
+	// ============================================================
+	// Second pass: child actors
+	// ============================================================
 	for (const FFloorSavedActorState& Snapshot : Snapshots)
 	{
 		if (!Snapshot.bHasRelativeTransform) continue;
@@ -2473,61 +2443,67 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(UWorld* W, const TArray<FFloo
 		{
 			AActor* ChildActor = *ActorPtr;
 			if (!IsValid(ChildActor)) continue;
-			if (UFloorAssignmentComponent* CC = ChildActor->FindComponentByClass<UFloorAssignmentComponent>())
+
+			UFloorAssignmentComponent* CC =
+				ChildActor->FindComponentByClass<UFloorAssignmentComponent>();
+			if (!CC) continue;
+
+			AActor* ParentActor = ChildActor->GetAttachParentActor();
+			bool bAppliedRelative = false;
+
+			if (IsValid(ParentActor))
 			{
-				AActor* ParentActor = ChildActor->GetAttachParentActor();
-				bool bAppliedRelative = false;
-				if (IsValid(ParentActor))
+				TArray<UChildActorComponent*> ParentChildComps;
+				ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
+				for (UChildActorComponent* ParentChildComp : ParentChildComps)
 				{
-					TArray<UChildActorComponent*> ParentChildComps;
-					ParentActor->GetComponents<UChildActorComponent>(ParentChildComps);
-					for (UChildActorComponent* ParentChildComp : ParentChildComps)
-					{
-						if (IsValid(ParentChildComp) && ParentChildComp->GetChildActor() == ChildActor)
-						{
-							if (Envelope.IsValid())
-							{
-								if (IsCurrentWorldMissionConst(Envelope))
-								{
-									if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
-									{
-										ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
-										RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+					if (!IsValid(ParentChildComp)) continue;
+					if (ParentChildComp->GetChildActor() != ChildActor) continue;
 
-										bAppliedRelative = true;
-										break;
-									}
-								}
-							}
-							else
-							{
-								ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
-								RestoreActorSnapshot(ChildActor, Snapshot, false, true);
-
-								bAppliedRelative = true;
-								break;
-							}
-						}
-					}
-				}
-				if (Envelope.IsValid())
-				{
-					if (IsCurrentWorldMissionConst(Envelope))
+					if (Envelope.IsValid())
 					{
-						if (ShouldUseActor(Envelope, FloorActorTypeToEnvelopeChannel(CC->ActorType), EMissionEndReason::None, true))
+						if (IsCurrentWorldMissionConst(Envelope) &&
+							ShouldUseActor(Envelope,
+								FloorActorTypeToEnvelopeChannel(CC->ActorType),
+								EMissionEndReason::None,
+								/*IsRead=*/true))
 						{
-							if (!bAppliedRelative)
-								ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+							ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
 							RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+							bAppliedRelative = true;
+							break;
 						}
 					}
+					else
+					{
+						ParentChildComp->SetRelativeTransform(Snapshot.RelativeTransform);
+						RestoreActorSnapshot(ChildActor, Snapshot, false, true);
+						bAppliedRelative = true;
+						break;
+					}
 				}
-				else
+			}
+
+			if (Envelope.IsValid())
+			{
+				if (IsCurrentWorldMissionConst(Envelope) &&
+					ShouldUseActor(Envelope,
+						FloorActorTypeToEnvelopeChannel(CC->ActorType),
+						EMissionEndReason::None,
+						/*IsRead=*/true))
 				{
 					if (!bAppliedRelative)
-						ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+						ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr,
+							ETeleportType::TeleportPhysics);
 					RestoreActorSnapshot(ChildActor, Snapshot, false, true);
 				}
+			}
+			else
+			{
+				if (!bAppliedRelative)
+					ChildActor->SetActorTransform(Snapshot.ActorTransform, false, nullptr,
+						ETeleportType::TeleportPhysics);
+				RestoreActorSnapshot(ChildActor, Snapshot, false, true);
 			}
 		}
 	}
@@ -3795,6 +3771,24 @@ void UInteriorSubsystem::SubscribeAll()
 				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleResetSpawnerSnapshot));
 		}
 	}
+
+	if (!SpawnerPreserveModeQueryHandle.IsValid())
+	{
+		SpawnerPreserveModeQueryConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+		SpawnerPreserveModeQueryConditionAsset->OperatorType = EConditionOperator::Composite;
+		SpawnerPreserveModeQueryConditionAsset->FilterRow.OutcomeType = EOutcomeType::Interior;
+		SpawnerPreserveModeQueryConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+		SpawnerPreserveModeQueryConditionAsset->FilterRow.InteriorType = EOutcomeInterior::SpawnerPreserveModeQuery;
+		SpawnerPreserveModeQueryConditionAsset->FilterRow.InteriorComparison = EConditionComparison::Equals;
+		SpawnerPreserveModeQueryConditionAsset->CompileCondition();
+
+		if (SpawnerPreserveModeQueryConditionAsset->GetCondition().IsValid())
+		{
+			SpawnerPreserveModeQueryHandle = EventBus->RegisterHandler(
+				SpawnerPreserveModeQueryConditionAsset,
+				FOutcomeHandlerDelegate::CreateUObject(this, &UInteriorSubsystem::HandleSpawnerPreserveModeQuery));
+		}
+	}
 }
 
 void UInteriorSubsystem::SubscribePlacementRegistration()
@@ -4258,11 +4252,11 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 	LoadedWorld->GetTimerManager().SetTimer(TimerHandle, Delegate, 1.0f, false);
 }
 
-void UInteriorSubsystem::HandleResetSpawnerSnapshot(const FOutcomeEventBase& Outcome)
+void UInteriorSubsystem::HandleSpawnerPreserveModeQuery(const FOutcomeEventBase& Outcome)
 {
-	if (UResetSpawnerSnapshotPayload* P = Cast<UResetSpawnerSnapshotPayload>(Outcome.Payload))
+	if (USpawnerPreserveModePayload* P = Cast<USpawnerPreserveModePayload>(Outcome.Payload))
 	{
-		ResetSpawnerSnapshot(P->ItemId);
+		P->PreserveMode = static_cast<ESpawnerPreserveMode>(GetSpawnerPreserveModeForFloor(P->InteriorSetId, P->FloorId));
 	}
 }
 
@@ -4399,6 +4393,7 @@ void UInteriorSubsystem::UnsubscribeAll()
 		UnregisterHandle(FloorTransitionHandle, FloorTransitionConditionAsset);
 
 		UnregisterHandle(ResetSpawnerSnapshotHandle, ResetSpawnerSnapshotConditionAsset);
+		UnregisterHandle(SpawnerPreserveModeQueryHandle, SpawnerPreserveModeQueryConditionAsset);
 	}
 
 	RegisteredItems.Empty();
@@ -5168,6 +5163,14 @@ void UInteriorSubsystem::HandleCompleteMission(const FOutcomeEventBase& Outcome)
 	}
 }
 
+void UInteriorSubsystem::HandleResetSpawnerSnapshot(const FOutcomeEventBase& Outcome)
+{
+	if (UResetSpawnerSnapshotPayload* P = Cast<UResetSpawnerSnapshotPayload>(Outcome.Payload))
+	{
+		ResetSpawnerSnapshot(P->ItemId);
+	}
+}
+
 void UInteriorSubsystem::StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason)
 {
 	UWorld* World = GetWorld();
@@ -5260,10 +5263,6 @@ void UInteriorSubsystem::StoreCurrentLevelComplete(FMissionEnvelope Envelope, FN
 			SaveFloorActorsStateComplete(InteriorSetID, FloorGuid, MissionId, EndReason);
 		//}
 	}
-}
-
-void UInteriorSubsystem::ApplySpawnGroupPolicy(const FSpawnGroupId& GroupId, EChannelPolicy Policy, EMissionEndReason Reason)
-{
 }
 
 void UInteriorSubsystem::ReleaseMissionSnapshot(FName MissionId, const FMissionEnvelope& Envelope, EJobSpacePolicy Policy, bool bIsCompletion /*= false*/)
@@ -5898,6 +5897,58 @@ void UInteriorSubsystem::GetAllRegisteredFloorActors(TArray<AActor*>& OutActors)
 		if (AActor* A = Pair.Value.Get())
 			OutActors.Add(A);
 	}
+}
+
+ESpawnerPreserveMode UInteriorSubsystem::GetSpawnerPreserveModeForFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const
+{
+	if (!FloorId.IsValid()) return ESpawnerPreserveMode::None;
+
+	for (const auto& Pair : ActiveMissions)
+	{
+		const UMissionController* Ctrl = Pair.Value.Controller;
+		if (!Ctrl) continue;
+
+		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
+		if (!Asset || !Asset->Envelopes.IsValidIndex(Pair.Value.MissionStep)) continue;
+
+		const FMissionEnvelope& Env = Asset->Envelopes[Pair.Value.MissionStep];
+
+		bool bInScope = false;
+		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Env.Scope.InteriorScopes)
+		{
+			if (UFloorAsset* Floor = FloorRef.Get())
+			{
+				if (Floor->FloorID == FloorId) { bInScope = true; break; }
+			}
+		}
+		if (!bInScope) continue;
+
+		switch (Env.RuntimePolicy)
+		{
+		case EJobSpacePolicy::Freeze:
+			return ESpawnerPreserveMode::Freeze;
+
+		case EJobSpacePolicy::Partial:
+		{
+			for (const FEnvelopeChannelEntry& Entry : Env.RuntimePolicyChannels)
+			{
+				if (Entry.Channel != EEnvelopeChannel::SpawnGroups) continue;
+				switch (Entry.Policy)
+				{
+				case EChannelPolicy::Freeze:             return ESpawnerPreserveMode::Freeze;
+				case EChannelPolicy::ResetUnlessCleared: return ESpawnerPreserveMode::FreezeUnlessCleared;
+				case EChannelPolicy::Reset:              return ESpawnerPreserveMode::None;
+				}
+			}
+			return ESpawnerPreserveMode::None;
+		}
+
+		case EJobSpacePolicy::Reset:
+		default:
+			return ESpawnerPreserveMode::None;
+		}
+	}
+	return ESpawnerPreserveMode::None;
 }
 
 void UInteriorSubsystem::ClearRegisteredFloorActors()

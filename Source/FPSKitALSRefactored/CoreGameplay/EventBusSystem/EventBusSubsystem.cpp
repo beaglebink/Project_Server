@@ -267,9 +267,9 @@ bool UEventBusSubsystem::IsCriticalImmediateEvent(const FOutcomeEventBase& Outco
     case EOutcomeInterior::FloorLeaving:
     case EOutcomeInterior::FloorStateSave:
     case EOutcomeInterior::FloorStateRestore:
+    case EOutcomeInterior::SpawnerPreserveModeQuery: // <-- ДОБАВИТЬ
         return true;
     default:
         return false;
     }
 }
-

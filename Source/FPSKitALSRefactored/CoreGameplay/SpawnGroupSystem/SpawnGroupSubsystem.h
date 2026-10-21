@@ -169,6 +169,7 @@ private:
     void UnsubscribeEvents();
 
     FInteriorFloorKey GetFloorKeyFromSpawner(ASpawnGroupSpawner* Spawner) const;
+    ESpawnerPreserveMode GetPreserveModeViaEventBus(const FInteriorFloorKey& FloorKey);
 
     void HandleSpawnGroupRegister(const FOutcomeEventBase& Outcome);
     void HandleSpawnGroupUnregister(const FOutcomeEventBase& Outcome);

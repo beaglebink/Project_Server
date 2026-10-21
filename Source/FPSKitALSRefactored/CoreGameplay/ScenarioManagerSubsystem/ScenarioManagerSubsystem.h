@@ -9,7 +9,9 @@
 #include "ScenarioManagerSubsystem.generated.h"
 
 class UPayloadBatchAsset;
+class UPayloadBatchEntry;
 class UOutcomeConditionAsset;
+struct FCommandSpec;
 struct FSubsystemSaveData;
 
 UCLASS()
@@ -54,8 +56,8 @@ public:
 protected:
     // ---- Инициализация ----
     void LoadAllSteps();
-    void SubscribeToEventBus();            // существующий: слушает TagsToAdd/TagsToRemove
-    void SubscribeToInitialLevelLoaded();  // НОВЫЙ: слушает Interior::LevelLoaded
+    void SubscribeToEventBus();
+    void SubscribeToInitialLevelLoaded();
 
     // ---- Переоценка ----
     void ReevaluateSteps();
@@ -68,7 +70,16 @@ protected:
     void HandleOutcomeWithTags(const FOutcomeEventBase& Outcome);
     void OnInitialLevelLoaded(const FOutcomeEventBase& Outcome);
 
-    void TryRunInitialReevaluate(const TCHAR* Reason);
+    // Точка входа переоценки при каждой загрузке уровня.
+    // Вызывается из OnInitialLevelLoaded, fallback-таймера
+    // и из ApplySaveData (если LevelLoaded пришёл до сейва).
+    void ReevaluateOnLevelLoaded(const TCHAR* Reason);
+
+    // Переприменяет stateful-эффекты активного шага при загрузке уровня.
+    void ExecuteStepReapply(UPayloadBatchAsset* Step);
+
+    // Возвращает true, если entry надо переприменить при загрузке.
+    static bool ShouldReapplyOnLoad(UPayloadBatchEntry* Entry);
 
 private:
     UPROPERTY()
@@ -92,9 +103,10 @@ private:
     UPROPERTY() TObjectPtr<UOutcomeConditionAsset> TagChangeCondition;
 
     // ---- EventBus: LevelLoaded ----
+    // Хендлер живёт всю игру; при каждом LevelLoaded вызывается
+    // ReevaluateOnLevelLoaded. Не отписываемся после первого вызова.
     FOutcomeHandlerHandle InitialLevelLoadedHandler;
     UPROPERTY() TObjectPtr<UOutcomeConditionAsset> InitialLevelLoadedCondition;
-    bool bFirstReevaluateDone = false;
 
     FTimerHandle InitialReevaluateFallbackTimer;
     static constexpr float InitialReevaluateFallbackDelay = 1.0f;  // сек

@@ -42,21 +42,17 @@ void UScenarioManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     // ---- Fallback-триггер ----
     // Если LevelLoaded не придёт за InitialReevaluateFallbackDelay секунд
     // (например, стартовая карта грузится без публикации LevelLoaded),
-    // стартуем сценарий по таймеру.
-    //
-    // 1 секунда — эмпирика: она гарантированно покрывает BeginPlay всех
-    // актёров, спавн динамических актёров, но меньше времени до первого
-    // перехода между уровнями.
+    // запускаем ReevaluateOnLevelLoaded по таймеру.
     if (UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
     {
         World->GetTimerManager().SetTimer(
             InitialReevaluateFallbackTimer,
             FTimerDelegate::CreateWeakLambda(this, [this]()
                 {
-                    if (!IsValid(this) || bFirstReevaluateDone) return;
+                    if (!IsValid(this)) return;
                     UE_LOG(LogScenario, Log,
-                        TEXT("ScenarioManager: LevelLoaded didn't arrive — fallback timer fired, running initial ReevaluateSteps"));
-                    TryRunInitialReevaluate(TEXT("FallbackTimer"));
+                        TEXT("ScenarioManager: LevelLoaded didn't arrive — fallback timer fired, running Reevaluate"));
+                    ReevaluateOnLevelLoaded(TEXT("FallbackTimer"));
                 }),
             InitialReevaluateFallbackDelay,
             /*bLoop=*/false);
@@ -125,15 +121,10 @@ void UScenarioManagerSubsystem::SubscribeToInitialLevelLoaded()
         FOutcomeHandlerDelegate::CreateUObject(
             this, &UScenarioManagerSubsystem::OnInitialLevelLoaded));
 }
-
+/*
 void UScenarioManagerSubsystem::TryRunInitialReevaluate(const TCHAR* Reason)
 {
-    // Первый запуск уже был — молча выходим.
-    if (bFirstReevaluateDone)
-        return;
-
-    // Сейв ещё не применён — ждём. И таймер, и событие могут пройти мимо;
-    // повторит тот, кто придёт позже (или следующий LevelLoaded на переходе).
+    if (bFirstReevaluateDone) return;
     if (!bLoadComplete)
     {
         UE_LOG(LogScenario, Log,
@@ -143,7 +134,6 @@ void UScenarioManagerSubsystem::TryRunInitialReevaluate(const TCHAR* Reason)
 
     bFirstReevaluateDone = true;
 
-    // Снимаем оба триггера, чтобы второй не сработал впустую.
     if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
     {
         if (InitialLevelLoadedHandler.IsValid())
@@ -160,13 +150,111 @@ void UScenarioManagerSubsystem::TryRunInitialReevaluate(const TCHAR* Reason)
     UE_LOG(LogScenario, Log,
         TEXT("ScenarioManager: running initial ReevaluateSteps (triggered by %s)"), Reason);
 
+    // ---- Шаги, уже активные из сейва — ReevaluateSteps их не тронет, ----
+    // ---- потому что перехода inactive→active не будет.                ----
+    const TSet<FPrimaryAssetId> AlreadyActive = ActiveStepIds;
+
     ReevaluateSteps();
+
+    // ---- Переприменяем stateful-эффекты уже-активных шагов к свежему миру ----
+    for (const FPrimaryAssetId& Id : AlreadyActive)
+    {
+        TObjectPtr<UPayloadBatchAsset>* StepPtr = Steps.Find(Id);
+        if (!StepPtr) continue;
+        UPayloadBatchAsset* Step = StepPtr->Get();
+        if (!Step || !Step->bEnabled) continue;
+
+        ExecuteStepReapply(Step);
+    }
+}
+*/
+
+void UScenarioManagerSubsystem::ReevaluateOnLevelLoaded(const TCHAR* Reason)
+{
+    if (!bLoadComplete)
+    {
+        // Сейв ещё не применён. Если LevelLoaded пришёл ДО сейва,
+        // ApplySaveData сам перезапустит ReevaluateOnLevelLoaded.
+        UE_LOG(LogScenario, Log,
+            TEXT("ScenarioManager: Reevaluate deferred (%s) — save not applied yet"), Reason);
+        return;
+    }
+
+    // Отменяем fallback-таймер, если он ещё не сработал.
+    if (UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
+    {
+        World->GetTimerManager().ClearTimer(InitialReevaluateFallbackTimer);
+    }
+
+    UE_LOG(LogScenario, Log,
+        TEXT("ScenarioManager: running ReevaluateSteps (triggered by %s)"), Reason);
+
+    // ---- Запоминаем активные ДО переоценки: ReevaluateSteps их не тронет, ----
+    // ---- потому что перехода inactive→active для них не будет.           ----
+    const TSet<FPrimaryAssetId> AlreadyActive = ActiveStepIds;
+
+    ReevaluateSteps();
+
+    // ---- Переприменяем stateful-эффекты уже-активных шагов ----
+    for (const FPrimaryAssetId& Id : AlreadyActive)
+    {
+        // Шаг мог быть деактивирован в ReevaluateSteps — пропускаем.
+        if (!ActiveStepIds.Contains(Id)) continue;
+
+        TObjectPtr<UPayloadBatchAsset>* StepPtr = Steps.Find(Id);
+        if (!StepPtr) continue;
+        UPayloadBatchAsset* Step = StepPtr->Get();
+        if (!Step || !Step->bEnabled) continue;
+
+        ExecuteStepReapply(Step);
+    }
 }
 
+void UScenarioManagerSubsystem::ExecuteStepReapply(UPayloadBatchAsset* Step)
+{
+    if (!Step) return;
+
+    int32 Reapplied = 0;
+    for (UPayloadBatchEntry* Entry : Step->Entries)
+    {
+        if (!Entry || !Entry->IsValidEntry()) continue;
+        if (!ShouldReapplyOnLoad(Entry)) continue;
+
+        Step->ExecuteEntry(this, Entry);
+        ++Reapplied;
+    }
+
+    if (Reapplied > 0)
+    {
+        UE_LOG(LogScenario, Log,
+            TEXT("ScenarioManager: re-applied %d state command(s) on load for step '%s'"),
+            Reapplied, *Step->GetName());
+    }
+}
+
+bool UScenarioManagerSubsystem::ShouldReapplyOnLoad(UPayloadBatchEntry* Entry)
+{
+    if (!Entry) return false;
+
+    const FCommandSpec* Spec = Entry->GetSpec();
+    if (!Spec) return false;
+
+    // Только SpawnGroup.Start — единственная команда, для которой
+    // вообще имеет смысл переприменение при загрузке.
+    if (Spec->Subsystem != EBatchSubsystem::SpawnGroup)
+        return false;
+    if (Spec->Route.OutcomeSpawnGroup != EOutcomeSpawnGroup::SpawnGroupActivated)
+        return false;
+
+    // Решение принимается per-entry через payload.
+    const USpawnGroupCommandPayload* Payload =
+        Cast<USpawnGroupCommandPayload>(Entry->Payload);
+    return Payload && Payload->bReapplyOnLevelLoad;
+}
 
 void UScenarioManagerSubsystem::OnInitialLevelLoaded(const FOutcomeEventBase& Outcome)
 {
-    TryRunInitialReevaluate(TEXT("Interior::LevelLoaded"));
+    ReevaluateOnLevelLoaded(TEXT("Interior::LevelLoaded"));
 }
 
 // =============================================================================
@@ -469,7 +557,6 @@ void UScenarioManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         for (const TSharedPtr<FJsonValue>& Val : *StepsArray)
         {
             const FString IdStr = Val->AsString();
-            // UE 5.4: FromString возвращает значение, без out-параметра.
             const FPrimaryAssetId Id = FPrimaryAssetId::FromString(IdStr);
             if (Id.IsValid())
             {
@@ -483,15 +570,24 @@ void UScenarioManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
         }
     }
 
-    // ВАЖНО: ReevaluateSteps здесь НЕ вызываем.
-    // Состояние объектов мира восстанавливают другие подсистемы,
-    // а наши команды активации/деактивации при загрузке не должны выполняться повторно.
-    // Активные шаги уже зафиксированы в ActiveStepIds — следующая ручная
-    // переоценка (по ChangeTags) будет отталкиваться от этого состояния.
-
     UE_LOG(LogScenario, Log,
         TEXT("ScenarioManager: ApplySaveData complete. Tags=%d, ActiveSteps=%d"),
         TagStorage.Num(), ActiveStepIds.Num());
 
     bLoadComplete = true;
+
+    // ---- Если LevelLoaded пришёл ДО применения сейва, ReevaluateOnLevelLoaded ----
+    // ---- вышел с !bLoadComplete. Перезапускаем его сейчас.                    ----
+    if (UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
+    {
+        FTimerHandle Handle;
+        World->GetTimerManager().SetTimer(
+            Handle,
+            FTimerDelegate::CreateWeakLambda(this, [this]()
+                {
+                    if (!IsValid(this) || !bLoadComplete) return;
+                    ReevaluateOnLevelLoaded(TEXT("SaveApplied"));
+                }),
+            0.1f, false);
+    }
 }

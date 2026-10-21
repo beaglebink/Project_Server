@@ -251,6 +251,9 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InteriorSubsystem|Registry")
     int32 GetRegisteredFloorActorCount() const { return RegisteredFloorActors.Num(); }
 
+    /** Возвращает режим сохранения для спавнеров (Freeze / ResetUnlessCleared / None) */
+    ESpawnerPreserveMode GetSpawnerPreserveModeForFloor(const FGuid& InteriorSetId, const FGuid& FloorId) const;
+
     /** Полная очистка реестра (например, при смене уровня). */
     void ClearRegisteredFloorActors();
 
@@ -287,7 +290,6 @@ public:
 private:
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
     void HandleInteractCommand(const FOutcomeEventBase& Outcome);
-    //void HandleSetEnabled(const FOutcomeEventBase& Outcome);
     void HandleSetRange(const FOutcomeEventBase& Outcome);
     void HandleSetTooltip(const FOutcomeEventBase& Outcome);
     void HandleFloorStateSave(const FOutcomeEventBase& Outcome);
@@ -296,11 +298,13 @@ private:
     void HandleReleaseMissionSnapshot(const FOutcomeEventBase& Outcome);
     void HandleUpdateMissionList(const FOutcomeEventBase& Outcome);
     void HandleCompleteMission(const FOutcomeEventBase& Outcome);
-    void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
-    void StoreCurrentLevelComplete(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
     void HandleResetSpawnerSnapshot(const FOutcomeEventBase& Outcome);
 
-    void ApplySpawnGroupPolicy(const FSpawnGroupId& GroupId, EChannelPolicy Policy, EMissionEndReason Reason);
+    // Обработчик запроса политики через EventBus
+    void HandleSpawnerPreserveModeQuery(const FOutcomeEventBase& Outcome);
+
+    void StoreCurrentLevel(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
+    void StoreCurrentLevelComplete(FMissionEnvelope Envelope, FName MissionId, EMissionEndReason EndReason);
 
     void SubscribeAll();
     void UnsubscribeAll();
@@ -310,12 +314,15 @@ private:
     AActor* FindActorByItemId(const FGuid& ItemId) const;
     void RemoveRecordsForChannel(TArray<FFloorPopulationRecord>& Records, EEnvelopeChannel Channel);
 
-    // Удаляет сохраненный снэпшот для конкретного актора (по ItemId)
-// во всех хранилищах (FloorStateSnapshots и MissionFloorSnapshots).
     void ResetSpawnerSnapshot(const FGuid& ItemId);
 
     FOutcomeHandlerHandle ResetSpawnerSnapshotHandle;
     UPROPERTY() UOutcomeConditionAsset* ResetSpawnerSnapshotConditionAsset = nullptr;
+
+    // Переменные для EventBus запроса политики
+    FOutcomeHandlerHandle SpawnerPreserveModeQueryHandle;
+    UPROPERTY() UOutcomeConditionAsset* SpawnerPreserveModeQueryConditionAsset = nullptr;
+
     TMap<FGuid, FInteractItemRecord> RegisteredItems;
     TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
     TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
@@ -331,7 +338,6 @@ private:
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> DestroyedActorsByInteriorFloorTemp;
 
     TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>> MissionSpawnedActorsByInteriorFloor;
-
     TMap<FInteriorFloorKey, TMap<FName, FFloorPopulationBuckets>> MissionDestroyedActorsByInteriorFloor;
 
     TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> FloorStateSnapshots;
@@ -417,12 +423,10 @@ private:
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override;
 
-    /** Перестраивает вспомогательные карты AllSpawned / AllDestroyed для текущего этажа,
-     *  синхронизируя их с фактическим состоянием мира и данными из SpawnedActorsByInteriorFloor / DestroyedActorsByInteriorFloor. */
     void RebuildPopulationMapsForCurrentFloor();
 
     bool IsLoadComplete = true;
-	bool IsPostLoadMapComplete = false; 
+    bool IsPostLoadMapComplete = false;
 
     /** ItemId -> актор. Weak — не держим актора живым. */
     TMap<FGuid, TWeakObjectPtr<AActor>> RegisteredFloorActors;

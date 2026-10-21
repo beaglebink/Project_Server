@@ -182,7 +182,8 @@ enum class EOutcomeInterior : uint8
     CheckRequest                UMETA(DisplayName = "Check Request"),
     CheckResponse               UMETA(DisplayName = "Check Response"),
     StreetTransition            UMETA(DisplayName = "Street Transition"),
-    ResetSpawnerSnapshot        UMETA(DisplayName = "Reset Spawner Snapshot")
+    ResetSpawnerSnapshot        UMETA(DisplayName = "Reset Spawner Snapshot"),
+    SpawnerPreserveModeQuery    UMETA(DisplayName = "Spawner Preserve Mode Query")
     //CheckRequest            UMETA(DisplayName = "Check Request"),
     //CheckResponse           UMETA(DisplayName = "Check Response")
 };

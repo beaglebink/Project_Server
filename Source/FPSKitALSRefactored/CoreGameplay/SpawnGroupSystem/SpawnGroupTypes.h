@@ -1,12 +1,44 @@
-// SpawnGroupTypes.h
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"  
+#include "OutcomePayload.h"
 #include "GameplayTagContainer.h"
 #include "SpawnGroupTypes.generated.h"
 
-USTRUCT(BlueprintType)
+class USpawnGroupAsset;
+
+// ============================================================================
+// Базовые типы спавн-групп
+// ============================================================================
+UENUM(BlueprintType)
+enum class EGhostState : uint8
+{
+    Alive       UMETA(DisplayName = "Alive"),
+    Killed      UMETA(DisplayName = "Killed"),
+    Captured    UMETA(DisplayName = "Captured")
+};
+
+UENUM(BlueprintType)
+enum class ESpawnGroupStatus : uint8
+{
+    Inactive         UMETA(DisplayName = "Inactive"),
+    Active           UMETA(DisplayName = "Active"),
+    PartiallyCleared UMETA(DisplayName = "Partially Cleared"),
+    Cleared          UMETA(DisplayName = "Cleared"),
+    Suppressed       UMETA(DisplayName = "Suppressed")
+};
+
+UENUM(BlueprintType)
+enum class ESpawnGroupResolutionReason : uint8
+{
+    None             UMETA(DisplayName = "None"),
+    Eliminated       UMETA(DisplayName = "Eliminated"),
+    Captured         UMETA(DisplayName = "Captured"),
+    ScriptedRemoval  UMETA(DisplayName = "Scripted Removal"),
+    Other            UMETA(DisplayName = "Other")
+};
+
+USTRUCT()
 struct FSpawnedEnemyState
 {
     GENERATED_BODY()
@@ -22,116 +54,94 @@ struct FSpawnedEnemyState
 
     UPROPERTY()
     FString SerializedState;
-
-    FSpawnedEnemyState()
-        : ItemId(FGuid())
-        , ActorClass(nullptr)
-        , SpawnTransform(FTransform::Identity)
-        , SerializedState(TEXT(""))
-    {
-    }
 };
-USTRUCT(BlueprintType)
-struct FSpawnGroupId
+
+// ============================================================================
+// Политика сохранения состояния спавнера
+// ============================================================================
+UENUM(BlueprintType)
+enum class ESpawnerPreserveMode : uint8
+{
+    None                UMETA(DisplayName = "None (reset to fresh)"),
+    Freeze              UMETA(DisplayName = "Freeze (keep partial state)"),
+    FreezeUnlessCleared UMETA(DisplayName = "Freeze unless fully cleared")
+};
+
+// ============================================================================
+// Payload для синхронного запроса политики через EventBus
+// ============================================================================
+UCLASS()
+class FPSKITALSREFACTORED_API USpawnerPreserveModePayload : public UOutcomePayload
 {
     GENERATED_BODY()
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FGuid Id;
-    FSpawnGroupId() {}
-    explicit FSpawnGroupId(const FGuid& InId) : Id(InId) {}
-    bool IsValid() const { return Id.IsValid(); }
-    bool operator==(const FSpawnGroupId& Other) const { return Id == Other.Id; }
-    FString ToString() const { return Id.ToString(); }
-    static FSpawnGroupId New() { return FSpawnGroupId(FGuid::NewGuid()); }
+
+public:
+    UPROPERTY()
+    FGuid InteriorSetId;
+
+    UPROPERTY()
+    FGuid FloorId;
+
+    UPROPERTY()
+    ESpawnerPreserveMode PreserveMode = ESpawnerPreserveMode::None;
 };
 
-FORCEINLINE uint32 GetTypeHash(const FSpawnGroupId& Key)
-{
-    return GetTypeHash(Key.Id);
-}
-
-UENUM(BlueprintType)
-enum class ESpawnGroupStatus : uint8
-{
-    Inactive,
-    Active,
-    PartiallyCleared,
-    Cleared,
-    Suppressed
-};
-
-UENUM(BlueprintType)
-enum class ESpawnGroupResolutionReason : uint8
-{
-    None,
-    Eliminated,
-    Captured,
-    ScriptedRemoval,
-    Other
-};
-
-USTRUCT(BlueprintType)
-struct FSpawnGroupRecord
-{
-    GENERATED_BODY()
-    UPROPERTY()
-    TWeakObjectPtr<AActor> SpawnedActor;
-    UPROPERTY()
-    TSubclassOf<AActor> ActorClass;
-    UPROPERTY()
-    FTransform SpawnTransform;
-    UPROPERTY()
-    bool bIsResolved = false;
-    UPROPERTY()
-    ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::None;
-};
-
-UENUM(BlueprintType)
-enum class EGhostState : uint8
-{
-    Alive     UMETA(DisplayName = "Alive"),
-    Captured  UMETA(DisplayName = "Captured"),
-    Killed    UMETA(DisplayName = "Killed")
-};
-
-USTRUCT(BlueprintType)
+// ============================================================================
+// Структуры состояния спавнера
+// ============================================================================
+USTRUCT()
 struct FSpawnSlotState
 {
     GENERATED_BODY()
+
     UPROPERTY()
     FGuid ItemId;
+
     UPROPERTY()
-    TSubclassOf<AActor> ActorClass;
+    TSubclassOf<AActor> ActorClass = nullptr;
+
     UPROPERTY()
     FTransform SpawnTransform = FTransform::Identity;
+
     UPROPERTY()
     EGhostState State = EGhostState::Alive;
+
     UPROPERTY()
     FGameplayTagContainer GameplayTags;
+
     UPROPERTY()
     TArray<FName> TextTags;
 };
 
-class USpawnGroupAsset;
-
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FSpawnGroupState
 {
     GENERATED_BODY()
 
-    UPROPERTY() FGuid GroupId;
-    UPROPERTY() ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
-    UPROPERTY() ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::None;
-    UPROPERTY() FName LastMissionContext;
-    UPROPERTY() int32 VisitIndex = 0;
-    UPROPERTY() int32 KilledCount = 0;
-    UPROPERTY() TMap<FName, int32> TypeKilled;
-    UPROPERTY() TArray<FSpawnSlotState> Slots;
-    UPROPERTY() bool bStoreSpawnParameters = false;
-    UPROPERTY() bool bBlockNewSpawn = false;
+    UPROPERTY()
+    FGuid GroupId;
 
-    // NEW: сохранение переназначенного ассета
-    UPROPERTY() TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride;
+    UPROPERTY()
+    ESpawnGroupStatus Status = ESpawnGroupStatus::Inactive;
 
-    UPROPERTY() TArray<FSpawnedEnemyState> EnemyStates;
+    UPROPERTY()
+    ESpawnGroupResolutionReason ResolutionReason = ESpawnGroupResolutionReason::ScriptedRemoval;
+
+    UPROPERTY()
+    bool bStoreSpawnParameters = false;
+
+    UPROPERTY()
+    bool bBlockNewSpawn = false;
+
+    UPROPERTY()
+    int32 KilledCount = 0;
+
+    UPROPERTY()
+    TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride = nullptr;
+
+    UPROPERTY()
+    TArray<FSpawnSlotState> Slots;
+
+    UPROPERTY()
+    TMap<FName, int32> TypeKilled;
 };

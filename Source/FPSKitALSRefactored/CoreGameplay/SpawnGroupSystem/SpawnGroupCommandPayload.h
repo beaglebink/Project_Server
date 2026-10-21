@@ -16,6 +16,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     ESpawnGroupResolutionReason Reason = ESpawnGroupResolutionReason::None;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    bool bReapplyOnLevelLoad = false;
+
     UFUNCTION(BlueprintCallable, Category = "SpawnGroup")
     USpawnGroupCommandPayload* Setup(const FGuid& InGroupId,
         ESpawnGroupResolutionReason InReason = ESpawnGroupResolutionReason::None)
