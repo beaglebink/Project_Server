@@ -7,78 +7,80 @@
 UENUM(BlueprintType)
 enum class EChoreFamily : uint8
 {
-    MovingObjects      UMETA(DisplayName = "Moving Objects"),
-    SprayingCleaning   UMETA(DisplayName = "Spraying / Cleaning"),
-    ScanningBagging    UMETA(DisplayName = "Scanning & Bagging"),
-    Cooking            UMETA(DisplayName = "Cooking"),
-    Delivery           UMETA(DisplayName = "Delivery"),
-    Internet           UMETA(DisplayName = "Internet"),
-    Miscellaneous      UMETA(DisplayName = "Miscellaneous")
+	MovingObjects      UMETA(DisplayName = "Moving Objects"),
+	SprayingCleaning   UMETA(DisplayName = "Spraying / Cleaning"),
+	ScanningBagging    UMETA(DisplayName = "Scanning & Bagging"),
+	Cooking            UMETA(DisplayName = "Cooking"),
+	Delivery           UMETA(DisplayName = "Delivery"),
+	Internet           UMETA(DisplayName = "Internet"),
+	Miscellaneous      UMETA(DisplayName = "Miscellaneous")
 };
 
 UENUM(BlueprintType)
 enum class EChoreSubtype : uint8
 {
-    Default            UMETA(DisplayName = "Default"),
-    // You can add your own subtypes as needed
-    // Можно добавлять свои подтипы по мере необходимости
+	Default            UMETA(DisplayName = "Default"),
+	// You can add your own subtypes as needed
+	// Можно добавлять свои подтипы по мере необходимости
 };
 
 UENUM(BlueprintType)
 enum class EChoreStatus : uint8
 {
-    Unavailable        UMETA(DisplayName = "Unavailable"),
-    Available          UMETA(DisplayName = "Available"),
-    Offered            UMETA(DisplayName = "Offered"),
-    Accepted           UMETA(DisplayName = "Accepted"),
-    WaitingToStart     UMETA(DisplayName = "Waiting to Start"),
-    Active             UMETA(DisplayName = "Active"),
-    Succeeded          UMETA(DisplayName = "Succeeded"),
-    Failed             UMETA(DisplayName = "Failed"),
-    Expired            UMETA(DisplayName = "Expired"),
-    RetryAvailable     UMETA(DisplayName = "Retry Available"),
-    PendingReaccept    UMETA(DisplayName = "Pending Re-accept from NPC")
+	Inactive        UMETA(DisplayName = "Inactive"),
+	Active          UMETA(DisplayName = "Active"),
+	Completed       UMETA(DisplayName = "Completed"),
+	Failed          UMETA(DisplayName = "Failed"),
+	Abandoned       UMETA(DisplayName = "Abandoned"),
+	Unavailable     UMETA(DisplayName = "Unavailable"),
+	Available       UMETA(DisplayName = "Available"),
+	Offered         UMETA(DisplayName = "Offered"),
+	Accepted        UMETA(DisplayName = "Accepted"),
+	WaitingToStart  UMETA(DisplayName = "Waiting to Start"),
+	Expired         UMETA(DisplayName = "Expired"),
+	RetryAvailable  UMETA(DisplayName = "Retry Available"),
+	PendingReaccept UMETA(DisplayName = "Pending Re-accept from NPC")
 };
 
 UENUM(BlueprintType)
 enum class EChoreRetryBehavior : uint8
 {
-    None               UMETA(DisplayName = "No Retry"),
-    Immediate          UMETA(DisplayName = "Immediate Retry Available"),
-    RequireReaccept    UMETA(DisplayName = "Require Re-accept from NPC"),
-    Conditional        UMETA(DisplayName = "Conditional (Reactivation Condition)")
+	None               UMETA(DisplayName = "No Retry"),
+	Immediate          UMETA(DisplayName = "Immediate Retry Available"),
+	RequireReaccept    UMETA(DisplayName = "Require Re-accept from NPC"),
+	Conditional        UMETA(DisplayName = "Conditional (Reactivation Condition)")
 };
 
 UENUM(BlueprintType)
 enum class EChoreHistoryQueryType : uint8
 {
-    CountCompleted     UMETA(DisplayName = "Count Completed"),
-    CountSucceeded     UMETA(DisplayName = "Count Succeeded"),
-    BestPerformance    UMETA(DisplayName = "Best Performance (specific metric)"),
-    LastResult         UMETA(DisplayName = "Last Result (Success/Fail)")
+	CountCompleted     UMETA(DisplayName = "Count Completed"),
+	CountSucceeded     UMETA(DisplayName = "Count Succeeded"),
+	BestPerformance    UMETA(DisplayName = "Best Performance (specific metric)"),
+	LastResult         UMETA(DisplayName = "Last Result (Success/Fail)")
 };
 
 UENUM(BlueprintType)
 enum class EChorePerformanceMetric : uint8
 {
-    CompletionTimeSeconds   UMETA(DisplayName = "Completion Time (sec, lower is better)"),
-    Mistakes                UMETA(DisplayName = "Mistakes (lower is better)"),
-    Accuracy                UMETA(DisplayName = "Accuracy (higher is better)"),
-    Quantity                UMETA(DisplayName = "Quantity (higher is better)")
+	CompletionTimeSeconds   UMETA(DisplayName = "Completion Time (sec, lower is better)"),
+	Mistakes                UMETA(DisplayName = "Mistakes (lower is better)"),
+	Accuracy                UMETA(DisplayName = "Accuracy (higher is better)"),
+	Quantity                UMETA(DisplayName = "Quantity (higher is better)")
 };
 
 UENUM(BlueprintType)
 enum class EChoreAbandonBehavior : uint8
 {
-    // Fail (current behavior).
-    // Провалить (текущее поведение).
-    Fail               UMETA(DisplayName = "Fail"),
+	// Fail (current behavior).
+	// Провалить (текущее поведение).
+	Fail               UMETA(DisplayName = "Fail"),
 
-    // Return to Available: the task becomes available for acceptance again.
-    // Вернуть в Available: задание снова доступно для принятия.
-    ReturnToAvailable  UMETA(DisplayName = "Return to Available"),
+	// Return to Available: the task becomes available for acceptance again.
+	// Вернуть в Available: задание снова доступно для принятия.
+	ReturnToAvailable  UMETA(DisplayName = "Return to Available"),
 
-    // Roll back to Accepted: the attempt is interrupted, but the task remains accepted.
-    // Откатить в Accepted: попытка прервана, но задание остаётся принятым.
-    ReturnToAccepted   UMETA(DisplayName = "Return to Accepted")
+	// Roll back to Accepted: the attempt is interrupted, but the task remains accepted.
+	// Откатить в Accepted: попытка прервана, но задание остаётся принятым.
+	ReturnToAccepted   UMETA(DisplayName = "Return to Accepted")
 };

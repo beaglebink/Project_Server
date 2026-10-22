@@ -26,16 +26,6 @@ enum class EWrongItemBehavior : uint8
 	BlockCompletion
 };
 
-UENUM(BlueprintType)
-enum class EChoreZoneStatus : uint8
-{
-	Inactive,
-	Active,
-	Completed,
-	Abandoned,
-	Failed
-};
-
 USTRUCT(BlueprintType)
 struct FDropZonePlacementZone
 {
@@ -121,7 +111,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement")
 	EResultBroadcast ResultBroadcast;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|WrongItemsBehavior")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|Wrong Items Behavior")
 	EWrongItemBehavior ItemBehavior;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement")
@@ -160,7 +150,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	UFloorAssignmentComponent* FloorAssignmentComponent;
 
-	UFUNCTION(CallInEditor, Category = "ChorePlacement|DropZones")
+	UFUNCTION(CallInEditor, Category = "ChorePlacement")
 	void UpdateSourcePlacedItems();
 
 	UPROPERTY()
@@ -174,26 +164,26 @@ private:
 	FTimerHandle AutoResultTimerHandle;
 
 	UPROPERTY()
-	EChoreZoneStatus ChoreStatus;
+	EChoreStatus ChoreStatus;
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
-	void SetChoreStatus(EChoreZoneStatus NewStatus);
+	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
+	void SetChoreStatus(EChoreStatus NewStatus);
 
-	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
-	EChoreZoneStatus GetChoreStatus()const;
+	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
+	EChoreStatus GetChoreStatus()const;
 
-	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
+	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
 	void ResetChorePlacementZone();
 
-	UFUNCTION(BlueprintCallable, Category = "ChorePlacement|DropZones")
+	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
 	FChoreResult GetResultState();
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ChorePlacement|DropZones")
-	FGameplayTag PublicResultState(const FChoreResult& ChoreResult);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ChorePlacement")
+	FGameplayTag PublicResultState(FChoreResult ChoreResult);
 
 	// II_SaveableObject interface
-	virtual TArray<FSaveItemData> CollectChorePlacementSaveData_Implementation() override;
+	virtual FSaveChoreData CollectChorePlacementSaveData_Implementation() override;
 
-	virtual void ApplyChorePlacementSaveData_Implementation(const TArray<FSaveItemData>& SaveDataArray) override;
+	virtual void ApplyChorePlacementSaveData_Implementation(const FSaveChoreData& SaveChoreData) override;
 };
