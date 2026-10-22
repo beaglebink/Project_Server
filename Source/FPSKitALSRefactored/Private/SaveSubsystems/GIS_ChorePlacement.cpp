@@ -40,15 +40,12 @@ void UGIS_ChorePlacement::CollectSaveData(FSubsystemSaveData& OutData)
 			continue;
 		}
 
-		TArray<FSaveItemData> SaveDataArray = II_SaveableObject::Execute_CollectChorePlacementSaveData(SaveableObject);
+		FSaveChoreData SaveChoreData = II_SaveableObject::Execute_CollectChorePlacementSaveData(SaveableObject);
 
 		FGuid SaveableObjectID;
 		if (AA_ChorePlacementZone* ChorePlacementZone = Cast<AA_ChorePlacementZone>(SaveableObject))
 		{
-			if (UFloorAssignmentComponent* FloorAssignmentComp = ChorePlacementZone->GetComponentByClass<UFloorAssignmentComponent>())
-			{
-				SaveableObjectID = FloorAssignmentComp->GetItemId();
-			}
+			SaveableObjectID = ChorePlacementZone->FloorAssignmentComponent->GetItemId();
 		}
 		if (!SaveableObjectID.IsValid())
 		{
@@ -59,7 +56,7 @@ void UGIS_ChorePlacement::CollectSaveData(FSubsystemSaveData& OutData)
 
 		TArray<TSharedPtr<FJsonValue>> ItemsJsonArray;
 
-		for (const FSaveItemData& SaveItemData : SaveDataArray)
+		for (const FSaveItemData& SaveItemData : SaveChoreData.SaveItemData)
 		{
 			TSharedPtr<FJsonObject> ItemJson = MakeShared<FJsonObject>();
 
@@ -73,7 +70,11 @@ void UGIS_ChorePlacement::CollectSaveData(FSubsystemSaveData& OutData)
 			ItemsJsonArray.Add(MakeShared<FJsonValueObject>(ItemJson));
 		}
 
-		Root->SetArrayField(ZoneKey, ItemsJsonArray);
+		TSharedPtr<FJsonObject> SaveChoreJsonObject = MakeShared<FJsonObject>();
+		SaveChoreJsonObject->SetArrayField(TEXT("Items"), ItemsJsonArray);
+		SaveChoreJsonObject->SetNumberField(TEXT("Status"), static_cast<int32>(SaveChoreData.ChoreStatus));
+
+		Root->SetObjectField(ZoneKey, SaveChoreJsonObject);
 	}
 
 	FString JsonString;
@@ -107,14 +108,26 @@ void UGIS_ChorePlacement::ApplySaveData(const FSubsystemSaveData& InData)
 
 	for (const auto& ZonePair : Root->Values)
 	{
-		TArray<FSaveItemData> SaveDataArray;
+		FSaveChoreData SaveChoreData;
 
-		const TArray<TSharedPtr<FJsonValue>>* ItemsJsonArray = nullptr;
-
-		if (!ZonePair.Value->TryGetArray(ItemsJsonArray))
+		const TSharedPtr<FJsonObject>* ChoreJsonObject = nullptr;
+		if (!ZonePair.Value->TryGetObject(ChoreJsonObject))
 		{
 			continue;
 		}
+
+		const TArray<TSharedPtr<FJsonValue>>* ItemsJsonArray = nullptr;
+		if (!(*ChoreJsonObject)->TryGetArrayField(TEXT("Items"), ItemsJsonArray))
+		{
+			continue;
+		}
+
+		int32 StatusInt = 0;
+		if (!(*ChoreJsonObject)->TryGetNumberField(TEXT("Status"), StatusInt))
+		{
+			continue;
+		}
+		SaveChoreData.ChoreStatus = static_cast<EChoreStatus>(StatusInt);
 
 		for (const TSharedPtr<FJsonValue>& ItemJsonValue : *ItemsJsonArray)
 		{
@@ -158,10 +171,11 @@ void UGIS_ChorePlacement::ApplySaveData(const FSubsystemSaveData& InData)
 				SaveItemData.bHasSimulatedPhysics = TempBool;
 			}
 
-			SaveDataArray.Add(SaveItemData);
+
+			SaveChoreData.SaveItemData.Add(SaveItemData);
 		}
 
-		CachedChorePlacementZoneData.Add(FGuid(ZonePair.Key), SaveDataArray);
+		CachedChorePlacementZoneData.Add(FGuid(ZonePair.Key), SaveChoreData);
 	}
 
 	bIsLoadComplete = true;
@@ -194,7 +208,7 @@ void UGIS_ChorePlacement::ApplyChorePlacementData_Implementation(AActor* ChorePl
 		ActorID = FloorAssignmentComp->GetItemId();
 	}
 
-	TArray<FSaveItemData>* FoundData = CachedChorePlacementZoneData.Find(ActorID);
+	FSaveChoreData* FoundData = CachedChorePlacementZoneData.Find(ActorID);
 
 	if (!FoundData)
 	{

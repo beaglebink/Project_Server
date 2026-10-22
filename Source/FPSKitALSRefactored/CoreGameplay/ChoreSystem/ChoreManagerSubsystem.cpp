@@ -362,7 +362,7 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
         case EChoreStatus::Active:
             Event.OutcomeChore = EOutcomeChore::ChoreStarted;
             break;
-        case EChoreStatus::Succeeded:
+        case EChoreStatus::Completed:
             Event.OutcomeChore = EOutcomeChore::ChoreSucceeded;
             break;
         case EChoreStatus::Failed:
@@ -385,7 +385,7 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
         if (Payload)
         {
             Payload->ChoreId = ChoreId;
-            Payload->bSucceeded = (NewStatus == EChoreStatus::Succeeded);
+            Payload->bSucceeded = (NewStatus == EChoreStatus::Completed);
             Payload->Performance = State.Performance;
             Event.Payload = Payload;
         }
@@ -435,7 +435,7 @@ void UChoreManagerSubsystem::GrantRewards(FName ChoreId)
 
     // Only grant the reward for a successfully completed chore.
     // Награду выдаём только за успешно завершённую хору.
-    if (State->Status != EChoreStatus::Succeeded) return;
+    if (State->Status != EChoreStatus::Completed) return;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
     if (!Def) return;
@@ -500,7 +500,7 @@ void UChoreManagerSubsystem::OfferChore(FName ChoreId)
     if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
         return;
 
-    if (State.Status == EChoreStatus::Succeeded && !Definitions[ChoreId]->bIsRepeatable)
+    if (State.Status == EChoreStatus::Completed && !Definitions[ChoreId]->bIsRepeatable)
         return;
 
     UpdateChoreState(ChoreId, EChoreStatus::Available);
@@ -593,7 +593,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, const FChorePerformanc
     State.Performance = Performance;
     State.bSucceeded = true;
     AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Performance);
-    UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
+    UpdateChoreState(ChoreId, EChoreStatus::Completed);
     GrantRewards(ChoreId);
     State.IsExpired = false;
 
@@ -1060,7 +1060,7 @@ TArray<FName> UChoreManagerSubsystem::GetSucceededChoreIds() const
     TArray<FName> Result;
     for (const auto& Pair : ActiveStates)
     {
-        if (Pair.Value.Status == EChoreStatus::Succeeded)
+        if (Pair.Value.Status == EChoreStatus::Completed)
         {
             Result.Add(Pair.Key);
         }
@@ -1512,7 +1512,7 @@ void UChoreManagerSubsystem::HandleMissionRequest(const FOutcomeEventBase& Outco
     else
     {
         FChoreState& State = ActiveStates[ChoreId];
-        if (State.Status == EChoreStatus::Active || State.Status == EChoreStatus::Succeeded)
+        if (State.Status == EChoreStatus::Active || State.Status == EChoreStatus::Completed)
             return;
         State.Status = EChoreStatus::Active;
         State.StartTime = FDateTime::UtcNow();
@@ -1554,7 +1554,7 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
 
     if (Result->bSucceeded)
     {
-        UpdateChoreState(ChoreId, EChoreStatus::Succeeded);
+        UpdateChoreState(ChoreId, EChoreStatus::Completed);
         GrantRewards(ChoreId);
         AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Result->Performance);
 
@@ -2290,7 +2290,7 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
         // Разрешаем удаление, если задание завершено, истекло, недоступно или принудительно
         bool bCanRemove = (Status == EChoreStatus::Unavailable) ||
             (Status == EChoreStatus::Expired) ||
-            (Status == EChoreStatus::Succeeded) ||
+            (Status == EChoreStatus::Completed) ||
             (Status == EChoreStatus::Failed) ||
             Payload->bForceRemove;
 

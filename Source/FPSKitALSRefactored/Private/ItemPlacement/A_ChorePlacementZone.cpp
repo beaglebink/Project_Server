@@ -150,7 +150,7 @@ void AA_ChorePlacementZone::BeginPlay()
 		DMI_SourceZoneMeshMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.0f);
 	}
 
-	SetChoreStatus(bIsAutoAcivated ? EChoreZoneStatus::Active : EChoreZoneStatus::Inactive);
+	SetChoreStatus(bIsAutoAcivated ? EChoreStatus::Active : EChoreStatus::Inactive);
 
 	if (UGameInstance* GI = GetGameInstance())
 	{
@@ -236,16 +236,22 @@ void AA_ChorePlacementZone::UpdateSourcePlacedItems()
 	}
 }
 
-void AA_ChorePlacementZone::SetChoreStatus(EChoreZoneStatus NewStatus)
+void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 {
-	switch (NewStatus)
+	if (ChoreStatus == NewStatus)
 	{
-	case EChoreZoneStatus::Inactive:
-	case EChoreZoneStatus::Active:
+		return;
+	}
+	ChoreStatus = NewStatus;
+
+	switch (ChoreStatus)
+	{
+	case EChoreStatus::Inactive:
+	case EChoreStatus::Active:
 	{
 		if (AreaDropZone)
 		{
-			AreaDropZone->bIsActive = NewStatus == EChoreZoneStatus::Active;
+			AreaDropZone->bIsActive = NewStatus == EChoreStatus::Active;
 		}
 
 		for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
@@ -254,13 +260,13 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreZoneStatus NewStatus)
 			{
 				if (DropZone)
 				{
-					DropZone->bIsActive = NewStatus == EChoreZoneStatus::Active;
+					DropZone->bIsActive = NewStatus == EChoreStatus::Active;
 				}
 			}
 		}
 
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
-		if (NewStatus == EChoreZoneStatus::Active && ResultBroadcast == EResultBroadcast::Auto)
+		if (NewStatus == EChoreStatus::Active && ResultBroadcast == EResultBroadcast::Auto)
 		{
 			GetWorldTimerManager().SetTimer(AutoResultTimerHandle, [this]()
 				{
@@ -274,17 +280,57 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreZoneStatus NewStatus)
 		}
 		break;
 	}
-	case EChoreZoneStatus::Completed:
+	case EChoreStatus::Completed:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
-	case EChoreZoneStatus::Abandoned:
+	case EChoreStatus::Failed:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
-	case EChoreZoneStatus::Failed:
+	case EChoreStatus::Abandoned:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::Unavailable:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::Available:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::Offered:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::Accepted:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::WaitingToStart:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::Expired:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::RetryAvailable:
+	{
+		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		break;
+	}
+	case EChoreStatus::PendingReaccept:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
@@ -294,7 +340,7 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreZoneStatus NewStatus)
 	}
 }
 
-EChoreZoneStatus AA_ChorePlacementZone::GetChoreStatus() const
+EChoreStatus AA_ChorePlacementZone::GetChoreStatus() const
 {
 	return ChoreStatus;
 }
@@ -303,8 +349,12 @@ void AA_ChorePlacementZone::ResetChorePlacementZone()
 {
 	for (const auto& [ItemId, ItemData] : SourcePlacedItems)
 	{
-		ItemData.ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		if (ItemData.ItemActor->AttachingDropZone)
+		{
+			ItemData.ItemActor->AttachingDropZone->bIsOccupied = false;
+		}
 		ItemData.ItemActor->AttachingDropZone = nullptr;
+		ItemData.ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		ItemData.ItemActor->SetActorTransform(ItemData.ItemDefaultTransform);
 		ItemData.ItemActor->bIsHeld = false;
 		ItemData.ItemActor->bIsAttached = false;
@@ -318,6 +368,8 @@ void AA_ChorePlacementZone::ResetChorePlacementZone()
 			}
 		}
 	}
+
+	SetChoreStatus(bIsAutoAcivated ? EChoreStatus::Active : EChoreStatus::Inactive);
 }
 
 FChoreResult AA_ChorePlacementZone::GetResultState()
@@ -379,7 +431,7 @@ FChoreResult AA_ChorePlacementZone::GetResultState()
 	return ChoreResult;
 }
 
-FGameplayTag AA_ChorePlacementZone::PublicResultState_Implementation(const FChoreResult& ChoreResult)
+FGameplayTag AA_ChorePlacementZone::PublicResultState_Implementation(FChoreResult ChoreResult)
 {
 	FString ResultText = FString::Printf(TEXT("Chore result: %s\n"), ChoreResult.bResult ? "Successed" : "Failed");
 	ResultText += TEXT("Successed\n");
@@ -408,9 +460,9 @@ FGameplayTag AA_ChorePlacementZone::PublicResultState_Implementation(const FChor
 	return ChoreResult.bResult ? CompletedTag : FailedTag;
 }
 
-TArray<FSaveItemData> AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementation()
+FSaveChoreData AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementation()
 {
-	TArray<FSaveItemData> SaveDataArray;
+	FSaveChoreData SaveChoreData;
 
 	for (const auto& [ItemId, ItemData] : SourcePlacedItems)
 	{
@@ -441,13 +493,14 @@ TArray<FSaveItemData> AA_ChorePlacementZone::CollectChorePlacementSaveData_Imple
 			}
 		}
 
-		SaveDataArray.Add(SaveData);
+		SaveChoreData.SaveItemData.Add(SaveData);
 	}
+	SaveChoreData.ChoreStatus = GetChoreStatus();
 
-	return SaveDataArray;
+	return SaveChoreData;
 }
 
-void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const TArray<FSaveItemData>& SaveDataArray)
+void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const FSaveChoreData& SaveChoreData)
 {
 	UWS_ActorRegistry* ActorRegistrySubsystem = GetWorld()->GetSubsystem<UWS_ActorRegistry>();
 	if (!ActorRegistrySubsystem)
@@ -455,7 +508,7 @@ void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const TAr
 		return;
 	}
 
-	for (const FSaveItemData& SavedData : SaveDataArray)
+	for (const FSaveItemData& SavedData : SaveChoreData.SaveItemData)
 	{
 		AA_InteractableActor* ItemActor = Cast<AA_InteractableActor>(ActorRegistrySubsystem->FindActorByGuid(SavedData.ItemId));
 		if (!ItemActor)
@@ -494,4 +547,6 @@ void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const TAr
 			}
 		}
 	}
+
+	SetChoreStatus(SaveChoreData.ChoreStatus);
 }

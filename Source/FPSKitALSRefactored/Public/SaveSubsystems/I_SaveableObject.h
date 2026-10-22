@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Core/CubixonCoreData.h"
+#include "ChoreSystem/ChoreEnums.h"
 #include "I_SaveableObject.generated.h"
 
 USTRUCT(BlueprintType)
@@ -27,6 +28,18 @@ struct FSaveItemData
 
 	UPROPERTY()
 	uint8 bHasSimulatedPhysics : 1{false};
+};
+
+USTRUCT(BlueprintType)
+struct FSaveChoreData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EChoreStatus ChoreStatus;
+
+	UPROPERTY()
+	TArray<FSaveItemData> SaveItemData;
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
@@ -77,8 +90,8 @@ public:
 
 	// ChorePlacement save data collection and application functions
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	TArray<FSaveItemData> CollectChorePlacementSaveData();
+	FSaveChoreData CollectChorePlacementSaveData();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyChorePlacementSaveData(const TArray<FSaveItemData>& SaveDataArray);
+	void ApplyChorePlacementSaveData(const FSaveChoreData& SaveDataArray);
 };
