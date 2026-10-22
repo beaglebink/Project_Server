@@ -6,6 +6,7 @@
 #include "SpawnGroupTypes.generated.h"
 
 class USpawnGroupAsset;
+class ASpawnVolume;
 
 // ============================================================================
 // Ѕазовые типы спавн-групп
@@ -94,23 +95,33 @@ struct FSpawnSlotState
 {
     GENERATED_BODY()
 
-    UPROPERTY()
-    FGuid ItemId;
+    UPROPERTY() FGuid ItemId;
+    UPROPERTY() TSubclassOf<AActor> ActorClass = nullptr;
+    UPROPERTY() FTransform SpawnTransform = FTransform::Identity;
+    UPROPERTY() EGhostState State = EGhostState::Alive;
+    UPROPERTY() FGameplayTagContainer GameplayTags;
+    UPROPERTY() TArray<FName> TextTags;
+};
 
-    UPROPERTY()
-    TSubclassOf<AActor> ActorClass = nullptr;
+USTRUCT()
+struct FSpawnerRuntimeConfig
+{
+    GENERATED_BODY()
 
-    UPROPERTY()
-    FTransform SpawnTransform = FTransform::Identity;
+    // false Ч старый сейв (полей не было), не перетирать .umap-дефолты.
+    UPROPERTY() bool bHasData = false;
 
-    UPROPERTY()
-    EGhostState State = EGhostState::Alive;
-
-    UPROPERTY()
-    FGameplayTagContainer GameplayTags;
-
-    UPROPERTY()
-    TArray<FName> TextTags;
+    UPROPERTY() bool IsSavingHealth = true;
+    UPROPERTY() bool bSpawnOnBeginPlay = false;
+    UPROPERTY() bool bDestroyOnClear = false;
+    UPROPERTY() bool bAllowRespawn = false;
+    UPROPERTY() float SpawnInterval = 0.05f;
+    UPROPERTY() FVector SpawnOffset = FVector::ZeroVector;
+    UPROPERTY() FRotator DefaultSpawnRotation = FRotator::ZeroRotator;
+    UPROPERTY() TArray<TSoftObjectPtr<ASpawnVolume>> SpawnLocations;
+    UPROPERTY() TArray<FName> EnemyTags;
+    UPROPERTY() FGameplayTagContainer EnemyGameplayTags;
+    UPROPERTY() bool DebugSpawnPoints = false;
 };
 
 USTRUCT()
@@ -128,4 +139,9 @@ struct FSpawnGroupState
     UPROPERTY() TArray<FSpawnSlotState> Slots;
     UPROPERTY() TMap<FName, int32> TypeKilled;
     UPROPERTY() bool bManualActivationOnly = false;
+    UPROPERTY() bool bIsStoreSpawnParameters = false;
+    UPROPERTY() bool bHasIsStoreSpawnParameters = false;
+
+    // NEW: остальные настройки Configure, переживающие перезагрузку.
+    UPROPERTY() FSpawnerRuntimeConfig RuntimeConfig;
 };
