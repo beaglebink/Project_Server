@@ -20,6 +20,9 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|ParentActor")
+	AActor* ParentActor;
+
 	UPROPERTY(EditAnywhere, Category = "DropZone|AreaMesh")
 	UStaticMeshComponent* DropZoneMeshComponent;
 

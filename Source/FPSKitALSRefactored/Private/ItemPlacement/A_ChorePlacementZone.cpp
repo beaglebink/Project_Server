@@ -44,7 +44,9 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 	// AreaDropZone actor
 	if (!AreaDropZone && AreaDropZoneClass)
 	{
-		AreaDropZone = GetWorld()->SpawnActor<AA_AreaDropZone>(AreaDropZoneClass, GetActorTransform());
+		FActorSpawnParameters Params;
+		Params.Owner = this;
+		AreaDropZone = GetWorld()->SpawnActor<AA_AreaDropZone>(AreaDropZoneClass, GetActorTransform(), Params);
 		if (!IsValid(AreaDropZone->ParentActor))
 		{
 			AreaDropZone->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
@@ -55,6 +57,36 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 	// DropZones actors
 	if (DropZoneClass && DropZoneGridVisualClass)
 	{
+		//Clean DropZoneGridVisual actors on Editor array changes
+		TArray<AActor*> AttachedActors;
+		GetAttachedActors(AttachedActors);
+		TArray<AActor*> DropZoneGridVisualActors;
+		for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
+		{
+			if (IsValid(DropZonePlacementZone.DropZoneGridVisual))
+			{
+				DropZoneGridVisualActors.AddUnique(DropZonePlacementZone.DropZoneGridVisual);
+			}
+		}
+		for (AActor* AttachedActor : AttachedActors)
+		{
+			if (AA_DropZoneGridVisual* GridVisual = Cast<AA_DropZoneGridVisual>(AttachedActor))
+			{
+				if (!DropZoneGridVisualActors.Contains(GridVisual))
+				{
+					GridVisual->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+					TArray<AActor*> AttachedDropZones;
+					GridVisual->GetAttachedActors(AttachedDropZones);
+					for (AActor* DropZone : AttachedDropZones)
+					{
+						DropZone->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+						DropZone->Destroy();
+					}
+					GridVisual->Destroy();
+				}
+			}
+		}
+
 		for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
 		{
 			// Create the DropZoneGridVisual actor for this placement zone
@@ -93,7 +125,7 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 
 				while (DropZonePlacementZone.DropZones.Num() < DropZonePlacementZone.DropZoneQuantity)
 				{
-					AA_DropZone* DropZone = GetWorld()->SpawnActorDeferred<AA_DropZone>(DropZoneClass, GetActorTransform(), this);
+					AA_DropZone* DropZone = GetWorld()->SpawnActorDeferred<AA_DropZone>(DropZoneClass, GetActorTransform(), DropZonePlacementZone.DropZoneGridVisual);
 					DropZone->ItemClass = DropZonePlacementZone.ItemClass;
 					DropZone->FinishSpawning(GetActorTransform());
 					if (!IsValid(DropZone->ParentActor))
