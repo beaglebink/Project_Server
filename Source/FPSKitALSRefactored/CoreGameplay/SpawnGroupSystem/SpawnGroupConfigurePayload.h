@@ -65,12 +65,12 @@ public:
     bool IsSavingHealth = true;
 
     // Spawn on BeginPlay
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Behaviour",
-        meta = (InlineEditConditionToggle))
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Behaviour",
+    //    meta = (InlineEditConditionToggle))
     bool bApplySpawnOnBeginPlay = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Behaviour",
-        meta = (EditCondition = "bApplySpawnOnBeginPlay"))
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup|Configure|Behaviour",
+    //    meta = (EditCondition = "bApplySpawnOnBeginPlay"))
     bool bSpawnOnBeginPlay = false;
 
     // Destroy on clear

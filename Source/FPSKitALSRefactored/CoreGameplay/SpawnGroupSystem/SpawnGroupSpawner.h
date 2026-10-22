@@ -42,7 +42,7 @@ public:
     UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = "SpawnGroup")
     TObjectPtr<USpawnGroupAsset> SpawnGroupAsset;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")
     bool bSpawnOnBeginPlay = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpawnGroup")

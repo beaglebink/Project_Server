@@ -6,6 +6,7 @@
 #include "SpawnGroupTypes.generated.h"
 
 class USpawnGroupAsset;
+class ASpawnVolume;
 
 // ============================================================================
 // Ѕазовые типы спавн-групп
@@ -103,6 +104,27 @@ struct FSpawnSlotState
 };
 
 USTRUCT()
+struct FSpawnerRuntimeConfig
+{
+    GENERATED_BODY()
+
+    // false Ч старый сейв (полей не было), не перетирать .umap-дефолты.
+    UPROPERTY() bool bHasData = false;
+
+    UPROPERTY() bool IsSavingHealth = true;
+    UPROPERTY() bool bSpawnOnBeginPlay = false;
+    UPROPERTY() bool bDestroyOnClear = false;
+    UPROPERTY() bool bAllowRespawn = false;
+    UPROPERTY() float SpawnInterval = 0.05f;
+    UPROPERTY() FVector SpawnOffset = FVector::ZeroVector;
+    UPROPERTY() FRotator DefaultSpawnRotation = FRotator::ZeroRotator;
+    UPROPERTY() TArray<TSoftObjectPtr<ASpawnVolume>> SpawnLocations;
+    UPROPERTY() TArray<FName> EnemyTags;
+    UPROPERTY() FGameplayTagContainer EnemyGameplayTags;
+    UPROPERTY() bool DebugSpawnPoints = false;
+};
+
+USTRUCT()
 struct FSpawnGroupState
 {
     GENERATED_BODY()
@@ -116,7 +138,10 @@ struct FSpawnGroupState
     UPROPERTY() TSoftObjectPtr<USpawnGroupAsset> SpawnGroupAssetOverride = nullptr;
     UPROPERTY() TArray<FSpawnSlotState> Slots;
     UPROPERTY() TMap<FName, int32> TypeKilled;
-
-    // NEW: если true Ч спавнер игнорирует активацию из шагов сценари€.
     UPROPERTY() bool bManualActivationOnly = false;
+    UPROPERTY() bool bIsStoreSpawnParameters = false;
+    UPROPERTY() bool bHasIsStoreSpawnParameters = false;
+
+    // NEW: остальные настройки Configure, переживающие перезагрузку.
+    UPROPERTY() FSpawnerRuntimeConfig RuntimeConfig;
 };

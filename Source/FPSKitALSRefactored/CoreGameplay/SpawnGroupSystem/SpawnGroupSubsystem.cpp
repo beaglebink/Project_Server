@@ -41,8 +41,8 @@ static TSharedPtr<FJsonObject> SerializeConfigurePayload(const USpawnGroupConfig
     Cfg->SetBoolField(TEXT("IsStoreSpawnParameters"), P->IsStoreSpawnParameters);
     Cfg->SetBoolField(TEXT("bApplySavingHealth"), P->bApplySavingHealth);
     Cfg->SetBoolField(TEXT("IsSavingHealth"), P->IsSavingHealth);
-    Cfg->SetBoolField(TEXT("bApplySpawnOnBeginPlay"), P->bApplySpawnOnBeginPlay);
-    Cfg->SetBoolField(TEXT("bSpawnOnBeginPlay"), P->bSpawnOnBeginPlay);
+    //Cfg->SetBoolField(TEXT("bApplySpawnOnBeginPlay"), P->bApplySpawnOnBeginPlay);
+    //Cfg->SetBoolField(TEXT("bSpawnOnBeginPlay"), P->bSpawnOnBeginPlay);
     Cfg->SetBoolField(TEXT("bApplyDestroyOnClear"), P->bApplyDestroyOnClear);
     Cfg->SetBoolField(TEXT("bDestroyOnClear"), P->bDestroyOnClear);
     Cfg->SetBoolField(TEXT("bApplyAllowRespawn"), P->bApplyAllowRespawn);
@@ -128,8 +128,8 @@ static USpawnGroupConfigurePayload* DeserializeConfigurePayload(
     Cfg->TryGetBoolField(TEXT("IsStoreSpawnParameters"), P->IsStoreSpawnParameters);
     Cfg->TryGetBoolField(TEXT("bApplySavingHealth"), P->bApplySavingHealth);
     Cfg->TryGetBoolField(TEXT("IsSavingHealth"), P->IsSavingHealth);
-    Cfg->TryGetBoolField(TEXT("bApplySpawnOnBeginPlay"), P->bApplySpawnOnBeginPlay);
-    Cfg->TryGetBoolField(TEXT("bSpawnOnBeginPlay"), P->bSpawnOnBeginPlay);
+    //Cfg->TryGetBoolField(TEXT("bApplySpawnOnBeginPlay"), P->bApplySpawnOnBeginPlay);
+    //Cfg->TryGetBoolField(TEXT("bSpawnOnBeginPlay"), P->bSpawnOnBeginPlay);
     Cfg->TryGetBoolField(TEXT("bApplyDestroyOnClear"), P->bApplyDestroyOnClear);
     Cfg->TryGetBoolField(TEXT("bDestroyOnClear"), P->bDestroyOnClear);
     Cfg->TryGetBoolField(TEXT("bApplyAllowRespawn"), P->bApplyAllowRespawn);
@@ -210,6 +210,172 @@ static USpawnGroupConfigurePayload* DeserializeConfigurePayload(
     Cfg->TryGetBoolField(TEXT("DebugSpawnPoints"), P->DebugSpawnPoints);
 
     return P;
+}
+
+// ============================================================================
+// FSpawnerRuntimeConfig: capture / apply / JSON
+// ============================================================================
+
+static FSpawnerRuntimeConfig CaptureRuntimeConfig(const ASpawnGroupSpawner* S)
+{
+    FSpawnerRuntimeConfig C;
+    if (!S) return C;
+
+    C.bHasData = true;
+    C.IsSavingHealth = S->IsSavingHealth;
+    C.bSpawnOnBeginPlay = S->bSpawnOnBeginPlay;
+    C.bDestroyOnClear = S->bDestroyOnClear;
+    C.bAllowRespawn = S->bAllowRespawn;
+    C.SpawnInterval = S->SpawnInterval;
+    C.SpawnOffset = S->SpawnOffset;
+    C.DefaultSpawnRotation = S->DefaultSpawnRotation;
+    C.EnemyTags = S->EnemyTags;
+    C.EnemyGameplayTags = S->EnemyGameplayTags;
+    C.DebugSpawnPoints = S->DebugSpawnPoints;
+
+    for (ASpawnVolume* V : S->SpawnLocations)
+        if (V) C.SpawnLocations.Add(V);
+
+    return C;
+}
+
+static void ApplyRuntimeConfig(ASpawnGroupSpawner* S, const FSpawnerRuntimeConfig& C)
+{
+    if (!S || !C.bHasData) return;   // старый сейв — не трогаем .umap-дефолты
+
+    S->IsSavingHealth = C.IsSavingHealth;
+    S->bSpawnOnBeginPlay = C.bSpawnOnBeginPlay;
+    S->bDestroyOnClear = C.bDestroyOnClear;
+    S->bAllowRespawn = C.bAllowRespawn;
+    S->SpawnInterval = C.SpawnInterval;
+    S->SpawnOffset = C.SpawnOffset;
+    S->DefaultSpawnRotation = C.DefaultSpawnRotation;
+    S->EnemyTags = C.EnemyTags;
+    S->EnemyGameplayTags = C.EnemyGameplayTags;
+    S->DebugSpawnPoints = C.DebugSpawnPoints;
+
+    S->SpawnLocations.Empty();
+    for (const TSoftObjectPtr<ASpawnVolume>& Soft : C.SpawnLocations)
+        if (ASpawnVolume* V = Soft.LoadSynchronous())
+            S->SpawnLocations.Add(V);
+}
+
+static TSharedPtr<FJsonObject> SerializeRuntimeConfig(const FSpawnerRuntimeConfig& C)
+{
+    TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+    Obj->SetBoolField(TEXT("bHasData"), C.bHasData);
+    Obj->SetBoolField(TEXT("IsSavingHealth"), C.IsSavingHealth);
+    Obj->SetBoolField(TEXT("bSpawnOnBeginPlay"), C.bSpawnOnBeginPlay);
+    Obj->SetBoolField(TEXT("bDestroyOnClear"), C.bDestroyOnClear);
+    Obj->SetBoolField(TEXT("bAllowRespawn"), C.bAllowRespawn);
+    Obj->SetNumberField(TEXT("SpawnInterval"), C.SpawnInterval);
+
+    {
+        TSharedPtr<FJsonObject> Vec = MakeShared<FJsonObject>();
+        Vec->SetNumberField(TEXT("X"), C.SpawnOffset.X);
+        Vec->SetNumberField(TEXT("Y"), C.SpawnOffset.Y);
+        Vec->SetNumberField(TEXT("Z"), C.SpawnOffset.Z);
+        Obj->SetObjectField(TEXT("SpawnOffset"), Vec);
+    }
+    {
+        TSharedPtr<FJsonObject> Rot = MakeShared<FJsonObject>();
+        Rot->SetNumberField(TEXT("Pitch"), C.DefaultSpawnRotation.Pitch);
+        Rot->SetNumberField(TEXT("Yaw"), C.DefaultSpawnRotation.Yaw);
+        Rot->SetNumberField(TEXT("Roll"), C.DefaultSpawnRotation.Roll);
+        Obj->SetObjectField(TEXT("DefaultSpawnRotation"), Rot);
+    }
+
+    TArray<TSharedPtr<FJsonValue>> LocsArr;
+    for (const TSoftObjectPtr<ASpawnVolume>& Soft : C.SpawnLocations)
+        if (!Soft.IsNull())
+            LocsArr.Add(MakeShared<FJsonValueString>(Soft.ToSoftObjectPath().GetLongPackageName()));
+    Obj->SetArrayField(TEXT("SpawnLocations"), LocsArr);
+
+    TArray<TSharedPtr<FJsonValue>> EnemyTagsArr;
+    for (const FName& Tag : C.EnemyTags)
+        EnemyTagsArr.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+    Obj->SetArrayField(TEXT("EnemyTags"), EnemyTagsArr);
+
+    TArray<TSharedPtr<FJsonValue>> EnemyGpTagsArr;
+    for (const FGameplayTag& Tag : C.EnemyGameplayTags)
+        EnemyGpTagsArr.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+    Obj->SetArrayField(TEXT("EnemyGameplayTags"), EnemyGpTagsArr);
+
+    Obj->SetBoolField(TEXT("DebugSpawnPoints"), C.DebugSpawnPoints);
+    return Obj;
+}
+
+static void DeserializeRuntimeConfig(const TSharedPtr<FJsonObject>& Obj, FSpawnerRuntimeConfig& C)
+{
+    if (!Obj.IsValid()) return;
+
+    Obj->TryGetBoolField(TEXT("bHasData"), C.bHasData);
+    if (!C.bHasData) return;
+
+    Obj->TryGetBoolField(TEXT("IsSavingHealth"), C.IsSavingHealth);
+    Obj->TryGetBoolField(TEXT("bSpawnOnBeginPlay"), C.bSpawnOnBeginPlay);
+    Obj->TryGetBoolField(TEXT("bDestroyOnClear"), C.bDestroyOnClear);
+    Obj->TryGetBoolField(TEXT("bAllowRespawn"), C.bAllowRespawn);
+    Obj->TryGetNumberField(TEXT("SpawnInterval"), C.SpawnInterval);
+
+    {
+        const TSharedPtr<FJsonObject>* Vec = nullptr;
+        if (Obj->TryGetObjectField(TEXT("SpawnOffset"), Vec))
+        {
+            double X = 0, Y = 0, Z = 0;
+            (*Vec)->TryGetNumberField(TEXT("X"), X);
+            (*Vec)->TryGetNumberField(TEXT("Y"), Y);
+            (*Vec)->TryGetNumberField(TEXT("Z"), Z);
+            C.SpawnOffset = FVector(X, Y, Z);
+        }
+    }
+    {
+        const TSharedPtr<FJsonObject>* Rot = nullptr;
+        if (Obj->TryGetObjectField(TEXT("DefaultSpawnRotation"), Rot))
+        {
+            double P = 0, Y = 0, R = 0;
+            (*Rot)->TryGetNumberField(TEXT("Pitch"), P);
+            (*Rot)->TryGetNumberField(TEXT("Yaw"), Y);
+            (*Rot)->TryGetNumberField(TEXT("Roll"), R);
+            C.DefaultSpawnRotation = FRotator(P, Y, R);
+        }
+    }
+
+    {
+        const TArray<TSharedPtr<FJsonValue>>* LocsArr = nullptr;
+        if (Obj->TryGetArrayField(TEXT("SpawnLocations"), LocsArr))
+        {
+            for (const auto& V : *LocsArr)
+                if (V->Type == EJson::String)
+                    C.SpawnLocations.Add(
+                        TSoftObjectPtr<ASpawnVolume>(FSoftObjectPath(V->AsString())));
+        }
+    }
+    {
+        const TArray<TSharedPtr<FJsonValue>>* TagsArr = nullptr;
+        if (Obj->TryGetArrayField(TEXT("EnemyTags"), TagsArr))
+        {
+            for (const auto& V : *TagsArr)
+                if (V->Type == EJson::String)
+                    C.EnemyTags.Add(FName(*V->AsString()));
+        }
+    }
+    {
+        const TArray<TSharedPtr<FJsonValue>>* TagsArr = nullptr;
+        if (Obj->TryGetArrayField(TEXT("EnemyGameplayTags"), TagsArr))
+        {
+            for (const auto& V : *TagsArr)
+                if (V->Type == EJson::String)
+                {
+                    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(
+                        FName(*V->AsString()), /*ErrorIfNotFound=*/false);
+                    if (Tag.IsValid())
+                        C.EnemyGameplayTags.AddTag(Tag);
+                }
+        }
+    }
+
+    Obj->TryGetBoolField(TEXT("DebugSpawnPoints"), C.DebugSpawnPoints);
 }
 
 // ============================================================================
@@ -798,7 +964,7 @@ void USpawnGroupSubsystem::ApplyConfigureToSpawner(ASpawnGroupSpawner* Spawner, 
     if (P->bApplyStoreSpawnParameters)  Spawner->IsStoreSpawnParameters = P->IsStoreSpawnParameters;
     if (P->bApplySavingHealth)          Spawner->IsSavingHealth = P->IsSavingHealth;
 
-    if (P->bApplySpawnOnBeginPlay)      Spawner->bSpawnOnBeginPlay = P->bSpawnOnBeginPlay;
+    //if (P->bApplySpawnOnBeginPlay)      Spawner->bSpawnOnBeginPlay = P->bSpawnOnBeginPlay;
     if (P->bApplyDestroyOnClear)        Spawner->bDestroyOnClear = P->bDestroyOnClear;
     if (P->bApplyAllowRespawn)          Spawner->bAllowRespawn = P->bAllowRespawn;
 
@@ -961,6 +1127,11 @@ void USpawnGroupSubsystem::UpdateSpawnerStateInCache(ASpawnGroupSpawner* Spawner
     State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
     State.bManualActivationOnly = Spawner->bManualActivationOnly;
 
+    State.bIsStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
+    State.bHasIsStoreSpawnParameters = true;
+
+    State.RuntimeConfig = CaptureRuntimeConfig(Spawner);
+
     if (bPreserveSlots)
     {
         State.Slots = Spawner->GetAllSlots();
@@ -1030,6 +1201,15 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         State.SpawnGroupAssetOverride = Spawner->SpawnGroupAsset;
         State.bManualActivationOnly = Spawner->bManualActivationOnly;
 
+        // NEW: сохраняем сам флаг IsStoreSpawnParameters, чтобы пережить перезагрузку уровня.
+        State.bIsStoreSpawnParameters = Spawner->IsStoreSpawnParameters;
+        State.bHasIsStoreSpawnParameters = true;
+
+        // NEW: снимок остальных настроек Configure (IsSavingHealth, bSpawnOnBeginPlay,
+        // bDestroyOnClear, bAllowRespawn, SpawnInterval, SpawnOffset, DefaultSpawnRotation,
+        // SpawnLocations, EnemyTags, EnemyGameplayTags, DebugSpawnPoints).
+        State.RuntimeConfig = CaptureRuntimeConfig(Spawner);
+
         if (bPreserveSlots)
         {
             State.Slots = Spawner->GetAllSlots();
@@ -1069,6 +1249,20 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
             StateObj->SetBoolField(TEXT("bBlockNewSpawn"), S.bBlockNewSpawn);
             StateObj->SetNumberField(TEXT("KilledCount"), S.KilledCount);
             StateObj->SetBoolField(TEXT("bManualActivationOnly"), S.bManualActivationOnly);
+
+            // NEW: сохраняем сам флаг IsStoreSpawnParameters.
+            if (S.bHasIsStoreSpawnParameters)
+            {
+                StateObj->SetBoolField(TEXT("bIsStoreSpawnParameters"), S.bIsStoreSpawnParameters);
+            }
+
+            // NEW: сохраняем остальные настройки Configure.
+            // bHasData внутри объекта — защита для старых сейвов.
+            if (S.RuntimeConfig.bHasData)
+            {
+                StateObj->SetObjectField(TEXT("RuntimeConfig"),
+                    SerializeRuntimeConfig(S.RuntimeConfig));
+            }
 
             if (!S.SpawnGroupAssetOverride.IsNull())
             {
@@ -1131,7 +1325,6 @@ void USpawnGroupSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
     // ============================================================
     // Сериализация PendingSpawnerCommands
-    // Config — через SerializeConfigurePayload (см. хелпер выше в .cpp)
     // ============================================================
     TSharedPtr<FJsonObject> PendingRoot = MakeShared<FJsonObject>();
 
@@ -1248,6 +1441,24 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                     if ((*StateObj)->HasField(TEXT("bManualActivationOnly")))
                         State.bManualActivationOnly = (*StateObj)->GetBoolField(TEXT("bManualActivationOnly"));
 
+                    // NEW: читаем сам флаг IsStoreSpawnParameters (если он был записан).
+                    if ((*StateObj)->HasField(TEXT("bIsStoreSpawnParameters")))
+                    {
+                        State.bIsStoreSpawnParameters = (*StateObj)->GetBoolField(TEXT("bIsStoreSpawnParameters"));
+                        State.bHasIsStoreSpawnParameters = true;
+                    }
+                    // else: старый сейв — оставляем bHasIsStoreSpawnParameters = false,
+                    // чтобы HandleLevelLoaded не перетёр .umap-дефолт.
+
+                    // NEW: читаем остальные настройки Configure.
+                    {
+                        const TSharedPtr<FJsonObject>* RuntimeCfgObj = nullptr;
+                        if ((*StateObj)->TryGetObjectField(TEXT("RuntimeConfig"), RuntimeCfgObj))
+                        {
+                            DeserializeRuntimeConfig(*RuntimeCfgObj, State.RuntimeConfig);
+                        }
+                    }
+
                     FString AssetPath;
                     if ((*StateObj)->TryGetStringField(TEXT("SpawnGroupAssetPath"), AssetPath) && !AssetPath.IsEmpty())
                     {
@@ -1358,7 +1569,6 @@ void USpawnGroupSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
     // ============================================================
     // PendingSpawnerCommands
-    // Config — через DeserializeConfigurePayload
     // ============================================================
     PendingSpawnerCommands.Empty();
 
@@ -2071,6 +2281,16 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
                     Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
                 Spawner->BlockNewSpawn = State->bBlockNewSpawn;
                 Spawner->bManualActivationOnly = State->bManualActivationOnly;
+
+                // NEW: восстанавливаем сам флаг IsStoreSpawnParameters из сейва.
+                // Если поле в сейве отсутствовало (старый сейв), не трогаем
+                // значение актора (оно пришло из .umap-дефолта).
+                if (State->bHasIsStoreSpawnParameters)
+                {
+                    Spawner->IsStoreSpawnParameters = State->bIsStoreSpawnParameters;
+                }
+
+                ApplyRuntimeConfig(Spawner, State->RuntimeConfig);
 
                 if (Spawner->bWasRestoredByMission)
                     continue;
