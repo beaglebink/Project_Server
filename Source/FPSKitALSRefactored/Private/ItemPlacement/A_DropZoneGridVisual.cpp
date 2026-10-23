@@ -68,12 +68,7 @@ void AA_DropZoneGridVisual::Destroyed()
 	Super::Destroyed();
 }
 
-void AA_DropZoneGridVisual::AddChildDropZone(AA_DropZone* DropZone)
-{
-	DropZoneChildren.AddUnique(DropZone);
-}
-
-TArray<AA_DropZone*> AA_DropZoneGridVisual::GetDropZoneChildren() const
+TArray<AA_DropZone*>& AA_DropZoneGridVisual::GetDropZoneChildren()
 {
 	return DropZoneChildren;
 }

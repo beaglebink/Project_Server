@@ -72,4 +72,7 @@ private:
 public:
 	UPROPERTY(EditAnywhere, Category = "DropZone|ActiveState", meta = (AllowPrivateAccess = "true"))
 	uint8 bIsActive : 1{true};
+
+	UFUNCTION()
+	void RefreshItemClass();
 };
