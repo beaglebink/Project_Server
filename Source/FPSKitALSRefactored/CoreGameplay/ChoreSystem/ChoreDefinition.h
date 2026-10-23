@@ -129,21 +129,21 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
     EChoreRetryBehavior RetryBehavior = EChoreRetryBehavior::None;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
-    bool bIsRepeatable = false;
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
+    //bool bIsRepeatable = false;
 
     // ---- Behavior on AbandonRequest ----
     // ---- Поведение при AbandonRequest ----
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
-    EChoreAbandonBehavior AbandonBehavior = EChoreAbandonBehavior::Fail;
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
+    //EChoreAbandonBehavior AbandonBehavior = EChoreAbandonBehavior::Fail;
 
-    // ---- Rewards ----
-    // ---- Награды ----
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rewards")
-    FChoreRewardSet Rewards;
-
+    // ---- Rewards. ----
+    // ---- Награды. ----
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rewards")
     bool bShowRewardBeforeAccept = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rewards")
+    FChoreRewardSet Rewards;
 
     // ---- Methods ----
     // ---- Методы ----

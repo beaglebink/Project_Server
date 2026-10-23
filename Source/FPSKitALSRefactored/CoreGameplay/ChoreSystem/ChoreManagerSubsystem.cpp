@@ -377,6 +377,9 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
         case EChoreStatus::PendingReaccept:
             Event.OutcomeChore = EOutcomeChore::ChorePendingReaccept;
             break;
+        case EChoreStatus::Abandoned:
+            Event.OutcomeChore = EOutcomeChore::ChoreAbandoned;
+            break;
         default:
             return;
         }
@@ -500,7 +503,7 @@ void UChoreManagerSubsystem::OfferChore(FName ChoreId)
     if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
         return;
 
-    if (State.Status == EChoreStatus::Completed && !Definitions[ChoreId]->bIsRepeatable)
+    if (State.Status == EChoreStatus::Completed /* && !Definitions[ChoreId]->bIsRepeatable*/)
         return;
 
     UpdateChoreState(ChoreId, EChoreStatus::Available);
@@ -598,7 +601,7 @@ void UChoreManagerSubsystem::CompleteChore(FName ChoreId, const FChorePerformanc
     State.IsExpired = false;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    if (Def && Def->bIsRepeatable)
+    if (Def /* && Def->bIsRepeatable*/)
     {
         if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
@@ -629,7 +632,7 @@ void UChoreManagerSubsystem::FailChore(FName ChoreId, const FChorePerformanceMet
     State.bSucceeded = false;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    if (Def && Def->bIsRepeatable)
+    if (Def /* && Def->bIsRepeatable*/)
     {
         if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
@@ -659,7 +662,7 @@ void UChoreManagerSubsystem::ExpireChore(FName ChoreId)
     State.IsExpired = true;
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    if (Def && Def->bIsRepeatable)
+    if (Def /* && Def->bIsRepeatable*/)
     {
         if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
@@ -689,25 +692,26 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     }
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    const EChoreAbandonBehavior Behavior = Def ? Def->AbandonBehavior : EChoreAbandonBehavior::Fail;
+    //const EChoreAbandonBehavior Behavior = Def ? Def->AbandonBehavior : EChoreAbandonBehavior::Fail;
 
     // ---- Fail (previous behavior) ----
     // ---- Fail (прежнее поведение) ----
     ClearDeadlineTimer(ChoreId);
     EnsureElapsedTimeRecorded(State);
-    UpdateChoreState(ChoreId, EChoreStatus::Failed);
+    UpdateChoreState(ChoreId, EChoreStatus::Abandoned);
     AddHistoryEntry(ChoreId, EOutcomeChore::AbandonRequest, State.Performance);
     State.IsExpired = false;
 
-    if (Behavior == EChoreAbandonBehavior::Fail)
-    {
-        if (Def && Def->bIsRepeatable)
+
+    //if (Behavior == EChoreAbandonBehavior::Fail)
+    //{
+        if (Def /* && Def->bIsRepeatable*/)
         {
             if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
             {
                 UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
             }
-            else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional && Def->ReactivationCondition)
+            else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional /* && Def->ReactivationCondition*/)
             {
                 RegisterReactivationHandler(Def);
             }
@@ -716,9 +720,10 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
                 UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
             }
         }
-    }
+    //}
 
     // ---- ReturnToAvailable ----
+    /*
     if (GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAccepted ||
         GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAvailable)
     {
@@ -732,6 +737,7 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     {
         UpdateChoreState(ChoreId, EChoreStatus::Accepted, true, true);
     }
+*/
 }
 
 void UChoreManagerSubsystem::RetryChore(FName ChoreId)
@@ -741,45 +747,13 @@ void UChoreManagerSubsystem::RetryChore(FName ChoreId)
 
     State->IsExpired = false;
 
-    // ---- Scenario 1: regular retry after a failure with RequireReaccept ----
-    // ---- Сценарий 1: обычный retry после провала с RequireReaccept ----
-    if (State->Status == EChoreStatus::PendingReaccept)
+    if (State->Status == EChoreStatus::PendingReaccept || State->Status == EChoreStatus::Failed || State->Status == EChoreStatus::Abandoned)
     {
         RestartChore(ChoreId);
         State->bRewardIssued = false;
         UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
         return;
     }
-
-    // ---- Scenario 2: Abandon returned the chore to its original state ----
-    // AbandonChore for ReturnToAccepted/ReturnToAvailable publishes RetryRequest,
-    // and we end up here while the status is one of "before start"/"in progress".
-    // ---- Сценарий 2: Abandon вернул хору в исходное состояние ----
-    // AbandonChore для ReturnToAccepted/ReturnToAvailable публикует RetryRequest,
-    // и мы попадаем сюда, пока статус — один из «до старта»/«в процессе».
-    if (State->Status == EChoreStatus::Failed)
-    {
-        UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-        const EChoreAbandonBehavior Behavior = Def
-            ? Def->AbandonBehavior
-            : EChoreAbandonBehavior::Fail;
-
-        RestartChore(ChoreId);
-
-        if (Behavior == EChoreAbandonBehavior::ReturnToAccepted)
-        {
-            UpdateChoreState(ChoreId, EChoreStatus::Accepted);
-        }
-        else if (Behavior == EChoreAbandonBehavior::ReturnToAvailable)
-        {
-            State->bRewardIssued = false;
-            UpdateChoreState(ChoreId, EChoreStatus::Available);
-        }
-        return;
-    }
-
-    // Any other statuses — not our scenario.
-    // Любые другие статусы — не наш сценарий.
 }
 
 void UChoreManagerSubsystem::UnlockChore(FName ChoreId)
@@ -904,6 +878,17 @@ TArray<FName> UChoreManagerSubsystem::GetActiveChoreIds() const
     for (const auto& Pair : ActiveStates)
     {
         if (Pair.Value.Status == EChoreStatus::Active)
+            Result.Add(Pair.Key);
+    }
+    return Result;
+}
+
+TArray<FName> UChoreManagerSubsystem::GetAbandonedChoreIds() const
+{
+    TArray<FName> Result;
+    for (const auto& Pair : ActiveStates)
+    {
+        if (Pair.Value.Status == EChoreStatus::Abandoned)
             Result.Add(Pair.Key);
     }
     return Result;
@@ -1559,7 +1544,7 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
         AddHistoryEntry(ChoreId, EOutcomeChore::CompleteRequest, Result->Performance);
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-        if (Def && Def->bIsRepeatable)
+        if (Def /* && Def->bIsRepeatable*/)
         {
             if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
             {
@@ -1581,7 +1566,7 @@ void UChoreManagerSubsystem::HandleChoreCompletion(const FOutcomeEventBase& Outc
         AddHistoryEntry(ChoreId, EOutcomeChore::FailRequest, Result->Performance);
 
         UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-        if (Def && Def->bIsRepeatable)
+        if (Def /* && Def->bIsRepeatable*/)
         {
             if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
             {
@@ -1707,13 +1692,49 @@ void UChoreManagerSubsystem::EvaluateAllAvailability()
         FChoreState& State = Pair.Value;
         const EChoreStatus Status = State.Status;
 
-        // Обрабатываем только те статусы, которые реально могут измениться
-        // от переоценки availability condition:
-        //   Unavailable / RetryAvailable → Available (если условие стало true),
-        //   Available / Offered          → Unavailable (если условие стало false).
+        // ── Conditional-реактивация (state-driven) ────────────────────────
         //
-        // Второе критично для условий с временным окном: окно истекает без
-        // внешнего события, и pulse — единственный, кто это заметит.
+        // Хора в Completed/Failed/Expired/Abandoned с RetryBehavior=Conditional
+        // и state-driven ReactivationCondition не увидит «стало true» без
+        // внешнего события. Pulse — единственный, кто может это заметить.
+        //
+        // Event-driven условия (MissionCondition, WorldState FactAdded/…)
+        // здесь не переоцениваются: их Evaluate(Dummy) вернёт false вне
+        // контекста события, и мы бы ошибочно решили, что условие не
+        // выполнено. Они ждут события в EventBus.
+        const bool bCanBeReactivated =
+            (Status == EChoreStatus::Completed ||
+                Status == EChoreStatus::Failed ||
+                Status == EChoreStatus::Expired ||
+                Status == EChoreStatus::Abandoned);   // ← добавлено
+
+        if (bCanBeReactivated)
+        {
+            UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+            if (Def
+                && Def->RetryBehavior == EChoreRetryBehavior::Conditional
+                && Def->ReactivationCondition
+                && Def->ReactivationCondition->IsStateDriven())
+            {
+                if (!Def->ReactivationCondition->GetCondition().IsValid())
+                    Def->ReactivationCondition->CompileCondition();
+
+                if (Def->ReactivationCondition->GetCondition().IsValid())
+                {
+                    FOutcomeEventBase Dummy;
+                    if (Def->ReactivationCondition->GetCondition()->Evaluate(Dummy))
+                    {
+                        UnregisterReactivationHandler(ChoreId);
+                        UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+                    }
+                }
+            }
+            // Из Completed/Failed/Expired/Abandoned availability-ветка ниже
+            // ничего не делает — уходим на следующую итерацию.
+            continue;
+        }
+
+        // ── Availability ──────────────────────────────────────────────────
         const bool bCanBeOffered =
             (Status == EChoreStatus::Unavailable || Status == EChoreStatus::RetryAvailable);
         const bool bCanBeRevoked =
@@ -1737,10 +1758,6 @@ void UChoreManagerSubsystem::EvaluateAllAvailability()
         }
         else if (bCanBeRevoked && !bConditionMet)
         {
-            // Отзываем по pulse ТОЛЬКО state-driven условия. Event-driven
-            // (MissionCondition, WorldState FactAdded/…, композиты с ними)
-            // при Dummy-payload возвращают false, и это не значит, что
-            // состояние изменилось — их отзыв должен идти по событию.
             if (Def->AvailabilityCondition->IsStateDriven())
             {
                 RevokeChore(ChoreId);
@@ -1756,39 +1773,56 @@ void UChoreManagerSubsystem::RegisterReactivationHandler(UChoreDefinition* Defin
 
     FName ChoreId = Definition->GetChoreId();
 
-    // If an active handler already exists – do not create a new one
-    // Если уже есть активный обработчик – не создаём новый
-    if (ActiveStates.Contains(ChoreId) && ActiveStates[ChoreId].AvailabilityHandler.IsValid())
+    // Если для этой хоры уже есть активный реактивационный хендлер — не плодим.
+    // Раньше здесь ошибочно проверялся AvailabilityHandler, из-за чего для хор
+    // с AvailabilityCondition реактивация не регистрировалась вовсе.
+    if (ActiveStates.Contains(ChoreId) && ActiveStates[ChoreId].ReactivationHandler.IsValid())
         return;
 
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (!EventBus)
         return;
 
-    // Compile the condition
-    // Компилируем условие
     Definition->ReactivationCondition->CompileCondition();
     if (!Definition->ReactivationCondition->GetCondition().IsValid())
         return;
 
-    // Check whether the condition is satisfied right now
-    // Проверяем, выполнено ли условие прямо сейчас
+    // Условие уже истинно — реактивируем сразу.
     FOutcomeEventBase Dummy;
     Dummy.OutcomeType = EOutcomeType::Default;
     if (Definition->ReactivationCondition->GetCondition()->Evaluate(Dummy))
     {
-        // The condition is already true – reactivate immediately
-        // Условие уже истинно – реактивируем сразу
         UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
         return;
     }
 
-    // Otherwise, subscribe to the event
-    // Иначе подписываемся на событие
+    // Иначе подписываемся на событие.
     FOutcomeHandlerHandle Handle = EventBus->RegisterHandler(
         Definition->ReactivationCondition,
         FOutcomeHandlerDelegate::CreateLambda([this, ChoreId](const FOutcomeEventBase&)
             {
+                FChoreState* State = ActiveStates.Find(ChoreId);
+                if (!State) return;
+
+                // Реактивация осмысленна только из «завершённых» статусов:
+                // Completed / Failed / Expired / Abandoned / RetryAvailable.
+                // Если хора уже Accepted/Active/PendingReaccept/Available —
+                // не трогаем её. Иначе state-driven условие (например,
+                // Location) сработает от любого события, на котором оно
+                // оказалось истинным, и откатит активную попытку в Available.
+                if (State->Status != EChoreStatus::Completed &&
+                    State->Status != EChoreStatus::Failed &&
+                    State->Status != EChoreStatus::Expired &&
+                    State->Status != EChoreStatus::Abandoned &&
+                    State->Status != EChoreStatus::RetryAvailable)
+                {
+                    return;
+                }
+
+                // Одноразовый хендлер. Снимаем ДО изменения состояния,
+                // потому что UpdateChoreState публикует события в EventBus,
+                // и мы не хотим, чтобы наш же хендлер отреагировал на них.
+                UnregisterReactivationHandler(ChoreId);
                 UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
             })
     );
@@ -1798,7 +1832,6 @@ void UChoreManagerSubsystem::RegisterReactivationHandler(UChoreDefinition* Defin
         ActiveStates[ChoreId].ReactivationHandler = Handle;
     }
 }
-
 void UChoreManagerSubsystem::UnregisterReactivationHandler(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
@@ -2305,10 +2338,6 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
         // Если принудительно удаляем активное задание – завершаем его
         if (Payload->bForceRemove && (Status == EChoreStatus::Accepted || Status == EChoreStatus::Active || Status == EChoreStatus::WaitingToStart))
         {
-            // We can call AbandonChore or simply move it to Failed
-            // Here, for simplicity, we move it to Failed and record the history
-            // Можно вызвать AbandonChore или просто перевести в Failed
-            // Здесь для простоты переведём в Failed и запишем историю
             if (Status == EChoreStatus::Active)
             {
                 ClearDeadlineTimer(ChoreId);
@@ -2330,6 +2359,12 @@ void UChoreManagerSubsystem::HandleUnregisterChoreRequest(const FOutcomeEventBas
     // Unsubscribe the availability handler, if any
     // Отписываем обработчик доступности, если есть
     UnregisterAvailabilityHandler(ChoreId);
+
+    // Unsubscribe the reactivation handler, if any
+    // Отписываем реактивационный обработчик, если есть.
+    // Раньше этого не делалось — хендлер оставался в EventBus и
+    // срабатывал на события, хотя хоры уже нет в реестре.
+    UnregisterReactivationHandler(ChoreId);
 
     // Stop the timer, if it is still hanging (just in case)
     // Останавливаем таймер, если он ещё висит (на всякий случай)

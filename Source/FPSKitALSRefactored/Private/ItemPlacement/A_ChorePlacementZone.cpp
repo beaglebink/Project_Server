@@ -305,11 +305,13 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
+	/*
 	case EChoreStatus::Offered:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
+	*/
 	case EChoreStatus::Accepted:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);

@@ -123,6 +123,9 @@ public:
     TArray<FName> GetActiveChoreIds() const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
+    TArray<FName> GetAbandonedChoreIds() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     TArray<FName> GetAcceptedChoreIds() const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")

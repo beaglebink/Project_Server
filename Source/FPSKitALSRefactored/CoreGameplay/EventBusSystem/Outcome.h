@@ -234,7 +234,7 @@ enum class EOutcomeChore : uint8
     ChoreReactivated        UMETA(DisplayName = "Chore Reactivated"),
     ChoreRewardGranted      UMETA(DisplayName = "Chore Reward Granted"),
     //ChoreUnlocked           UMETA(DisplayName = "Chore Unlocked"),
-    //ChoreAbandoned          UMETA(DisplayName = "Chore Abandoned"),
+    ChoreAbandoned          UMETA(DisplayName = "Chore Abandoned"),
     //ChoreMissionRequest     UMETA(DisplayName = "Chore Mission Request"),
     ChoreMissionResult      UMETA(DisplayName = "Chore Mission Result"),
     //CheckRequest            UMETA(DisplayName = "Check Request"),
