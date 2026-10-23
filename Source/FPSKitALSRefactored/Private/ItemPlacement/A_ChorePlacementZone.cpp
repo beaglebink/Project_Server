@@ -75,13 +75,6 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 				if (!DropZoneGridVisualActors.Contains(GridVisual))
 				{
 					GridVisual->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-					TArray<AActor*> AttachedDropZones;
-					GridVisual->GetAttachedActors(AttachedDropZones);
-					for (AActor* DropZone : AttachedDropZones)
-					{
-						DropZone->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-						DropZone->Destroy();
-					}
 					GridVisual->Destroy();
 				}
 			}
@@ -123,38 +116,37 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 				}
 				DropZonesGridStartLocationOffset = FVector(DropZonePlacementZone.ItemMeshSize.X / 2.0f, -DropZonePlacementZone.ItemMeshSize.Y / 2.0f, 0.0f); // Adjust the starting location to center the grid of drop zones within the drop zone mesh
 
-				while (DropZonePlacementZone.DropZones.Num() < DropZonePlacementZone.DropZoneQuantity)
+				// Clear dropzones
+				DropZonePlacementZone.DropZoneGridVisual->DestroyDropZoneChildren();
+
+				// Spawn dropzones
+				for (int32 i = 0; i < DropZonePlacementZone.DropZoneQuantity; ++i)
 				{
 					AA_DropZone* DropZone = GetWorld()->SpawnActorDeferred<AA_DropZone>(DropZoneClass, GetActorTransform(), DropZonePlacementZone.DropZoneGridVisual);
 					DropZone->ItemClass = DropZonePlacementZone.ItemClass;
+					DropZonePlacementZone.DropZoneGridVisual->AddChildDropZone(DropZone);
 					DropZone->FinishSpawning(GetActorTransform());
 					if (!IsValid(DropZone->ParentActor))
 					{
 						DropZone->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 					}
-					DropZonePlacementZone.DropZones.Add(DropZone);
 				}
-			}
-			while (DropZonePlacementZone.DropZones.Num() > DropZonePlacementZone.DropZoneQuantity)
-			{
-				AA_DropZone* ZoneToDestroy = DropZonePlacementZone.DropZones.Pop();
-				ZoneToDestroy->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-				ZoneToDestroy->Destroy();
 			}
 
 			// Arrange the drop zones in a grid based on the number of rows and columns
+			TArray<AA_DropZone*> DropZones = DropZonePlacementZone.DropZoneGridVisual->GetDropZoneChildren();
 			for (int32 Row = 0; Row < DropZonePlacementZone.ItemsRows; ++Row)
 			{
 				for (int32 Column = 0; Column < DropZonePlacementZone.ItemsColumns; ++Column)
 				{
 					int32 Index = Row * DropZonePlacementZone.ItemsColumns + Column;
-					if (DropZonePlacementZone.DropZones.IsValidIndex(Index) && IsValid(DropZonePlacementZone.DropZones[Index]))
+					if (DropZones.IsValidIndex(Index) && IsValid(DropZones[Index]))
 					{
 						FVector LocationOffset = FVector(Row * DropZonePlacementZone.ItemMeshSize.X, -Column * DropZonePlacementZone.ItemMeshSize.Y, 0.0f);
 						FTransform GridTransform = DropZonePlacementZone.DropZoneGridVisual->GetTransform();
 						GridTransform.SetLocation(GridTransform.TransformPositionNoScale(DropZonesGridStartLocationOffset));
-						DropZonePlacementZone.DropZones[Index]->SetActorLocation(GridTransform.TransformPositionNoScale(LocationOffset));
-						DropZonePlacementZone.DropZones[Index]->SetActorRotation(DropZonePlacementZone.DropZoneGridVisual->GetActorRotation());
+						DropZones[Index]->SetActorLocation(GridTransform.TransformPositionNoScale(LocationOffset));
+						DropZones[Index]->SetActorRotation(DropZonePlacementZone.DropZoneGridVisual->GetActorRotation());
 					}
 				}
 			}
@@ -221,16 +213,6 @@ void AA_ChorePlacementZone::Destroyed()
 			DropZonePlacementZone.DropZoneGridVisual->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 			DropZonePlacementZone.DropZoneGridVisual->Destroy();
 		}
-
-		for (AA_DropZone* DropZone : DropZonePlacementZone.DropZones)
-		{
-			if (DropZone)
-			{
-				DropZone->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-				DropZone->Destroy();
-			}
-		}
-		DropZonePlacementZone.DropZones.Empty();
 	}
 
 	Super::Destroyed();
@@ -288,7 +270,7 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 
 		for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
 		{
-			for (AA_DropZone* DropZone : DropZonePlacementZone.DropZones)
+			for (AA_DropZone* DropZone : DropZonePlacementZone.DropZoneGridVisual->GetDropZoneChildren())
 			{
 				if (DropZone)
 				{
@@ -334,24 +316,20 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 	}
 	case EChoreStatus::Available:
 	{
-		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
-	/*
 	case EChoreStatus::Offered:
 	{
-		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+
 		break;
 	}
-	*/
 	case EChoreStatus::Accepted:
 	{
-		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+
 		break;
 	}
 	case EChoreStatus::WaitingToStart:
 	{
-		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
 	case EChoreStatus::Expired:
@@ -361,12 +339,10 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 	}
 	case EChoreStatus::RetryAvailable:
 	{
-		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
 	case EChoreStatus::PendingReaccept:
 	{
-		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
 		break;
 	}
 	default:
@@ -428,7 +404,7 @@ FChoreResult AA_ChorePlacementZone::GetResultState()
 	// Check DropZone items presence
 	for (FDropZonePlacementZone& DropZonePlacementZone : DropZonePlacementZones)
 	{
-		for (AA_DropZone* DropZone : DropZonePlacementZone.DropZones)
+		for (AA_DropZone* DropZone : DropZonePlacementZone.DropZoneGridVisual->GetDropZoneChildren())
 		{
 			if (DropZone->bIsOccupied)
 			{

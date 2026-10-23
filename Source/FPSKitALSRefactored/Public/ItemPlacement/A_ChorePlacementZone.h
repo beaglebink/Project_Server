@@ -44,9 +44,6 @@ struct FDropZonePlacementZone
 
 	UPROPERTY()
 	AA_DropZoneGridVisual* DropZoneGridVisual;
-
-	UPROPERTY()
-	TArray<AA_DropZone*> DropZones;
 };
 
 USTRUCT(BlueprintType)

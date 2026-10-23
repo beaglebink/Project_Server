@@ -19,6 +19,10 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	virtual void Destroyed() override;
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DropZone|ParentActor")
 	AActor* ParentActor;
@@ -31,6 +35,19 @@ public:
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* DMI_MeshMaterial;
+
+private:
+	TArray<AA_DropZone*> DropZoneChildren;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "DropZones")
+	void AddChildDropZone(AA_DropZone* DropZone);
+
+	UFUNCTION(BlueprintCallable, Category = "DropZones")
+	TArray<AA_DropZone*> GetDropZoneChildren() const;
+
+	UFUNCTION(BlueprintCallable, Category = "DropZones")
+	void DestroyDropZoneChildren();
 
 private:
 #if WITH_EDITOR

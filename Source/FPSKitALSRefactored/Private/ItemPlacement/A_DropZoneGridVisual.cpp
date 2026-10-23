@@ -1,5 +1,6 @@
 #include "ItemPlacement/A_DropZoneGridVisual.h"
 #include "ItemPlacement/A_ChorePlacementZone.h"
+#include "ItemPlacement/A_DropZone.h"
 
 AA_DropZoneGridVisual::AA_DropZoneGridVisual()
 {
@@ -51,6 +52,43 @@ void AA_DropZoneGridVisual::BeginPlay()
 	{
 		DMI_MeshMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.0f);
 	}
+}
+
+void AA_DropZoneGridVisual::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	DestroyDropZoneChildren();
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void AA_DropZoneGridVisual::Destroyed()
+{
+	DestroyDropZoneChildren();
+
+	Super::Destroyed();
+}
+
+void AA_DropZoneGridVisual::AddChildDropZone(AA_DropZone* DropZone)
+{
+	DropZoneChildren.AddUnique(DropZone);
+}
+
+TArray<AA_DropZone*> AA_DropZoneGridVisual::GetDropZoneChildren() const
+{
+	return DropZoneChildren;
+}
+
+void AA_DropZoneGridVisual::DestroyDropZoneChildren()
+{
+	for (AA_DropZone* DropZoneToDestroy : DropZoneChildren)
+	{
+		if (IsValid(DropZoneToDestroy))
+		{
+			DropZoneToDestroy->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+			DropZoneToDestroy->Destroy();
+		}
+	}
+	DropZoneChildren.Empty();
 }
 
 #if WITH_EDITOR
