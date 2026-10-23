@@ -57,6 +57,13 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     PauseRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::PauseRequest);
     ResumeRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ResumeRequest);
 
+    // ---- Deferred evaluation & Actor Lifecycle ----
+    RegisterChoreActorCondition = CreateSimpleChoreCondition(EOutcomeChore::RegisterChoreActor);
+    UnregisterChoreActorCondition = CreateSimpleChoreCondition(EOutcomeChore::UnregisterChoreActor);
+    DeferredEvaluationRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::DeferredEvaluationRequest);
+    ReplayDeferredResultRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ReplayDeferredResultRequest);
+    DeferredResultReportCondition = CreateSimpleChoreCondition(EOutcomeChore::DeferredResultReport);
+
     // ---- Регистрация обработчиков в EventBus ----
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
@@ -98,6 +105,22 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandlePauseRequest));
         ResumeRequestHandler = EventBus->RegisterHandler(ResumeRequestCondition,
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleResumeRequest));
+
+        // ---- Deferred evaluation & Actor Lifecycle ----
+        RegisterChoreActorHandler = EventBus->RegisterHandler(RegisterChoreActorCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleRegisterChoreActor));
+
+        UnregisterChoreActorHandler = EventBus->RegisterHandler(UnregisterChoreActorCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleUnregisterChoreActor));
+
+        DeferredEvaluationRequestHandler = EventBus->RegisterHandler(DeferredEvaluationRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleDeferredEvaluationRequest));
+
+        ReplayDeferredResultRequestHandler = EventBus->RegisterHandler(ReplayDeferredResultRequestCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleReplayDeferredResultRequest));
+
+        DeferredResultReportHandler = EventBus->RegisterHandler(DeferredResultReportCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleDeferredResultReport));
     }
 
     // ---- Регистрация в системе сохранения ----
@@ -142,10 +165,20 @@ void UChoreManagerSubsystem::Deinitialize()
         Unreg(AbandonRequestHandler);
         Unreg(RetryRequestHandler);
         Unreg(UnlockRequestHandler);
+        Unreg(RegisterChoreRequestHandler);
+        Unreg(UnregisterChoreRequestHandler);
         Unreg(ReacceptRequestHandler);
         Unreg(AdvanceStageRequestHandler);
         Unreg(PauseRequestHandler);
         Unreg(ResumeRequestHandler);
+
+        // ---- Deferred evaluation ----
+        Unreg(DeferredEvaluationRequestHandler);
+        Unreg(ReplayDeferredResultRequestHandler);
+        Unreg(DeferredResultReportHandler);
+
+        Unreg(RegisterChoreActorHandler);
+        Unreg(UnregisterChoreActorHandler);
     }
 
     // Отписка обработчиков доступности
@@ -337,6 +370,13 @@ void UChoreManagerSubsystem::UpdateChoreState(FName ChoreId, EChoreStatus NewSta
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
     if (State.Status == NewStatus) return;
+
+    // При выходе из Active — сбрасываем отложенную оценку.
+    if (State.Status == EChoreStatus::Active && NewStatus != EChoreStatus::Active)
+    {
+        State.bEvaluationPending = false;
+        State.EvaluationToken = 0;
+    }
 
     State.Status = NewStatus;
 
@@ -1384,16 +1424,19 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
             Chore == EOutcomeChore::ExpireRequest ||
             Chore == EOutcomeChore::AbandonRequest ||
             Chore == EOutcomeChore::RetryRequest ||
-            Chore == EOutcomeChore::UnlockRequest)
+            Chore == EOutcomeChore::UnlockRequest ||
+            Chore == EOutcomeChore::DeferredEvaluationRequest ||
+            Chore == EOutcomeChore::DeferredEvaluationQuery ||
+            Chore == EOutcomeChore::DeferredResultReport ||
+            Chore == EOutcomeChore::ReplayDeferredResultRequest ||
+            Chore == EOutcomeChore::DeferredResultReplay)
         {
             return; // Command events do not affect availability // Командные события не влияют на доступность
         }
     }
 
     // Iterate over all tasks
-// Iterate over all tasks
     // Проходим по всем заданиям
-// Проходим по всем заданиям
     for (auto& Pair : ActiveStates)
     {
         FName ChoreId = Pair.Key;
@@ -1410,8 +1453,6 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 
         bool bConditionMet = Def->AvailabilityCondition->GetCondition()->Evaluate(Outcome);
 
-        // Log the evaluation result (can be left as Verbose)
-        // Логируем результат проверки (можно оставить Verbose)
         UE_LOG(LogTemp, Verbose, TEXT("HandleEvent: Chore '%s' condition met = %s, status = %d"),
             *ChoreId.ToString(), bConditionMet ? TEXT("true") : TEXT("false"), (int32)State.Status);
 
@@ -1470,6 +1511,7 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
         }
     }
 }
+
 /*
 void UChoreManagerSubsystem::HandleMissionRequest(const FOutcomeEventBase& Outcome)
 {
@@ -1896,6 +1938,10 @@ void UChoreManagerSubsystem::ResetAttemptState(FChoreState& State)
     State.PauseStartTime = FDateTime::MinValue();
     State.AccumulatedPauseTime = FTimespan::Zero();
     State.PausedDeadlineRemaining = FTimespan::Zero();
+
+    // ---- Deferred evaluation ----
+    State.bEvaluationPending = false;
+    State.EvaluationToken = 0;
 }
 
 void UChoreManagerSubsystem::RestartChore(FName ChoreId)
@@ -2046,6 +2092,21 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         PerfObj->SetNumberField(TEXT("Quantity"), State.Performance.Quantity);
         Obj->SetObjectField(TEXT("Performance"), PerfObj);
 
+        // ---- Deferred evaluation ----
+        Obj->SetBoolField(TEXT("bEvaluationPending"), State.bEvaluationPending);
+        Obj->SetNumberField(TEXT("EvaluationToken"), State.EvaluationToken);
+
+        // ---- Stored Result (корзина сдачи) ----
+        Obj->SetBoolField(TEXT("bHasStoredResult"), State.bHasStoredResult);
+        Obj->SetBoolField(TEXT("StoredResultSucceeded"), State.StoredResultSucceeded);
+
+        TSharedPtr<FJsonObject> StoredPerfObj = MakeShared<FJsonObject>();
+        StoredPerfObj->SetNumberField(TEXT("CompletionTimeSeconds"), State.StoredResultPerformance.CompletionTimeSeconds);
+        StoredPerfObj->SetNumberField(TEXT("Mistakes"), State.StoredResultPerformance.Mistakes);
+        StoredPerfObj->SetNumberField(TEXT("Accuracy"), State.StoredResultPerformance.Accuracy);
+        StoredPerfObj->SetNumberField(TEXT("Quantity"), State.StoredResultPerformance.Quantity);
+        Obj->SetObjectField(TEXT("StoredResultPerformance"), StoredPerfObj);
+
         StateArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
     Root->SetArrayField(TEXT("States"), StateArray);
@@ -2070,12 +2131,8 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     }
     Root->SetArrayField(TEXT("History"), HistoryArray);
 
-    // ---- НОВОЕ: offline-время ----
-    // Wall-clock момент этого сохранения — чтобы при следующей загрузке
-    // посчитать, сколько реального времени игрок провёл вне игры.
+    // ---- offline-время ----
     Root->SetStringField(TEXT("LastSaveWallClock"), FDateTime::UtcNow().ToIso8601());
-
-    // Накопленное offline-время на момент сохранения.
     Root->SetNumberField(TEXT("AccumulatedOfflineSeconds"), AccumulatedOfflineTime.GetTotalSeconds());
 
     // ---- Сериализация ----
@@ -2107,15 +2164,11 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     History.Empty();
     DeadlineTimers.Empty();
 
-    // ---- НОВОЕ: offline-время ----
-    // Считываем накопленное offline-время из сейва (могло быть != 0,
-    // если игрок уже загружался раньше и снова сохранился).
+    // ---- offline-время ----
     double AccumulatedOfflineSecs = 0.0;
     Root->TryGetNumberField(TEXT("AccumulatedOfflineSeconds"), AccumulatedOfflineSecs);
     AccumulatedOfflineTime = FTimespan::FromSeconds(FMath::Max(0.0, AccumulatedOfflineSecs));
 
-    // Прибавляем разницу «сейчас − момент сохранения». Это реальное время,
-    // которое игрок был вне игры.
     FString LastSaveWallClockStr;
     if (Root->TryGetStringField(TEXT("LastSaveWallClock"), LastSaveWallClockStr))
     {
@@ -2211,6 +2264,32 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 (*PerfObj)->TryGetNumberField(TEXT("Accuracy"), State.Performance.Accuracy);
                 (*PerfObj)->TryGetNumberField(TEXT("Quantity"), State.Performance.Quantity);
             }
+
+            // ---- Deferred evaluation ----
+            Obj->TryGetBoolField(TEXT("bEvaluationPending"), State.bEvaluationPending);
+            Obj->TryGetNumberField(TEXT("EvaluationToken"), State.EvaluationToken);
+
+            // На момент загрузки акторы ещё не заспавнились, следовательно,
+            // отвечать на запросы некому. Сбрасываем ожидание.
+            State.bEvaluationPending = false;
+            State.EvaluationToken = 0;
+
+            // ---- Stored Result (корзина сдачи) ----
+            Obj->TryGetBoolField(TEXT("bHasStoredResult"), State.bHasStoredResult);
+            Obj->TryGetBoolField(TEXT("StoredResultSucceeded"), State.StoredResultSucceeded);
+
+            const TSharedPtr<FJsonObject>* StoredPerfObj = nullptr;
+            if (Obj->TryGetObjectField(TEXT("StoredResultPerformance"), StoredPerfObj))
+            {
+                (*StoredPerfObj)->TryGetNumberField(TEXT("CompletionTimeSeconds"), State.StoredResultPerformance.CompletionTimeSeconds);
+                (*StoredPerfObj)->TryGetNumberField(TEXT("Mistakes"), State.StoredResultPerformance.Mistakes);
+                (*StoredPerfObj)->TryGetNumberField(TEXT("Accuracy"), State.StoredResultPerformance.Accuracy);
+                (*StoredPerfObj)->TryGetNumberField(TEXT("Quantity"), State.StoredResultPerformance.Quantity);
+            }
+
+            // При загрузке актор физически отсутствует на сцене. 
+            // Флаг bIsActorAlive станет true, когда актор заспавнится и пришлет RegisterChoreActor.
+            State.bIsActorAlive = false;
 
             ActiveStates.Add(State.ChoreId, State);
 
@@ -2409,4 +2488,165 @@ void UChoreManagerSubsystem::HandleResumeRequest(const FOutcomeEventBase& Outcom
     UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
     if (!Payload) return;
     ResumeChore(Payload->ChoreId);
+}
+
+// ============================================================================
+// Deferred evaluation — handlers
+// ============================================================================
+
+void UChoreManagerSubsystem::HandleDeferredEvaluationRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+
+    FName ChoreId = Payload->ChoreId;
+    FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State || State->Status != EChoreStatus::Active) return;
+
+    // 1. Есть сохраненный результат (Пришли с другой сцены) -> ЗАВЕРШАЕМ!
+    if (State->bHasStoredResult)
+    {
+        State->bHasStoredResult = false; // Очищаем корзину
+        if (State->StoredResultSucceeded) CompleteChore(ChoreId, State->StoredResultPerformance);
+        else                              FailChore(ChoreId, State->StoredResultPerformance);
+        return;
+    }
+
+    // 2. Актор на этой же сцене -> Спрашиваем его
+    if (State->bIsActorAlive && !State->bEvaluationPending)
+    {
+        UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+        if (!EventBus) return;
+
+        const int32 Token = NextEvaluationToken++;
+        UChoreDeferredQueryPayload* Query = EventBus->CreatePayload<UChoreDeferredQueryPayload>();
+        if (!Query) return;
+        Query->Setup(ChoreId, Token);
+
+        State->bEvaluationPending = true;
+        State->EvaluationToken = Token;
+
+        FOutcomeEventBase Event;
+        Event.OutcomeType = EOutcomeType::Chore;
+        Event.OutcomeChore = EOutcomeChore::DeferredEvaluationQuery;
+        Event.Payload = Query;
+        EventBus->PublishOutcome(Event);
+    }
+    // 3. Иначе (Актор мертв, корзина пуста) -> НИЧЕГО НЕ ДЕЛАЕМ (Пункт 7)
+    // Терминал сам поймет, что результата нет, проверив GetChoreStatus или не получив ChoreSucceeded.
+}
+
+void UChoreManagerSubsystem::HandleReplayDeferredResultRequest(const FOutcomeEventBase& Outcome)
+{
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload) return;
+
+    FName ChoreId = Payload->ChoreId;
+    const FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State) return;
+
+    const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (!Def || !Def->bUseDeferredEvaluation) return;
+
+    // Replay имеет смысл только для уже оценённой хоры.
+    if (State->Status != EChoreStatus::Completed && State->Status != EChoreStatus::Failed)
+        return;
+
+    UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+    if (!EventBus) return;
+
+    UChoreDeferredResultPayload* Report = EventBus->CreatePayload<UChoreDeferredResultPayload>();
+    if (!Report) return;
+    Report->Setup(ChoreId,
+        State->Status == EChoreStatus::Completed,
+        State->Performance);
+
+    FOutcomeEventBase Event;
+    Event.OutcomeType = EOutcomeType::Chore;
+    Event.OutcomeChore = EOutcomeChore::DeferredResultReplay;
+    Event.Payload = Report;
+    EventBus->PublishOutcome(Event);
+}
+
+void UChoreManagerSubsystem::HandleDeferredResultReport(const FOutcomeEventBase& Outcome)
+{
+    UChoreDeferredResultPayload* Payload = Cast<UChoreDeferredResultPayload>(Outcome.Payload);
+    if (!Payload) return;
+
+    FName ChoreId = Payload->ChoreId;
+    FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State) return;
+
+    // Если это ответ на запрос от терминала (на той же сцене)
+    if (Payload->Token != 0)
+    {
+        if (State->bEvaluationPending && Payload->Token == State->EvaluationToken)
+        {
+            State->bEvaluationPending = false;
+            State->EvaluationToken = 0;
+
+            // Завершаем сразу, так как терминал уже запросил
+            if (Payload->bSucceeded) CompleteChore(ChoreId, Payload->Performance);
+            else                     FailChore(ChoreId, Payload->Performance);
+        }
+    }
+    // Если это отчет из EndPlay (актор уходит со сцены)
+    else if (Payload->bFromEndPlay)
+    {
+        // Просто складываем в корзину. Ждем терминала.
+        State->bHasStoredResult = true;
+        State->StoredResultSucceeded = Payload->bSucceeded;
+        State->StoredResultPerformance = Payload->Performance;
+
+        State->bEvaluationPending = false;
+        State->EvaluationToken = 0;
+
+        UE_LOG(LogTemp, Log, TEXT("ChoreManager: Stored result for '%s' from EndPlay. Waiting for terminal."), *ChoreId.ToString());
+    }
+}
+
+void UChoreManagerSubsystem::HandleRegisterChoreActor(const FOutcomeEventBase& Outcome)
+{
+    if (auto* Payload = Cast<UChoreCommandPayload>(Outcome.Payload))
+    {
+        if (auto* State = ActiveStates.Find(Payload->ChoreId))
+        {
+            State->bIsActorAlive = true;
+        }
+    }
+}
+
+void UChoreManagerSubsystem::HandleUnregisterChoreActor(const FOutcomeEventBase& Outcome)
+{
+    if (auto* Payload = Cast<UChoreCommandPayload>(Outcome.Payload))
+    {
+        if (auto* State = ActiveStates.Find(Payload->ChoreId))
+        {
+            State->bIsActorAlive = false;
+        }
+    }
+}
+
+// ============================================================================
+// Deferred evaluation — public getter
+// ============================================================================
+
+bool UChoreManagerSubsystem::GetDeferredResultForChore(
+    FName ChoreId, bool& bOutSucceeded, FChorePerformanceMetrics& OutPerformance) const
+{
+    bOutSucceeded = false;
+    OutPerformance = FChorePerformanceMetrics();
+
+    const FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State) return false;
+
+    const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (!Def || !Def->bUseDeferredEvaluation) return false;
+
+    if (State->Status != EChoreStatus::Completed && State->Status != EChoreStatus::Failed)
+        return false;
+
+    bOutSucceeded = (State->Status == EChoreStatus::Completed);
+    OutPerformance = State->Performance;
+    return true;
 }

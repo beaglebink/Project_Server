@@ -65,9 +65,31 @@ struct FChoreState
     UPROPERTY(BlueprintReadOnly)
     FTimespan AccumulatedPauseTime;
 
-    // Остаток дедлайна на момент паузы. 0 = дедлайна не было.
     UPROPERTY(BlueprintReadOnly)
     FTimespan PausedDeadlineRemaining = FTimespan::Zero();
+
+    // ---- Deferred Evaluation ----
+    // Ожидаем ответа на DeferredEvaluationQuery.
+    UPROPERTY(BlueprintReadOnly)
+    bool bEvaluationPending = false;
+
+    // Токен текущего запроса; 0 = запроса нет.
+    UPROPERTY(BlueprintReadOnly)
+    int32 EvaluationToken = 0;
+
+    // Жив ли Актор на текущей сцене?
+    UPROPERTY(BlueprintReadOnly)
+    bool bIsActorAlive = false;
+
+    // Есть ли сохраненный результат (из EndPlay), ожидающий сдачи в терминале?
+    UPROPERTY(BlueprintReadOnly)
+    bool bHasStoredResult = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool StoredResultSucceeded = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    FChorePerformanceMetrics StoredResultPerformance;
 
     FOutcomeHandlerHandle AvailabilityHandler;
     FOutcomeHandlerHandle ReactivationHandler;
@@ -150,11 +172,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Chore Manager|Time")
     void SetChoreStartTime(FName ChoreId, FDateTime InStartTime);
 
-    // ---- НОВОЕ: игровое время ----
-    // «Игровое» время: UtcNow минус всё время, проведённое вне игры
-    // между сохранениями. Монотонно внутри сессии, непрерывно через save/load.
-    // Все временные метки в подсистеме (History, AcceptTime и т.д.) пишутся
-    // и сравниваются в этом времени.
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Time")
     FDateTime GetGameTime() const;
 
@@ -212,10 +229,6 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|History")
     bool GetLastResult(FName ChoreId) const;
 
-    // ---- НОВОЕ: последний Timestamp в игровом времени ----
-    // Возвращает Timestamp самой свежей записи истории, удовлетворяющей фильтру.
-    // ChoreId == NAME_None   → любая хора.
-    // AllowedResults         → какие результаты считать; пустой массив = любые.
     bool GetLatestHistoryTimestamp(FName ChoreId, EChoreFamily Family, bool bUseFamily, EChoreSubtype Subtype, bool bUseSubtype, const TArray<EOutcomeChore>& AllowedResults, FDateTime& OutTimestamp) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
@@ -254,6 +267,11 @@ public:
 
     void RegisterChoreDefinition(UChoreDefinition* Definition);
 
+    // ---- Deferred Evaluation (public getter) ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Deferred")
+    bool GetDeferredResultForChore(FName ChoreId, bool& bOutSucceeded,
+        FChorePerformanceMetrics& OutPerformance) const;
+
 protected:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
@@ -268,7 +286,6 @@ protected:
     void RetryChore(FName ChoreId);
     void UnlockChore(FName ChoreId);
     void RevokeChore(FName ChoreId);
-    //void RequestMissionChore(FName MissionId, FName ChoreId, int32 StepIndex);
     void ReportMissionChoreResult(FName ChoreId, bool bSuccess, const FChorePerformanceMetrics& Performance, FName MissionId = NAME_None);
 
     void LoadAllDefinitions();
@@ -300,7 +317,6 @@ private:
     void HandleRetryRequest(const FOutcomeEventBase& Outcome);
     void HandleUnlockRequest(const FOutcomeEventBase& Outcome);
     void HandleEvent(const FOutcomeEventBase& Outcome);
-    //void HandleMissionRequest(const FOutcomeEventBase& Outcome);
     void HandleChoreCompletion(const FOutcomeEventBase& Outcome);
     void HandleRegisterChoreRequest(const FOutcomeEventBase& Outcome);
     void HandleUnregisterChoreRequest(const FOutcomeEventBase& Outcome);
@@ -308,6 +324,13 @@ private:
     void HandleAdvanceStageRequest(const FOutcomeEventBase& Outcome);
     void HandlePauseRequest(const FOutcomeEventBase& Outcome);
     void HandleResumeRequest(const FOutcomeEventBase& Outcome);
+
+    // ---- Deferred evaluation handlers ----
+    void HandleRegisterChoreActor(const FOutcomeEventBase& Outcome);
+    void HandleUnregisterChoreActor(const FOutcomeEventBase& Outcome);
+    void HandleDeferredEvaluationRequest(const FOutcomeEventBase& Outcome);
+    void HandleReplayDeferredResultRequest(const FOutcomeEventBase& Outcome);
+    void HandleDeferredResultReport(const FOutcomeEventBase& Outcome);
 
     FOutcomeHandlerHandle AdvanceStageRequestHandler;
     FOutcomeHandlerHandle PauseRequestHandler;
@@ -319,6 +342,27 @@ private:
     TObjectPtr<UOutcomeConditionAsset> PauseRequestCondition;
     UPROPERTY()
     TObjectPtr<UOutcomeConditionAsset> ResumeRequestCondition;
+
+    // ---- Deferred evaluation Handles & Conditions ----
+    FOutcomeHandlerHandle RegisterChoreActorHandler;
+    FOutcomeHandlerHandle UnregisterChoreActorHandler;
+    FOutcomeHandlerHandle DeferredEvaluationRequestHandler;
+    FOutcomeHandlerHandle ReplayDeferredResultRequestHandler;
+    FOutcomeHandlerHandle DeferredResultReportHandler;
+
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> RegisterChoreActorCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> UnregisterChoreActorCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> DeferredEvaluationRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> ReplayDeferredResultRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> DeferredResultReportCondition;
+
+    // Монотонный счётчик токенов запроса. Уникален в пределах сессии.
+    int32 NextEvaluationToken = 1;
 
     UOutcomeConditionAsset* CreateSimpleChoreCondition(EOutcomeChore ChoreType);
     UOutcomeConditionAsset* CreateSimpleMissionCondition(EOutcomeMission MissionType);
@@ -341,20 +385,12 @@ private:
     UPROPERTY()
     bool bLoadComplete = true;
 
-    // ---- НОВОЕ: накопленное offline-время ----
-    // Сумма разниц между моментом сохранения и моментом загрузки по всем
-    // циклам save/load. Вычитается из UtcNow в GetGameTime(), чтобы паузы
-    // между сессиями не «тикали» в игре.
     UPROPERTY()
     FTimespan AccumulatedOfflineTime = FTimespan::Zero();
 
     FTimerManager* TimerManager = nullptr;
     TMap<FName, FTimerHandle> DeadlineTimers;
 
-    // ---- НОВОЕ: pulse доступности ----
-    // Раз в AvailabilityPulseIntervalSeconds напрямую дёргает
-    // EvaluateAllAvailability, чтобы time-based условия перепроверялись
-    // без внешних событий. Через EventBus не ходим — pulse нужен только нам.
     FTimerHandle AvailabilityPulseHandle;
 
     static constexpr float AvailabilityPulseIntervalSeconds = 5.0f;

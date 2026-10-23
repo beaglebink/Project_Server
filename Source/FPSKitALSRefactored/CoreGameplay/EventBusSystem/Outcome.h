@@ -233,12 +233,8 @@ enum class EOutcomeChore : uint8
     ChoreRetryAvailable     UMETA(DisplayName = "Chore Retry Available"),
     ChoreReactivated        UMETA(DisplayName = "Chore Reactivated"),
     ChoreRewardGranted      UMETA(DisplayName = "Chore Reward Granted"),
-    //ChoreUnlocked           UMETA(DisplayName = "Chore Unlocked"),
     ChoreAbandoned          UMETA(DisplayName = "Chore Abandoned"),
-    //ChoreMissionRequest     UMETA(DisplayName = "Chore Mission Request"),
     ChoreMissionResult      UMETA(DisplayName = "Chore Mission Result"),
-    //CheckRequest            UMETA(DisplayName = "Check Request"),
-    //CheckResponse           UMETA(DisplayName = "Check Response"),
     AcceptRequest           UMETA(DisplayName = "Accept Request"),
     StartRequest            UMETA(DisplayName = "Start Request"),
     CompleteRequest         UMETA(DisplayName = "Complete Request"),
@@ -251,7 +247,6 @@ enum class EOutcomeChore : uint8
     UnregisterChoreRequest  UMETA(DisplayName = "Unregister Chore Request"),
     ReacceptRequest         UMETA(DisplayName = "Re-accept Request"),
     ChorePendingReaccept    UMETA(DisplayName = "Chore Pending Re-accept"),
-    // ---- Команды от миниигры (аналог AcceptRequest/StartRequest/...) ----
     AdvanceStageRequest     UMETA(DisplayName = "Advance Stage Request"),
     PauseRequest            UMETA(DisplayName = "Pause Request"),
     ResumeRequest           UMETA(DisplayName = "Resume Request"),
@@ -259,5 +254,17 @@ enum class EOutcomeChore : uint8
     // ---- Нотификации от Chore Manager ----
     ChoreStageAdvanced      UMETA(DisplayName = "Chore Stage Advanced"),
     ChorePaused             UMETA(DisplayName = "Chore Paused"),
-    ChoreResumed            UMETA(DisplayName = "Chore Resumed")
+    ChoreResumed            UMETA(DisplayName = "Chore Resumed"),
+
+    // ---- Deferred evaluation ----
+    DeferredEvaluationRequest   UMETA(DisplayName = "Deferred Evaluation Request"),
+    DeferredEvaluationQuery     UMETA(DisplayName = "Deferred Evaluation Query"),
+    DeferredResultReport        UMETA(DisplayName = "Deferred Result Report"),
+    ReplayDeferredResultRequest UMETA(DisplayName = "Replay Deferred Result Request"),
+    DeferredResultReplay        UMETA(DisplayName = "Deferred Result Replay"),
+
+    // Актор сообщает, что он появился на сцене
+    RegisterChoreActor       UMETA(DisplayName = "Register Chore Actor"),
+    // Актор сообщает, что он покидает сцену
+    UnregisterChoreActor     UMETA(DisplayName = "Unregister Chore Actor")
 };

@@ -106,6 +106,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Availability")
     TObjectPtr<UOutcomeConditionAsset> ReactivationCondition;
 
+    // ---- Deferred Evaluation ----
+    // Если true — актор не публикует Complete/Fail сразу. Менеджер сам решает,
+    // когда запросить вердикт (через DeferredEvaluationRequest), либо принимает
+    // unsolicited-отчёт из EndPlay актора. См. ChoreManagerSubsystem.
+    // ---- Отложенная оценка ----
+    // Если true — актор не публикует Complete/Fail сразу. Менеджер сам решает,
+    // когда запросить вердикт (через DeferredEvaluationRequest), либо принимает
+    // unsolicited-отчёт из EndPlay актора. См. ChoreManagerSubsystem.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deferred Evaluation")
+    bool bUseDeferredEvaluation = false;
+
     // ---- Behavior ----
     // ---- Поведение ----
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
@@ -128,14 +139,6 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
     EChoreRetryBehavior RetryBehavior = EChoreRetryBehavior::None;
-
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
-    //bool bIsRepeatable = false;
-
-    // ---- Behavior on AbandonRequest ----
-    // ---- Поведение при AbandonRequest ----
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
-    //EChoreAbandonBehavior AbandonBehavior = EChoreAbandonBehavior::Fail;
 
     // ---- Rewards. ----
     // ---- Награды. ----

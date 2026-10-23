@@ -250,3 +250,79 @@ public:
         return this;
     }
 };
+
+// ============================================================================
+// Deferred evaluation
+// ============================================================================
+
+// Manager → Actor: "сообщи результат выполнения".
+// Manager публикует это в ответ на внешнюю команду DeferredEvaluationRequest.
+// Actor подписан на EOutcomeChore::DeferredEvaluationQuery и обязан вернуть
+// DeferredResultReport с тем же Token.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreDeferredQueryPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Deferred")
+    FName ChoreId;
+
+    // Токен корреляции. Actor должен вернуть его же в DeferredResultReport,
+    // чтобы Manager принял отчёт как ответ на этот конкретный query.
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Deferred")
+    int32 Token = 0;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore|Deferred")
+    UChoreDeferredQueryPayload* Setup(FName InChoreId, int32 InToken)
+    {
+        ChoreId = InChoreId;
+        Token = InToken;
+        return this;
+    }
+};
+
+// Actor → Manager: результат выполнения.
+//   * ответ на DeferredEvaluationQuery — Token != 0, bFromEndPlay = false;
+//   * unsolicited из EndPlay           — Token == 0, bFromEndPlay = true.
+// Manager → Actor: replay сохранённого результата (Token == 0, bFromEndPlay == false).
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreDeferredResultPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Deferred")
+    FName ChoreId;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Deferred")
+    bool bSucceeded = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Deferred")
+    FChorePerformanceMetrics Performance;
+
+    // Токен из DeferredEvaluationQuery. 0 = unsolicited (EndPlay) или replay.
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Deferred")
+    int32 Token = 0;
+
+    // true — отчёт отправлен из EndPlay. Manager принимает такие отчёты
+    // без ожидания pending-запроса.
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Deferred")
+    bool bFromEndPlay = false;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore|Deferred")
+    UChoreDeferredResultPayload* Setup(
+        FName InChoreId,
+        bool InSuccess,
+        const FChorePerformanceMetrics& InPerf,
+        int32 InToken = 0,
+        bool bInFromEndPlay = false)
+    {
+        ChoreId = InChoreId;
+        bSucceeded = InSuccess;
+        Performance = InPerf;
+        Token = InToken;
+        bFromEndPlay = bInFromEndPlay;
+        return this;
+    }
+};
