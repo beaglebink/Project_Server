@@ -26,6 +26,15 @@ void AA_DropZoneGridVisual::OnConstruction(const FTransform& Transform)
 			DropZoneMeshComponent->SetMaterial(0, DMI_MeshMaterial);
 		}
 	}
+
+	if (IsValid(ParentActor))
+	{
+		AttachToActor(ParentActor, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	}
+	else if (GetOwner())
+	{
+		AttachToActor(GetOwner(), FAttachmentTransformRules::KeepWorldTransform);
+	}
 }
 
 void AA_DropZoneGridVisual::Tick(float DeltaTime)

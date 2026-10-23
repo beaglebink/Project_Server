@@ -26,6 +26,10 @@ void AA_AreaDropZone::OnConstruction(const FTransform& Transform)
 	{
 		AttachToActor(ParentActor, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	}
+	else if (GetOwner())
+	{
+		AttachToActor(GetOwner(), FAttachmentTransformRules::KeepWorldTransform);
+	}
 }
 
 void AA_AreaDropZone::Tick(float DeltaTime)

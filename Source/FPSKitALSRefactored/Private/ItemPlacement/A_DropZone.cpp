@@ -48,6 +48,10 @@ void AA_DropZone::OnConstruction(const FTransform& Transform)
 	{
 		AttachToActor(ParentActor, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	}
+	else if (GetOwner())
+	{
+		AttachToActor(GetOwner(), FAttachmentTransformRules::KeepWorldTransform);
+	}
 }
 
 
