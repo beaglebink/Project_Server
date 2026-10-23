@@ -28,7 +28,7 @@ public:
     FGuid InteriorSetId;
     FText FloorName;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "FloorAssignment")
     FGuid FloorId;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "FloorAssignment")
@@ -83,6 +83,8 @@ protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void PostEditImport() override;   // Обработка дублирования и копирования
     virtual void OnRegister() override;
+    virtual void PostInitProperties() override;
+    virtual void PostLoad() override;
 
 private:
     bool IsRuntimeSpawned = false;

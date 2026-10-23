@@ -11,7 +11,7 @@ AA_DropZone::AA_DropZone()
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
 	ItemSphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("ItemSphereCollision"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
-	FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
+	//FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 
 	DropZoneMesh->SetupAttachment(RootComponent);
 	ItemSphereCollision->SetupAttachment(RootComponent);
@@ -23,6 +23,13 @@ AA_DropZone::AA_DropZone()
 void AA_DropZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject)
+		&& FloorAssignmentComponent
+		&& !FloorAssignmentComponent->GetItemId().IsValid())
+	{
+		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
+	}
 
 	if (ItemClass)
 	{
@@ -64,6 +71,12 @@ void AA_DropZone::Tick(float DeltaTime)
 void AA_DropZone::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
+	{
+		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
+	}
+
 	IsPlacingOnScene = false;
 	SetMeshMaterialAndState(0, IsPlacingOnScene);
 }

@@ -15,7 +15,7 @@ AA_ChorePlacementZone::AA_ChorePlacementZone()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	SourceZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SourceZoneMesh"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
-	FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
+	//FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 
 	SourceZoneMesh->SetupAttachment(RootComponent);
 
@@ -27,6 +27,13 @@ AA_ChorePlacementZone::AA_ChorePlacementZone()
 void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject)
+		&& FloorAssignmentComponent
+		&& !FloorAssignmentComponent->GetItemId().IsValid())
+	{
+		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
+	}
 
 	// Set the material for the SourceZoneMesh
 	if (SourceZoneMeshMaterial)
@@ -168,6 +175,11 @@ void AA_ChorePlacementZone::Tick(float DeltaTime)
 void AA_ChorePlacementZone::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
+	{
+		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
+	}
 
 	if (DMI_SourceZoneMeshMaterial)
 	{

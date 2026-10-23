@@ -187,6 +187,33 @@ void UFloorAssignmentComponent::OnRegister()
 	AutoFillFloorIdsFromWorld();
 }
 
+// FloorAssignmentComponent.cpp
+namespace
+{
+	void ClearIdOnTemplate_FA(UFloorAssignmentComponent* Comp)
+	{
+		AActor* Owner = Comp->GetTypedOuter<AActor>();
+		if (Owner && Owner->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+		{
+			// Защита от «запекания» ID в CDO/BP CDO.
+			Comp->ItemId.Invalidate();
+			Comp->ProtectedItemId.Invalidate();
+		}
+	}
+}
+
+void UFloorAssignmentComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+	ClearIdOnTemplate_FA(this);
+}
+
+void UFloorAssignmentComponent::PostLoad()
+{
+	Super::PostLoad();
+	ClearIdOnTemplate_FA(this);
+}
+
 void UFloorAssignmentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (ItemId.IsValid())
