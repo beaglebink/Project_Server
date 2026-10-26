@@ -37,14 +37,12 @@ public:
 	UMaterialInstanceDynamic* DMI_MeshMaterial;
 
 private:
+	UPROPERTY()
 	TArray<AA_DropZone*> DropZoneChildren;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "DropZones")
-	void AddChildDropZone(AA_DropZone* DropZone);
-
-	UFUNCTION(BlueprintCallable, Category = "DropZones")
-	TArray<AA_DropZone*> GetDropZoneChildren() const;
+	TArray<AA_DropZone*>& GetDropZoneChildren();
 
 	UFUNCTION(BlueprintCallable, Category = "DropZones")
 	void DestroyDropZoneChildren();

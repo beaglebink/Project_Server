@@ -9,7 +9,6 @@ AA_AreaDropZone::AA_AreaDropZone()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
-	//FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 
 	DropZoneMesh->SetupAttachment(RootComponent);
 
@@ -20,9 +19,7 @@ void AA_AreaDropZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (!HasAnyFlags(RF_ClassDefaultObject)
-		&& FloorAssignmentComponent
-		&& !FloorAssignmentComponent->GetItemId().IsValid())
+	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
 	{
 		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 	}
@@ -49,9 +46,7 @@ void AA_AreaDropZone::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!HasAnyFlags(RF_ClassDefaultObject)
-		&& FloorAssignmentComponent
-		&& !FloorAssignmentComponent->GetItemId().IsValid())
+	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
 	{
 		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 	}

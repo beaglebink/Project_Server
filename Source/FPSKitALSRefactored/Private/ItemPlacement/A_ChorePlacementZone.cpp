@@ -15,7 +15,6 @@ AA_ChorePlacementZone::AA_ChorePlacementZone()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	SourceZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SourceZoneMesh"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
-	//FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 
 	SourceZoneMesh->SetupAttachment(RootComponent);
 
@@ -28,9 +27,7 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (!HasAnyFlags(RF_ClassDefaultObject)
-		&& FloorAssignmentComponent
-		&& !FloorAssignmentComponent->GetItemId().IsValid())
+	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
 	{
 		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 	}
@@ -123,19 +120,42 @@ void AA_ChorePlacementZone::OnConstruction(const FTransform& Transform)
 				}
 				DropZonesGridStartLocationOffset = FVector(DropZonePlacementZone.ItemMeshSize.X / 2.0f, -DropZonePlacementZone.ItemMeshSize.Y / 2.0f, 0.0f); // Adjust the starting location to center the grid of drop zones within the drop zone mesh
 
-				// Clear dropzones
-				DropZonePlacementZone.DropZoneGridVisual->DestroyDropZoneChildren();
+				// DropZones
+				TArray<AA_DropZone*>& ExistingDropZones = DropZonePlacementZone.DropZoneGridVisual->GetDropZoneChildren();
 
-				// Spawn dropzones
-				for (int32 i = 0; i < DropZonePlacementZone.DropZoneQuantity; ++i)
+				// Spawn drop zones till quantity equal
+				while (ExistingDropZones.Num() < DropZonePlacementZone.DropZoneQuantity)
 				{
-					AA_DropZone* DropZone = GetWorld()->SpawnActorDeferred<AA_DropZone>(DropZoneClass, GetActorTransform(), DropZonePlacementZone.DropZoneGridVisual);
+					AA_DropZone* DropZone = GetWorld()->SpawnActorDeferred<AA_DropZone>(DropZoneClass, GetActorTransform(), this);
+
 					DropZone->ItemClass = DropZonePlacementZone.ItemClass;
-					DropZonePlacementZone.DropZoneGridVisual->AddChildDropZone(DropZone);
+					ExistingDropZones.Add(DropZone);
 					DropZone->FinishSpawning(GetActorTransform());
+
 					if (!IsValid(DropZone->ParentActor))
 					{
 						DropZone->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					}
+				}
+
+				// Delete extra drop zones till quantity equal
+				while (ExistingDropZones.Num() > DropZonePlacementZone.DropZoneQuantity)
+				{
+					AA_DropZone* Last = ExistingDropZones.Pop();
+					if (IsValid(Last))
+					{
+						Last->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+						Last->Destroy();
+					}
+				}
+
+				// Refresh item class
+				for (AA_DropZone* DropZone : ExistingDropZones)
+				{
+					if (IsValid(DropZone))
+					{
+						DropZone->ItemClass = DropZonePlacementZone.ItemClass;
+						DropZone->RefreshItemClass();
 					}
 				}
 			}
@@ -176,7 +196,7 @@ void AA_ChorePlacementZone::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
+	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
 	{
 		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 	}

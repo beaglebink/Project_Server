@@ -11,7 +11,6 @@ AA_DropZone::AA_DropZone()
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
 	ItemSphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("ItemSphereCollision"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
-	//FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 
 	DropZoneMesh->SetupAttachment(RootComponent);
 	ItemSphereCollision->SetupAttachment(RootComponent);
@@ -24,25 +23,12 @@ void AA_DropZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (!HasAnyFlags(RF_ClassDefaultObject)
-		&& FloorAssignmentComponent
-		&& !FloorAssignmentComponent->GetItemId().IsValid())
+	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
 	{
 		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 	}
 
-	if (ItemClass)
-	{
-		if (AA_InteractableActor* Item = ItemClass->GetDefaultObject<AA_InteractableActor>())
-		{
-			ItemName = FName(*(Item->Name.ToString() + WirePlugInConnectorType));
-			ItemTag = Item->Tag;
-			if (Item->StaticMesh)
-			{
-				DropZoneMesh->SetStaticMesh(Item->StaticMesh->GetStaticMesh());
-			}
-		}
-	}
+	RefreshItemClass();
 
 	if (DropZoneMesh)
 	{
@@ -72,7 +58,7 @@ void AA_DropZone::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
+	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
 	{
 		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 	}
@@ -121,6 +107,22 @@ void AA_DropZone::OnPowerConnected_Implementation(bool IsConnected)
 		if (AttachedActor->Implements<UI_PowerConnection>())
 		{
 			II_PowerConnection::Execute_OnPowerConnected(AttachedActor, IsConnected);
+		}
+	}
+}
+
+void AA_DropZone::RefreshItemClass()
+{
+	if (ItemClass)
+	{
+		if (AA_InteractableActor* Item = ItemClass->GetDefaultObject<AA_InteractableActor>())
+		{
+			ItemName = FName(*(Item->Name.ToString() + WirePlugInConnectorType));
+			ItemTag = Item->Tag;
+			if (Item->StaticMesh)
+			{
+				DropZoneMesh->SetStaticMesh(Item->StaticMesh->GetStaticMesh());
+			}
 		}
 	}
 }
