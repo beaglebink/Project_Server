@@ -1,23 +1,36 @@
 #include "ItemPlacement/A_Breakable.h"
+#include "FloorAssignmentComponent.h"
+#include "Components/AudioComponent.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
 AA_Breakable::AA_Breakable()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
 	GeometryCollectionComponent = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("GeometryCollectionComponent"));
+	AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 
 	GeometryCollectionComponent->SetupAttachment(RootComponent);
-	GeometryCollectionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GeometryCollectionComponent->SetVisibility(false);
+	AudioComponent->SetupAttachment(RootComponent);
 
 	StaticMesh->SetNotifyRigidBodyCollision(true);
+
+	GeometryCollectionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GeometryCollectionComponent->SetSimulatePhysics(false);
+	GeometryCollectionComponent->SetVisibility(false);
+
+	AudioComponent->SetAutoActivate(false);
 }
 
 void AA_Breakable::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
+	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
+	{
+		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
+	}
 }
 
 void AA_Breakable::Tick(float DeltaTime)
@@ -29,6 +42,11 @@ void AA_Breakable::Tick(float DeltaTime)
 void AA_Breakable::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
+	{
+		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
+	}
 
 	StaticMesh->OnComponentHit.AddDynamic(this, &AA_Breakable::OnActorHit);
 }
@@ -52,10 +70,15 @@ void AA_Breakable::BreakActor()
 	StaticMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	StaticMesh->SetVisibility(false);
 
+	AudioComponent->Play();
+
+	GeometryCollectionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GeometryCollectionComponent->SetSimulatePhysics(true);
 	GeometryCollectionComponent->SetVisibility(true);
 	GeometryCollectionComponent->WakeAllRigidBodies();
-	GeometryCollectionComponent->AddRadialImpulse(GetActorLocation(), 100.0f, 500.0f, ERadialImpulseFalloff::RIF_Linear);
+	GeometryCollectionComponent->WakeAllRigidBodies();
+	GeometryCollectionComponent->RemoveAllAnchors();
+	GeometryCollectionComponent->CrumbleActiveClusters();
 }
 
 void AA_Breakable::RestoreActor()

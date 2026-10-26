@@ -4,6 +4,8 @@
 #include "PythonContainers/A_InteractableActor.h"
 #include "A_Breakable.generated.h"
 
+class UFloorAssignmentComponent;
+
 UCLASS()
 class FPSKITALSREFACTORED_API AA_Breakable : public AA_InteractableActor
 {
@@ -24,11 +26,17 @@ protected:
 	virtual void Destroyed() override;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Breakable")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UFloorAssignmentComponent* FloorAssignmentComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	UGeometryCollectionComponent* GeometryCollectionComponent;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UAudioComponent* AudioComponent;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Breakable", meta = (ClampMin = 0.0f))
-	float BreakImpulseThreshold = 10.0f;
+	float BreakImpulseThreshold = 1000.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Breakable")
 	uint8 bIsBroken : 1{false};
