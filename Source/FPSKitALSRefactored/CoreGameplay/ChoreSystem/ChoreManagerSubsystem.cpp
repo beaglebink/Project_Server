@@ -724,18 +724,13 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     if (!ActiveStates.Contains(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
 
-    // Only an accepted / waiting-to-start / active task can be abandoned.
-    // Отменять можно только принятое / ожидающее старта / активное задание.
     if (State.Status != EChoreStatus::Accepted && State.Status != EChoreStatus::WaitingToStart && State.Status != EChoreStatus::Active)
     {
         return;
     }
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    //const EChoreAbandonBehavior Behavior = Def ? Def->AbandonBehavior : EChoreAbandonBehavior::Fail;
 
-    // ---- Fail (previous behavior) ----
-    // ---- Fail (прежнее поведение) ----
     ClearDeadlineTimer(ChoreId);
     EnsureElapsedTimeRecorded(State);
     UpdateChoreState(ChoreId, EChoreStatus::Abandoned);
@@ -743,47 +738,30 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
     State.IsExpired = false;
 
 
-    //if (Behavior == EChoreAbandonBehavior::Fail)
-    //{
-        if (Def /* && Def->bIsRepeatable*/)
+    if (Def /* && Def->bIsRepeatable*/)
+    {
+        if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
         {
-            if (Def->RetryBehavior == EChoreRetryBehavior::Immediate)
-            {
-                UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
-            }
-            else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional /* && Def->ReactivationCondition*/)
-            {
-                RegisterReactivationHandler(Def);
-            }
-            else if (Def->RetryBehavior == EChoreRetryBehavior::RequireReaccept)
-            {
-                UpdateChoreState(ChoreId, EChoreStatus::PendingReaccept, true, false);
-            }
+            UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
         }
-    //}
-
-    // ---- ReturnToAvailable ----
-    /*
-    if (GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAccepted ||
-        GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAvailable)
-    {
-        RestartChore(ChoreId);
-
-        UpdateChoreState(ChoreId, EChoreStatus::Available, true, true);
+        else if (Def->RetryBehavior == EChoreRetryBehavior::Conditional /* && Def->ReactivationCondition*/)
+        {
+            RegisterReactivationHandler(Def);
+        }
     }
-
-    // ---- ReturnToAccepted ----
-    if (GetChoreDefinition(ChoreId)->AbandonBehavior == EChoreAbandonBehavior::ReturnToAccepted)
-    {
-        UpdateChoreState(ChoreId, EChoreStatus::Accepted, true, true);
-    }
-*/
 }
 
 void UChoreManagerSubsystem::RetryChore(FName ChoreId)
 {
     FChoreState* State = ActiveStates.Find(ChoreId);
     if (!State) return;
+
+    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (Def && Def->RetryBehavior == EChoreRetryBehavior::None)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ChoreManager: RetryChore called for chore '%s' with RetryBehavior::None"), *ChoreId.ToString());
+        return;
+	}
 
     State->IsExpired = false;
 
@@ -2501,19 +2479,16 @@ void UChoreManagerSubsystem::HandleDeferredEvaluationRequest(const FOutcomeEvent
 
     FName ChoreId = Payload->ChoreId;
     FChoreState* State = ActiveStates.Find(ChoreId);
-    if (!State || State->Status != EChoreStatus::Active) return;
-
-    // 1. Есть сохраненный результат (Пришли с другой сцены) -> ЗАВЕРШАЕМ!
-    if (State->bHasStoredResult)
+    if (!State || (State->Status != EChoreStatus::Active && State->Status != EChoreStatus::Completed))
     {
-        State->bHasStoredResult = false; // Очищаем корзину
-        if (State->StoredResultSucceeded) CompleteChore(ChoreId, State->StoredResultPerformance);
-        else                              FailChore(ChoreId, State->StoredResultPerformance);
         return;
     }
 
-    // 2. Актор на этой же сцене -> Спрашиваем его
-    if (State->bIsActorAlive && !State->bEvaluationPending)
+    UChoreDefinition* Def = GetChoreDefinition(ChoreId);
+    if (!Def || !Def->bUseDeferredEvaluation) return;
+
+    // 1. ПРИОРИТЕТ: Актор на этой же сцене -> Спрашиваем его (самые свежие данные)
+    if (State->bIsActorAlive)
     {
         UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
         if (!EventBus) return;
@@ -2526,14 +2501,32 @@ void UChoreManagerSubsystem::HandleDeferredEvaluationRequest(const FOutcomeEvent
         State->bEvaluationPending = true;
         State->EvaluationToken = Token;
 
+        // Если был старый результат (например, пришли с другой сцены), сбрасываем его,
+        // так как мы сейчас запрашиваем актуальные данные у живого Актора.
+        State->bHasStoredResult = false;
+
         FOutcomeEventBase Event;
         Event.OutcomeType = EOutcomeType::Chore;
         Event.OutcomeChore = EOutcomeChore::DeferredEvaluationQuery;
         Event.Payload = Query;
         EventBus->PublishOutcome(Event);
+
+        UE_LOG(LogTemp, Log, TEXT("DeferredEval: Actor is ALIVE for '%s'. Sending Query."), *ChoreId.ToString());
+        return;
     }
-    // 3. Иначе (Актор мертв, корзина пуста) -> НИЧЕГО НЕ ДЕЛАЕМ (Пункт 7)
-    // Терминал сам поймет, что результата нет, проверив GetChoreStatus или не получив ChoreSucceeded.
+
+    // 2. Актор мертв (другая сцена), но есть сохраненный результат -> ЗАВЕРШАЕМ!
+    if (State->bHasStoredResult)
+    {
+        UE_LOG(LogTemp, Log, TEXT("DeferredEval: Found Stored Result for '%s'. Completing now!"), *ChoreId.ToString());
+        State->bHasStoredResult = false;
+        if (State->StoredResultSucceeded) CompleteChore(ChoreId, State->StoredResultPerformance);
+        else                              FailChore(ChoreId, State->StoredResultPerformance);
+        return;
+    }
+
+    // 3. Актора нет, корзина пуста -> НИЧЕГО НЕ ДЕЛАЕМ (Пункт 7)
+    UE_LOG(LogTemp, Warning, TEXT("DeferredEval: Actor is DEAD and NO Stored Result for '%s'. Doing nothing."), *ChoreId.ToString());
 }
 
 void UChoreManagerSubsystem::HandleReplayDeferredResultRequest(const FOutcomeEventBase& Outcome)
@@ -2618,15 +2611,28 @@ void UChoreManagerSubsystem::HandleRegisterChoreActor(const FOutcomeEventBase& O
 
 void UChoreManagerSubsystem::HandleUnregisterChoreActor(const FOutcomeEventBase& Outcome)
 {
-    if (auto* Payload = Cast<UChoreCommandPayload>(Outcome.Payload))
+    // 1. Проверяем, что пришел правильный тип пейлоада
+    UChoreCommandPayload* Payload = Cast<UChoreCommandPayload>(Outcome.Payload);
+    if (!Payload)
     {
-        if (auto* State = ActiveStates.Find(Payload->ChoreId))
-        {
-            State->bIsActorAlive = false;
-        }
+        UE_LOG(LogTemp, Warning, TEXT("HandleUnregisterChoreActor: Invalid payload type!"));
+        return;
     }
-}
 
+    // 2. Ищем состояние хоры по её ID
+    FChoreState* State = ActiveStates.Find(Payload->ChoreId);
+    if (!State)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("HandleUnregisterChoreActor: State not found for ChoreId '%s'"), *Payload->ChoreId.ToString());
+        return;
+    }
+
+    // 3. Сбрасываем флаг жизни актора
+    State->bIsActorAlive = false;
+
+    // 4. Пишем лог для отладки
+    UE_LOG(LogTemp, Log, TEXT("ChoreManager: Actor for chore '%s' unregistered (left scene)."), *Payload->ChoreId.ToString());
+}
 // ============================================================================
 // Deferred evaluation — public getter
 // ============================================================================

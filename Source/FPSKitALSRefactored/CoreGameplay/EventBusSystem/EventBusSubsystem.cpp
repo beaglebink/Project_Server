@@ -9,10 +9,8 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
     if (bIsPublishing && !bCritical)
     {
         PendingEvents.Add(Outcome);
-        UE_LOG(LogTemp, Verbose,
-            TEXT("EventBusSubsystem: Reentrant PublishOutcome queued (Type=%d, Interior=%d)."),
-            static_cast<int32>(Outcome.OutcomeType),
-            static_cast<int32>(Outcome.OutcomeInterior));
+        UE_LOG(LogTemp, Warning, TEXT("EventBus: [QUEUED] Event queued because bIsPublishing was true. Type=%d, Chore=%d"),
+            static_cast<int32>(Outcome.OutcomeType), static_cast<int32>(Outcome.OutcomeChore));
         return;
     }
 
@@ -25,6 +23,13 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
     bIsPublishing = true;
     bDispatching = true;
 
+    // --- ЛОГ НАЧАЛА ПУБЛИКАЦИИ ---
+    if (Outcome.OutcomeType == EOutcomeType::Chore)
+    {
+        UE_LOG(LogTemp, Log, TEXT("EventBus: Publishing Chore Event %d. Total Handlers: %d"),
+            static_cast<int32>(Outcome.OutcomeChore), Handlers.Num());
+    }
+
     for (int32 i = 0; i < Handlers.Num(); ++i)
     {
         const FOutcomeHandlerEntry& Entry = Handlers[i];
@@ -34,9 +39,20 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
         if (Entry.Query->Evaluate(Outcome))
         {
             if (Entry.Handler.IsBound())
+            {
                 Entry.Handler.Execute(Outcome);
+            }
             else if (Entry.BlueprintDelegate.IsBound())
+            {
+                // --- ЛОГ ВЫЗОВА BLUEPRINT ОБРАБОТЧИКА ---
+                if (Outcome.OutcomeType == EOutcomeType::Chore)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("EventBus: Executing BP Handler ID %d for Chore Event %d"),
+                        Entry.HandleId, static_cast<int32>(Outcome.OutcomeChore));
+                }
+
                 Entry.BlueprintDelegate.Execute(Outcome);
+            }
         }
     }
 
@@ -73,32 +89,24 @@ void UEventBusSubsystem::PublishOutcome(const FOutcomeEventBase& Outcome)
     }
 }
 
-
 void UEventBusSubsystem::ProcessPendingEvents()
 {
-    // Защита от рекурсивной обработки очереди
+    // Защита от реентерабельного вызова (если уже обрабатываем очередь, выходим)
     if (bIsProcessingPending || PendingEvents.Num() == 0)
         return;
 
     bIsProcessingPending = true;
 
-    // Копируем очередь, чтобы избежать конфликтов при добавлении новых событий
-    TArray<FOutcomeEventBase> EventsToProcess = MoveTemp(PendingEvents);
-    // Очередь теперь пуста, но во время обработки могут добавиться новые
-
-    for (const FOutcomeEventBase& Ev : EventsToProcess)
+    // Используем while вместо рекурсии. Это гарантирует, что все 
+    // вновь добавленные события (например, ChoreSucceeded) будут обработаны.
+    while (PendingEvents.Num() > 0)
     {
-        // Рекурсивный вызов PublishOutcome для отложенных событий
-        // Поскольку bIsPublishing сейчас false, они будут опубликованы синхронно
-        PublishOutcome(Ev);
-    }
+        TArray<FOutcomeEventBase> EventsToProcess = MoveTemp(PendingEvents);
 
-    // После обработки скопированных событий проверяем, не добавились ли новые
-    // во время обработки (рекурсивно). Если добавились – обрабатываем их рекурсивно.
-    if (PendingEvents.Num() > 0)
-    {
-        // Рекурсивный вызов для обработки новых отложенных событий
-        ProcessPendingEvents();
+        for (const FOutcomeEventBase& Ev : EventsToProcess)
+        {
+            PublishOutcome(Ev);
+        }
     }
 
     bIsProcessingPending = false;
