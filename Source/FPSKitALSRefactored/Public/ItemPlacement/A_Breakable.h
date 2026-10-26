@@ -5,6 +5,7 @@
 #include "A_Breakable.generated.h"
 
 class UFloorAssignmentComponent;
+class UGeometryCollection;
 
 UCLASS()
 class FPSKITALSREFACTORED_API AA_Breakable : public AA_InteractableActor
@@ -33,6 +34,9 @@ public:
 	UGeometryCollectionComponent* GeometryCollectionComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UGeometryCollection* DefaultGeometryCollection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	UAudioComponent* AudioComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Breakable", meta = (ClampMin = 0.0f))
@@ -48,4 +52,7 @@ public:
 	UFUNCTION()
 	void OnActorHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
+private:
+	UPROPERTY()
+	FTransform DefaultTransform;
 };
