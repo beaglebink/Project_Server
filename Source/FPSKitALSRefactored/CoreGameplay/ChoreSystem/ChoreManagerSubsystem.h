@@ -91,6 +91,11 @@ struct FChoreState
     UPROPERTY(BlueprintReadOnly)
     FChorePerformanceMetrics StoredResultPerformance;
 
+// ---- Actor Custom Data ----
+// JSON-строка с данными актора (сохраняется между сценами)
+    UPROPERTY(BlueprintReadOnly)
+    TMap<FName, FString> ActorCustomDataMap;
+
     FOutcomeHandlerHandle AvailabilityHandler;
     FOutcomeHandlerHandle ReactivationHandler;
 };
@@ -272,6 +277,10 @@ public:
     bool GetDeferredResultForChore(FName ChoreId, bool& bOutSucceeded,
         FChorePerformanceMetrics& OutPerformance) const;
 
+    // ---- Actor Custom Data ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Data")
+    bool GetChoreActorData(FName ChoreId, FName DataKey, FString& OutDataJson) const;
+
 protected:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
@@ -331,6 +340,8 @@ private:
     void HandleDeferredEvaluationRequest(const FOutcomeEventBase& Outcome);
     void HandleReplayDeferredResultRequest(const FOutcomeEventBase& Outcome);
     void HandleDeferredResultReport(const FOutcomeEventBase& Outcome);
+
+    void HandleSaveChoreActorData(const FOutcomeEventBase& Outcome);
 
     FOutcomeHandlerHandle AdvanceStageRequestHandler;
     FOutcomeHandlerHandle PauseRequestHandler;
@@ -411,6 +422,7 @@ private:
     FOutcomeHandlerHandle RegisterChoreRequestHandler;
     FOutcomeHandlerHandle UnregisterChoreRequestHandler;
     FOutcomeHandlerHandle ReacceptRequestHandler;
+    FOutcomeHandlerHandle SaveChoreActorDataHandler;
 
     // ---- Условия для подписок ----
     UPROPERTY()
@@ -442,4 +454,6 @@ private:
     TObjectPtr<UOutcomeConditionAsset> UnregisterChoreRequestCondition;
     UPROPERTY()
     TObjectPtr<UOutcomeConditionAsset> ReacceptRequestCondition;
+    UPROPERTY()
+    TObjectPtr<UOutcomeConditionAsset> SaveChoreActorDataCondition;
 };

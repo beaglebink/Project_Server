@@ -64,6 +64,8 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     ReplayDeferredResultRequestCondition = CreateSimpleChoreCondition(EOutcomeChore::ReplayDeferredResultRequest);
     DeferredResultReportCondition = CreateSimpleChoreCondition(EOutcomeChore::DeferredResultReport);
 
+    SaveChoreActorDataCondition = CreateSimpleChoreCondition(EOutcomeChore::SaveChoreActorData);
+
     // ---- Регистрация обработчиков в EventBus ----
     UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
     if (EventBus)
@@ -121,6 +123,9 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
         DeferredResultReportHandler = EventBus->RegisterHandler(DeferredResultReportCondition,
             FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleDeferredResultReport));
+
+        SaveChoreActorDataHandler = EventBus->RegisterHandler(SaveChoreActorDataCondition,
+            FOutcomeHandlerDelegate::CreateUObject(this, &UChoreManagerSubsystem::HandleSaveChoreActorData));
     }
 
     // ---- Регистрация в системе сохранения ----
@@ -179,6 +184,8 @@ void UChoreManagerSubsystem::Deinitialize()
 
         Unreg(RegisterChoreActorHandler);
         Unreg(UnregisterChoreActorHandler);
+
+        Unreg(SaveChoreActorDataHandler);
     }
 
     // Отписка обработчиков доступности
@@ -2085,6 +2092,14 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         StoredPerfObj->SetNumberField(TEXT("Quantity"), State.StoredResultPerformance.Quantity);
         Obj->SetObjectField(TEXT("StoredResultPerformance"), StoredPerfObj);
 
+        // ---- Actor Custom Data (JSON Map) ----
+        TSharedPtr<FJsonObject> DataMapObj = MakeShared<FJsonObject>();
+        for (const auto& DataPair : State.ActorCustomDataMap)
+        {
+            DataMapObj->SetStringField(DataPair.Key.ToString(), DataPair.Value);
+        }
+        Obj->SetObjectField(TEXT("ActorCustomDataMap"), DataMapObj);
+
         StateArray.Add(MakeShared<FJsonValueObject>(Obj));
     }
     Root->SetArrayField(TEXT("States"), StateArray);
@@ -2263,6 +2278,20 @@ void UChoreManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
                 (*StoredPerfObj)->TryGetNumberField(TEXT("Mistakes"), State.StoredResultPerformance.Mistakes);
                 (*StoredPerfObj)->TryGetNumberField(TEXT("Accuracy"), State.StoredResultPerformance.Accuracy);
                 (*StoredPerfObj)->TryGetNumberField(TEXT("Quantity"), State.StoredResultPerformance.Quantity);
+            }
+
+            // ---- Actor Custom Data (JSON Map) ----
+            const TSharedPtr<FJsonObject>* DataMapObj = nullptr;
+            if (Obj->TryGetObjectField(TEXT("ActorCustomDataMap"), DataMapObj))
+            {
+                for (const auto& DataPair : (*DataMapObj)->Values)
+                {
+                    FString JsonStr;
+                    if (DataPair.Value->TryGetString(JsonStr))
+                    {
+                        State.ActorCustomDataMap.Add(FName(*DataPair.Key), JsonStr);
+                    }
+                }
             }
 
             // При загрузке актор физически отсутствует на сцене. 
@@ -2596,6 +2625,38 @@ void UChoreManagerSubsystem::HandleDeferredResultReport(const FOutcomeEventBase&
 
         UE_LOG(LogTemp, Log, TEXT("ChoreManager: Stored result for '%s' from EndPlay. Waiting for terminal."), *ChoreId.ToString());
     }
+}
+
+void UChoreManagerSubsystem::HandleSaveChoreActorData(const FOutcomeEventBase& Outcome)
+{
+    UChoreActorDataPayload* Payload = Cast<UChoreActorDataPayload>(Outcome.Payload);
+    if (!Payload) return;
+
+    FChoreState* State = ActiveStates.Find(Payload->ChoreId);
+    if (!State) return;
+
+    // Сохраняем JSON по ключу конкретного актора
+    State->ActorCustomDataMap.Add(Payload->DataKey, Payload->DataJson);
+
+    UE_LOG(LogTemp, Log, TEXT("ChoreManager: Saved actor data for '%s', ActorKey: '%s' (Length: %d)"),
+        *Payload->ChoreId.ToString(), *Payload->DataKey.ToString(), Payload->DataJson.Len());
+}
+
+bool UChoreManagerSubsystem::GetChoreActorData(FName ChoreId, FName DataKey, FString& OutDataJson) const
+{
+    OutDataJson.Empty();
+    const FChoreState* State = ActiveStates.Find(ChoreId);
+    if (!State) return false;
+
+    // Ищем данные по ключу актора
+    const FString* FoundJson = State->ActorCustomDataMap.Find(DataKey);
+    if (FoundJson && !FoundJson->IsEmpty())
+    {
+        OutDataJson = *FoundJson;
+        return true;
+    }
+
+    return false;
 }
 
 void UChoreManagerSubsystem::HandleRegisterChoreActor(const FOutcomeEventBase& Outcome)

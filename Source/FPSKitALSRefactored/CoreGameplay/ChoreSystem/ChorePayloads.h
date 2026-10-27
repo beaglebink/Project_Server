@@ -326,3 +326,29 @@ public:
         return this;
     }
 };
+
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UChoreActorDataPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Data")
+    FName ChoreId;
+
+    // УНИКАЛЬНЫЙ КЛЮЧ АКТОРА (например, имя объекта на сцене)
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Data")
+    FName DataKey;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Chore|Data")
+    FString DataJson;
+
+    UFUNCTION(BlueprintCallable, Category = "Chore|Data")
+    UChoreActorDataPayload* Setup(FName InChoreId, FName InDataKey, const FString& InDataJson)
+    {
+        ChoreId = InChoreId;
+        DataKey = InDataKey;
+        DataJson = InDataJson;
+        return this;
+    }
+};
