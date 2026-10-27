@@ -2533,7 +2533,7 @@ void UChoreManagerSubsystem::HandleDeferredEvaluationRequest(const FOutcomeEvent
     }
 
     UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    if (!Def || !Def->bUseDeferredEvaluation) return;
+    if (!Def /* || !Def->bUseDeferredEvaluation*/) return;
 
     // 1. ПРИОРИТЕТ: Актор на этой же сцене -> Спрашиваем его (самые свежие данные)
     if (State->bIsActorAlive)
@@ -2587,7 +2587,7 @@ void UChoreManagerSubsystem::HandleReplayDeferredResultRequest(const FOutcomeEve
     if (!State) return;
 
     const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    if (!Def || !Def->bUseDeferredEvaluation) return;
+    if (!Def /* || !Def->bUseDeferredEvaluation*/) return;
 
     // Replay имеет смысл только для уже оценённой хоры.
     if (State->Status != EChoreStatus::Completed && State->Status != EChoreStatus::Failed)
@@ -2727,7 +2727,7 @@ bool UChoreManagerSubsystem::GetDeferredResultForChore(
     if (!State) return false;
 
     const UChoreDefinition* Def = GetChoreDefinition(ChoreId);
-    if (!Def || !Def->bUseDeferredEvaluation) return false;
+    if (!Def /* || !Def->bUseDeferredEvaluation*/) return false;
 
     if (State->Status != EChoreStatus::Completed && State->Status != EChoreStatus::Failed)
         return false;
