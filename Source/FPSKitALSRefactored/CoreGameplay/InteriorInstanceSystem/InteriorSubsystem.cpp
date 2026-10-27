@@ -4689,7 +4689,7 @@ void UInteriorSubsystem::RestoreSpawnedActorsForCurrentFloor(const FMissionEnvel
 
 void UInteriorSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
-	SaveLoadFromDisk.Broadcast(true);
+	//SaveLoadFromDisk.Broadcast(true);
 
 	UWorld* World = GetWorld();
 	if (!World) return;

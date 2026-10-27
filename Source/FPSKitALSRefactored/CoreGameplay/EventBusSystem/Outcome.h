@@ -267,5 +267,6 @@ enum class EOutcomeChore : uint8
     RegisterChoreActor       UMETA(DisplayName = "Register Chore Actor"),
     // Актор сообщает, что он покидает сцену
     UnregisterChoreActor     UMETA(DisplayName = "Unregister Chore Actor"),
-    SaveChoreActorData          UMETA(DisplayName = "Save Chore Actor Data")
+    SaveChoreActorData          UMETA(DisplayName = "Save Chore Actor Data"),
+    RequestActorDataForSave     UMETA(DisplayName = "Request Actor Data For Save")
 };

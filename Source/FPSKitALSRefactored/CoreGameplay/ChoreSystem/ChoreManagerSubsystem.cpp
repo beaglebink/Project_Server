@@ -2027,7 +2027,26 @@ void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     OutData.SubsystemName = GetSaveSubsystemName();
     TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
-    // ---- States ----
+    // ================================================================
+    // ШАГ 1: Запрашиваем у всех живых Акторов их актуальное состояние.
+    // EventBus синхронный, поэтому все ответы (SaveChoreActorData)
+    // придут и запишутся в ActorCustomDataMap ДО того, как мы начнём
+    // сериализацию.
+    // ================================================================
+    if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+    {
+        FOutcomeEventBase RequestEv;
+        RequestEv.OutcomeType = EOutcomeType::Chore;
+        RequestEv.OutcomeChore = EOutcomeChore::RequestActorDataForSave;
+        // Payload не обязателен: Акторы знают свой ChoreId сами.
+        EventBus->PublishOutcome(RequestEv);
+
+        UE_LOG(LogTemp, Log, TEXT("ChoreManager: Requested actor data for save."));
+    }
+
+    // ================================================================
+    // ШАГ 2: Сериализуем актуальный ActorCustomDataMap
+    // ================================================================
     TArray<TSharedPtr<FJsonValue>> StateArray;
     for (const auto& Pair : ActiveStates)
     {
