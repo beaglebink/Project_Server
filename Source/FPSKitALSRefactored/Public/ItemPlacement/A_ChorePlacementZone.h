@@ -117,6 +117,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement")
 	FGameplayTag FailedTag;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|Breakable")
+	int32 MaxBrokenItemsAllowed = 0;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ChorePlacement|SourceZone")
 	UStaticMeshComponent* SourceZoneMesh;
 
@@ -156,9 +159,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "ChorePlacement|DropZones")
 	TArray<FGameplayTag> SourcePlacedItemTags;
 
+	UFUNCTION()
+	void CountBreaks(AA_Breakable* BreakableActor);
+
 private:
 	UPROPERTY()
 	FTimerHandle AutoResultTimerHandle;
+
+	int32 BrokenItemsCount = 0;
 
 	UPROPERTY()
 	EChoreStatus ChoreStatus;
