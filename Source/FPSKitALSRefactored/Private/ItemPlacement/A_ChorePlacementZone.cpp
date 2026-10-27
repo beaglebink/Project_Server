@@ -209,6 +209,14 @@ void AA_ChorePlacementZone::BeginPlay()
 
 	SetChoreStatus(bIsAutoAcivated ? EChoreStatus::Active : EChoreStatus::Inactive);
 
+	for (auto& [Id, ItemData] : SourcePlacedItems)
+	{
+		if (AA_Breakable* BreakableActor = Cast<AA_Breakable>(ItemData.ItemActor))
+		{
+			BreakableActor->OnBroken.AddDynamic(this, &AA_ChorePlacementZone::CountBreaks);
+		}
+	}
+
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		if (UGIS_ChorePlacement* ChoreSys = GI->GetSubsystem<UGIS_ChorePlacement>())
@@ -283,6 +291,15 @@ void AA_ChorePlacementZone::UpdateSourcePlacedItems()
 	}
 }
 
+void AA_ChorePlacementZone::CountBreaks(AA_Breakable* BreakableActor)
+{
+	++BrokenItemsCount;
+	if (BrokenItemsCount > MaxBrokenItemsAllowed)
+	{
+		SetChoreStatus(EChoreStatus::Failed);
+	}
+}
+
 void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 {
 	if (ChoreStatus == NewStatus)
@@ -335,6 +352,7 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 	case EChoreStatus::Failed:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "FAILED");
 		break;
 	}
 	case EChoreStatus::Abandoned:
@@ -417,6 +435,8 @@ void AA_ChorePlacementZone::ResetChorePlacementZone()
 			BreakableActor->RestoreActor();
 		}
 	}
+
+	BrokenItemsCount = 0;
 
 	SetChoreStatus(bIsAutoAcivated ? EChoreStatus::Active : EChoreStatus::Inactive);
 }

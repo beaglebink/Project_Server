@@ -4,6 +4,9 @@
 #include "PythonContainers/A_InteractableActor.h"
 #include "A_Breakable.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBreakableBroken, AA_Breakable*, BreakableActor);
+
+
 class UFloorAssignmentComponent;
 class UGeometryCollection;
 
@@ -41,6 +44,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Breakable", meta = (ClampMin = 0.0f))
 	float BreakImpulseThreshold = 1000.0f;
+
+	UPROPERTY(BlueprintAssignable, Category = "Breakable")
+	FOnBreakableBroken OnBroken;
 
 	void BreakActor();
 

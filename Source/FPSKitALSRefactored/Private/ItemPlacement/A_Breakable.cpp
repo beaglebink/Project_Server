@@ -100,6 +100,8 @@ void AA_Breakable::SetIsBroken(bool IsBroken)
 			AttachingDropZone->bIsOccupied = false;
 			AttachingDropZone = nullptr;
 		}
+
+		OnBroken.Broadcast(this);
 	}
 	else
 	{
