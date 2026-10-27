@@ -8,17 +8,11 @@ AA_Breakable::AA_Breakable()
 	PrimaryActorTick.bCanEverTick = true;
 
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
-	GeometryCollectionComponent = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("GeometryCollectionComponent"));
 	AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 
-	GeometryCollectionComponent->SetupAttachment(RootComponent);
 	AudioComponent->SetupAttachment(RootComponent);
 
 	StaticMesh->SetNotifyRigidBodyCollision(true);
-
-	GeometryCollectionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GeometryCollectionComponent->SetSimulatePhysics(false);
-	GeometryCollectionComponent->SetVisibility(false);
 
 	AudioComponent->SetAutoActivate(false);
 }
@@ -31,6 +25,8 @@ void AA_Breakable::OnConstruction(const FTransform& Transform)
 	{
 		FloorAssignmentComponent->Registrate(EFloorActorType::HeavyFurniture, ESnapshotChannel::None);
 	}
+
+	DefaultTransform = GetActorTransform();
 }
 
 void AA_Breakable::Tick(float DeltaTime)
@@ -72,17 +68,36 @@ void AA_Breakable::BreakActor()
 
 	AudioComponent->Play();
 
-	GeometryCollectionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	GeometryCollectionComponent->SetSimulatePhysics(true);
-	GeometryCollectionComponent->SetVisibility(true);
-	GeometryCollectionComponent->WakeAllRigidBodies();
-	GeometryCollectionComponent->WakeAllRigidBodies();
-	GeometryCollectionComponent->RemoveAllAnchors();
-	GeometryCollectionComponent->CrumbleActiveClusters();
+	if (!GeometryCollectionComponent && DefaultGeometryCollection)
+	{
+		GeometryCollectionComponent = NewObject<UGeometryCollectionComponent>(this, TEXT("GeometryCollectionComponent"));
+		GeometryCollectionComponent->SetRestCollection(DefaultGeometryCollection);
+		GeometryCollectionComponent->SetupAttachment(RootComponent);
+		GeometryCollectionComponent->RegisterComponent();
+		GeometryCollectionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		GeometryCollectionComponent->SetSimulatePhysics(true);
+		GeometryCollectionComponent->SetVisibility(true);
+		GeometryCollectionComponent->WakeAllRigidBodies();
+		GeometryCollectionComponent->RemoveAllAnchors();
+		GeometryCollectionComponent->CrumbleActiveClusters();
+	}
 }
 
 void AA_Breakable::RestoreActor()
 {
+	if (IsValid(GeometryCollectionComponent))
+	{
+		GeometryCollectionComponent->DestroyComponent();
+		GeometryCollectionComponent = nullptr;
+	}
+
+	StaticMesh->SetVisibility(true);
+	StaticMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	StaticMesh->SetSimulatePhysics(true);
+
+	bIsBroken = false;
+
+	SetActorTransform(DefaultTransform);
 }
 
 void AA_Breakable::OnActorHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
