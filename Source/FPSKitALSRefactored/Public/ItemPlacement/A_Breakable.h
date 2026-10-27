@@ -42,10 +42,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Breakable", meta = (ClampMin = 0.0f))
 	float BreakImpulseThreshold = 1000.0f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Breakable")
-	uint8 bIsBroken : 1{false};
-
 	void BreakActor();
+
+	UFUNCTION(BlueprintCallable, Category = "Breakable")
+	void SetIsBroken(bool IsBroken);
+
+	UFUNCTION(BlueprintCallable, Category = "Breakable")
+	bool GetIsBroken()const;
 
 	void RestoreActor();
 
@@ -55,4 +58,7 @@ public:
 private:
 	UPROPERTY()
 	FTransform DefaultTransform;
+
+	UPROPERTY()
+	uint8 bIsBroken : 1{false};
 };

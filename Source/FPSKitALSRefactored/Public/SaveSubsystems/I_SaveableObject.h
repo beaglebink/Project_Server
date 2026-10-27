@@ -28,6 +28,10 @@ struct FSaveItemData
 
 	UPROPERTY()
 	uint8 bHasSimulatedPhysics : 1{false};
+
+	// Breakable actor
+	UPROPERTY()
+	uint8 bIsBroken : 1{false};
 };
 
 USTRUCT(BlueprintType)

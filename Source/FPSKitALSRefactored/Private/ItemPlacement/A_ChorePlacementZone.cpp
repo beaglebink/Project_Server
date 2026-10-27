@@ -7,6 +7,7 @@
 #include "ProceduralMeshComponent.h"
 #include "SaveSubsystems/GIS_ChorePlacement.h"
 #include "SaveSubsystems/WS_ActorRegistry.h"
+#include "ItemPlacement/A_Breakable.h"
 
 AA_ChorePlacementZone::AA_ChorePlacementZone()
 {
@@ -409,6 +410,12 @@ void AA_ChorePlacementZone::ResetChorePlacementZone()
 				PrimitiveComponent->SetSimulatePhysics(true);
 			}
 		}
+
+		// Breakable actor
+		if (AA_Breakable* BreakableActor = Cast<AA_Breakable>(ItemData.ItemActor))
+		{
+			BreakableActor->RestoreActor();
+		}
 	}
 
 	SetChoreStatus(bIsAutoAcivated ? EChoreStatus::Active : EChoreStatus::Inactive);
@@ -535,6 +542,12 @@ FSaveChoreData AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementati
 			}
 		}
 
+		// Breakable actor
+		if (AA_Breakable* BreakableActor = Cast<AA_Breakable>(ItemData.ItemActor))
+		{
+			SaveData.bIsBroken = BreakableActor->GetIsBroken();
+		}
+
 		SaveChoreData.SaveItemData.Add(SaveData);
 	}
 	SaveChoreData.ChoreStatus = GetChoreStatus();
@@ -587,6 +600,12 @@ void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const FSa
 			{
 				PrimitiveComponent->SetSimulatePhysics(SavedData.bHasSimulatedPhysics);
 			}
+		}
+
+		// Breakable actor
+		if (AA_Breakable* BreakableActor = Cast<AA_Breakable>(ItemActor))
+		{
+			BreakableActor->SetIsBroken(SavedData.bIsBroken);
 		}
 	}
 

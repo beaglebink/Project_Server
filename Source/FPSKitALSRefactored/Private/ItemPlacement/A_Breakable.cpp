@@ -2,6 +2,7 @@
 #include "FloorAssignmentComponent.h"
 #include "Components/AudioComponent.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "ItemPlacement/A_DropZone.h"
 
 AA_Breakable::AA_Breakable()
 {
@@ -60,11 +61,7 @@ void AA_Breakable::Destroyed()
 
 void AA_Breakable::BreakActor()
 {
-	bIsBroken = true;
-
-	StaticMesh->SetSimulatePhysics(false);
-	StaticMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	StaticMesh->SetVisibility(false);
+	SetIsBroken(true);
 
 	AudioComponent->Play();
 
@@ -83,7 +80,7 @@ void AA_Breakable::BreakActor()
 	}
 }
 
-void AA_Breakable::RestoreActor()
+void AA_Breakable::SetIsBroken(bool IsBroken)
 {
 	if (IsValid(GeometryCollectionComponent))
 	{
@@ -91,11 +88,42 @@ void AA_Breakable::RestoreActor()
 		GeometryCollectionComponent = nullptr;
 	}
 
-	StaticMesh->SetVisibility(true);
-	StaticMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	StaticMesh->SetSimulatePhysics(true);
+	bIsBroken = IsBroken;
 
-	bIsBroken = false;
+	if (bIsBroken)
+	{
+		StaticMesh->SetVisibility(false);
+		StaticMesh->SetSimulatePhysics(false);
+		StaticMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		if (AttachingDropZone)
+		{
+			AttachingDropZone->bIsOccupied = false;
+			AttachingDropZone = nullptr;
+		}
+	}
+	else
+	{
+		StaticMesh->SetVisibility(true);
+		StaticMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		if (AttachingDropZone)
+		{
+			StaticMesh->SetSimulatePhysics(false);
+		}
+		else
+		{
+			StaticMesh->SetSimulatePhysics(true);
+		}
+	}
+}
+
+bool AA_Breakable::GetIsBroken() const
+{
+	return bIsBroken;
+}
+
+void AA_Breakable::RestoreActor()
+{
+	SetIsBroken(false);
 
 	SetActorTransform(DefaultTransform);
 }

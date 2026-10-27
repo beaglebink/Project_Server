@@ -66,6 +66,7 @@ void UGIS_ChorePlacement::CollectSaveData(FSubsystemSaveData& OutData)
 			ItemJson->SetBoolField(TEXT("bIsHeld"), SaveItemData.bIsHeld);
 			ItemJson->SetBoolField(TEXT("bIsAttached"), SaveItemData.bIsAttached);
 			ItemJson->SetBoolField(TEXT("bHasSimulatedPhysics"), SaveItemData.bHasSimulatedPhysics);
+			ItemJson->SetBoolField(TEXT("bIsBroken"), SaveItemData.bIsBroken);
 
 			ItemsJsonArray.Add(MakeShared<FJsonValueObject>(ItemJson));
 		}
@@ -169,8 +170,10 @@ void UGIS_ChorePlacement::ApplySaveData(const FSubsystemSaveData& InData)
 				TempBool = false;
 				ItemJsonObj->TryGetBoolField(TEXT("bHasSimulatedPhysics"), TempBool);
 				SaveItemData.bHasSimulatedPhysics = TempBool;
+				TempBool = false;
+				ItemJsonObj->TryGetBoolField(TEXT("bIsBroken"), TempBool);
+				SaveItemData.bIsBroken = TempBool;
 			}
-
 
 			SaveChoreData.SaveItemData.Add(SaveItemData);
 		}
