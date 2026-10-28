@@ -12,13 +12,6 @@ class AA_InteractableActor;
 class UFloorAssignmentComponent;
 
 UENUM(BlueprintType)
-enum class EResultBroadcast : uint8
-{
-	Auto,
-	ByRequest
-};
-
-UENUM(BlueprintType)
 enum class EWrongItemBehavior : uint8
 {
 	Ignore,
@@ -63,16 +56,16 @@ struct FChoreResult
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	uint8 bResult;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Chore")
+	uint8 bResult : 1{false};
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Chore")
 	TMap<FGameplayTag, int32> SuccessedItems;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Chore")
 	TMap<FGameplayTag, int32> MissedItems;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Chore")
 	TMap<FGameplayTag, int32> FailedItems;
 };
 
@@ -106,7 +99,7 @@ public:
 	uint8 bIsAutoAcivated : 1{true};
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement")
-	EResultBroadcast ResultBroadcast;
+	uint8 bIsDeferredEvaluate : 1{false};
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|Wrong Items Behavior")
 	EWrongItemBehavior ItemBehavior;
@@ -175,13 +168,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
 	void SetChoreStatus(EChoreStatus NewStatus);
 
-	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChorePlacement")
 	EChoreStatus GetChoreStatus()const;
 
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
 	void ResetChorePlacementZone();
 
-	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChorePlacement")
 	FChoreResult GetResultState();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ChorePlacement")
@@ -191,4 +184,11 @@ public:
 	virtual FSaveChoreData CollectChorePlacementSaveData_Implementation() override;
 
 	virtual void ApplyChorePlacementSaveData_Implementation(const FSaveChoreData& SaveChoreData) override;
+
+	// intermediate data saving
+	UFUNCTION(BlueprintCallable, Category = "Saving")
+	FString CollectIntermediateSaveData();
+
+	UFUNCTION(BlueprintCallable, Category = "Saving")
+	void ApplyIntermediateSaveData(FString Jsonstring);
 };

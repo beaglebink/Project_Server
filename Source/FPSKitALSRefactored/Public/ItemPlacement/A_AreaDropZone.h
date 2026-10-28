@@ -7,6 +7,7 @@
 
 class AA_InteractableActor;
 class UFloorAssignmentComponent;
+class UBoxComponent;
 
 UCLASS()
 class FPSKITALSREFACTORED_API AA_AreaDropZone : public AActor
@@ -35,6 +36,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DropZone|AreaMesh")
 	UStaticMeshComponent* DropZoneMesh;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "DropZone|AreaMesh")
+	UBoxComponent* DropZoneBoxComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DropZone|AreaMeshMaterial")
 	UMaterialInterface* DropZoneMeshMaterial;

@@ -1,6 +1,7 @@
 #include "ItemPlacement/A_AreaDropZone.h"
 #include "PythonContainers/A_InteractableActor.h"
 #include "FloorAssignmentComponent.h"
+#include "Components/BoxComponent.h"
 
 AA_AreaDropZone::AA_AreaDropZone()
 {
@@ -8,16 +9,24 @@ AA_AreaDropZone::AA_AreaDropZone()
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	DropZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DropZoneMesh"));
+	DropZoneBoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("DropZoneBoxComponent"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
 
 	DropZoneMesh->SetupAttachment(RootComponent);
+	DropZoneBoxComponent->SetupAttachment(DropZoneMesh);
 
 	DropZoneMesh->SetCollisionProfileName(TEXT("DropZoneObject"));
+	DropZoneBoxComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
 }
 
 void AA_AreaDropZone::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+
+	if (DropZoneMesh->GetStaticMesh())
+	{
+		DropZoneBoxComponent->SetBoxExtent(DropZoneMesh->GetStaticMesh()->GetBounds().BoxExtent);
+	}
 
 	if (!HasAnyFlags(RF_ClassDefaultObject) && FloorAssignmentComponent && !FloorAssignmentComponent->GetItemId().IsValid())
 	{
@@ -88,7 +97,7 @@ void AA_AreaDropZone::UpdateInAreaItemsList()
 	WrongItemsList.Empty();
 
 	TArray <AActor*> OverlappingActors;
-	DropZoneMesh->GetOverlappingActors(OverlappingActors);
+	DropZoneBoxComponent->GetOverlappingActors(OverlappingActors);
 
 	for (AActor* OverlappedActor : OverlappingActors)
 	{

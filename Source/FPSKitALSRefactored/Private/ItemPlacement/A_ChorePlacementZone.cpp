@@ -330,7 +330,7 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 		}
 
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
-		if (NewStatus == EChoreStatus::Active && ResultBroadcast == EResultBroadcast::Auto)
+		if (NewStatus == EChoreStatus::Active && !bIsDeferredEvaluate)
 		{
 			GetWorldTimerManager().SetTimer(AutoResultTimerHandle, [this]()
 				{
@@ -342,58 +342,71 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 					}
 				}, 0.5f, true);
 		}
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, ChoreStatus == EChoreStatus::Active ? "ACTIVE" : "INACTIVE");
 		break;
 	}
 	case EChoreStatus::Completed:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		PublicResultState(GetResultState());
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "COMPLETED");
 		break;
 	}
 	case EChoreStatus::Failed:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		PublicResultState(GetResultState());
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "FAILED");
 		break;
 	}
 	case EChoreStatus::Abandoned:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "ABANDONED");
 		break;
 	}
 	case EChoreStatus::Unavailable:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "UNAVAILABLE");
 		break;
 	}
 	case EChoreStatus::Available:
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "AVAILABLE");
 		break;
 	}
 	case EChoreStatus::Offered:
 	{
 
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "OFFERED");
 		break;
 	}
 	case EChoreStatus::Accepted:
 	{
 
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "ACCEPTED");
 		break;
 	}
 	case EChoreStatus::WaitingToStart:
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "WAITINGTOSTART");
 		break;
 	}
 	case EChoreStatus::Expired:
 	{
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "EXPIRED");
 		break;
 	}
 	case EChoreStatus::RetryAvailable:
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "RETRYAVAILABLE");
 		break;
 	}
 	case EChoreStatus::PendingReaccept:
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "PENDINGREACCEPT");
 		break;
 	}
 	default:
@@ -502,7 +515,7 @@ FChoreResult AA_ChorePlacementZone::GetResultState()
 
 FGameplayTag AA_ChorePlacementZone::PublicResultState_Implementation(FChoreResult ChoreResult)
 {
-	FString ResultText = FString::Printf(TEXT("Chore result: %s\n"), ChoreResult.bResult ? "Successed" : "Failed");
+	FString ResultText = FString::Printf(TEXT("Chore result: %s\n"), ChoreResult.bResult ? TEXT("Successed") : TEXT("Failed"));
 	ResultText += TEXT("Successed\n");
 	ResultText += TEXT("--------------------------\n");
 	for (auto& [ItemTag, ItemQuantity] : ChoreResult.SuccessedItems)
@@ -630,4 +643,31 @@ void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const FSa
 	}
 
 	SetChoreStatus(SaveChoreData.ChoreStatus);
+}
+
+FString AA_ChorePlacementZone::CollectIntermediateSaveData()
+{
+	FSubsystemSaveData SaveData;
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UGIS_ChorePlacement* ChoreSys = GI->GetSubsystem<UGIS_ChorePlacement>())
+		{
+			ChoreSys->CollectSaveData(SaveData);
+		}
+	}
+	return SaveData.SerializedData;
+}
+
+void AA_ChorePlacementZone::ApplyIntermediateSaveData(FString Jsonstring)
+{
+	FSubsystemSaveData SaveData;
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UGIS_ChorePlacement* ChoreSys = GI->GetSubsystem<UGIS_ChorePlacement>())
+		{
+			SaveData.SerializedData = Jsonstring;
+			ChoreSys->ApplySaveData(SaveData);
+			ChoreSys->ApplyChorePlacementData(this);
+		}
+	}
 }
