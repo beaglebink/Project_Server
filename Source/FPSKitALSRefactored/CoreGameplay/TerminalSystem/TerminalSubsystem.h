@@ -8,6 +8,7 @@
 #include "../InteractionSystem/InteractiveSubsystemMethods.h"
 #include "ISaveableSubsystem.h"
 #include <FloorAssignmentComponent.h>
+#include "FPSKitALSRefactored/CoreGameplay/Cubixon/Core/CubixonCoreData.h"
 #include "TerminalSubsystem.generated.h"
 
 class UInteractiveItemComponent;
@@ -286,6 +287,47 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|Games")
     bool IsGameFinishedForTerminal(const FGuid& TerminalId, const FString& GameId) const;
 
+    // ---- Text file backups (TimeBase) — только чтение ----
+    // ---- Text file backups (TimeBase) — только чтение ----
+    // Outer key — TerminalID (FString). Inner key — FileName.
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    TArray<FString> GetAllTextFileBackupTerminalIDs() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    bool HasTextFileBackupTerminal(const FString& TerminalID) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    TArray<FString> GetTextFileBackupFileNames(const FString& TerminalID) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    bool HasTextFileBackup(const FString& TerminalID, const FString& FileName) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    bool GetTextFileBackupSize(const FString& TerminalID, const FString& FileName,
+        float& OutSize) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    bool GetTextFileBackupEntry(const FString& TerminalID, const FString& FileName,
+        const FString& TimestampKey, FText& OutContent) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    TArray<FString> GetTextFileBackupKeys(const FString& TerminalID,
+        const FString& FileName) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    bool GetTextFileBackup(const FString& TerminalID, const FString& FileName,
+        FTextBackupTimeStamp& OutData) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    float GetTextFileBackupTotalSize(const FString& TerminalID) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    float GetTextFileBackupGrandTotalSize() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    TMap<FString, FTextBackupTimeStamp> GetTextFilesByTime(const FString& TerminalID) const;
+
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
     FOnTerminalEvent OnTerminalEvent;
@@ -328,6 +370,24 @@ protected:
 
     // ---- Event publishing ----
     void PublishTerminalOutcome(const FGuid& TerminalId, EOutcomeTerminal OutcomeType, UOutcomePayload* Payload = nullptr);
+
+    // ---- Text file backups: mutators (private, called from handlers) ----
+    // Replace-or-insert: полная структура заменяет запись FileName внутри TerminalID.
+    bool AddTextFileBackupEntry(const FString& TerminalID, const FString& FileName,
+        const FTextBackupTimeStamp& Backup);
+
+    // Assign: внутренняя карта для TerminalID заменяется целиком.
+    void ReplaceTextFileBackups(const FString& TerminalID,
+        const TMap<FString, FTextBackupTimeStamp>& NewBackups);
+
+    void OverwriteTextFileBackups(const FString& TerminalID, const TMap<FString, FTextBackupTimeStamp>& Backups);
+
+    bool RemoveTextFileBackupEntry(const FString& TerminalID, const FString& FileName,
+        const FString& TimestampKey);
+
+    // FileName empty → очистить весь TerminalID.
+    bool ClearTextFileBackupEntries(const FString& TerminalID, const FString& FileName);
+
 
 private:
     // ---- Interact handlers ----
@@ -380,6 +440,14 @@ private:
     void HandleGameCompleted(const FOutcomeEventBase& Outcome);
     void HandleGameRecordRemoved(const FOutcomeEventBase& Outcome);
     void HandleGameStageRemoved(const FOutcomeEventBase& Outcome);
+
+    // ---- Text file backups: handlers ----
+    void HandleAddTextFileBackup(const FOutcomeEventBase& Outcome);
+    void HandleReplaceTextFileBackups(const FOutcomeEventBase& Outcome);
+    void HandleOverwriteTextFileBackups(const FOutcomeEventBase& Outcome);
+    void HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome);
+    void HandleClearTextFileBackups(const FOutcomeEventBase& Outcome);
+
 
     // ========================================================================
     // Game mutators (internal)
@@ -476,6 +544,13 @@ private:
     FOutcomeHandlerHandle GameStageRemovedHandler;
     FOutcomeHandlerHandle GameRecordRemovedHandler;
 
+    // ---- Text file command handles ----
+    FOutcomeHandlerHandle AddTextFileBackupHandler;
+    FOutcomeHandlerHandle ReplaceTextFileBackupsHandler;
+    FOutcomeHandlerHandle OverwriteTextFileBackupsHandler;
+    FOutcomeHandlerHandle RemoveTextFileBackupHandler;
+    FOutcomeHandlerHandle ClearTextFileBackupsHandler;
+
     // ---- Interact conditions ----
     UPROPERTY() UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
     UPROPERTY() UOutcomeConditionAsset* UnregisteredConditionAsset = nullptr;
@@ -511,6 +586,12 @@ private:
     UPROPERTY() UOutcomeConditionAsset* GameStageRemovedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameRecordRemovedCondition = nullptr;
 
+    UPROPERTY() UOutcomeConditionAsset* AddTextFileBackupCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* ReplaceTextFileBackupsCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* OverwriteTextFileBackupsCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* RemoveTextFileBackupCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* ClearTextFileBackupsCondition = nullptr;
+
     bool bIsLoadComplete = true;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -521,4 +602,7 @@ private:
     // Outer key — TerminalId, inner key — GameId.
     // Внешний ключ — TerminalId, внутренний — GameId.
     TMap<FGuid, TMap<FString, FTerminalActivityRecord>> GameRecords;
+
+    TMap<FString, TMap<FString, FTextBackupTimeStamp>> TextFilesByTimeBase;
+
 };

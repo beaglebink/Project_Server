@@ -597,6 +597,128 @@ void UTerminalSubsystem::PublishTerminalOutcome(const FGuid& TerminalId, EOutcom
 }
 
 // ============================================================================
+// Text file backup mutators (private)
+// ============================================================================
+
+bool UTerminalSubsystem::AddTextFileBackupEntry(
+	const FString& TerminalID,
+	const FString& FileName,
+	const FTextBackupTimeStamp& Backup)
+{
+	if (FileName.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: AddTextFileBackupEntry rejected — empty FileName"));
+		return false;
+	}
+	if (TerminalID.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: AddTextFileBackupEntry rejected — empty TerminalID"));
+		return false;
+	}
+
+	TextFilesByTimeBase.FindOrAdd(TerminalID).Add(FileName, Backup);
+	return true;
+}
+
+void UTerminalSubsystem::ReplaceTextFileBackups(
+	const FString& TerminalID,
+	const TMap<FString, FTextBackupTimeStamp>& NewBackups)
+{
+	if (TerminalID.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: ReplaceTextFileBackups rejected — empty TerminalID"));
+		return;
+	}
+
+	if (NewBackups.Num() == 0)
+	{
+		TextFilesByTimeBase.Remove(TerminalID);
+	}
+	else
+	{
+		TextFilesByTimeBase.Add(TerminalID, NewBackups);
+	}
+}
+
+void UTerminalSubsystem::OverwriteTextFileBackups(
+	const FString& TerminalID,
+	const TMap<FString, FTextBackupTimeStamp>& Backups)
+{
+	if (TerminalID.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: OverwriteTextFileBackups rejected — empty TerminalID"));
+		return;
+	}
+
+	// Пустая карта — no-op: ничего не перезаписываем, TerminalID не создаём.
+	if (Backups.Num() == 0) return;
+
+	auto& Inner = TextFilesByTimeBase.FindOrAdd(TerminalID);
+	for (const auto& Pair : Backups)
+	{
+		if (Pair.Key.IsEmpty()) continue;
+		Inner.Add(Pair.Key, Pair.Value);   // replace-or-insert для каждого FileName
+	}
+}
+
+bool UTerminalSubsystem::RemoveTextFileBackupEntry(
+	const FString& TerminalID,
+	const FString& FileName,
+	const FString& TimestampKey)
+{
+	if (FileName.IsEmpty() || TerminalID.IsEmpty()) return false;
+
+	auto* Inner = TextFilesByTimeBase.Find(TerminalID);
+	if (!Inner) return false;
+
+	if (TimestampKey.IsEmpty())
+	{
+		if (Inner->Remove(FileName) == 0) return false;
+		if (Inner->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
+	}
+	else
+	{
+		auto* Backup = Inner->Find(FileName);
+		if (!Backup) return false;
+		if (Backup->TimeStamps.Remove(TimestampKey) == 0) return false;
+	}
+
+	if (UEventBusSubsystem* Bus = CachedEventBus.Get())
+	{
+		if (auto* P = Bus->CreatePayload<UTerminalTextFileBackupRemovedPayload>())
+		{
+			P->Setup(TerminalID, FileName, TimestampKey);
+			PublishTerminalOutcome(FGuid(), EOutcomeTerminal::ReportTextFileBackupRemoved, P);
+		}
+	}
+	return true;
+}
+
+bool UTerminalSubsystem::ClearTextFileBackupEntries(
+	const FString& TerminalID,
+	const FString& FileName)
+{
+	if (TerminalID.IsEmpty()) return false;
+
+	auto* Inner = TextFilesByTimeBase.Find(TerminalID);
+	if (!Inner) return false;
+
+	if (FileName.IsEmpty())
+	{
+		TextFilesByTimeBase.Remove(TerminalID);
+		return true;
+	}
+
+	if (Inner->Remove(FileName) == 0) return false;
+	if (Inner->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
+	return true;
+}
+
+// ============================================================================
 // EventBus handlers (InteractCommand, SetEnabled, SetRange, SetTooltip)
 // ============================================================================
 // ============================================================================
@@ -1003,6 +1125,41 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetArrayField(TEXT("GameRecords"), GameArr);
 
 	// ========================================================================
+	// Serialize text file backups (nested object):
+	//   { TerminalID: { FileName: { BackupSize, TimrStamps: [{Key, Content}] } } }
+	// ========================================================================
+	// ========================================================================
+	// Сериализация резервных копий текстовых файлов (вложенный объект):
+	//   { TerminalID: { FileName: { BackupSize, TimrStamps: [{Key, Content}] } } }
+	// ========================================================================
+	TSharedPtr<FJsonObject> TFScopesObj = MakeShared<FJsonObject>();
+	for (const auto& TermPair : TextFilesByTimeBase)
+	{
+		TSharedPtr<FJsonObject> FilesObj = MakeShared<FJsonObject>();
+		for (const auto& FilePair : TermPair.Value)
+		{
+			const FTextBackupTimeStamp& Backup = FilePair.Value;
+
+			TSharedPtr<FJsonObject> FileObj = MakeShared<FJsonObject>();
+			FileObj->SetNumberField(TEXT("BackupSize"), Backup.BackupSize);
+
+			TArray<TSharedPtr<FJsonValue>> StampArr;
+			for (const auto& SP : Backup.TimeStamps)
+			{
+				TSharedPtr<FJsonObject> SO = MakeShared<FJsonObject>();
+				SO->SetStringField(TEXT("Key"), SP.Key);
+				SO->SetStringField(TEXT("Content"), SP.Value.ToString());
+				StampArr.Add(MakeShared<FJsonValueObject>(SO));
+			}
+			FileObj->SetArrayField(TEXT("TimrStamps"), StampArr);
+
+			FilesObj->SetObjectField(FilePair.Key, FileObj);
+		}
+		TFScopesObj->SetObjectField(TermPair.Key, FilesObj);
+	}
+	Root->SetObjectField(TEXT("TextFilesByTimeBase"), TFScopesObj);
+
+	// ========================================================================
 	// Serialize to string
 	// ========================================================================
 	// ========================================================================
@@ -1014,9 +1171,10 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	OutData.SerializedData = Output;
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records"),
+		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d terminals with text file backups"),
 		Terminals.Num(),
-		GameRecords.Num());
+		GameRecords.Num(),
+		TextFilesByTimeBase.Num());
 }
 
 void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
@@ -1046,6 +1204,7 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	Terminals.Empty();
 	GlobalState = FTerminalGlobalState();
 	GameRecords.Empty();
+	TextFilesByTimeBase.Empty();
 
 	// ========================================================================
 	// Deserialize terminals
@@ -1233,6 +1392,70 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	}
 
 	// ========================================================================
+	// Deserialize text file backups (nested object):
+	//   { TerminalID: { FileName: { BackupSize, TimrStamps: [{Key, Content}] } } }
+	// ========================================================================
+	// ========================================================================
+	// Десериализация резервных копий текстовых файлов (вложенный объект):
+	//   { TerminalID: { FileName: { BackupSize, TimrStamps: [{Key, Content}] } } }
+	// ========================================================================
+	const TSharedPtr<FJsonObject>* TFScopesObjPtr = nullptr;
+	if (Root->TryGetObjectField(TEXT("TextFilesByTimeBase"), TFScopesObjPtr))
+	{
+		for (const auto& TermPair : (*TFScopesObjPtr)->Values)
+		{
+			const FString& TerminalID = TermPair.Key;
+			if (TerminalID.IsEmpty()) continue;
+
+			const TSharedPtr<FJsonObject>* FilesObjPtr = nullptr;
+			if (!TermPair.Value->TryGetObject(FilesObjPtr)) continue;
+
+			auto& Inner = TextFilesByTimeBase.FindOrAdd(TerminalID);
+
+			for (const auto& FilePair : (*FilesObjPtr)->Values)
+			{
+				const FString& FileName = FilePair.Key;
+				if (FileName.IsEmpty()) continue;
+
+				const TSharedPtr<FJsonObject>* FileObjPtr = nullptr;
+				if (!FilePair.Value->TryGetObject(FileObjPtr)) continue;
+
+				FTextBackupTimeStamp Backup;
+
+				double BSize = 0.0;
+				if ((*FileObjPtr)->TryGetNumberField(TEXT("BackupSize"), BSize))
+					Backup.BackupSize = static_cast<float>(BSize);
+
+				const TArray<TSharedPtr<FJsonValue>>* StampArr = nullptr;
+				if ((*FileObjPtr)->TryGetArrayField(TEXT("TimrStamps"), StampArr))
+				{
+					for (const TSharedPtr<FJsonValue>& SV : *StampArr)
+					{
+						const TSharedPtr<FJsonObject>* SOP = nullptr;
+						if (!SV->TryGetObject(SOP)) continue;
+
+						FString Key, Content;
+						if ((*SOP)->TryGetStringField(TEXT("Key"), Key) &&
+							(*SOP)->TryGetStringField(TEXT("Content"), Content))
+						{
+							Backup.TimeStamps.Add(Key, FText::FromString(Content));
+						}
+					}
+				}
+
+				Inner.Add(FileName, MoveTemp(Backup));
+			}
+
+			// Пустой TerminalID-блок не сохраняем в памяти.
+			// Empty TerminalID entry not kept in memory.
+			if (Inner.Num() == 0)
+			{
+				TextFilesByTimeBase.Remove(TerminalID);
+			}
+		}
+	}
+
+	// ========================================================================
 	// Done
 	// ========================================================================
 	// ========================================================================
@@ -1242,9 +1465,10 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	BroadcastGlobalState();
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records"),
+		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d terminals with text file backups"),
 		Terminals.Num(),
-		GameRecords.Num());
+		GameRecords.Num(),
+		TextFilesByTimeBase.Num());
 }
 
 // ============================================================================
@@ -1370,6 +1594,18 @@ void UTerminalSubsystem::SubscribeCommands()
 		GameRecordRemovedHandler, &UTerminalSubsystem::HandleGameRecordRemoved);
 	Sub(GameStageRemovedCondition, EOutcomeTerminal::GameStageRemoved,
 		GameStageRemovedHandler, &UTerminalSubsystem::HandleGameStageRemoved);
+
+	// ---- Text file backups ----
+	Sub(AddTextFileBackupCondition, EOutcomeTerminal::AddTextFileBackupRequest,
+		AddTextFileBackupHandler, &UTerminalSubsystem::HandleAddTextFileBackup);
+	Sub(ReplaceTextFileBackupsCondition, EOutcomeTerminal::ReplaceTextFileBackupsRequest,
+		ReplaceTextFileBackupsHandler, &UTerminalSubsystem::HandleReplaceTextFileBackups);
+	Sub(OverwriteTextFileBackupsCondition, EOutcomeTerminal::OverwriteTextFileBackupsRequest,
+		OverwriteTextFileBackupsHandler, &UTerminalSubsystem::HandleOverwriteTextFileBackups);
+	Sub(RemoveTextFileBackupCondition, EOutcomeTerminal::RemoveTextFileBackupRequest,
+		RemoveTextFileBackupHandler, &UTerminalSubsystem::HandleRemoveTextFileBackup);
+	Sub(ClearTextFileBackupsCondition, EOutcomeTerminal::ClearTextFileBackupsRequest,
+		ClearTextFileBackupsHandler, &UTerminalSubsystem::HandleClearTextFileBackups);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -1408,6 +1644,12 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(GameCompletedHandler, GameCompletedCondition);
 	Unsub(GameRecordRemovedHandler, GameRecordRemovedCondition);
 	Unsub(GameStageRemovedHandler, GameStageRemovedCondition);
+
+	Unsub(AddTextFileBackupHandler, AddTextFileBackupCondition);
+	Unsub(ReplaceTextFileBackupsHandler, ReplaceTextFileBackupsCondition);
+	Unsub(OverwriteTextFileBackupsHandler, OverwriteTextFileBackupsCondition);
+	Unsub(RemoveTextFileBackupHandler, RemoveTextFileBackupCondition);
+	Unsub(ClearTextFileBackupsHandler, ClearTextFileBackupsCondition);
 }
 
 // ============================================================================
@@ -1651,6 +1893,128 @@ bool UTerminalSubsystem::IsGameFinishedForTerminal(const FGuid& TerminalId, cons
 		if (const auto* Rec = Inner->Find(GameId))
 			return Rec->IsFinished();
 	return false;
+}
+
+// ============================================================================
+// Public getters: Text file backups
+// ============================================================================
+
+TArray<FString> UTerminalSubsystem::GetAllTextFileBackupTerminalIDs() const
+{
+	TArray<FString> IDs;
+	TextFilesByTimeBase.GetKeys(IDs);
+	return IDs;
+}
+
+bool UTerminalSubsystem::HasTextFileBackupTerminal(const FString& TerminalID) const
+{
+	return !TerminalID.IsEmpty() && TextFilesByTimeBase.Contains(TerminalID);
+}
+
+TArray<FString> UTerminalSubsystem::GetTextFileBackupFileNames(const FString& TerminalID) const
+{
+	TArray<FString> Names;
+	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	{
+		Inner->GetKeys(Names);
+	}
+	return Names;
+}
+
+bool UTerminalSubsystem::HasTextFileBackup(const FString& TerminalID,
+	const FString& FileName) const
+{
+	if (FileName.IsEmpty() || TerminalID.IsEmpty()) return false;
+	const auto* Inner = TextFilesByTimeBase.Find(TerminalID);
+	return Inner && Inner->Contains(FileName);
+}
+
+bool UTerminalSubsystem::GetTextFileBackupSize(const FString& TerminalID,
+	const FString& FileName, float& OutSize) const
+{
+	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	{
+		if (const auto* Backup = Inner->Find(FileName))
+		{
+			OutSize = Backup->BackupSize;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UTerminalSubsystem::GetTextFileBackupEntry(const FString& TerminalID,
+	const FString& FileName, const FString& TimestampKey, FText& OutContent) const
+{
+	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	{
+		if (const auto* Backup = Inner->Find(FileName))
+		{
+			if (const FText* Found = Backup->TimeStamps.Find(TimestampKey))
+			{
+				OutContent = *Found;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+TArray<FString> UTerminalSubsystem::GetTextFileBackupKeys(const FString& TerminalID,
+	const FString& FileName) const
+{
+	TArray<FString> Keys;
+	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	{
+		if (const auto* Backup = Inner->Find(FileName))
+		{
+			Backup->TimeStamps.GetKeys(Keys);
+		}
+	}
+	return Keys;
+}
+
+bool UTerminalSubsystem::GetTextFileBackup(const FString& TerminalID,
+	const FString& FileName, FTextBackupTimeStamp& OutData) const
+{
+	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	{
+		if (const auto* Backup = Inner->Find(FileName))
+		{
+			OutData = *Backup;
+			return true;
+		}
+	}
+	return false;
+}
+
+float UTerminalSubsystem::GetTextFileBackupTotalSize(const FString& TerminalID) const
+{
+	float Total = 0.f;
+	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	{
+		for (const auto& Pair : *Inner) Total += Pair.Value.BackupSize;
+	}
+	return Total;
+}
+
+float UTerminalSubsystem::GetTextFileBackupGrandTotalSize() const
+{
+	float Total = 0.f;
+	for (const auto& TermPair : TextFilesByTimeBase)
+		for (const auto& FilePair : TermPair.Value)
+			Total += FilePair.Value.BackupSize;
+	return Total;
+}
+
+TMap<FString, FTextBackupTimeStamp> UTerminalSubsystem::GetTextFilesByTime(
+	const FString& TerminalID) const
+{
+	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	{
+		return *Inner;
+	}
+	return TMap<FString, FTextBackupTimeStamp>();
 }
 
 // ============================================================================
@@ -1968,4 +2332,44 @@ void UTerminalSubsystem::HandleGameStageRemoved(const FOutcomeEventBase& Outcome
 	auto* P = Cast<UTerminalGameStageRemovedPayload>(Outcome.Payload);
 	if (!P) return;
 	RemoveGameStage(P->TerminalId, P->ActivityId, P->StageId);
+}
+
+// ============================================================================
+// Text file backup handlers
+// Обработчики команд резервных копий
+// ============================================================================
+
+void UTerminalSubsystem::HandleAddTextFileBackup(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalAddTextFileBackupPayload>(Outcome.Payload);
+	if (!P) return;
+	AddTextFileBackupEntry(P->TerminalID, P->FileName, P->Backup);
+}
+
+void UTerminalSubsystem::HandleReplaceTextFileBackups(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalReplaceTextFileBackupsPayload>(Outcome.Payload);
+	if (!P) return;
+	ReplaceTextFileBackups(P->TerminalID, P->Backups);
+}
+
+void UTerminalSubsystem::HandleOverwriteTextFileBackups(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalOverwriteTextFileBackupsPayload>(Outcome.Payload);
+	if (!P) return;
+	OverwriteTextFileBackups(P->TerminalID, P->Backups);
+}
+
+void UTerminalSubsystem::HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalRemoveTextFileBackupPayload>(Outcome.Payload);
+	if (!P) return;
+	RemoveTextFileBackupEntry(P->TerminalID, P->FileName, P->TimestampKey);
+}
+
+void UTerminalSubsystem::HandleClearTextFileBackups(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalClearTextFileBackupsPayload>(Outcome.Payload);
+	if (!P) return;
+	ClearTextFileBackupEntries(P->TerminalID, P->FileName);
 }

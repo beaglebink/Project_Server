@@ -152,7 +152,24 @@ enum class EOutcomeTerminal : uint8
     ReportGameStageFinished  UMETA(DisplayName = "Report Game Stage Finished"),
     ReportGameStageRemoved   UMETA(DisplayName = "Report Game Stage Removed"),
     ReportGameCompleted      UMETA(DisplayName = "Report Game Completed"),
-    ReportGameRecordRemoved  UMETA(DisplayName = "Report Game Record Removed")
+    ReportGameRecordRemoved  UMETA(DisplayName = "Report Game Record Removed"),
+
+    // ========================================================================
+    // TextFilesByTimeBase: команды (входящие)
+    // ========================================================================
+    SaveTextFileBackupRequest   UMETA(DisplayName = "Save Text File Backup Request"),
+    RemoveTextFileBackupRequest UMETA(DisplayName = "Remove Text File Backup Request"),
+    ClearTextFileBackupsRequest UMETA(DisplayName = "Clear Text File Backups Request"),
+    AddTextFileBackupRequest    UMETA(DisplayName = "Add Text File Backup Request"),
+    ReplaceTextFileBackupsRequest UMETA(DisplayName = "Replace Text File Backups Request"),
+    OverwriteTextFileBackupsRequest UMETA(DisplayName = "Overwrite Text File Backups Request"),
+
+    // ========================================================================
+    // TextFilesByTimeBase: отчёты (исходящие)
+    // ========================================================================
+    ReportTextFileBackupSaved    UMETA(DisplayName = "Report Text File Backup Saved"),
+    ReportTextFileBackupRemoved  UMETA(DisplayName = "Report Text File Backup Removed"),
+    ReportTextFileBackupsCleared UMETA(DisplayName = "Report Text File Backups Cleared")
 };
 
 UENUM(BlueprintType)

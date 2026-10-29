@@ -342,3 +342,141 @@ public:
         return this;
     }
 };
+
+// ============================================================================
+// TextFilesByTimeBase commands
+// Хранилище:
+//   TMap<FString /*TerminalID*/, TMap<FString /*FileName*/, FTextBackupTimeStamp>>
+// Outer key — TerminalID (FString). Inner key — FileName.
+// ============================================================================
+
+// Установка полной структуры FTextBackupTimeStamp для FileName внутри TerminalID.
+// Replace-or-insert: существующая запись FileName заменяется целиком.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalAddTextFileBackupPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString FileName;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FTextBackupTimeStamp Backup;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
+    UTerminalAddTextFileBackupPayload* Setup(
+        const FString& InTerminalID,
+        const FString& InFileName,
+        const FTextBackupTimeStamp& InBackup)
+    {
+        TerminalID = InTerminalID;
+        FileName = InFileName;
+        Backup = InBackup;
+        return this;
+    }
+};
+
+// Полная замена внутренней карты TerminalID переданной картой.
+// Assign — существующие записи TerminalID теряются целиком, мержа нет.
+// Пустая карта → TerminalID удаляется из TextFilesByTimeBase.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalReplaceTextFileBackupsPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    TMap<FString, FTextBackupTimeStamp> Backups;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
+    UTerminalReplaceTextFileBackupsPayload* Setup(
+        const FString& InTerminalID,
+        const TMap<FString, FTextBackupTimeStamp>& InBackups)
+    {
+        TerminalID = InTerminalID;
+        Backups = InBackups;
+        return this;
+    }
+};
+
+// Частичная перезапись (merge) внутренней карты TerminalID.
+// Переданные FileName перезаписываются; остальные FileName в этом TerminalID
+// сохраняются. Другие TerminalID не затрагиваются.
+// Пустая карта → no-op.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalOverwriteTextFileBackupsPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    TMap<FString, FTextBackupTimeStamp> Backups;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
+    UTerminalOverwriteTextFileBackupsPayload* Setup(
+        const FString& InTerminalID,
+        const TMap<FString, FTextBackupTimeStamp>& InBackups)
+    {
+        TerminalID = InTerminalID;
+        Backups = InBackups;
+        return this;
+    }
+};
+
+// Удаление записи. Пустой TimestampKey — удалить весь файл внутри TerminalID.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalRemoveTextFileBackupPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString FileName;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString TimestampKey;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
+    UTerminalRemoveTextFileBackupPayload* Setup(
+        const FString& InTerminalID,
+        const FString& InFileName,
+        const FString& InTimestampKey = TEXT(""))
+    {
+        TerminalID = InTerminalID;
+        FileName = InFileName;
+        TimestampKey = InTimestampKey;
+        return this;
+    }
+};
+
+// Полная очистка. Пустой FileName — очистить весь TerminalID.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalClearTextFileBackupsPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString FileName;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
+    UTerminalClearTextFileBackupsPayload* Setup(
+        const FString& InTerminalID,
+        const FString& InFileName = TEXT(""))
+    {
+        TerminalID = InTerminalID;
+        FileName = InFileName;
+        return this;
+    }
+};
