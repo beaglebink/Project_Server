@@ -288,45 +288,54 @@ public:
     bool IsGameFinishedForTerminal(const FGuid& TerminalId, const FString& GameId) const;
 
     // ---- Text file backups (TimeBase) — только чтение ----
-    // ---- Text file backups (TimeBase) — только чтение ----
-    // Outer key — TerminalID (FString). Inner key — FileName.
+    // Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
     TArray<FString> GetAllTextFileBackupTerminalIDs() const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    TArray<FString> GetAllTextFileBackupProfiles(const FString& TerminalID) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
     bool HasTextFileBackupTerminal(const FString& TerminalID) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    TArray<FString> GetTextFileBackupFileNames(const FString& TerminalID) const;
+    bool HasTextFileBackupProfile(const FString& TerminalID, const FString& Profile) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool HasTextFileBackup(const FString& TerminalID, const FString& FileName) const;
+    TArray<FString> GetTextFileBackupFileNames(const FString& TerminalID,
+        const FString& Profile) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool GetTextFileBackupSize(const FString& TerminalID, const FString& FileName,
-        float& OutSize) const;
-
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool GetTextFileBackupEntry(const FString& TerminalID, const FString& FileName,
-        const FString& TimestampKey, FText& OutContent) const;
-
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    TArray<FString> GetTextFileBackupKeys(const FString& TerminalID,
+    bool HasTextFileBackup(const FString& TerminalID, const FString& Profile,
         const FString& FileName) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool GetTextFileBackup(const FString& TerminalID, const FString& FileName,
-        FTextBackupTimeStamp& OutData) const;
+    bool GetTextFileBackupSize(const FString& TerminalID, const FString& Profile,
+        const FString& FileName, float& OutSize) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    float GetTextFileBackupTotalSize(const FString& TerminalID) const;
+    bool GetTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
+        const FString& FileName, const FString& TimestampKey, FText& OutContent) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    TArray<FString> GetTextFileBackupKeys(const FString& TerminalID,
+        const FString& Profile, const FString& FileName) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    bool GetTextFileBackup(const FString& TerminalID, const FString& Profile,
+        const FString& FileName, FTextBackupTimeStamp& OutData) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    float GetTextFileBackupTotalSize(const FString& TerminalID,
+        const FString& Profile) const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
     float GetTextFileBackupGrandTotalSize() const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    TMap<FString, FTextBackupTimeStamp> GetTextFilesByTime(const FString& TerminalID) const;
+    TMap<FString, FTextBackupTimeStamp> GetTextFilesByTime(const FString& TerminalID,
+        const FString& Profile) const;
 
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
@@ -372,22 +381,26 @@ protected:
     void PublishTerminalOutcome(const FGuid& TerminalId, EOutcomeTerminal OutcomeType, UOutcomePayload* Payload = nullptr);
 
     // ---- Text file backups: mutators (private, called from handlers) ----
-    // Replace-or-insert: полная структура заменяет запись FileName внутри TerminalID.
-    bool AddTextFileBackupEntry(const FString& TerminalID, const FString& FileName,
-        const FTextBackupTimeStamp& Backup);
+    // Replace-or-insert: полная структура заменяет запись FileName внутри (TerminalID, Profile).
+    bool AddTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
+        const FString& FileName, const FTextBackupTimeStamp& Backup);
 
-    // Assign: внутренняя карта для TerminalID заменяется целиком.
-    void ReplaceTextFileBackups(const FString& TerminalID,
+    // Assign: карта FileName для (TerminalID, Profile) заменяется целиком.
+    void ReplaceTextFileBackups(const FString& TerminalID, const FString& Profile,
         const TMap<FString, FTextBackupTimeStamp>& NewBackups);
 
-    void OverwriteTextFileBackups(const FString& TerminalID, const TMap<FString, FTextBackupTimeStamp>& Backups);
+    // Merge: переданные FileName перезаписываются внутри (TerminalID, Profile),
+    // остальные FileName в этом (TerminalID, Profile) сохраняются.
+    void OverwriteTextFileBackups(const FString& TerminalID, const FString& Profile,
+        const TMap<FString, FTextBackupTimeStamp>& Backups);
 
-    bool RemoveTextFileBackupEntry(const FString& TerminalID, const FString& FileName,
-        const FString& TimestampKey);
+    bool RemoveTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
+        const FString& FileName, const FString& TimestampKey);
 
-    // FileName empty → очистить весь TerminalID.
-    bool ClearTextFileBackupEntries(const FString& TerminalID, const FString& FileName);
-
+    // Empty Profile  → очистить весь TerminalID (все профили).
+    // Empty FileName → очистить весь Profile.
+    bool ClearTextFileBackupEntries(const FString& TerminalID, const FString& Profile,
+        const FString& FileName);
 
 private:
     // ---- Interact handlers ----
@@ -426,14 +439,6 @@ private:
 
     // ========================================================================
     // Game command handlers (INCOMING commands from terminals)
-    //
-    // Correspond to EOutcomeTerminal::GameStarted / GameStageFinished /
-    // GameCompleted / GameRecordRemoved.
-    //
-    // Обработчики игровых команд (ВХОДЯЩИЕ команды от терминалов)
-    //
-    // Соответствуют EOutcomeTerminal::GameStarted / GameStageFinished /
-    // GameCompleted / GameRecordRemoved.
     // ========================================================================
     void HandleGameStarted(const FOutcomeEventBase& Outcome);
     void HandleGameStageFinished(const FOutcomeEventBase& Outcome);
@@ -448,17 +453,8 @@ private:
     void HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome);
     void HandleClearTextFileBackups(const FOutcomeEventBase& Outcome);
 
-
     // ========================================================================
     // Game mutators (internal)
-    //
-    // Each mutator changes GameRecords and publishes an outgoing report
-    // EOutcomeTerminal::ReportGame* to the outside.
-    //
-    // Игровые мутаторы (внутренние)
-    //
-    // Каждый мутатор меняет GameRecords и публикует исходящий отчёт
-    // EOutcomeTerminal::ReportGame* наружу.
     // ========================================================================
     void ReportGameStarted(const FGuid& TerminalId, const FString& GameId, const FDateTime& InStartedAt);
     void ReportGameStageFinished(const FGuid& TerminalId, const FString& GameId,
@@ -537,7 +533,6 @@ private:
     FOutcomeHandlerHandle AddLogHandler;
 
     // ---- Game command handles (incoming) ----
-    // ---- Игровые хендлы команд (входящие) ----
     FOutcomeHandlerHandle GameStartedHandler;
     FOutcomeHandlerHandle GameStageFinishedHandler;
     FOutcomeHandlerHandle GameCompletedHandler;
@@ -579,13 +574,13 @@ private:
     UPROPERTY() UOutcomeConditionAsset* AddLogCondition = nullptr;
 
     // ---- Game command conditions (incoming) ----
-    // ---- Условия игровых команд (входящие) ----
     UPROPERTY() UOutcomeConditionAsset* GameStartedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameStageFinishedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameCompletedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameStageRemovedCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* GameRecordRemovedCondition = nullptr;
 
+    // ---- Text file command conditions ----
     UPROPERTY() UOutcomeConditionAsset* AddTextFileBackupCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* ReplaceTextFileBackupsCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* OverwriteTextFileBackupsCondition = nullptr;
@@ -603,6 +598,8 @@ private:
     // Внешний ключ — TerminalId, внутренний — GameId.
     TMap<FGuid, TMap<FString, FTerminalActivityRecord>> GameRecords;
 
-    TMap<FString, TMap<FString, FTextBackupTimeStamp>> TextFilesByTimeBase;
-
+    // Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
+    // Без UPROPERTY: 3-уровневый TMap не поддерживается UHT как отражённый тип.
+    // Сериализация — ручная (CollectSaveData / ApplySaveData).
+    TMap<FString, TMap<FString, TMap<FString, FTextBackupTimeStamp>>> TextFilesByTimeBase;
 };

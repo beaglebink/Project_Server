@@ -267,6 +267,8 @@ public:
 // ============================================================================
 // TextFilesByTimeBase: outgoing reports
 // ИСХОДЯЩИЕ отчёты: подсистема → наружу
+//
+// Структура: TMap<TerminalID, TMap<Profile, TMap<FileName, FTextBackupTimeStamp>>>
 // ============================================================================
 
 // ---- Text file backup added ----
@@ -277,6 +279,7 @@ class FPSKITALSREFACTORED_API UTerminalTextFileBackupAddedPayload : public UOutc
     GENERATED_BODY()
 public:
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString TerminalID;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString Profile;
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString FileName;
 
     // Полная новая структура записи (после мутации).
@@ -286,10 +289,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
     UTerminalTextFileBackupAddedPayload* Setup(
         const FString& InTerminalID,
+        const FString& InProfile,
         const FString& InFileName,
         const FTextBackupTimeStamp& InBackup)
     {
         TerminalID = InTerminalID;
+        Profile = InProfile;
         FileName = InFileName;
         Backup = InBackup;
         return this;
@@ -304,15 +309,18 @@ class FPSKITALSREFACTORED_API UTerminalTextFileBackupRemovedPayload : public UOu
     GENERATED_BODY()
 public:
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString TerminalID;
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString Profile;
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString FileName;
     // Пустой — был удалён весь файл.
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString TimestampKey;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
     UTerminalTextFileBackupRemovedPayload* Setup(
-        const FString& InTerminalID, const FString& InFileName, const FString& InKey)
+        const FString& InTerminalID, const FString& InProfile,
+        const FString& InFileName, const FString& InKey)
     {
         TerminalID = InTerminalID;
+        Profile = InProfile;
         FileName = InFileName;
         TimestampKey = InKey;
         return this;
@@ -327,14 +335,17 @@ class FPSKITALSREFACTORED_API UTerminalTextFileBackupsClearedPayload : public UO
     GENERATED_BODY()
 public:
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString TerminalID;
+    // Пустой — очищен весь Profile.
+    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString Profile;
     // Пустой — очищен весь TerminalID.
     UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString FileName;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
     UTerminalTextFileBackupsClearedPayload* Setup(
-        const FString& InTerminalID, const FString& InFileName)
+        const FString& InTerminalID, const FString& InProfile, const FString& InFileName)
     {
         TerminalID = InTerminalID;
+        Profile = InProfile;
         FileName = InFileName;
         return this;
     }

@@ -596,93 +596,87 @@ void UTerminalSubsystem::PublishTerminalOutcome(const FGuid& TerminalId, EOutcom
 	OnTerminalEvent.Broadcast(Ev);
 }
 
-// ============================================================================
-// Text file backup mutators (private)
-// ============================================================================
-
 bool UTerminalSubsystem::AddTextFileBackupEntry(
-	const FString& TerminalID,
-	const FString& FileName,
-	const FTextBackupTimeStamp& Backup)
+	const FString& TerminalID, const FString& Profile,
+	const FString& FileName, const FTextBackupTimeStamp& Backup)
 {
-	if (FileName.IsEmpty())
+	if (FileName.IsEmpty() || TerminalID.IsEmpty() || Profile.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("TerminalSubsystem: AddTextFileBackupEntry rejected — empty FileName"));
-		return false;
-	}
-	if (TerminalID.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("TerminalSubsystem: AddTextFileBackupEntry rejected — empty TerminalID"));
+			TEXT("TerminalSubsystem: AddTextFileBackupEntry rejected — empty TerminalID/Profile/FileName"));
 		return false;
 	}
 
-	TextFilesByTimeBase.FindOrAdd(TerminalID).Add(FileName, Backup);
+	TextFilesByTimeBase.FindOrAdd(TerminalID).FindOrAdd(Profile).Add(FileName, Backup);
 	return true;
 }
 
 void UTerminalSubsystem::ReplaceTextFileBackups(
-	const FString& TerminalID,
+	const FString& TerminalID, const FString& Profile,
 	const TMap<FString, FTextBackupTimeStamp>& NewBackups)
 {
-	if (TerminalID.IsEmpty())
+	if (TerminalID.IsEmpty() || Profile.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("TerminalSubsystem: ReplaceTextFileBackups rejected — empty TerminalID"));
+			TEXT("TerminalSubsystem: ReplaceTextFileBackups rejected — empty TerminalID/Profile"));
 		return;
 	}
+
+	auto* Profiles = TextFilesByTimeBase.Find(TerminalID);
 
 	if (NewBackups.Num() == 0)
 	{
-		TextFilesByTimeBase.Remove(TerminalID);
-	}
-	else
-	{
-		TextFilesByTimeBase.Add(TerminalID, NewBackups);
-	}
-}
-
-void UTerminalSubsystem::OverwriteTextFileBackups(
-	const FString& TerminalID,
-	const TMap<FString, FTextBackupTimeStamp>& Backups)
-{
-	if (TerminalID.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("TerminalSubsystem: OverwriteTextFileBackups rejected — empty TerminalID"));
+		if (!Profiles) return;
+		Profiles->Remove(Profile);
+		if (Profiles->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
 		return;
 	}
 
-	// Пустая карта — no-op: ничего не перезаписываем, TerminalID не создаём.
+	TextFilesByTimeBase.FindOrAdd(TerminalID).Add(Profile, NewBackups);
+}
+
+void UTerminalSubsystem::OverwriteTextFileBackups(
+	const FString& TerminalID, const FString& Profile,
+	const TMap<FString, FTextBackupTimeStamp>& Backups)
+{
+	if (TerminalID.IsEmpty() || Profile.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: OverwriteTextFileBackups rejected — empty TerminalID/Profile"));
+		return;
+	}
+
 	if (Backups.Num() == 0) return;
 
-	auto& Inner = TextFilesByTimeBase.FindOrAdd(TerminalID);
+	auto& Files = TextFilesByTimeBase.FindOrAdd(TerminalID).FindOrAdd(Profile);
 	for (const auto& Pair : Backups)
 	{
 		if (Pair.Key.IsEmpty()) continue;
-		Inner.Add(Pair.Key, Pair.Value);   // replace-or-insert для каждого FileName
+		Files.Add(Pair.Key, Pair.Value);
 	}
 }
 
 bool UTerminalSubsystem::RemoveTextFileBackupEntry(
-	const FString& TerminalID,
-	const FString& FileName,
-	const FString& TimestampKey)
+	const FString& TerminalID, const FString& Profile,
+	const FString& FileName, const FString& TimestampKey)
 {
-	if (FileName.IsEmpty() || TerminalID.IsEmpty()) return false;
+	if (TerminalID.IsEmpty() || Profile.IsEmpty() || FileName.IsEmpty()) return false;
 
-	auto* Inner = TextFilesByTimeBase.Find(TerminalID);
-	if (!Inner) return false;
+	auto* Profiles = TextFilesByTimeBase.Find(TerminalID);
+	if (!Profiles) return false;
+
+	auto* Files = Profiles->Find(Profile);
+	if (!Files) return false;
 
 	if (TimestampKey.IsEmpty())
 	{
-		if (Inner->Remove(FileName) == 0) return false;
-		if (Inner->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
+		if (Files->Remove(FileName) == 0) return false;
+		if (Files->Num() == 0) Profiles->Remove(Profile);
+		if (Profiles->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
 	}
 	else
 	{
-		auto* Backup = Inner->Find(FileName);
+		auto* Backup = Files->Find(FileName);
 		if (!Backup) return false;
 		if (Backup->TimeStamps.Remove(TimestampKey) == 0) return false;
 	}
@@ -691,7 +685,7 @@ bool UTerminalSubsystem::RemoveTextFileBackupEntry(
 	{
 		if (auto* P = Bus->CreatePayload<UTerminalTextFileBackupRemovedPayload>())
 		{
-			P->Setup(TerminalID, FileName, TimestampKey);
+			P->Setup(TerminalID, Profile, FileName, TimestampKey);
 			PublishTerminalOutcome(FGuid(), EOutcomeTerminal::ReportTextFileBackupRemoved, P);
 		}
 	}
@@ -699,24 +693,37 @@ bool UTerminalSubsystem::RemoveTextFileBackupEntry(
 }
 
 bool UTerminalSubsystem::ClearTextFileBackupEntries(
-	const FString& TerminalID,
-	const FString& FileName)
+	const FString& TerminalID, const FString& Profile, const FString& FileName)
 {
 	if (TerminalID.IsEmpty()) return false;
 
-	auto* Inner = TextFilesByTimeBase.Find(TerminalID);
-	if (!Inner) return false;
+	auto* Profiles = TextFilesByTimeBase.Find(TerminalID);
+	if (!Profiles) return false;
 
-	if (FileName.IsEmpty())
+	// Empty Profile → clear whole TerminalID.
+	if (Profile.IsEmpty())
 	{
 		TextFilesByTimeBase.Remove(TerminalID);
 		return true;
 	}
 
-	if (Inner->Remove(FileName) == 0) return false;
-	if (Inner->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
+	auto* Files = Profiles->Find(Profile);
+	if (!Files) return false;
+
+	// Empty FileName → clear whole Profile.
+	if (FileName.IsEmpty())
+	{
+		Profiles->Remove(Profile);
+		if (Profiles->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
+		return true;
+	}
+
+	if (Files->Remove(FileName) == 0) return false;
+	if (Files->Num() == 0) Profiles->Remove(Profile);
+	if (Profiles->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
 	return true;
 }
+
 
 // ============================================================================
 // EventBus handlers (InteractCommand, SetEnabled, SetRange, SetTooltip)
@@ -1125,37 +1132,42 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetArrayField(TEXT("GameRecords"), GameArr);
 
 	// ========================================================================
-	// Serialize text file backups (nested object):
-	//   { TerminalID: { FileName: { BackupSize, TimrStamps: [{Key, Content}] } } }
+	// Serialize text file backups (nested object, 3 levels):
+	//   { TerminalID: { Profile: { FileName: { BackupSize, TimrStamps: [...] } } } }
 	// ========================================================================
 	// ========================================================================
-	// Сериализация резервных копий текстовых файлов (вложенный объект):
-	//   { TerminalID: { FileName: { BackupSize, TimrStamps: [{Key, Content}] } } }
+	// Сериализация резервных копий текстовых файлов (вложенный объект, 3 уровня):
+	//   { TerminalID: { Profile: { FileName: { BackupSize, TimrStamps: [...] } } } }
 	// ========================================================================
 	TSharedPtr<FJsonObject> TFScopesObj = MakeShared<FJsonObject>();
 	for (const auto& TermPair : TextFilesByTimeBase)
 	{
-		TSharedPtr<FJsonObject> FilesObj = MakeShared<FJsonObject>();
-		for (const auto& FilePair : TermPair.Value)
+		TSharedPtr<FJsonObject> ProfilesObj = MakeShared<FJsonObject>();
+		for (const auto& ProfPair : TermPair.Value)
 		{
-			const FTextBackupTimeStamp& Backup = FilePair.Value;
-
-			TSharedPtr<FJsonObject> FileObj = MakeShared<FJsonObject>();
-			FileObj->SetNumberField(TEXT("BackupSize"), Backup.BackupSize);
-
-			TArray<TSharedPtr<FJsonValue>> StampArr;
-			for (const auto& SP : Backup.TimeStamps)
+			TSharedPtr<FJsonObject> FilesObj = MakeShared<FJsonObject>();
+			for (const auto& FilePair : ProfPair.Value)
 			{
-				TSharedPtr<FJsonObject> SO = MakeShared<FJsonObject>();
-				SO->SetStringField(TEXT("Key"), SP.Key);
-				SO->SetStringField(TEXT("Content"), SP.Value.ToString());
-				StampArr.Add(MakeShared<FJsonValueObject>(SO));
-			}
-			FileObj->SetArrayField(TEXT("TimrStamps"), StampArr);
+				const FTextBackupTimeStamp& Backup = FilePair.Value;
 
-			FilesObj->SetObjectField(FilePair.Key, FileObj);
+				TSharedPtr<FJsonObject> FileObj = MakeShared<FJsonObject>();
+				FileObj->SetNumberField(TEXT("BackupSize"), Backup.BackupSize);
+
+				TArray<TSharedPtr<FJsonValue>> StampArr;
+				for (const auto& SP : Backup.TimeStamps)
+				{
+					TSharedPtr<FJsonObject> SO = MakeShared<FJsonObject>();
+					SO->SetStringField(TEXT("Key"), SP.Key);
+					SO->SetStringField(TEXT("Content"), SP.Value.ToString());
+					StampArr.Add(MakeShared<FJsonValueObject>(SO));
+				}
+				FileObj->SetArrayField(TEXT("TimrStamps"), StampArr);
+
+				FilesObj->SetObjectField(FilePair.Key, FileObj);
+			}
+			ProfilesObj->SetObjectField(ProfPair.Key, FilesObj);
 		}
-		TFScopesObj->SetObjectField(TermPair.Key, FilesObj);
+		TFScopesObj->SetObjectField(TermPair.Key, ProfilesObj);
 	}
 	Root->SetObjectField(TEXT("TextFilesByTimeBase"), TFScopesObj);
 
@@ -1392,12 +1404,12 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	}
 
 	// ========================================================================
-	// Deserialize text file backups (nested object):
-	//   { TerminalID: { FileName: { BackupSize, TimrStamps: [{Key, Content}] } } }
+	// Deserialize text file backups (nested object, 3 levels):
+	//   { TerminalID: { Profile: { FileName: { BackupSize, TimrStamps: [...] } } } }
 	// ========================================================================
 	// ========================================================================
-	// Десериализация резервных копий текстовых файлов (вложенный объект):
-	//   { TerminalID: { FileName: { BackupSize, TimrStamps: [{Key, Content}] } } }
+	// Десериализация резервных копий текстовых файлов (вложенный объект, 3 уровня):
+	//   { TerminalID: { Profile: { FileName: { BackupSize, TimrStamps: [...] } } } }
 	// ========================================================================
 	const TSharedPtr<FJsonObject>* TFScopesObjPtr = nullptr;
 	if (Root->TryGetObjectField(TEXT("TextFilesByTimeBase"), TFScopesObjPtr))
@@ -1407,51 +1419,61 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			const FString& TerminalID = TermPair.Key;
 			if (TerminalID.IsEmpty()) continue;
 
-			const TSharedPtr<FJsonObject>* FilesObjPtr = nullptr;
-			if (!TermPair.Value->TryGetObject(FilesObjPtr)) continue;
+			const TSharedPtr<FJsonObject>* ProfilesObjPtr = nullptr;
+			if (!TermPair.Value->TryGetObject(ProfilesObjPtr)) continue;
 
-			auto& Inner = TextFilesByTimeBase.FindOrAdd(TerminalID);
+			auto& Profiles = TextFilesByTimeBase.FindOrAdd(TerminalID);
 
-			for (const auto& FilePair : (*FilesObjPtr)->Values)
+			for (const auto& ProfPair : (*ProfilesObjPtr)->Values)
 			{
-				const FString& FileName = FilePair.Key;
-				if (FileName.IsEmpty()) continue;
+				const FString& Profile = ProfPair.Key;
+				if (Profile.IsEmpty()) continue;
 
-				const TSharedPtr<FJsonObject>* FileObjPtr = nullptr;
-				if (!FilePair.Value->TryGetObject(FileObjPtr)) continue;
+				const TSharedPtr<FJsonObject>* FilesObjPtr = nullptr;
+				if (!ProfPair.Value->TryGetObject(FilesObjPtr)) continue;
 
-				FTextBackupTimeStamp Backup;
+				auto& Files = Profiles.FindOrAdd(Profile);
 
-				double BSize = 0.0;
-				if ((*FileObjPtr)->TryGetNumberField(TEXT("BackupSize"), BSize))
-					Backup.BackupSize = static_cast<float>(BSize);
-
-				const TArray<TSharedPtr<FJsonValue>>* StampArr = nullptr;
-				if ((*FileObjPtr)->TryGetArrayField(TEXT("TimrStamps"), StampArr))
+				for (const auto& FilePair : (*FilesObjPtr)->Values)
 				{
-					for (const TSharedPtr<FJsonValue>& SV : *StampArr)
-					{
-						const TSharedPtr<FJsonObject>* SOP = nullptr;
-						if (!SV->TryGetObject(SOP)) continue;
+					const FString& FileName = FilePair.Key;
+					if (FileName.IsEmpty()) continue;
 
-						FString Key, Content;
-						if ((*SOP)->TryGetStringField(TEXT("Key"), Key) &&
-							(*SOP)->TryGetStringField(TEXT("Content"), Content))
+					const TSharedPtr<FJsonObject>* FileObjPtr = nullptr;
+					if (!FilePair.Value->TryGetObject(FileObjPtr)) continue;
+
+					FTextBackupTimeStamp Backup;
+
+					double BSize = 0.0;
+					if ((*FileObjPtr)->TryGetNumberField(TEXT("BackupSize"), BSize))
+						Backup.BackupSize = static_cast<float>(BSize);
+
+					const TArray<TSharedPtr<FJsonValue>>* StampArr = nullptr;
+					if ((*FileObjPtr)->TryGetArrayField(TEXT("TimrStamps"), StampArr))
+					{
+						for (const TSharedPtr<FJsonValue>& SV : *StampArr)
 						{
-							Backup.TimeStamps.Add(Key, FText::FromString(Content));
+							const TSharedPtr<FJsonObject>* SOP = nullptr;
+							if (!SV->TryGetObject(SOP)) continue;
+
+							FString Key, Content;
+							if ((*SOP)->TryGetStringField(TEXT("Key"), Key) &&
+								(*SOP)->TryGetStringField(TEXT("Content"), Content))
+							{
+								Backup.TimeStamps.Add(Key, FText::FromString(Content));
+							}
 						}
 					}
+
+					Files.Add(FileName, MoveTemp(Backup));
 				}
 
-				Inner.Add(FileName, MoveTemp(Backup));
+				// Пустой Profile не сохраняем.
+				if (Files.Num() == 0) Profiles.Remove(Profile);
 			}
 
-			// Пустой TerminalID-блок не сохраняем в памяти.
-			// Empty TerminalID entry not kept in memory.
-			if (Inner.Num() == 0)
-			{
-				TextFilesByTimeBase.Remove(TerminalID);
-			}
+			// Пустой TerminalID не сохраняем.
+			if (Profiles.Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
 		}
 	}
 
@@ -1906,53 +1928,63 @@ TArray<FString> UTerminalSubsystem::GetAllTextFileBackupTerminalIDs() const
 	return IDs;
 }
 
+TArray<FString> UTerminalSubsystem::GetAllTextFileBackupProfiles(const FString& TerminalID) const
+{
+	TArray<FString> Profiles;
+	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	{
+		Inner->GetKeys(Profiles);
+	}
+	return Profiles;
+}
+
 bool UTerminalSubsystem::HasTextFileBackupTerminal(const FString& TerminalID) const
 {
 	return !TerminalID.IsEmpty() && TextFilesByTimeBase.Contains(TerminalID);
 }
 
-TArray<FString> UTerminalSubsystem::GetTextFileBackupFileNames(const FString& TerminalID) const
+bool UTerminalSubsystem::HasTextFileBackupProfile(const FString& TerminalID,
+	const FString& Profile) const
+{
+	if (TerminalID.IsEmpty() || Profile.IsEmpty()) return false;
+	const auto* Inner = TextFilesByTimeBase.Find(TerminalID);
+	return Inner && Inner->Contains(Profile);
+}
+
+TArray<FString> UTerminalSubsystem::GetTextFileBackupFileNames(const FString& TerminalID,
+	const FString& Profile) const
 {
 	TArray<FString> Names;
-	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
 	{
-		Inner->GetKeys(Names);
+		if (const auto* Files = Profiles->Find(Profile))
+		{
+			Files->GetKeys(Names);
+		}
 	}
 	return Names;
 }
 
 bool UTerminalSubsystem::HasTextFileBackup(const FString& TerminalID,
-	const FString& FileName) const
+	const FString& Profile, const FString& FileName) const
 {
-	if (FileName.IsEmpty() || TerminalID.IsEmpty()) return false;
-	const auto* Inner = TextFilesByTimeBase.Find(TerminalID);
-	return Inner && Inner->Contains(FileName);
+	if (TerminalID.IsEmpty() || Profile.IsEmpty() || FileName.IsEmpty()) return false;
+	const auto* Profiles = TextFilesByTimeBase.Find(TerminalID);
+	if (!Profiles) return false;
+	const auto* Files = Profiles->Find(Profile);
+	return Files && Files->Contains(FileName);
 }
 
 bool UTerminalSubsystem::GetTextFileBackupSize(const FString& TerminalID,
-	const FString& FileName, float& OutSize) const
+	const FString& Profile, const FString& FileName, float& OutSize) const
 {
-	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
 	{
-		if (const auto* Backup = Inner->Find(FileName))
+		if (const auto* Files = Profiles->Find(Profile))
 		{
-			OutSize = Backup->BackupSize;
-			return true;
-		}
-	}
-	return false;
-}
-
-bool UTerminalSubsystem::GetTextFileBackupEntry(const FString& TerminalID,
-	const FString& FileName, const FString& TimestampKey, FText& OutContent) const
-{
-	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
-	{
-		if (const auto* Backup = Inner->Find(FileName))
-		{
-			if (const FText* Found = Backup->TimeStamps.Find(TimestampKey))
+			if (const auto* Backup = Files->Find(FileName))
 			{
-				OutContent = *Found;
+				OutSize = Backup->BackupSize;
 				return true;
 			}
 		}
@@ -1960,40 +1992,72 @@ bool UTerminalSubsystem::GetTextFileBackupEntry(const FString& TerminalID,
 	return false;
 }
 
+bool UTerminalSubsystem::GetTextFileBackupEntry(const FString& TerminalID,
+	const FString& Profile, const FString& FileName,
+	const FString& TimestampKey, FText& OutContent) const
+{
+	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
+	{
+		if (const auto* Files = Profiles->Find(Profile))
+		{
+			if (const auto* Backup = Files->Find(FileName))
+			{
+				if (const FText* Found = Backup->TimeStamps.Find(TimestampKey))
+				{
+					OutContent = *Found;
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 TArray<FString> UTerminalSubsystem::GetTextFileBackupKeys(const FString& TerminalID,
-	const FString& FileName) const
+	const FString& Profile, const FString& FileName) const
 {
 	TArray<FString> Keys;
-	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
 	{
-		if (const auto* Backup = Inner->Find(FileName))
+		if (const auto* Files = Profiles->Find(Profile))
 		{
-			Backup->TimeStamps.GetKeys(Keys);
+			if (const auto* Backup = Files->Find(FileName))
+			{
+				Backup->TimeStamps.GetKeys(Keys);
+			}
 		}
 	}
 	return Keys;
 }
 
 bool UTerminalSubsystem::GetTextFileBackup(const FString& TerminalID,
-	const FString& FileName, FTextBackupTimeStamp& OutData) const
+	const FString& Profile, const FString& FileName,
+	FTextBackupTimeStamp& OutData) const
 {
-	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
 	{
-		if (const auto* Backup = Inner->Find(FileName))
+		if (const auto* Files = Profiles->Find(Profile))
 		{
-			OutData = *Backup;
-			return true;
+			if (const auto* Backup = Files->Find(FileName))
+			{
+				OutData = *Backup;
+				return true;
+			}
 		}
 	}
 	return false;
 }
 
-float UTerminalSubsystem::GetTextFileBackupTotalSize(const FString& TerminalID) const
+float UTerminalSubsystem::GetTextFileBackupTotalSize(const FString& TerminalID,
+	const FString& Profile) const
 {
 	float Total = 0.f;
-	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
 	{
-		for (const auto& Pair : *Inner) Total += Pair.Value.BackupSize;
+		if (const auto* Files = Profiles->Find(Profile))
+		{
+			for (const auto& Pair : *Files) Total += Pair.Value.BackupSize;
+		}
 	}
 	return Total;
 }
@@ -2002,17 +2066,21 @@ float UTerminalSubsystem::GetTextFileBackupGrandTotalSize() const
 {
 	float Total = 0.f;
 	for (const auto& TermPair : TextFilesByTimeBase)
-		for (const auto& FilePair : TermPair.Value)
-			Total += FilePair.Value.BackupSize;
+		for (const auto& ProfPair : TermPair.Value)
+			for (const auto& FilePair : ProfPair.Value)
+				Total += FilePair.Value.BackupSize;
 	return Total;
 }
 
 TMap<FString, FTextBackupTimeStamp> UTerminalSubsystem::GetTextFilesByTime(
-	const FString& TerminalID) const
+	const FString& TerminalID, const FString& Profile) const
 {
-	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
+	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
 	{
-		return *Inner;
+		if (const auto* Files = Profiles->Find(Profile))
+		{
+			return *Files;
+		}
 	}
 	return TMap<FString, FTextBackupTimeStamp>();
 }
@@ -2343,33 +2411,33 @@ void UTerminalSubsystem::HandleAddTextFileBackup(const FOutcomeEventBase& Outcom
 {
 	auto* P = Cast<UTerminalAddTextFileBackupPayload>(Outcome.Payload);
 	if (!P) return;
-	AddTextFileBackupEntry(P->TerminalID, P->FileName, P->Backup);
+	AddTextFileBackupEntry(P->TerminalID, P->Profile, P->FileName, P->Backup);
 }
 
 void UTerminalSubsystem::HandleReplaceTextFileBackups(const FOutcomeEventBase& Outcome)
 {
 	auto* P = Cast<UTerminalReplaceTextFileBackupsPayload>(Outcome.Payload);
 	if (!P) return;
-	ReplaceTextFileBackups(P->TerminalID, P->Backups);
+	ReplaceTextFileBackups(P->TerminalID, P->Profile, P->Backups);
 }
 
 void UTerminalSubsystem::HandleOverwriteTextFileBackups(const FOutcomeEventBase& Outcome)
 {
 	auto* P = Cast<UTerminalOverwriteTextFileBackupsPayload>(Outcome.Payload);
 	if (!P) return;
-	OverwriteTextFileBackups(P->TerminalID, P->Backups);
+	OverwriteTextFileBackups(P->TerminalID, P->Profile, P->Backups);
 }
 
 void UTerminalSubsystem::HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome)
 {
 	auto* P = Cast<UTerminalRemoveTextFileBackupPayload>(Outcome.Payload);
 	if (!P) return;
-	RemoveTextFileBackupEntry(P->TerminalID, P->FileName, P->TimestampKey);
+	RemoveTextFileBackupEntry(P->TerminalID, P->Profile, P->FileName, P->TimestampKey);
 }
 
 void UTerminalSubsystem::HandleClearTextFileBackups(const FOutcomeEventBase& Outcome)
 {
 	auto* P = Cast<UTerminalClearTextFileBackupsPayload>(Outcome.Payload);
 	if (!P) return;
-	ClearTextFileBackupEntries(P->TerminalID, P->FileName);
+	ClearTextFileBackupEntries(P->TerminalID, P->Profile, P->FileName);
 }

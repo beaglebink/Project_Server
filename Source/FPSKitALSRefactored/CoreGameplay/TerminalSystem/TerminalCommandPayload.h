@@ -346,11 +346,13 @@ public:
 // ============================================================================
 // TextFilesByTimeBase commands
 // Хранилище:
-//   TMap<FString /*TerminalID*/, TMap<FString /*FileName*/, FTextBackupTimeStamp>>
-// Outer key — TerminalID (FString). Inner key — FileName.
+//   TMap<FString /*TerminalID*/,
+//        TMap<FString /*Profile*/,
+//             TMap<FString /*FileName*/, FTextBackupTimeStamp>>>
+// Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
 // ============================================================================
 
-// Установка полной структуры FTextBackupTimeStamp для FileName внутри TerminalID.
+// Установка полной структуры FTextBackupTimeStamp для FileName внутри (TerminalID, Profile).
 // Replace-or-insert: существующая запись FileName заменяется целиком.
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalAddTextFileBackupPayload : public UOutcomePayload
@@ -361,6 +363,9 @@ public:
     FString TerminalID;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
     FString FileName;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
@@ -369,19 +374,21 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
     UTerminalAddTextFileBackupPayload* Setup(
         const FString& InTerminalID,
+        const FString& InProfile,
         const FString& InFileName,
         const FTextBackupTimeStamp& InBackup)
     {
         TerminalID = InTerminalID;
+        Profile = InProfile;
         FileName = InFileName;
         Backup = InBackup;
         return this;
     }
 };
 
-// Полная замена внутренней карты TerminalID переданной картой.
-// Assign — существующие записи TerminalID теряются целиком, мержа нет.
-// Пустая карта → TerminalID удаляется из TextFilesByTimeBase.
+// Полная замена внутренней карты FileName для (TerminalID, Profile).
+// Assign — существующие записи (TerminalID, Profile) теряются целиком.
+// Пустая карта → (TerminalID, Profile) удаляется.
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalReplaceTextFileBackupsPayload : public UOutcomePayload
 {
@@ -391,22 +398,26 @@ public:
     FString TerminalID;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
     TMap<FString, FTextBackupTimeStamp> Backups;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
     UTerminalReplaceTextFileBackupsPayload* Setup(
         const FString& InTerminalID,
+        const FString& InProfile,
         const TMap<FString, FTextBackupTimeStamp>& InBackups)
     {
         TerminalID = InTerminalID;
+        Profile = InProfile;
         Backups = InBackups;
         return this;
     }
 };
 
-// Частичная перезапись (merge) внутренней карты TerminalID.
-// Переданные FileName перезаписываются; остальные FileName в этом TerminalID
-// сохраняются. Другие TerminalID не затрагиваются.
+// Merge: переданные FileName перезаписываются внутри (TerminalID, Profile),
+// остальные FileName в этом (TerminalID, Profile) сохраняются.
 // Пустая карта → no-op.
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalOverwriteTextFileBackupsPayload : public UOutcomePayload
@@ -417,20 +428,25 @@ public:
     FString TerminalID;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
     TMap<FString, FTextBackupTimeStamp> Backups;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
     UTerminalOverwriteTextFileBackupsPayload* Setup(
         const FString& InTerminalID,
+        const FString& InProfile,
         const TMap<FString, FTextBackupTimeStamp>& InBackups)
     {
         TerminalID = InTerminalID;
+        Profile = InProfile;
         Backups = InBackups;
         return this;
     }
 };
 
-// Удаление записи. Пустой TimestampKey — удалить весь файл внутри TerminalID.
+// Удаление записи. Пустой TimestampKey — удалить весь файл.
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalRemoveTextFileBackupPayload : public UOutcomePayload
 {
@@ -438,6 +454,9 @@ class FPSKITALSREFACTORED_API UTerminalRemoveTextFileBackupPayload : public UOut
 public:
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
     FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString Profile;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
     FString FileName;
@@ -448,17 +467,21 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
     UTerminalRemoveTextFileBackupPayload* Setup(
         const FString& InTerminalID,
+        const FString& InProfile,
         const FString& InFileName,
         const FString& InTimestampKey = TEXT(""))
     {
         TerminalID = InTerminalID;
+        Profile = InProfile;
         FileName = InFileName;
         TimestampKey = InTimestampKey;
         return this;
     }
 };
 
-// Полная очистка. Пустой FileName — очистить весь TerminalID.
+// Полная очистка.
+//   Пустой Profile  → очистить весь TerminalID (все профили).
+//   Пустой FileName → очистить весь Profile.
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalClearTextFileBackupsPayload : public UOutcomePayload
 {
@@ -468,14 +491,19 @@ public:
     FString TerminalID;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
     FString FileName;
 
     UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
     UTerminalClearTextFileBackupsPayload* Setup(
         const FString& InTerminalID,
+        const FString& InProfile,
         const FString& InFileName = TEXT(""))
     {
         TerminalID = InTerminalID;
+        Profile = InProfile;
         FileName = InFileName;
         return this;
     }
