@@ -610,31 +610,6 @@ bool UTerminalSubsystem::AddTextFileBackupEntry(
 	TextFilesByTimeBase.FindOrAdd(TerminalID).FindOrAdd(Profile).Add(FileName, Backup);
 	return true;
 }
-/*
-void UTerminalSubsystem::ReplaceTextFileBackups(
-	const FString& TerminalID, const FString& Profile,
-	const TMap<FString, FTextBackupTimeStamp>& NewBackups)
-{
-	if (TerminalID.IsEmpty() || Profile.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("TerminalSubsystem: ReplaceTextFileBackups rejected — empty TerminalID/Profile"));
-		return;
-	}
-
-	auto* Profiles = TextFilesByTimeBase.Find(TerminalID);
-
-	if (NewBackups.Num() == 0)
-	{
-		if (!Profiles) return;
-		Profiles->Remove(Profile);
-		if (Profiles->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
-		return;
-	}
-
-	TextFilesByTimeBase.FindOrAdd(TerminalID).Add(Profile, NewBackups);
-}
-*/
 void UTerminalSubsystem::OverwriteTextFileBackups(
 	const FString& TerminalID, const FString& Profile,
 	const TMap<FString, FTextBackupTimeStamp>& Backups)
@@ -655,76 +630,6 @@ void UTerminalSubsystem::OverwriteTextFileBackups(
 		Files.Add(Pair.Key, Pair.Value);
 	}
 }
-/*
-bool UTerminalSubsystem::RemoveTextFileBackupEntry(
-	const FString& TerminalID, const FString& Profile,
-	const FString& FileName, const FString& TimestampKey)
-{
-	if (TerminalID.IsEmpty() || Profile.IsEmpty() || FileName.IsEmpty()) return false;
-
-	auto* Profiles = TextFilesByTimeBase.Find(TerminalID);
-	if (!Profiles) return false;
-
-	auto* Files = Profiles->Find(Profile);
-	if (!Files) return false;
-
-	if (TimestampKey.IsEmpty())
-	{
-		if (Files->Remove(FileName) == 0) return false;
-		if (Files->Num() == 0) Profiles->Remove(Profile);
-		if (Profiles->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
-	}
-	else
-	{
-		auto* Backup = Files->Find(FileName);
-		if (!Backup) return false;
-		if (Backup->TimeStamps.Remove(TimestampKey) == 0) return false;
-	}
-
-	if (UEventBusSubsystem* Bus = CachedEventBus.Get())
-	{
-		if (auto* P = Bus->CreatePayload<UTerminalTextFileBackupRemovedPayload>())
-		{
-			P->Setup(TerminalID, Profile, FileName, TimestampKey);
-			PublishTerminalOutcome(FGuid(), EOutcomeTerminal::ReportTextFileBackupRemoved, P);
-		}
-	}
-	return true;
-}
-*/
-/*
-bool UTerminalSubsystem::ClearTextFileBackupEntries(
-	const FString& TerminalID, const FString& Profile, const FString& FileName)
-{
-	if (TerminalID.IsEmpty()) return false;
-
-	auto* Profiles = TextFilesByTimeBase.Find(TerminalID);
-	if (!Profiles) return false;
-
-	// Empty Profile → clear whole TerminalID.
-	if (Profile.IsEmpty())
-	{
-		TextFilesByTimeBase.Remove(TerminalID);
-		return true;
-	}
-
-	auto* Files = Profiles->Find(Profile);
-	if (!Files) return false;
-
-	// Empty FileName → clear whole Profile.
-	if (FileName.IsEmpty())
-	{
-		Profiles->Remove(Profile);
-		if (Profiles->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
-		return true;
-	}
-
-	if (Files->Remove(FileName) == 0) return false;
-	if (Files->Num() == 0) Profiles->Remove(Profile);
-	if (Profiles->Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
-	return true;
-}
-*/
 
 // ============================================================================
 // EventBus handlers (InteractCommand, SetEnabled, SetRange, SetTooltip)
@@ -771,44 +676,7 @@ void UTerminalSubsystem::HandleInteractCommand(const FOutcomeEventBase& Outcome)
 		}
 	}
 }
-/*
-void UTerminalSubsystem::SubscribeSetEnabled()
-{
-	if (!CachedEventBus.IsValid() || SetEnabledHandle.IsValid()) return;
-	SetEnabledConditionAsset = NewObject<UOutcomeConditionAsset>(this);
-	SetEnabledConditionAsset->OperatorType = EConditionOperator::Composite;
-	SetEnabledConditionAsset->FilterRow.OutcomeType = EOutcomeType::Terminal;
-	SetEnabledConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
-	SetEnabledConditionAsset->FilterRow.TerminalType = EOutcomeTerminal::InteractSetEnabled;
-	SetEnabledConditionAsset->FilterRow.TerminalComparison = EConditionComparison::Equals;
-	SetEnabledConditionAsset->CompileCondition();
-	if (SetEnabledConditionAsset->GetCondition().IsValid())
-	{
-		SetEnabledHandle = CachedEventBus->RegisterHandler(
-			SetEnabledConditionAsset,
-			FOutcomeHandlerDelegate::CreateUObject(this, &UTerminalSubsystem::HandleSetEnabled)
-		);
-	}
-}
-*/
-/*
-void UTerminalSubsystem::UnsubscribeSetEnabled()
-{
-	if (!CachedEventBus.IsValid() || !SetEnabledHandle.IsValid()) return;
-	CachedEventBus->UnregisterHandler(SetEnabledHandle);
-	SetEnabledHandle.Invalidate();
-	SetEnabledConditionAsset = nullptr;
-}
-*/
-/*
-void UTerminalSubsystem::HandleSetEnabled(const FOutcomeEventBase& Outcome)
-{
-	const UInteractSetEnabledPayload* P = Cast<UInteractSetEnabledPayload>(Outcome.Payload);
-	if (!P) return;
-	if (const FTerminalInteractRecord* Rec = RegisteredItems.Find(P->ItemId))
-		ExecuteSetEnabledOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->bEnabled);
-}
-*/
+
 void UTerminalSubsystem::SubscribeSetRange()
 {
 	if (!CachedEventBus.IsValid() || SetRangeHandle.IsValid()) return;
@@ -978,7 +846,6 @@ void UTerminalSubsystem::SubscribeAll()
 {
 	SubscribeRegistration();
 	SubscribeInteractCommand();
-	//SubscribeSetEnabled();
 	SubscribeSetRange();
 	SubscribeSetTooltip();
 	SubscribeTestInteractCommand();
@@ -989,7 +856,6 @@ void UTerminalSubsystem::UnsubscribeAll()
 {
 	UnsubscribeRegistration();
 	UnsubscribeInteractCommand();
-	//UnsubscribeSetEnabled();
 	UnsubscribeSetRange();
 	UnsubscribeSetTooltip();
 	UnsubscribeTestInteractCommand();
@@ -1621,14 +1487,8 @@ void UTerminalSubsystem::SubscribeCommands()
 	// ---- Text file backups ----
 	Sub(AddTextFileBackupCondition, EOutcomeTerminal::AddTextFileBackupRequest,
 		AddTextFileBackupHandler, &UTerminalSubsystem::HandleAddTextFileBackup);
-	//Sub(ReplaceTextFileBackupsCondition, EOutcomeTerminal::ReplaceTextFileBackupsRequest,
-	//	ReplaceTextFileBackupsHandler, &UTerminalSubsystem::HandleReplaceTextFileBackups);
 	Sub(OverwriteTextFileBackupsCondition, EOutcomeTerminal::OverwriteTextFileBackupsRequest,
 		OverwriteTextFileBackupsHandler, &UTerminalSubsystem::HandleOverwriteTextFileBackups);
-	//Sub(RemoveTextFileBackupCondition, EOutcomeTerminal::RemoveTextFileBackupRequest,
-	//	RemoveTextFileBackupHandler, &UTerminalSubsystem::HandleRemoveTextFileBackup);
-	//Sub(ClearTextFileBackupsCondition, EOutcomeTerminal::ClearTextFileBackupsRequest,
-	//	ClearTextFileBackupsHandler, &UTerminalSubsystem::HandleClearTextFileBackups);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -1669,10 +1529,7 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(GameStageRemovedHandler, GameStageRemovedCondition);
 
 	Unsub(AddTextFileBackupHandler, AddTextFileBackupCondition);
-	//Unsub(ReplaceTextFileBackupsHandler, ReplaceTextFileBackupsCondition);
 	Unsub(OverwriteTextFileBackupsHandler, OverwriteTextFileBackupsCondition);
-	//Unsub(RemoveTextFileBackupHandler, RemoveTextFileBackupCondition);
-	//Unsub(ClearTextFileBackupsHandler, ClearTextFileBackupsCondition);
 }
 
 // ============================================================================
@@ -1918,162 +1775,6 @@ bool UTerminalSubsystem::IsGameFinishedForTerminal(const FGuid& TerminalId, cons
 	return false;
 }
 
-// ============================================================================
-// Public getters: Text file backups
-// ============================================================================
-/*
-TArray<FString> UTerminalSubsystem::GetAllTextFileBackupTerminalIDs() const
-{
-	TArray<FString> IDs;
-	TextFilesByTimeBase.GetKeys(IDs);
-	return IDs;
-}
-*/
-/*
-TArray<FString> UTerminalSubsystem::GetAllTextFileBackupProfiles(const FString& TerminalID) const
-{
-	TArray<FString> Profiles;
-	if (const auto* Inner = TextFilesByTimeBase.Find(TerminalID))
-	{
-		Inner->GetKeys(Profiles);
-	}
-	return Profiles;
-}
-
-bool UTerminalSubsystem::HasTextFileBackupTerminal(const FString& TerminalID) const
-{
-	return !TerminalID.IsEmpty() && TextFilesByTimeBase.Contains(TerminalID);
-}
-
-bool UTerminalSubsystem::HasTextFileBackupProfile(const FString& TerminalID,
-	const FString& Profile) const
-{
-	if (TerminalID.IsEmpty() || Profile.IsEmpty()) return false;
-	const auto* Inner = TextFilesByTimeBase.Find(TerminalID);
-	return Inner && Inner->Contains(Profile);
-}
-
-TArray<FString> UTerminalSubsystem::GetTextFileBackupFileNames(const FString& TerminalID,
-	const FString& Profile) const
-{
-	TArray<FString> Names;
-	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
-	{
-		if (const auto* Files = Profiles->Find(Profile))
-		{
-			Files->GetKeys(Names);
-		}
-	}
-	return Names;
-}
-
-bool UTerminalSubsystem::HasTextFileBackup(const FString& TerminalID,
-	const FString& Profile, const FString& FileName) const
-{
-	if (TerminalID.IsEmpty() || Profile.IsEmpty() || FileName.IsEmpty()) return false;
-	const auto* Profiles = TextFilesByTimeBase.Find(TerminalID);
-	if (!Profiles) return false;
-	const auto* Files = Profiles->Find(Profile);
-	return Files && Files->Contains(FileName);
-}
-
-bool UTerminalSubsystem::GetTextFileBackupSize(const FString& TerminalID,
-	const FString& Profile, const FString& FileName, float& OutSize) const
-{
-	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
-	{
-		if (const auto* Files = Profiles->Find(Profile))
-		{
-			if (const auto* Backup = Files->Find(FileName))
-			{
-				OutSize = Backup->BackupSize;
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-bool UTerminalSubsystem::GetTextFileBackupEntry(const FString& TerminalID,
-	const FString& Profile, const FString& FileName,
-	const FString& TimestampKey, FText& OutContent) const
-{
-	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
-	{
-		if (const auto* Files = Profiles->Find(Profile))
-		{
-			if (const auto* Backup = Files->Find(FileName))
-			{
-				if (const FText* Found = Backup->TimeStamps.Find(TimestampKey))
-				{
-					OutContent = *Found;
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
-TArray<FString> UTerminalSubsystem::GetTextFileBackupKeys(const FString& TerminalID,
-	const FString& Profile, const FString& FileName) const
-{
-	TArray<FString> Keys;
-	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
-	{
-		if (const auto* Files = Profiles->Find(Profile))
-		{
-			if (const auto* Backup = Files->Find(FileName))
-			{
-				Backup->TimeStamps.GetKeys(Keys);
-			}
-		}
-	}
-	return Keys;
-}
-
-bool UTerminalSubsystem::GetTextFileBackup(const FString& TerminalID,
-	const FString& Profile, const FString& FileName,
-	FTextBackupTimeStamp& OutData) const
-{
-	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
-	{
-		if (const auto* Files = Profiles->Find(Profile))
-		{
-			if (const auto* Backup = Files->Find(FileName))
-			{
-				OutData = *Backup;
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-float UTerminalSubsystem::GetTextFileBackupTotalSize(const FString& TerminalID,
-	const FString& Profile) const
-{
-	float Total = 0.f;
-	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
-	{
-		if (const auto* Files = Profiles->Find(Profile))
-		{
-			for (const auto& Pair : *Files) Total += Pair.Value.BackupSize;
-		}
-	}
-	return Total;
-}
-
-float UTerminalSubsystem::GetTextFileBackupGrandTotalSize() const
-{
-	float Total = 0.f;
-	for (const auto& TermPair : TextFilesByTimeBase)
-		for (const auto& ProfPair : TermPair.Value)
-			for (const auto& FilePair : ProfPair.Value)
-				Total += FilePair.Value.BackupSize;
-	return Total;
-}
-*/
 TMap<FString, FTextBackupTimeStamp> UTerminalSubsystem::GetTextFilesByTime(
 	const FString& TerminalID, const FString& Profile) const
 {
@@ -2097,7 +1798,6 @@ TMap<FString, FTextBackupTimeStamp> UTerminalSubsystem::GetTextFilesByTime(
 void UTerminalSubsystem::ReportGameStarted(const FGuid& TerminalId, const FString& GameId, const FDateTime& InStartedAt)
 {
 	auto& Inner = GameRecords.FindOrAdd(TerminalId);
-	//const FDateTime Now = FDateTime::UtcNow();
 
 	FTerminalActivityRecord* Existing = Inner.Find(GameId);
 	if (!Existing)
@@ -2133,15 +1833,6 @@ void UTerminalSubsystem::ReportGameStageFinished(const FGuid& TerminalId, const 
 	const FString& StageId, ETerminalStageResult Result, int32 Score, const FString& Notes)
 {
 	auto& Rec = EnsureRecord(GameRecords, TerminalId, GameId);
-	/*
-	if (Rec.IsFinished())
-	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("TerminalSubsystem: Stage '%s' for finished game '%s' ignored (Terminal=%s)"),
-			*StageId, *GameId, *TerminalId.ToString());
-		return;
-	}
-	*/
 	Rec.Status = ETerminalRecordStatus::InProgress;
 
 	FTerminalStageProgress* Stage = Rec.Stages.FindByPredicate(
@@ -2415,33 +2106,10 @@ void UTerminalSubsystem::HandleAddTextFileBackup(const FOutcomeEventBase& Outcom
 	if (!P) return;
 	AddTextFileBackupEntry(P->TerminalID, P->Profile, P->FileName, P->Backup);
 }
-/*
-void UTerminalSubsystem::HandleReplaceTextFileBackups(const FOutcomeEventBase& Outcome)
-{
-	auto* P = Cast<UTerminalReplaceTextFileBackupsPayload>(Outcome.Payload);
-	if (!P) return;
-	ReplaceTextFileBackups(P->TerminalID, P->Profile, P->Backups);
-}
-*/
+
 void UTerminalSubsystem::HandleOverwriteTextFileBackups(const FOutcomeEventBase& Outcome)
 {
 	auto* P = Cast<UTerminalOverwriteTextFileBackupsPayload>(Outcome.Payload);
 	if (!P) return;
 	OverwriteTextFileBackups(P->TerminalID, P->Profile, P->Backups);
 }
-/*
-void UTerminalSubsystem::HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome)
-{
-	auto* P = Cast<UTerminalRemoveTextFileBackupPayload>(Outcome.Payload);
-	if (!P) return;
-	RemoveTextFileBackupEntry(P->TerminalID, P->Profile, P->FileName, P->TimestampKey);
-}
-*/
-/*
-void UTerminalSubsystem::HandleClearTextFileBackups(const FOutcomeEventBase& Outcome)
-{
-	auto* P = Cast<UTerminalClearTextFileBackupsPayload>(Outcome.Payload);
-	if (!P) return;
-	ClearTextFileBackupEntries(P->TerminalID, P->Profile, P->FileName);
-}
-*/

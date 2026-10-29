@@ -195,37 +195,6 @@ public:
 //
 // Структура: TMap<TerminalID, TMap<Profile, TMap<FileName, FTextBackupTimeStamp>>>
 // ============================================================================
-/*
-// ---- Text file backup added ----
-// ---- Резервная копия добавлена / заменена ----
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalTextFileBackupAddedPayload : public UOutcomePayload
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString TerminalID;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString Profile;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString FileName;
-
-    // Полная новая структура записи (после мутации).
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile")
-    FTextBackupTimeStamp Backup;
-
-    UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
-    UTerminalTextFileBackupAddedPayload* Setup(
-        const FString& InTerminalID,
-        const FString& InProfile,
-        const FString& InFileName,
-        const FTextBackupTimeStamp& InBackup)
-    {
-        TerminalID = InTerminalID;
-        Profile = InProfile;
-        FileName = InFileName;
-        Backup = InBackup;
-        return this;
-    }
-};
-*/
 // ---- Text file backup removed ----
 // ---- Резервная копия удалена ----
 UCLASS(BlueprintType)
@@ -251,31 +220,7 @@ public:
         return this;
     }
 };
-/*
-// ---- Text file backups cleared ----
-// ---- Резервные копии очищены ----
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalTextFileBackupsClearedPayload : public UOutcomePayload
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString TerminalID;
-    // Пустой — очищен весь Profile.
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString Profile;
-    // Пустой — очищен весь TerminalID.
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|TextFile") FString FileName;
 
-    UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
-    UTerminalTextFileBackupsClearedPayload* Setup(
-        const FString& InTerminalID, const FString& InProfile, const FString& InFileName)
-    {
-        TerminalID = InTerminalID;
-        Profile = InProfile;
-        FileName = InFileName;
-        return this;
-    }
-};
-*/
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalOverwriteTextFileBackupsPayload : public UOutcomePayload
 {

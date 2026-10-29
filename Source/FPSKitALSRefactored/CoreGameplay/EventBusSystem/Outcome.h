@@ -82,7 +82,6 @@ enum class EOutcomeTerminal : uint8
     // Нотификации подсистемы о состоянии терминала
     // ========================================================================
     TerminalOpened          UMETA(DisplayName = "Terminal Opened"),
-    //TerminalTaskCompleted   UMETA(DisplayName = "Terminal Task Completed"),
     TerminalClosed          UMETA(DisplayName = "Terminal Closed"),
     TerminalLoginFailed     UMETA(DisplayName = "Terminal Login Failed"),
     TerminalLoginSucceeded  UMETA(DisplayName = "Terminal Login Succeeded"),
@@ -158,32 +157,16 @@ enum class EOutcomeTerminal : uint8
     // TextFilesByTimeBase: команды (входящие)
     // ========================================================================
     AddTextFileBackupRequest        UMETA(DisplayName = "Add Text File Backup Request"),
-    //ReplaceTextFileBackupsRequest   UMETA(DisplayName = "Replace Text File Backups Request"),
     OverwriteTextFileBackupsRequest UMETA(DisplayName = "Overwrite Text File Backups Request"),
-    //RemoveTextFileBackupRequest     UMETA(DisplayName = "Remove Text File Backup Request"),
-    //ClearTextFileBackupsRequest     UMETA(DisplayName = "Clear Text File Backups Request"),
-
-    // ========================================================================
-    // TextFilesByTimeBase: отчёты (исходящие)
-    // ========================================================================
-    //ReportTextFileBackupSaved    UMETA(DisplayName = "Report Text File Backup Saved"),
-    //ReportTextFileBackupRemoved  UMETA(DisplayName = "Report Text File Backup Removed"),
-    //ReportTextFileBackupsCleared UMETA(DisplayName = "Report Text File Backups Cleared")
+    RemoveTextFileBackupRequest     UMETA(DisplayName = "Remove Text File Backup Request"),
 };
 
 UENUM(BlueprintType)
 enum class EOutcomeInterior : uint8
 {
     Default                     UMETA(DisplayName = "Default"),
-    //InteriorEntered         UMETA(DisplayName = "Interior Entered"),
-    //InteriorTransition      UMETA(DisplayName = "Interior Transition"),
-    //InteriorLeaving         UMETA(DisplayName = "Interior Leaving"),
-    //FloorEntered            UMETA(DisplayName = "Floor Entered"),
     FloorTransition             UMETA(DisplayName = "Floor Transition"),
     FloorLeaving                UMETA(DisplayName = "Floor Leaving"),
-    //BuildingEntered         UMETA(DisplayName = "Location Entered"),
-    //BuildingTransition      UMETA(DisplayName = "Location Transition"),
-    //BuildingLeaving         UMETA(DisplayName = "Location Leaving"),
     InteractSetEnabled          UMETA(DisplayName = "Interact Set Enabled"),
     InteractSetRange            UMETA(DisplayName = "Interact Set Range"),
     InteractSetTooltip          UMETA(DisplayName = "Interact Set Tooltip"),
@@ -200,8 +183,6 @@ enum class EOutcomeInterior : uint8
     StreetTransition            UMETA(DisplayName = "Street Transition"),
     ResetSpawnerSnapshot        UMETA(DisplayName = "Reset Spawner Snapshot"),
     SpawnerPreserveModeQuery    UMETA(DisplayName = "Spawner Preserve Mode Query")
-    //CheckRequest            UMETA(DisplayName = "Check Request"),
-    //CheckResponse           UMETA(DisplayName = "Check Response")
 };
 
 UENUM(BlueprintType)
@@ -231,9 +212,6 @@ enum class EOutcomeWorldState : uint8
     WorldStateFactChanged       UMETA(DisplayName = "Fact Changed"),
     WorldStateFactRemoved       UMETA(DisplayName = "Fact Removed"),
 	InteractionEnabledChanged   UMETA(DisplayName = "Interaction Enabled Changed"),
-    //ChangingExteriorDoorAvailability UMETA(DisplayName = "Changing Exterior Door Availability"),
-    //CheckRequest                UMETA(DisplayName = "Check Request"),
-    //CheckResponse               UMETA(DisplayName = "Check Response")
 };
 
 UENUM(BlueprintType)

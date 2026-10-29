@@ -288,51 +288,6 @@ public:
     bool IsGameFinishedForTerminal(const FGuid& TerminalId, const FString& GameId) const;
 
     // ---- Text file backups (TimeBase) — только чтение ----
-    // Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //TArray<FString> GetAllTextFileBackupTerminalIDs() const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //TArray<FString> GetAllTextFileBackupProfiles(const FString& TerminalID) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //bool HasTextFileBackupTerminal(const FString& TerminalID) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //bool HasTextFileBackupProfile(const FString& TerminalID, const FString& Profile) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //TArray<FString> GetTextFileBackupFileNames(const FString& TerminalID,
-    //    const FString& Profile) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //bool HasTextFileBackup(const FString& TerminalID, const FString& Profile,
-    //    const FString& FileName) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //bool GetTextFileBackupSize(const FString& TerminalID, const FString& Profile,
-    //    const FString& FileName, float& OutSize) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //bool GetTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
-    //    const FString& FileName, const FString& TimestampKey, FText& OutContent) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //TArray<FString> GetTextFileBackupKeys(const FString& TerminalID,
-    //    const FString& Profile, const FString& FileName) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //bool GetTextFileBackup(const FString& TerminalID, const FString& Profile,
-    //    const FString& FileName, FTextBackupTimeStamp& OutData) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //float GetTextFileBackupTotalSize(const FString& TerminalID,
-    //    const FString& Profile) const;
-
-    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    //float GetTextFileBackupGrandTotalSize() const;
-
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
     TMap<FString, FTextBackupTimeStamp> GetTextFilesByTime(const FString& TerminalID,
         const FString& Profile) const;
@@ -381,32 +336,18 @@ protected:
     void PublishTerminalOutcome(const FGuid& TerminalId, EOutcomeTerminal OutcomeType, UOutcomePayload* Payload = nullptr);
 
     // ---- Text file backups: mutators (private, called from handlers) ----
-    // Replace-or-insert: полная структура заменяет запись FileName внутри (TerminalID, Profile).
     bool AddTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
         const FString& FileName, const FTextBackupTimeStamp& Backup);
-
-    // Assign: карта FileName для (TerminalID, Profile) заменяется целиком.
-    //void ReplaceTextFileBackups(const FString& TerminalID, const FString& Profile,
-    //    const TMap<FString, FTextBackupTimeStamp>& NewBackups);
 
     // Merge: переданные FileName перезаписываются внутри (TerminalID, Profile),
     // остальные FileName в этом (TerminalID, Profile) сохраняются.
     void OverwriteTextFileBackups(const FString& TerminalID, const FString& Profile,
         const TMap<FString, FTextBackupTimeStamp>& Backups);
 
-    //bool RemoveTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
-    //    const FString& FileName, const FString& TimestampKey);
-
-    // Empty Profile  → очистить весь TerminalID (все профили).
-    // Empty FileName → очистить весь Profile.
-    //bool ClearTextFileBackupEntries(const FString& TerminalID, const FString& Profile,
-    //    const FString& FileName);
-
 private:
     // ---- Interact handlers ----
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
     void HandleInteractCommand(const FOutcomeEventBase& Outcome);
-    //void HandleSetEnabled(const FOutcomeEventBase& Outcome);
     void HandleSetRange(const FOutcomeEventBase& Outcome);
     void HandleSetTooltip(const FOutcomeEventBase& Outcome);
     void HandleTestInteractCommand(const FOutcomeEventBase& Outcome);
@@ -448,10 +389,7 @@ private:
 
     // ---- Text file backups: handlers ----
     void HandleAddTextFileBackup(const FOutcomeEventBase& Outcome);
-    //void HandleReplaceTextFileBackups(const FOutcomeEventBase& Outcome);
     void HandleOverwriteTextFileBackups(const FOutcomeEventBase& Outcome);
-    //void HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome);
-    //void HandleClearTextFileBackups(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
     // Game mutators (internal)
@@ -481,8 +419,6 @@ private:
     void UnsubscribeRegistration();
     void SubscribeInteractCommand();
     void UnsubscribeInteractCommand();
-    //void SubscribeSetEnabled();
-    //void UnsubscribeSetEnabled();
     void SubscribeSetRange();
     void UnsubscribeSetRange();
     void SubscribeSetTooltip();
@@ -541,10 +477,7 @@ private:
 
     // ---- Text file command handles ----
     FOutcomeHandlerHandle AddTextFileBackupHandler;
-    //FOutcomeHandlerHandle ReplaceTextFileBackupsHandler;
     FOutcomeHandlerHandle OverwriteTextFileBackupsHandler;
-    //FOutcomeHandlerHandle RemoveTextFileBackupHandler;
-    //FOutcomeHandlerHandle ClearTextFileBackupsHandler;
 
     // ---- Interact conditions ----
     UPROPERTY() UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
