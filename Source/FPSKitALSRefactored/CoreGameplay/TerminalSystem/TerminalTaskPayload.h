@@ -28,81 +28,6 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "TerminalTask") bool    IsSuccess()     const { return bSuccess; }
 };
 
-// ============================================================================
-// INCOMING commands: reports from terminals
-// ВХОДЯЩИЕ команды: отчёты от терминалов
-// ============================================================================
-
-// ---- Game start ----
-// ---- Старт игры ----
-
-/*
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalGameStartedPayload : public UOutcomePayload
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
-
-    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalGameStartedPayload* Setup(const FGuid& InTid, const FString& InAid)
-    {
-        TerminalId = InTid; ActivityId = InAid; return this;
-    }
-};
-
-// ---- Stage finished (success / failure / skip) ----
-// ---- Этап завершён (успех / провал / пропуск) ----
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalGameStageFinishedPayload : public UOutcomePayload
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString StageId;
-
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game")
-    ETerminalStageResult Result = ETerminalStageResult::Completed;
-
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") int32   Score = 0;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString Notes;
-
-    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalGameStageFinishedPayload* Setup(const FGuid& InTid, const FString& InAid,
-        const FString& InSid,
-        ETerminalStageResult InResult = ETerminalStageResult::Completed,
-        int32 InScore = 0, const FString& InNotes = TEXT(""))
-    {
-        TerminalId = InTid; ActivityId = InAid; StageId = InSid;
-        Result = InResult; Score = InScore; Notes = InNotes;
-        return this;
-    }
-};
-
-// ---- Game completed ----
-// ---- Игра завершена ----
-UCLASS(BlueprintType)
-class FPSKITALSREFACTORED_API UTerminalGameCompletedPayload : public UOutcomePayload
-{
-    GENERATED_BODY()
-public:
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FGuid   TerminalId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ActivityId;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") bool    bSuccess = false;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") int32   TotalScore = 0;
-    UPROPERTY(BlueprintReadWrite, Category = "Terminal|Game") FString ResultData;
-
-    UFUNCTION(BlueprintCallable, Category = "Terminal|Game")
-    UTerminalGameCompletedPayload* Setup(const FGuid& InTid, const FString& InAid,
-        bool bInSuccess, int32 InScore = 0, const FString& InData = TEXT(""))
-    {
-        TerminalId = InTid; ActivityId = InAid; bSuccess = bInSuccess;
-        TotalScore = InScore; ResultData = InData; return this;
-    }
-};
-*/
 // ---- Removing a record (empty ActivityId — all games of the terminal) ----
 // ---- Удаление записи (пустой ActivityId — все игры терминала) ----
 UCLASS(BlueprintType)
@@ -270,7 +195,7 @@ public:
 //
 // Структура: TMap<TerminalID, TMap<Profile, TMap<FileName, FTextBackupTimeStamp>>>
 // ============================================================================
-
+/*
 // ---- Text file backup added ----
 // ---- Резервная копия добавлена / заменена ----
 UCLASS(BlueprintType)
@@ -300,7 +225,7 @@ public:
         return this;
     }
 };
-
+*/
 // ---- Text file backup removed ----
 // ---- Резервная копия удалена ----
 UCLASS(BlueprintType)
@@ -326,7 +251,7 @@ public:
         return this;
     }
 };
-
+/*
 // ---- Text file backups cleared ----
 // ---- Резервные копии очищены ----
 UCLASS(BlueprintType)
@@ -347,6 +272,33 @@ public:
         TerminalID = InTerminalID;
         Profile = InProfile;
         FileName = InFileName;
+        return this;
+    }
+};
+*/
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalOverwriteTextFileBackupsPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|TextFile")
+    TMap<FString, FTextBackupTimeStamp> Backups;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|TextFile")
+    UTerminalOverwriteTextFileBackupsPayload* Setup(
+        const FString& InTerminalID,
+        const FString& InProfile,
+        const TMap<FString, FTextBackupTimeStamp>& InBackups)
+    {
+        TerminalID = InTerminalID;
+        Profile = InProfile;
+        Backups = InBackups;
         return this;
     }
 };

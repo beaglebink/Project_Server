@@ -290,48 +290,48 @@ public:
     // ---- Text file backups (TimeBase) — только чтение ----
     // Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    TArray<FString> GetAllTextFileBackupTerminalIDs() const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //TArray<FString> GetAllTextFileBackupTerminalIDs() const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    TArray<FString> GetAllTextFileBackupProfiles(const FString& TerminalID) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //TArray<FString> GetAllTextFileBackupProfiles(const FString& TerminalID) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool HasTextFileBackupTerminal(const FString& TerminalID) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //bool HasTextFileBackupTerminal(const FString& TerminalID) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool HasTextFileBackupProfile(const FString& TerminalID, const FString& Profile) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //bool HasTextFileBackupProfile(const FString& TerminalID, const FString& Profile) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    TArray<FString> GetTextFileBackupFileNames(const FString& TerminalID,
-        const FString& Profile) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //TArray<FString> GetTextFileBackupFileNames(const FString& TerminalID,
+    //    const FString& Profile) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool HasTextFileBackup(const FString& TerminalID, const FString& Profile,
-        const FString& FileName) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //bool HasTextFileBackup(const FString& TerminalID, const FString& Profile,
+    //    const FString& FileName) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool GetTextFileBackupSize(const FString& TerminalID, const FString& Profile,
-        const FString& FileName, float& OutSize) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //bool GetTextFileBackupSize(const FString& TerminalID, const FString& Profile,
+    //    const FString& FileName, float& OutSize) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool GetTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
-        const FString& FileName, const FString& TimestampKey, FText& OutContent) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //bool GetTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
+    //    const FString& FileName, const FString& TimestampKey, FText& OutContent) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    TArray<FString> GetTextFileBackupKeys(const FString& TerminalID,
-        const FString& Profile, const FString& FileName) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //TArray<FString> GetTextFileBackupKeys(const FString& TerminalID,
+    //    const FString& Profile, const FString& FileName) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    bool GetTextFileBackup(const FString& TerminalID, const FString& Profile,
-        const FString& FileName, FTextBackupTimeStamp& OutData) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //bool GetTextFileBackup(const FString& TerminalID, const FString& Profile,
+    //    const FString& FileName, FTextBackupTimeStamp& OutData) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    float GetTextFileBackupTotalSize(const FString& TerminalID,
-        const FString& Profile) const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //float GetTextFileBackupTotalSize(const FString& TerminalID,
+    //    const FString& Profile) const;
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
-    float GetTextFileBackupGrandTotalSize() const;
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
+    //float GetTextFileBackupGrandTotalSize() const;
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|TextFiles")
     TMap<FString, FTextBackupTimeStamp> GetTextFilesByTime(const FString& TerminalID,
@@ -386,21 +386,21 @@ protected:
         const FString& FileName, const FTextBackupTimeStamp& Backup);
 
     // Assign: карта FileName для (TerminalID, Profile) заменяется целиком.
-    void ReplaceTextFileBackups(const FString& TerminalID, const FString& Profile,
-        const TMap<FString, FTextBackupTimeStamp>& NewBackups);
+    //void ReplaceTextFileBackups(const FString& TerminalID, const FString& Profile,
+    //    const TMap<FString, FTextBackupTimeStamp>& NewBackups);
 
     // Merge: переданные FileName перезаписываются внутри (TerminalID, Profile),
     // остальные FileName в этом (TerminalID, Profile) сохраняются.
     void OverwriteTextFileBackups(const FString& TerminalID, const FString& Profile,
         const TMap<FString, FTextBackupTimeStamp>& Backups);
 
-    bool RemoveTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
-        const FString& FileName, const FString& TimestampKey);
+    //bool RemoveTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
+    //    const FString& FileName, const FString& TimestampKey);
 
     // Empty Profile  → очистить весь TerminalID (все профили).
     // Empty FileName → очистить весь Profile.
-    bool ClearTextFileBackupEntries(const FString& TerminalID, const FString& Profile,
-        const FString& FileName);
+    //bool ClearTextFileBackupEntries(const FString& TerminalID, const FString& Profile,
+    //    const FString& FileName);
 
 private:
     // ---- Interact handlers ----
@@ -448,10 +448,10 @@ private:
 
     // ---- Text file backups: handlers ----
     void HandleAddTextFileBackup(const FOutcomeEventBase& Outcome);
-    void HandleReplaceTextFileBackups(const FOutcomeEventBase& Outcome);
+    //void HandleReplaceTextFileBackups(const FOutcomeEventBase& Outcome);
     void HandleOverwriteTextFileBackups(const FOutcomeEventBase& Outcome);
-    void HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome);
-    void HandleClearTextFileBackups(const FOutcomeEventBase& Outcome);
+    //void HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome);
+    //void HandleClearTextFileBackups(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
     // Game mutators (internal)
@@ -541,10 +541,10 @@ private:
 
     // ---- Text file command handles ----
     FOutcomeHandlerHandle AddTextFileBackupHandler;
-    FOutcomeHandlerHandle ReplaceTextFileBackupsHandler;
+    //FOutcomeHandlerHandle ReplaceTextFileBackupsHandler;
     FOutcomeHandlerHandle OverwriteTextFileBackupsHandler;
-    FOutcomeHandlerHandle RemoveTextFileBackupHandler;
-    FOutcomeHandlerHandle ClearTextFileBackupsHandler;
+    //FOutcomeHandlerHandle RemoveTextFileBackupHandler;
+    //FOutcomeHandlerHandle ClearTextFileBackupsHandler;
 
     // ---- Interact conditions ----
     UPROPERTY() UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;

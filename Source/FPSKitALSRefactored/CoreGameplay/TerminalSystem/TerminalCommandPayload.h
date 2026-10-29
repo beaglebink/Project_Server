@@ -385,7 +385,7 @@ public:
         return this;
     }
 };
-
+/*
 // Полная замена внутренней карты FileName для (TerminalID, Profile).
 // Assign — существующие записи (TerminalID, Profile) теряются целиком.
 // Пустая карта → (TerminalID, Profile) удаляется.
@@ -415,7 +415,8 @@ public:
         return this;
     }
 };
-
+*/
+/*
 // Merge: переданные FileName перезаписываются внутри (TerminalID, Profile),
 // остальные FileName в этом (TerminalID, Profile) сохраняются.
 // Пустая карта → no-op.
@@ -445,7 +446,7 @@ public:
         return this;
     }
 };
-
+*/
 // Удаление записи. Пустой TimestampKey — удалить весь файл.
 UCLASS(BlueprintType)
 class FPSKITALSREFACTORED_API UTerminalRemoveTextFileBackupPayload : public UOutcomePayload
@@ -478,7 +479,7 @@ public:
         return this;
     }
 };
-
+/*
 // Полная очистка.
 //   Пустой Profile  → очистить весь TerminalID (все профили).
 //   Пустой FileName → очистить весь Profile.
@@ -508,3 +509,4 @@ public:
         return this;
     }
 };
+*/
