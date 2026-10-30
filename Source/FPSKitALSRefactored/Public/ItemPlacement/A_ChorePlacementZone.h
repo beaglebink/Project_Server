@@ -191,4 +191,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Saving")
 	void ApplyIntermediateSaveData(FString Jsonstring);
+
+private:
+	bool CheckIfStarted();
+
+	FTimerHandle CheckForStartHandle;
+
+public:
+	UFUNCTION(BlueprintImplementableEvent, Category = "Chore")
+	void OnStarted();
 };
