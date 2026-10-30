@@ -56,7 +56,7 @@ private:
 
 public:
 	UPROPERTY(EditAnywhere, Category = "DropZone|ActiveState", meta = (AllowPrivateAccess = "true"))
-	uint8 bIsActive : 1{true};
+	uint8 bIsActive : 1{false};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DropZone|Items")
 	TMap<FGameplayTag, int32> CorrectItemsList;

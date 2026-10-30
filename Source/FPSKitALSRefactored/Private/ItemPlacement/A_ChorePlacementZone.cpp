@@ -515,6 +515,11 @@ FChoreResult AA_ChorePlacementZone::GetResultState()
 
 FGameplayTag AA_ChorePlacementZone::PublicResultState_Implementation(FChoreResult ChoreResult)
 {
+	if (bIsDeferredEvaluate)
+	{
+		return FGameplayTag::EmptyTag;
+	}
+
 	FString ResultText = FString::Printf(TEXT("Chore result: %s\n"), ChoreResult.bResult ? TEXT("Successed") : TEXT("Failed"));
 	ResultText += TEXT("Successed\n");
 	ResultText += TEXT("--------------------------\n");

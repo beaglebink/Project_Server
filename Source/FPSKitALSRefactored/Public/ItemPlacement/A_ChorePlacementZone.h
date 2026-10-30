@@ -135,7 +135,7 @@ public:
 	float GapSizeBetweenInPercent = 0.1f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ChorePlacement|DropZones")
-	AA_AreaDropZone* AreaDropZone;
+	TObjectPtr<AA_AreaDropZone> AreaDropZone;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChorePlacement|DropZones")
 	TArray<FDropZonePlacementZone> DropZonePlacementZones;
