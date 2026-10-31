@@ -607,9 +607,10 @@ bool UTerminalSubsystem::AddTextFileBackupEntry(
 		return false;
 	}
 
-	TextFilesByTimeBase.FindOrAdd(TerminalID).FindOrAdd(Profile).Add(FileName, Backup);
+	TextFilesByTimeBase.FindOrAdd(TerminalID).FindOrAdd(Profile).FindOrAdd(FileName).Entries.Add(Backup);
 	return true;
 }
+
 void UTerminalSubsystem::OverwriteTextFileBackups(
 	const FString& TerminalID, const FString& Profile,
 	const TMap<FString, FTextBackupTimeStamp>& Backups)
@@ -627,7 +628,10 @@ void UTerminalSubsystem::OverwriteTextFileBackups(
 	for (const auto& Pair : Backups)
 	{
 		if (Pair.Key.IsEmpty()) continue;
-		Files.Add(Pair.Key, Pair.Value);
+
+		FTextBackupSeries Series;
+		Series.Entries.Add(Pair.Value);       // ряд = [Single]
+		Files.Add(Pair.Key, MoveTemp(Series)); // replace whole series
 	}
 }
 
@@ -999,12 +1003,16 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetArrayField(TEXT("GameRecords"), GameArr);
 
 	// ========================================================================
-	// Serialize text file backups (nested object, 3 levels):
-	//   { TerminalID: { Profile: { FileName: { BackupSize, TimrStamps: [...] } } } }
+	// Serialize text file backups (4 levels, series as JSON array):
+	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
 	// ========================================================================
 	// ========================================================================
-	// Сериализация резервных копий текстовых файлов (вложенный объект, 3 уровня):
-	//   { TerminalID: { Profile: { FileName: { BackupSize, TimrStamps: [...] } } } }
+	// Сериализация резервных копий текстовых файлов (4 уровня, ряд как массив):
+	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
+	// ========================================================================
+	// ========================================================================
+	// Serialize text file backups (4 levels, series as JSON array):
+	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
 	// ========================================================================
 	TSharedPtr<FJsonObject> TFScopesObj = MakeShared<FJsonObject>();
 	for (const auto& TermPair : TextFilesByTimeBase)
@@ -1015,22 +1023,25 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 			TSharedPtr<FJsonObject> FilesObj = MakeShared<FJsonObject>();
 			for (const auto& FilePair : ProfPair.Value)
 			{
-				const FTextBackupTimeStamp& Backup = FilePair.Value;
-
-				TSharedPtr<FJsonObject> FileObj = MakeShared<FJsonObject>();
-				FileObj->SetNumberField(TEXT("BackupSize"), Backup.BackupSize);
-
-				TArray<TSharedPtr<FJsonValue>> StampArr;
-				for (const auto& SP : Backup.TimeStamps)
+				TArray<TSharedPtr<FJsonValue>> SeriesArr;
+				for (const FTextBackupTimeStamp& Backup : FilePair.Value.Entries)
 				{
-					TSharedPtr<FJsonObject> SO = MakeShared<FJsonObject>();
-					SO->SetStringField(TEXT("Key"), SP.Key);
-					SO->SetStringField(TEXT("Content"), SP.Value.ToString());
-					StampArr.Add(MakeShared<FJsonValueObject>(SO));
-				}
-				FileObj->SetArrayField(TEXT("TimrStamps"), StampArr);
+					TSharedPtr<FJsonObject> FileObj = MakeShared<FJsonObject>();
+					FileObj->SetNumberField(TEXT("BackupSize"), Backup.BackupSize);
 
-				FilesObj->SetObjectField(FilePair.Key, FileObj);
+					TArray<TSharedPtr<FJsonValue>> StampArr;
+					for (const auto& SP : Backup.TimeStamps)
+					{
+						TSharedPtr<FJsonObject> SO = MakeShared<FJsonObject>();
+						SO->SetStringField(TEXT("Key"), SP.Key);
+						SO->SetStringField(TEXT("Content"), SP.Value.ToString());
+						StampArr.Add(MakeShared<FJsonValueObject>(SO));
+					}
+					FileObj->SetArrayField(TEXT("TimrStamps"), StampArr);
+
+					SeriesArr.Add(MakeShared<FJsonValueObject>(FileObj));
+				}
+				FilesObj->SetArrayField(FilePair.Key, SeriesArr);
 			}
 			ProfilesObj->SetObjectField(ProfPair.Key, FilesObj);
 		}
@@ -1271,12 +1282,16 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	}
 
 	// ========================================================================
-	// Deserialize text file backups (nested object, 3 levels):
-	//   { TerminalID: { Profile: { FileName: { BackupSize, TimrStamps: [...] } } } }
+	// Deserialize text file backups (4 levels, series as JSON array):
+	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
 	// ========================================================================
 	// ========================================================================
-	// Десериализация резервных копий текстовых файлов (вложенный объект, 3 уровня):
-	//   { TerminalID: { Profile: { FileName: { BackupSize, TimrStamps: [...] } } } }
+	// Десериализация резервных копий текстовых файлов (4 уровня, ряд как массив):
+	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
+	// ========================================================================
+	// ========================================================================
+	// Deserialize text file backups (4 levels, series as JSON array):
+	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
 	// ========================================================================
 	const TSharedPtr<FJsonObject>* TFScopesObjPtr = nullptr;
 	if (Root->TryGetObjectField(TEXT("TextFilesByTimeBase"), TFScopesObjPtr))
@@ -1306,33 +1321,47 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					const FString& FileName = FilePair.Key;
 					if (FileName.IsEmpty()) continue;
 
-					const TSharedPtr<FJsonObject>* FileObjPtr = nullptr;
-					if (!FilePair.Value->TryGetObject(FileObjPtr)) continue;
+					const TArray<TSharedPtr<FJsonValue>>* SeriesArr = nullptr;
+					if (!FilePair.Value->TryGetArray(SeriesArr)) continue;
 
-					FTextBackupTimeStamp Backup;
+					FTextBackupSeries Series;
+					Series.Entries.Reserve(SeriesArr->Num());
 
-					double BSize = 0.0;
-					if ((*FileObjPtr)->TryGetNumberField(TEXT("BackupSize"), BSize))
-						Backup.BackupSize = static_cast<float>(BSize);
-
-					const TArray<TSharedPtr<FJsonValue>>* StampArr = nullptr;
-					if ((*FileObjPtr)->TryGetArrayField(TEXT("TimrStamps"), StampArr))
+					for (const TSharedPtr<FJsonValue>& SV : *SeriesArr)
 					{
-						for (const TSharedPtr<FJsonValue>& SV : *StampArr)
-						{
-							const TSharedPtr<FJsonObject>* SOP = nullptr;
-							if (!SV->TryGetObject(SOP)) continue;
+						const TSharedPtr<FJsonObject>* FileObjPtr = nullptr;
+						if (!SV->TryGetObject(FileObjPtr)) continue;
 
-							FString Key, Content;
-							if ((*SOP)->TryGetStringField(TEXT("Key"), Key) &&
-								(*SOP)->TryGetStringField(TEXT("Content"), Content))
+						FTextBackupTimeStamp Backup;
+
+						double BSize = 0.0;
+						if ((*FileObjPtr)->TryGetNumberField(TEXT("BackupSize"), BSize))
+							Backup.BackupSize = static_cast<float>(BSize);
+
+						const TArray<TSharedPtr<FJsonValue>>* StampArr = nullptr;
+						if ((*FileObjPtr)->TryGetArrayField(TEXT("TimrStamps"), StampArr))
+						{
+							for (const TSharedPtr<FJsonValue>& SSV : *StampArr)
 							{
-								Backup.TimeStamps.Add(Key, FText::FromString(Content));
+								const TSharedPtr<FJsonObject>* SOP = nullptr;
+								if (!SSV->TryGetObject(SOP)) continue;
+
+								FString Key, Content;
+								if ((*SOP)->TryGetStringField(TEXT("Key"), Key) &&
+									(*SOP)->TryGetStringField(TEXT("Content"), Content))
+								{
+									Backup.TimeStamps.Add(Key, FText::FromString(Content));
+								}
 							}
 						}
+
+						Series.Entries.Add(MoveTemp(Backup));
 					}
 
-					Files.Add(FileName, MoveTemp(Backup));
+					if (Series.Entries.Num() > 0)
+					{
+						Files.Add(FileName, MoveTemp(Series));
+					}
 				}
 
 				// Пустой Profile не сохраняем.
@@ -1778,14 +1807,24 @@ bool UTerminalSubsystem::IsGameFinishedForTerminal(const FGuid& TerminalId, cons
 TMap<FString, FTextBackupTimeStamp> UTerminalSubsystem::GetTextFilesByTime(
 	const FString& TerminalID, const FString& Profile) const
 {
+	TMap<FString, FTextBackupTimeStamp> Result;
+
 	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
 	{
 		if (const auto* Files = Profiles->Find(Profile))
 		{
-			return *Files;
+			Result.Reserve(Files->Num());
+			for (const auto& Pair : *Files)
+			{
+				const FTextBackupSeries& Series = Pair.Value;
+				if (Series.Entries.Num() > 0)
+				{
+					Result.Add(Pair.Key, Series.Entries.Last());
+				}
+			}
 		}
 	}
-	return TMap<FString, FTextBackupTimeStamp>();
+	return Result;
 }
 
 // ============================================================================

@@ -173,6 +173,18 @@ struct FTerminalInteractRecord
     UPROPERTY() float InteractionRange = 0.f;
 };
 
+// A single ordered series (history) of FTextBackupTimeStamp entries for one FileName.
+// Обёртка нужна, т.к. UHT не допускает TArray<USTRUCT> в качестве значения в TMap
+// внутри UFUNCTION/UPROPERTY.
+USTRUCT(BlueprintType)
+struct FTextBackupSeries
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<FTextBackupTimeStamp> Entries;
+};
+
 // ----------------------------------------------------------------------------
 // Delegates
 // ----------------------------------------------------------------------------
@@ -339,8 +351,9 @@ protected:
     bool AddTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
         const FString& FileName, const FTextBackupTimeStamp& Backup);
 
-    // Merge: переданные FileName перезаписываются внутри (TerminalID, Profile),
-    // остальные FileName в этом (TerminalID, Profile) сохраняются.
+    // Заменяет ряд для каждого FileName переданной одной записью:
+    //   TextFilesByTimeBase[T][P][F] = { [Single] }
+    // Остальные FileName в (T, P) сохраняются.
     void OverwriteTextFileBackups(const FString& TerminalID, const FString& Profile,
         const TMap<FString, FTextBackupTimeStamp>& Backups);
 
@@ -534,5 +547,5 @@ private:
     // Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
     // Без UPROPERTY: 3-уровневый TMap не поддерживается UHT как отражённый тип.
     // Сериализация — ручная (CollectSaveData / ApplySaveData).
-    TMap<FString, TMap<FString, TMap<FString, FTextBackupTimeStamp>>> TextFilesByTimeBase;
+    TMap<FString, TMap<FString, TMap<FString, FTextBackupSeries>>> TextFilesByTimeBase;
 };
