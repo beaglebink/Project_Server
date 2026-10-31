@@ -330,17 +330,31 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 		}
 
 		GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
-		if (NewStatus == EChoreStatus::Active && !bIsDeferredEvaluate)
+		GetWorldTimerManager().ClearTimer(CheckForStartHandle);
+
+		if (NewStatus == EChoreStatus::Active)
 		{
-			GetWorldTimerManager().SetTimer(AutoResultTimerHandle, [this]()
+			GetWorldTimerManager().SetTimer(CheckForStartHandle, [this]()
 				{
-					FChoreResult ChoreResult = GetResultState();
-					if (ChoreResult.bResult)
+					if (CheckIfStarted())
 					{
-						GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
-						PublicResultState(ChoreResult);
+						GetWorldTimerManager().ClearTimer(CheckForStartHandle);
+						SetChoreStatus(EChoreStatus::Started);
 					}
 				}, 0.5f, true);
+
+			if (!bIsDeferredEvaluate)
+			{
+				GetWorldTimerManager().SetTimer(AutoResultTimerHandle, [this]()
+					{
+						FChoreResult ChoreResult = GetResultState();
+						if (ChoreResult.bResult)
+						{
+							GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+							PublicResultState(ChoreResult);
+						}
+					}, 0.5f, true);
+			}
 		}
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, ChoreStatus == EChoreStatus::Active ? "ACTIVE" : "INACTIVE");
 		break;
@@ -407,6 +421,12 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 	case EChoreStatus::PendingReaccept:
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "PENDINGREACCEPT");
+		break;
+	}
+	case EChoreStatus::Started:
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "STARTED");
+		OnStarted();
 		break;
 	}
 	default:
@@ -515,11 +535,6 @@ FChoreResult AA_ChorePlacementZone::GetResultState()
 
 FGameplayTag AA_ChorePlacementZone::PublicResultState_Implementation(FChoreResult ChoreResult)
 {
-	if (bIsDeferredEvaluate)
-	{
-		return FGameplayTag::EmptyTag;
-	}
-
 	FString ResultText = FString::Printf(TEXT("Chore result: %s\n"), ChoreResult.bResult ? TEXT("Successed") : TEXT("Failed"));
 	ResultText += TEXT("Successed\n");
 	ResultText += TEXT("--------------------------\n");
@@ -675,4 +690,24 @@ void AA_ChorePlacementZone::ApplyIntermediateSaveData(FString Jsonstring)
 			ChoreSys->ApplyChorePlacementData(this);
 		}
 	}
+}
+
+bool AA_ChorePlacementZone::CheckIfStarted()
+{
+	for (const auto& [Key, Value] : SourcePlacedItems)
+	{
+		FTransform ActorTransform = Value.ItemActor->GetActorTransform();
+		if (!Value.ItemActor->GetActorTransform().Equals(Value.ItemDefaultTransform, 10.0f))
+		{
+			return true;
+		}
+		if (AA_Breakable* BreakableActor = Cast<AA_Breakable>(Value.ItemActor))
+		{
+			if (BreakableActor->GetIsBroken())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }

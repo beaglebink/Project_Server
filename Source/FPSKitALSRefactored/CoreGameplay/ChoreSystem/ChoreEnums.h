@@ -39,7 +39,8 @@ enum class EChoreStatus : uint8
 	WaitingToStart  UMETA(DisplayName = "Waiting to Start"),
 	Expired         UMETA(DisplayName = "Expired"),
 	RetryAvailable  UMETA(DisplayName = "Retry Available"),
-	PendingReaccept UMETA(DisplayName = "Pending Re-accept from NPC")
+	PendingReaccept UMETA(DisplayName = "Pending Re-accept from NPC"),
+	Started			UMETA(DisplayName = "Started")
 };
 
 UENUM(BlueprintType)
