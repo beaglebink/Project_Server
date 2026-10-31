@@ -182,7 +182,13 @@ enum class EOutcomeInterior : uint8
     CheckResponse               UMETA(DisplayName = "Check Response"),
     StreetTransition            UMETA(DisplayName = "Street Transition"),
     ResetSpawnerSnapshot        UMETA(DisplayName = "Reset Spawner Snapshot"),
-    SpawnerPreserveModeQuery    UMETA(DisplayName = "Spawner Preserve Mode Query")
+    SpawnerPreserveModeQuery    UMETA(DisplayName = "Spawner Preserve Mode Query"),
+    LocationEntered             UMETA(DisplayName = "Location Entered"),
+    LocationLeft                UMETA(DisplayName = "Location Left"),
+    StreetEntered               UMETA(DisplayName = "Street Entered"),
+    StreetLeft                  UMETA(DisplayName = "Street Left"),
+    BuildingEntered             UMETA(DisplayName = "Building Entered"),
+    BuildingLeft                UMETA(DisplayName = "Building Left")
 };
 
 UENUM(BlueprintType)

@@ -6,6 +6,7 @@
 
 #include "OutcomeEventBase.h"
 #include "OutcomeConditionAsset.h"
+#include "LocationTypes.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 
 #include "LocationTrackerSubsystem.generated.h"
@@ -15,17 +16,6 @@ class UWorldRegionAsset;
 class UStreetAsset;
 class UInteriorSetAsset;
 class UFloorAsset;
-
-UENUM(BlueprintType)
-enum class ELocationLevel : uint8
-{
-    Default  UMETA(DisplayName = "None"),
-    Map      UMETA(DisplayName = "Map"),
-    Region   UMETA(DisplayName = "Region"),
-    Street   UMETA(DisplayName = "Street"),
-    Building UMETA(DisplayName = "Building"),
-    Floor    UMETA(DisplayName = "Floor")
-};
 
 USTRUCT(BlueprintType)
 struct FLocationVisitKey
@@ -140,6 +130,45 @@ public:
     // Текущий адрес — для отладки и для других подсистем.
     const FLocationVisitAddress& GetCurrentAddress() const { return CurrentAddress; }
 
+    // ── Текущее местоположение ────────────────────────────────────────────
+    //
+    // CurrentAddress хранит GUID'ы всех уровней, которые сейчас «заполнены»
+    // в адресе. GetCurrentDeepestLevel возвращает самый глубокий валидный
+    // уровень — тот, в котором игрок реально находится:
+    //   • Floor    — игрок на этаже (в доме);
+    //   • Building — игрок в доме, но этаж неизвестен;
+    //   • Street   — игрок на открытой улице;
+    //   • Region   — игрок на региональной сцене (без конкретной улицы);
+    //   • Map      — игрок на сцене карты;
+    //   • Default  — игрок ещё нигде (загрузка/телепорт до LevelLoaded).
+    //
+    // GetCurrentLocationAsset возвращает ассет соответствующего уровня
+    // (UFloorAsset / UInteriorSetAsset / UStreetAsset / UWorldRegionAsset /
+    // UWorldMapAsset), либо nullptr.
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Query")
+    UObject* GetLocationAsset(ELocationLevel Level, const FGuid& Id) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Query")
+    UObject* GetCurrentLocationAsset(ELocationLevel Level) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Query")
+    FText GetCurrentLocationDisplayName(ELocationLevel Level) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Query")
+    ELocationLevel GetCurrentDeepestLevel() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Query")
+    UObject* GetCurrentLocationAssetDeepest() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Query")
+    FText GetCurrentLocationDisplayNameDeepest() const;
+
+    // Строка вида "Deep town / Port region / Fish street / Fish street 2 / FishStreet 2-1"
+    // (только заполненные уровни). Удобно для отладки и логов.
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Debug")
+    FString GetCurrentLocationDebugString() const;
+
     // Преобразовать DisplayName ассета локации в ключ.
     // Ищет среди FloorAsset / InteriorSetAsset / StreetAsset / WorldRegionAsset / WorldMapAsset.
     //
@@ -180,9 +209,18 @@ private:
 
     void ApplyAddressTransition(const FLocationVisitAddress& NewAddress);
 
+    // Публикует LocationEntered / LocationLeft для указанной локации.
+    // Вызывается из ApplyAddressTransition сразу после изменения счётчиков.
+    void PublishLocationVisitEvent(ELocationLevel Level, const FGuid& Id, bool bEntered);
+
     // Обратный индекс: ключ локации → отображаемое имя.
     // Заполняется в BuildSceneIndex из ассетов.
     UPROPERTY() TMap<FString, FText> LocationDisplayNames;
+
+    // Ключ локации → ассет. Заполняется в BuildSceneIndex рядом с
+    // LocationDisplayNames. Нужен для событий LocationEntered / LocationLeft
+    // и для GetCurrentLocationAsset — payload отдаёт именно ассет, а не GUID.
+    UPROPERTY() TMap<FString, TObjectPtr<UObject>> LocationAssets;
 
     // Получить отображаемое имя локации по её уровню и Guid.
     // Если имени нет — возвращает короткий технический фоллбэк "<Level:XXXXXXXX>".

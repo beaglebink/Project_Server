@@ -20,6 +20,9 @@
 #include "../LocationSystem/InteriorSetAsset.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
+#include "LocationVisitEventPayload.h"
+#include "StreetVisitEventPayload.h"
+#include "BuildingVisitEventPayload.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Утилиты
@@ -174,8 +177,11 @@ void ULocationTrackerSubsystem::BuildSceneIndex()
 {
     SceneToAddress.Empty();
     LocationDisplayNames.Empty();
+    LocationAssets.Empty();
 
-    auto RegisterDisplayName = [this](ELocationLevel Level, const FGuid& Id, const FText& DisplayName, const FString& FallbackName)
+    auto RegisterLocation = [this](ELocationLevel Level, const FGuid& Id,
+        UObject* Asset, const FText& DisplayName,
+        const FString& FallbackName)
         {
             if (!Id.IsValid()) return;
 
@@ -183,7 +189,10 @@ void ULocationTrackerSubsystem::BuildSceneIndex()
             if (Label.IsEmpty())
                 Label = FText::FromString(FallbackName);
 
-            LocationDisplayNames.Add(MakeKey(Level, Id), Label);
+            const FString Key = MakeKey(Level, Id);
+            LocationDisplayNames.Add(Key, Label);
+            if (Asset)
+                LocationAssets.Add(Key, Asset);
         };
 
     // ── Map ──────────────────────────────────────────────────────────────
@@ -193,7 +202,7 @@ void ULocationTrackerSubsystem::BuildSceneIndex()
         for (UWorldMapAsset* M : All)
         {
             if (!M) continue;
-            RegisterDisplayName(ELocationLevel::Map, M->WorldMapID, M->DisplayName, M->GetName());
+            RegisterLocation(ELocationLevel::Map, M->WorldMapID, M, M->DisplayName, M->GetName());
         }
     }
 
@@ -205,7 +214,7 @@ void ULocationTrackerSubsystem::BuildSceneIndex()
         {
             if (!R) continue;
 
-            RegisterDisplayName(ELocationLevel::Region, R->WorldRegionID, R->DisplayName, R->GetName());
+            RegisterLocation(ELocationLevel::Region, R->WorldRegionID, R, R->DisplayName, R->GetName());
 
             // Также — заполняем SceneToAddress, если у региона есть RegionLevel.
             if (R->RegionLevel.IsNull()) continue;
@@ -234,7 +243,7 @@ void ULocationTrackerSubsystem::BuildSceneIndex()
         for (UStreetAsset* S : All)
         {
             if (!S) continue;
-            RegisterDisplayName(ELocationLevel::Street, S->StreetID, S->DisplayName, S->GetName());
+            RegisterLocation(ELocationLevel::Street, S->StreetID, S, S->DisplayName, S->GetName());
         }
     }
 
@@ -245,7 +254,7 @@ void ULocationTrackerSubsystem::BuildSceneIndex()
         for (UInteriorSetAsset* B : All)
         {
             if (!B) continue;
-            RegisterDisplayName(ELocationLevel::Building, B->InteriorSetID, B->DisplayName, B->GetName());
+            RegisterLocation(ELocationLevel::Building, B->InteriorSetID, B, B->DisplayName, B->GetName());
         }
     }
 
@@ -257,7 +266,7 @@ void ULocationTrackerSubsystem::BuildSceneIndex()
         {
             if (!F) continue;
 
-            RegisterDisplayName(ELocationLevel::Floor, F->FloorID, F->DisplayName, F->GetName());
+            RegisterLocation(ELocationLevel::Floor, F->FloorID, F, F->DisplayName, F->GetName());
 
             // Также — заполняем SceneToAddress, если у этажа есть FloorLevel.
             if (F->FloorLevel.IsNull()) continue;
@@ -292,8 +301,8 @@ void ULocationTrackerSubsystem::BuildSceneIndex()
     }
 
     UE_LOG(LogTemp, Log,
-        TEXT("LocationTracker: SceneIndex built — %d scene(s), %d location name(s)."),
-        SceneToAddress.Num(), LocationDisplayNames.Num());
+        TEXT("LocationTracker: SceneIndex built — %d scene(s), %d location name(s), %d location asset(s)."),
+        SceneToAddress.Num(), LocationDisplayNames.Num(), LocationAssets.Num());
 }
 
 bool ULocationTrackerSubsystem::FindAddressForScene(const FString& NormScene, FLocationVisitAddress& OutAddr) const
@@ -372,6 +381,7 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
                 FLocationVisitState& S = FindOrAddState(L, OldId);
                 S.LastLeftAt = Now;
                 S.LeaveCount++;
+                PublishLocationVisitEvent(L, OldId, /*bEntered=*/false);
             }
         }
 
@@ -381,6 +391,7 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
             if (S.FirstEnteredAt == FDateTime::MinValue()) S.FirstEnteredAt = Now;
             S.LastEnteredAt = Now;
             S.EnterCount++;
+            PublishLocationVisitEvent(L, NewId, /*bEntered=*/true);
         }
     }
 
@@ -392,6 +403,7 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
         FLocationVisitState& S = FindOrAddState(ELocationLevel::Street, NewAddress.StreetId);
         S.LastLeftAt = Now;
         S.LeaveCount++;
+        PublishLocationVisitEvent(ELocationLevel::Street, NewAddress.StreetId, /*bEntered=*/false);
     }
 
     // Спецправило Street: «вышли из дома на ту же улицу» → Enter[Street]++.
@@ -404,25 +416,21 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
         if (S.FirstEnteredAt == FDateTime::MinValue()) S.FirstEnteredAt = Now;
         S.LastEnteredAt = Now;
         S.EnterCount++;
+        PublishLocationVisitEvent(ELocationLevel::Street, OldAddress.StreetId, /*bEntered=*/true);
     }
 
     // Хелпер: "DisplayName[Enter/Leave]" или "-" для пустого звена.
     auto FormatLevel = [this](ELocationLevel Level, const FGuid& Id) -> FString
         {
             if (!Id.IsValid()) return TEXT("-");
-
             const FString Label = GetLocationLabel(Level, Id);
-
-            int32 Enter = 0;
-            int32 Leave = 0;
-
+            int32 Enter = 0, Leave = 0;
             const FString Key = MakeKey(Level, Id);
             if (const FLocationVisitState* S = VisitHistory.Find(Key))
             {
                 Enter = S->EnterCount;
                 Leave = S->LeaveCount;
             }
-
             return FString::Printf(TEXT("%s[%d/%d]"), *Label, Enter, Leave);
         };
 
@@ -436,16 +444,92 @@ void ULocationTrackerSubsystem::ApplyAddressTransition(const FLocationVisitAddre
                 *FormatLevel(ELocationLevel::Floor, Addr.FloorId));
         };
 
-    // ── Тестовые логи ────────────────────────────────────────────────────
-    UE_LOG(LogTemp, Log,
-        TEXT("LocationTracker: Leaving    %s"),
-        *FormatAddress(OldAddress));
+    UE_LOG(LogTemp, Log, TEXT("LocationTracker: Leaving    %s"), *FormatAddress(OldAddress));
 
     CurrentAddress = NewAddress;
 
-    UE_LOG(LogTemp, Log,
-        TEXT("LocationTracker: Arrived at %s"),
-        *FormatAddress(NewAddress));
+    UE_LOG(LogTemp, Log, TEXT("LocationTracker: Arrived at %s"), *FormatAddress(NewAddress));
+}
+
+void ULocationTrackerSubsystem::PublishLocationVisitEvent(
+    ELocationLevel Level, const FGuid& Id, bool bEntered)
+{
+    if (!Id.IsValid()) return;
+    if (Level == ELocationLevel::Default) return;
+
+    UGameInstance* GI = GetGameInstance();
+    if (!GI) return;
+
+    UEventBusSubsystem* EventBus = GI->GetSubsystem<UEventBusSubsystem>();
+    if (!EventBus) return;
+
+    const FString Key = MakeKey(Level, Id);
+
+    UObject* Asset = nullptr;
+    if (const TObjectPtr<UObject>* Found = LocationAssets.Find(Key))
+        Asset = Found->Get();
+
+    FText DisplayName;
+    if (const FText* Found = LocationDisplayNames.Find(Key))
+        DisplayName = *Found;
+
+    // ── Общее событие LocationEntered / LocationLeft ───────────────────
+    // Публикуется для ВСЕХ уровней — Map, Region, Street, Building, Floor.
+    // Подписчику, которому нужен только один уровень, проще слушать
+    // специфичное событие (StreetEntered / BuildingEntered).
+    {
+        ULocationVisitEventPayload* Payload =
+            EventBus->CreatePayload<ULocationVisitEventPayload>();
+        if (Payload)
+        {
+            Payload->Setup(Level, Id, Asset, DisplayName);
+
+            FOutcomeEventBase Event;
+            Event.OutcomeType = EOutcomeType::Interior;
+            Event.OutcomeInterior = bEntered
+                ? EOutcomeInterior::LocationEntered
+                : EOutcomeInterior::LocationLeft;
+            Event.Payload = Payload;
+            EventBus->PublishOutcome(Event);
+        }
+    }
+
+    // ── Специфичное событие для улицы ──────────────────────────────────
+    if (Level == ELocationLevel::Street)
+    {
+        UStreetVisitEventPayload* Payload =
+            EventBus->CreatePayload<UStreetVisitEventPayload>();
+        if (Payload)
+        {
+            Payload->Setup(Cast<UStreetAsset>(Asset), Id, DisplayName);
+
+            FOutcomeEventBase Event;
+            Event.OutcomeType = EOutcomeType::Interior;
+            Event.OutcomeInterior = bEntered
+                ? EOutcomeInterior::StreetEntered
+                : EOutcomeInterior::StreetLeft;
+            Event.Payload = Payload;
+            EventBus->PublishOutcome(Event);
+        }
+    }
+    // ── Специфичное событие для дома ───────────────────────────────────
+    else if (Level == ELocationLevel::Building)
+    {
+        UBuildingVisitEventPayload* Payload =
+            EventBus->CreatePayload<UBuildingVisitEventPayload>();
+        if (Payload)
+        {
+            Payload->Setup(Cast<UInteriorSetAsset>(Asset), Id, DisplayName);
+
+            FOutcomeEventBase Event;
+            Event.OutcomeType = EOutcomeType::Interior;
+            Event.OutcomeInterior = bEntered
+                ? EOutcomeInterior::BuildingEntered
+                : EOutcomeInterior::BuildingLeft;
+            Event.Payload = Payload;
+            EventBus->PublishOutcome(Event);
+        }
+    }
 }
 
 FLocationVisitState& ULocationTrackerSubsystem::FindOrAddState(ELocationLevel Level, const FGuid& Id)
@@ -858,4 +942,82 @@ FString ULocationTrackerSubsystem::GetLocationLabel(ELocationLevel Level, const 
     return FString::Printf(TEXT("<%s:%s>"),
         *LevelStr.Left(3),
         *Id.ToString().Left(8));
+}
+
+UObject* ULocationTrackerSubsystem::GetLocationAsset(ELocationLevel Level, const FGuid& Id) const
+{
+    if (!Id.IsValid()) return nullptr;
+
+    const FString Key = MakeKey(Level, Id);
+    if (const TObjectPtr<UObject>* Found = LocationAssets.Find(Key))
+        return Found->Get();
+    return nullptr;
+}
+
+UObject* ULocationTrackerSubsystem::GetCurrentLocationAsset(ELocationLevel Level) const
+{
+    return GetLocationAsset(Level, CurrentAddress.Get(Level));
+}
+
+FText ULocationTrackerSubsystem::GetCurrentLocationDisplayName(ELocationLevel Level) const
+{
+    const FGuid Id = CurrentAddress.Get(Level);
+    if (!Id.IsValid()) return FText::GetEmpty();
+
+    const FString Key = MakeKey(Level, Id);
+    if (const FText* Found = LocationDisplayNames.Find(Key))
+        return *Found;
+    return FText::GetEmpty();
+}
+
+ELocationLevel ULocationTrackerSubsystem::GetCurrentDeepestLevel() const
+{
+    if (CurrentAddress.FloorId.IsValid())    return ELocationLevel::Floor;
+    if (CurrentAddress.BuildingId.IsValid()) return ELocationLevel::Building;
+    if (CurrentAddress.StreetId.IsValid())   return ELocationLevel::Street;
+    if (CurrentAddress.RegionId.IsValid())   return ELocationLevel::Region;
+    if (CurrentAddress.MapId.IsValid())      return ELocationLevel::Map;
+    return ELocationLevel::Default;
+}
+
+UObject* ULocationTrackerSubsystem::GetCurrentLocationAssetDeepest() const
+{
+    return GetCurrentLocationAsset(GetCurrentDeepestLevel());
+}
+
+FText ULocationTrackerSubsystem::GetCurrentLocationDisplayNameDeepest() const
+{
+    return GetCurrentLocationDisplayName(GetCurrentDeepestLevel());
+}
+
+FString ULocationTrackerSubsystem::GetCurrentLocationDebugString() const
+{
+    auto NameAt = [this](ELocationLevel Level) -> FString
+        {
+            const FGuid Id = CurrentAddress.Get(Level);
+            if (!Id.IsValid()) return FString();
+
+            const FString Key = MakeKey(Level, Id);
+            if (const FText* Found = LocationDisplayNames.Find(Key))
+            {
+                if (!Found->IsEmpty())
+                    return Found->ToString();
+            }
+            return Id.ToString().Left(8);
+        };
+
+    TArray<FString> Parts;
+    for (ELocationLevel L : { ELocationLevel::Map, ELocationLevel::Region,
+        ELocationLevel::Street, ELocationLevel::Building,
+        ELocationLevel::Floor })
+    {
+        const FString Name = NameAt(L);
+        if (!Name.IsEmpty())
+            Parts.Add(Name);
+    }
+
+    if (Parts.Num() == 0)
+        return TEXT("<nowhere>");
+
+    return FString::Join(Parts, TEXT(" / "));
 }

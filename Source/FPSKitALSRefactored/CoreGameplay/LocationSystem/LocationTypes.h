@@ -77,3 +77,14 @@ struct FPSKITALSREFACTORED_API FLocationAddress
     // Возвращает одну читаемую строку вида "RegionName, StreetName, BuildingName, FloorName, ZoneName"
     FString ToDisplayString() const;
 };
+
+UENUM(BlueprintType)
+enum class ELocationLevel : uint8
+{
+    Default  UMETA(DisplayName = "None"),
+    Map      UMETA(DisplayName = "Map"),
+    Region   UMETA(DisplayName = "Region"),
+    Street   UMETA(DisplayName = "Street"),
+    Building UMETA(DisplayName = "Building"),
+    Floor    UMETA(DisplayName = "Floor")
+};
