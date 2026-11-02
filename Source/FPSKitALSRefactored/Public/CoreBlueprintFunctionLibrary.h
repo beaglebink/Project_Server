@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
@@ -46,4 +46,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Animation")
 	static bool CheckAnimationAndSkeletonPairing(UAnimationAsset* inAnimation, USkeletalMeshComponent* inSkeletalMeshComponent);
+
+	// Возвращает имя без числового суффикса (например, "ИМЯ_С" вместо "ИМЯ_С_0")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Utilities|Name")
+	static FString GetCleanObjectName(const UObject* Object);
 };

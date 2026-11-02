@@ -137,3 +137,13 @@ bool UCoreBlueprintFunctionLibrary::CheckAnimationAndSkeletonPairing(UAnimationA
 	
 	return (IsValid(animationSkeleton) && animationSkeleton == meshSkeleton);
 }
+
+FString UCoreBlueprintFunctionLibrary::GetCleanObjectName(const UObject* Object)
+{
+	if (!Object)
+	{
+		return FString();
+	}
+	
+	return Object->GetFName().GetPlainNameString();
+}

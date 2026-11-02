@@ -324,6 +324,10 @@ public:
     TMap<FString, FScheduledBackupData> GetScheduledBackups(const FString& TerminalID,
         const FString& Profile) const;
 
+    // ---- Plain text files ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|PlainTextFiles")
+    TMap<FString, FText> GetTextFiles(const FString& TerminalID, const FString& Profile) const;
+
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
     FOnTerminalEvent OnTerminalEvent;
@@ -452,6 +456,9 @@ private:
     // ---- Scheduled backups: handlers ----
     void HandleSetScheduledBackup(const FOutcomeEventBase& Outcome);
 
+    // ---- Set text files: handlers ----
+    void HandleModifyTextFile(const FOutcomeEventBase& Outcome);
+
     // ========================================================================
     // Game mutators (internal)
     // ========================================================================
@@ -547,6 +554,8 @@ private:
 
     FOutcomeHandlerHandle SetScheduledBackupHandler;
 
+    FOutcomeHandlerHandle ModifyTextFileHandler;
+
 
 
     // ---- Interact conditions ----
@@ -596,6 +605,8 @@ private:
 
     UPROPERTY() UOutcomeConditionAsset* SetScheduledBackupCondition = nullptr;
 
+    UPROPERTY() UOutcomeConditionAsset* ModifyTextFileCondition = nullptr;
+
     bool bIsLoadComplete = true;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -616,5 +627,12 @@ private:
     // Без UPROPERTY: 3-уровневый TMap не поддерживается UHT как отражённый тип.
     TMap<FString, TMap<FString, TMap<FString, FSheetBackupSeries>>> SpreadSheetFilesByTimeBackup;
 
-    // First key — TerminalID. Second key — Profile.
-    TMap<FString, TMap<FString, TMap<FString, FScheduledBackupData>>> ScheduledBackups;};
+    // First key — TerminalID. Second key — Profile. Saving TMap<FString, FScheduledBackupData>
+    TMap<FString, TMap<FString, TMap<FString, FScheduledBackupData>>> ScheduledBackups;
+
+    // First key — TerminalID. Second key — Profile. Third key — FileKey. Value — FText.
+    TMap<FString, TMap<FString, TMap<FString, FText>>> TextFiles;
+
+
+};
+

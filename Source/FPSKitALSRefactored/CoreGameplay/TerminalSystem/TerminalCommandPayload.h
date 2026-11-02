@@ -523,3 +523,38 @@ public:
         return this;
     }
 };
+
+// ============================================================================
+// TextFiles commands
+// Хранилище: TMap<TerminalID, TMap<Profile, TMap<FileKey, FText>>>
+// ============================================================================
+
+// Непустая карта → добавить/заменить файлы в (TerminalID, Profile).
+// Пустая карта   → удалить (TerminalID, Profile) целиком
+//                  (и TerminalID, если профилей не осталось).
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalModifyTextFilePayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|PlainTextFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|PlainTextFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|PlainTextFile")
+    TMap<FString, FText> Files;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|PlainTextFile")
+    UTerminalModifyTextFilePayload* Setup(
+        const FString& InTerminalID,
+        const FString& InProfile,
+        const TMap<FString, FText>& InFiles)
+    {
+        TerminalID = InTerminalID;
+        Profile = InProfile;
+        Files = InFiles;
+        return this;
+    }
+};

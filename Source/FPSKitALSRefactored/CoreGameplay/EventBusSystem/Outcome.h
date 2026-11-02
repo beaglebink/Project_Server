@@ -170,7 +170,12 @@ enum class EOutcomeTerminal : uint8
     // ========================================================================
     // ScheduledBackups: команды (входящие)
     // ========================================================================
-    SetScheduledBackupRequest    UMETA(DisplayName = "Set Scheduled Backup Request")
+    SetScheduledBackupRequest    UMETA(DisplayName = "Set Scheduled Backup Request"),
+
+    // ========================================================================
+    // TextFiles: команды (входящие)
+    // ========================================================================
+    ModifyTextFileRequest UMETA(DisplayName = "Modify Text File Request")
 };
 
 UENUM(BlueprintType)
