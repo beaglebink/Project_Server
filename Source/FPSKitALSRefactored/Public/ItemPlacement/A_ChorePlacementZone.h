@@ -165,10 +165,10 @@ private:
 	EChoreStatus ChoreStatus;
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
+	UFUNCTION(BlueprintCallable, Category = "ChoreStatus")
 	void SetChoreStatus(EChoreStatus NewStatus);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChorePlacement")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChoreStatus")
 	EChoreStatus GetChoreStatus()const;
 
 	UFUNCTION(BlueprintCallable, Category = "ChorePlacement")
