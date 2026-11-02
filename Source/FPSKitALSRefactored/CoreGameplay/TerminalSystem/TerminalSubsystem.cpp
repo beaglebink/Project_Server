@@ -743,6 +743,28 @@ bool UTerminalSubsystem::RemoveSpreadSheetFileBackupEntry(
 	return true;
 }
 
+void UTerminalSubsystem::SetScheduledBackups(const FString& TerminalID, const FString& Profile,
+	const TMap<FString, FScheduledBackupData>& Backups)
+{
+	if (TerminalID.IsEmpty() || Profile.IsEmpty()) return;
+
+	if (Backups.Num() == 0)
+	{
+		// Empty map → удалить профиль (и терминал, если профилей не осталось).
+		auto* Profiles = ScheduledBackups.Find(TerminalID);
+		if (!Profiles) return;
+
+		Profiles->Remove(Profile);
+		if (Profiles->Num() == 0)
+		{
+			ScheduledBackups.Remove(TerminalID);
+		}
+		return;
+	}
+
+	ScheduledBackups.FindOrAdd(TerminalID).Add(Profile, Backups);
+}
+
 bool UTerminalSubsystem::AddSpreadSheetFileBackupEntry(
 	const FString& TerminalID, const FString& Profile,
 	const FString& FileName, const FSheetBackupTimeStamp& Backup)
@@ -1029,9 +1051,6 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	// ========================================================================
 	// Serialize terminals
 	// ========================================================================
-	// ========================================================================
-	// Сериализация терминалов
-	// ========================================================================
 	TArray<TSharedPtr<FJsonValue>> TerminalArray;
 	for (const auto& Pair : Terminals)
 	{
@@ -1047,15 +1066,11 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		Obj->SetBoolField(TEXT("bIsOpen"), State.bIsOpen);
 		Obj->SetStringField(TEXT("ProfileName"), State.ProfileName);
 
-		// Capabilities
-		// Возможности
 		TArray<TSharedPtr<FJsonValue>> CapArray;
 		for (ETerminalCapability Cap : State.Capabilities)
 			CapArray.Add(MakeShared<FJsonValueNumber>(static_cast<uint8>(Cap)));
 		Obj->SetArrayField(TEXT("Capabilities"), CapArray);
 
-		// Local files
-		// Локальные файлы
 		TArray<TSharedPtr<FJsonValue>> FilesArray;
 		for (const FTerminalFileEntry& File : State.LocalFiles)
 		{
@@ -1068,8 +1083,6 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		}
 		Obj->SetArrayField(TEXT("LocalFiles"), FilesArray);
 
-		// Logs
-		// Логи
 		TArray<TSharedPtr<FJsonValue>> LogArray;
 		for (const FTerminalLogEntry& Log : State.LocalLogs)
 		{
@@ -1087,9 +1100,6 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	// ========================================================================
 	// Serialize global state
 	// ========================================================================
-	// ========================================================================
-	// Сериализация глобального состояния
-	// ========================================================================
 	TSharedPtr<FJsonObject> GlobalObj = MakeShared<FJsonObject>();
 
 	TSharedPtr<FJsonObject> EmailObj = MakeShared<FJsonObject>();
@@ -1102,18 +1112,15 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		WebObj->SetStringField(W.Key, W.Value);
 	GlobalObj->SetObjectField(TEXT("Websites"), WebObj);
 
-	TSharedPtr<FJsonObject> DataObj = MakeShared<FJsonObject>();
+	TSharedPtr<FJsonObject> SharedDataObj = MakeShared<FJsonObject>();
 	for (const auto& D : GlobalState.SharedData)
-		DataObj->SetStringField(D.Key, D.Value);
-	GlobalObj->SetObjectField(TEXT("SharedData"), DataObj);
+		SharedDataObj->SetStringField(D.Key, D.Value);
+	GlobalObj->SetObjectField(TEXT("SharedData"), SharedDataObj);
 
 	Root->SetObjectField(TEXT("GlobalState"), GlobalObj);
 
 	// ========================================================================
 	// Serialize game records
-	// ========================================================================
-	// ========================================================================
-	// Сериализация игровых записей
 	// ========================================================================
 	TArray<TSharedPtr<FJsonValue>> GameArr;
 	for (const auto& TermPair : GameRecords)
@@ -1150,11 +1157,7 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetArrayField(TEXT("GameRecords"), GameArr);
 
 	// ========================================================================
-	// Serialize text file backups (4 levels, series as JSON array):
-	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [{Key,Content}] }, ... ] } } }
-	// ========================================================================
-	// ========================================================================
-	// Сериализация резервных копий текстовых файлов (4 уровня, ряд как массив)
+	// Serialize text file backups
 	// ========================================================================
 	TSharedPtr<FJsonObject> TFScopesObj = MakeShared<FJsonObject>();
 	for (const auto& TermPair : TextFilesByTimeBackup)
@@ -1192,15 +1195,7 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetObjectField(TEXT("TextFilesByTimeBackup"), TFScopesObj);
 
 	// ========================================================================
-	// Serialize spreadsheet file backups (4 levels, series as JSON array):
-	//   { TerminalID: { Profile: { FileName: [
-	//       { BackupSize, TimeStamps: [ { Key, Cells: [ {X,Y,Content}, ... ] } ] }, ... ] } } }
-	// Uses FSheetBackupTimeStamp / FSheetBackupSeries.
-	// ========================================================================
-	// ========================================================================
-	// Сериализация резервных копий табличных файлов (4 уровня, ряд как массив)
-	// TimeStamps здесь — TMap<FString, FSpreadsheetCells>, а Cells — TMap<FIntPoint, FText>,
-	// поэтому каждая запись TimeStamps пишется как { Key, Cells: [ {X,Y,Content} ] }.
+	// Serialize spreadsheet file backups
 	// ========================================================================
 	TSharedPtr<FJsonObject> SpreadSheetScopesObj = MakeShared<FJsonObject>();
 	for (const auto& TermPair : SpreadSheetFilesByTimeBackup)
@@ -1249,10 +1244,34 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetObjectField(TEXT("SpreadSheetFilesByTimeBackup"), SpreadSheetScopesObj);
 
 	// ========================================================================
+	// Serialize scheduled backups (4 levels):
+	//   { TerminalID: { Profile: { BackupKey: { TimePeriod, NextTimeAutoBackup } } } }
+	// ========================================================================
+	TSharedPtr<FJsonObject> ScheduledBackupsObj = MakeShared<FJsonObject>();
+	for (const auto& TermPair : ScheduledBackups)
+	{
+		TSharedPtr<FJsonObject> ProfilesObj = MakeShared<FJsonObject>();
+		for (const auto& ProfPair : TermPair.Value)
+		{
+			TSharedPtr<FJsonObject> BackupsObj = MakeShared<FJsonObject>();
+			for (const auto& BackupPair : ProfPair.Value)
+			{
+				const FScheduledBackupData& Data = BackupPair.Value;
+
+				TSharedPtr<FJsonObject> BackupDataObj = MakeShared<FJsonObject>();
+				BackupDataObj->SetNumberField(TEXT("TimePeriod"), Data.TimePeriod);
+				BackupDataObj->SetStringField(TEXT("NextTimeAutoBackup"), Data.NextTimeAutoBackup.ToString());
+
+				BackupsObj->SetObjectField(BackupPair.Key, BackupDataObj);
+			}
+			ProfilesObj->SetObjectField(ProfPair.Key, BackupsObj);
+		}
+		ScheduledBackupsObj->SetObjectField(TermPair.Key, ProfilesObj);
+	}
+	Root->SetObjectField(TEXT("ScheduledBackups"), ScheduledBackupsObj);
+
+	// ========================================================================
 	// Serialize to string
-	// ========================================================================
-	// ========================================================================
-	// Сериализация в строку
 	// ========================================================================
 	FString Output;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -1260,11 +1279,12 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	OutData.SerializedData = Output;
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes"),
+		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups"),
 		Terminals.Num(),
 		GameRecords.Num(),
 		TextFilesByTimeBackup.Num(),
-		SpreadSheetFilesByTimeBackup.Num());
+		SpreadSheetFilesByTimeBackup.Num(),
+		ScheduledBackups.Num());
 }
 
 void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
@@ -1288,20 +1308,15 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	// ========================================================================
 	// Reset containers
 	// ========================================================================
-	// ========================================================================
-	// Сброс контейнеров
-	// ========================================================================
 	Terminals.Empty();
 	GlobalState = FTerminalGlobalState();
 	GameRecords.Empty();
 	TextFilesByTimeBackup.Empty();
 	SpreadSheetFilesByTimeBackup.Empty();
+	ScheduledBackups.Empty();
 
 	// ========================================================================
 	// Deserialize terminals
-	// ========================================================================
-	// ========================================================================
-	// Десериализация терминалов
 	// ========================================================================
 	const TArray<TSharedPtr<FJsonValue>>* TerminalArray = nullptr;
 	if (Root->TryGetArrayField(TEXT("Terminals"), TerminalArray))
@@ -1370,9 +1385,6 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	// ========================================================================
 	// Deserialize global state
 	// ========================================================================
-	// ========================================================================
-	// Десериализация глобального состояния
-	// ========================================================================
 	const TSharedPtr<FJsonObject>* GlobalObjPtr = nullptr;
 	if (Root->TryGetObjectField(TEXT("GlobalState"), GlobalObjPtr))
 	{
@@ -1402,9 +1414,6 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 	// ========================================================================
 	// Deserialize game records
-	// ========================================================================
-	// ========================================================================
-	// Десериализация игровых записей
 	// ========================================================================
 	const TArray<TSharedPtr<FJsonValue>>* GameArr = nullptr;
 	if (Root->TryGetArrayField(TEXT("GameRecords"), GameArr))
@@ -1436,8 +1445,6 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 			O->TryGetStringField(TEXT("ResultData"), R.ResultData);
 
-			// ---- Stages ----
-			// ---- Этапы ----
 			const TArray<TSharedPtr<FJsonValue>>* StageArr = nullptr;
 			if (O->TryGetArrayField(TEXT("Stages"), StageArr))
 			{
@@ -1452,7 +1459,6 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					SO->TryGetNumberField(TEXT("Score"), S.Score);
 					SO->TryGetStringField(TEXT("Notes"), S.Notes);
 
-					// Новое поле Result. При отсутствии — конвертируем легаси-bCompleted.
 					int32 ResultInt = 0;
 					if (SO->TryGetNumberField(TEXT("Result"), ResultInt))
 					{
@@ -1483,11 +1489,7 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	}
 
 	// ========================================================================
-	// Deserialize text file backups (4 levels, series as JSON array):
-	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [{Key,Content}] }, ... ] } } }
-	// ========================================================================
-	// ========================================================================
-	// Десериализация резервных копий текстовых файлов (4 уровня, ряд как массив)
+	// Deserialize text file backups
 	// ========================================================================
 	const TSharedPtr<FJsonObject>* TFScopesObjPtr = nullptr;
 	if (Root->TryGetObjectField(TEXT("TextFilesByTimeBackup"), TFScopesObjPtr))
@@ -1560,32 +1562,19 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					}
 				}
 
-				// Пустой Profile не сохраняем.
 				if (Files.Num() == 0) Profiles.Remove(Profile);
 			}
 
-			// Пустой TerminalID не сохраняем.
 			if (Profiles.Num() == 0) TextFilesByTimeBackup.Remove(TerminalID);
 		}
 	}
 
 	// ========================================================================
-	// Deserialize spreadsheet file backups (4 levels, series as JSON array):
-	//   { TerminalID: { Profile: { FileName: [
-	//       { BackupSize, TimeStamps: [ { Key, Cells: [ {X,Y,Content}, ... ] } ] }, ... ] } } }
-	// Uses FSheetBackupTimeStamp / FSheetBackupSeries.
-	// New key: "SpreadSheetFilesByTimeBackup".
-	// Legacy fallback: "SpreadSheetFilesByTimeBase".
-	// ========================================================================
-	// ========================================================================
-	// Десериализация резервных копий табличных файлов (4 уровня, ряд как массив)
-	// TimeStamps — TMap<FString, FSpreadsheetCells>, Cells — TMap<FIntPoint, FText>.
-	// Новый ключ: "SpreadSheetFilesByTimeBackup". Легаси-ключ: "SpreadSheetFilesByTimeBase".
+	// Deserialize spreadsheet file backups
 	// ========================================================================
 	const TSharedPtr<FJsonObject>* SpreadSheetScopesObjPtr = nullptr;
 	if (!Root->TryGetObjectField(TEXT("SpreadSheetFilesByTimeBackup"), SpreadSheetScopesObjPtr))
 	{
-		// Legacy fallback
 		Root->TryGetObjectField(TEXT("SpreadSheetFilesByTimeBase"), SpreadSheetScopesObjPtr);
 	}
 	if (SpreadSheetScopesObjPtr)
@@ -1676,30 +1665,81 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					}
 				}
 
-				// Пустой Profile не сохраняем.
 				if (Files.Num() == 0) Profiles.Remove(Profile);
 			}
 
-			// Пустой TerminalID не сохраняем.
 			if (Profiles.Num() == 0) SpreadSheetFilesByTimeBackup.Remove(TerminalID);
+		}
+	}
+
+	// ========================================================================
+	// Deserialize scheduled backups (4 levels):
+	//   { TerminalID: { Profile: { BackupKey: { TimePeriod, NextTimeAutoBackup } } } }
+	// ========================================================================
+	const TSharedPtr<FJsonObject>* ScheduledBackupsObjPtr = nullptr;
+	if (Root->TryGetObjectField(TEXT("ScheduledBackups"), ScheduledBackupsObjPtr))
+	{
+		for (const auto& TermPair : (*ScheduledBackupsObjPtr)->Values)
+		{
+			const FString& TerminalID = TermPair.Key;
+			if (TerminalID.IsEmpty()) continue;
+
+			const TSharedPtr<FJsonObject>* ProfilesObjPtr = nullptr;
+			if (!TermPair.Value->TryGetObject(ProfilesObjPtr)) continue;
+
+			auto& Profiles = ScheduledBackups.FindOrAdd(TerminalID);
+
+			for (const auto& ProfPair : (*ProfilesObjPtr)->Values)
+			{
+				const FString& Profile = ProfPair.Key;
+				if (Profile.IsEmpty()) continue;
+
+				const TSharedPtr<FJsonObject>* BackupsObjPtr = nullptr;
+				if (!ProfPair.Value->TryGetObject(BackupsObjPtr)) continue;
+
+				auto& Backups = Profiles.FindOrAdd(Profile);
+
+				for (const auto& BackupPair : (*BackupsObjPtr)->Values)
+				{
+					const FString& BackupKey = BackupPair.Key;
+					if (BackupKey.IsEmpty()) continue;
+
+					const TSharedPtr<FJsonObject>* DataObjPtr = nullptr;
+					if (!BackupPair.Value->TryGetObject(DataObjPtr)) continue;
+
+					FScheduledBackupData Data;
+
+					double TP = 0.0;
+					if ((*DataObjPtr)->TryGetNumberField(TEXT("TimePeriod"), TP))
+						Data.TimePeriod = static_cast<int32>(TP);
+
+					FString NextTimeStr;
+					if ((*DataObjPtr)->TryGetStringField(TEXT("NextTimeAutoBackup"), NextTimeStr))
+						FDateTime::Parse(NextTimeStr, Data.NextTimeAutoBackup);
+
+					Backups.Add(BackupKey, Data);
+				}
+
+				if (Backups.Num() == 0) Profiles.Remove(Profile);
+			}
+
+			if (Profiles.Num() == 0) ScheduledBackups.Remove(TerminalID);
 		}
 	}
 
 	// ========================================================================
 	// Done
 	// ========================================================================
-	// ========================================================================
-	// Готово
-	// ========================================================================
 	bIsLoadComplete = true;
 	BroadcastGlobalState();
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes"),
+		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups"),
 		Terminals.Num(),
 		GameRecords.Num(),
 		TextFilesByTimeBackup.Num(),
-		SpreadSheetFilesByTimeBackup.Num());
+		SpreadSheetFilesByTimeBackup.Num(),
+		ScheduledBackups.Num());
 }
 
 // ============================================================================
@@ -1841,6 +1881,10 @@ void UTerminalSubsystem::SubscribeCommands()
 		OverwriteSpreadSheetFileBackupsHandler, &UTerminalSubsystem::HandleOverwriteSpreadSheetFileBackups);
 	Sub(RemoveSpreadSheetFileBackupCondition, EOutcomeTerminal::RemoveSpreadSheetFileBackupRequest,
 		RemoveSpreadSheetFileBackupHandler, &UTerminalSubsystem::HandleRemoveSpreadSheetFileBackup);
+
+	// ---- Scheduled backups ----
+	Sub(SetScheduledBackupCondition, EOutcomeTerminal::SetScheduledBackupRequest,
+		SetScheduledBackupHandler, &UTerminalSubsystem::HandleSetScheduledBackup);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -1887,6 +1931,8 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(AddSpreadSheetFileBackupHandler, AddSpreadSheetFileBackupCondition);
 	Unsub(OverwriteSpreadSheetFileBackupsHandler, OverwriteSpreadSheetFileBackupsCondition);
 	Unsub(RemoveSpreadSheetFileBackupHandler, RemoveSpreadSheetFileBackupCondition);
+
+	Unsub(SetScheduledBackupHandler, SetScheduledBackupCondition);
 }
 
 // ============================================================================
@@ -2176,6 +2222,19 @@ TMap<FString, FSheetBackupTimeStamp> UTerminalSubsystem::GetSpreadSheetFilesByTi
 		}
 	}
 	return Result;
+}
+
+TMap<FString, FScheduledBackupData> UTerminalSubsystem::GetScheduledBackups(
+	const FString& TerminalID, const FString& Profile) const
+{
+	if (const auto* Profiles = ScheduledBackups.Find(TerminalID))
+	{
+		if (const auto* Backups = Profiles->Find(Profile))
+		{
+			return *Backups;
+		}
+	}
+	return TMap<FString, FScheduledBackupData>();
 }
 
 // ============================================================================
@@ -2516,6 +2575,13 @@ void UTerminalSubsystem::HandleRemoveSpreadSheetFileBackup(const FOutcomeEventBa
 	auto* P = Cast<UTerminalRemoveSpreadSheetFileBackupPayload>(Outcome.Payload);
 	if (!P) return;
 	RemoveSpreadSheetFileBackupEntry(P->TerminalID, P->Profile, P->FileName, P->TimestampKey);
+}
+
+void UTerminalSubsystem::HandleSetScheduledBackup(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalSetScheduledBackupPayload>(Outcome.Payload);
+	if (!P) return;
+	SetScheduledBackups(P->TerminalID, P->Profile, P->Backups);
 }
 
 void UTerminalSubsystem::HandleAddSpreadSheetFileBackup(const FOutcomeEventBase& Outcome)

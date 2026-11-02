@@ -165,7 +165,12 @@ enum class EOutcomeTerminal : uint8
     // ========================================================================
     AddSpreadSheetFileBackupRequest        UMETA(DisplayName = "Add Spread Sheet File Backup Request"),
     OverwriteSpreadSheetFileBackupsRequest UMETA(DisplayName = "Overwrite Spread Sheet File Backups Request"),
-    RemoveSpreadSheetFileBackupRequest     UMETA(DisplayName = "Remove Spread Sheet File Backup Request")
+    RemoveSpreadSheetFileBackupRequest     UMETA(DisplayName = "Remove Spread Sheet File Backup Request"),
+
+    // ========================================================================
+    // ScheduledBackups: команды (входящие)
+    // ========================================================================
+    SetScheduledBackupRequest    UMETA(DisplayName = "Set Scheduled Backup Request")
 };
 
 UENUM(BlueprintType)

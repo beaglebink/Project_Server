@@ -318,6 +318,12 @@ public:
     TMap<FString, FSheetBackupTimeStamp> GetSpreadSheetFilesByTime(const FString& TerminalID,
         const FString& Profile) const;
 
+    // ---- Scheduled backups ----
+    // ---- Scheduled backups ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|ScheduledBackups")
+    TMap<FString, FScheduledBackupData> GetScheduledBackups(const FString& TerminalID,
+        const FString& Profile) const;
+
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
     FOnTerminalEvent OnTerminalEvent;
@@ -386,6 +392,10 @@ protected:
     bool RemoveSpreadSheetFileBackupEntry(const FString& TerminalID, const FString& Profile,
         const FString& FileName, const FString& TimestampKey);
 
+    // ---- Scheduled backups: mutators ----
+    void SetScheduledBackups(const FString& TerminalID, const FString& Profile,
+        const TMap<FString, FScheduledBackupData>& Backups);
+
 private:
     // ---- Interact handlers ----
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -438,6 +448,9 @@ private:
     void HandleAddSpreadSheetFileBackup(const FOutcomeEventBase& Outcome);
     void HandleOverwriteSpreadSheetFileBackups(const FOutcomeEventBase& Outcome);
     void HandleRemoveSpreadSheetFileBackup(const FOutcomeEventBase& Outcome);
+
+    // ---- Scheduled backups: handlers ----
+    void HandleSetScheduledBackup(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
     // Game mutators (internal)
@@ -532,6 +545,10 @@ private:
     FOutcomeHandlerHandle OverwriteSpreadSheetFileBackupsHandler;
     FOutcomeHandlerHandle RemoveSpreadSheetFileBackupHandler;
 
+    FOutcomeHandlerHandle SetScheduledBackupHandler;
+
+
+
     // ---- Interact conditions ----
     UPROPERTY() UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
     UPROPERTY() UOutcomeConditionAsset* UnregisteredConditionAsset = nullptr;
@@ -577,6 +594,8 @@ private:
     UPROPERTY() UOutcomeConditionAsset* OverwriteSpreadSheetFileBackupsCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* RemoveSpreadSheetFileBackupCondition = nullptr;
 
+    UPROPERTY() UOutcomeConditionAsset* SetScheduledBackupCondition = nullptr;
+
     bool bIsLoadComplete = true;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -596,4 +615,6 @@ private:
     // Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
     // Без UPROPERTY: 3-уровневый TMap не поддерживается UHT как отражённый тип.
     TMap<FString, TMap<FString, TMap<FString, FSheetBackupSeries>>> SpreadSheetFilesByTimeBackup;
-};
+
+    // First key — TerminalID. Second key — Profile.
+    TMap<FString, TMap<FString, TMap<FString, FScheduledBackupData>>> ScheduledBackups;};

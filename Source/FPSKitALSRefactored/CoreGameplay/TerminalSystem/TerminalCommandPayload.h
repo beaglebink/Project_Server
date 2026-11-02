@@ -489,3 +489,37 @@ public:
         return this;
     }
 };
+
+// ============================================================================
+// ScheduledBackups commands
+// Хранилище: TMap<TerminalID, TMap<Profile, TMap<BackupKey, FScheduledBackupData>>>
+// ============================================================================
+
+// Заменяет внутренний уровень для (TerminalID, Profile) переданной картой.
+// Пустая карта → удаляет (TerminalID, Profile) из хранилища.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalSetScheduledBackupPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|ScheduledBackup")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|ScheduledBackup")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|ScheduledBackup")
+    TMap<FString, FScheduledBackupData> Backups;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|ScheduledBackup")
+    UTerminalSetScheduledBackupPayload* Setup(
+        const FString& InTerminalID,
+        const FString& InProfile,
+        const TMap<FString, FScheduledBackupData>& InBackups)
+    {
+        TerminalID = InTerminalID;
+        Profile = InProfile;
+        Backups = InBackups;
+        return this;
+    }
+};
