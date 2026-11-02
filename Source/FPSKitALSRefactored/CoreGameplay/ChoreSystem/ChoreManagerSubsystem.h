@@ -79,7 +79,7 @@ struct FChoreState
 
     // Жив ли Актор на текущей сцене?
     UPROPERTY(BlueprintReadOnly)
-    bool bIsActorAlive = false;
+    bool bIsActorAlive = true;
 
     // Есть ли сохраненный результат (из EndPlay), ожидающий сдачи в терминале?
     UPROPERTY(BlueprintReadOnly)
