@@ -328,6 +328,11 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|PlainTextFiles")
     TMap<FString, FText> GetTextFiles(const FString& TerminalID, const FString& Profile) const;
 
+    // ---- Spreadsheet files ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|SpreadSheetFiles")
+    TMap<FString, FSpreadsheetCells> GetSpreadSheetFiles(const FString& TerminalID,
+        const FString& Profile) const;
+
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
     FOnTerminalEvent OnTerminalEvent;
@@ -459,6 +464,9 @@ private:
     // ---- Set text files: handlers ----
     void HandleModifyTextFile(const FOutcomeEventBase& Outcome);
 
+    // ---- Set spreadsheet files: handlers ----
+    void HandleModifySpreadSheetFile(const FOutcomeEventBase& Outcome);
+
     // ========================================================================
     // Game mutators (internal)
     // ========================================================================
@@ -555,6 +563,7 @@ private:
     FOutcomeHandlerHandle SetScheduledBackupHandler;
 
     FOutcomeHandlerHandle ModifyTextFileHandler;
+    FOutcomeHandlerHandle ModifySpreadSheetFileHandler;
 
 
 
@@ -607,6 +616,8 @@ private:
 
     UPROPERTY() UOutcomeConditionAsset* ModifyTextFileCondition = nullptr;
 
+    UPROPERTY() UOutcomeConditionAsset* ModifySpreadSheetFileCondition = nullptr;
+
     bool bIsLoadComplete = true;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -633,6 +644,7 @@ private:
     // First key — TerminalID. Second key — Profile. Third key — FileKey. Value — FText.
     TMap<FString, TMap<FString, TMap<FString, FText>>> TextFiles;
 
-
+    // First key — TerminalID. Second key — Profile. Third key — FileKey. Value — FText.
+    TMap<FString, TMap<FString, TMap<FString, FSpreadsheetCells>>> SpreadSheetFiles;
 };
 
