@@ -607,7 +607,7 @@ bool UTerminalSubsystem::AddTextFileBackupEntry(
 		return false;
 	}
 
-	TextFilesByTimeBase.FindOrAdd(TerminalID).FindOrAdd(Profile).FindOrAdd(FileName).Entries.Add(Backup);
+	TextFilesByTimeBackup.FindOrAdd(TerminalID).FindOrAdd(Profile).FindOrAdd(FileName).Entries.Add(Backup);
 	return true;
 }
 
@@ -624,7 +624,7 @@ void UTerminalSubsystem::OverwriteTextFileBackups(
 
 	if (Backups.Num() == 0) return;
 
-	auto& Files = TextFilesByTimeBase.FindOrAdd(TerminalID).FindOrAdd(Profile);
+	auto& Files = TextFilesByTimeBackup.FindOrAdd(TerminalID).FindOrAdd(Profile);
 	for (const auto& Pair : Backups)
 	{
 		if (Pair.Key.IsEmpty()) continue;
@@ -632,6 +632,153 @@ void UTerminalSubsystem::OverwriteTextFileBackups(
 		FTextBackupSeries Series;
 		Series.Entries.Add(Pair.Value);       // ряд = [Single]
 		Files.Add(Pair.Key, MoveTemp(Series)); // replace whole series
+	}
+}
+
+bool UTerminalSubsystem::RemoveTextFileBackupEntry(
+	const FString& TerminalID, const FString& Profile,
+	const FString& FileName, const FString& TimestampKey)
+{
+	if (TerminalID.IsEmpty() || Profile.IsEmpty() || FileName.IsEmpty()) return false;
+
+	auto* Profiles = TextFilesByTimeBackup.Find(TerminalID);
+	if (!Profiles) return false;
+	auto* Files = Profiles->Find(Profile);
+	if (!Files) return false;
+	auto* Series = Files->Find(FileName);
+	if (!Series) return false;
+
+	bool bRemoveFile = false;
+
+	if (TimestampKey.IsEmpty())
+	{
+		// Удалить весь ряд (весь файл).
+		bRemoveFile = true;
+	}
+	else
+	{
+		// Удалить ключ из TimeStamps каждой записи ряда.
+		for (FTextBackupTimeStamp& Entry : Series->Entries)
+		{
+			Entry.TimeStamps.Remove(TimestampKey);
+		}
+
+		// Удалить записи с пустыми TimeStamps, чтобы «пустые» элементы
+		// не блокировали очистку файла/профиля/терминала.
+		Series->Entries.RemoveAll([](const FTextBackupTimeStamp& Entry)
+			{
+				return Entry.TimeStamps.Num() == 0;
+			});
+
+		bRemoveFile = (Series->Entries.Num() == 0);
+	}
+
+	if (bRemoveFile)
+	{
+		Files->Remove(FileName);
+
+		// Если в профиле больше нет файлов — удалить уровень профиля.
+		if (Files->Num() == 0)
+		{
+			Profiles->Remove(Profile);
+
+			// Если профилей больше нет — удалить уровень терминала.
+			if (Profiles->Num() == 0)
+			{
+				TextFilesByTimeBackup.Remove(TerminalID);
+			}
+		}
+	}
+	return true;
+}
+
+bool UTerminalSubsystem::RemoveSpreadSheetFileBackupEntry(
+	const FString& TerminalID, const FString& Profile,
+	const FString& FileName, const FString& TimestampKey)
+{
+	if (TerminalID.IsEmpty() || Profile.IsEmpty() || FileName.IsEmpty()) return false;
+
+	auto* Profiles = SpreadSheetFilesByTimeBackup.Find(TerminalID);
+	if (!Profiles) return false;
+	auto* Files = Profiles->Find(Profile);
+	if (!Files) return false;
+	auto* Series = Files->Find(FileName);
+	if (!Series) return false;
+
+	bool bRemoveFile = false;
+
+	if (TimestampKey.IsEmpty())
+	{
+		bRemoveFile = true;
+	}
+	else
+	{
+		for (FSheetBackupTimeStamp& Entry : Series->Entries)
+		{
+			Entry.TimeStamps.Remove(TimestampKey);
+		}
+
+		Series->Entries.RemoveAll([](const FSheetBackupTimeStamp& Entry)
+			{
+				return Entry.TimeStamps.Num() == 0;
+			});
+
+		bRemoveFile = (Series->Entries.Num() == 0);
+	}
+
+	if (bRemoveFile)
+	{
+		Files->Remove(FileName);
+
+		if (Files->Num() == 0)
+		{
+			Profiles->Remove(Profile);
+
+			if (Profiles->Num() == 0)
+			{
+				SpreadSheetFilesByTimeBackup.Remove(TerminalID);
+			}
+		}
+	}
+	return true;
+}
+
+bool UTerminalSubsystem::AddSpreadSheetFileBackupEntry(
+	const FString& TerminalID, const FString& Profile,
+	const FString& FileName, const FSheetBackupTimeStamp& Backup)
+{
+	if (FileName.IsEmpty() || TerminalID.IsEmpty() || Profile.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: AddSpreadSheetFileBackupEntry rejected — empty TerminalID/Profile/FileName"));
+		return false;
+	}
+
+	SpreadSheetFilesByTimeBackup.FindOrAdd(TerminalID).FindOrAdd(Profile).FindOrAdd(FileName).Entries.Add(Backup);
+	return true;
+}
+
+void UTerminalSubsystem::OverwriteSpreadSheetFileBackups(
+	const FString& TerminalID, const FString& Profile,
+	const TMap<FString, FSheetBackupTimeStamp>& Backups)
+{
+	if (TerminalID.IsEmpty() || Profile.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("TerminalSubsystem: OverwriteSpreadSheetFileBackups rejected — empty TerminalID/Profile"));
+		return;
+	}
+
+	if (Backups.Num() == 0) return;
+
+	auto& Files = SpreadSheetFilesByTimeBackup.FindOrAdd(TerminalID).FindOrAdd(Profile);
+	for (const auto& Pair : Backups)
+	{
+		if (Pair.Key.IsEmpty()) continue;
+
+		FSheetBackupSeries Series;
+		Series.Entries.Add(Pair.Value);
+		Files.Add(Pair.Key, MoveTemp(Series));
 	}
 }
 
@@ -1004,18 +1151,13 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 	// ========================================================================
 	// Serialize text file backups (4 levels, series as JSON array):
-	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
+	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [{Key,Content}] }, ... ] } } }
 	// ========================================================================
 	// ========================================================================
-	// Сериализация резервных копий текстовых файлов (4 уровня, ряд как массив):
-	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
-	// ========================================================================
-	// ========================================================================
-	// Serialize text file backups (4 levels, series as JSON array):
-	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
+	// Сериализация резервных копий текстовых файлов (4 уровня, ряд как массив)
 	// ========================================================================
 	TSharedPtr<FJsonObject> TFScopesObj = MakeShared<FJsonObject>();
-	for (const auto& TermPair : TextFilesByTimeBase)
+	for (const auto& TermPair : TextFilesByTimeBackup)
 	{
 		TSharedPtr<FJsonObject> ProfilesObj = MakeShared<FJsonObject>();
 		for (const auto& ProfPair : TermPair.Value)
@@ -1047,7 +1189,64 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		}
 		TFScopesObj->SetObjectField(TermPair.Key, ProfilesObj);
 	}
-	Root->SetObjectField(TEXT("TextFilesByTimeBase"), TFScopesObj);
+	Root->SetObjectField(TEXT("TextFilesByTimeBackup"), TFScopesObj);
+
+	// ========================================================================
+	// Serialize spreadsheet file backups (4 levels, series as JSON array):
+	//   { TerminalID: { Profile: { FileName: [
+	//       { BackupSize, TimeStamps: [ { Key, Cells: [ {X,Y,Content}, ... ] } ] }, ... ] } } }
+	// Uses FSheetBackupTimeStamp / FSheetBackupSeries.
+	// ========================================================================
+	// ========================================================================
+	// Сериализация резервных копий табличных файлов (4 уровня, ряд как массив)
+	// TimeStamps здесь — TMap<FString, FSpreadsheetCells>, а Cells — TMap<FIntPoint, FText>,
+	// поэтому каждая запись TimeStamps пишется как { Key, Cells: [ {X,Y,Content} ] }.
+	// ========================================================================
+	TSharedPtr<FJsonObject> SpreadSheetScopesObj = MakeShared<FJsonObject>();
+	for (const auto& TermPair : SpreadSheetFilesByTimeBackup)
+	{
+		TSharedPtr<FJsonObject> ProfilesObj = MakeShared<FJsonObject>();
+		for (const auto& ProfPair : TermPair.Value)
+		{
+			TSharedPtr<FJsonObject> FilesObj = MakeShared<FJsonObject>();
+			for (const auto& FilePair : ProfPair.Value)
+			{
+				TArray<TSharedPtr<FJsonValue>> SeriesArr;
+				for (const FSheetBackupTimeStamp& Backup : FilePair.Value.Entries)
+				{
+					TSharedPtr<FJsonObject> FileObj = MakeShared<FJsonObject>();
+					FileObj->SetNumberField(TEXT("BackupSize"), Backup.BackupSize);
+
+					TArray<TSharedPtr<FJsonValue>> StampArr;
+					for (const auto& SP : Backup.TimeStamps)
+					{
+						TSharedPtr<FJsonObject> SO = MakeShared<FJsonObject>();
+						SO->SetStringField(TEXT("Key"), SP.Key);
+
+						TArray<TSharedPtr<FJsonValue>> CellArr;
+						for (const auto& CellPair : SP.Value.Cells)
+						{
+							TSharedPtr<FJsonObject> CellObj = MakeShared<FJsonObject>();
+							CellObj->SetNumberField(TEXT("X"), CellPair.Key.X);
+							CellObj->SetNumberField(TEXT("Y"), CellPair.Key.Y);
+							CellObj->SetStringField(TEXT("Content"), CellPair.Value.ToString());
+							CellArr.Add(MakeShared<FJsonValueObject>(CellObj));
+						}
+						SO->SetArrayField(TEXT("Cells"), CellArr);
+
+						StampArr.Add(MakeShared<FJsonValueObject>(SO));
+					}
+					FileObj->SetArrayField(TEXT("TimeStamps"), StampArr);
+
+					SeriesArr.Add(MakeShared<FJsonValueObject>(FileObj));
+				}
+				FilesObj->SetArrayField(FilePair.Key, SeriesArr);
+			}
+			ProfilesObj->SetObjectField(ProfPair.Key, FilesObj);
+		}
+		SpreadSheetScopesObj->SetObjectField(TermPair.Key, ProfilesObj);
+	}
+	Root->SetObjectField(TEXT("SpreadSheetFilesByTimeBackup"), SpreadSheetScopesObj);
 
 	// ========================================================================
 	// Serialize to string
@@ -1061,10 +1260,11 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	OutData.SerializedData = Output;
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d terminals with text file backups"),
+		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes"),
 		Terminals.Num(),
 		GameRecords.Num(),
-		TextFilesByTimeBase.Num());
+		TextFilesByTimeBackup.Num(),
+		SpreadSheetFilesByTimeBackup.Num());
 }
 
 void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
@@ -1094,7 +1294,8 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	Terminals.Empty();
 	GlobalState = FTerminalGlobalState();
 	GameRecords.Empty();
-	TextFilesByTimeBase.Empty();
+	TextFilesByTimeBackup.Empty();
+	SpreadSheetFilesByTimeBackup.Empty();
 
 	// ========================================================================
 	// Deserialize terminals
@@ -1283,18 +1484,13 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 	// ========================================================================
 	// Deserialize text file backups (4 levels, series as JSON array):
-	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
+	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [{Key,Content}] }, ... ] } } }
 	// ========================================================================
 	// ========================================================================
-	// Десериализация резервных копий текстовых файлов (4 уровня, ряд как массив):
-	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
-	// ========================================================================
-	// ========================================================================
-	// Deserialize text file backups (4 levels, series as JSON array):
-	//   { TerminalID: { Profile: { FileName: [ { BackupSize, TimrStamps: [...] }, ... ] } } }
+	// Десериализация резервных копий текстовых файлов (4 уровня, ряд как массив)
 	// ========================================================================
 	const TSharedPtr<FJsonObject>* TFScopesObjPtr = nullptr;
-	if (Root->TryGetObjectField(TEXT("TextFilesByTimeBase"), TFScopesObjPtr))
+	if (Root->TryGetObjectField(TEXT("TextFilesByTimeBackup"), TFScopesObjPtr))
 	{
 		for (const auto& TermPair : (*TFScopesObjPtr)->Values)
 		{
@@ -1304,7 +1500,7 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			const TSharedPtr<FJsonObject>* ProfilesObjPtr = nullptr;
 			if (!TermPair.Value->TryGetObject(ProfilesObjPtr)) continue;
 
-			auto& Profiles = TextFilesByTimeBase.FindOrAdd(TerminalID);
+			auto& Profiles = TextFilesByTimeBackup.FindOrAdd(TerminalID);
 
 			for (const auto& ProfPair : (*ProfilesObjPtr)->Values)
 			{
@@ -1369,7 +1565,123 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			}
 
 			// Пустой TerminalID не сохраняем.
-			if (Profiles.Num() == 0) TextFilesByTimeBase.Remove(TerminalID);
+			if (Profiles.Num() == 0) TextFilesByTimeBackup.Remove(TerminalID);
+		}
+	}
+
+	// ========================================================================
+	// Deserialize spreadsheet file backups (4 levels, series as JSON array):
+	//   { TerminalID: { Profile: { FileName: [
+	//       { BackupSize, TimeStamps: [ { Key, Cells: [ {X,Y,Content}, ... ] } ] }, ... ] } } }
+	// Uses FSheetBackupTimeStamp / FSheetBackupSeries.
+	// New key: "SpreadSheetFilesByTimeBackup".
+	// Legacy fallback: "SpreadSheetFilesByTimeBase".
+	// ========================================================================
+	// ========================================================================
+	// Десериализация резервных копий табличных файлов (4 уровня, ряд как массив)
+	// TimeStamps — TMap<FString, FSpreadsheetCells>, Cells — TMap<FIntPoint, FText>.
+	// Новый ключ: "SpreadSheetFilesByTimeBackup". Легаси-ключ: "SpreadSheetFilesByTimeBase".
+	// ========================================================================
+	const TSharedPtr<FJsonObject>* SpreadSheetScopesObjPtr = nullptr;
+	if (!Root->TryGetObjectField(TEXT("SpreadSheetFilesByTimeBackup"), SpreadSheetScopesObjPtr))
+	{
+		// Legacy fallback
+		Root->TryGetObjectField(TEXT("SpreadSheetFilesByTimeBase"), SpreadSheetScopesObjPtr);
+	}
+	if (SpreadSheetScopesObjPtr)
+	{
+		for (const auto& TermPair : (*SpreadSheetScopesObjPtr)->Values)
+		{
+			const FString& TerminalID = TermPair.Key;
+			if (TerminalID.IsEmpty()) continue;
+
+			const TSharedPtr<FJsonObject>* ProfilesObjPtr = nullptr;
+			if (!TermPair.Value->TryGetObject(ProfilesObjPtr)) continue;
+
+			auto& Profiles = SpreadSheetFilesByTimeBackup.FindOrAdd(TerminalID);
+
+			for (const auto& ProfPair : (*ProfilesObjPtr)->Values)
+			{
+				const FString& Profile = ProfPair.Key;
+				if (Profile.IsEmpty()) continue;
+
+				const TSharedPtr<FJsonObject>* FilesObjPtr = nullptr;
+				if (!ProfPair.Value->TryGetObject(FilesObjPtr)) continue;
+
+				auto& Files = Profiles.FindOrAdd(Profile);
+
+				for (const auto& FilePair : (*FilesObjPtr)->Values)
+				{
+					const FString& FileName = FilePair.Key;
+					if (FileName.IsEmpty()) continue;
+
+					const TArray<TSharedPtr<FJsonValue>>* SeriesArr = nullptr;
+					if (!FilePair.Value->TryGetArray(SeriesArr)) continue;
+
+					FSheetBackupSeries Series;
+					Series.Entries.Reserve(SeriesArr->Num());
+
+					for (const TSharedPtr<FJsonValue>& SV : *SeriesArr)
+					{
+						const TSharedPtr<FJsonObject>* FileObjPtr = nullptr;
+						if (!SV->TryGetObject(FileObjPtr)) continue;
+
+						FSheetBackupTimeStamp Backup;
+
+						double BSize = 0.0;
+						if ((*FileObjPtr)->TryGetNumberField(TEXT("BackupSize"), BSize))
+							Backup.BackupSize = static_cast<float>(BSize);
+
+						const TArray<TSharedPtr<FJsonValue>>* StampArr = nullptr;
+						if ((*FileObjPtr)->TryGetArrayField(TEXT("TimeStamps"), StampArr))
+						{
+							for (const TSharedPtr<FJsonValue>& SSV : *StampArr)
+							{
+								const TSharedPtr<FJsonObject>* SOP = nullptr;
+								if (!SSV->TryGetObject(SOP)) continue;
+
+								FString Key;
+								if (!(*SOP)->TryGetStringField(TEXT("Key"), Key)) continue;
+
+								FSpreadsheetCells Cells;
+								const TArray<TSharedPtr<FJsonValue>>* CellArr = nullptr;
+								if ((*SOP)->TryGetArrayField(TEXT("Cells"), CellArr))
+								{
+									for (const TSharedPtr<FJsonValue>& CV : *CellArr)
+									{
+										const TSharedPtr<FJsonObject>* CellObjPtr = nullptr;
+										if (!CV->TryGetObject(CellObjPtr)) continue;
+
+										int32 X = 0, Y = 0;
+										FString Content;
+										if ((*CellObjPtr)->TryGetNumberField(TEXT("X"), X) &&
+											(*CellObjPtr)->TryGetNumberField(TEXT("Y"), Y) &&
+											(*CellObjPtr)->TryGetStringField(TEXT("Content"), Content))
+										{
+											Cells.Cells.Add(FIntPoint(X, Y), FText::FromString(Content));
+										}
+									}
+								}
+
+								Backup.TimeStamps.Add(Key, MoveTemp(Cells));
+							}
+						}
+
+						Series.Entries.Add(MoveTemp(Backup));
+					}
+
+					if (Series.Entries.Num() > 0)
+					{
+						Files.Add(FileName, MoveTemp(Series));
+					}
+				}
+
+				// Пустой Profile не сохраняем.
+				if (Files.Num() == 0) Profiles.Remove(Profile);
+			}
+
+			// Пустой TerminalID не сохраняем.
+			if (Profiles.Num() == 0) SpreadSheetFilesByTimeBackup.Remove(TerminalID);
 		}
 	}
 
@@ -1383,10 +1695,11 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	BroadcastGlobalState();
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d terminals with text file backups"),
+		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes"),
 		Terminals.Num(),
 		GameRecords.Num(),
-		TextFilesByTimeBase.Num());
+		TextFilesByTimeBackup.Num(),
+		SpreadSheetFilesByTimeBackup.Num());
 }
 
 // ============================================================================
@@ -1518,6 +1831,16 @@ void UTerminalSubsystem::SubscribeCommands()
 		AddTextFileBackupHandler, &UTerminalSubsystem::HandleAddTextFileBackup);
 	Sub(OverwriteTextFileBackupsCondition, EOutcomeTerminal::OverwriteTextFileBackupsRequest,
 		OverwriteTextFileBackupsHandler, &UTerminalSubsystem::HandleOverwriteTextFileBackups);
+	Sub(RemoveTextFileBackupCondition, EOutcomeTerminal::RemoveTextFileBackupRequest,
+		RemoveTextFileBackupHandler, &UTerminalSubsystem::HandleRemoveTextFileBackup);
+
+	// ---- SpreadSheet file backups ----
+	Sub(AddSpreadSheetFileBackupCondition, EOutcomeTerminal::AddSpreadSheetFileBackupRequest,
+		AddSpreadSheetFileBackupHandler, &UTerminalSubsystem::HandleAddSpreadSheetFileBackup);
+	Sub(OverwriteSpreadSheetFileBackupsCondition, EOutcomeTerminal::OverwriteSpreadSheetFileBackupsRequest,
+		OverwriteSpreadSheetFileBackupsHandler, &UTerminalSubsystem::HandleOverwriteSpreadSheetFileBackups);
+	Sub(RemoveSpreadSheetFileBackupCondition, EOutcomeTerminal::RemoveSpreadSheetFileBackupRequest,
+		RemoveSpreadSheetFileBackupHandler, &UTerminalSubsystem::HandleRemoveSpreadSheetFileBackup);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -1559,6 +1882,11 @@ void UTerminalSubsystem::UnsubscribeCommands()
 
 	Unsub(AddTextFileBackupHandler, AddTextFileBackupCondition);
 	Unsub(OverwriteTextFileBackupsHandler, OverwriteTextFileBackupsCondition);
+	Unsub(RemoveTextFileBackupHandler, RemoveTextFileBackupCondition);
+
+	Unsub(AddSpreadSheetFileBackupHandler, AddSpreadSheetFileBackupCondition);
+	Unsub(OverwriteSpreadSheetFileBackupsHandler, OverwriteSpreadSheetFileBackupsCondition);
+	Unsub(RemoveSpreadSheetFileBackupHandler, RemoveSpreadSheetFileBackupCondition);
 }
 
 // ============================================================================
@@ -1809,7 +2137,7 @@ TMap<FString, FTextBackupTimeStamp> UTerminalSubsystem::GetTextFilesByTime(
 {
 	TMap<FString, FTextBackupTimeStamp> Result;
 
-	if (const auto* Profiles = TextFilesByTimeBase.Find(TerminalID))
+	if (const auto* Profiles = TextFilesByTimeBackup.Find(TerminalID))
 	{
 		if (const auto* Files = Profiles->Find(Profile))
 		{
@@ -1817,6 +2145,29 @@ TMap<FString, FTextBackupTimeStamp> UTerminalSubsystem::GetTextFilesByTime(
 			for (const auto& Pair : *Files)
 			{
 				const FTextBackupSeries& Series = Pair.Value;
+				if (Series.Entries.Num() > 0)
+				{
+					Result.Add(Pair.Key, Series.Entries.Last());
+				}
+			}
+		}
+	}
+	return Result;
+}
+
+TMap<FString, FSheetBackupTimeStamp> UTerminalSubsystem::GetSpreadSheetFilesByTime(
+	const FString& TerminalID, const FString& Profile) const
+{
+	TMap<FString, FSheetBackupTimeStamp> Result;
+
+	if (const auto* Profiles = SpreadSheetFilesByTimeBackup.Find(TerminalID))
+	{
+		if (const auto* Files = Profiles->Find(Profile))
+		{
+			Result.Reserve(Files->Num());
+			for (const auto& Pair : *Files)
+			{
+				const FSheetBackupSeries& Series = Pair.Value;
 				if (Series.Entries.Num() > 0)
 				{
 					Result.Add(Pair.Key, Series.Entries.Last());
@@ -2152,3 +2503,32 @@ void UTerminalSubsystem::HandleOverwriteTextFileBackups(const FOutcomeEventBase&
 	if (!P) return;
 	OverwriteTextFileBackups(P->TerminalID, P->Profile, P->Backups);
 }
+
+void UTerminalSubsystem::HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalRemoveTextFileBackupPayload>(Outcome.Payload);
+	if (!P) return;
+	RemoveTextFileBackupEntry(P->TerminalID, P->Profile, P->FileName, P->TimestampKey);
+}
+
+void UTerminalSubsystem::HandleRemoveSpreadSheetFileBackup(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalRemoveSpreadSheetFileBackupPayload>(Outcome.Payload);
+	if (!P) return;
+	RemoveSpreadSheetFileBackupEntry(P->TerminalID, P->Profile, P->FileName, P->TimestampKey);
+}
+
+void UTerminalSubsystem::HandleAddSpreadSheetFileBackup(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalAddSpreadSheetFileBackupPayload>(Outcome.Payload);
+	if (!P) return;
+	AddSpreadSheetFileBackupEntry(P->TerminalID, P->Profile, P->FileName, P->Backup);
+}
+
+void UTerminalSubsystem::HandleOverwriteSpreadSheetFileBackups(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalOverwriteSpreadSheetFileBackupsPayload>(Outcome.Payload);
+	if (!P) return;
+	OverwriteSpreadSheetFileBackups(P->TerminalID, P->Profile, P->Backups);
+}
+

@@ -185,6 +185,16 @@ struct FTextBackupSeries
     TArray<FTextBackupTimeStamp> Entries;
 };
 
+// A single ordered series (history) of FSheetBackupTimeStamp entries for one FileName.
+USTRUCT(BlueprintType)
+struct FSheetBackupSeries
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    TArray<FSheetBackupTimeStamp> Entries;
+};
+
 // ----------------------------------------------------------------------------
 // Delegates
 // ----------------------------------------------------------------------------
@@ -304,6 +314,10 @@ public:
     TMap<FString, FTextBackupTimeStamp> GetTextFilesByTime(const FString& TerminalID,
         const FString& Profile) const;
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|SpreadSheetFiles")
+    TMap<FString, FSheetBackupTimeStamp> GetSpreadSheetFilesByTime(const FString& TerminalID,
+        const FString& Profile) const;
+
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
     FOnTerminalEvent OnTerminalEvent;
@@ -357,6 +371,21 @@ protected:
     void OverwriteTextFileBackups(const FString& TerminalID, const FString& Profile,
         const TMap<FString, FTextBackupTimeStamp>& Backups);
 
+    // Empty TimestampKey → удалить весь ряд для (TerminalID, Profile, FileName).
+    // Non-empty TimestampKey → удалить этот ключ из TimeStamps каждой записи ряда.
+    bool RemoveTextFileBackupEntry(const FString& TerminalID, const FString& Profile,
+        const FString& FileName, const FString& TimestampKey);
+
+    // ---- SpreadSheet files: mutators ----
+    bool AddSpreadSheetFileBackupEntry(const FString& TerminalID, const FString& Profile,
+        const FString& FileName, const FSheetBackupTimeStamp& Backup);
+
+    void OverwriteSpreadSheetFileBackups(const FString& TerminalID, const FString& Profile,
+        const TMap<FString, FSheetBackupTimeStamp>& Backups);
+
+    bool RemoveSpreadSheetFileBackupEntry(const FString& TerminalID, const FString& Profile,
+        const FString& FileName, const FString& TimestampKey);
+
 private:
     // ---- Interact handlers ----
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -403,6 +432,12 @@ private:
     // ---- Text file backups: handlers ----
     void HandleAddTextFileBackup(const FOutcomeEventBase& Outcome);
     void HandleOverwriteTextFileBackups(const FOutcomeEventBase& Outcome);
+    void HandleRemoveTextFileBackup(const FOutcomeEventBase& Outcome);
+
+    // ---- SpreadSheet files: handlers ----
+    void HandleAddSpreadSheetFileBackup(const FOutcomeEventBase& Outcome);
+    void HandleOverwriteSpreadSheetFileBackups(const FOutcomeEventBase& Outcome);
+    void HandleRemoveSpreadSheetFileBackup(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
     // Game mutators (internal)
@@ -491,6 +526,11 @@ private:
     // ---- Text file command handles ----
     FOutcomeHandlerHandle AddTextFileBackupHandler;
     FOutcomeHandlerHandle OverwriteTextFileBackupsHandler;
+    FOutcomeHandlerHandle RemoveTextFileBackupHandler;
+
+    FOutcomeHandlerHandle AddSpreadSheetFileBackupHandler;
+    FOutcomeHandlerHandle OverwriteSpreadSheetFileBackupsHandler;
+    FOutcomeHandlerHandle RemoveSpreadSheetFileBackupHandler;
 
     // ---- Interact conditions ----
     UPROPERTY() UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
@@ -533,6 +573,10 @@ private:
     UPROPERTY() UOutcomeConditionAsset* RemoveTextFileBackupCondition = nullptr;
     UPROPERTY() UOutcomeConditionAsset* ClearTextFileBackupsCondition = nullptr;
 
+    UPROPERTY() UOutcomeConditionAsset* AddSpreadSheetFileBackupCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* OverwriteSpreadSheetFileBackupsCondition = nullptr;
+    UPROPERTY() UOutcomeConditionAsset* RemoveSpreadSheetFileBackupCondition = nullptr;
+
     bool bIsLoadComplete = true;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -547,5 +591,9 @@ private:
     // Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
     // Без UPROPERTY: 3-уровневый TMap не поддерживается UHT как отражённый тип.
     // Сериализация — ручная (CollectSaveData / ApplySaveData).
-    TMap<FString, TMap<FString, TMap<FString, FTextBackupSeries>>> TextFilesByTimeBase;
+    TMap<FString, TMap<FString, TMap<FString, FTextBackupSeries>>> TextFilesByTimeBackup;
+
+    // Outer key — TerminalID. Middle key — Profile. Inner key — FileName.
+    // Без UPROPERTY: 3-уровневый TMap не поддерживается UHT как отражённый тип.
+    TMap<FString, TMap<FString, TMap<FString, FSheetBackupSeries>>> SpreadSheetFilesByTimeBackup;
 };

@@ -417,3 +417,75 @@ public:
         return this;
     }
 };
+
+// ============================================================================
+// SpreadSheetFilesByTimeBase commands
+// ============================================================================
+
+// Append: добавляет новый элемент в конец ряда для (TerminalID, Profile, FileName)
+// в SpreadSheetFilesByTimeBase.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalAddSpreadSheetFileBackupPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString FileName;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FSheetBackupTimeStamp Backup;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|SpreadSheetFile")
+    UTerminalAddSpreadSheetFileBackupPayload* Setup(
+        const FString& InTerminalID,
+        const FString& InProfile,
+        const FString& InFileName,
+        const FSheetBackupTimeStamp& InBackup)
+    {
+        TerminalID = InTerminalID;
+        Profile = InProfile;
+        FileName = InFileName;
+        Backup = InBackup;
+        return this;
+    }
+};
+
+// Удаление записи. Пустой TimestampKey — удалить весь файл (весь ряд).
+// Непустой TimestampKey — удалить этот ключ из TimeStamps каждой записи ряда.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalRemoveSpreadSheetFileBackupPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString FileName;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString TimestampKey;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|SpreadSheetFile")
+    UTerminalRemoveSpreadSheetFileBackupPayload* Setup(
+        const FString& InTerminalID,
+        const FString& InProfile,
+        const FString& InFileName,
+        const FString& InTimestampKey = TEXT(""))
+    {
+        TerminalID = InTerminalID;
+        Profile = InProfile;
+        FileName = InFileName;
+        TimestampKey = InTimestampKey;
+        return this;
+    }
+};

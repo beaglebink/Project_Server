@@ -159,6 +159,13 @@ enum class EOutcomeTerminal : uint8
     AddTextFileBackupRequest        UMETA(DisplayName = "Add Text File Backup Request"),
     OverwriteTextFileBackupsRequest UMETA(DisplayName = "Overwrite Text File Backups Request"),
     RemoveTextFileBackupRequest     UMETA(DisplayName = "Remove Text File Backup Request"),
+
+    // ========================================================================
+    // SheetFileByTimeBase: команды (входящие)
+    // ========================================================================
+    AddSpreadSheetFileBackupRequest        UMETA(DisplayName = "Add Spread Sheet File Backup Request"),
+    OverwriteSpreadSheetFileBackupsRequest UMETA(DisplayName = "Overwrite Spread Sheet File Backups Request"),
+    RemoveSpreadSheetFileBackupRequest     UMETA(DisplayName = "Remove Spread Sheet File Backup Request")
 };
 
 UENUM(BlueprintType)

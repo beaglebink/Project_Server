@@ -247,3 +247,30 @@ public:
         return this;
     }
 };
+
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalOverwriteSpreadSheetFileBackupsPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    TMap<FString, FSheetBackupTimeStamp> Backups;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|SpreadSheetFile")
+    UTerminalOverwriteSpreadSheetFileBackupsPayload* Setup(
+        const FString& InTerminalID,
+        const FString& InProfile,
+        const TMap<FString, FSheetBackupTimeStamp>& InBackups)
+    {
+        TerminalID = InTerminalID;
+        Profile = InProfile;
+        Backups = InBackups;
+        return this;
+    }
+};
