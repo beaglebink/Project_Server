@@ -147,3 +147,13 @@ FString UCoreBlueprintFunctionLibrary::GetCleanObjectName(const UObject* Object)
 	
 	return Object->GetFName().GetPlainNameString();
 }
+
+FTransform UCoreBlueprintFunctionLibrary::RotateTransformAroundPoint(const FTransform& inTransform, const FVector& inPivotPoint, const FQuat& inRotation)
+{
+	const FVector relativeLocation = inTransform.GetLocation() - inPivotPoint;
+	const FVector rotatedRelativeLocation = inRotation.RotateVector(relativeLocation);
+	const FVector newLocation = inPivotPoint + rotatedRelativeLocation;
+	const FQuat newRotation = inRotation * inTransform.GetRotation();
+
+	return FTransform(newRotation, newLocation, inTransform.GetScale3D());
+}

@@ -50,4 +50,7 @@ public:
 	// Возвращает имя без числового суффикса (например, "ИМЯ_С" вместо "ИМЯ_С_0")
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Utilities|Name")
 	static FString GetCleanObjectName(const UObject* Object);
+
+	UFUNCTION(BlueprintPure, Category = "Geometry")
+	static FTransform RotateTransformAroundPoint(const FTransform& inTransform, const FVector& inPivotPoint, const FQuat& inRotation);
 };
