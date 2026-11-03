@@ -17,6 +17,7 @@
 #include "TerminalCommandPayload.h"
 #include "TerminalTaskPayload.h"
 #include <GameSaveSubsystem.h>
+#include "JsonObjectConverter.h"
 
 namespace
 {
@@ -765,6 +766,29 @@ void UTerminalSubsystem::SetScheduledBackups(const FString& TerminalID, const FS
 	ScheduledBackups.FindOrAdd(TerminalID).Add(Profile, Backups);
 }
 
+void UTerminalSubsystem::ModifyFileTree(const FString& TerminalID, const FString& Profile,
+	const TMap<FString, FCubixonFileData>& Files)
+{
+	if (TerminalID.IsEmpty() || Profile.IsEmpty()) return;
+
+	if (Files.Num() == 0)
+	{
+		// Пустая карта → удалить профиль (и терминал, если профилей не осталось).
+		auto* Profiles = FileTree.Find(TerminalID);
+		if (!Profiles) return;
+
+		Profiles->Remove(Profile);
+		if (Profiles->Num() == 0)
+		{
+			FileTree.Remove(TerminalID);
+		}
+		return;
+	}
+
+	// Непустая карта → целиком заменяет внутренний уровень для (TerminalID, Profile).
+	FileTree.FindOrAdd(TerminalID).Add(Profile, Files);
+}
+
 bool UTerminalSubsystem::AddSpreadSheetFileBackupEntry(
 	const FString& TerminalID, const FString& Profile,
 	const FString& FileName, const FSheetBackupTimeStamp& Backup)
@@ -1325,6 +1349,32 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetObjectField(TEXT("SpreadSheetFiles"), SpreadSheetFilesScopesObj);
 
 	// ========================================================================
+	// Serialize file tree:
+	//   { TerminalID: { Profile: { FileKey: FCubixonFileData } } }
+	// ========================================================================
+	TSharedPtr<FJsonObject> FileTreeScopesObj = MakeShared<FJsonObject>();
+	for (const auto& TermPair : FileTree)
+	{
+		TSharedPtr<FJsonObject> ProfilesObj = MakeShared<FJsonObject>();
+		for (const auto& ProfPair : TermPair.Value)
+		{
+			TSharedPtr<FJsonObject> FilesObj = MakeShared<FJsonObject>();
+			for (const auto& FilePair : ProfPair.Value)
+			{
+				TSharedPtr<FJsonObject> FileObj = MakeShared<FJsonObject>();
+				FJsonObjectConverter::UStructToJsonObject(
+					FCubixonFileData::StaticStruct(),
+					&FilePair.Value,
+					FileObj.ToSharedRef());
+				FilesObj->SetObjectField(FilePair.Key, FileObj);
+			}
+			ProfilesObj->SetObjectField(ProfPair.Key, FilesObj);
+		}
+		FileTreeScopesObj->SetObjectField(TermPair.Key, ProfilesObj);
+	}
+	Root->SetObjectField(TEXT("FileTree"), FileTreeScopesObj);
+
+	// ========================================================================
 	// Serialize to string
 	// ========================================================================
 	FString Output;
@@ -1333,14 +1383,15 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	OutData.SerializedData = Output;
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes"),
+		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes, %d file-tree scopes"),
 		Terminals.Num(),
 		GameRecords.Num(),
 		TextFilesByTimeBackup.Num(),
 		SpreadSheetFilesByTimeBackup.Num(),
 		ScheduledBackups.Num(),
 		TextFiles.Num(),
-		SpreadSheetFiles.Num());
+		SpreadSheetFiles.Num(),
+		FileTree.Num());
 }
 
 void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
@@ -1372,6 +1423,7 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	ScheduledBackups.Empty();
 	TextFiles.Empty();
 	SpreadSheetFiles.Empty();
+	FileTree.Empty();
 
 	// ========================================================================
 	// Deserialize terminals
@@ -1895,20 +1947,71 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	}
 
 	// ========================================================================
+	// Deserialize file tree:
+	//   { TerminalID: { Profile: { FileKey: FCubixonFileData } } }
+	// ========================================================================
+	const TSharedPtr<FJsonObject>* FileTreeScopesObjPtr = nullptr;
+	if (Root->TryGetObjectField(TEXT("FileTree"), FileTreeScopesObjPtr))
+	{
+		for (const auto& TermPair : (*FileTreeScopesObjPtr)->Values)
+		{
+			const FString& TerminalID = TermPair.Key;
+			if (TerminalID.IsEmpty()) continue;
+
+			const TSharedPtr<FJsonObject>* ProfilesObjPtr = nullptr;
+			if (!TermPair.Value->TryGetObject(ProfilesObjPtr)) continue;
+
+			auto& Profiles = FileTree.FindOrAdd(TerminalID);
+
+			for (const auto& ProfPair : (*ProfilesObjPtr)->Values)
+			{
+				const FString& Profile = ProfPair.Key;
+				if (Profile.IsEmpty()) continue;
+
+				const TSharedPtr<FJsonObject>* FilesObjPtr = nullptr;
+				if (!ProfPair.Value->TryGetObject(FilesObjPtr)) continue;
+
+				auto& Files = Profiles.FindOrAdd(Profile);
+
+				for (const auto& FilePair : (*FilesObjPtr)->Values)
+				{
+					const FString& FileKey = FilePair.Key;
+					if (FileKey.IsEmpty()) continue;
+
+					const TSharedPtr<FJsonObject>* FileObjPtr = nullptr;
+					if (!FilePair.Value->TryGetObject(FileObjPtr)) continue;
+
+					FCubixonFileData Data;
+					FJsonObjectConverter::JsonObjectToUStruct(
+						(*FileObjPtr).ToSharedRef(),
+						FCubixonFileData::StaticStruct(),
+						&Data);
+					Files.Add(FileKey, MoveTemp(Data));
+				}
+
+				if (Files.Num() == 0) Profiles.Remove(Profile);
+			}
+
+			if (Profiles.Num() == 0) FileTree.Remove(TerminalID);
+		}
+	}
+
+	// ========================================================================
 	// Done
 	// ========================================================================
 	bIsLoadComplete = true;
 	BroadcastGlobalState();
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes"),
+		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes, %d file-tree scopes"),
 		Terminals.Num(),
 		GameRecords.Num(),
 		TextFilesByTimeBackup.Num(),
 		SpreadSheetFilesByTimeBackup.Num(),
 		ScheduledBackups.Num(),
 		TextFiles.Num(),
-		SpreadSheetFiles.Num());
+		SpreadSheetFiles.Num(),
+		FileTree.Num());
 }
 
 // ============================================================================
@@ -2062,6 +2165,10 @@ void UTerminalSubsystem::SubscribeCommands()
 	// ---- Spreadsheet files ----
 	Sub(ModifySpreadSheetFileCondition, EOutcomeTerminal::ModifySpreadSheetFileRequest,
 		ModifySpreadSheetFileHandler, &UTerminalSubsystem::HandleModifySpreadSheetFile);
+
+	// ---- File tree ----
+	Sub(ModifyFileTreeCondition, EOutcomeTerminal::ModifyFileTreeRequest,
+		ModifyFileTreeHandler, &UTerminalSubsystem::HandleModifyFileTree);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -2113,6 +2220,8 @@ void UTerminalSubsystem::UnsubscribeCommands()
 
 	Unsub(ModifyTextFileHandler, ModifyTextFileCondition);
 	Unsub(ModifySpreadSheetFileHandler, ModifySpreadSheetFileCondition);
+
+	Unsub(ModifyFileTreeHandler, ModifyFileTreeCondition);
 }
 
 // ============================================================================
@@ -2440,6 +2549,19 @@ TMap<FString, FSpreadsheetCells> UTerminalSubsystem::GetSpreadSheetFiles(
 		}
 	}
 	return TMap<FString, FSpreadsheetCells>();
+}
+
+TMap<FString, FCubixonFileData> UTerminalSubsystem::GetFileTree(
+	const FString& TerminalID, const FString& Profile) const
+{
+	if (const auto* Profiles = FileTree.Find(TerminalID))
+	{
+		if (const auto* Files = Profiles->Find(Profile))
+		{
+			return *Files;
+		}
+	}
+	return TMap<FString, FCubixonFileData>();
 }
 
 // ============================================================================
@@ -2837,6 +2959,13 @@ void UTerminalSubsystem::HandleModifySpreadSheetFile(const FOutcomeEventBase& Ou
 
 	// Непустая карта → целиком заменяет внутренний уровень для (TerminalID, Profile).
 	SpreadSheetFiles.FindOrAdd(P->TerminalID).Add(P->Profile, P->Files);
+}
+
+void UTerminalSubsystem::HandleModifyFileTree(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalModifyFileTreePayload>(Outcome.Payload);
+	if (!P) return;
+	ModifyFileTree(P->TerminalID, P->Profile, P->Files);
 }
 
 void UTerminalSubsystem::HandleAddSpreadSheetFileBackup(const FOutcomeEventBase& Outcome)

@@ -180,7 +180,12 @@ enum class EOutcomeTerminal : uint8
     // ========================================================================
     // SpreadSheetFiles: команды (входящие)
     // ========================================================================
-    ModifySpreadSheetFileRequest UMETA(DisplayName = "Modify Spread Sheet File Request")
+    ModifySpreadSheetFileRequest UMETA(DisplayName = "Modify Spread Sheet File Request"),
+
+    // ========================================================================
+    // FileTree: команды (входящие)
+    // ========================================================================
+    ModifyFileTreeRequest UMETA(DisplayName = "Modify File Tree Request")
 };
 
 UENUM(BlueprintType)

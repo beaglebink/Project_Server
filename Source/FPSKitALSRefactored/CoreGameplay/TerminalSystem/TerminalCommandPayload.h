@@ -593,3 +593,37 @@ public:
         return this;
     }
 };
+
+// ============================================================================
+// FileTree commands
+// Хранилище: TMap<TerminalID, TMap<Profile, TMap<FileKey, FCubixonFileData>>>
+// ============================================================================
+// Непустая карта → целиком заменяет внутренний уровень (TerminalID, Profile).
+// Пустая карта   → удаляет (TerminalID, Profile)
+//                  (и TerminalID, если профилей не осталось).
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalModifyFileTreePayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|FileTree")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|FileTree")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|FileTree")
+    TMap<FString, FCubixonFileData> Files;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|FileTree")
+    UTerminalModifyFileTreePayload* Setup(
+        const FString& InTerminalID,
+        const FString& InProfile,
+        const TMap<FString, FCubixonFileData>& InFiles)
+    {
+        TerminalID = InTerminalID;
+        Profile = InProfile;
+        Files = InFiles;
+        return this;
+    }
+};

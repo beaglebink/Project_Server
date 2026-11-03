@@ -333,6 +333,11 @@ public:
     TMap<FString, FSpreadsheetCells> GetSpreadSheetFiles(const FString& TerminalID,
         const FString& Profile) const;
 
+    // ---- File tree ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|FileTree")
+    TMap<FString, FCubixonFileData> GetFileTree(const FString& TerminalID,
+        const FString& Profile) const;
+
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
     FOnTerminalEvent OnTerminalEvent;
@@ -405,6 +410,10 @@ protected:
     void SetScheduledBackups(const FString& TerminalID, const FString& Profile,
         const TMap<FString, FScheduledBackupData>& Backups);
 
+    // ---- File tree: mutators ----
+    void ModifyFileTree(const FString& TerminalID, const FString& Profile,
+        const TMap<FString, FCubixonFileData>& Files);
+
 private:
     // ---- Interact handlers ----
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -466,6 +475,9 @@ private:
 
     // ---- Set spreadsheet files: handlers ----
     void HandleModifySpreadSheetFile(const FOutcomeEventBase& Outcome);
+
+    // ---- Set file tree: handler ----
+    void HandleModifyFileTree(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
     // Game mutators (internal)
@@ -565,7 +577,7 @@ private:
     FOutcomeHandlerHandle ModifyTextFileHandler;
     FOutcomeHandlerHandle ModifySpreadSheetFileHandler;
 
-
+    FOutcomeHandlerHandle ModifyFileTreeHandler;
 
     // ---- Interact conditions ----
     UPROPERTY() UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
@@ -618,6 +630,8 @@ private:
 
     UPROPERTY() UOutcomeConditionAsset* ModifySpreadSheetFileCondition = nullptr;
 
+    UPROPERTY() UOutcomeConditionAsset* ModifyFileTreeCondition = nullptr;
+
     bool bIsLoadComplete = true;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -646,5 +660,8 @@ private:
 
     // First key — TerminalID. Second key — Profile. Third key — FileKey. Value — FText.
     TMap<FString, TMap<FString, TMap<FString, FSpreadsheetCells>>> SpreadSheetFiles;
+
+    // First key — TerminalID. Second key — Profile. Third key — FileKey. Value — FText.
+    TMap<FString, TMap<FString, TMap<FString, FCubixonFileData>>> FileTree;
 };
 
