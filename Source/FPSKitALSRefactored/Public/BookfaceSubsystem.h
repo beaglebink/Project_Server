@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -27,21 +27,34 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
+    // ─── Shims для Blueprint-совместимости ──────────────────────────────
+    // Загрузка/сохранение теперь делает GameSaveSubsystem через ISaveableSubsystem.
+    // Эти методы остаются, чтобы не поломать существующие BP-вызовы.
     UFUNCTION(BlueprintCallable)
-    void OnBookfaceAppOpened();
+    void OnBookfaceAppOpened();          // теперь: проверка HasLoadedSave + лог
 
     UFUNCTION(BlueprintCallable)
-    void SaveBookfaceDataAsync();
+    void SaveBookfaceDataAsync();        // теперь: RequestSave()
 
     UFUNCTION(BlueprintCallable)
-    void SaveBookfaceMessagesAsync();
+    void SaveBookfaceMessagesAsync();    // теперь: RequestSave()
 
     UFUNCTION(BlueprintCallable)
-    void LoadBookfaceDataAsync();
+    void LoadBookfaceDataAsync();        // теперь: лог (загрузкой рулит GameSaveSubsystem)
+
+    UFUNCTION(BlueprintCallable)
+    void SaveMessagesOnly();             // теперь: RequestSave()
+
+    UFUNCTION(BlueprintCallable)
+    void LoadMessagesOnly();             // теперь: лог
+
+    UFUNCTION(BlueprintCallable)
+    void SyncSaveBookfaceData();         // теперь: RequestSave()
 
     UFUNCTION(BlueprintCallable)
     bool HasLoadedSave() const { return bHasLoadedSave; }
 
+    // ─── Профили ────────────────────────────────────────────────────────
     UFUNCTION(BlueprintCallable)
     void AddUserProfile(const FBookfaceProfileStructure& NewProfile);
 
@@ -60,6 +73,7 @@ public:
     UFUNCTION(BlueprintCallable)
     bool GetOnlineStatus(const FString& UserId, bool& IsOnline) const;
 
+    // ─── Друзья ─────────────────────────────────────────────────────────
     UFUNCTION(BlueprintCallable)
     bool RemoveFriend(const FString& UserId, const FString& FriendId);
 
@@ -81,6 +95,7 @@ public:
     UFUNCTION(BlueprintCallable)
     void AcceptFriendRequest(const FString& FromUserId, const FString& ToUserId);
 
+    // ─── Сообщения (профиль) ────────────────────────────────────────────
     UFUNCTION(BlueprintCallable)
     UBookfaceMessageObject* AddMessageToProfile(
         const FString& FromUserId,
@@ -93,7 +108,7 @@ public:
     bool RemoveMessageFromProfile(UBookfaceMessageObject* MessageToRemove);
 
     UFUNCTION(BlueprintCallable)
-	void NoticeSubscribeProfile(const FString& ProfileID, UBookfaceMessageObject* ParentMessage, UBookfaceMessageObject* Message);
+    void NoticeSubscribeProfile(const FString& ProfileID, UBookfaceMessageObject* ParentMessage, UBookfaceMessageObject* Message);
 
     UFUNCTION(BlueprintCallable)
     void NoticeLikeMessage(const FString& ProfileID, const FString& LikerUserID, UBookfaceMessageObject* Message);
@@ -102,11 +117,12 @@ public:
     void StoreMessageNotice(const FString& ProfileId, const FBookfaceMessageNoticeStructure& Notice);
 
     UFUNCTION(BlueprintCallable)
-	void RemoveMessageNotice(const FString& ProfileId, const FBookfaceMessageNoticeStructure& Notice);
+    void RemoveMessageNotice(const FString& ProfileId, const FBookfaceMessageNoticeStructure& Notice);
 
     UFUNCTION(BlueprintCallable)
-	void ClearAllMessageNotices(const FString& ProfileId);
+    void ClearAllMessageNotices(const FString& ProfileId);
 
+    // ─── Сообщения (мессенджер) ─────────────────────────────────────────
     UFUNCTION(BlueprintCallable)
     void AddMessage(const FBF_MessageStructure& NewMessage);
 
@@ -114,7 +130,7 @@ public:
     const TArray<FBF_MessageStructure>& GetMessages() const;
 
     UFUNCTION(BlueprintCallable)
-	TArray<FBF_MessageStructure> GetMessagesForUser(const FString& UserId) const;
+    TArray<FBF_MessageStructure> GetMessagesForUser(const FString& UserId) const;
 
     UFUNCTION(BlueprintCallable)
     TArray<FBF_MessageStructure> GetMessagesFromUser(const FString& UserId) const;
@@ -123,42 +139,31 @@ public:
     void EditMessage(int32 Index, const FBF_MessageStructure& NewData);
 
     UFUNCTION(BlueprintCallable)
-    void SaveMessagesOnly();
-
-    UFUNCTION(BlueprintCallable)
-    void LoadMessagesOnly();
-
-    UFUNCTION(BlueprintCallable)
     int32 GetUnreadMessageCountForUser(const FString& FromUserId, const FString& ToUserId) const;
 
+    // ─── ISaveableSubsystem ─────────────────────────────────────────────
     virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
     virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
-    void SyncSaveBookfaceData();
     virtual FString GetSaveSubsystemName() const override { return TEXT("BookfaceSubsystem"); }
     virtual bool GetIsLoadComplete() const override { return bIsLoadComplete; }
 
 protected:
-    // ����, �����������, ��� ���������� ��� ���������������� � GameSaveSubsystem
     bool bIsRegistered = false;
-
-    // ������ ��� ������������� ������� �����������
     FTimerHandle RegistrationTimerHandle;
-
-    // �������, ���������� �� ������� ��� ������� �����������
     void TryRegisterBookfaceSubsystem();
 
 private:
-    UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
+    // Триггер сохранения через GameSaveSubsystem (никакого прямого I/O)
+    void RequestSave();
 
+    bool bSavePending = false;
+
+    UBookfaceMessageObject* FindRootMessage(UBookfaceMessageObject* Message) const;
     void ProcessingSubscriptions(UBookfaceMessageObject* Message, const FString& UserId);
 
-    // ��������� ������ �� ������������ SaveGame � ���������� ����������
+    // Внутренний помощник: из плоских SavedMessages строит UserMessages
+    // (используется только внутри ApplySaveData)
     void ApplyLoadedSaveData(UBookfaceSaveGame* LoadedGame);
-
-    // ��������� ������ SaveGame �������� ������� ����������
-    void FillSaveGameObject(UBookfaceSaveGame* SaveGame);
-
-    void LoadBookfaceDataSync();
 
 public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
@@ -179,7 +184,7 @@ public:
     UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnBookfaceMessageAdded OnMessageAdded;
 
-	UPROPERTY(BlueprintAssignable, BlueprintCallable)
+    UPROPERTY(BlueprintAssignable, BlueprintCallable)
     FOnBookfaceMessageNotice OnMessageNotice;
 
     UPROPERTY(BlueprintAssignable, Category = "Messenger|Events")
