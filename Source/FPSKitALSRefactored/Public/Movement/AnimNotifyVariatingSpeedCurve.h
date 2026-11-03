@@ -21,4 +21,16 @@ class FPSKITALSREFACTORED_API UAnimNotifyVariatingSpeedCurve : public UAnimNotif
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UCurveFloat> VariatingSpeedCurve = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UCurveFloat> LateralShiftCurve = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UCurveFloat> VerticalShiftCurve = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UCurveFloat> PitchShiftCurve = nullptr;
+
+#if WITH_EDITOR
+private:
+	TMap<ACharacter*, FVector> PreviousLocations;
+#endif
 };

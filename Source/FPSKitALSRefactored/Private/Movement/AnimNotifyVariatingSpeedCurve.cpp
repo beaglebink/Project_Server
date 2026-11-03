@@ -3,10 +3,12 @@
 
 #include "Movement/AnimNotifyVariatingSpeedCurve.h"
 
+#include "CoreBlueprintFunctionLibrary.h"
 #include "Movement/CharacterMovementComponentVar.h"
 
-#include "GameFramework/Character.h"
 #include "Animation/AnimNotifyLibrary.h"
+#include "Animation/SkeletalMeshActor.h"
+#include "GameFramework/Character.h"
 
 void UAnimNotifyVariatingSpeedCurve::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
@@ -17,39 +19,63 @@ void UAnimNotifyVariatingSpeedCurve::NotifyTick(USkeletalMeshComponent* MeshComp
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
-	const AActor* ownerActor = IsValid(MeshComp) ? MeshComp->GetOwner() : nullptr;
-	const ACharacter* ownerCharacter = IsValid(ownerActor) ? Cast<ACharacter>(ownerActor) : nullptr;
+	AActor* ownerActor = IsValid(MeshComp) ? MeshComp->GetOwner() : nullptr;
+	ACharacter* ownerCharacter = IsValid(ownerActor) ? Cast<ACharacter>(ownerActor) : nullptr;
 	UCharacterMovementComponent* characterMovementComponent = IsValid(ownerCharacter) ? ownerCharacter->GetCharacterMovement() : nullptr;
 	UCharacterMovementComponentVar* characterMovementComponentVar = IsValid(characterMovementComponent) ? Cast<UCharacterMovementComponentVar>(characterMovementComponent) : nullptr;
 	const FAnimNotifyEvent* notifyEvent = EventReference.GetNotify();
-	if (IsValid(VariatingSpeedCurve) && notifyEvent != nullptr)
+	if (notifyEvent != nullptr)
 	{
 		const float currentTime = UAnimNotifyLibrary::GetCurrentAnimationTime(EventReference);
 		const float stateStartTime = notifyEvent->GetTriggerTime();
 		const float stateDuration = notifyEvent->GetDuration();
 		const float curveTime = (stateDuration > 0.f) ? FMath::Clamp((currentTime - stateStartTime) / stateDuration, 0.f, 1.f) : 0.f;
-		const float speedState = VariatingSpeedCurve->GetFloatValue(curveTime);
-		if (IsValid(characterMovementComponentVar))
+		const float speedState = IsValid(VariatingSpeedCurve) ? VariatingSpeedCurve->GetFloatValue(curveTime) : 1.f;
+		const float lateralShift = IsValid(LateralShiftCurve) ? LateralShiftCurve->GetFloatValue(curveTime) : 0.f;
+		const float verticalShift = IsValid(VerticalShiftCurve) ? VerticalShiftCurve->GetFloatValue(curveTime) : 0.f;
+		const float pitchShift = IsValid(PitchShiftCurve) ? PitchShiftCurve->GetFloatValue(curveTime) : 0.f;
+		if (IsValid(ownerCharacter) && IsValid(characterMovementComponentVar))
 		{
 			characterMovementComponentVar->SetVariatingSpeedState(speedState);
+			characterMovementComponentVar->ApplyShift(FVector2D(lateralShift, verticalShift));
+			characterMovementComponentVar->SetAnimationAddedPitch(pitchShift);
 		}
-		if (IsValid(Animation) && IsValid(GEngine))
+#if WITH_EDITOR
+		if (IsValid(GEngine))
 		{
-			FString animationName = (IsValid(characterMovementComponentVar) ? "" : "                                                            ") + Animation->GetName() + " " + FString::SanitizeFloat(speedState);
-			GEngine->AddOnScreenDebugMessage(-1, UE_KINDA_SMALL_NUMBER, FColor::Yellow, animationName);
+			if (IsValid(Animation))
+			{
+				float currentSpeed = IsValid(characterMovementComponentVar) ? characterMovementComponentVar->Velocity.Length() : -1.f;
+				FString animationInfo = (IsValid(characterMovementComponentVar) ? "" : "                                                            ") +
+					Animation->GetName() + " speed multiplier: " + FString::SanitizeFloat(speedState, 3) +
+					" pitch: " + FString::SanitizeFloat(pitchShift, 3) +
+					(currentSpeed >= UE_KINDA_SMALL_NUMBER ? " speed: " + FString::SanitizeFloat(currentSpeed, 3) : "");
+				GEngine->AddOnScreenDebugMessage(-1, UE_KINDA_SMALL_NUMBER, FColor::Yellow, animationInfo);
+			}
+			if (currentTime <= FrameDeltaTime && IsValid(ownerCharacter))
+			{
+				const FVector characterLocation = ownerCharacter->GetActorLocation();
+				FVector& characterPreviousLocation = PreviousLocations.FindOrAdd(ownerCharacter);
+				const FString cycleShift = (characterPreviousLocation.Equals(FVector::ZeroVector)) ? "" : FString::SanitizeFloat((characterLocation - characterPreviousLocation).Length());
+				const FString cycleInfo = ownerCharacter->GetName() + " location: " + characterLocation.ToString() + " cycle shift: " + cycleShift;
+				GEngine->AddOnScreenDebugMessage(-1, 30.f, FColor::Yellow, cycleInfo);
+				characterPreviousLocation = characterLocation;
+			}
 		}
 	}
+#endif
 }
 
 void UAnimNotifyVariatingSpeedCurve::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-	const AActor* ownerActor = IsValid(MeshComp) ? MeshComp->GetOwner() : nullptr;
-	const ACharacter* ownerCharacter = IsValid(ownerActor) ? Cast<ACharacter>(ownerActor) : nullptr;
+	AActor* ownerActor = IsValid(MeshComp) ? MeshComp->GetOwner() : nullptr;
+	ACharacter* ownerCharacter = IsValid(ownerActor) ? Cast<ACharacter>(ownerActor) : nullptr;
 	UCharacterMovementComponent* characterMovementComponent = IsValid(ownerCharacter) ? ownerCharacter->GetCharacterMovement() : nullptr;
 	UCharacterMovementComponentVar* characterMovementComponentVar = IsValid(characterMovementComponent) ? Cast<UCharacterMovementComponentVar>(characterMovementComponent) : nullptr;
 	if (IsValid(characterMovementComponentVar))
 	{
 		characterMovementComponentVar->SetVariatingSpeedState(1.f);
+		characterMovementComponentVar->SetAnimationAddedPitch(0.f);
 	}
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
