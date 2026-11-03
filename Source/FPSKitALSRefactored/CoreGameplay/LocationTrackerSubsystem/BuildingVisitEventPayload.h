@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
+#include "GameplayTagContainer.h"
 #include "BuildingVisitEventPayload.generated.h"
 
 class UInteriorSetAsset;
@@ -31,12 +32,27 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Location|Building")
     FText DisplayName;
 
+    // Основной тег дома. Копируется из UInteriorSetAsset::LocationTag.
+    UPROPERTY(BlueprintReadOnly, Category = "Location|Building|Tags")
+    FGameplayTag LocationTag;
+
+    // Дополнительные теги категоризации дома.
+    UPROPERTY(BlueprintReadOnly, Category = "Location|Building|Tags")
+    FGameplayTagContainer ClassificationTags;
+
     UFUNCTION(BlueprintCallable, Category = "Location|Building")
-    UBuildingVisitEventPayload* Setup(UInteriorSetAsset* InBuilding, const FGuid& InId, const FText& InDisplayName)
+    UBuildingVisitEventPayload* Setup(
+        UInteriorSetAsset* InBuilding,
+        const FGuid& InId,
+        const FText& InDisplayName,
+        const FGameplayTag& InLocationTag,
+        const FGameplayTagContainer& InClassificationTags)
     {
         Building = InBuilding;
         BuildingId = InId;
         DisplayName = InDisplayName;
+        LocationTag = InLocationTag;
+        ClassificationTags = InClassificationTags;
         return this;
     }
 };

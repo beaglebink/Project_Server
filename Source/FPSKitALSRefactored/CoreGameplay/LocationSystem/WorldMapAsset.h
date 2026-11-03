@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "WorldMapAsset.generated.h"
 
 UCLASS(BlueprintType)
@@ -17,11 +18,19 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Identity")
     FText DisplayName;
 
-    // ── Глобальные метаданные навигации ────────────────────────────────────
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Navigation")
-    FVector NavigationOrigin = FVector::ZeroVector;
+    // ── Геймплей-теги ──────────────────────────────────────────────────────
+    // Основной тег локации. Задаётся дизайнером в редакторе.
+    // Используется в условиях (LocationConditionAsset / ScenarioConditionAsset)
+    // и в любой gameplay-логике, которой нужно знать тип локации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Tags")
+    FGameplayTag LocationTag;
 
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Navigation")
+    // Дополнительные теги для категоризации (регион пустыни, стартовая карта и т.п.).
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldMap|Tags")
+    FGameplayTagContainer ClassificationTags;
+
+    // ── Глобальные метаданные навигации ────────────────────────────────────
+    FVector NavigationOrigin = FVector::ZeroVector;
     float NavigationScale = 1.0f;
 
     // ── Дочерние регионы (обратные ссылки, заполняются вручную) ────────────
@@ -35,7 +44,6 @@ public:
     }
 
 #if WITH_EDITOR
-    // Автогенерация GUID при создании ассета
     virtual void PostInitProperties() override;
 #endif
 

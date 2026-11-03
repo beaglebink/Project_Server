@@ -18,29 +18,30 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Identity")
     FText DisplayName;
 
+    // ── Геймплей-теги ──────────────────────────────────────────────────────
+    // Основной тег локации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Tags")
+    FGameplayTag LocationTag;
+
+    // Дополнительные теги для категоризации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Tags")
+    FGameplayTagContainer ClassificationTags;
+
     // ── Иерархия ───────────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Hierarchy")
     TSoftObjectPtr<class UWorldMapAsset> ParentWorldMap;
-
-    // ── Классификационные теги ─────────────────────────────────────────────
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Classification")
-    FGameplayTagContainer ClassificationTags;
 
     // ── Карта региона ──────────────────────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Level")
     TSoftObjectPtr<UWorld> RegionLevel;
 
     // ── Навигация ──────────────────────────────────────────────────────────
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Navigation")
     FVector NavigationOrigin = FVector::ZeroVector;
 
-    // ── Якоря на карте региона (точки выхода из зданий, переходы между районами) ──
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Spatial")
+    // ── Якоря на карте региона ─────────────────────────────────────────────
     TArray<FLocationAnchor> Anchors;
 
-    // ── Точки перехода уровня района (акторы без улицы и дома) ────────────
-    // Заполняются автоматически при нажатии Apply на ALocationAnchorActor,
-    // у которого не указаны OwnerStreet и OwnerInteriorSet.
+    // ── Точки перехода уровня района ───────────────────────────────────────
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldRegion|Transitions")
     TArray<FLocationTransitionPoint> TransitionPoints;
 

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
+#include "GameplayTagContainer.h"
 #include "StreetVisitEventPayload.generated.h"
 
 class UStreetAsset;
@@ -34,12 +35,27 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Location|Street")
     FText DisplayName;
 
+    // Основной тег улицы. Копируется из UStreetAsset::LocationTag.
+    UPROPERTY(BlueprintReadOnly, Category = "Location|Street|Tags")
+    FGameplayTag LocationTag;
+
+    // Дополнительные теги категоризации улицы.
+    UPROPERTY(BlueprintReadOnly, Category = "Location|Street|Tags")
+    FGameplayTagContainer ClassificationTags;
+
     UFUNCTION(BlueprintCallable, Category = "Location|Street")
-    UStreetVisitEventPayload* Setup(UStreetAsset* InStreet, const FGuid& InId, const FText& InDisplayName)
+    UStreetVisitEventPayload* Setup(
+        UStreetAsset* InStreet,
+        const FGuid& InId,
+        const FText& InDisplayName,
+        const FGameplayTag& InLocationTag,
+        const FGameplayTagContainer& InClassificationTags)
     {
         Street = InStreet;
         StreetId = InId;
         DisplayName = InDisplayName;
+        LocationTag = InLocationTag;
+        ClassificationTags = InClassificationTags;
         return this;
     }
 };

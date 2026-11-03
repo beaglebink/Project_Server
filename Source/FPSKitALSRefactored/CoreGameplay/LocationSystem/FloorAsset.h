@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "UObject/SoftObjectPtr.h"
+#include "GameplayTagContainer.h"
 #include "LocationSpatialTypes.h"
 #include "FloorAsset.generated.h"
 
@@ -12,8 +13,6 @@ class FPSKITALSREFACTORED_API UFloorAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    // Стабильный идентификатор этажа. UPROPERTY обязателен — сохраняется в .uasset
-    // и остаётся неизменным между сессиями редактора.
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Floor|Identity")
     FGuid FloorID;
 
@@ -23,17 +22,25 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Floor|Identity")
     int32 FloorIndex = 0;
 
+    // ── Геймплей-теги ──────────────────────────────────────────────────────
+    // Основной тег локации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Tags")
+    FGameplayTag LocationTag;
+
+    // Дополнительные теги для категоризации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Tags")
+    FGameplayTagContainer ClassificationTags;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Level")
     TSoftObjectPtr<UWorld> FloorLevel;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor|Hierarchy")
     TSoftObjectPtr<class UInteriorSetAsset> ParentInteriorSet;
 
-    // === ИЗМЕНЕНИЕ: Кэш идентификатора родительского InteriorSetAsset ===
+    // Кэш идентификатора родительского InteriorSetAsset.
     // Заполняется автоматически в редакторе и при загрузке.
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Floor|Identity")
     FGuid InteriorSetID;
-    // === КОНЕЦ ИЗМЕНЕНИЯ ===
 
     FVector NavigationOrigin = FVector::ZeroVector;
     TArray<FLocationZone> Zones;
@@ -48,11 +55,11 @@ public:
         FloorID = FGuid::NewGuid();
     }
 
-    virtual void PostLoad() override;                  // === ИЗМЕНЕНИЕ: добавлено объявление
+    virtual void PostLoad() override;
 
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
-    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override; // === ИЗМЕНЕНИЕ
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
     virtual FPrimaryAssetId GetPrimaryAssetId() const override

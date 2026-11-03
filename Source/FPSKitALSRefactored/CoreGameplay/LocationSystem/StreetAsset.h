@@ -18,11 +18,19 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Street|Identity")
     FText DisplayName;
 
+    // ── Геймплей-теги ──────────────────────────────────────────────────────
+    // Основной тег локации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Tags")
+    FGameplayTag LocationTag;
+
+    // Дополнительные теги для категоризации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Tags")
+    FGameplayTagContainer ClassificationTags;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Hierarchy")
     TSoftObjectPtr<class UWorldRegionAsset> ParentWorldRegion;
 
     FText SubRegionName;
-    FGameplayTagContainer ClassificationTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Navigation")
     FVector NavigationOrigin = FVector::ZeroVector;
@@ -30,9 +38,6 @@ public:
     TArray<FLocationZone> Zones;
     TArray<FLocationAnchor> Anchors;
 
-    // TransitionPoints on the street
-    // Точки перехода, зарегистрированные на этой улице.
-    // Видимы и редактируемы в Editor; из Blueprint доступны только для чтения.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Street|Transitions")
     TArray<FLocationTransitionPoint> TransitionPoints;
 
