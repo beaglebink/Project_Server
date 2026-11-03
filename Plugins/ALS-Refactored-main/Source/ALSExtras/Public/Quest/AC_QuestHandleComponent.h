@@ -38,11 +38,21 @@ public:
 	TMap<FName, FQuestStepDataStruct> QuestDataMap;
 
 	UFUNCTION(BlueprintCallable, Category = "Quest")
-	void LoadQuestData(FName ChoreID);
+	bool LoadQuestData(FName ChoreID);
 
 	UFUNCTION(BlueprintCallable, Category = "ChoreStatus")
 	void SetChoreStatus(FName ChoreID, EChoreStatus NewStatus);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChoreStatus")
 	EChoreStatus GetChoreStatus(FName ChoreID)const;
+
+	// Intermediate data saving
+	UFUNCTION(BlueprintCallable, Category = "Saving")
+	FString CollectIntermediateSaveData(FName ChoreID);
+
+	UFUNCTION(BlueprintCallable, Category = "Saving")
+	void ApplyIntermediateSaveData(FName ChoreID, FString Jsonstring);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
+	UPDA_Quest* QuestAssetTemp;
 };

@@ -185,7 +185,7 @@ public:
 
 	virtual void ApplyChorePlacementSaveData_Implementation(const FSaveChoreData& SaveChoreData) override;
 
-	// intermediate data saving
+	// Intermediate data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
 	FString CollectIntermediateSaveData();
 

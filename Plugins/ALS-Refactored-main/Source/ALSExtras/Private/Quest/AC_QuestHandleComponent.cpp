@@ -14,7 +14,8 @@ void UAC_QuestHandleComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 void UAC_QuestHandleComponent::BeginPlay()
 {
-
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, FString::Printf(TEXT("%s"), *QuestAssetTemp->GetPrimaryAssetId().ToString()));
+	UE_LOG(LogTemp, Warning, TEXT("Quest Asset: %s"), *QuestAssetTemp->GetPrimaryAssetId().ToString());
 }
 
 void UAC_QuestHandleComponent::EndPlay(const EEndPlayReason::Type Reason)
@@ -22,27 +23,44 @@ void UAC_QuestHandleComponent::EndPlay(const EEndPlayReason::Type Reason)
 
 }
 
-void UAC_QuestHandleComponent::LoadQuestData(FName QuestName)
+bool UAC_QuestHandleComponent::LoadQuestData(FName QuestName)
 {
 	const FPrimaryAssetId AssetId(FPrimaryAssetType(TEXT("PDA_Quest")), QuestName);
-
 	UAssetManager& AssetManager = UAssetManager::Get();
 
-	AssetManager.LoadPrimaryAsset(AssetId, TArray<FName>(), FStreamableDelegate::CreateWeakLambda(this, [this, AssetId]()
-		{
-			UPDA_Quest* QuestAsset = Cast<UPDA_Quest>(UAssetManager::Get().GetPrimaryAssetObject(AssetId));
+	TArray<FPrimaryAssetId> RegisteredAssets;
 
-			if (!QuestAsset)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Failed to load quest asset: %s"), *AssetId.ToString());
-				return;
-			}
+	AssetManager.GetPrimaryAssetIdList(FPrimaryAssetType(TEXT("PDA_Quest")), RegisteredAssets);
 
-			FQuestStepDataStruct RuntimeQuestData;
-			RuntimeQuestData.QuestsArray = QuestAsset->QuestsArray;
-			QuestDataMap.Add(AssetId.PrimaryAssetName, MoveTemp(RuntimeQuestData));
-		})
-	);
+	const FSoftObjectPath AssetPath = AssetManager.GetPrimaryAssetPath(AssetId);
+
+	if (!AssetPath.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Quest asset not registered: %s"), *AssetId.ToString());
+		return false;
+	}
+
+	TSharedPtr<FStreamableHandle> Handle = AssetManager.GetStreamableManager().RequestSyncLoad(AssetPath);
+
+	if (!Handle.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to load quest asset: %s"), *AssetId.ToString());
+		return false;
+	}
+
+	UPDA_Quest* QuestAsset = Cast<UPDA_Quest>(Handle->GetLoadedAsset());
+
+	if (!QuestAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid quest asset: %s"), *AssetId.ToString());
+		return false;
+	}
+
+	FQuestStepDataStruct RuntimeQuestData;
+	RuntimeQuestData.QuestsArray = QuestAsset->QuestsArray;
+	QuestDataMap.Add(AssetId.PrimaryAssetName, MoveTemp(RuntimeQuestData));
+
+	return true;
 }
 
 void UAC_QuestHandleComponent::SetChoreStatus(FName QuestName, EChoreStatus NewStatus)
@@ -147,4 +165,32 @@ EChoreStatus UAC_QuestHandleComponent::GetChoreStatus(FName ChoreID)const
 	}
 
 	return EChoreStatus::Inactive;
+}
+
+FString UAC_QuestHandleComponent::CollectIntermediateSaveData(FName ChoreID)
+{
+	//FSubsystemSaveData SaveData;
+	//if (UGameInstance* GI = GetGameInstance())
+	//{
+	//	if (UGIS_Quest* QuestSys = GI->GetSubsystem<UGIS_Quest>())
+	//	{
+	//		QuestSys->CollectSaveData(SaveData);
+	//	}
+	//}
+	//return SaveData.SerializedData;
+	return FString();
+}
+
+void UAC_QuestHandleComponent::ApplyIntermediateSaveData(FName ChoreID, FString Jsonstring)
+{
+	//FSubsystemSaveData SaveData;
+	//if (UGameInstance* GI = GetGameInstance())
+	//{
+	//	if (UGIS_Quest* QuestSys = GI->GetSubsystem<UGIS_Quest>())
+	//	{
+	//		SaveData.SerializedData = Jsonstring;
+	//		QuestSys->ApplySaveData(SaveData);
+	//		QuestSys->ApplyQuestData(this);
+	//	}
+	//}
 }
