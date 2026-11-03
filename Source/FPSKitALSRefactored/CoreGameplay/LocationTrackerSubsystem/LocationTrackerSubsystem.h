@@ -199,6 +199,9 @@ public:
         int32& OutEnterCount,
         int32& OutLeaveCount) const;
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Query")
+    ULocationVisitEventPayload* GetCurrentLocationPayload(ELocationLevel Level) const;
+
 private:
     void HandleLocationEvent(const FOutcomeEventBase& Outcome);
     void HandleVisitReset(const FOutcomeEventBase& Outcome);

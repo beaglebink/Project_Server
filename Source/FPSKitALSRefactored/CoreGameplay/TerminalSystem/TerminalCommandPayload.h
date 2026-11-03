@@ -558,3 +558,38 @@ public:
         return this;
     }
 };
+
+// ============================================================================
+// SpreadSheetFiles commands
+// Хранилище: TMap<TerminalID, TMap<Profile, TMap<FileKey, FSpreadsheetCells>>>
+// ============================================================================
+
+// Непустая карта → добавить/заменить файлы в (TerminalID, Profile).
+// Пустая карта   → удалить (TerminalID, Profile) целиком
+//                  (и TerminalID, если профилей не осталось).
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalModifySpreadSheetFilePayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString TerminalID;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    FString Profile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|SpreadSheetFile")
+    TMap<FString, FSpreadsheetCells> Files;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|SpreadSheetFile")
+    UTerminalModifySpreadSheetFilePayload* Setup(
+        const FString& InTerminalID,
+        const FString& InProfile,
+        const TMap<FString, FSpreadsheetCells>& InFiles)
+    {
+        TerminalID = InTerminalID;
+        Profile = InProfile;
+        Files = InFiles;
+        return this;
+    }
+};

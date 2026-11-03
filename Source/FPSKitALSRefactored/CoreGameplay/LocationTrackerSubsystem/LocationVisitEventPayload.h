@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "OutcomePayload.h"
+#include "GameplayTagContainer.h"
 #include "LocationTypes.h"
 #include "LocationVisitEventPayload.generated.h"
 
@@ -53,17 +54,32 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Location")
     FText DisplayName;
 
+    // Основной тег локации. Копируется из LocationTag ассета при публикации.
+    // Для Map/Region/Street/Building/Floor — соответствующий ассет.
+    // Может быть невалидным, если у ассета поле не заполнено.
+    UPROPERTY(BlueprintReadOnly, Category = "Location|Tags")
+    FGameplayTag LocationTag;
+
+    // Дополнительные теги категоризации, копируются из ClassificationTags
+    // ассета при публикации.
+    UPROPERTY(BlueprintReadOnly, Category = "Location|Tags")
+    FGameplayTagContainer ClassificationTags;
+
     UFUNCTION(BlueprintCallable, Category = "Location")
     ULocationVisitEventPayload* Setup(
         ELocationLevel InLevel,
         const FGuid& InId,
         UObject* InAsset,
-        const FText& InDisplayName)
+        const FText& InDisplayName,
+        const FGameplayTag& InLocationTag,
+        const FGameplayTagContainer& InClassificationTags)
     {
         Level = InLevel;
         LocationId = InId;
         LocationAsset = InAsset;
         DisplayName = InDisplayName;
+        LocationTag = InLocationTag;
+        ClassificationTags = InClassificationTags;
         return this;
     }
 };

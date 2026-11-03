@@ -1291,6 +1291,40 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetObjectField(TEXT("TextFiles"), TextFilesScopesObj);
 
 	// ========================================================================
+	// Serialize spreadsheet files:
+	//   { TerminalID: { Profile: { FileKey: { Cells: [ {X,Y,Content}, ... ] } } } }
+	// ========================================================================
+	TSharedPtr<FJsonObject> SpreadSheetFilesScopesObj = MakeShared<FJsonObject>();
+	for (const auto& TermPair : SpreadSheetFiles)
+	{
+		TSharedPtr<FJsonObject> ProfilesObj = MakeShared<FJsonObject>();
+		for (const auto& ProfPair : TermPair.Value)
+		{
+			TSharedPtr<FJsonObject> FilesObj = MakeShared<FJsonObject>();
+			for (const auto& FilePair : ProfPair.Value)
+			{
+				TSharedPtr<FJsonObject> FileObj = MakeShared<FJsonObject>();
+
+				TArray<TSharedPtr<FJsonValue>> CellArr;
+				for (const auto& CellPair : FilePair.Value.Cells)
+				{
+					TSharedPtr<FJsonObject> CellObj = MakeShared<FJsonObject>();
+					CellObj->SetNumberField(TEXT("X"), CellPair.Key.X);
+					CellObj->SetNumberField(TEXT("Y"), CellPair.Key.Y);
+					CellObj->SetStringField(TEXT("Content"), CellPair.Value.ToString());
+					CellArr.Add(MakeShared<FJsonValueObject>(CellObj));
+				}
+				FileObj->SetArrayField(TEXT("Cells"), CellArr);
+
+				FilesObj->SetObjectField(FilePair.Key, FileObj);
+			}
+			ProfilesObj->SetObjectField(ProfPair.Key, FilesObj);
+		}
+		SpreadSheetFilesScopesObj->SetObjectField(TermPair.Key, ProfilesObj);
+	}
+	Root->SetObjectField(TEXT("SpreadSheetFiles"), SpreadSheetFilesScopesObj);
+
+	// ========================================================================
 	// Serialize to string
 	// ========================================================================
 	FString Output;
@@ -1299,13 +1333,14 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	OutData.SerializedData = Output;
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes"),
+		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes"),
 		Terminals.Num(),
 		GameRecords.Num(),
 		TextFilesByTimeBackup.Num(),
 		SpreadSheetFilesByTimeBackup.Num(),
 		ScheduledBackups.Num(),
-		TextFiles.Num());
+		TextFiles.Num(),
+		SpreadSheetFiles.Num());
 }
 
 void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
@@ -1336,6 +1371,7 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	SpreadSheetFilesByTimeBackup.Empty();
 	ScheduledBackups.Empty();
 	TextFiles.Empty();
+	SpreadSheetFiles.Empty();
 
 	// ========================================================================
 	// Deserialize terminals
@@ -1597,6 +1633,7 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	const TSharedPtr<FJsonObject>* SpreadSheetScopesObjPtr = nullptr;
 	if (!Root->TryGetObjectField(TEXT("SpreadSheetFilesByTimeBackup"), SpreadSheetScopesObjPtr))
 	{
+		// Legacy fallback
 		Root->TryGetObjectField(TEXT("SpreadSheetFilesByTimeBase"), SpreadSheetScopesObjPtr);
 	}
 	if (SpreadSheetScopesObjPtr)
@@ -1792,19 +1829,86 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	}
 
 	// ========================================================================
+	// Deserialize spreadsheet files:
+	//   { TerminalID: { Profile: { FileKey: { Cells: [ {X,Y,Content}, ... ] } } } }
+	// ========================================================================
+	const TSharedPtr<FJsonObject>* SpreadSheetFilesScopesObjPtr = nullptr;
+	if (Root->TryGetObjectField(TEXT("SpreadSheetFiles"), SpreadSheetFilesScopesObjPtr))
+	{
+		for (const auto& TermPair : (*SpreadSheetFilesScopesObjPtr)->Values)
+		{
+			const FString& TerminalID = TermPair.Key;
+			if (TerminalID.IsEmpty()) continue;
+
+			const TSharedPtr<FJsonObject>* ProfilesObjPtr = nullptr;
+			if (!TermPair.Value->TryGetObject(ProfilesObjPtr)) continue;
+
+			auto& Profiles = SpreadSheetFiles.FindOrAdd(TerminalID);
+
+			for (const auto& ProfPair : (*ProfilesObjPtr)->Values)
+			{
+				const FString& Profile = ProfPair.Key;
+				if (Profile.IsEmpty()) continue;
+
+				const TSharedPtr<FJsonObject>* FilesObjPtr = nullptr;
+				if (!ProfPair.Value->TryGetObject(FilesObjPtr)) continue;
+
+				auto& Files = Profiles.FindOrAdd(Profile);
+
+				for (const auto& FilePair : (*FilesObjPtr)->Values)
+				{
+					const FString& FileKey = FilePair.Key;
+					if (FileKey.IsEmpty()) continue;
+
+					const TSharedPtr<FJsonObject>* FileObjPtr = nullptr;
+					if (!FilePair.Value->TryGetObject(FileObjPtr)) continue;
+
+					FSpreadsheetCells Cells;
+
+					const TArray<TSharedPtr<FJsonValue>>* CellArr = nullptr;
+					if ((*FileObjPtr)->TryGetArrayField(TEXT("Cells"), CellArr))
+					{
+						for (const TSharedPtr<FJsonValue>& CV : *CellArr)
+						{
+							const TSharedPtr<FJsonObject>* CellObjPtr = nullptr;
+							if (!CV->TryGetObject(CellObjPtr)) continue;
+
+							int32 X = 0, Y = 0;
+							FString Content;
+							if ((*CellObjPtr)->TryGetNumberField(TEXT("X"), X) &&
+								(*CellObjPtr)->TryGetNumberField(TEXT("Y"), Y) &&
+								(*CellObjPtr)->TryGetStringField(TEXT("Content"), Content))
+							{
+								Cells.Cells.Add(FIntPoint(X, Y), FText::FromString(Content));
+							}
+						}
+					}
+
+					Files.Add(FileKey, MoveTemp(Cells));
+				}
+
+				if (Files.Num() == 0) Profiles.Remove(Profile);
+			}
+
+			if (Profiles.Num() == 0) SpreadSheetFiles.Remove(TerminalID);
+		}
+	}
+
+	// ========================================================================
 	// Done
 	// ========================================================================
 	bIsLoadComplete = true;
 	BroadcastGlobalState();
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes"),
+		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes"),
 		Terminals.Num(),
 		GameRecords.Num(),
 		TextFilesByTimeBackup.Num(),
 		SpreadSheetFilesByTimeBackup.Num(),
 		ScheduledBackups.Num(),
-		TextFiles.Num());
+		TextFiles.Num(),
+		SpreadSheetFiles.Num());
 }
 
 // ============================================================================
@@ -1954,6 +2058,10 @@ void UTerminalSubsystem::SubscribeCommands()
 	// ---- Plain text files ----
 	Sub(ModifyTextFileCondition, EOutcomeTerminal::ModifyTextFileRequest,
 		ModifyTextFileHandler, &UTerminalSubsystem::HandleModifyTextFile);
+
+	// ---- Spreadsheet files ----
+	Sub(ModifySpreadSheetFileCondition, EOutcomeTerminal::ModifySpreadSheetFileRequest,
+		ModifySpreadSheetFileHandler, &UTerminalSubsystem::HandleModifySpreadSheetFile);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -2004,6 +2112,7 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(SetScheduledBackupHandler, SetScheduledBackupCondition);
 
 	Unsub(ModifyTextFileHandler, ModifyTextFileCondition);
+	Unsub(ModifySpreadSheetFileHandler, ModifySpreadSheetFileCondition);
 }
 
 // ============================================================================
@@ -2318,6 +2427,19 @@ TMap<FString, FText> UTerminalSubsystem::GetTextFiles(const FString& TerminalID,
 		}
 	}
 	return TMap<FString, FText>();
+}
+
+TMap<FString, FSpreadsheetCells> UTerminalSubsystem::GetSpreadSheetFiles(
+	const FString& TerminalID, const FString& Profile) const
+{
+	if (const auto* Profiles = SpreadSheetFiles.Find(TerminalID))
+	{
+		if (const auto* Files = Profiles->Find(Profile))
+		{
+			return *Files;
+		}
+	}
+	return TMap<FString, FSpreadsheetCells>();
 }
 
 // ============================================================================
@@ -2690,6 +2812,31 @@ void UTerminalSubsystem::HandleModifyTextFile(const FOutcomeEventBase& Outcome)
 
 	// Непустая карта → целиком заменяет внутренний уровень для (TerminalID, Profile).
 	TextFiles.FindOrAdd(P->TerminalID).Add(P->Profile, P->Files);
+}
+
+void UTerminalSubsystem::HandleModifySpreadSheetFile(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalModifySpreadSheetFilePayload>(Outcome.Payload);
+	if (!P) return;
+
+	if (P->TerminalID.IsEmpty() || P->Profile.IsEmpty()) return;
+
+	if (P->Files.Num() == 0)
+	{
+		// Пустая карта → удалить профиль (и терминал, если профилей не осталось).
+		auto* Profiles = SpreadSheetFiles.Find(P->TerminalID);
+		if (!Profiles) return;
+
+		Profiles->Remove(P->Profile);
+		if (Profiles->Num() == 0)
+		{
+			SpreadSheetFiles.Remove(P->TerminalID);
+		}
+		return;
+	}
+
+	// Непустая карта → целиком заменяет внутренний уровень для (TerminalID, Profile).
+	SpreadSheetFiles.FindOrAdd(P->TerminalID).Add(P->Profile, P->Files);
 }
 
 void UTerminalSubsystem::HandleAddSpreadSheetFileBackup(const FOutcomeEventBase& Outcome)

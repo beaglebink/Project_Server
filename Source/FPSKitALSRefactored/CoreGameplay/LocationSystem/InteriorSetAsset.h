@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "LocationTypes.h"
 #include "LocationSpatialTypes.h"
 #include "InteriorSetAsset.generated.h"
@@ -12,13 +13,20 @@ class FPSKITALSREFACTORED_API UInteriorSetAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    // Стабильный идентификатор здания. UPROPERTY обязателен — сохраняется в .uasset
-    // и остаётся неизменным между сессиями редактора.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Identity")
     FGuid InteriorSetID;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Identity")
     FText DisplayName;
+
+    // ── Геймплей-теги ──────────────────────────────────────────────────────
+    // Основной тег локации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Tags")
+    FGameplayTag LocationTag;
+
+    // Дополнительные теги для категоризации.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Tags")
+    FGameplayTagContainer ClassificationTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Hierarchy")
     TSoftObjectPtr<class UStreetAsset> ParentStreet;
@@ -29,9 +37,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InteriorSet|Address")
     int32 AddressNumber = 0;
 
+    // Легаси-флаги категоризации. Оставлены для совместимости с существующими
+    // ассетами; новую логику лучше строить на ClassificationTags / LocationTag.
     TArray<EInteriorSetFlag> ClassificationFlags;
 
-    // Точки перехода в здании (входы) — видны в Editor, из BP только для чтения.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InteriorSet|Transitions")
     TArray<FLocationTransitionPoint> TransitionPoints;
 

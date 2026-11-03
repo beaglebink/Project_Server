@@ -70,6 +70,31 @@ static bool MatchesDisplayName(const UObject* Asset, const FText& InDisplayName)
     return Asset->GetName().Equals(Target, ESearchCase::CaseSensitive);
 }
 
+// У всех ассетов локаций есть поля LocationTag и ClassificationTags,
+// но общего базового класса с ними нет. Тянем через рефлексию — так же,
+// как MatchesDisplayName выше. Если поле в классе отсутствует (например,
+// ассет старого формата) — возвращаем пустые значения.
+static void ExtractLocationTagsFromAsset(
+    UObject* Asset,
+    FGameplayTag& OutLocationTag,
+    FGameplayTagContainer& OutClassificationTags)
+{
+    OutLocationTag = FGameplayTag();
+    OutClassificationTags = FGameplayTagContainer();
+    if (!Asset) return;
+
+    if (FProperty* Prop = Asset->GetClass()->FindPropertyByName(TEXT("LocationTag")))
+    {
+        if (const FGameplayTag* Tag = Prop->ContainerPtrToValuePtr<FGameplayTag>(Asset))
+            OutLocationTag = *Tag;
+    }
+    if (FProperty* Prop = Asset->GetClass()->FindPropertyByName(TEXT("ClassificationTags")))
+    {
+        if (const FGameplayTagContainer* Tags = Prop->ContainerPtrToValuePtr<FGameplayTagContainer>(Asset))
+            OutClassificationTags = *Tags;
+    }
+}
+
 template<typename TAsset>
 static void LoadAllAssetsOfClass(TArray<TAsset*>& Out, const TCHAR* ClassName)
 {
@@ -473,6 +498,12 @@ void ULocationTrackerSubsystem::PublishLocationVisitEvent(
     if (const FText* Found = LocationDisplayNames.Find(Key))
         DisplayName = *Found;
 
+    // Тянем теги из ассета один раз — пригодятся и общему payload,
+    // и специфичному (Street / Building).
+    FGameplayTag LocationTag;
+    FGameplayTagContainer ClassificationTags;
+    ExtractLocationTagsFromAsset(Asset, LocationTag, ClassificationTags);
+
     // ── Общее событие LocationEntered / LocationLeft ───────────────────
     // Публикуется для ВСЕХ уровней — Map, Region, Street, Building, Floor.
     // Подписчику, которому нужен только один уровень, проще слушать
@@ -482,7 +513,7 @@ void ULocationTrackerSubsystem::PublishLocationVisitEvent(
             EventBus->CreatePayload<ULocationVisitEventPayload>();
         if (Payload)
         {
-            Payload->Setup(Level, Id, Asset, DisplayName);
+            Payload->Setup(Level, Id, Asset, DisplayName, LocationTag, ClassificationTags);
 
             FOutcomeEventBase Event;
             Event.OutcomeType = EOutcomeType::Interior;
@@ -501,7 +532,8 @@ void ULocationTrackerSubsystem::PublishLocationVisitEvent(
             EventBus->CreatePayload<UStreetVisitEventPayload>();
         if (Payload)
         {
-            Payload->Setup(Cast<UStreetAsset>(Asset), Id, DisplayName);
+            Payload->Setup(Cast<UStreetAsset>(Asset), Id, DisplayName,
+                LocationTag, ClassificationTags);
 
             FOutcomeEventBase Event;
             Event.OutcomeType = EOutcomeType::Interior;
@@ -519,7 +551,8 @@ void ULocationTrackerSubsystem::PublishLocationVisitEvent(
             EventBus->CreatePayload<UBuildingVisitEventPayload>();
         if (Payload)
         {
-            Payload->Setup(Cast<UInteriorSetAsset>(Asset), Id, DisplayName);
+            Payload->Setup(Cast<UInteriorSetAsset>(Asset), Id, DisplayName,
+                LocationTag, ClassificationTags);
 
             FOutcomeEventBase Event;
             Event.OutcomeType = EOutcomeType::Interior;
@@ -925,6 +958,37 @@ bool ULocationTrackerSubsystem::GetLocationCountsByDisplayName(
     OutEnterCount = S->EnterCount;
     OutLeaveCount = S->LeaveCount;
     return true;
+}
+
+ULocationVisitEventPayload* ULocationTrackerSubsystem::GetCurrentLocationPayload(
+    ELocationLevel Level) const
+{
+    if (Level == ELocationLevel::Default) return nullptr;
+
+    const FGuid Id = CurrentAddress.Get(Level);
+    if (!Id.IsValid()) return nullptr;
+
+    const FString Key = MakeKey(Level, Id);
+
+    UObject* Asset = nullptr;
+    if (const TObjectPtr<UObject>* Found = LocationAssets.Find(Key))
+        Asset = Found->Get();
+
+    FText DisplayName;
+    if (const FText* Found = LocationDisplayNames.Find(Key))
+        DisplayName = *Found;
+
+    FGameplayTag LocationTag;
+    FGameplayTagContainer ClassificationTags;
+    ExtractLocationTagsFromAsset(Asset, LocationTag, ClassificationTags);
+
+    // Outer = подсистема: объект умрёт вместе с ней. Вызывающий держит
+    // ссылку (UPROPERTY в BP / TObjectPtr в C++), поэтому до этого момента
+    // объект гарантированно жив.
+    ULocationVisitEventPayload* Payload =
+        NewObject<ULocationVisitEventPayload>(const_cast<ULocationTrackerSubsystem*>(this));
+    Payload->Setup(Level, Id, Asset, DisplayName, LocationTag, ClassificationTags);
+    return Payload;
 }
 
 FString ULocationTrackerSubsystem::GetLocationLabel(ELocationLevel Level, const FGuid& Id) const

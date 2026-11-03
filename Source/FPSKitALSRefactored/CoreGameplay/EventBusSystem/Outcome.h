@@ -175,7 +175,12 @@ enum class EOutcomeTerminal : uint8
     // ========================================================================
     // TextFiles: команды (входящие)
     // ========================================================================
-    ModifyTextFileRequest UMETA(DisplayName = "Modify Text File Request")
+    ModifyTextFileRequest UMETA(DisplayName = "Modify Text File Request"),
+
+    // ========================================================================
+    // SpreadSheetFiles: команды (входящие)
+    // ========================================================================
+    ModifySpreadSheetFileRequest UMETA(DisplayName = "Modify Spread Sheet File Request")
 };
 
 UENUM(BlueprintType)
