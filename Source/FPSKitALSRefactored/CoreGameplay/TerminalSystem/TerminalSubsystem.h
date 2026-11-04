@@ -338,6 +338,10 @@ public:
     TMap<FString, FCubixonFileData> GetFileTree(const FString& TerminalID,
         const FString& Profile) const;
 
+    // ---- CMailData ----
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Terminal|Query|CMail")
+    TMap<FString, FCubixonCMailConversationsWrap> GetCMailData() const;
+
     // ---- Delegates ----
     UPROPERTY(BlueprintAssignable, Category = "Terminal|Events")
     FOnTerminalEvent OnTerminalEvent;
@@ -414,6 +418,9 @@ protected:
     void ModifyFileTree(const FString& TerminalID, const FString& Profile,
         const TMap<FString, FCubixonFileData>& Files);
 
+    // ---- CMailData: mutators ----
+    void ModifyCMailData(const TMap<FString, FCubixonCMailConversationsWrap>& Conversations);
+
 private:
     // ---- Interact handlers ----
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
@@ -478,6 +485,9 @@ private:
 
     // ---- Set file tree: handler ----
     void HandleModifyFileTree(const FOutcomeEventBase& Outcome);
+
+    // ---- Set CMailData: handler ----
+    void HandleModifyCMailData(const FOutcomeEventBase& Outcome);
 
     // ========================================================================
     // Game mutators (internal)
@@ -579,6 +589,8 @@ private:
 
     FOutcomeHandlerHandle ModifyFileTreeHandler;
 
+    FOutcomeHandlerHandle ModifyCMailDataHandler;
+
     // ---- Interact conditions ----
     UPROPERTY() UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
     UPROPERTY() UOutcomeConditionAsset* UnregisteredConditionAsset = nullptr;
@@ -632,6 +644,8 @@ private:
 
     UPROPERTY() UOutcomeConditionAsset* ModifyFileTreeCondition = nullptr;
 
+    UPROPERTY() UOutcomeConditionAsset* ModifyCMailDataCondition = nullptr;
+
     bool bIsLoadComplete = true;
 
     virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
@@ -663,5 +677,8 @@ private:
 
     // First key — TerminalID. Second key — Profile. Third key — FileKey. Value — FText.
     TMap<FString, TMap<FString, TMap<FString, FCubixonFileData>>> FileTree;
+
+    //Key - Login
+    TMap<FString, FCubixonCMailConversationsWrap> CMailData;
 };
 

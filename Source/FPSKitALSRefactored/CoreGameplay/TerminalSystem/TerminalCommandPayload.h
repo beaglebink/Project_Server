@@ -627,3 +627,26 @@ public:
         return this;
     }
 };
+
+// ============================================================================
+// CMailData commands
+// Хранилище: TMap<Login, FCubixonCMailConversationsWrap>  (плоское, без TerminalID/Profile)
+// ============================================================================
+// Непустая карта → целиком заменяет CMailData.
+// Пустая карта   → очищает CMailData.
+UCLASS(BlueprintType)
+class FPSKITALSREFACTORED_API UTerminalModifyCMailDataPayload : public UOutcomePayload
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Terminal|CMail")
+    TMap<FString, FCubixonCMailConversationsWrap> Conversations;
+
+    UFUNCTION(BlueprintCallable, Category = "Terminal|CMail")
+    UTerminalModifyCMailDataPayload* Setup(
+        const TMap<FString, FCubixonCMailConversationsWrap>& InConversations)
+    {
+        Conversations = InConversations;
+        return this;
+    }
+};

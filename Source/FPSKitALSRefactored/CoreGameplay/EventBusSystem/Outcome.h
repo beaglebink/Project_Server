@@ -185,7 +185,12 @@ enum class EOutcomeTerminal : uint8
     // ========================================================================
     // FileTree: команды (входящие)
     // ========================================================================
-    ModifyFileTreeRequest UMETA(DisplayName = "Modify File Tree Request")
+    ModifyFileTreeRequest UMETA(DisplayName = "Modify File Tree Request"),
+
+    // ========================================================================
+    // CMailData: команды (входящие)
+    // ========================================================================
+    ModifyCMailDataRequest UMETA(DisplayName = "Modify CMail Data Request")
 };
 
 UENUM(BlueprintType)

@@ -789,6 +789,20 @@ void UTerminalSubsystem::ModifyFileTree(const FString& TerminalID, const FString
 	FileTree.FindOrAdd(TerminalID).Add(Profile, Files);
 }
 
+void UTerminalSubsystem::ModifyCMailData(
+	const TMap<FString, FCubixonCMailConversationsWrap>& Conversations)
+{
+	if (Conversations.Num() == 0)
+	{
+		// Пустая карта → очистить хранилище.
+		CMailData.Empty();
+		return;
+	}
+
+	// Непустая карта → целиком заменить.
+	CMailData = Conversations;
+}
+
 bool UTerminalSubsystem::AddSpreadSheetFileBackupEntry(
 	const FString& TerminalID, const FString& Profile,
 	const FString& FileName, const FSheetBackupTimeStamp& Backup)
@@ -1375,6 +1389,24 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetObjectField(TEXT("FileTree"), FileTreeScopesObj);
 
 	// ========================================================================
+	// Serialize CMailData:
+	//   { Login: FCubixonCMailConversationsWrap }
+	// ========================================================================
+	TSharedPtr<FJsonObject> CMailDataObj = MakeShared<FJsonObject>();
+	for (const auto& Pair : CMailData)
+	{
+		if (Pair.Key.IsEmpty()) continue;
+
+		TSharedPtr<FJsonObject> ConversationObj = MakeShared<FJsonObject>();
+		FJsonObjectConverter::UStructToJsonObject(
+			FCubixonCMailConversationsWrap::StaticStruct(),
+			&Pair.Value,
+			ConversationObj.ToSharedRef());
+		CMailDataObj->SetObjectField(Pair.Key, ConversationObj);
+	}
+	Root->SetObjectField(TEXT("CMailData"), CMailDataObj);
+
+	// ========================================================================
 	// Serialize to string
 	// ========================================================================
 	FString Output;
@@ -1383,7 +1415,7 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	OutData.SerializedData = Output;
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes, %d file-tree scopes"),
+		TEXT("TerminalSubsystem::CollectSaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes, %d file-tree scopes, %d cmail conversations"),
 		Terminals.Num(),
 		GameRecords.Num(),
 		TextFilesByTimeBackup.Num(),
@@ -1391,7 +1423,8 @@ void UTerminalSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		ScheduledBackups.Num(),
 		TextFiles.Num(),
 		SpreadSheetFiles.Num(),
-		FileTree.Num());
+		FileTree.Num(),
+		CMailData.Num());
 }
 
 void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
@@ -1424,6 +1457,7 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	TextFiles.Empty();
 	SpreadSheetFiles.Empty();
 	FileTree.Empty();
+	CMailData.Empty();
 
 	// ========================================================================
 	// Deserialize terminals
@@ -1997,13 +2031,38 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 	}
 
 	// ========================================================================
+	// Deserialize CMailData:
+	//   { Login: FCubixonCMailConversationsWrap }
+	// ========================================================================
+	const TSharedPtr<FJsonObject>* CMailDataObjPtr = nullptr;
+	if (Root->TryGetObjectField(TEXT("CMailData"), CMailDataObjPtr))
+	{
+		for (const auto& Pair : (*CMailDataObjPtr)->Values)
+		{
+			const FString& Login = Pair.Key;
+			if (Login.IsEmpty()) continue;
+
+			const TSharedPtr<FJsonObject>* ConversationObjPtr = nullptr;
+			if (!Pair.Value->TryGetObject(ConversationObjPtr)) continue;
+
+			FCubixonCMailConversationsWrap Conversation;
+			FJsonObjectConverter::JsonObjectToUStruct(
+				(*ConversationObjPtr).ToSharedRef(),
+				FCubixonCMailConversationsWrap::StaticStruct(),
+				&Conversation);
+
+			CMailData.Add(Login, MoveTemp(Conversation));
+		}
+	}
+
+	// ========================================================================
 	// Done
 	// ========================================================================
 	bIsLoadComplete = true;
 	BroadcastGlobalState();
 
 	UE_LOG(LogTemp, Log,
-		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes, %d file-tree scopes"),
+		TEXT("TerminalSubsystem::ApplySaveData: %d terminals, %d game records, %d text-file scopes, %d spreadsheet-file scopes, %d scheduled backups, %d plain-text scopes, %d plain-spreadsheet scopes, %d file-tree scopes, %d cmail conversations"),
 		Terminals.Num(),
 		GameRecords.Num(),
 		TextFilesByTimeBackup.Num(),
@@ -2011,7 +2070,8 @@ void UTerminalSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 		ScheduledBackups.Num(),
 		TextFiles.Num(),
 		SpreadSheetFiles.Num(),
-		FileTree.Num());
+		FileTree.Num(),
+		CMailData.Num());
 }
 
 // ============================================================================
@@ -2169,6 +2229,10 @@ void UTerminalSubsystem::SubscribeCommands()
 	// ---- File tree ----
 	Sub(ModifyFileTreeCondition, EOutcomeTerminal::ModifyFileTreeRequest,
 		ModifyFileTreeHandler, &UTerminalSubsystem::HandleModifyFileTree);
+
+	// ---- CMailData ----
+	Sub(ModifyCMailDataCondition, EOutcomeTerminal::ModifyCMailDataRequest,
+		ModifyCMailDataHandler, &UTerminalSubsystem::HandleModifyCMailData);
 }
 
 void UTerminalSubsystem::UnsubscribeCommands()
@@ -2222,6 +2286,8 @@ void UTerminalSubsystem::UnsubscribeCommands()
 	Unsub(ModifySpreadSheetFileHandler, ModifySpreadSheetFileCondition);
 
 	Unsub(ModifyFileTreeHandler, ModifyFileTreeCondition);
+
+	Unsub(ModifyCMailDataHandler, ModifyCMailDataCondition);
 }
 
 // ============================================================================
@@ -2562,6 +2628,11 @@ TMap<FString, FCubixonFileData> UTerminalSubsystem::GetFileTree(
 		}
 	}
 	return TMap<FString, FCubixonFileData>();
+}
+
+TMap<FString, FCubixonCMailConversationsWrap> UTerminalSubsystem::GetCMailData() const
+{
+	return CMailData;
 }
 
 // ============================================================================
@@ -2966,6 +3037,13 @@ void UTerminalSubsystem::HandleModifyFileTree(const FOutcomeEventBase& Outcome)
 	auto* P = Cast<UTerminalModifyFileTreePayload>(Outcome.Payload);
 	if (!P) return;
 	ModifyFileTree(P->TerminalID, P->Profile, P->Files);
+}
+
+void UTerminalSubsystem::HandleModifyCMailData(const FOutcomeEventBase& Outcome)
+{
+	auto* P = Cast<UTerminalModifyCMailDataPayload>(Outcome.Payload);
+	if (!P) return;
+	ModifyCMailData(P->Conversations);
 }
 
 void UTerminalSubsystem::HandleAddSpreadSheetFileBackup(const FOutcomeEventBase& Outcome)
