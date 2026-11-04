@@ -417,6 +417,7 @@ FCubixonFileData UCubixonUtilsBlueprintLibrary::CreateCubixonFileData(FText File
 
 	FObjectAndNameAsStringProxyArchive Ar(Writer, true);
 	Ar.ArIsSaveGame = true;
+	Ar.ArNoDelta = true;
 
 	CubixonFile->Serialize(Ar);
 
@@ -442,6 +443,7 @@ USceneComponent* UCubixonUtilsBlueprintLibrary::CreateCubixonFileFromData(const 
 
 	FObjectAndNameAsStringProxyArchive Ar(Reader, true);
 	Ar.ArIsSaveGame = true;
+	Ar.ArNoDelta = true;
 
 	NewComponent->Serialize(Ar);
 
