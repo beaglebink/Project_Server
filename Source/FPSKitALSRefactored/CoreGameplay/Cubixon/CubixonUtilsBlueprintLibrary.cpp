@@ -445,17 +445,17 @@ USceneComponent* UCubixonUtilsBlueprintLibrary::CreateCubixonFileFromData(const 
 
 	NewComponent->Serialize(Ar);
 
-	NewComponent->RegisterComponent();
-
 	if (AActor* OwnerActor = Cast<AActor>(Outer))
 	{
 		OwnerActor->AddInstanceComponent(NewComponent);
 
-		if (OwnerActor->GetRootComponent())
+		if (ParentComponent)
 		{
 			NewComponent->AttachToComponent(ParentComponent, FAttachmentTransformRules::KeepRelativeTransform);
 		}
 	}
+
+	NewComponent->RegisterComponent();
 
 	return NewComponent;
 }
