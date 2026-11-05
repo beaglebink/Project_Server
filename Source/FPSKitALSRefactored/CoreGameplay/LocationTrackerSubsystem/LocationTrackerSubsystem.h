@@ -169,6 +169,9 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Debug")
     FString GetCurrentLocationDebugString() const;
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "LocationTracker|Debug")
+    FGameplayTag GetCurrentLocation() const;
+
     // Преобразовать DisplayName ассета локации в ключ.
     // Ищет среди FloorAsset / InteriorSetAsset / StreetAsset / WorldRegionAsset / WorldMapAsset.
     //
@@ -206,6 +209,20 @@ private:
     void HandleLocationEvent(const FOutcomeEventBase& Outcome);
     void HandleVisitReset(const FOutcomeEventBase& Outcome);
     void HandleStreetTransition(const FOutcomeEventBase& Outcome);
+
+    // Пытается определить адрес по имени текущего мира. Возвращает true,
+// если удалось найти зарегистрированную сцену (через точное или
+// нечёткое сопоставление). Используется как fallback в GetCurrentLocation.
+    bool ResolveAddressFromCurrentMap(
+        UWorld* World,
+        FLocationVisitAddress& OutAddr,
+        FString& OutMatchedKey) const;
+
+    // Вспомогательный поиск тега по адресу. Идёт от самого глубокого уровня
+    // к самому общему, возвращает первый непустой LocationTag.
+    // Возвращает невалидный тег, если в адресе нет валидных GUID или
+    // у всех ассетов теги пустые.
+    FGameplayTag FindLocationTagInAddress(const FLocationVisitAddress& Addr) const;
 
     void BuildSceneIndex();
     bool FindAddressForScene(const FString& NormalizedSceneName, FLocationVisitAddress& OutAddress) const;

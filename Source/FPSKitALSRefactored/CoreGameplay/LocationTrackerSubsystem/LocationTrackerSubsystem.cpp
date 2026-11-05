@@ -195,6 +195,120 @@ void ULocationTrackerSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
+FGameplayTag ULocationTrackerSubsystem::GetCurrentLocation() const
+{
+    // 1. Основной путь — по уже установленному адресу.
+    if (FGameplayTag Tag = FindLocationTagInAddress(CurrentAddress); Tag.IsValid())
+        return Tag;
+
+    // 2. Fallback — по имени текущего мира. Пробуем несколько источников
+    // имени и нечёткое сопоставление, чтобы покрыть World Partition,
+    // стриминговые подуровни и PIE-суффиксы.
+    UWorld* World = GetWorld();
+    if (!World) return FGameplayTag();
+
+    FLocationVisitAddress Addr;
+    FString MatchedKey;
+    if (ResolveAddressFromCurrentMap(World, Addr, MatchedKey))
+    {
+        if (FGameplayTag Tag = FindLocationTagInAddress(Addr); Tag.IsValid())
+        {
+            UE_LOG(LogTemp, Verbose,
+                TEXT("LocationTracker::GetCurrentLocation: fallback matched scene '%s'"), *MatchedKey);
+            return Tag;
+        }
+    }
+
+    // 3. Диагностика — только в аномальном случае. Явно показывает, что
+    // не совпало: имя мира, ключи SceneToAddress, или пустые GUID/теги
+    // в ассетах.
+    {
+        const FString MapName = World->GetMapName();
+        const FString MapNameNorm = NormalizeLevelName(MapName);
+
+        FString PkgName = TEXT("<null>");
+        FString PkgNameNorm;
+        if (UPackage* Pkg = World->GetOutermost())
+        {
+            PkgName = Pkg->GetName();
+            PkgNameNorm = NormalizeLevelName(PkgName);
+        }
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("LocationTracker::GetCurrentLocation: no tag. ")
+            TEXT("CurrentAddress.MapId valid=%d, MapName='%s' (norm='%s'), ")
+            TEXT("Package='%s' (norm='%s'), SceneToAddress entries=%d."),
+            CurrentAddress.MapId.IsValid() ? 1 : 0,
+            *MapName, *MapNameNorm,
+            *PkgName, *PkgNameNorm,
+            SceneToAddress.Num());
+
+        if (SceneToAddress.Num() > 0)
+        {
+            FString KeysDump;
+            for (const auto& Pair : SceneToAddress)
+            {
+                if (!KeysDump.IsEmpty()) KeysDump += TEXT(", ");
+                KeysDump += Pair.Key;
+            }
+            UE_LOG(LogTemp, Warning,
+                TEXT("LocationTracker::GetCurrentLocation: SceneToAddress keys: [%s]"), *KeysDump);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("LocationTracker::GetCurrentLocation: SceneToAddress is EMPTY. ")
+                TEXT("Проверьте RegionLevel у WorldRegionAsset и FloorLevel у FloorAsset — ")
+                TEXT("сцены без указанного Level в индекс не попадают."));
+        }
+    }
+
+    return FGameplayTag();
+}
+
+FGameplayTag ULocationTrackerSubsystem::FindLocationTagInAddress(
+    const FLocationVisitAddress& Addr) const
+{
+    static const ELocationLevel Order[] = {
+        ELocationLevel::Floor,
+        ELocationLevel::Building,
+        ELocationLevel::Street,
+        ELocationLevel::Region,
+        ELocationLevel::Map
+    };
+
+    for (ELocationLevel L : Order)
+    {
+        const FGuid Id = Addr.Get(L);
+        if (!Id.IsValid()) continue;
+
+        UObject* Asset = GetLocationAsset(L, Id);
+        if (!Asset)
+        {
+            UE_LOG(LogTemp, Verbose,
+                TEXT("LocationTracker::FindLocationTagInAddress: level %s id=%s — ")
+                TEXT("asset not found in LocationAssets. ")
+                TEXT("Likely the GUID in the asset is invalid or the asset wasn't loaded."),
+                *StaticEnum<ELocationLevel>()->GetValueAsString(L), *Id.ToString());
+            continue;
+        }
+
+        FGameplayTag Tag;
+        FGameplayTagContainer Unused;
+        ExtractLocationTagsFromAsset(Asset, Tag, Unused);
+
+        if (Tag.IsValid())
+            return Tag;
+
+        UE_LOG(LogTemp, Verbose,
+            TEXT("LocationTracker::FindLocationTagInAddress: level %s asset=%s — ")
+            TEXT("LocationTag is empty. Fill it in the asset to enable tag-based detection."),
+            *StaticEnum<ELocationLevel>()->GetValueAsString(L), *Asset->GetName());
+    }
+
+    return FGameplayTag();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Индекс сцен → адрес
 // ─────────────────────────────────────────────────────────────────────────────
@@ -800,35 +914,115 @@ void ULocationTrackerSubsystem::HandleStreetTransition(const FOutcomeEventBase& 
     ULocationStreetTransitionPayload* P = Cast<ULocationStreetTransitionPayload>(Outcome.Payload);
     if (!P || !P->TargetStreet) return;
 
-    const FGuid TargetStreetId = P->TargetStreet->StreetID;
-    if (!TargetStreetId.IsValid())
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("LocationTracker: StreetTransition payload has invalid StreetID"));
-        return;
-    }
-
-    // Собираем новый адрес: игрок на улице — Building/Floor пусты.
-    // Регион и карта берутся из иерархии самой улицы, чтобы корректно
-    // отработать переход в другой регион/карту.
+    // Собираем новый адрес.
     FLocationVisitAddress NewAddr;
-    NewAddr.StreetId = TargetStreetId;
 
-    if (UWorldRegionAsset* Region = P->TargetStreet->ParentWorldRegion.LoadSynchronous())
+    if (P->bClearStreet)
     {
-        NewAddr.RegionId = Region->WorldRegionID;
-        if (UWorldMapAsset* Map = Region->ParentWorldMap.LoadSynchronous())
-            NewAddr.MapId = Map->WorldMapID;
+        // Режим «покинул улицу»: StreetId оставляем пустым, Region/Map
+        // берём из TargetStreet (родитель улицы). Если у улицы не задан
+        // ParentWorldRegion — сохраняем текущие Region/Map из адреса,
+        // чтобы не потерять регион.
+        if (UWorldRegionAsset* Region = P->TargetStreet->ParentWorldRegion.LoadSynchronous())
+        {
+            NewAddr.RegionId = Region->WorldRegionID;
+            if (UWorldMapAsset* Map = Region->ParentWorldMap.LoadSynchronous())
+                NewAddr.MapId = Map->WorldMapID;
+        }
+        else
+        {
+            NewAddr.RegionId = CurrentAddress.RegionId;
+            NewAddr.MapId = CurrentAddress.MapId;
+        }
+        // NewAddr.StreetId, BuildingId, FloorId — пустые.
+    }
+    else
+    {
+        const FGuid TargetStreetId = P->TargetStreet->StreetID;
+        if (!TargetStreetId.IsValid())
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("LocationTracker: StreetTransition payload has invalid StreetID"));
+            return;
+        }
+
+        NewAddr.StreetId = TargetStreetId;
+
+        if (UWorldRegionAsset* Region = P->TargetStreet->ParentWorldRegion.LoadSynchronous())
+        {
+            NewAddr.RegionId = Region->WorldRegionID;
+            if (UWorldMapAsset* Map = Region->ParentWorldMap.LoadSynchronous())
+                NewAddr.MapId = Map->WorldMapID;
+        }
     }
 
     // Идемпотентность: если адрес уже в точности такой — игнорируем.
-    // Это отсекает повторные срабатывания при нахождении на улице.
     if (CurrentAddress == NewAddr)
     {
         return;
     }
 
     ApplyAddressTransition(NewAddr);
+}
+
+bool ULocationTrackerSubsystem::ResolveAddressFromCurrentMap(
+    UWorld* World,
+    FLocationVisitAddress& OutAddr,
+    FString& OutMatchedKey) const
+{
+    OutAddr = FLocationVisitAddress();
+    OutMatchedKey.Reset();
+    if (!World) return false;
+
+    // Собираем все возможные нормализованные имена текущего мира.
+    // В разных конфигурациях (PIE, WP, streaming, packaged) GetMapName
+    // и путь пакета могут различаться — пробуем оба плюс GetPathName.
+    TArray<FString> Candidates;
+    auto AddCandidate = [&](const FString& Raw)
+        {
+            const FString Norm = NormalizeLevelName(Raw);
+            if (!Norm.IsEmpty() && !Candidates.Contains(Norm))
+                Candidates.Add(Norm);
+        };
+
+    AddCandidate(World->GetMapName());
+    if (UPackage* Pkg = World->GetOutermost())
+        AddCandidate(Pkg->GetName());
+    AddCandidate(World->GetPathName());
+
+    // 1. Точное совпадение — самый быстрый и надёжный путь.
+    for (const FString& Norm : Candidates)
+    {
+        if (const FLocationVisitAddress* Found = SceneToAddress.Find(Norm))
+        {
+            OutAddr = *Found;
+            OutMatchedKey = Norm;
+            return true;
+        }
+    }
+
+    // 2. Нечёткое — на случай WP/стриминга, когда имя persistent-уровня
+    // не совпадает с именем зарегистрированной сцены. Ищем сцену, чей
+    // ключ содержит кандидат или наоборот.
+    //
+    // Примеры, которые это покрывает:
+    //   • GetMapName() = "PortRegion_Persistent", ключ = "portregion";
+    //   • GetMapName() = "PortRegion", ключ = "portregion_persistent".
+    for (const FString& Norm : Candidates)
+    {
+        for (const auto& Pair : SceneToAddress)
+        {
+            const FString& Key = Pair.Key;
+            if (Key.Contains(Norm) || Norm.Contains(Key))
+            {
+                OutAddr = Pair.Value;
+                OutMatchedKey = Key;
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1085,3 +1279,4 @@ FString ULocationTrackerSubsystem::GetCurrentLocationDebugString() const
 
     return FString::Join(Parts, TEXT(" / "));
 }
+
