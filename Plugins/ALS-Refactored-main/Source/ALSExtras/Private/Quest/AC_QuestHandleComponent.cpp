@@ -1,5 +1,7 @@
 #include "Quest/AC_QuestHandleComponent.h"
 #include "Engine/AssetManager.h"
+#include "CoreGameplay/LocationTrackerSubsystem/LocationTrackerSubsystem.h"
+#include "Inventory/AC_Inventory.h"
 
 UAC_QuestHandleComponent::UAC_QuestHandleComponent()
 {
@@ -14,8 +16,7 @@ void UAC_QuestHandleComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 void UAC_QuestHandleComponent::BeginPlay()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, FString::Printf(TEXT("%s"), *QuestAssetTemp->GetPrimaryAssetId().ToString()));
-	UE_LOG(LogTemp, Warning, TEXT("Quest Asset: %s"), *QuestAssetTemp->GetPrimaryAssetId().ToString());
+
 }
 
 void UAC_QuestHandleComponent::EndPlay(const EEndPlayReason::Type Reason)
@@ -193,4 +194,95 @@ void UAC_QuestHandleComponent::ApplyIntermediateSaveData(FName ChoreID, FString 
 	//		QuestSys->ApplyQuestData(this);
 	//	}
 	//}
+}
+
+bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
+{
+	if (!QuestDataMap.Contains(ChoreID) || !GetOwner())
+	{
+		return false;
+	}
+
+	if (GetChoreStatus(ChoreID) == EChoreStatus::Completed)
+	{
+		return true;
+	}
+
+	for (auto& QuestPart : QuestDataMap[ChoreID].QuestsArray)
+	{
+		if (QuestPart.bIsCompleted)
+		{
+			continue;
+		}
+		bool bAllStepsCompleted = true;
+
+		for (auto& QuestStep : QuestPart.QuestStepDataArray)
+		{
+			if (QuestStep.bIsChecked)
+			{
+				continue;
+			}
+
+			if (QuestStep.QuestStepTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("WorldMaps"))))
+			{
+				FGameplayTag CurrentLocationTag = FGameplayTag::EmptyTag;
+				if (UGameInstance* GI = GetOwner()->GetGameInstance())
+				{
+					if (ULocationTrackerSubsystem* TrackerSubSystem = GI->GetSubsystem<ULocationTrackerSubsystem>())
+					{
+						//CurrentLocationTag = TrackerSubSystem->GetCurrentLocationTag(); 
+					}
+				}
+				if (!CurrentLocationTag.IsValid() || !QuestStep.QuestStepTag.MatchesTag(CurrentLocationTag))
+				{
+					bAllStepsCompleted = false;
+					break;
+				}
+				if (!QuestStep.bIsDynamic)
+				{
+					QuestStep.bIsChecked = true;
+				}
+			}
+			else if (QuestStep.QuestStepTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Inventory"))))
+			{
+				if (UAC_Inventory* InventoryComponent = GetOwner()->GetComponentByClass<UAC_Inventory>())
+				{
+					if (!InventoryComponent->CheckIfInventoryContainsItem(QuestStep.QuestStepTag, QuestStep.QuestStepValue))
+					{
+						bAllStepsCompleted = false;
+						break;
+					}
+					else if (!QuestStep.bIsDynamic)
+					{
+						QuestStep.bIsChecked = true;
+					}
+				}
+				else
+				{
+					bAllStepsCompleted = false;
+					break;
+				}
+			}
+			else if (QuestStep.QuestStepTag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("NPC"))))
+			{
+				// to do when dialogue subsystem is implemented
+			}
+		}
+		if (bAllStepsCompleted)
+		{
+			QuestPart.bIsCompleted = true;
+		}
+	}
+
+	for (auto& QuestPart : QuestDataMap[ChoreID].QuestsArray)
+	{
+		if (!QuestPart.bIsCompleted)
+		{
+			return false;
+		}
+	}
+
+	SetChoreStatus(ChoreID, EChoreStatus::Completed);
+
+	return true;
 }

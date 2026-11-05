@@ -168,3 +168,26 @@ void UAC_Inventory::CloseInventory()
 		Picker->CurrentItem = nullptr;
 	}
 }
+
+bool UAC_Inventory::CheckIfInventoryContainsItem(FGameplayTag ItemTag, int32 Quantity) const
+{
+	if (ContainerComponent)
+	{
+		for (const FS_Item& Item : ContainerComponent->Items)
+		{
+			if (ContainerComponent->ItemDataTable)
+			{
+				const FS_ItemData* ItemData = ContainerComponent->ItemDataTable->FindRow<FS_ItemData>(Item.Name, TEXT("Find row in datatable"));
+				if (ItemData && ItemData->SpecialTag.MatchesTag(ItemTag))
+				{
+					if (Item.Quantity >= Quantity)
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}

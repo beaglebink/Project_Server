@@ -73,4 +73,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void CloseInventory();
+
+	bool CheckIfInventoryContainsItem(FGameplayTag ItemTag, int32 Quantity) const;
 };

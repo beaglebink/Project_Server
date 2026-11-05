@@ -28,6 +28,9 @@ struct FQuestStepDataArray
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
+	uint8 bIsCompleted : 1{false};
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
 	TArray<FQuestStepData> QuestStepDataArray;
 };

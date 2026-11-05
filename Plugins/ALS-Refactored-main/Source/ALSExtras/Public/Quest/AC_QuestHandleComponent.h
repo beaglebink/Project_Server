@@ -53,6 +53,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Saving")
 	void ApplyIntermediateSaveData(FName ChoreID, FString Jsonstring);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
-	UPDA_Quest* QuestAssetTemp;
+	UFUNCTION(BlueprintCallable, Category = "Quest")
+	bool CheckIfQuestIsCompleted(FName ChoreID);
 };
