@@ -70,7 +70,9 @@ enum class EOutcomeInventory : uint8
     InteractRegistered      UMETA(Hidden, DisplayName = "Interact Registered"),
     InteractUnregistered    UMETA(Hidden, DisplayName = "Interact Unregistered"),
     ItemAdd                 UMETA(DisplayName = "Item Add"),
-    ItemRemove              UMETA(DisplayName = "Item Remove")
+    ItemRemove              UMETA(DisplayName = "Item Remove"),
+    SaveInventoryRequest    UMETA(DisplayName = "Save Inventory Request"),
+    RestoreInventoryRequest UMETA(DisplayName = "Restore Inventory Request")
 };
 
 UENUM(BlueprintType)

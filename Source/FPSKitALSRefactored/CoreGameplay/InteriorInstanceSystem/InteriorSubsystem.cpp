@@ -3433,6 +3433,17 @@ void UInteriorSubsystem::HandleFloorTransition(const FOutcomeEventBase& Outcome)
 
 	if (IsUseTravel)
 	{
+		// Публикуем запрос на сохранение инвентаря ДО старта SeamlessTravel.
+		// Обработчик InventorySubsystem::HandleSaveInventoryRequest выполнится
+		// сразу после выхода из текущего dispatch-цикла EventBus — за ~1 с до travel.
+		if (UEventBusSubsystem* EventBus = CachedEventBus.Get() ? CachedEventBus.Get() : GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+		{
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Inventory;
+			Ev.OutcomeInventory = EOutcomeInventory::SaveInventoryRequest;
+			EventBus->PublishOutcome(Ev);
+		}
+
 		UnsubscribeFromSpawnActor();
 		W->GetTimerManager().SetTimer(TravelTimerHandle, TravelDelegate, 1.0f, false);
 	}
@@ -4240,6 +4251,28 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			// Финальная нотификация о завершении загрузки/перехода
 			OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 			ClearPendingAnchorID();
+
+			// Final notification about completion of loading/transition
+			OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
+			ClearPendingAnchorID();
+
+			// ── Восстановление инвентаря игрока ──
+			// Публикуем ЗАПРОС, InventorySubsystem применит сохранённый снапшот
+			// к UAC_Inventory текущего pawn'а (к этому моменту pawn уже существует,
+			// т.к. TeleportToAnchor и restore акторов уже выполнены).
+			if (UEventBusSubsystem* EventBus = CachedEventBus.Get())
+			{
+				FOutcomeEventBase Ev;
+				Ev.OutcomeType = EOutcomeType::Inventory;
+				Ev.OutcomeInventory = EOutcomeInventory::RestoreInventoryRequest;
+				EventBus->PublishOutcome(Ev);
+			}
+			// ── /Восстановление инвентаря ──
+
+			RebuildPopulationMapsForCurrentFloor();
+			SubscribeToSpawnActor();
+			IsPostLoadMapComplete = true;
+			SaveLoadFromDisk.Broadcast(false);
 
 			RebuildPopulationMapsForCurrentFloor();
 

@@ -1,4 +1,4 @@
-#include "InventorySubsystem.h"
+﻿#include "InventorySubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "ItemAcquiredPayload.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
@@ -7,13 +7,24 @@
 #include "../InteractionSystem/InteractSetEnabledPayload.h"
 #include "../InteractionSystem/InteractSetRangePayload.h"
 #include "../InteractionSystem/InteractSetTooltipPayload.h"
+#include "Inventory/AC_Inventory.h"
+#include "Inventory/AC_Container.h"
+#include "JsonObjectConverter.h"
+#include <GameSaveSubsystem.h>
 
 void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	// ����������� ��� EventBusSubsystem ����� ��������������� �� InventorySubsystem
-	Collection.InitializeDependency(UEventBusSubsystem::StaticClass());
+	// GameSaveSubsystem должен существовать до нас
+	Collection.InitializeDependency<UGameSaveSubsystem>();
 
+	Collection.InitializeDependency(UEventBusSubsystem::StaticClass());
 	Super::Initialize(Collection);
+
+	// Регистрируемся в save-системе
+	if (UGameSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UGameSaveSubsystem>())
+	{
+		SaveSys->RegisterSaveableSubsystem(this);
+	}
 
 	CachedEventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
 
@@ -23,27 +34,29 @@ void UInventorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		return;
 	}
 
-	// Subscribe interaction registration early
 	SubscribeRegistration();
-
-	// Subscribe interact command handler ���� � �� ������� �� ������� SubscribeRegistration
 	SubscribeInteractCommand();
-
-	// Subscribe set-enabled handler explicitly
-	//SubscribeSetEnabled();
-
-	// Subscribe set-range handler explicitly
 	SubscribeSetRange();
-
-	// Subscribe set-tooltip handler explicitly
 	SubscribeSetTooltip();
+
+	// Подписка на save/restore из прошлой задачи
+	SubscribeInventorySnapshot();
 
 	if (ItemAcquiredCondition) SubscribeItemAcquired();
 }
 
 void UInventorySubsystem::Deinitialize()
 {
-	UnsubscribeAll();
+	// Отмена регистрации в save-системе
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UGameSaveSubsystem* SaveSys = GI->GetSubsystem<UGameSaveSubsystem>())
+		{
+			SaveSys->UnregisterSaveableSubsystem(this);
+		}
+	}
+
+	UnsubscribeAll();       // уже включает UnsubscribeInventorySnapshot
 	CachedEventBus.Reset();
 	Super::Deinitialize();
 }
@@ -81,7 +94,7 @@ void UInventorySubsystem::SubscribeRegistration()
 	if (!CachedEventBus.IsValid()) return;
 	if (RegisteredRegisterHandle.IsValid() || UnregisteredRegisterHandle.IsValid()) return;
 
-	// InteractRegistered � Object category
+	// InteractRegistered — Object category
 	RegisteredConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	RegisteredConditionAsset->OperatorType = EConditionOperator::Composite;
 	RegisteredConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
@@ -90,7 +103,7 @@ void UInventorySubsystem::SubscribeRegistration()
 	RegisteredConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
 	RegisteredConditionAsset->CompileCondition();
 
-	// InteractUnregistered � Object category
+	// InteractUnregistered — Object category
 	UnregisteredConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	UnregisteredConditionAsset->OperatorType = EConditionOperator::Composite;
 	UnregisteredConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
@@ -117,7 +130,7 @@ void UInventorySubsystem::SubscribeRegistration()
 		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to InteractUnregistered (handle=%u)"), UnregisteredRegisterHandle.GetId());
 	}
 
-	// ������������� ������� SubscribeInteractCommand() ��� �������������
+	// Рекомендуется вызвать SubscribeInteractCommand() при инициализации
 	//SubscribeInteractCommand();
 }
 
@@ -128,7 +141,7 @@ void UInventorySubsystem::SubscribeInteractCommand()
 
 	InteractCommandConditionAsset = NewObject<UOutcomeConditionAsset>(this);
 	InteractCommandConditionAsset->OperatorType = EConditionOperator::Composite;
-	// �������� �� Object/Inventory-��� ������
+	// Подписка на Object/Inventory-тип команд
 	InteractCommandConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
 	InteractCommandConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
 	InteractCommandConditionAsset->CompileCondition();
@@ -145,7 +158,7 @@ void UInventorySubsystem::SubscribeInteractCommand()
 /*
 void UInventorySubsystem::SubscribeSetEnabled()
 {
-	// ��������������� ����������� � ����� ����� ������, ������ ���������� ����� �� ������������������.
+	// Диагностическое логирование — чтобы точно видеть, почему обработчик может не зарегистрироваться.
 	if (!CachedEventBus.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("InventorySubsystem::SubscribeSetEnabled - CachedEventBus is NULL, will skip subscription"));
@@ -165,7 +178,7 @@ void UInventorySubsystem::SubscribeSetEnabled()
 	SetEnabledConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
 	SetEnabledConditionAsset->CompileCondition();
 
-	// �������� �������� ������� ��� �������
+	// Логируем описание условия для отладки
 	UE_LOG(LogTemp, Verbose, TEXT("InventorySubsystem: SetEnabled condition description: %s"), *SetEnabledConditionAsset->GetConditionDescription());
 
 	if (SetEnabledConditionAsset->GetCondition().IsValid())
@@ -295,6 +308,7 @@ void UInventorySubsystem::UnsubscribeAll()
 	UnsubscribeSetRange();
 	UnsubscribeSetTooltip();
 	UnsubscribeRegistration();
+	UnsubscribeInventorySnapshot();
 }
 
 void UInventorySubsystem::AddRegistrationListener(const FGuid& ItemId, UInteractiveItemComponent* Listener)
@@ -369,6 +383,152 @@ void UInventorySubsystem::HandleInteractRegistration(const FOutcomeEventBase& Ou
 	}
 }
 
+void UInventorySubsystem::SubscribeInventorySnapshot()
+{
+	if (!CachedEventBus.IsValid()) return;
+	if (SaveInventoryHandle.IsValid() || RestoreInventoryHandle.IsValid()) return;
+
+	// --- Save request ---
+	SaveInventoryConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	SaveInventoryConditionAsset->OperatorType = EConditionOperator::Composite;
+	SaveInventoryConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
+	SaveInventoryConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	SaveInventoryConditionAsset->FilterRow.ObjectType = EOutcomeInventory::SaveInventoryRequest;
+	SaveInventoryConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
+	SaveInventoryConditionAsset->CompileCondition();
+
+	if (SaveInventoryConditionAsset->GetCondition().IsValid())
+	{
+		SaveInventoryHandle = CachedEventBus->RegisterHandler(
+			SaveInventoryConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleSaveInventoryRequest));
+		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to SaveInventoryRequest (handle=%u)"),
+			SaveInventoryHandle.GetId());
+	}
+
+	// --- Restore request ---
+	RestoreInventoryConditionAsset = NewObject<UOutcomeConditionAsset>(this);
+	RestoreInventoryConditionAsset->OperatorType = EConditionOperator::Composite;
+	RestoreInventoryConditionAsset->FilterRow.OutcomeType = EOutcomeType::Inventory;
+	RestoreInventoryConditionAsset->FilterRow.OutcomeTypeComparison = EConditionComparison::Equals;
+	RestoreInventoryConditionAsset->FilterRow.ObjectType = EOutcomeInventory::RestoreInventoryRequest;
+	RestoreInventoryConditionAsset->FilterRow.ObjectComparison = EConditionComparison::Equals;
+	RestoreInventoryConditionAsset->CompileCondition();
+
+	if (RestoreInventoryConditionAsset->GetCondition().IsValid())
+	{
+		RestoreInventoryHandle = CachedEventBus->RegisterHandler(
+			RestoreInventoryConditionAsset,
+			FOutcomeHandlerDelegate::CreateUObject(this, &UInventorySubsystem::HandleRestoreInventoryRequest));
+		UE_LOG(LogTemp, Log, TEXT("InventorySubsystem: Subscribed to RestoreInventoryRequest (handle=%u)"),
+			RestoreInventoryHandle.GetId());
+	}
+}
+
+void UInventorySubsystem::UnsubscribeInventorySnapshot()
+{
+	if (!CachedEventBus.IsValid()) return;
+
+	if (SaveInventoryHandle.IsValid())
+	{
+		CachedEventBus->UnregisterHandler(SaveInventoryHandle);
+		SaveInventoryHandle.Invalidate();
+	}
+	if (RestoreInventoryHandle.IsValid())
+	{
+		CachedEventBus->UnregisterHandler(RestoreInventoryHandle);
+		RestoreInventoryHandle.Invalidate();
+	}
+
+	SaveInventoryConditionAsset = nullptr;
+	RestoreInventoryConditionAsset = nullptr;
+}
+
+void UInventorySubsystem::HandleSaveInventoryRequest(const FOutcomeEventBase& Outcome)
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	if (!PC) return;
+
+	APawn* Pawn = PC->GetPawn();
+	if (!Pawn)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("InventorySubsystem: Cannot save inventory — player pawn is NULL"));
+		return;
+	}
+
+	UAC_Inventory* Inventory = Pawn->FindComponentByClass<UAC_Inventory>();
+	if (!Inventory || !Inventory->ContainerComponent)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("InventorySubsystem: Cannot save inventory — UAC_Inventory or ContainerComponent missing on pawn"));
+		return;
+	}
+
+	// Захватываем состояние. Меняем «состояние подсистемы» через обработчик события.
+	SavedInventorySnapshot.Items = Inventory->ContainerComponent->Items;
+	SavedInventorySnapshot.TotalWeight = Inventory->ContainerComponent->GetWeight();
+	SavedInventorySnapshot.TotalMoney = Inventory->ContainerComponent->GetMoney();
+	bHasSavedInventorySnapshot = true;
+
+	UE_LOG(LogTemp, Log,
+		TEXT("InventorySubsystem: Saved inventory snapshot (%d items, weight=%.2f, money=%.2f)"),
+		SavedInventorySnapshot.Items.Num(),
+		SavedInventorySnapshot.TotalWeight,
+		SavedInventorySnapshot.TotalMoney);
+}
+
+void UInventorySubsystem::HandleRestoreInventoryRequest(const FOutcomeEventBase& Outcome)
+{
+	if (!bHasSavedInventorySnapshot)
+	{
+		UE_LOG(LogTemp, Verbose,
+			TEXT("InventorySubsystem: RestoreInventoryRequest received, but no saved snapshot exists"));
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	if (!PC) return;
+
+	APawn* Pawn = PC->GetPawn();
+	if (!Pawn)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("InventorySubsystem: Cannot restore inventory — player pawn is NULL (snapshot kept for retry)"));
+		return;
+	}
+
+	UAC_Inventory* Inventory = Pawn->FindComponentByClass<UAC_Inventory>();
+	if (!Inventory || !Inventory->ContainerComponent)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("InventorySubsystem: Cannot restore inventory — UAC_Inventory or ContainerComponent missing on pawn (snapshot kept)"));
+		return;
+	}
+
+	// Применяем снапшот к инвентарю игрока.
+	Inventory->ContainerComponent->Items = SavedInventorySnapshot.Items;
+	Inventory->ContainerComponent->SetWeight(SavedInventorySnapshot.TotalWeight);
+	Inventory->ContainerComponent->SetMoney(SavedInventorySnapshot.TotalMoney);
+
+	UE_LOG(LogTemp, Log,
+		TEXT("InventorySubsystem: Restored inventory snapshot (%d items, weight=%.2f, money=%.2f)"),
+		SavedInventorySnapshot.Items.Num(),
+		SavedInventorySnapshot.TotalWeight,
+		SavedInventorySnapshot.TotalMoney);
+
+	// Успешно применили — очищаем, чтобы избежать повторного применения
+	// (например, при загрузке сейва после возврата в главное меню).
+	SavedInventorySnapshot.Reset();
+	bHasSavedInventorySnapshot = false;
+}
+
 void UInventorySubsystem::HandleItemAcquired(const FOutcomeEventBase& Outcome)
 {
 	if (ItemAcquiredCondition)
@@ -431,4 +591,116 @@ void UInventorySubsystem::HandleSetTooltip(const FOutcomeEventBase& Outcome)
 			ExecuteSetTooltipOnOwner(P->ItemId, Rec->OwnerActor.Get(), P->NewTooltip);
 		}
 	}
+}
+
+void UInventorySubsystem::CollectSaveData(FSubsystemSaveData& OutData)
+{
+	// SubsystemName ставим всегда — чтобы ApplySaveData гарантированно вызвался на load
+	OutData.SubsystemName = GetSaveSubsystemName();
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	if (!PC) return;
+
+	APawn* Pawn = PC->GetPawn();
+	if (!Pawn) return;
+
+	UAC_Inventory* Inventory = Pawn->FindComponentByClass<UAC_Inventory>();
+	if (!Inventory || !Inventory->ContainerComponent) return;
+
+	UAC_Container* Container = Inventory->ContainerComponent;
+
+	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
+
+	// Items → массив объектов
+	TArray<TSharedPtr<FJsonValue>> ItemsArray;
+	ItemsArray.Reserve(Container->Items.Num());
+
+	for (const FS_Item& Item : Container->Items)
+	{
+		TSharedPtr<FJsonObject> ItemJson = FJsonObjectConverter::UStructToJsonObject(Item);
+		if (ItemJson.IsValid())
+		{
+			ItemsArray.Add(MakeShared<FJsonValueObject>(ItemJson));
+		}
+	}
+
+	Root->SetArrayField(TEXT("Items"), ItemsArray);
+	Root->SetNumberField(TEXT("TotalWeight"), Container->GetWeight());
+	Root->SetNumberField(TEXT("TotalMoney"), Container->GetMoney());
+
+	FString Output;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
+	FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
+	OutData.SerializedData = Output;
+
+	UE_LOG(LogTemp, Log,
+		TEXT("InventorySubsystem::CollectSaveData: %d items, weight=%.2f, money=%.2f"),
+		Container->Items.Num(), Container->GetWeight(), Container->GetMoney());
+}
+
+void UInventorySubsystem::ApplySaveData(const FSubsystemSaveData& InData)
+{
+	IsLoadComplete = false;
+
+	// Всегда чистим stale-состояние (могло остаться от floor transition)
+	SavedInventorySnapshot.Reset();
+	bHasSavedInventorySnapshot = false;
+
+	if (InData.SerializedData.IsEmpty())
+	{
+		IsLoadComplete = true;
+		return;
+	}
+
+	TSharedPtr<FJsonObject> Root;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(InData.SerializedData);
+	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("InventorySubsystem::ApplySaveData: failed to parse JSON"));
+		IsLoadComplete = true;
+		return;
+	}
+
+	FInventorySnapshot Snapshot;
+
+	// Items
+	const TArray<TSharedPtr<FJsonValue>>* ItemsArray = nullptr;
+	if (Root->TryGetArrayField(TEXT("Items"), ItemsArray))
+	{
+		for (const TSharedPtr<FJsonValue>& Val : *ItemsArray)
+		{
+			if (!Val.IsValid() || Val->Type != EJson::Object) continue;
+
+			FS_Item Item;
+			if (FJsonObjectConverter::JsonObjectToUStruct(
+				Val->AsObject().ToSharedRef(),
+				FS_Item::StaticStruct(),
+				&Item, 0, 0))
+			{
+				Snapshot.Items.Add(Item);
+			}
+		}
+	}
+
+	// TotalWeight / TotalMoney (double — универсально для UE5 TryGetNumberField)
+	double TotalWeight = 0.0;
+	if (Root->TryGetNumberField(TEXT("TotalWeight"), TotalWeight))
+		Snapshot.TotalWeight = static_cast<float>(TotalWeight);
+
+	double TotalMoney = 0.0;
+	if (Root->TryGetNumberField(TEXT("TotalMoney"), TotalMoney))
+		Snapshot.TotalMoney = static_cast<float>(TotalMoney);
+
+	SavedInventorySnapshot = Snapshot;
+	bHasSavedInventorySnapshot = true;
+
+	IsLoadComplete = true;
+
+	UE_LOG(LogTemp, Log,
+		TEXT("InventorySubsystem::ApplySaveData: loaded %d items, weight=%.2f, money=%.2f (will be applied after map load)"),
+		Snapshot.Items.Num(), Snapshot.TotalWeight, Snapshot.TotalMoney);
 }

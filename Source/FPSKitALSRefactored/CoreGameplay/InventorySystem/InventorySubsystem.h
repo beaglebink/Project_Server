@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OutcomeEventBase.h"
@@ -6,6 +6,8 @@
 #include "../EventBusSystem/EventBusSubsystem.h"
 #include "../InteractionSystem/InteractItemRegistrationPayload.h"
 #include "../InteractionSystem/InteractiveSubsystemMethods.h"
+#include "Inventory/S_ItemData.h"
+#include "ISaveableSubsystem.h" 
 #include "InventorySubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemAcquiredEvent,                   const FOutcomeEventBase&,        Outcome);
@@ -26,14 +28,42 @@ struct FInventoryInteractItemRecord
 	float InteractionRange = 0.f;
 };
 
+USTRUCT(BlueprintType)
+struct FInventorySnapshot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	TArray<FS_Item> Items;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	float TotalWeight = 0.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	float TotalMoney = 0.f;
+
+	void Reset()
+	{
+		Items.Empty();
+		TotalWeight = 0.f;
+		TotalMoney = 0.f;
+	}
+};
+
 UCLASS()
-class FPSKITALSREFACTORED_API UInventorySubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods
+class FPSKITALSREFACTORED_API UInventorySubsystem : public UGameInstanceSubsystem, public FInteractiveSubsystemMethods, public ISaveableSubsystem
 {
 	GENERATED_BODY()
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+
+	// ── ISaveableSubsystem ──
+	virtual void CollectSaveData(FSubsystemSaveData& OutData) override;
+	virtual void ApplySaveData(const FSubsystemSaveData& InData) override;
+	virtual FString GetSaveSubsystemName() const override { return TEXT("InventorySubsystem"); }
+	virtual bool GetIsLoadComplete() const override { return IsLoadComplete;}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> ItemAcquiredCondition;
@@ -79,26 +109,41 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void UnsubscribeInteractCommand();
 
-	// ----- SetEnabled (���/���� ����������) -----
+	// ----- SetEnabled (вкл/выкл интеракции) -----
 	//UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	//void SubscribeSetEnabled();
 
 	//UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	//void UnsubscribeSetEnabled();
 
-	// ----- SetRange (��������� �������) -----
+	// ----- SetRange (изменение радиуса) -----
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void SubscribeSetRange();
 
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void UnsubscribeSetRange();
 
-	// ----- SetTooltip (��������� ������ ���������) -----
+	// ----- SetTooltip (изменение текста подсказки) -----
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void SubscribeSetTooltip();
 
 	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
 	void UnsubscribeSetTooltip();
+
+	/** Есть ли сохранённый снапшот инвентаря игрока. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InventorySubsystem|Snapshot")
+	bool HasSavedInventorySnapshot() const { return bHasSavedInventorySnapshot; }
+
+	/** Публичный геттер снапшота инвентаря игрока. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "InventorySubsystem|Snapshot")
+	FInventorySnapshot GetSavedInventorySnapshot() const { return SavedInventorySnapshot; }
+
+	/** Подписка/отписка на Save/RestoreInventoryRequest. */
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void SubscribeInventorySnapshot();
+
+	UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers")
+	void UnsubscribeInventorySnapshot();
 
 private:
 	void HandleItemAcquired(const FOutcomeEventBase& Outcome);
@@ -110,6 +155,9 @@ private:
 	void HandleSetRange(const FOutcomeEventBase& Outcome);
 	void HandleSetTooltip(const FOutcomeEventBase& Outcome);
 
+	void HandleSaveInventoryRequest(const FOutcomeEventBase& Outcome);
+	void HandleRestoreInventoryRequest(const FOutcomeEventBase& Outcome);
+
 	FOutcomeHandlerHandle ItemAcquiredHandle;
 	FOutcomeHandlerHandle RegisteredRegisterHandle;
 	FOutcomeHandlerHandle UnregisteredRegisterHandle;
@@ -119,6 +167,9 @@ private:
 	FOutcomeHandlerHandle SetEnabledHandle;
 	FOutcomeHandlerHandle SetRangeHandle;
 	FOutcomeHandlerHandle SetTooltipHandle;
+
+	FOutcomeHandlerHandle SaveInventoryHandle;
+	FOutcomeHandlerHandle RestoreInventoryHandle;
 
 	UPROPERTY()
 	UOutcomeConditionAsset* RegisteredConditionAsset = nullptr;
@@ -142,13 +193,26 @@ private:
 	UPROPERTY()
 	TMap<FGuid, FInventoryInteractItemRecord> RegisteredItems;
 
+	UPROPERTY()
+	UOutcomeConditionAsset* SaveInventoryConditionAsset = nullptr;
+
+	UPROPERTY()
+	UOutcomeConditionAsset* RestoreInventoryConditionAsset = nullptr;
+
+	UPROPERTY()
+	FInventorySnapshot SavedInventorySnapshot;
+
+	bool bHasSavedInventorySnapshot = false;
+
 	// Per-item listeners
 	TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>> RegistrationListeners;
 
 	TWeakObjectPtr<UEventBusSubsystem> CachedEventBus;
 
+	bool IsLoadComplete = true;
+
 private:
-	// ���������� ������������ ������� ��� FInteractiveSubsystemMethods
+	// Реализация абстрактного доступа для FInteractiveSubsystemMethods
 	virtual TMap<FGuid, TArray<TWeakObjectPtr<UInteractiveItemComponent>>>& GetRegistrationListeners() override
 	{
 		return RegistrationListeners;
