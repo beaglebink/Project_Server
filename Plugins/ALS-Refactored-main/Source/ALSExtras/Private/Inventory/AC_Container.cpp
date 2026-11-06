@@ -13,42 +13,49 @@ UAC_Container::UAC_Container()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-static void PublishInventoryChangeReport(
-	UAC_Container* Self,
-	EOutcomeInventory ChangeEvent,
-	FName ItemName,
-	int32 Quantity,
-	float TradeCoeff,
-	bool bShouldCount,
-	int32 NewQuantity)
+static void PublishInventoryChangeReport(UAC_Container* Self, EOutcomeInventory ChangeEvent, FName ItemName, int32 Quantity, float TradeCoeff, bool bShouldCount, int32 NewQuantity)
 {
-	if (!Self) return;
+	if (!Self)
+	{
+		return;
+	}
 
 	AActor* Owner = Self->GetOwner();
-	if (!Owner) return;
+	if (!Owner)
+	{
+		return;
+	}
 
 	// Только инвентарь персонажа игрока — сундуки/ящики игнорируем.
-	if (!Cast<AAlsCharacterExample>(Owner)) return;
+	if (!Cast<AAlsCharacterExample>(Owner))
+	{
+		return;
+	}
 
 	UWorld* World = Self->GetWorld();
-	if (!World) return;
+	if (!World)
+	{
+		return;
+	}
 	UGameInstance* GI = World->GetGameInstance();
-	if (!GI) return;
+	if (!GI)
+	{
+		return;
+	}
 
 	UEventBusSubsystem* Bus = GI->GetSubsystem<UEventBusSubsystem>();
-	if (!Bus) return;
+	if (!Bus)
+	{
+		return;
+	}
 
 	UInventoryChangePayload* Payload = Bus->CreatePayload<UInventoryChangePayload>();
-	if (!Payload) return;
+	if (!Payload)
+	{
+		return;
+	}
 
-	Payload->Setup(
-		ItemName,
-		Quantity,
-		TradeCoeff,
-		bShouldCount,
-		NewQuantity,
-		Self->GetWeight(),
-		Self->GetMoney());
+	Payload->Setup(ItemName, Quantity, TradeCoeff, bShouldCount, NewQuantity, Self->GetWeight(), Self->GetMoney());
 
 	FOutcomeEventBase Ev;
 	Ev.OutcomeType = EOutcomeType::Inventory;
@@ -98,14 +105,7 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff,
 		}
 
 		// Публикуем ПОСЛЕ всех расчётов (вес, деньги уже обновлены).
-		PublishInventoryChangeReport(
-			this,
-			EOutcomeInventory::ItemAdd,
-			Name,
-			Quantity,
-			TradeCoeff,
-			bShouldCount,
-			NewQuantity);
+		PublishInventoryChangeReport(this, EOutcomeInventory::ItemAdd, Name, Quantity, TradeCoeff, bShouldCount, NewQuantity);
 	}
 }
 
@@ -183,14 +183,7 @@ void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float T
 	}
 
 	// Публикуем ПОСЛЕ всех расчётов.
-	PublishInventoryChangeReport(
-		this,
-		EOutcomeInventory::ItemRemove,
-		Name,
-		Quantity,
-		TradeCoeff,
-		bShouldCount,
-		NewQuantity);
+	PublishInventoryChangeReport(this, EOutcomeInventory::ItemRemove, Name, Quantity, TradeCoeff, bShouldCount, NewQuantity);
 }
 
 bool UAC_Container::SpawnRemovedItem(FName Name)
@@ -410,4 +403,16 @@ void UAC_Container::CountContainerWeight()
 			}
 		}
 	}
+}
+
+int32 UAC_Container::GetItemIndexByTag(FGameplayTag ItemTag) const
+{
+	FString TagString = ItemTag.GetTagName().ToString();
+	FString LastPart;
+	TagString.Split(TEXT("."), nullptr, &LastPart, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+
+	return Items.IndexOfByPredicate([&](const FS_Item& Item)
+		{
+			return Item.Name == FName(*LastPart);
+		});
 }

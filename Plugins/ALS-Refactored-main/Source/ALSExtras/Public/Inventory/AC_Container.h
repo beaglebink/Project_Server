@@ -84,4 +84,6 @@ public:
 	void SetMoney(float NewValue);
 
 	void CountContainerWeight();
+
+	int32 GetItemIndexByTag(FGameplayTag ItemTag) const;
 };

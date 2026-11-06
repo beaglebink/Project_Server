@@ -18,6 +18,9 @@ struct FQuestStepData
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
 	uint8 bIsDynamic : 1{false};
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
+	uint8 bShouldBeRemovedFromInventoryOnComplete : 1{false};
 
 	UPROPERTY()
 	uint8 bIsChecked : 1{false};

@@ -87,6 +87,7 @@ void UAC_QuestHandleComponent::SetChoreStatus(FName QuestName, EChoreStatus NewS
 			case EChoreStatus::Completed:
 			{
 				UE_LOG(LogTemp, Log, TEXT("Quest %s is now Completed"), *QuestName.ToString());
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Quest %s is now Completed"), *QuestName.ToString()));
 				break;
 			}
 			case EChoreStatus::Failed:
@@ -203,6 +204,11 @@ bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
 		return false;
 	}
 
+	if (GetChoreStatus(ChoreID) == EChoreStatus::Inactive)
+	{
+		return false;
+	}
+
 	if (GetChoreStatus(ChoreID) == EChoreStatus::Completed)
 	{
 		return true;
@@ -230,10 +236,10 @@ bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
 				{
 					if (ULocationTrackerSubsystem* TrackerSubSystem = GI->GetSubsystem<ULocationTrackerSubsystem>())
 					{
-						//CurrentLocationTag = TrackerSubSystem->GetCurrentLocationTag(); 
+						CurrentLocationTag = TrackerSubSystem->GetCurrentLocation();
 					}
 				}
-				if (!CurrentLocationTag.IsValid() || !QuestStep.QuestStepTag.MatchesTag(CurrentLocationTag))
+				if (!CurrentLocationTag.IsValid() || !CurrentLocationTag.MatchesTag(QuestStep.QuestStepTag))
 				{
 					bAllStepsCompleted = false;
 					break;
@@ -271,6 +277,18 @@ bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
 		if (bAllStepsCompleted)
 		{
 			QuestPart.bIsCompleted = true;
+
+			// Remove quest items from inventory if needed
+			for (auto& QuestStep : QuestPart.QuestStepDataArray)
+			{
+				if (QuestStep.bShouldBeRemovedFromInventoryOnComplete)
+				{
+					if (UAC_Inventory* InventoryComponent = GetOwner()->GetComponentByClass<UAC_Inventory>())
+					{
+						InventoryComponent->RemoveItemFromInventory(QuestStep.QuestStepTag, QuestStep.QuestStepValue);
+					}
+				}
+			}
 		}
 	}
 
@@ -283,6 +301,7 @@ bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
 	}
 
 	SetChoreStatus(ChoreID, EChoreStatus::Completed);
+
 
 	return true;
 }

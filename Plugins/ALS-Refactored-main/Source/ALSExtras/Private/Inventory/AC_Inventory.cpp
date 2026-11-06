@@ -191,3 +191,11 @@ bool UAC_Inventory::CheckIfInventoryContainsItem(FGameplayTag ItemTag, int32 Qua
 
 	return false;
 }
+
+void UAC_Inventory::RemoveItemFromInventory(FGameplayTag ItemTag, int32 Quantity)
+{
+	if (ContainerComponent)
+	{
+		ContainerComponent->RemoveFromContainer(ContainerComponent->GetItemIndexByTag(ItemTag), Quantity, 1.0f, false);
+	}
+}

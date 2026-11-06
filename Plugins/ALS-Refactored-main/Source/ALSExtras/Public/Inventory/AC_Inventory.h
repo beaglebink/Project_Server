@@ -75,4 +75,6 @@ public:
 	void CloseInventory();
 
 	bool CheckIfInventoryContainsItem(FGameplayTag ItemTag, int32 Quantity) const;
+
+	void RemoveItemFromInventory(FGameplayTag ItemTag, int32 Quantity);
 };
