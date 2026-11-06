@@ -3,6 +3,7 @@
 #include "S_ItemData.h"
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "SaveSubsystems/I_SaveableObject.h"
 #include "AC_Container.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeightChanged, float, Weight);
@@ -11,7 +12,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, float, Money);
 class UW_ItemSlot;
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class ALSEXTRAS_API UAC_Container : public UActorComponent
+class ALSEXTRAS_API UAC_Container : public UActorComponent, public II_SaveableObject
 {
 	GENERATED_BODY()
 

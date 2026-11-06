@@ -52,7 +52,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, SaveGame, Category = "IU")
 	TSubclassOf<UW_CharacterUI> CharacterWidgetClass;
-	
+
 	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "IU")
 	UW_CharacterUI* CharacterWidget;
 
