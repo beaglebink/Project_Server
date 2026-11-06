@@ -69,8 +69,8 @@ enum class EOutcomeInventory : uint8
     InteractSetTooltip      UMETA(DisplayName = "Interact Set Tooltip"),
     InteractRegistered      UMETA(Hidden, DisplayName = "Interact Registered"),
     InteractUnregistered    UMETA(Hidden, DisplayName = "Interact Unregistered"),
-    CheckRequest            UMETA(DisplayName = "Check Request"),
-    CheckResponse           UMETA(DisplayName = "Check Response")
+    ItemAdd                 UMETA(DisplayName = "Item Add"),
+    ItemRemove              UMETA(DisplayName = "Item Remove")
 };
 
 UENUM(BlueprintType)

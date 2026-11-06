@@ -1,6 +1,11 @@
-#include "Inventory/AC_Container.h"
+﻿#include "Inventory/AC_Container.h"
 #include "Inventory/A_PickUp.h"
 #include "Inventory/UI/W_ItemSlot.h"
+#include "EventBusSystem/EventBusSubsystem.h"
+#include "EventBusSystem/OutcomeEventBase.h"
+#include "EventBusSystem/OutcomePayload.h"
+#include "InventorySystem/InventoryChangePayload.h"
+#include "AlsCharacterExample.h"
 #include "Kismet/GameplayStatics.h"
 
 UAC_Container::UAC_Container()
@@ -8,11 +13,58 @@ UAC_Container::UAC_Container()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+static void PublishInventoryChangeReport(
+	UAC_Container* Self,
+	EOutcomeInventory ChangeEvent,
+	FName ItemName,
+	int32 Quantity,
+	float TradeCoeff,
+	bool bShouldCount,
+	int32 NewQuantity)
+{
+	if (!Self) return;
+
+	AActor* Owner = Self->GetOwner();
+	if (!Owner) return;
+
+	// Только инвентарь персонажа игрока — сундуки/ящики игнорируем.
+	if (!Cast<AAlsCharacterExample>(Owner)) return;
+
+	UWorld* World = Self->GetWorld();
+	if (!World) return;
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI) return;
+
+	UEventBusSubsystem* Bus = GI->GetSubsystem<UEventBusSubsystem>();
+	if (!Bus) return;
+
+	UInventoryChangePayload* Payload = Bus->CreatePayload<UInventoryChangePayload>();
+	if (!Payload) return;
+
+	Payload->Setup(
+		ItemName,
+		Quantity,
+		TradeCoeff,
+		bShouldCount,
+		NewQuantity,
+		Self->GetWeight(),
+		Self->GetMoney());
+
+	FOutcomeEventBase Ev;
+	Ev.OutcomeType = EOutcomeType::Inventory;
+	Ev.OutcomeInventory = ChangeEvent;
+	Ev.Payload = Payload;
+	Bus->PublishOutcome(Ev);
+}
+
 void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount)
 {
 	if (ItemDataTable)
 	{
 		FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
+
+		// Итоговое количество предмета в слоте — нужно для пайлоада.
+		int32 NewQuantity = 0;
 
 		if (ItemData && ItemData->bCanStack)
 		{
@@ -24,15 +76,18 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff,
 			if (ItemToAdd)
 			{
 				ItemToAdd->Quantity += Quantity;
+				NewQuantity = ItemToAdd->Quantity;
 			}
 			else
 			{
 				Items.Add(FS_Item(Name, Quantity));
+				NewQuantity = Quantity;
 			}
 		}
 		else
 		{
 			Items.Add(FS_Item(Name, 1));
+			NewQuantity = 1;
 		}
 
 		SetWeight(GetWeight() + ItemData->Weight * Quantity);
@@ -41,6 +96,16 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff,
 		{
 			SetMoney(GetMoney() - ItemData->Value * Quantity * TradeCoeff);
 		}
+
+		// Публикуем ПОСЛЕ всех расчётов (вес, деньги уже обновлены).
+		PublishInventoryChangeReport(
+			this,
+			EOutcomeInventory::ItemAdd,
+			Name,
+			Quantity,
+			TradeCoeff,
+			bShouldCount,
+			NewQuantity);
 	}
 }
 
@@ -91,13 +156,18 @@ void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float T
 		}
 	}
 
+	// Итоговое количество в слоте — нужно для пайлоада.
+	int32 NewQuantity = 0;
+
 	if (Items[ItemIndex].Quantity > Quantity)
 	{
 		Items[ItemIndex].Quantity -= Quantity;
+		NewQuantity = Items[ItemIndex].Quantity;
 	}
 	else
 	{
 		Items.RemoveAt(ItemIndex);
+		NewQuantity = 0;
 	}
 
 	if (ItemDataTable)
@@ -111,6 +181,16 @@ void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float T
 			SetMoney(GetMoney() + ItemData->Value * Quantity * TradeCoeff);
 		}
 	}
+
+	// Публикуем ПОСЛЕ всех расчётов.
+	PublishInventoryChangeReport(
+		this,
+		EOutcomeInventory::ItemRemove,
+		Name,
+		Quantity,
+		TradeCoeff,
+		bShouldCount,
+		NewQuantity);
 }
 
 bool UAC_Container::SpawnRemovedItem(FName Name)
