@@ -98,4 +98,18 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyChorePlacementSaveData(const FSaveChoreData& SaveDataArray);
+	
+	// DeliveryChore(Quests) save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	int32 CollectQuestSaveData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyQuestSaveData(const int32& SaveData);
+	
+	// Container save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	int32 CollectContainerSaveData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyContainerSaveData(const int32& SaveData);
 };

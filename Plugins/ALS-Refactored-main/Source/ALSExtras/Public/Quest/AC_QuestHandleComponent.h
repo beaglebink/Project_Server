@@ -19,7 +19,7 @@ struct FQuestStepDataStruct
 };
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class ALSEXTRAS_API UAC_QuestHandleComponent : public UActorComponent
+class ALSEXTRAS_API UAC_QuestHandleComponent : public UActorComponent, public II_SaveableObject
 {
 	GENERATED_BODY()
 
