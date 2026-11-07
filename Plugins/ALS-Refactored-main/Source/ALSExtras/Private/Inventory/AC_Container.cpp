@@ -4,14 +4,124 @@
 #include "EventBusSystem/EventBusSubsystem.h"
 #include "EventBusSystem/OutcomeEventBase.h"
 #include "EventBusSystem/OutcomePayload.h"
-#include "InventorySystem/InventoryChangePayload.h"
+#include "InventorySystem/InventoryPayloads.h"
 #include "AlsCharacterExample.h"
 #include "Kismet/GameplayStatics.h"
+#include <FloorAssignmentComponent.h>
+#include "InventorySystem/InventorySubsystem.h"
+
 
 UAC_Container::UAC_Container()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
+
+bool UAC_Container::IsPlayerContainer() const
+{
+	return Cast<AAlsCharacterExample>(GetOwner()) != nullptr;
+}
+
+FGuid UAC_Container::GetActorItemId() const
+{
+	AActor* Owner = GetOwner();
+	if (Owner)
+	{
+		UFloorAssignmentComponent* FloorAssignmentComp = Owner->FindComponentByClass<UFloorAssignmentComponent>();
+		if (FloorAssignmentComp && FloorAssignmentComp->ProtectedItemId.IsValid())
+		{
+			return FloorAssignmentComp->ProtectedItemId;
+		}
+	}
+	return FGuid();
+}
+
+void UAC_Container::BeginPlay()
+{
+	Super::BeginPlay();
+
+	CountContainerWeight();
+
+	// Контейнер игрока — через Save/RestoreInventoryRequest в UInventorySubsystem.
+	if (IsPlayerContainer()) return;
+
+	const FGuid ItemId = GetActorItemId();
+	if (!ItemId.IsValid())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("UAC_Container::BeginPlay: '%s' has no valid ItemId — not persisted"),
+			*GetNameSafe(GetOwner()));
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI) return;
+
+	UInventorySubsystem* Sub = GI->GetSubsystem<UInventorySubsystem>();
+	if (!Sub) return;
+
+	// Живой реестр — CollectSaveData итерирует только его, без перебора всех акторов.
+	Sub->RegisterLiveContainer(this);
+
+	// Pull-восстановление: O(1) lookup.
+	FInventorySnapshot Saved;
+	if (Sub->GetContainerSnapshot(ItemId, Saved))
+	{
+		Items = Saved.Items;
+		SetWeight(Saved.TotalWeight);
+		SetMoney(Saved.TotalMoney);
+
+		UE_LOG(LogTemp, Log,
+			TEXT("UAC_Container::BeginPlay: Restored %s (%d items)"),
+			*ItemId.ToString(), Items.Num());
+	}
+	// Если снапшота нет — оставляем дефолт BP, ничего не пишем.
+}
+
+void UAC_Container::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	if (IsPlayerContainer()) return;
+
+	const FGuid ItemId = GetActorItemId();
+	if (!ItemId.IsValid()) return;
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI) return;
+
+	// 1) deregistration — CollectSaveData не читает умирающий компонент.
+	if (UInventorySubsystem* Sub = GI->GetSubsystem<UInventorySubsystem>())
+	{
+		Sub->UnregisterLiveContainer(this);
+	}
+
+	// 2) публикуем актуальное состояние.
+	if (UEventBusSubsystem* Bus = GI->GetSubsystem<UEventBusSubsystem>())
+	{
+		if (UInventoryContainerPayload* Payload = Bus->CreatePayload<UInventoryContainerPayload>())
+		{
+			Payload->ItemId = ItemId;
+			Payload->Snapshot.Items = Items;
+			Payload->Snapshot.TotalWeight = GetWeight();
+			Payload->Snapshot.TotalMoney = GetMoney();
+
+			FOutcomeEventBase Ev;
+			Ev.OutcomeType = EOutcomeType::Inventory;
+			Ev.OutcomeInventory = EOutcomeInventory::SaveContainerRequest;
+			Ev.Payload = Payload;
+			Bus->PublishOutcome(Ev);
+
+			UE_LOG(LogTemp, Log,
+				TEXT("UAC_Container::EndPlay: Saved %s (%d items)"),
+				*ItemId.ToString(), Items.Num());
+		}
+	}
+}
+
 
 static void PublishInventoryChangeReport(UAC_Container* Self, EOutcomeInventory ChangeEvent, FName ItemName, int32 Quantity, float TradeCoeff, bool bShouldCount, int32 NewQuantity)
 {
@@ -360,13 +470,6 @@ void UAC_Container::Items_Sort(EnumSortType SortType, bool bIsDecreasing)
 	default:
 		break;
 	}
-}
-
-void UAC_Container::BeginPlay()
-{
-	Super::BeginPlay();
-
-	CountContainerWeight();
 }
 
 float UAC_Container::GetWeight()

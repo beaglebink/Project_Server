@@ -4252,10 +4252,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
 			ClearPendingAnchorID();
 
-			// Final notification about completion of loading/transition
-			OnTransitionCompleted.Broadcast(bOk, TransitionPayloadCache ? TransitionPayloadCache->DestinationLink : FLocationAnchorLink(), true);
-			ClearPendingAnchorID();
-
 			// ── Восстановление инвентаря игрока ──
 			// Публикуем ЗАПРОС, InventorySubsystem применит сохранённый снапшот
 			// к UAC_Inventory текущего pawn'а (к этому моменту pawn уже существует,

@@ -58,12 +58,6 @@ enum class EOutcomeInventory : uint8
     InteractionStarted      UMETA(DisplayName = "Interaction Started"),
     InteractionCompleted    UMETA(DisplayName = "Interaction Completed"),
     InteractionFailed       UMETA(DisplayName = "Interaction Failed"),
-    //ObjectSpawned           UMETA(DisplayName = "Object Spawned"),
-    //ObjectDespawned         UMETA(DisplayName = "Object Despawned"),
-    //ObjectUsed              UMETA(DisplayName = "Object Used"),
-    //ObjectDestroyed         UMETA(DisplayName = "Object Destroyed"),
-    //ItemAcquired            UMETA(DisplayName = "Item Acquired"),
-    //ItemDelivered           UMETA(DisplayName = "Item Delivered"),
     InteractSetEnabled      UMETA(DisplayName = "Interact Set Enabled"),
     InteractSetRange        UMETA(DisplayName = "Interact Set Range"),
     InteractSetTooltip      UMETA(DisplayName = "Interact Set Tooltip"),
@@ -71,8 +65,11 @@ enum class EOutcomeInventory : uint8
     InteractUnregistered    UMETA(Hidden, DisplayName = "Interact Unregistered"),
     ItemAdd                 UMETA(DisplayName = "Item Add"),
     ItemRemove              UMETA(DisplayName = "Item Remove"),
+
+    // ── NEW ──
     SaveInventoryRequest    UMETA(DisplayName = "Save Inventory Request"),
-    RestoreInventoryRequest UMETA(DisplayName = "Restore Inventory Request")
+    RestoreInventoryRequest UMETA(DisplayName = "Restore Inventory Request"),
+    SaveContainerRequest    UMETA(DisplayName = "Save Container Request")
 };
 
 UENUM(BlueprintType)
