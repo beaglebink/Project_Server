@@ -28,6 +28,8 @@ protected:
 	TObjectPtr<UCurveFloat> VerticalShiftCurve = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UCurveFloat> PitchShiftCurve = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float VerticalFlySkeletalMeshPitchCoupling = 1.f;
 
 #if WITH_EDITOR
 private:

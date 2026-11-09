@@ -26,7 +26,7 @@ public:
 	UPROPERTY(Category = "Character Movement: Flying", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0", ForceUnits = "cm/s"))
 	float MaxFlySpeedHorizontal;
 
-	UPROPERTY(Category = "Character Movement: Flying", EditAnywhere, BlueprintReadWrite)
+	//UPROPERTY(Category = "Character Movement: Flying", EditAnywhere, BlueprintReadWrite)
 	float VerticalFlySkeletalMeshPitchScale = 1.f;
 
 	virtual float GetMaxSpeed() const override;
@@ -41,6 +41,9 @@ public:
 
 	UFUNCTION(Category = "Character Movement", BlueprintCallable)
 	void SetAnimationAddedPitch(float inAnimationAddedPitch);
+
+	UFUNCTION(Category = "Character Movement", BlueprintCallable)
+	void SetVerticalFlySkeletalMeshPitchCoupling(float inPitchCoupling);
 
 private:
 	FTransform MeshOriginalTransform = FTransform();

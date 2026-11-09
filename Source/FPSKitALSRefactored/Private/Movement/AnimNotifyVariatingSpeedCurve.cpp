@@ -13,6 +13,17 @@
 void UAnimNotifyVariatingSpeedCurve::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
+
+	AActor* ownerActor = IsValid(MeshComp) ? MeshComp->GetOwner() : nullptr;
+	ACharacter* ownerCharacter = IsValid(ownerActor) ? Cast<ACharacter>(ownerActor) : nullptr;
+	UCharacterMovementComponent* characterMovementComponent = IsValid(ownerCharacter) ? ownerCharacter->GetCharacterMovement() : nullptr;
+	UCharacterMovementComponentVar* characterMovementComponentVar = IsValid(characterMovementComponent) ? Cast<UCharacterMovementComponentVar>(characterMovementComponent) : nullptr;
+	if (IsValid(characterMovementComponentVar))
+	{
+		characterMovementComponentVar->SetVariatingSpeedState(1.f);
+		characterMovementComponentVar->SetAnimationAddedPitch(0.f);
+		characterMovementComponentVar->SetVerticalFlySkeletalMeshPitchCoupling(VerticalFlySkeletalMeshPitchCoupling);
+	}
 }
 
 void UAnimNotifyVariatingSpeedCurve::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
@@ -45,11 +56,15 @@ void UAnimNotifyVariatingSpeedCurve::NotifyTick(USkeletalMeshComponent* MeshComp
 		{
 			if (IsValid(Animation))
 			{
-				float currentSpeed = IsValid(characterMovementComponentVar) ? characterMovementComponentVar->Velocity.Length() : -1.f;
-				FString animationInfo = (IsValid(characterMovementComponentVar) ? "" : "                                                            ") +
-					Animation->GetName() + " speed multiplier: " + FString::SanitizeFloat(speedState, 3) +
+				const float animationLength = Animation->GetPlayLength();
+				const FString animationName = Animation->GetName();
+				const float animationCurrentFrame = Animation->GetFrameAtTime(currentTime);
+				const float currentSpeed = IsValid(characterMovementComponentVar) ? characterMovementComponentVar->Velocity.Length() : -1.f;
+				const FString animationInfo = (IsValid(characterMovementComponentVar) ? "" : "                                                            ") +
+					animationName + " speed multiplier: " + FString::SanitizeFloat(speedState, 3) +
 					" pitch: " + FString::SanitizeFloat(pitchShift, 3) +
-					(currentSpeed >= UE_KINDA_SMALL_NUMBER ? " speed: " + FString::SanitizeFloat(currentSpeed, 3) : "");
+					(currentSpeed >= UE_KINDA_SMALL_NUMBER ? " speed: " + FString::SanitizeFloat(currentSpeed, 3) : "") +
+					" frame: " + FString::SanitizeFloat(animationCurrentFrame, 3);
 				GEngine->AddOnScreenDebugMessage(-1, UE_KINDA_SMALL_NUMBER, FColor::Yellow, animationInfo);
 			}
 			if (currentTime <= FrameDeltaTime && IsValid(ownerCharacter))
@@ -62,8 +77,8 @@ void UAnimNotifyVariatingSpeedCurve::NotifyTick(USkeletalMeshComponent* MeshComp
 				characterPreviousLocation = characterLocation;
 			}
 		}
-	}
 #endif
+	}
 }
 
 void UAnimNotifyVariatingSpeedCurve::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
@@ -76,6 +91,7 @@ void UAnimNotifyVariatingSpeedCurve::NotifyEnd(USkeletalMeshComponent* MeshComp,
 	{
 		characterMovementComponentVar->SetVariatingSpeedState(1.f);
 		characterMovementComponentVar->SetAnimationAddedPitch(0.f);
+		characterMovementComponentVar->SetVerticalFlySkeletalMeshPitchCoupling(1.f);
 	}
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
