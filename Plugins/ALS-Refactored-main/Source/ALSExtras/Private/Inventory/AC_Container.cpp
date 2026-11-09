@@ -180,6 +180,9 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff,
 	{
 		FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
 
+		if (!ItemData)
+			return;
+
 		// Итоговое количество предмета в слоте — нужно для пайлоада.
 		int32 NewQuantity = 0;
 
