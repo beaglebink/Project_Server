@@ -64,6 +64,11 @@ void UCharacterMovementComponentVar::SetAnimationAddedPitch(float inAnimationAdd
 	AnimationAddedPitch = inAnimationAddedPitch;
 }
 
+void UCharacterMovementComponentVar::SetVerticalFlySkeletalMeshPitchCoupling(float inPitchCoupling)
+{
+	VerticalFlySkeletalMeshPitchScale = inPitchCoupling;
+}
+
 void UCharacterMovementComponentVar::ProcessAdditionalMeshRotaion(float DeltaTime)
 {
 	const AActor* ownerActor = GetOwner();
