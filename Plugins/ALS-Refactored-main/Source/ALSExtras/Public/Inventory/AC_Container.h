@@ -44,6 +44,19 @@ public:
     void RemoveFromContainer(int32 ItemIndex, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn = false);
 
     UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
+    bool SetItemQuantityByName(FName Name, int32 NewQuantity);
+
+    /*
+     * Найти предмет по имени.
+     * @param Name         Имя предмета (FS_Item::Name).
+     * @param OutItemIndex Индекс в Items или INDEX_NONE, если не найден.
+     * @param OutQuantity  Количество в найденном стеке или 0, если не найден.
+     * @return             true, если предмет найден.
+     */
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Container")
+    bool FindItemByName(FName Name, int32& OutItemIndex, int32& OutQuantity) const;
+
+    UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
     bool SpawnRemovedItem(FName Name);
 
     UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")

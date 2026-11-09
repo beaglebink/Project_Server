@@ -299,6 +299,117 @@ void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float T
 	PublishInventoryChangeReport(this, EOutcomeInventory::ItemRemove, Name, Quantity, TradeCoeff, bShouldCount, NewQuantity);
 }
 
+bool UAC_Container::FindItemByName(FName Name, int32& OutItemIndex, int32& OutQuantity) const
+{
+	OutItemIndex = INDEX_NONE;
+	OutQuantity = 0;
+
+	const int32 Index = Items.IndexOfByPredicate(
+		[&Name](const FS_Item& Item) { return Item.Name == Name; });
+
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+
+	OutItemIndex = Index;
+	OutQuantity = Items[Index].Quantity;
+	return true;
+}
+
+bool UAC_Container::SetItemQuantityByName(FName Name, int32 NewQuantity)
+{
+	if (NewQuantity < 0)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("UAC_Container::SetItemQuantityByName: negative quantity (%d) for '%s'"),
+			NewQuantity, *Name.ToString());
+		return false;
+	}
+
+	int32 Index = INDEX_NONE;
+	int32 OldQuantity = 0;
+	const bool bExists = FindItemByName(Name, Index, OldQuantity);
+
+	// Идемпотентный вызов: запрошенное состояние уже достигнуто.
+	//   - предмета нет, просят 0     → уже так;
+	//   - предмет есть, просят то же → уже так.
+	if ((!bExists && NewQuantity == 0) || (bExists && OldQuantity == NewQuantity))
+	{
+		return true;
+	}
+
+	// Данные для расчёта веса. Если предмета нет в DataTable — создаём/обновляем
+	// «как есть», вес не меняется, но предупреждаем (обычно это баг в DataTable).
+	const FS_ItemData* ItemData = ItemDataTable
+		? ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"))
+		: nullptr;
+
+	if (!ItemData)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("UAC_Container::SetItemQuantityByName: item '%s' not found in ItemDataTable — weight is not affected"),
+			*Name.ToString());
+	}
+
+	// Дельта веса. Для нового стека OldQuantity == 0 → дельта = Weight * NewQuantity.
+	float WeightDelta = 0.0f;
+	if (ItemData)
+	{
+		WeightDelta = ItemData->Weight * static_cast<float>(NewQuantity - OldQuantity);
+	}
+
+	// Применяем изменение к массиву.
+	if (NewQuantity == 0)
+	{
+		// Сюда попадаем только при bExists == true (иначе сработал бы идемпотентный return).
+		Items.RemoveAt(Index);
+	}
+	else if (bExists)
+	{
+		Items[Index].Quantity = NewQuantity;
+	}
+	else
+	{
+		// Создаём новый стек. Даже для не-стакуемых предметов Quantity может быть > 1 —
+		// это ответственность вызывающего.
+		Items.Add(FS_Item(Name, NewQuantity));
+	}
+
+	// Обновляем вес через дельту (SetWeight broadcast'ит OnWeightChanged).
+	if (!FMath::IsNearlyZero(WeightDelta))
+	{
+		SetWeight(GetWeight() + WeightDelta);
+	}
+
+	// ── Публикуем отчёт об изменении (только для игрока — фильтр внутри) ──
+	// Delta > 0: ItemAdd с Quantity = Delta, NewQuantity = итоговое.
+	// Delta < 0: ItemRemove с Quantity = |Delta|, NewQuantity = итоговое.
+	// "New stack" трактуется как ItemAdd(Quantity = NewQuantity).
+	const int32 Delta = NewQuantity - OldQuantity;
+	if (Delta > 0)
+	{
+		PublishInventoryChangeReport(
+			this, EOutcomeInventory::ItemAdd,
+			Name, Delta, /*TradeCoeff*/ 1.0f, /*bShouldCount*/ false,
+			/*NewQuantity*/ NewQuantity);
+	}
+	else if (Delta < 0)
+	{
+		PublishInventoryChangeReport(
+			this, EOutcomeInventory::ItemRemove,
+			Name, -Delta, /*TradeCoeff*/ 1.0f, /*bShouldCount*/ false,
+			/*NewQuantity*/ NewQuantity);
+	}
+
+	const FString OldQtyStr = bExists ? FString::FromInt(OldQuantity) : TEXT("<new>");
+	UE_LOG(LogTemp, Log,
+		TEXT("UAC_Container::SetItemQuantityByName: '%s' %s -> %d (weight delta %.2f)"),
+		*Name.ToString(), *OldQtyStr, NewQuantity, WeightDelta);
+
+	return true;
+}
+
 bool UAC_Container::SpawnRemovedItem(FName Name)
 {
 	FVector Origin = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * 200.0f;
