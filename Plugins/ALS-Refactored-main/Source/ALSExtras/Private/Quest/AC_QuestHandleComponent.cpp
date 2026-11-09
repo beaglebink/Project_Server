@@ -2,6 +2,7 @@
 #include "Engine/AssetManager.h"
 #include "CoreGameplay/LocationTrackerSubsystem/LocationTrackerSubsystem.h"
 #include "Inventory/AC_Inventory.h"
+#include "SaveSubsystems/GIS_Quest.h"
 
 UAC_QuestHandleComponent::UAC_QuestHandleComponent()
 {
@@ -16,11 +17,24 @@ void UAC_QuestHandleComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 void UAC_QuestHandleComponent::BeginPlay()
 {
+	Super::BeginPlay();
 
+	if (GetOwner())
+	{
+		if (UGameInstance* GI = GetOwner()->GetGameInstance())
+		{
+			if (UGIS_Quest* GIS = GI->GetSubsystem<UGIS_Quest>())
+			{
+				GIS->AddSaveableObject(this);
+				ApplyQuestSaveData_Implementation(GIS);
+			}
+		}
+	}
 }
 
 void UAC_QuestHandleComponent::EndPlay(const EEndPlayReason::Type Reason)
 {
+	Super::EndPlay(Reason);
 
 }
 
@@ -167,6 +181,16 @@ EChoreStatus UAC_QuestHandleComponent::GetChoreStatus(FName ChoreID)const
 	}
 
 	return EChoreStatus::Inactive;
+}
+
+TMap<FName, FQuestStepDataStruct> UAC_QuestHandleComponent::CollectQuestSaveData_Implementation()
+{
+	return QuestDataMap;
+}
+
+void UAC_QuestHandleComponent::ApplyQuestSaveData_Implementation(UGIS_Quest* GIS)
+{
+	QuestDataMap = GIS->CachedQuestData;
 }
 
 FString UAC_QuestHandleComponent::CollectIntermediateSaveData(FName ChoreID)

@@ -4,8 +4,11 @@
 #include "UObject/Interface.h"
 #include "Core/CubixonCoreData.h"
 #include "ChoreSystem/ChoreEnums.h"
+#include "Quest/U_QuestStructures.h"
+#include "SaveSubsystems/GIS_Quest.h"
 #include "I_SaveableObject.generated.h"
 
+// ChorePlacement save data structure
 USTRUCT(BlueprintType)
 struct FSaveItemData
 {
@@ -101,15 +104,8 @@ public:
 	
 	// DeliveryChore(Quests) save data collection and application functions
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	int32 CollectQuestSaveData();
+	TMap<FName, FQuestStepDataStruct> CollectQuestSaveData();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyQuestSaveData(const int32& SaveData);
-	
-	// Container save data collection and application functions
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	int32 CollectContainerSaveData();
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyContainerSaveData(const int32& SaveData);
+	void ApplyQuestSaveData(UGIS_Quest* GIS);
 };
