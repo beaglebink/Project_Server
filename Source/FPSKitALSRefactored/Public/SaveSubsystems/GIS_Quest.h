@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ISaveableSubsystem.h"
+#include "Quest/U_QuestStructures.h"
 #include "GIS_Quest.generated.h"
 
 UCLASS()
@@ -32,11 +33,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveableObject")
 	void AddSaveableObject(UObject* NewSaveableObject);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveableObject")
-	void ApplyQuestData(UActorComponent* QuestComponent);
+	TMap<FName, FQuestStepDataStruct> CachedQuestData;
 
 private:
-	TMap<FGuid, int32> CachedQuestData;
-
 	bool bIsLoadComplete = false;
 };

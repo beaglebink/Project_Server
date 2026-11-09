@@ -691,6 +691,7 @@ void AAlsCharacterExample::PossessedBy(AController* NewController)
 	Inventory = FindComponentByClass<UAC_Inventory>();
 	if (Inventory)
 	{
+		SetWeightSpeedMultiplier(Inventory->ContainerComponent->GetWeight());
 		Inventory->ContainerComponent->OnWeightChanged.AddDynamic(this, &AAlsCharacter::SetWeightSpeedMultiplier);
 	}
 }

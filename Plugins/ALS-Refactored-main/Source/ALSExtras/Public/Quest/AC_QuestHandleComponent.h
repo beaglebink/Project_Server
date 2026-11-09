@@ -6,18 +6,6 @@
 #include "Quest/PDA_Quest.h"
 #include "AC_QuestHandleComponent.generated.h"
 
-USTRUCT(BlueprintType)
-struct FQuestStepDataStruct
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	EChoreStatus QuestStatus = EChoreStatus::Inactive;
-
-	UPROPERTY()
-	TArray<FQuestStepDataArray> QuestsArray;
-};
-
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ALSEXTRAS_API UAC_QuestHandleComponent : public UActorComponent, public II_SaveableObject
 {
@@ -45,6 +33,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChoreStatus")
 	EChoreStatus GetChoreStatus(FName ChoreID)const;
+
+	// Quest data saving and loading
+	virtual TMap<FName, FQuestStepDataStruct> CollectQuestSaveData_Implementation()override;
+
+	virtual void ApplyQuestSaveData_Implementation(UGIS_Quest* GIS)override;
 
 	// Intermediate data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
