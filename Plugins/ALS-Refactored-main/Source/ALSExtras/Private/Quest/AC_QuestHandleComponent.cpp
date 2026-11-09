@@ -195,30 +195,35 @@ void UAC_QuestHandleComponent::ApplyQuestSaveData_Implementation(UGIS_Quest* GIS
 
 FString UAC_QuestHandleComponent::CollectIntermediateSaveData(FName ChoreID)
 {
-	//FSubsystemSaveData SaveData;
-	//if (UGameInstance* GI = GetGameInstance())
-	//{
-	//	if (UGIS_Quest* QuestSys = GI->GetSubsystem<UGIS_Quest>())
-	//	{
-	//		QuestSys->CollectSaveData(SaveData);
-	//	}
-	//}
-	//return SaveData.SerializedData;
-	return FString();
+	FSubsystemSaveData SaveData;
+	if (GetOwner())
+	{
+		if (UGameInstance* GI = GetOwner()->GetGameInstance())
+		{
+			if (UGIS_Quest* QuestSys = GI->GetSubsystem<UGIS_Quest>())
+			{
+				QuestSys->CollectSaveData(SaveData);
+			}
+		}
+	}
+	return SaveData.SerializedData;
 }
 
 void UAC_QuestHandleComponent::ApplyIntermediateSaveData(FName ChoreID, FString Jsonstring)
 {
-	//FSubsystemSaveData SaveData;
-	//if (UGameInstance* GI = GetGameInstance())
-	//{
-	//	if (UGIS_Quest* QuestSys = GI->GetSubsystem<UGIS_Quest>())
-	//	{
-	//		SaveData.SerializedData = Jsonstring;
-	//		QuestSys->ApplySaveData(SaveData);
-	//		QuestSys->ApplyQuestData(this);
-	//	}
-	//}
+	FSubsystemSaveData SaveData;
+	if (GetOwner())
+	{
+		if (UGameInstance* GI = GetOwner()->GetGameInstance())
+		{
+			if (UGIS_Quest* QuestSys = GI->GetSubsystem<UGIS_Quest>())
+			{
+				SaveData.SerializedData = Jsonstring;
+				QuestSys->ApplySaveData(SaveData);
+				ApplyQuestSaveData_Implementation(QuestSys);
+			}
+		}
+	}
 }
 
 bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
