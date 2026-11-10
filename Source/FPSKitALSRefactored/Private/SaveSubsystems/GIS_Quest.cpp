@@ -1,7 +1,6 @@
 #include "SaveSubsystems/GIS_Quest.h"
 #include <GameSaveSubsystem.h>
 #include "Quest/AC_QuestHandleComponent.h"
-#include "FloorAssignmentComponent.h"
 
 void UGIS_Quest::Initialize(FSubsystemCollectionBase& Collection)
 {

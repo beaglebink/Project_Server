@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "ChoreSystem/ChoreEnums.h"
 #include "GameplayTagContainer.h"
-#include "U_QuestStructures.generated.h"
+#include "O_QuestStructures.generated.h"
 
 USTRUCT(BlueprintType)
 struct FQuestStepData

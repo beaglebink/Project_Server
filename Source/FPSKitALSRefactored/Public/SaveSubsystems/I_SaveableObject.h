@@ -4,8 +4,10 @@
 #include "UObject/Interface.h"
 #include "Core/CubixonCoreData.h"
 #include "ChoreSystem/ChoreEnums.h"
-#include "Quest/U_QuestStructures.h"
+#include "Quest/O_QuestStructures.h"
 #include "SaveSubsystems/GIS_Quest.h"
+#include "RealEstate/O_RealEstateStructures.h"
+#include "SaveSubsystems/GIS_RealEstatePaperWork.h"
 #include "I_SaveableObject.generated.h"
 
 // ChorePlacement save data structure
@@ -108,4 +110,11 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyQuestSaveData(UGIS_Quest* GIS);
+
+	// RealEstatePaperWork save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	TMap<FString, FQuestionDataStruct> CollectRealEstatePaperWorkSaveData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyRealEstatePaperWorkSaveData(UGIS_RealEstatePaperWork* GIS);
 };
