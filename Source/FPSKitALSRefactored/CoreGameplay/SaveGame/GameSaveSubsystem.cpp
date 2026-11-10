@@ -239,7 +239,7 @@ void UGameSaveSubsystem::LoadGame()
 					if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
 					{
 						IPlayerController_I::Execute_SetLoadScreen(PC, true);
-						IPlayerController_I::Execute_StoreWeaponState(PC);
+						//IPlayerController_I::Execute_StoreWeaponState(PC);
 						IPlayerController_I::Execute_StoreCharacterState(PC, PlayerTransform);
 					}
 

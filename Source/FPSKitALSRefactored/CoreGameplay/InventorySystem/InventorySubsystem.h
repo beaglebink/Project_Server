@@ -96,6 +96,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers") void SubscribeContainerSnapshot();
     UFUNCTION(BlueprintCallable, Category = "InventorySubsystem|Handlers") void UnsubscribeContainerSnapshot();
 
+    UFUNCTION(BlueprintCallable)
+    void SetWeaponData(const FString& AmmoData, const FString& WeaponData);
+
+    UFUNCTION(BlueprintCallable)
+    void GetWeaponData(FString& AmmoData, FString& WeaponData);
+
 private:
     // Handlers
     void HandleItemAcquired(const FOutcomeEventBase& Outcome);
@@ -148,4 +154,7 @@ private:
     {
         return RegistrationListeners;
     }
+
+    FString SerializedAmmoData;
+    FString SerializedWeaponsData;
 };

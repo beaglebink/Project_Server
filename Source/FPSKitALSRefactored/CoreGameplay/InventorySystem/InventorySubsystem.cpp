@@ -10,6 +10,7 @@
 #include "GameSaveSubsystem.h"
 #include "JsonObjectConverter.h"
 #include "InventoryPayloads.h"
+#include "PlayerController_I.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static JSON helpers
@@ -542,6 +543,18 @@ void UInventorySubsystem::UnsubscribeContainerSnapshot()
     SaveContainerConditionAsset = nullptr;
 }
 
+void UInventorySubsystem::SetWeaponData(const FString& AmmoData, const FString& WeaponData)
+{
+    SerializedAmmoData = AmmoData;
+    SerializedWeaponsData = WeaponData;
+}
+
+void UInventorySubsystem::GetWeaponData(FString& AmmoData, FString& WeaponData)
+{
+    AmmoData = SerializedAmmoData;
+    WeaponData = SerializedWeaponsData;
+}
+
 void UInventorySubsystem::HandleSaveContainerRequest(const FOutcomeEventBase& Outcome)
 {
     const UInventoryContainerPayload* P = Cast<UInventoryContainerPayload>(Outcome.Payload);
@@ -638,7 +651,20 @@ void UInventorySubsystem::RefreshPlayerInventorySnapshot()
 
 void UInventorySubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
+    UWorld* W = GetWorld();
+    if (!W)
+    {
+        return;
+    }
+
     OutData.SubsystemName = GetSaveSubsystemName();
+
+    APlayerController* PC = W->GetFirstPlayerController();
+    if (PC && PC->GetClass()->ImplementsInterface(UPlayerController_I::StaticClass()))
+    {
+        //IPlayerController_I::Execute_SetLoadScreen(PC, true);
+        IPlayerController_I::Execute_StoreWeaponState(PC);
+    }
 
     RefreshPlayerInventorySnapshot();
     RefreshContainerSnapshotsFromLive();
@@ -664,6 +690,10 @@ void UInventorySubsystem::CollectSaveData(FSubsystemSaveData& OutData)
         Root->SetObjectField(TEXT("Containers"), ContainersObj);
     }
 
+    // ── Weapon / Ammo serialized state ──
+    Root->SetStringField(TEXT("SerializedAmmoData"), SerializedAmmoData);
+    Root->SetStringField(TEXT("SerializedWeaponsData"), SerializedWeaponsData);
+
     FString Output;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
     FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
@@ -678,6 +708,10 @@ void UInventorySubsystem::ApplySaveData(const FSubsystemSaveData& InData)
     SavedInventorySnapshot.Reset();
     bHasSavedInventorySnapshot = false;
     ContainerSnapshots.Empty();
+
+    // Сбрасываем оружейные данные — если в сейве их нет, не тащим состояние предыдущей сессии.
+    SerializedAmmoData.Empty();
+    SerializedWeaponsData.Empty();
 
     if (InData.SerializedData.IsEmpty())
     {
@@ -727,6 +761,10 @@ void UInventorySubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             }
         }
     }
+
+    // ── Weapon / Ammo serialized state ──
+    Root->TryGetStringField(TEXT("SerializedAmmoData"), SerializedAmmoData);
+    Root->TryGetStringField(TEXT("SerializedWeaponsData"), SerializedWeaponsData);
 
     IsLoadComplete = true;
 }
