@@ -17,16 +17,18 @@ class FPSKITALSREFACTORED_API UInventoryChangePayload : public UOutcomePayload
 
 public:
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") FName ItemName;
+    UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") FGameplayTag SpecialTag;   // ← NEW
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") int32 Quantity = 0;
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") float TradeCoeff = 1.0f;
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") bool  bShouldCount = false;
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") int32 NewQuantity = 0;
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") float CurrentWeight = 0.0f;
-    UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") float CurrentMoney  = 0.0f;
+    UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") float CurrentMoney = 0.0f;
 
     UFUNCTION(BlueprintCallable, Category = "InventoryChange")
     UInventoryChangePayload* Setup(
         FName InItemName,
+        const FGameplayTag& InSpecialTag,        // ← NEW
         int32 InQuantity,
         float InTradeCoeff,
         bool  bInShouldCount,
@@ -34,13 +36,14 @@ public:
         float InCurrentWeight,
         float InCurrentMoney)
     {
-        ItemName      = InItemName;
-        Quantity      = InQuantity;
-        TradeCoeff    = InTradeCoeff;
-        bShouldCount  = bInShouldCount;
-        NewQuantity   = InNewQuantity;
+        ItemName = InItemName;
+        SpecialTag = InSpecialTag;
+        Quantity = InQuantity;
+        TradeCoeff = InTradeCoeff;
+        bShouldCount = bInShouldCount;
+        NewQuantity = InNewQuantity;
         CurrentWeight = InCurrentWeight;
-        CurrentMoney  = InCurrentMoney;
+        CurrentMoney = InCurrentMoney;
         return this;
     }
 };

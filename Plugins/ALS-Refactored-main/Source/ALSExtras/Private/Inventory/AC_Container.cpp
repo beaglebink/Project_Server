@@ -123,49 +123,36 @@ void UAC_Container::EndPlay(const EEndPlayReason::Type EndPlayReason)
 }
 
 
-static void PublishInventoryChangeReport(UAC_Container* Self, EOutcomeInventory ChangeEvent, FName ItemName, int32 Quantity, float TradeCoeff, bool bShouldCount, int32 NewQuantity)
+static void PublishInventoryChangeReport(
+	UAC_Container* Self,
+	EOutcomeInventory ChangeEvent,
+	FName ItemName,
+	const FGameplayTag& SpecialTag,
+	int32 Quantity,
+	float TradeCoeff,
+	bool bShouldCount,
+	int32 NewQuantity)
 {
-	if (!Self)
-	{
-		return;
-	}
+	if (!Self) return;
 
 	AActor* Owner = Self->GetOwner();
-	if (!Owner)
-	{
-		return;
-	}
+	if (!Owner) return;
 
 	// Только инвентарь персонажа игрока — сундуки/ящики игнорируем.
-	if (!Cast<AAlsCharacterExample>(Owner))
-	{
-		return;
-	}
+	if (!Cast<AAlsCharacterExample>(Owner)) return;
 
 	UWorld* World = Self->GetWorld();
-	if (!World)
-	{
-		return;
-	}
+	if (!World) return;
 	UGameInstance* GI = World->GetGameInstance();
-	if (!GI)
-	{
-		return;
-	}
+	if (!GI) return;
 
 	UEventBusSubsystem* Bus = GI->GetSubsystem<UEventBusSubsystem>();
-	if (!Bus)
-	{
-		return;
-	}
+	if (!Bus) return;
 
 	UInventoryChangePayload* Payload = Bus->CreatePayload<UInventoryChangePayload>();
-	if (!Payload)
-	{
-		return;
-	}
+	if (!Payload) return;
 
-	Payload->Setup(ItemName, Quantity, TradeCoeff, bShouldCount, NewQuantity, Self->GetWeight(), Self->GetMoney());
+	Payload->Setup(ItemName, SpecialTag, Quantity, TradeCoeff, bShouldCount, NewQuantity, Self->GetWeight(), Self->GetMoney());
 
 	FOutcomeEventBase Ev;
 	Ev.OutcomeType = EOutcomeType::Inventory;
@@ -176,50 +163,59 @@ static void PublishInventoryChangeReport(UAC_Container* Self, EOutcomeInventory 
 
 void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount)
 {
-	if (ItemDataTable)
+	if (!ItemDataTable)
 	{
-		FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
+		return;
+	}
 
-		if (!ItemData)
-			return;
+	FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
+	if (!ItemData)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("UAC_Container::AddToContainer: item '%s' not found in ItemDataTable"),
+			*Name.ToString());
+		return;
+	}
 
-		// Итоговое количество предмета в слоте — нужно для пайлоада.
-		int32 NewQuantity = 0;
+	// Итоговое количество предмета в слоте — нужно для пайлоада.
+	int32 NewQuantity = 0;
 
-		if (ItemData && ItemData->bCanStack)
+	if (ItemData->bCanStack)
+	{
+		FS_Item* ItemToAdd = Items.FindByPredicate([&](FS_Item& ArrayItem)
+			{
+				return ArrayItem.Name == Name;
+			});
+
+		if (ItemToAdd)
 		{
-			FS_Item* ItemToAdd = Items.FindByPredicate([&](FS_Item& ArrayItem)
-				{
-					return ArrayItem.Name == Name;
-				});
-
-			if (ItemToAdd)
-			{
-				ItemToAdd->Quantity += Quantity;
-				NewQuantity = ItemToAdd->Quantity;
-			}
-			else
-			{
-				Items.Add(FS_Item(Name, Quantity));
-				NewQuantity = Quantity;
-			}
+			ItemToAdd->Quantity += Quantity;
+			NewQuantity = ItemToAdd->Quantity;
 		}
 		else
 		{
-			Items.Add(FS_Item(Name, 1));
-			NewQuantity = 1;
+			Items.Add(FS_Item(Name, Quantity));
+			NewQuantity = Quantity;
 		}
-
-		SetWeight(GetWeight() + ItemData->Weight * Quantity);
-
-		if (bShouldCount)
-		{
-			SetMoney(GetMoney() - ItemData->Value * Quantity * TradeCoeff);
-		}
-
-		// Публикуем ПОСЛЕ всех расчётов (вес, деньги уже обновлены).
-		PublishInventoryChangeReport(this, EOutcomeInventory::ItemAdd, Name, Quantity, TradeCoeff, bShouldCount, NewQuantity);
 	}
+	else
+	{
+		Items.Add(FS_Item(Name, 1));
+		NewQuantity = 1;
+	}
+
+	SetWeight(GetWeight() + ItemData->Weight * Quantity);
+
+	if (bShouldCount)
+	{
+		SetMoney(GetMoney() - ItemData->Value * Quantity * TradeCoeff);
+	}
+
+	// Публикуем ПОСЛЕ всех расчётов (вес, деньги уже обновлены).
+	PublishInventoryChangeReport(
+		this, EOutcomeInventory::ItemAdd,
+		Name, ItemData->SpecialTag,
+		Quantity, TradeCoeff, bShouldCount, NewQuantity);
 }
 
 void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn)
@@ -283,20 +279,35 @@ void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float T
 		NewQuantity = 0;
 	}
 
+	// Захватываем SpecialTag до публикации — ItemData может отсутствовать в DataTable.
+	FGameplayTag ItemSpecialTag;
 	if (ItemDataTable)
 	{
 		FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"));
-
-		SetWeight(GetWeight() - ItemData->Weight * Quantity);
-
-		if (bShouldCount)
+		if (ItemData)
 		{
-			SetMoney(GetMoney() + ItemData->Value * Quantity * TradeCoeff);
+			ItemSpecialTag = ItemData->SpecialTag;
+
+			SetWeight(GetWeight() - ItemData->Weight * Quantity);
+
+			if (bShouldCount)
+			{
+				SetMoney(GetMoney() + ItemData->Value * Quantity * TradeCoeff);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("UAC_Container::RemoveFromContainer: item '%s' not found in ItemDataTable — weight/money not adjusted"),
+				*Name.ToString());
 		}
 	}
 
 	// Публикуем ПОСЛЕ всех расчётов.
-	PublishInventoryChangeReport(this, EOutcomeInventory::ItemRemove, Name, Quantity, TradeCoeff, bShouldCount, NewQuantity);
+	PublishInventoryChangeReport(
+		this, EOutcomeInventory::ItemRemove,
+		Name, ItemSpecialTag,
+		Quantity, TradeCoeff, bShouldCount, NewQuantity);
 }
 
 bool UAC_Container::FindItemByName(FName Name, int32& OutItemIndex, int32& OutQuantity) const
@@ -383,22 +394,23 @@ bool UAC_Container::SetItemQuantityByName(FName Name, int32 NewQuantity)
 	}
 
 	// ── Публикуем отчёт об изменении (только для игрока — фильтр внутри) ──
-	// Delta > 0: ItemAdd с Quantity = Delta, NewQuantity = итоговое.
-	// Delta < 0: ItemRemove с Quantity = |Delta|, NewQuantity = итоговое.
-	// "New stack" трактуется как ItemAdd(Quantity = NewQuantity).
 	const int32 Delta = NewQuantity - OldQuantity;
+	const FGameplayTag SpecialTag = ItemData ? ItemData->SpecialTag : FGameplayTag();
+
 	if (Delta > 0)
 	{
 		PublishInventoryChangeReport(
 			this, EOutcomeInventory::ItemAdd,
-			Name, Delta, /*TradeCoeff*/ 1.0f, /*bShouldCount*/ false,
+			Name, SpecialTag,
+			Delta, /*TradeCoeff*/ 1.0f, /*bShouldCount*/ false,
 			/*NewQuantity*/ NewQuantity);
 	}
 	else if (Delta < 0)
 	{
 		PublishInventoryChangeReport(
 			this, EOutcomeInventory::ItemRemove,
-			Name, -Delta, /*TradeCoeff*/ 1.0f, /*bShouldCount*/ false,
+			Name, SpecialTag,
+			-Delta, /*TradeCoeff*/ 1.0f, /*bShouldCount*/ false,
 			/*NewQuantity*/ NewQuantity);
 	}
 
@@ -408,8 +420,8 @@ bool UAC_Container::SetItemQuantityByName(FName Name, int32 NewQuantity)
 		*Name.ToString(), *OldQtyStr, NewQuantity, WeightDelta);
 
 	return true;
-}
 
+}
 bool UAC_Container::SpawnRemovedItem(FName Name)
 {
 	FVector Origin = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * 200.0f;
