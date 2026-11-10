@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ISaveableSubsystem.h"
-#include "Quest/U_QuestStructures.h"
+#include "Quest/O_QuestStructures.h"
 #include "GIS_Quest.generated.h"
 
 UCLASS()
