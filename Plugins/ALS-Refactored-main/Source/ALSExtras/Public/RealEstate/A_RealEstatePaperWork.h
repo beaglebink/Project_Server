@@ -10,6 +10,7 @@ class UBoxComponent;
 class UWidgetComponent;
 class UFloorAssignmentComponent;
 class UDA_RealEstateQuestionnaire;
+class UW_RealEstateQuestionnaire;
 
 UCLASS()
 class ALSEXTRAS_API AA_RealEstatePaperWork : public AActor, public II_SaveableObject
@@ -48,7 +49,10 @@ public:
 	UBoxComponent* TriggerBoxComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
-	UWidgetComponent* WidgetComponent;
+	TSubclassOf<UW_RealEstateQuestionnaire> QuestionnaireWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UW_RealEstateQuestionnaire> QuestionnaireWidget;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	UFloorAssignmentComponent* FloorAssignmentComponent;
@@ -66,6 +70,10 @@ private:
 	UFUNCTION()
 	bool CheckIfCompleted();
 
+	void OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);	
+
+	void UpdateWidgetData();
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "ChoreStatus")
 	void SetChoreStatus(EChoreStatus NewStatus);
@@ -77,9 +85,9 @@ public:
 	void HandleAnswerSelected(FString Question, int32 AnswerIndex, bool IsSelected);
 
 	// II_SaveableObject interface
-	virtual TMap<FName, int32> CollectRealEstatePaperWorkSaveData_Implementation() override;
+	virtual TMap<FString, FQuestionDataStruct> CollectRealEstatePaperWorkSaveData_Implementation() override;
 
-	virtual void ApplyRealEstatePaperWorkSaveData_Implementation(const TMap<FName, int32>& SaveData) override;
+	virtual void ApplyRealEstatePaperWorkSaveData_Implementation(UGIS_RealEstatePaperWork* GIS) override;
 
 	// Intermediate data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")

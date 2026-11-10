@@ -5,6 +5,7 @@
 #include "RealEstate/W_RealEstateQuestionnaire.h"
 #include "RealEstate/DA_RealEstateQuestionnaire.h"
 #include "SaveSubsystems/GIS_RealEstatePaperWork.h"
+#include "Kismet/GameplayStatics.h"
 
 AA_RealEstatePaperWork::AA_RealEstatePaperWork()
 {
@@ -12,17 +13,19 @@ AA_RealEstatePaperWork::AA_RealEstatePaperWork()
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	TriggerBoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
-	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("WidgetComponent"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
 
 	TriggerBoxComponent->SetupAttachment(RootComponent);
-	WidgetComponent->SetupAttachment(TriggerBoxComponent);
 }
 
 void AA_RealEstatePaperWork::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
+	if (IsValid(QuestionnaireDataAsset))
+	{
+		QuestionsDataMap = QuestionnaireDataAsset->Questions;
+	}
 }
 
 void AA_RealEstatePaperWork::Tick(float DeltaTime)
@@ -35,18 +38,7 @@ void AA_RealEstatePaperWork::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (IsValid(QuestionnaireDataAsset))
-	{
-		QuestionsDataMap = QuestionnaireDataAsset->Questions;
-	}
-
-	if (UUserWidget* Widget = WidgetComponent->GetUserWidgetObject())
-	{
-		if (UW_RealEstateQuestionnaire* QuestionnaireWidget = Cast<UW_RealEstateQuestionnaire>(Widget))
-		{
-			QuestionnaireWidget->OnAnswerSelected.AddDynamic(this, &AA_RealEstatePaperWork::HandleAnswerSelected);
-		}
-	}
+	TriggerBoxComponent->OnComponentBeginOverlap.AddDynamic(this, &AA_RealEstatePaperWork::OnBoxBeginOverlap);
 }
 
 void AA_RealEstatePaperWork::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -65,6 +57,54 @@ bool AA_RealEstatePaperWork::CheckIfCompleted()
 	}
 
 	return RightAnswersCounter >= FMath::CeilToInt(QuestionsDataMap.Num() * RightAnswersPercentage / 100.0f);
+}
+
+void AA_RealEstatePaperWork::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (GetChoreStatus() == EChoreStatus::Inactive)
+	{
+		return;
+	}
+
+	if (OtherActor == UGameplayStatics::GetPlayerPawn(this, 0))
+	{
+		if (QuestionnaireWidgetClass)
+		{
+			if (!IsValid(QuestionnaireWidget))
+			{
+				QuestionnaireWidget = CreateWidget<UW_RealEstateQuestionnaire>(GetWorld(), QuestionnaireWidgetClass);
+
+				if (!IsValid(QuestionnaireWidget))
+				{
+					return;
+				}
+
+				QuestionnaireWidget->OnAnswerSelected.AddDynamic(this, &AA_RealEstatePaperWork::HandleAnswerSelected);
+				QuestionnaireWidget->UpdateQuestionsData(QuestionsDataMap);
+				QuestionnaireWidget->AddToViewport(9999);
+
+				APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+
+				if (IsValid(PC))
+				{
+					PC->SetShowMouseCursor(true);
+
+					FInputModeUIOnly InputMode;
+					InputMode.SetWidgetToFocus(QuestionnaireWidget->TakeWidget());
+					InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+					PC->SetInputMode(InputMode);
+				}
+			}
+		}
+	}
+}
+
+void AA_RealEstatePaperWork::UpdateWidgetData()
+{
+	if (IsValid(QuestionnaireWidget))
+	{
+		QuestionnaireWidget->UpdateQuestionsData(QuestionsDataMap);
+	}
 }
 
 void AA_RealEstatePaperWork::SetChoreStatus(EChoreStatus NewStatus)
@@ -185,13 +225,19 @@ void AA_RealEstatePaperWork::HandleAnswerSelected(FString Question, int32 Answer
 	}
 }
 
-TMap<FName, int32> AA_RealEstatePaperWork::CollectRealEstatePaperWorkSaveData_Implementation()
+TMap<FString, FQuestionDataStruct> AA_RealEstatePaperWork::CollectRealEstatePaperWorkSaveData_Implementation()
 {
-	return TMap<FName, int32>();
+	// to do status save
+	return QuestionsDataMap;
 }
 
-void AA_RealEstatePaperWork::ApplyRealEstatePaperWorkSaveData_Implementation(const TMap<FName, int32>& SaveData)
+void AA_RealEstatePaperWork::ApplyRealEstatePaperWorkSaveData_Implementation(UGIS_RealEstatePaperWork* GIS)
 {
+	// to do status save
+
+	QuestionsDataMap = GIS->CachedRealEstateData;
+
+	UpdateWidgetData();
 }
 
 FString AA_RealEstatePaperWork::CollectIntermediateSaveData()
@@ -199,9 +245,9 @@ FString AA_RealEstatePaperWork::CollectIntermediateSaveData()
 	FSubsystemSaveData SaveData;
 	if (UGameInstance* GI = GetGameInstance())
 	{
-		if (UGIS_RealEstatePaperWork* QuestSys = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
+		if (UGIS_RealEstatePaperWork* RealEstateSys = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
 		{
-			QuestSys->CollectSaveData(SaveData);
+			RealEstateSys->CollectSaveData(SaveData);
 		}
 	}
 	return SaveData.SerializedData;
@@ -212,11 +258,11 @@ void AA_RealEstatePaperWork::ApplyIntermediateSaveData(FString Jsonstring)
 	FSubsystemSaveData SaveData;
 	if (UGameInstance* GI = GetGameInstance())
 	{
-		if (UGIS_RealEstatePaperWork* QuestSys = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
+		if (UGIS_RealEstatePaperWork* RealEstateSys = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
 		{
 			SaveData.SerializedData = Jsonstring;
-			QuestSys->ApplySaveData(SaveData);
-			ApplyRealEstatePaperWorkSaveData_Implementation(QuestSys);
+			RealEstateSys->ApplySaveData(SaveData);
+			ApplyRealEstatePaperWorkSaveData_Implementation(RealEstateSys);
 		}
 	}
 }

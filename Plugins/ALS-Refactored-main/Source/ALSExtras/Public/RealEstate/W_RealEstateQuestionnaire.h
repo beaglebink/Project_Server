@@ -14,4 +14,7 @@ class ALSEXTRAS_API UW_RealEstateQuestionnaire : public UUserWidget
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Questionnaire")
 	FOnAnswerSelected OnAnswerSelected;
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Questionnaire")
+	void UpdateQuestionsData(const TMap<FString, FQuestionDataStruct>& QuestionsData);
 };

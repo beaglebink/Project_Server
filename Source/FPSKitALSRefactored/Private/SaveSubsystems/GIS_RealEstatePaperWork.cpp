@@ -40,9 +40,9 @@ void UGIS_RealEstatePaperWork::CollectSaveData(FSubsystemSaveData& OutData)
 			continue;
 		}
 
-		TMap<FName, int32> QuestSaveData = II_SaveableObject::Execute_CollectRealEstatePaperWorkSaveData(SaveableObject);;
+		TMap<FString, FQuestionDataStruct> RealEstateSaveData = II_SaveableObject::Execute_CollectRealEstatePaperWorkSaveData(SaveableObject);;
 
-		for (const auto& [QuestName, QuestData] : QuestSaveData)
+		for (const auto& [Question, QuestionData] : RealEstateSaveData)
 		{
 			//TSharedPtr<FJsonObject> QuestSaveJsonObject = MakeShared<FJsonObject>();
 
@@ -92,7 +92,7 @@ void UGIS_RealEstatePaperWork::ApplySaveData(const FSubsystemSaveData& InData)
 
 	bIsLoadComplete = false;
 
-	CachedQuestData.Empty();
+	CachedRealEstateData.Empty();
 
 	if (InData.SerializedData.IsEmpty())
 	{

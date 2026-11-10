@@ -6,6 +6,8 @@
 #include "ChoreSystem/ChoreEnums.h"
 #include "Quest/O_QuestStructures.h"
 #include "SaveSubsystems/GIS_Quest.h"
+#include "RealEstate/O_RealEstateStructures.h"
+#include "SaveSubsystems/GIS_RealEstatePaperWork.h"
 #include "I_SaveableObject.generated.h"
 
 // ChorePlacement save data structure
@@ -111,8 +113,8 @@ public:
 
 	// RealEstatePaperWork save data collection and application functions
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	TMap<FName, int32> CollectRealEstatePaperWorkSaveData();
+	TMap<FString, FQuestionDataStruct> CollectRealEstatePaperWorkSaveData();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyRealEstatePaperWorkSaveData(const TMap<FName, int32>& SaveData);
+	void ApplyRealEstatePaperWorkSaveData(UGIS_RealEstatePaperWork* GIS);
 };

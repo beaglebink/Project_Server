@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ISaveableSubsystem.h"
+#include "RealEstate/O_RealEstateStructures.h"
 #include "GIS_RealEstatePaperWork.generated.h"
 
 UCLASS()
@@ -32,7 +33,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveableObject")
 	void AddSaveableObject(UObject* NewSaveableObject);
 
-	TMap<FName, int32> CachedQuestData;
+	TMap<FString, FQuestionDataStruct> CachedRealEstateData;
 
 private:
 	bool bIsLoadComplete = false;
