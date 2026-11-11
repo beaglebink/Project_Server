@@ -12,7 +12,7 @@ class ALSEXTRAS_API UW_RealEstateQuestionnaire : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(BlueprintAssignable, Category = "Questionnaire")
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Questionnaire")
 	FOnAnswerSelected OnAnswerSelected;
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Questionnaire")

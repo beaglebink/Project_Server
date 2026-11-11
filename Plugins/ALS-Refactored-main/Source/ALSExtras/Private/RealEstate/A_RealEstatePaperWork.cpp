@@ -153,11 +153,6 @@ void AA_RealEstatePaperWork::SetChoreStatus(EChoreStatus NewStatus)
 	{
 		UE_LOG(LogTemp, Log, TEXT("RealEstateQuestionnaire %s is now Completed"), *ChoreId.ToString());
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("RealEstateQuestionnaire %s is now Completed"), *ChoreId.ToString()));
-		if (IsValid(QuestionnaireWidget))
-		{
-			QuestionnaireWidget->RemoveFromParent();
-			QuestionnaireWidget = nullptr;
-		}
 		break;
 	}
 	case EChoreStatus::Failed:

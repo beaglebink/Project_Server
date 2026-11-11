@@ -15,7 +15,7 @@ struct FAnswerDataStruct
 	uint8 bIsSuitable : 1{false};
 
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RealEstateQuestionnaire")
 	uint8 bIsChecked : 1{false};
 };
 
