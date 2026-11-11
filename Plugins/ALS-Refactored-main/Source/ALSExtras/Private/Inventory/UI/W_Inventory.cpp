@@ -51,6 +51,8 @@ void UW_Inventory::SlotsFilter(EnumInventory SlotContainerType)
 	{
 		if (UW_ItemSlot* SlotToFilter = Cast<UW_ItemSlot>(ItemSlot))
 		{
+			if (!SlotToFilter) return;
+
 			SlotToFilter->SetVisibility(ESlateVisibility::Collapsed);
 			if (SlotContainerType == EnumInventory::All || SlotContainerType == ItemDataTable->FindRow<FS_ItemData>(SlotToFilter->Item.Name, TEXT("Find row in datatable"))->Type)
 			{
