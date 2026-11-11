@@ -9,6 +9,8 @@
 class UBoxComponent;
 class UWidgetComponent;
 class UFloorAssignmentComponent;
+class UInteractiveItemComponent;
+class UInteractivePickerComponent;
 class UDA_RealEstateQuestionnaire;
 class UW_RealEstateQuestionnaire;
 
@@ -16,8 +18,8 @@ UCLASS()
 class ALSEXTRAS_API AA_RealEstatePaperWork : public AActor, public II_SaveableObject
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	AA_RealEstatePaperWork();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -29,7 +31,7 @@ protected:
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-public:	
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RealEstate")
 	FName ChoreId;
 
@@ -46,7 +48,7 @@ public:
 	FGameplayTag FailedTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
-	UBoxComponent* TriggerBoxComponent;
+	UStaticMeshComponent* MeshComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	TSubclassOf<UW_RealEstateQuestionnaire> QuestionnaireWidgetClass;
@@ -58,6 +60,9 @@ public:
 	UFloorAssignmentComponent* FloorAssignmentComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UInteractiveItemComponent* InteractiveItemComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
 	UDA_RealEstateQuestionnaire* QuestionnaireDataAsset;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RealEstate")
@@ -67,10 +72,14 @@ private:
 	UPROPERTY()
 	EChoreStatus ChoreStatus = EChoreStatus::Inactive;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintPure, BlueprintCallable, Category = "RealEstate")
 	bool CheckIfCompleted();
 
-	void OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);	
+	UFUNCTION()
+	void OnInteract(UInteractivePickerComponent* Picker);
+
+	UFUNCTION()
+	void OnInteractiveReceiveFocus(AActor* WhoInteract);
 
 	void UpdateWidgetData();
 
@@ -80,6 +89,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChoreStatus")
 	EChoreStatus GetChoreStatus()const;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "RealEstate")
+	void OnStarted();
 
 	UFUNCTION()
 	void HandleAnswerSelected(FString Question, int32 AnswerIndex, bool IsSelected);

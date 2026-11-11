@@ -1,5 +1,7 @@
 #include "RealEstate/A_RealEstatePaperWork.h"
 #include "FloorAssignmentComponent.h"
+#include "InteractiveItemComponent.h"
+#include "InteractivePickerComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "RealEstate/W_RealEstateQuestionnaire.h"
@@ -12,10 +14,11 @@ AA_RealEstatePaperWork::AA_RealEstatePaperWork()
 	PrimaryActorTick.bCanEverTick = true;
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
-	TriggerBoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
+	InteractiveItemComponent = CreateDefaultSubobject<UInteractiveItemComponent>(TEXT("InteractiveItemComponent"));
 
-	TriggerBoxComponent->SetupAttachment(RootComponent);
+	MeshComponent->SetupAttachment(RootComponent);
 }
 
 void AA_RealEstatePaperWork::OnConstruction(const FTransform& Transform)
@@ -38,7 +41,8 @@ void AA_RealEstatePaperWork::BeginPlay()
 {
 	Super::BeginPlay();
 
-	TriggerBoxComponent->OnComponentBeginOverlap.AddDynamic(this, &AA_RealEstatePaperWork::OnBoxBeginOverlap);
+	InteractiveItemComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_RealEstatePaperWork::OnInteract);
+	InteractiveItemComponent->OnInteractiveReceiveFocusEvent.AddDynamic(this, &AA_RealEstatePaperWork::OnInteractiveReceiveFocus);
 }
 
 void AA_RealEstatePaperWork::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -59,43 +63,59 @@ bool AA_RealEstatePaperWork::CheckIfCompleted()
 	return RightAnswersCounter >= FMath::CeilToInt(QuestionsDataMap.Num() * RightAnswersPercentage / 100.0f);
 }
 
-void AA_RealEstatePaperWork::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void AA_RealEstatePaperWork::OnInteract(UInteractivePickerComponent* Picker)
 {
-	if (GetChoreStatus() == EChoreStatus::Inactive)
+	if (GetChoreStatus() == EChoreStatus::Inactive || GetChoreStatus() == EChoreStatus::Completed)
 	{
 		return;
 	}
 
-	if (OtherActor == UGameplayStatics::GetPlayerPawn(this, 0))
+	if (QuestionnaireWidgetClass)
 	{
-		if (QuestionnaireWidgetClass)
+		if (!IsValid(QuestionnaireWidget))
 		{
+			QuestionnaireWidget = CreateWidget<UW_RealEstateQuestionnaire>(GetWorld(), QuestionnaireWidgetClass);
+
 			if (!IsValid(QuestionnaireWidget))
 			{
-				QuestionnaireWidget = CreateWidget<UW_RealEstateQuestionnaire>(GetWorld(), QuestionnaireWidgetClass);
+				return;
+			}
 
-				if (!IsValid(QuestionnaireWidget))
-				{
-					return;
-				}
+			QuestionnaireWidget->OnAnswerSelected.AddDynamic(this, &AA_RealEstatePaperWork::HandleAnswerSelected);
+		}
+		if (IsValid(QuestionnaireWidget))
+		{
+			QuestionnaireWidget->UpdateQuestionsData(ChoreId, QuestionsDataMap);
+			QuestionnaireWidget->AddToViewport(9999);
 
-				QuestionnaireWidget->OnAnswerSelected.AddDynamic(this, &AA_RealEstatePaperWork::HandleAnswerSelected);
-				QuestionnaireWidget->UpdateQuestionsData(QuestionsDataMap);
-				QuestionnaireWidget->AddToViewport(9999);
+			APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
 
-				APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+			if (IsValid(PC))
+			{
+				PC->SetShowMouseCursor(true);
 
-				if (IsValid(PC))
-				{
-					PC->SetShowMouseCursor(true);
-
-					FInputModeUIOnly InputMode;
-					InputMode.SetWidgetToFocus(QuestionnaireWidget->TakeWidget());
-					InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-					PC->SetInputMode(InputMode);
-				}
+				FInputModeUIOnly InputMode;
+				InputMode.SetWidgetToFocus(QuestionnaireWidget->TakeWidget());
+				InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+				PC->SetInputMode(InputMode);
 			}
 		}
+	}
+}
+
+void AA_RealEstatePaperWork::OnInteractiveReceiveFocus(AActor* WhoInteract)
+{
+	if (GetChoreStatus() == EChoreStatus::Inactive)
+	{
+		InteractiveItemComponent->SetTooltip(FText::FromString("Questionnaire is not active"));
+	}
+	else if (GetChoreStatus() == EChoreStatus::Completed)
+	{
+		InteractiveItemComponent->SetTooltip(FText::FromString("Questionnaire is completed"));
+	}
+	else
+	{
+		InteractiveItemComponent->SetTooltip(FText::FromString("Press F to fill the questionnaire"));
 	}
 }
 
@@ -103,7 +123,7 @@ void AA_RealEstatePaperWork::UpdateWidgetData()
 {
 	if (IsValid(QuestionnaireWidget))
 	{
-		QuestionnaireWidget->UpdateQuestionsData(QuestionsDataMap);
+		QuestionnaireWidget->UpdateQuestionsData(ChoreId, QuestionsDataMap);
 	}
 }
 
@@ -133,6 +153,11 @@ void AA_RealEstatePaperWork::SetChoreStatus(EChoreStatus NewStatus)
 	{
 		UE_LOG(LogTemp, Log, TEXT("RealEstateQuestionnaire %s is now Completed"), *ChoreId.ToString());
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("RealEstateQuestionnaire %s is now Completed"), *ChoreId.ToString()));
+		if (IsValid(QuestionnaireWidget))
+		{
+			QuestionnaireWidget->RemoveFromParent();
+			QuestionnaireWidget = nullptr;
+		}
 		break;
 	}
 	case EChoreStatus::Failed:
@@ -187,6 +212,7 @@ void AA_RealEstatePaperWork::SetChoreStatus(EChoreStatus NewStatus)
 	}
 	case EChoreStatus::Started:
 	{
+		OnStarted();
 		UE_LOG(LogTemp, Log, TEXT("RealEstateQuestionnaire %s is now Started"), *ChoreId.ToString());
 		break;
 	}

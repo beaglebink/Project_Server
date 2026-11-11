@@ -16,5 +16,5 @@ public:
 	FOnAnswerSelected OnAnswerSelected;
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Questionnaire")
-	void UpdateQuestionsData(const TMap<FString, FQuestionDataStruct>& QuestionsData);
+	void UpdateQuestionsData(FName ChoreID, const TMap<FString, FQuestionDataStruct>& QuestionsData);
 };
