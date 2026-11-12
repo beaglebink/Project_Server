@@ -33,7 +33,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveableObject")
 	void AddSaveableObject(UObject* NewSaveableObject);
 
-	TMap<FString, FQuestionDataStruct> CachedRealEstateData;
+	TMap<FString, FQuestionSaveDataStruct> CachedRealEstateData;
 
 private:
 	bool bIsLoadComplete = false;

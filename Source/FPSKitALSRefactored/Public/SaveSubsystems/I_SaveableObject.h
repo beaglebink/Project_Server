@@ -62,6 +62,10 @@ class FPSKITALSREFACTORED_API II_SaveableObject
 	GENERATED_BODY()
 
 public:
+	//FLoorAssignmentComponent get ID converted to string for save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	FString GetFloorAssignmentComponentIdAsString();
+
 	// Text file (and heirs) save data collection and application functions
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	TMap<FString, FText> CollectTextFilesSaveData();
@@ -113,7 +117,7 @@ public:
 
 	// RealEstatePaperWork save data collection and application functions
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	TMap<FString, FQuestionDataStruct> CollectRealEstatePaperWorkSaveData();
+	FQuestionSaveDataStruct CollectRealEstatePaperWorkSaveData();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyRealEstatePaperWorkSaveData(UGIS_RealEstatePaperWork* GIS);

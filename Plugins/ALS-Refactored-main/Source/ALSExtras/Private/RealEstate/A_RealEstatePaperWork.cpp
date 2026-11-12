@@ -41,6 +41,18 @@ void AA_RealEstatePaperWork::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UGIS_RealEstatePaperWork* GIS = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
+		{
+			GIS->AddSaveableObject(this);
+			GetWorldTimerManager().SetTimerForNextTick([this, GIS]()
+				{
+					ApplyRealEstatePaperWorkSaveData_Implementation(GIS);
+				});
+		}
+	}
+
 	InteractiveItemComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_RealEstatePaperWork::OnInteract);
 	InteractiveItemComponent->OnInteractiveReceiveFocusEvent.AddDynamic(this, &AA_RealEstatePaperWork::OnInteractiveReceiveFocus);
 }
@@ -151,12 +163,14 @@ void AA_RealEstatePaperWork::SetChoreStatus(EChoreStatus NewStatus)
 	}
 	case EChoreStatus::Completed:
 	{
+		PublicResultState(true);
 		UE_LOG(LogTemp, Log, TEXT("RealEstateQuestionnaire %s is now Completed"), *ChoreId.ToString());
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("RealEstateQuestionnaire %s is now Completed"), *ChoreId.ToString()));
 		break;
 	}
 	case EChoreStatus::Failed:
 	{
+		PublicResultState(false);
 		UE_LOG(LogTemp, Log, TEXT("RealEstateQuestionnaire %s is now Failed"), *ChoreId.ToString());
 		break;
 	}
@@ -224,6 +238,11 @@ EChoreStatus AA_RealEstatePaperWork::GetChoreStatus()const
 	return ChoreStatus;
 }
 
+FGameplayTag AA_RealEstatePaperWork::PublicResultState_Implementation(bool QuestionnaireResult)
+{
+	return QuestionnaireResult ? CompletedTag : FailedTag;
+}
+
 void AA_RealEstatePaperWork::HandleAnswerSelected(FString Question, int32 AnswerIndex, bool IsSelected)
 {
 	SetChoreStatus(EChoreStatus::Started);
@@ -246,17 +265,33 @@ void AA_RealEstatePaperWork::HandleAnswerSelected(FString Question, int32 Answer
 	}
 }
 
-TMap<FString, FQuestionDataStruct> AA_RealEstatePaperWork::CollectRealEstatePaperWorkSaveData_Implementation()
+FString AA_RealEstatePaperWork::GetFloorAssignmentComponentIdAsString_Implementation()
 {
-	// to do status save
-	return QuestionsDataMap;
+	if (IsValid(FloorAssignmentComponent))
+	{
+		return FloorAssignmentComponent->GetFloorId().ToString();
+	}
+	return FString();
+}
+
+FQuestionSaveDataStruct AA_RealEstatePaperWork::CollectRealEstatePaperWorkSaveData_Implementation()
+{
+	FQuestionSaveDataStruct SaveData;
+
+	SaveData.ChoreStatus = GetChoreStatus();
+	SaveData.Questions = QuestionsDataMap;
+
+	return SaveData;
 }
 
 void AA_RealEstatePaperWork::ApplyRealEstatePaperWorkSaveData_Implementation(UGIS_RealEstatePaperWork* GIS)
 {
-	// to do status save
-
-	QuestionsDataMap = GIS->CachedRealEstateData;
+	FQuestionSaveDataStruct* QuestionSaveData = GIS->CachedRealEstateData.Find(GetFloorAssignmentComponentIdAsString_Implementation());
+	if (QuestionSaveData)
+	{
+		SetChoreStatus(QuestionSaveData->ChoreStatus);
+		QuestionsDataMap = QuestionSaveData->Questions;
+	}
 
 	UpdateWidgetData();
 }
@@ -266,9 +301,9 @@ FString AA_RealEstatePaperWork::CollectIntermediateSaveData()
 	FSubsystemSaveData SaveData;
 	if (UGameInstance* GI = GetGameInstance())
 	{
-		if (UGIS_RealEstatePaperWork* RealEstateSys = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
+		if (UGIS_RealEstatePaperWork* GIS = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
 		{
-			RealEstateSys->CollectSaveData(SaveData);
+			GIS->CollectSaveData(SaveData);
 		}
 	}
 	return SaveData.SerializedData;
@@ -279,11 +314,11 @@ void AA_RealEstatePaperWork::ApplyIntermediateSaveData(FString Jsonstring)
 	FSubsystemSaveData SaveData;
 	if (UGameInstance* GI = GetGameInstance())
 	{
-		if (UGIS_RealEstatePaperWork* RealEstateSys = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
+		if (UGIS_RealEstatePaperWork* GIS = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
 		{
 			SaveData.SerializedData = Jsonstring;
-			RealEstateSys->ApplySaveData(SaveData);
-			ApplyRealEstatePaperWorkSaveData_Implementation(RealEstateSys);
+			GIS->ApplySaveData(SaveData);
+			ApplyRealEstatePaperWorkSaveData_Implementation(GIS);
 		}
 	}
 }

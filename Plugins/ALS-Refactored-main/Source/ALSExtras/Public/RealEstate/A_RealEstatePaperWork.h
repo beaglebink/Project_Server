@@ -90,6 +90,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChoreStatus")
 	EChoreStatus GetChoreStatus()const;
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "RealEstate")
+	FGameplayTag PublicResultState(bool QuestionnaireResult);
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "RealEstate")
 	void OnStarted();
 
@@ -97,7 +100,9 @@ public:
 	void HandleAnswerSelected(FString Question, int32 AnswerIndex, bool IsSelected);
 
 	// II_SaveableObject interface
-	virtual TMap<FString, FQuestionDataStruct> CollectRealEstatePaperWorkSaveData_Implementation() override;
+	virtual FString GetFloorAssignmentComponentIdAsString_Implementation() override;
+
+	virtual FQuestionSaveDataStruct CollectRealEstatePaperWorkSaveData_Implementation() override;
 
 	virtual void ApplyRealEstatePaperWorkSaveData_Implementation(UGIS_RealEstatePaperWork* GIS) override;
 

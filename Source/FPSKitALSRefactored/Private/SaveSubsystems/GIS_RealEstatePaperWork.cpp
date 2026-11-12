@@ -40,44 +40,39 @@ void UGIS_RealEstatePaperWork::CollectSaveData(FSubsystemSaveData& OutData)
 			continue;
 		}
 
-		TMap<FString, FQuestionDataStruct> RealEstateSaveData = II_SaveableObject::Execute_CollectRealEstatePaperWorkSaveData(SaveableObject);;
+		FQuestionSaveDataStruct RealEstateSaveData = II_SaveableObject::Execute_CollectRealEstatePaperWorkSaveData(SaveableObject);;
 
-		for (const auto& [Question, QuestionData] : RealEstateSaveData)
+		TSharedPtr<FJsonObject> RealEstateSaveJsonObject = MakeShared<FJsonObject>();
+
+		RealEstateSaveJsonObject->SetNumberField(TEXT("ChoreStatus"), static_cast<int32>(RealEstateSaveData.ChoreStatus));
+
+		for (const auto& [Question, QuestionData] : RealEstateSaveData.Questions)
 		{
-			//TSharedPtr<FJsonObject> QuestSaveJsonObject = MakeShared<FJsonObject>();
+			TSharedPtr<FJsonObject> QuestionSaveJsonObject = MakeShared<FJsonObject>();
 
-			//QuestSaveJsonObject->SetNumberField(TEXT("Status"), static_cast<int32>(QuestData.QuestStatus));
+			TArray<TSharedPtr<FJsonValue>> AnswersJsonArray;
 
-			//TArray<TSharedPtr<FJsonValue>> QuestStagesJsonArray;
-			//for (const auto& QuestStages : QuestData.QuestsArray)
-			//{
-			//	TSharedPtr<FJsonObject> QuestStageSaveJsonObject = MakeShared<FJsonObject>();
+			for (const auto& AnswerData : QuestionData.AnswersArray)
+			{
+				TSharedPtr<FJsonObject> AnswerSaveJsonObject = MakeShared<FJsonObject>();
 
-			//	QuestStageSaveJsonObject->SetBoolField(TEXT("IsCompleted"), QuestStages.bIsCompleted);
+				FString SerializedAnswerText;
+				FTextStringHelper::WriteToBuffer(SerializedAnswerText, AnswerData.AnswerText, false, false);
+				AnswerSaveJsonObject->SetStringField(TEXT("AnswerText"), SerializedAnswerText);
 
-			//	TArray<TSharedPtr<FJsonValue>> QuestStepsJsonArray;
-			//	for (const auto& QuestStep : QuestStages.QuestStepDataArray)
-			//	{
-			//		TSharedPtr<FJsonObject> QuestStepSaveJsonObject = MakeShared<FJsonObject>();
+				AnswerSaveJsonObject->SetBoolField(TEXT("bIsSuitable"), AnswerData.bIsSuitable);
+				AnswerSaveJsonObject->SetBoolField(TEXT("bIsChecked"), AnswerData.bIsChecked);
 
-			//		QuestStepSaveJsonObject->SetStringField(TEXT("StepTag"), QuestStep.QuestStepTag.ToString());
-			//		QuestStepSaveJsonObject->SetNumberField(TEXT("StepValue"), QuestStep.QuestStepValue);
-			//		QuestStepSaveJsonObject->SetBoolField(TEXT("IsDynamic"), QuestStep.bIsDynamic);
-			//		QuestStepSaveJsonObject->SetBoolField(TEXT("ShouldBeRemovedFromInventoryOnComplete"), QuestStep.bShouldBeRemovedFromInventoryOnComplete);
-			//		QuestStepSaveJsonObject->SetBoolField(TEXT("IsChecked"), QuestStep.bIsChecked);
+				AnswersJsonArray.Add(MakeShared<FJsonValueObject>(AnswerSaveJsonObject));
+			}
+			QuestionSaveJsonObject->SetArrayField(TEXT("AnswersArray"), AnswersJsonArray);
+			QuestionSaveJsonObject->SetBoolField(TEXT("bIsPassed"), QuestionData.bIsPassed);
 
-			//		QuestStepsJsonArray.Add(MakeShared<FJsonValueObject>(QuestStepSaveJsonObject));
-			//	}
-
-			//	QuestStageSaveJsonObject->SetArrayField(TEXT("Steps"), QuestStepsJsonArray);
-
-			//	QuestStagesJsonArray.Add(MakeShared<FJsonValueObject>(QuestStageSaveJsonObject));
-			//}
-
-			//QuestSaveJsonObject->SetArrayField(TEXT("Stages"), QuestStagesJsonArray);
-
-			//Root->SetObjectField(QuestName.ToString(), QuestSaveJsonObject);
+			RealEstateSaveJsonObject->SetObjectField(Question, QuestionSaveJsonObject);
 		}
+
+		FString RealEstateObjectName = II_SaveableObject::Execute_GetFloorAssignmentComponentIdAsString(SaveableObject);
+		Root->SetObjectField(RealEstateObjectName, RealEstateSaveJsonObject);
 	}
 
 	FString JsonString;
@@ -109,99 +104,83 @@ void UGIS_RealEstatePaperWork::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
-	for (const auto& [QuestName, QuestSaveData] : Root->Values)
+	for (const auto& [RealEstateObjectId, RealEstateSaveJsonData] : Root->Values)
 	{
-		//FQuestStepDataStruct QuestStepDataStruct;
+		FQuestionSaveDataStruct QuestionSaveDataStruct;
 
-		//const TSharedPtr<FJsonObject>* QuestSaveJsonObject = nullptr;
-		//if (!QuestSaveData->TryGetObject(QuestSaveJsonObject))
-		//{
-		//	continue;
-		//}
-		//int32 QuestStatusNumbered;
-		//if (!(*QuestSaveJsonObject)->TryGetNumberField(TEXT("Status"), QuestStatusNumbered))
-		//{
-		//	continue;
-		//}
-		//QuestStepDataStruct.QuestStatus = static_cast<EChoreStatus>(QuestStatusNumbered);
+		int32 RealEstateStatusNumbered;
+		if (!RealEstateSaveJsonData->AsObject()->TryGetNumberField(TEXT("ChoreStatus"), RealEstateStatusNumbered))
+		{
+			continue;
+		}
+		QuestionSaveDataStruct.ChoreStatus = static_cast<EChoreStatus>(RealEstateStatusNumbered);
 
-		//const TArray<TSharedPtr<FJsonValue>>* QuestStagesJsonArray = nullptr;
-		//if (!(*QuestSaveJsonObject)->TryGetArrayField(TEXT("Stages"), QuestStagesJsonArray))
-		//{
-		//	continue;
-		//}
-		//for (const auto& QuestStageJsonValue : *QuestStagesJsonArray)
-		//{
-		//	FQuestStepDataArray QuestStage;
+		for (const auto& [Question, QuestionJsonData] : RealEstateSaveJsonData->AsObject()->Values)
+		{
+			FQuestionDataStruct QuestionDataStruct;
 
-		//	const TSharedPtr<FJsonObject>* QuestStageJsonObject = nullptr;
-		//	if (!QuestStageJsonValue->TryGetObject(QuestStageJsonObject))
-		//	{
-		//		continue;
-		//	}
+			if (!QuestionJsonData.IsValid() || QuestionJsonData->Type != EJson::Object)
+			{
+				continue;
+			}
+			const TSharedPtr<FJsonObject> QuestionSaveJsonObject = QuestionJsonData->AsObject();
+			if (!QuestionSaveJsonObject.IsValid())
+			{
+				continue;
+			}
 
-		//	bool bIsCompleted = false;
-		//	if (!(*QuestStageJsonObject)->TryGetBoolField(TEXT("IsCompleted"), bIsCompleted))
-		//	{
-		//		continue;
-		//	}
-		//	QuestStage.bIsCompleted = bIsCompleted;
+			const TArray<TSharedPtr<FJsonValue>>* AnswersJsonArray = nullptr;
+			if (!QuestionSaveJsonObject->TryGetArrayField(TEXT("AnswersArray"), AnswersJsonArray))
+			{
+				continue;
+			}
+			for (const auto& AnswerJsonValue : *AnswersJsonArray)
+			{
+				FAnswerDataStruct AnswerDataStruct;
 
-		//	const TArray<TSharedPtr<FJsonValue>>* QuestStepsJsonArray = nullptr;
-		//	if (!(*QuestStageJsonObject)->TryGetArrayField(TEXT("Steps"), QuestStepsJsonArray))
-		//	{
-		//		continue;
-		//	}
-		//	for (const auto& QuestStepJsonValue : *QuestStepsJsonArray)
-		//	{
-		//		FQuestStepData QuestStep;
+				if (!AnswerJsonValue.IsValid() || AnswerJsonValue->Type != EJson::Object)
+				{
+					continue;
+				}
+				TSharedPtr<FJsonObject> AnswerJsonObject = AnswerJsonValue->AsObject();
 
-		//		const TSharedPtr<FJsonObject>* QuestStepJsonObject = nullptr;
-		//		if (!QuestStepJsonValue->TryGetObject(QuestStepJsonObject))
-		//		{
-		//			continue;
-		//		}
+				FString AnswerText;
+				if (!AnswerJsonObject->TryGetStringField(TEXT("AnswerText"), AnswerText))
+				{
+					continue;
+				}
+				bool bIsSuitable = false;
+				if (!AnswerJsonObject->TryGetBoolField(TEXT("bIsSuitable"), bIsSuitable))
+				{
+					continue;
+				}
+				bool bIsChecked = false;
+				if (!AnswerJsonObject->TryGetBoolField(TEXT("bIsChecked"), bIsChecked))
+				{
+					continue;
+				}
 
-		//		FString TagString;
-		//		if (!(*QuestStepJsonObject)->TryGetStringField(TEXT("StepTag"), TagString))
-		//		{
-		//			continue;
-		//		}
-		//		QuestStep.QuestStepTag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
+				if (!FTextStringHelper::ReadFromBuffer(*AnswerText, AnswerDataStruct.AnswerText, TEXT(""), TEXT(""), false))
+				{
+					continue;
+				}
 
-		//		if (!(*QuestStepJsonObject)->TryGetNumberField(TEXT("StepValue"), QuestStep.QuestStepValue))
-		//		{
-		//			continue;
-		//		}
+				AnswerDataStruct.bIsSuitable = bIsSuitable;
+				AnswerDataStruct.bIsChecked = bIsChecked;
+				QuestionDataStruct.AnswersArray.Add(AnswerDataStruct);
+			}
 
-		//		bool bIsDynamic = false;
-		//		if (!(*QuestStepJsonObject)->TryGetBoolField(TEXT("IsDynamic"), bIsDynamic))
-		//		{
-		//			continue;
-		//		}
-		//		QuestStep.bIsDynamic = bIsDynamic;
+			bool bIsPassed = false;
+			if (!QuestionSaveJsonObject->TryGetBoolField(TEXT("bIsPassed"), bIsPassed))
+			{
+				continue;
+			}
+			QuestionDataStruct.bIsPassed = bIsPassed;
 
-		//		bool bShouldBeRemovedFromInventoryOnComplete = false;
-		//		if (!(*QuestStepJsonObject)->TryGetBoolField(TEXT("ShouldBeRemovedFromInventoryOnComplete"), bShouldBeRemovedFromInventoryOnComplete))
-		//		{
-		//			continue;
-		//		}
-		//		QuestStep.bShouldBeRemovedFromInventoryOnComplete = bShouldBeRemovedFromInventoryOnComplete;
+			QuestionSaveDataStruct.Questions.Add(Question, QuestionDataStruct);
+		}
 
-		//		bool bIsChecked = false;
-		//		if (!(*QuestStepJsonObject)->TryGetBoolField(TEXT("IsChecked"), bIsChecked))
-		//		{
-		//			continue;
-		//		}
-		//		QuestStep.bIsChecked = bIsChecked;
-
-		//		QuestStage.QuestStepDataArray.Add(QuestStep);
-		//	}
-
-		//	QuestStepDataStruct.QuestsArray.Add(QuestStage);
-		//}
-
-		//CachedQuestData.FindOrAdd(FName(*QuestName), QuestStepDataStruct);
+		CachedRealEstateData.Add(RealEstateObjectId, QuestionSaveDataStruct);
 	}
 
 	bIsLoadComplete = true;

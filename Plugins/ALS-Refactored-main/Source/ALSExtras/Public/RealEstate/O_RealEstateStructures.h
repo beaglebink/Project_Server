@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ChoreSystem/ChoreEnums.h"
 #include "O_RealEstateStructures.generated.h"
 
 USTRUCT(BlueprintType)
@@ -29,4 +30,16 @@ struct FQuestionDataStruct
 
 	UPROPERTY()
 	uint8 bIsPassed : 1{false};
+};
+
+USTRUCT(BlueprintType)
+struct FQuestionSaveDataStruct
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EChoreStatus ChoreStatus;
+
+	UPROPERTY()
+	TMap<FString, FQuestionDataStruct> Questions;
 };
