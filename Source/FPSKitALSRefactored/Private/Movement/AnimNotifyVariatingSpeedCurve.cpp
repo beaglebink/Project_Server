@@ -58,13 +58,13 @@ void UAnimNotifyVariatingSpeedCurve::NotifyTick(USkeletalMeshComponent* MeshComp
 			{
 				const float animationLength = Animation->GetPlayLength();
 				const FString animationName = Animation->GetName();
-				const float animationCurrentFrame = Animation->GetFrameAtTime(currentTime);
+				const int32 animationCurrentFrame = static_cast<int32>(Animation->GetFrameAtTime(currentTime));
 				const float currentSpeed = IsValid(characterMovementComponentVar) ? characterMovementComponentVar->Velocity.Length() : -1.f;
 				const FString animationInfo = (IsValid(characterMovementComponentVar) ? "" : "                                                            ") +
 					animationName + " speed multiplier: " + FString::SanitizeFloat(speedState, 3) +
 					" pitch: " + FString::SanitizeFloat(pitchShift, 3) +
 					(currentSpeed >= UE_KINDA_SMALL_NUMBER ? " speed: " + FString::SanitizeFloat(currentSpeed, 3) : "") +
-					" frame: " + FString::SanitizeFloat(animationCurrentFrame, 3);
+					" frame: " + FString::FromInt(animationCurrentFrame);
 				GEngine->AddOnScreenDebugMessage(-1, UE_KINDA_SMALL_NUMBER, FColor::Yellow, animationInfo);
 			}
 			if (currentTime <= FrameDeltaTime && IsValid(ownerCharacter))
