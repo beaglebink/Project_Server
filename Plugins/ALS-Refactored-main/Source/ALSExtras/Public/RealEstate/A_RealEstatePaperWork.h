@@ -47,19 +47,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RealEstate")
 	FGameplayTag FailedTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* MeshComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	TSubclassOf<UW_RealEstateQuestionnaire> QuestionnaireWidgetClass;
 
 	UPROPERTY()
 	TObjectPtr<UW_RealEstateQuestionnaire> QuestionnaireWidget;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UFloorAssignmentComponent* FloorAssignmentComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UInteractiveItemComponent* InteractiveItemComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components")
