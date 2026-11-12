@@ -2809,7 +2809,7 @@ void AAlsCharacterExample::GamerGear_Effect(bool Apply)
 	GamerGear_AccuracyMultiplier = 1.0f;
 	GamerGear_RecoilMultiplier = 1.0f;
 	GamerGear_NextShotDamageAdition = 0.0f;
-	GamerGear_MinDamageForLast30c = INT_MAX;
+	GamerGear_MinDamageForLast30c = (float)INT_MAX;
 	if (Apply)
 	{
 		GamerGear_AccuracyMultiplier = 0.85f;
