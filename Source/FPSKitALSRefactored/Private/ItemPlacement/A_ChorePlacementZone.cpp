@@ -235,6 +235,7 @@ void AA_ChorePlacementZone::BeginPlay()
 void AA_ChorePlacementZone::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(AutoResultTimerHandle);
+	GetWorldTimerManager().ClearTimer(CheckForStartHandle);
 
 	Super::EndPlay(EndPlayReason);
 }
