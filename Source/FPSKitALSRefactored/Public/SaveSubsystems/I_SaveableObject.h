@@ -121,4 +121,11 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyRealEstatePaperWorkSaveData(UGIS_RealEstatePaperWork* GIS);
+
+	// FlyerPosting save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	int32 CollectFlyerPostingSaveData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyFlyerPostingSaveData(const int32 SaveChoreData);
 };
