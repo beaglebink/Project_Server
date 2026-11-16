@@ -645,3 +645,23 @@ int32 UAC_Container::GetItemIndexByTag(FGameplayTag ItemTag) const
 			return Item.Name == FName(*LastPart);
 		});
 }
+
+FName UAC_Container::FindItemNameByTag(FGameplayTag ItemTag)
+{
+	if (!IsValid(ItemDataTable))
+	{
+		return NAME_None;
+	}
+
+	for (const auto& Row : ItemDataTable->GetRowMap())
+	{
+		FS_ItemData* ItemData = reinterpret_cast<FS_ItemData*>(Row.Value);
+
+		if (ItemTag.MatchesTag(ItemData->SpecialTag))
+		{
+			return Row.Key;
+		}
+	}
+
+	return NAME_None;
+}

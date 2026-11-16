@@ -192,6 +192,14 @@ bool UAC_Inventory::CheckIfInventoryContainsItem(FGameplayTag ItemTag, int32 Qua
 	return false;
 }
 
+void UAC_Inventory::AddItemToInventory(FGameplayTag ItemTag, int32 Quantity)
+{
+	if (ContainerComponent)
+	{
+		ContainerComponent->AddToContainer(ContainerComponent->FindItemNameByTag(ItemTag), Quantity, 1.0f, false);
+	}
+}
+
 void UAC_Inventory::RemoveItemFromInventory(FGameplayTag ItemTag, int32 Quantity)
 {
 	if (ContainerComponent)

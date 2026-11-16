@@ -76,5 +76,7 @@ public:
 
 	bool CheckIfInventoryContainsItem(FGameplayTag ItemTag, int32 Quantity) const;
 
+	void AddItemToInventory(FGameplayTag ItemTag, int32 Quantity);
+
 	void RemoveItemFromInventory(FGameplayTag ItemTag, int32 Quantity);
 };

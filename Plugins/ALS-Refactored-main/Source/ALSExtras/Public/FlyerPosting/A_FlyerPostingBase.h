@@ -9,6 +9,7 @@
 class UInteractiveItemComponent;
 class UFloorAssignmentComponent;
 class UCanvasRenderTarget2D;
+class AA_Flyer;
 
 UCLASS()
 class ALSEXTRAS_API AA_FlyerPostingBase : public AActor, public II_SaveableObject
@@ -30,29 +31,32 @@ protected:
 	virtual void Destroyed() override;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FLyerPosting")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlyerPosting")
 	FName ChoreId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FLyerPosting")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlyerPosting")
 	uint8 bIsAutoAcivated : 1{false};
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FLyerPosting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FlyerPosting")
 	uint8 bIsDeferredEvaluate : 1{false};
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FLyerPosting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FlyerPosting")
 	FGameplayTag CompletedTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FLyerPosting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FlyerPosting")
 	FGameplayTag FailedTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FLyerPosting", meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FlyerPosting", meta = (ClampMin = 0))
 	int32 AvailableFlyersQuantityForPlayer;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FLyerPosting", meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FlyerPosting", meta = (ClampMin = 0))
 	int32 RequiredFlyersQuantityToPlace;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FLyerPosting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FlyerPosting")
 	FGameplayTag FlyerTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FlyerPosting")
+	TSubclassOf<AA_Flyer> FlyerClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UInteractiveItemComponent* InteractiveItemComponent;
@@ -64,6 +68,9 @@ private:
 	UPROPERTY()
 	EChoreStatus ChoreStatus;
 
+	UPROPERTY()
+	TArray<FTransform> PlacedFlyersTransforms;
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "ChoreStatus")
 	void SetChoreStatus(EChoreStatus NewStatus);
@@ -71,7 +78,7 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChoreStatus")
 	EChoreStatus GetChoreStatus()const;
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "FLyerPosting")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "FlyerPosting")
 	FGameplayTag PublicResultState(bool Result);
 
 	// II_SaveableObject interface
@@ -91,6 +98,12 @@ public:
 private:
 	bool CheckIfStarted();
 
+	UFUNCTION()
+	void OnInteract(UInteractivePickerComponent* Picker);
+
+	UFUNCTION()
+	void OnInteractiveReceiveFocus(AActor* WhoInteract);
+
 	UPROPERTY()
 	UCanvasRenderTarget2D* TextRenderTarget;
 
@@ -98,13 +111,19 @@ private:
 	UStaticMesh* PlacementStaticMesh;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FlyerPosting", meta = (AllowPrivateAccess = true))
-	UMaterialInterface* FlyerMaterial;
+	UMaterialInterface* FlyerZoneMaterial;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* MID_Flyer;
+	UMaterialInstanceDynamic* MID_FlyerZone;
 
 	UFUNCTION()
 	void DrawZoneText(UCanvas* Canvas, int32 Width, int32 Height);
+
+	void SpawnFlyerDecal(FTransform FlyerTransform);
+
+	FHitResult TraceForFlyer();
+
+	FTransform GetFlyerTransform() const;
 
 public:
 	UFUNCTION(CallInEditor, Category = "FlyerPlacement")

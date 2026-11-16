@@ -75,6 +75,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
@@ -84,15 +85,28 @@ private:
     UPROPERTY(EditDefaultsOnly, SaveGame, Category = "Summary")
     float TotalMoney = 0.f;
 
-    UPROPERTY(SaveGame) TMap<FName, int32> ItemsToSpawn;
-    UPROPERTY(SaveGame) FTimerHandle RemoveItemsHandle;
+    UPROPERTY(SaveGame)
+    TMap<FName, int32> ItemsToSpawn;
+    
+    UPROPERTY(SaveGame)
+    FTimerHandle RemoveItemsHandle;
 
 public:
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Summary") float GetWeight();
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Summary") float GetMoney();
-    UFUNCTION(BlueprintCallable, Category = "Summary") void SetWeight(float NewWeight);
-    UFUNCTION(BlueprintCallable, Category = "Summary") void SetMoney(float NewValue);
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Summary")
+    float GetWeight();
+    
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Summary")
+    float GetMoney();
+    
+    UFUNCTION(BlueprintCallable, Category = "Summary")
+    void SetWeight(float NewWeight);
+    
+    UFUNCTION(BlueprintCallable, Category = "Summary")
+    void SetMoney(float NewValue);
 
     void CountContainerWeight();
+    
     int32 GetItemIndexByTag(FGameplayTag ItemTag) const;
+    
+    FName FindItemNameByTag(FGameplayTag ItemTag);
 };

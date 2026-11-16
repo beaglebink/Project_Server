@@ -4,7 +4,10 @@
 #include "SaveSubsystems/GIS_FlyerPosting.h"
 #include "Engine/CanvasRenderTarget2D.h"
 #include "Engine/Canvas.h"
-#include "Components/BoxComponent.h"
+#include "Inventory/AC_Inventory.h"
+#include "InteractivePickerComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "FlyerPosting/A_Flyer.h"
 
 AA_FlyerPostingBase::AA_FlyerPostingBase()
 {
@@ -29,13 +32,13 @@ void AA_FlyerPostingBase::OnConstruction(const FTransform& Transform)
 		TextRenderTarget->UpdateResource();
 	}
 
-	if (!MID_Flyer && IsValid(FlyerMaterial))
+	if (!MID_FlyerZone && IsValid(FlyerZoneMaterial))
 	{
-		MID_Flyer = UMaterialInstanceDynamic::Create(FlyerMaterial, this);
+		MID_FlyerZone = UMaterialInstanceDynamic::Create(FlyerZoneMaterial, this);
 	}
-	if (MID_Flyer)
+	if (MID_FlyerZone)
 	{
-		MID_Flyer->SetTextureParameterValue(TEXT("FontMaskTexture"), TextRenderTarget);
+		MID_FlyerZone->SetTextureParameterValue(TEXT("FontMaskTexture"), TextRenderTarget);
 	}
 }
 
@@ -48,6 +51,11 @@ void AA_FlyerPostingBase::Tick(float DeltaTime)
 void AA_FlyerPostingBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (bIsAutoAcivated)
+	{
+		SetChoreStatus(EChoreStatus::Active);
+	}
 
 	if (UGameInstance* GI = GetGameInstance())
 	{
@@ -62,6 +70,9 @@ void AA_FlyerPostingBase::BeginPlay()
 				});
 		}
 	}
+
+	InteractiveItemComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_FlyerPostingBase::OnInteract);
+	InteractiveItemComponent->OnInteractiveReceiveFocusEvent.AddDynamic(this, &AA_FlyerPostingBase::OnInteractiveReceiveFocus);
 }
 
 void AA_FlyerPostingBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -226,6 +237,91 @@ bool AA_FlyerPostingBase::CheckIfStarted()
 	return false;
 }
 
+void AA_FlyerPostingBase::OnInteract(UInteractivePickerComponent* Picker)
+{
+	if (GetChoreStatus() == EChoreStatus::Inactive || GetChoreStatus() == EChoreStatus::Completed)
+	{
+		return;
+	}
+
+	if (Picker->GetOwner())
+	{
+		if (ACharacter* InteractingCharacter = Cast<ACharacter>(Picker->GetOwner()))
+		{
+			if (UAC_Inventory* InventoryComp = InteractingCharacter->FindComponentByClass<UAC_Inventory>())
+			{
+				if (InventoryComp->CheckIfInventoryContainsItem(FlyerTag, 1))
+				{
+					FHitResult HitResult = TraceForFlyer();
+					if (HitResult.bBlockingHit)
+					{
+						if (AA_Flyer* FlyerActor = Cast<AA_Flyer>(HitResult.GetActor()))
+						{
+							InventoryComp->AddItemToInventory(FlyerActor->FlyerTag, 1);
+							FlyerActor->Destroy();
+						}
+						else if (FlyerClass)
+						{
+							InventoryComp->RemoveItemFromInventory(FlyerTag, 1);
+							FTransform FlyerTransform;
+							FlyerTransform.SetLocation(HitResult.Location);
+							FlyerTransform.SetRotation(HitResult.Normal.ToOrientationQuat());
+
+							if (AA_Flyer* NewFlyer = GetWorld()->SpawnActorDeferred<AA_Flyer>(FlyerClass, FlyerTransform, this, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
+							{
+								NewFlyer->FlyerTag = FlyerTag;
+								NewFlyer->FinishSpawning(FlyerTransform);
+							}
+						}
+					}
+					SpawnFlyerDecal(GetFlyerTransform());
+					InventoryComp->RemoveItemFromInventory(FlyerTag, 1);
+				}
+			}
+		}
+	}
+}
+
+void AA_FlyerPostingBase::OnInteractiveReceiveFocus(AActor* WhoInteract)
+{
+	if (GetChoreStatus() == EChoreStatus::Inactive)
+	{
+		InteractiveItemComponent->SetTooltip(FText::FromString("Flyer posting is not active"));
+		return;
+	}
+
+	if (GetChoreStatus() == EChoreStatus::Completed)
+	{
+		InteractiveItemComponent->SetTooltip(FText::FromString("Flyer posting is completed"));
+		return;
+	}
+
+	FHitResult HitResult = TraceForFlyer();
+	if (HitResult.bBlockingHit)
+	{
+		if (AA_Flyer* FlyerActor = Cast<AA_Flyer>(HitResult.GetActor()))
+		{
+			InteractiveItemComponent->SetTooltip(FText::FromString("The place is taken by another flyer, press F to take it."));
+			return;
+		}
+	}
+
+	if (ACharacter* InteractingCharacter = Cast<ACharacter>(WhoInteract))
+	{
+		if (UAC_Inventory* InventoryComp = InteractingCharacter->FindComponentByClass<UAC_Inventory>())
+		{
+			if (InventoryComp->CheckIfInventoryContainsItem(FlyerTag, 1))
+			{
+				InteractiveItemComponent->SetTooltip(FText::FromString("Press F to place the flyer"));
+			}
+			else
+			{
+				InteractiveItemComponent->SetTooltip(FText::FromString("You don't have enough or such flyers"));
+			}
+		}
+	}
+}
+
 void AA_FlyerPostingBase::DrawZoneText(UCanvas* Canvas, int32 Width, int32 Height)
 {
 	if (!Canvas || !GEngine)
@@ -239,6 +335,34 @@ void AA_FlyerPostingBase::DrawZoneText(UCanvas* Canvas, int32 Width, int32 Heigh
 	Canvas->K2_DrawBox(FVector2D(0.0f, 0.0f), FVector2D(Width, Height), 1.0f, FLinearColor::White);
 }
 
+void AA_FlyerPostingBase::SpawnFlyerDecal(FTransform FlyerTransform)
+{
+
+}
+
+FHitResult AA_FlyerPostingBase::TraceForFlyer()
+{
+	FHitResult HitResult;
+	if (APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0))
+	{
+		FVector ViewLocation;
+		FRotator ViewRotation;
+		PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+		TArray<AActor*> ActorsToIgnore;
+		ActorsToIgnore.Add(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+		GetWorld()->LineTraceSingleByChannel(HitResult, ViewLocation, ViewLocation + ViewRotation.Vector() * (InteractiveItemComponent->InteractionRange + 50.0f), ECC_Visibility, FCollisionQueryParams(NAME_None, false, this));
+	}
+
+	return HitResult;
+}
+
+FTransform AA_FlyerPostingBase::GetFlyerTransform() const
+{
+	return FTransform();
+}
+
 void AA_FlyerPostingBase::AddPlacementBox()
 {
 	UStaticMeshComponent* PlacementMeshComponent = NewObject<UStaticMeshComponent>(this);
@@ -247,9 +371,16 @@ void AA_FlyerPostingBase::AddPlacementBox()
 	AddInstanceComponent(PlacementMeshComponent);
 	PlacementMeshComponent->RegisterComponent();
 
-	if (PlacementStaticMesh && MID_Flyer)
+	PlacementMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	PlacementMeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
+	PlacementMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	PlacementMeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Block);
+
+	//PlacementMeshComponent->SetHiddenInGame(true);
+
+	if (PlacementStaticMesh && MID_FlyerZone)
 	{
 		PlacementMeshComponent->SetStaticMesh(PlacementStaticMesh);
-		PlacementMeshComponent->SetMaterial(0, MID_Flyer);
+		PlacementMeshComponent->SetMaterial(0, MID_FlyerZone);
 	}
 }
