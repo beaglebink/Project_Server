@@ -98,11 +98,16 @@ public:
 private:
 	bool CheckIfStarted();
 
+	FTimerHandle TooltipCheckHandle;
+
 	UFUNCTION()
 	void OnInteract(UInteractivePickerComponent* Picker);
 
 	UFUNCTION()
 	void OnInteractiveReceiveFocus(AActor* WhoInteract);
+
+	UFUNCTION()
+	void OnInteractiveLostFocus(ACharacter* User);
 
 	UPROPERTY()
 	UCanvasRenderTarget2D* TextRenderTarget;
@@ -119,7 +124,7 @@ private:
 	UFUNCTION()
 	void DrawZoneText(UCanvas* Canvas, int32 Width, int32 Height);
 
-	void SpawnFlyerDecal(FTransform FlyerTransform);
+	void SpawnFlyer(FTransform FlyerTransform);
 
 	FHitResult TraceForFlyer();
 
