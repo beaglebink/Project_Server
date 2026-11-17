@@ -66,7 +66,7 @@ void AA_FlyerPostingBase::BeginPlay()
 			// Delay the application of chore placement data to the next tick to ensure that all actors are properly initialized
 			GetWorldTimerManager().SetTimerForNextTick([this, GIS]()
 				{
-					ApplyFlyerPostingSaveData_Implementation(0);
+					ApplyFlyerPostingSaveData_Implementation(GIS);
 				});
 		}
 	}
@@ -194,16 +194,27 @@ FString AA_FlyerPostingBase::GetFloorAssignmentComponentIdAsString_Implementatio
 	return FString();
 }
 
-int32 AA_FlyerPostingBase::CollectFlyerPostingSaveData_Implementation()
+FFlyerPostingSaveData AA_FlyerPostingBase::CollectFlyerPostingSaveData_Implementation()
 {
+	FFlyerPostingSaveData FlyerPostingSaveData;
+	FlyerPostingSaveData.ChoreStatus = GetChoreStatus();
+	FlyerPostingSaveData.PlacedFlyers = PlacedFlyers;
 
-
-	return 0;
+	return FFlyerPostingSaveData();
 }
 
-void AA_FlyerPostingBase::ApplyFlyerPostingSaveData_Implementation(const int32 SaveData)
+void AA_FlyerPostingBase::ApplyFlyerPostingSaveData_Implementation(UGIS_FlyerPosting* GIS)
 {
-
+	FFlyerPostingSaveData* FlyerPostingSaveData = GIS->CachedFlyerPostingData.Find(GetFloorAssignmentComponentIdAsString_Implementation());
+	if (FlyerPostingSaveData)
+	{
+		SetChoreStatus(FlyerPostingSaveData->ChoreStatus);
+		PlacedFlyers = FlyerPostingSaveData->PlacedFlyers;
+		for (const auto& [FlyerId, FlyerTransform] : PlacedFlyers)
+		{
+			SpawnFlyer(FlyerId, FlyerTransform);
+		}
+	}
 }
 
 FString AA_FlyerPostingBase::CollectIntermediateSaveData()
@@ -228,7 +239,7 @@ void AA_FlyerPostingBase::ApplyIntermediateSaveData(FString Jsonstring)
 		{
 			SaveData.SerializedData = Jsonstring;
 			GIS->ApplySaveData(SaveData);
-			ApplyFlyerPostingSaveData_Implementation(0);
+			ApplyFlyerPostingSaveData_Implementation(GIS);
 		}
 	}
 }
@@ -258,7 +269,9 @@ void AA_FlyerPostingBase::OnInteract(UInteractivePickerComponent* Picker)
 					if (AA_Flyer* FlyerActor = Cast<AA_Flyer>(HitResult.GetActor()))
 					{
 						InventoryComp->AddItemToInventory(FlyerActor->FlyerTag, 1);
+						PlacedFlyers.Remove(FlyerActor->FlyerId);
 						FlyerActor->Destroy();
+						FlyersSpawnObserver(false);
 					}
 					else if (InventoryComp->CheckIfInventoryContainsItem(FlyerTag, 1) && FlyerClass)
 					{
@@ -266,7 +279,10 @@ void AA_FlyerPostingBase::OnInteract(UInteractivePickerComponent* Picker)
 						FTransform FlyerTransform;
 						FlyerTransform.SetLocation(HitResult.Location);
 						FlyerTransform.SetRotation(HitResult.Normal.ToOrientationQuat());
-						SpawnFlyer(FlyerTransform);
+						FGuid FlyerId = CreateGuidForFlyer();
+						PlacedFlyers.Add(FlyerId, FlyerTransform);
+
+						SpawnFlyer(FlyerId, FlyerTransform);
 					}
 				}
 			}
@@ -336,14 +352,28 @@ void AA_FlyerPostingBase::DrawZoneText(UCanvas* Canvas, int32 Width, int32 Heigh
 	Canvas->K2_DrawBox(FVector2D(0.0f, 0.0f), FVector2D(Width, Height), 1.0f, FLinearColor::White);
 }
 
-void AA_FlyerPostingBase::SpawnFlyer(FTransform FlyerTransform)
+FGuid AA_FlyerPostingBase::CreateGuidForFlyer()
+{
+	FGuid NewGuid;
+	do
+	{
+		NewGuid = FGuid::NewGuid();
+	} while (PlacedFlyers.Contains(NewGuid));
+
+	return NewGuid;
+}
+
+void AA_FlyerPostingBase::SpawnFlyer(FGuid FlyerId, FTransform FlyerTransform)
 {
 	SetChoreStatus(EChoreStatus::Started);
 
 	if (AA_Flyer* NewFlyer = GetWorld()->SpawnActorDeferred<AA_Flyer>(FlyerClass, FlyerTransform, this, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
 	{
+		NewFlyer->FlyerId = FlyerId;
 		NewFlyer->FlyerTag = FlyerTag;
 		NewFlyer->FinishSpawning(FlyerTransform);
+
+		FlyersSpawnObserver(true);
 	}
 }
 
@@ -367,6 +397,28 @@ FHitResult AA_FlyerPostingBase::TraceForFlyer()
 FTransform AA_FlyerPostingBase::GetFlyerTransform() const
 {
 	return FTransform();
+}
+
+void AA_FlyerPostingBase::FlyersSpawnObserver(bool IsSpawned)
+{
+	if (IsSpawned)
+	{
+
+		--RequiredFlyersQuantityToPlace;
+		if (RequiredFlyersQuantityToPlace == 0)
+		{
+			if (!bIsDeferredEvaluate)
+			{
+				SetChoreStatus(EChoreStatus::Completed);
+			}
+			PublicResultState(true);
+		}
+	}
+	else
+	{
+		++RequiredFlyersQuantityToPlace;
+		SetChoreStatus(EChoreStatus::Active);
+	}
 }
 
 void AA_FlyerPostingBase::AddPlacementBox()

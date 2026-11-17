@@ -8,6 +8,8 @@
 #include "SaveSubsystems/GIS_Quest.h"
 #include "RealEstate/O_RealEstateStructures.h"
 #include "SaveSubsystems/GIS_RealEstatePaperWork.h"
+#include "FlyerPosting/O_FlyerPostingStructures.h"
+#include "SaveSubsystems/GIS_FlyerPosting.h"
 #include "I_SaveableObject.generated.h"
 
 // ChorePlacement save data structure
@@ -124,8 +126,8 @@ public:
 
 	// FlyerPosting save data collection and application functions
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	int32 CollectFlyerPostingSaveData();
+	FFlyerPostingSaveData CollectFlyerPostingSaveData();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyFlyerPostingSaveData(const int32 SaveChoreData);
+	void ApplyFlyerPostingSaveData(UGIS_FlyerPosting* SaveChoreData);
 };

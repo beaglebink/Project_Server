@@ -33,7 +33,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveableObject")
 	void AddSaveableObject(UObject* NewSaveableObject);
 
-	TMap<FString, int32> CachedFlyerPostingData;
+	TMap<FString, FFlyerPostingSaveData> CachedFlyerPostingData;
 
 private:
 	bool bIsLoadComplete = false;

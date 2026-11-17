@@ -26,6 +26,9 @@ public:
 	UDataTable* InventoryItemsDataTable;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flyer")
+	FGuid FlyerId;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flyer")
 	FGameplayTag FlyerTag;
 
 private:

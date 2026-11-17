@@ -40,7 +40,7 @@ void UGIS_FlyerPosting::CollectSaveData(FSubsystemSaveData& OutData)
 			continue;
 		}
 
-		//FQuestionSaveDataStruct FlyerPostingSaveData = II_SaveableObject::Execute_CollectFlyerPostingSaveData(SaveableObject);;
+		FFlyerPostingSaveData FlyerPostingSaveData = II_SaveableObject::Execute_CollectFlyerPostingSaveData(SaveableObject);;
 
 		//TSharedPtr<FJsonObject> FlyerPostingSaveJsonObject = MakeShared<FJsonObject>();
 

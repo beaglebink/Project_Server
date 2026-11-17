@@ -69,7 +69,7 @@ private:
 	EChoreStatus ChoreStatus;
 
 	UPROPERTY()
-	TArray<FTransform> PlacedFlyersTransforms;
+	TMap<FGuid, FTransform> PlacedFlyers;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "ChoreStatus")
@@ -84,9 +84,9 @@ public:
 	// II_SaveableObject interface
 	virtual FString GetFloorAssignmentComponentIdAsString_Implementation() override;
 
-	virtual int32 CollectFlyerPostingSaveData_Implementation() override;
+	virtual FFlyerPostingSaveData CollectFlyerPostingSaveData_Implementation() override;
 
-	virtual void ApplyFlyerPostingSaveData_Implementation(const int32 SaveChoreData) override;
+	virtual void ApplyFlyerPostingSaveData_Implementation(UGIS_FlyerPosting* GIS) override;
 
 	// Intermediate data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
@@ -124,11 +124,15 @@ private:
 	UFUNCTION()
 	void DrawZoneText(UCanvas* Canvas, int32 Width, int32 Height);
 
-	void SpawnFlyer(FTransform FlyerTransform);
+	FGuid CreateGuidForFlyer();
+
+	void SpawnFlyer(FGuid FlyerId, FTransform FlyerTransform);
 
 	FHitResult TraceForFlyer();
 
 	FTransform GetFlyerTransform() const;
+
+	void FlyersSpawnObserver(bool IsSpawned);
 
 public:
 	UFUNCTION(CallInEditor, Category = "FlyerPlacement")

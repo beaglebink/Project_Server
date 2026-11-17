@@ -1,20 +1,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ChoreSystem/ChoreEnums.h"
 #include "O_FlyerPostingStructures.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFlyerPostingStruct
+struct FFlyerPostingSaveData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RealEstateQuestionnaire")
-	FText AnswerText;
+	UPROPERTY()
+	EChoreStatus ChoreStatus;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RealEstateQuestionnaire")
-	uint8 bIsSuitable : 1{false};
-
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RealEstateQuestionnaire")
-	uint8 bIsChecked : 1{false};
+	UPROPERTY()
+	TMap<FGuid, FTransform> PlacedFlyers;
 };
