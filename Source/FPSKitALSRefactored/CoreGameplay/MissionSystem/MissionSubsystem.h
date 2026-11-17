@@ -65,20 +65,20 @@ public:
 	// Создать и зарегистрировать миссию по DataAsset.
 	// Возвращает Controller — Blueprint-логика должна его сохранить.
 	// Envelope проверяется на конфликты с уже активными миссиями.
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
 	UMissionController* CreateMission(UMissionAsset* MissionAsset);
 
 	// Активировать ранее созданную миссию.
 	// Вызывает Controller->Activate() и регистрирует envelope в InteriorSubsystem.
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
 	void ActivateMission(FName MissionId, bool IsUpdateSnapshots = true);
 
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
 	bool SetActiveMission(FName MissionId);
 
 	// Завершить миссию с указанием причины.
 	// Вызывает Controller->RequestResolve(), затем обрабатывает Envelope release.
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
 	void ResolveMission(FName MissionId, EMissionEndReason Reason);
 
 	// Получить контроллер активной миссии по ID
@@ -91,6 +91,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|Missions")
 	bool IsMissionOnHold(FName MissionId) const;
+
+	void LogMissionPriorityState();
 
 	// Список ID всех активных миссий
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|Missions")
@@ -105,10 +107,10 @@ public:
 
 	// Blueprint может публиковать MissionActivated через EventBus
 	// вместо прямого вызова CreateMission/ActivateMission.
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|EventBus")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|EventBus")
 	void SubscribeMissionEnvelopeEvents();
 
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|EventBus")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|EventBus")
 	void UnsubscribeMissionEnvelopeEvents();
 
 	// История завершённых миссий (имена миссий)
@@ -148,16 +150,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
 	TObjectPtr<UOutcomeConditionAsset> MissionProgressCondition;
 
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void SubscribeMissionProgress();
 
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void UnsubscribeMissionProgress();
 
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void UnsubscribeAll();
 
-	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
+	//UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")
 	void SetMissionProgressCondition(UOutcomeConditionAsset* NewCondition);
 
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Handlers")

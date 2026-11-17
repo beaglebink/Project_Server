@@ -140,11 +140,10 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
     GENERATED_BODY()
 
     // Policy applied when the player leaves the building while this step remains active.
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
     EJobSpacePolicy OnLeaveBuilding = EJobSpacePolicy::Freeze;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
-        meta = (EditCondition = "OnLeaveBuilding == EJobSpacePolicy::Partial", EditConditionHides))
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy", meta = (EditCondition = "OnLeaveBuilding == EJobSpacePolicy::Partial", EditConditionHides))
     TArray<FEnvelopeChannelEntry> OnLeaveBuildingChannels;
 
     // Зона действия

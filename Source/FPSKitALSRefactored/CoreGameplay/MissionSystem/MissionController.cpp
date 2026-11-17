@@ -149,7 +149,7 @@ void UMissionController::PublishMissionProgress(int32 StepIndex)
     UMissionProgressPayload* Payload = EventBus->CreatePayload<UMissionProgressPayload>();
     if (!Payload) return;
 
-    Payload->Setup(MissionAsset, StepIndex);
+    Payload->Setup(MissionAsset/*, StepIndex*/);
 
     FOutcomeEventBase Event;
     Event.OutcomeType = EOutcomeType::Mission;

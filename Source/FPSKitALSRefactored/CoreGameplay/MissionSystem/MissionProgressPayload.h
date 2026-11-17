@@ -19,24 +19,24 @@ public:
 
     // Индекс достигнутого шага
     //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MissionProgress")
-    int32 StepIndex = -1;
+    //int32 StepIndex = -1;
 
     UFUNCTION(BlueprintCallable, Category = "MissionProgress")
-    UMissionProgressPayload* Setup(/*FName InMissionName, */UMissionAsset* InAsset, int32 InStepIndex = -1)
+    UMissionProgressPayload* Setup(/*FName InMissionName, */UMissionAsset* InAsset/*, int32 InStepIndex = -1*/)
     {
         if (InAsset)
         {
             MissionName = InAsset->GetMissionId();
         }
-        StepIndex = InStepIndex;
+        //StepIndex = InStepIndex;
         return this;
     }
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionProgress")
     FName GetMissionName() const { return MissionName; }
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionProgress")
-    int32 GetStepIndex() const { return StepIndex; }
+    //UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionProgress")
+    //int32 GetStepIndex() const { return StepIndex; }
 
     virtual void OnBeforePublish(const FCommandSpec* Spec, const UPayloadBatchEntry* Entry) override;
 };

@@ -9,6 +9,7 @@
 #include "../InteractionSystem/InteractSetRangePayload.h"
 #include "../InteractionSystem/InteractSetTooltipPayload.h"
 #include "FloorStatePayload.h"
+#include "../MissionSystem/MissionSubsystem.h"
 #include "../MissionSystem/ReleaseMissionSnapshotPayload.h"
 #include "../MissionSystem/MissionEnvelopePayload.h"
 #include "../WorldStateSystem/WorldStateRecordPayload.h"
@@ -4422,11 +4423,13 @@ FName UInteriorSubsystem::ResolveMissionForFloor(const FInteriorFloorKey& FloorK
 		const TArray<FMissionEnvelope>& Envelopes = Entry->Controller->GetEnvelopes();
 		if (!Envelopes.IsValidIndex(Entry->MissionStep)) continue;
 		FGuid ConflictFloorId;
+		FText ConflictFloorName;
 		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelopes[Entry->MissionStep].Scope.InteriorScopes)
 		{
 			UFloorAsset* Floor = FloorRef.LoadSynchronous();
 			if (!Floor) continue;
 			FGuid InteriorId = Floor->InteriorSetID;
+			ConflictFloorName = Floor->DisplayName;
 			if (!InteriorId.IsValid() && Floor->ParentInteriorSet.IsValid())
 			{
 				if (UInteriorSetAsset* Interior = Floor->ParentInteriorSet.LoadSynchronous()) InteriorId = Interior->InteriorSetID;
@@ -4435,8 +4438,8 @@ FName UInteriorSubsystem::ResolveMissionForFloor(const FInteriorFloorKey& FloorK
 			if (Holder && *Holder == HoldPair.Value) { ConflictFloorId = Floor->FloorID; break; }
 		}
 		UE_LOG(LogTemp, Warning,
-			TEXT("MissionSubsystem: Mission '%s' step %d is on hold for floor %s; mission '%s' has higher priority"),
-			*HoldPair.Key.ToString(), Entry->MissionStep, *ConflictFloorId.ToString(), *HoldPair.Value.ToString());
+			TEXT("UInteriorSubsystem::ResolveMissionForFloor Mission '%s' step %d is on hold for floor %s; mission '%s' has higher priority"),
+			*HoldPair.Key.ToString(), Entry->MissionStep, *ConflictFloorName.ToString() /*ConflictFloorId.ToString()*/, *HoldPair.Value.ToString());
 	}
 	ReportedMissionHolds = MoveTemp(CurrentHolds);
 	return Owner;
@@ -5160,6 +5163,8 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 		ResolveMissionForFloor(CurrentKey);
 		if (UChoreManagerSubsystem* ChoreManager = GetGameInstance()->GetSubsystem<UChoreManagerSubsystem>())
 			ChoreManager->RefreshMissionFloorConflicts();
+		if (UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>())
+			MissionSubsystem->LogMissionPriorityState();
 	}
 }
 

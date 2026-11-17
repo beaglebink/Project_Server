@@ -19,10 +19,64 @@
 #include <CheckResponsePayload.h>
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
+#include "HAL/IConsoleManager.h"
 
 // Анонимное пространство имён для вспомогательных функций
 namespace
 {
+	TAutoConsoleVariable<int32> CVarMissionPriorityDebugOnScreen(
+		TEXT("mission.DebugPriorityOnScreen"),
+		0,
+		TEXT("Show active mission priorities and hold state on screen (0=off, 1=on)."),
+		ECVF_Default);
+
+	void SetActiveMissionFromConsole(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World || Args.Num() < 1)
+		{
+			UE_LOG(LogTemp, Display, TEXT("Usage: Mission.SetActive <MissionAssetName>"));
+			return;
+		}
+
+		UGameInstance* GameInstance = World->GetGameInstance();
+		UMissionSubsystem* MissionSubsystem = GameInstance ? GameInstance->GetSubsystem<UMissionSubsystem>() : nullptr;
+		if (!MissionSubsystem)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Mission.SetActive: MissionSubsystem is unavailable"));
+			return;
+		}
+
+		const FName MissionId(*Args[0]);
+		if (!MissionSubsystem->SetActiveMission(MissionId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Mission.SetActive: active mission '%s' was not found"), *MissionId.ToString());
+		}
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs SetActiveMissionConsoleCommand(
+		TEXT("Mission.SetActive"),
+		TEXT("Set the active mission and give it the highest priority. Usage: Mission.SetActive <MissionAssetName>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetActiveMissionFromConsole));
+
+	void PrintActiveMissionsFromConsole(UWorld* World)
+	{
+		UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		UMissionSubsystem* MissionSubsystem = GameInstance ? GameInstance->GetSubsystem<UMissionSubsystem>() : nullptr;
+		if (!MissionSubsystem)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Mission.List: MissionSubsystem is unavailable"));
+			return;
+		}
+
+		MissionSubsystem->LogMissionPriorityState();
+	}
+
+	FAutoConsoleCommandWithWorld PrintActiveMissionsConsoleCommand(
+		TEXT("Mission.List"),
+		TEXT("Print active missions, priorities, and hold state."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&PrintActiveMissionsFromConsole));
+
 	template<typename T>
 	bool CompareValues(T Current, T Expected, ECheckCompareOp Op)
 	{
@@ -213,8 +267,8 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 
 	if (UMissionProgressPayload* P = Cast<UMissionProgressPayload>(Outcome.Payload))
 	{
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission %s"),
-			*P->MissionName.ToString());
+		//UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission %s"),
+		//	*P->MissionName.ToString());
 
 		FName MissionName;
 
@@ -451,6 +505,38 @@ void UMissionSubsystem::PublishMissionListUpdate(FName MissionId, EMissionEndRea
 	}
 }
 
+void UMissionSubsystem::LogMissionPriorityState()
+{
+	TArray<FName> MissionIds;
+	for (const auto& Pair : ActiveMissions)
+	{
+		if (IsMissionActive(Pair.Key)) MissionIds.Add(Pair.Key);
+	}
+	MissionIds.Sort([this](const FName& A, const FName& B)
+	{
+		const FActiveMissionEntry* EntryA = ActiveMissions.Find(A);
+		const FActiveMissionEntry* EntryB = ActiveMissions.Find(B);
+		return EntryA && EntryB ? EntryA->Priority > EntryB->Priority : EntryA != nullptr;
+	});
+
+	FString Lines;
+	for (const FName& MissionId : MissionIds)
+	{
+		const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
+		if (!Entry) continue;
+		Lines += FString::Printf(TEXT("  %s | Priority=%lld | OnHold=%s\n"),
+			*MissionId.ToString(), Entry->Priority, IsMissionOnHold(MissionId) ? TEXT("true") : TEXT("false"));
+	}
+	if (Lines.IsEmpty()) Lines = TEXT("  <no active missions>\n");
+
+	const FString Summary = TEXT("Active mission priorities:\n") + Lines;
+	UE_LOG(LogTemp, Display, TEXT("%s"), *Summary);
+	if (CVarMissionPriorityDebugOnScreen.GetValueOnGameThread() != 0 && GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(0x4D495353, 8.0f, FColor::Cyan, Summary);
+	}
+}
+
 void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason)
 {
 	FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
@@ -530,10 +616,13 @@ bool UMissionSubsystem::IsMissionOnHold(FName MissionId) const
 	const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
 	if (!Entry || !Entry->Controller || !IsMissionActive(MissionId)) return false;
 	const UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
-	if (!Interior || Interior->GetCurrentFloorMissionId() == MissionId) return false;
+	if (!Interior) return false;
 	const TArray<FMissionEnvelope>& Envelopes = Entry->Controller->GetEnvelopes();
 	if (!Envelopes.IsValidIndex(Entry->MissionStep)) return false;
 	const FInteriorFloorKey CurrentFloorKey = Interior->GetCurrentFloorKey();
+	const bool bMissionVersionIsDisplayed =
+		CurrentFloorKey.InteriorSetId.IsValid() && CurrentFloorKey.FloorId.IsValid() &&
+		Interior->GetCurrentFloorMissionId() == MissionId;
 	for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelopes[Entry->MissionStep].Scope.InteriorScopes)
 	{
 		UFloorAsset* Floor = FloorRef.LoadSynchronous();
@@ -544,12 +633,17 @@ bool UMissionSubsystem::IsMissionOnHold(FName MissionId) const
 			if (UInteriorSetAsset* InteriorAsset = Floor->ParentInteriorSet.LoadSynchronous()) InteriorSetId = InteriorAsset->InteriorSetID;
 		}
 		if (!InteriorSetId.IsValid()) continue;
+		const FInteriorFloorKey MissionFloorKey(InteriorSetId, Floor->FloorID);
+		// The displayed version remains live only while the player is actually
+		// standing on a floor claimed by this mission's current step. A stale
+		// CurrentFloorMissionId after leaving that floor must not suppress hold.
+		if (bMissionVersionIsDisplayed && MissionFloorKey == CurrentFloorKey) return false;
 		// A different mission's version is still displayed until the player leaves
 		// this floor. A newly allocated owner must wait for the next floor load.
-		if (CurrentFloorKey.FloorId.IsValid() &&
-			CurrentFloorKey == FInteriorFloorKey(InteriorSetId, Floor->FloorID))
+		if (CurrentFloorKey.InteriorSetId.IsValid() && CurrentFloorKey.FloorId.IsValid() &&
+			MissionFloorKey == CurrentFloorKey && Interior->GetCurrentFloorMissionId() != MissionId)
 			return true;
-		if (Interior->GetAllocatedMissionForFloor(FInteriorFloorKey(InteriorSetId, Floor->FloorID)) != MissionId)
+		if (Interior->GetAllocatedMissionForFloor(MissionFloorKey) != MissionId)
 			return true;
 	}
 	return false;
