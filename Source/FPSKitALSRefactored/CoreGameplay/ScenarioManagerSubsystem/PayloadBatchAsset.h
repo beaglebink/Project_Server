@@ -12,6 +12,11 @@ class FPSKITALSREFACTORED_API UPayloadBatchAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
+    // Optional mission ownership. Owned scenario steps pause while their mission is on hold
+    // and deactivate when that mission ends.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "1. Batch|Mission")
+    TSoftObjectPtr<class UMissionAsset> OwningMission;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "1. Batch")
     FText ScenarioStepName;
 

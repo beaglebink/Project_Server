@@ -86,6 +86,9 @@ struct FActiveMissionInterior
     int32 MissionStep = 0;
 
     UPROPERTY()
+    int64 Priority = 0;
+
+    UPROPERTY()
     TObjectPtr<UMissionController> Controller;
 };
 
@@ -283,11 +286,15 @@ public:
     virtual FString GetSaveSubsystemName() const override { return TEXT("InteriorSubsystem"); }
     virtual bool GetIsLoadComplete() const override { return IsLoadComplete; }
     const FInteriorFloorKey& GetCurrentFloorKey() const { return CurrentKey; }
+    FName GetCurrentFloorMissionId() const { return CurrentFloorMissionId; }
+    void SaveCurrentFloorStateForMission(FName MissionId);
+    FName GetAllocatedMissionForFloor(const FInteriorFloorKey& FloorKey) const { return ResolveMissionForFloor(FloorKey); }
 
     // Вспомогательная функция для определения, нужно ли сохранять состояния врагов для спавнера
     bool ShouldSaveEnemyStates(ASpawnGroupSpawner* Spawner, const FMissionEnvelope& Envelope, EMissionEndReason Reason) const;
 
 private:
+	FName ResolveMissionForFloor(const FInteriorFloorKey& FloorKey) const;
     void HandleInteractRegistration(const FOutcomeEventBase& Outcome);
     void HandleInteractCommand(const FOutcomeEventBase& Outcome);
     void HandleSetRange(const FOutcomeEventBase& Outcome);
@@ -343,6 +350,8 @@ private:
     TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> FloorStateSnapshots;
     TMap<FInteriorFloorKey, TMap<FName, TArray<FFloorSavedActorState>>> MissionFloorSnapshots;
 
+    mutable TMap<FName, FName> ReportedMissionHolds;
+
     mutable TMap<FInteriorFloorKey, TArray<FFloorSavedActorState>> MissionSnapshotQueryCache;
 
     TMap<FInteriorFloorKey, FFloorPopulationBuckets> AllSpawnedActorsByInteriorFloor;
@@ -355,6 +364,10 @@ private:
 
     UPROPERTY()
     FInteriorFloorKey CurrentKey;
+    UPROPERTY()
+    FName CurrentFloorMissionId;
+    FInteriorFloorKey SavedFloorKey;
+    FName SavedFloorMissionId;
     UPROPERTY()
     UInteriorTransitionPayload* TransitionPayloadCache = nullptr;
 

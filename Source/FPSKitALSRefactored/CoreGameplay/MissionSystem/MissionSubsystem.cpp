@@ -9,6 +9,7 @@
 #include "JsonObjectConverter.h"
 #include "Engine/GameInstance.h"
 #include "../InteriorInstanceSystem/FloorStatePayload.h"
+#include "../InteriorInstanceSystem/InteriorSubsystem.h"
 #include "../InteriorInstanceSystem/InteriorTransitionPayload.h"
 #include "ReleaseMissionSnapshotPayload.h"
 #include <UpdateMissionListPayload.h>
@@ -219,7 +220,7 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 
 		if (P->Asset)
 		{
-			MissionName = FName(*P->Asset->DisplayName.ToString());
+			MissionName = P->Asset->GetMissionId();
 		}
 		else
 		{
@@ -236,31 +237,24 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 		}
 
 		UMissionAsset* MissionAsset = Controller->GetMissionAsset();
-		FName ConflictedMissionName;
 		if (MissionAsset)
 		{
-			if (ActiveMission)
-			{
-				if (MissionAsset->Envelopes.IsValidIndex(ActiveMission->MissionStep + 1))
-				{
-					FMissionEnvelope& Envelope = MissionAsset->Envelopes[ActiveMission->MissionStep + 1];
-
-					if (IsMissionConflict(MissionName, Envelope, ConflictedMissionName))
-					{
-						UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s'  conflicts with '%s'"), *MissionName.ToString(), *ConflictedMissionName.ToString());
-						return;
-					}
-				}
-			}
-			else
+			if (!ActiveMission)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: No active mission entry found for '%s'"), *MissionName.ToString());
+				return;
+			}
+			if (IsMissionOnHold(MissionName))
+			{
+				UE_LOG(LogTemp, Verbose, TEXT("MissionSubsystem: Ignoring progress for on-hold mission '%s'"), *MissionName.ToString());
 				return;
 			}
 
 			int32 StepIndex = ActiveMission->MissionStep;
 			StepIndex++; // предполагается, что прогресс миссии приходит после успешного выполнения шага, так что индекс шага для получения envelope увеличиваем на 1
 			ActiveMission->MissionStep = StepIndex; // сохраняем прогресс миссии (текущий шаг) в MissionSubsystem, чтобы при покидании этажа или загрузке игры можно было восстановить состояние миссии
+			RaiseMissionPriority(*ActiveMission);
+			ActiveMissionId = MissionName;
 			ActiveMissions.Add(MissionName, *ActiveMission); // обновляем запись о миссии с новым шагом
 
 
@@ -276,6 +270,7 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 					{
 						P1->ActiveMissions = ActiveMissions;
 						P1->CurrentMissionId = MissionName;
+						P1->PriorityCounter = MissionPriorityCounter;
 						P1->Reason = EMissionEndReason::Completed;
 						FOutcomeEventBase Ev;
 						Ev.OutcomeType = EOutcomeType::Interior;
@@ -357,6 +352,7 @@ UMissionController* UMissionSubsystem::CreateMission(UMissionAsset* MissionAsset
 	FActiveMissionEntry Entry;
 	Entry.MissionId   = MissionId;
 	Entry.Controller  = Controller;
+	Entry.Priority = MissionPriorityCounter;
 	ActiveMissions.Add(MissionId, Entry);
 
 	UE_LOG(LogTemp, Log, TEXT("MissionSubsystem::CreateMission: Created mission '%s'"), *MissionId.ToString());
@@ -376,6 +372,8 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 	}
 
 	Entry->Controller->Activate();
+	RaiseMissionPriority(*Entry);
+	ActiveMissionId = MissionId;
 
 	// Публикуем MissionActivated для условий
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
@@ -400,6 +398,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 		{
 			P1->ActiveMissions = ActiveMissions;
 			P1->CurrentMissionId = MissionId;
+			P1->PriorityCounter = MissionPriorityCounter;
 			P1->IsUpdateSnapshots = IsUpdateSnapshots;
 			P1->Reason = EMissionEndReason::None;
 			FOutcomeEventBase Ev;
@@ -407,6 +406,48 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 			Ev.Payload = P1;
 			EventBus->PublishOutcome(Ev);
 		}
+	}
+}
+
+void UMissionSubsystem::RaiseMissionPriority(FActiveMissionEntry& Entry)
+{
+	Entry.Priority = ++MissionPriorityCounter;
+}
+
+bool UMissionSubsystem::SetActiveMission(FName MissionId)
+{
+	FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
+	if (!Entry || !Entry->Controller ||
+		(Entry->Controller->GetStatus() != EMissionStatus::Active && Entry->Controller->GetStatus() != EMissionStatus::Suspended))
+		return false;
+
+	if (UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>())
+	{
+		const FName DisplayedMissionId = Interior->GetCurrentFloorMissionId();
+		if (!DisplayedMissionId.IsNone())
+			Interior->SaveCurrentFloorStateForMission(DisplayedMissionId);
+	}
+	RaiseMissionPriority(*Entry);
+	ActiveMissionId = MissionId;
+	PublishMissionListUpdate(MissionId, EMissionEndReason::None, false);
+	return true;
+}
+
+void UMissionSubsystem::PublishMissionListUpdate(FName MissionId, EMissionEndReason Reason, bool bUpdateSnapshots)
+{
+	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+	{
+		UUpdateMissionListPayload* Payload = Cast<UUpdateMissionListPayload>(EventBus->CreatePayload(UUpdateMissionListPayload::StaticClass()));
+		if (!Payload) return;
+		Payload->ActiveMissions = ActiveMissions;
+		Payload->CurrentMissionId = MissionId;
+		Payload->PriorityCounter = MissionPriorityCounter;
+		Payload->IsUpdateSnapshots = bUpdateSnapshots;
+		Payload->Reason = Reason;
+		FOutcomeEventBase Event;
+		Event.OutcomeType = EOutcomeType::Interior;
+		Event.Payload = Payload;
+		EventBus->PublishOutcome(Event);
 	}
 }
 
@@ -418,6 +459,15 @@ void UMissionSubsystem::ResolveMission(FName MissionId, EMissionEndReason Reason
 		UE_LOG(LogTemp, Warning,
 			TEXT("MissionSubsystem::ResolveMission: Mission '%s' not found"), *MissionId.ToString());
 		return;
+	}
+	if (Reason == EMissionEndReason::Abandoned)
+	{
+		const UMissionAsset* MissionAsset = Entry->Controller->GetMissionAsset();
+		if (MissionAsset && MissionAsset->bIsMainMission)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem::ResolveMission: Main mission '%s' cannot be abandoned"), *MissionId.ToString());
+			return;
+		}
 	}
 
 	Entry->Controller->RequestResolve(Reason);
@@ -473,6 +523,36 @@ bool UMissionSubsystem::IsMissionActive(FName MissionId) const
 	if (!Entry || !Entry->Controller) return false;
 	const EMissionStatus S = Entry->Controller->GetStatus();
 	return S == EMissionStatus::Active || S == EMissionStatus::Suspended;
+}
+
+bool UMissionSubsystem::IsMissionOnHold(FName MissionId) const
+{
+	const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
+	if (!Entry || !Entry->Controller || !IsMissionActive(MissionId)) return false;
+	const UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
+	if (!Interior || Interior->GetCurrentFloorMissionId() == MissionId) return false;
+	const TArray<FMissionEnvelope>& Envelopes = Entry->Controller->GetEnvelopes();
+	if (!Envelopes.IsValidIndex(Entry->MissionStep)) return false;
+	const FInteriorFloorKey CurrentFloorKey = Interior->GetCurrentFloorKey();
+	for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelopes[Entry->MissionStep].Scope.InteriorScopes)
+	{
+		UFloorAsset* Floor = FloorRef.LoadSynchronous();
+		if (!Floor || !Floor->FloorID.IsValid()) continue;
+		FGuid InteriorSetId = Floor->InteriorSetID;
+		if (!InteriorSetId.IsValid() && Floor->ParentInteriorSet.IsValid())
+		{
+			if (UInteriorSetAsset* InteriorAsset = Floor->ParentInteriorSet.LoadSynchronous()) InteriorSetId = InteriorAsset->InteriorSetID;
+		}
+		if (!InteriorSetId.IsValid()) continue;
+		// A different mission's version is still displayed until the player leaves
+		// this floor. A newly allocated owner must wait for the next floor load.
+		if (CurrentFloorKey.FloorId.IsValid() &&
+			CurrentFloorKey == FInteriorFloorKey(InteriorSetId, Floor->FloorID))
+			return true;
+		if (Interior->GetAllocatedMissionForFloor(FInteriorFloorKey(InteriorSetId, Floor->FloorID)) != MissionId)
+			return true;
+	}
+	return false;
 }
 
 TArray<FName> UMissionSubsystem::GetActiveMissionIds() const
@@ -552,7 +632,7 @@ void UMissionSubsystem::NotifyBuildingExited(const FText& BuildingDisplayName)
 
 void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionEnvelope& Envelope)
 {
-	const EJobSpacePolicy Policy = Envelope.NextStagePolicy;
+	const EJobSpacePolicy Policy = Envelope.OnLeaveBuilding;
 
 	if (Policy == EJobSpacePolicy::None)
 	{
@@ -566,7 +646,10 @@ void UMissionSubsystem::ApplyEnvelopeExitPolicy(FName MissionId, const FMissionE
 		UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(EventBus->CreatePayload(UReleaseMissionSnapshotPayload::StaticClass()));
 		if (P)
 		{
-			P->Setup(MissionId, Envelope, Policy);
+			FMissionEnvelope ExitEnvelope = Envelope;
+			ExitEnvelope.RuntimePolicy = Policy;
+			ExitEnvelope.RuntimePolicyChannels = Envelope.OnLeaveBuildingChannels;
+			P->Setup(MissionId, ExitEnvelope, Policy);
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Interior;
 			Ev.Payload = P;
@@ -977,42 +1060,9 @@ void UMissionSubsystem::UnsubscribeMissionEnvelopeEvents()
 
 bool UMissionSubsystem::IsMissionConflict(FName MissionName, FMissionEnvelope NewMissionEnvelope, FName& ConflictedMissionName)
 {
-	for (auto& AMPair : ActiveMissions)
-	{
-		if (AMPair.Key == MissionName) continue; // не сравниваем миссию с самой собой
-
-		auto Controller = AMPair.Value.Controller;
-		if (!Controller) continue;
-
-		TArray < FMissionEnvelope> Envelopes = Controller->GetEnvelopes();
-		if (!Envelopes.IsValidIndex(AMPair.Value.MissionStep)) continue;
-
-		FMissionEnvelope Envelope = Envelopes[AMPair.Value.MissionStep];
-		//FMissionEnvelope NewMissionEnvelope = P->MissionAsset->Envelopes[Stage];
-
-		auto Scope = Envelope.Scope;
-		TArray<TSoftObjectPtr<class UFloorAsset>> Floors = Scope.InteriorScopes;
-		TArray<TSoftObjectPtr<class UFloorAsset>> NewFloors = NewMissionEnvelope.Scope.InteriorScopes;
-
-		bool IsOverlapFloor = false;
-		for (auto& NewFloor : NewFloors)
-		{
-			if (Floors.Contains(NewFloor))
-			{
-				if ((NewMissionEnvelope.RuntimePolicy != EJobSpacePolicy::Partial || NewMissionEnvelope.RuntimePolicyChannels.Num() > 0) && (Envelope.RuntimePolicy != EJobSpacePolicy::Partial || Envelope.RuntimePolicyChannels.Num() > 0))
-				{
-					IsOverlapFloor = true;
-					ConflictedMissionName = AMPair.Key;
-					break;
-				}
-			}
-		}
-
-		if (IsOverlapFloor)
-		{
-			return true;
-		}
-	}
+	(void)MissionName;
+	(void)NewMissionEnvelope;
+	ConflictedMissionName = NAME_None;
 	return false;
 }
 
@@ -1029,15 +1079,8 @@ void UMissionSubsystem::HandleEnvelopeActivate(const FOutcomeEventBase& Outcome)
 	// Если миссия уже существует — игнорируем (дублированное событие)
 	if (ActiveMissions.Contains(MissionId)) return;
 
-	FName ConflictedMissionName;
 	if (!P->MissionAsset->Envelopes.IsValidIndex(0))
 	{
-		return;
-	}
-
-	if (IsMissionConflict(MissionId, P->MissionAsset->Envelopes[0], ConflictedMissionName))
-	{
-		UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Mission '%s'  conflicts with '%s'"), *MissionId.ToString(), *ConflictedMissionName.ToString());
 		return;
 	}
 
@@ -1056,7 +1099,7 @@ void UMissionSubsystem::HandleUpdateActiveMissionId(const FOutcomeEventBase& Out
 	if (Outcome.OutcomeMission != EOutcomeMission::MissionUpdate) return;
 	if (UUpdateActiveMissionId* P = Cast<UUpdateActiveMissionId>(Outcome.Payload))
 	{
-		ActiveMissionId = P->ActiveMissionId;
+		SetActiveMission(P->ActiveMissionId);
 	}
 }
 
@@ -1119,6 +1162,18 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 			*MissionId.ToString());
 		return;
 	}
+	if (P->EndReason == EMissionEndReason::Abandoned)
+	{
+		if (const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId))
+		{
+			const UMissionAsset* MissionAsset = Entry->Controller ? Entry->Controller->GetMissionAsset() : nullptr;
+			if (MissionAsset && MissionAsset->bIsMainMission)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("MissionSubsystem: Ignoring abandoned release for main mission '%s'"), *MissionId.ToString());
+				return;
+			}
+		}
+	}
 
 	// Только финальный release (MissionCompleted / Failed / Abandoned) — финализируем lifecycle
 	if (FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId))
@@ -1134,6 +1189,19 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 			TEXT("MissionSubsystem: MissionReleased received for unknown mission '%s'"),
 			*MissionId.ToString());
 	}
+	if (ActiveMissionId == MissionId)
+	{
+		ActiveMissionId = NAME_None;
+		int64 HighestPriority = MIN_int64;
+		for (const auto& Pair : ActiveMissions)
+		{
+			if (Pair.Value.Controller && IsMissionActive(Pair.Key) && Pair.Value.Priority > HighestPriority)
+			{
+				HighestPriority = Pair.Value.Priority;
+				ActiveMissionId = Pair.Key;
+			}
+		}
+	}
 
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
@@ -1143,7 +1211,9 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 		{
 			P1->ActiveMissions = ActiveMissions;
 			P1->CurrentMissionId = MissionId;
+			P1->PriorityCounter = MissionPriorityCounter;
 			P1->Reason = P->EndReason;
+			P1->IsUpdateSnapshots = false;
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Interior;
 			Ev.Payload = P1;
@@ -1179,6 +1249,7 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
 		if (!Asset) continue;
+		if (!Asset->Envelopes.IsValidIndex(Pair.Value.MissionStep)) continue;
 
 		const EMissionStatus Status      = Ctrl->GetStatus();
 		const EMissionEndReason EndReason = Ctrl->GetEndReason();
@@ -1206,6 +1277,7 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 		Obj->SetNumberField(TEXT("EndReason"), SavedEndReason);
 		Obj->SetNumberField(TEXT("ResumeMode"), static_cast<uint8>(Resume));
 		Obj->SetNumberField(TEXT("MissionStep"), static_cast<int32>(MissionStep));
+		Obj->SetNumberField(TEXT("Priority"), static_cast<double>(Pair.Value.Priority));
 
 		MissionArray.Add(MakeShared<FJsonValueObject>(Obj));
 	}
@@ -1224,6 +1296,7 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 	Root->SetArrayField(TEXT("CompletedMissionHistory"), HistoryArray);
 
 	Root->SetStringField(TEXT("ActiveMissionId"), ActiveMissionId.ToString());
+	Root->SetNumberField(TEXT("MissionPriorityCounter"), static_cast<double>(MissionPriorityCounter));
 
 	FString Output;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -1258,6 +1331,9 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			{
 				ActiveMissionId = NAME_None;
 			}
+			double SavedPriorityCounter = 0.0;
+			Root->TryGetNumberField(TEXT("MissionPriorityCounter"), SavedPriorityCounter);
+			MissionPriorityCounter = static_cast<int64>(SavedPriorityCounter);
 
 			const TArray<TSharedPtr<FJsonValue>>* MissionArray = nullptr;
 			if (!Root->TryGetArrayField(TEXT("Missions"), MissionArray)) return;
@@ -1265,6 +1341,7 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 			//EMissionResumeMode RestoredResume = EMissionResumeMode::Resumable;
 			ActiveMissions.Empty();
 			TArray<FName> DeletedMissions;
+			TMap<FName, FName> LegacyMissionIdMap;
 			for (const TSharedPtr<FJsonValue>& Val : *MissionArray)
 			{
 				const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
@@ -1273,6 +1350,7 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 				FString MissionIdStr, AssetPath;
 				int32 StatusInt = 0, EndReasonInt = 0, ResumeModeInt = 0, MissionStep = -1;
+				double PriorityValue = 0.0;
 
 				Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
 				Obj->TryGetStringField(TEXT("AssetPath"), AssetPath);
@@ -1280,8 +1358,9 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				Obj->TryGetNumberField(TEXT("EndReason"), EndReasonInt);
 				Obj->TryGetNumberField(TEXT("ResumeMode"), ResumeModeInt);
 				Obj->TryGetNumberField(TEXT("MissionStep"), MissionStep);
+				Obj->TryGetNumberField(TEXT("Priority"), PriorityValue);
 
-				const FName MissionId = FName(*MissionIdStr);
+				const FName StoredMissionId = FName(*MissionIdStr);
 				const EMissionStatus   Status = static_cast<EMissionStatus>(StatusInt);
 				const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
 				const EMissionResumeMode Resume = static_cast<EMissionResumeMode>(ResumeModeInt);
@@ -1294,6 +1373,9 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 						TEXT("MissionSubsystem::ApplySaveData: Cannot load MissionAsset '%s'"), *AssetPath);
 					continue;
 				}
+				const FName MissionId = Asset->GetMissionId();
+				if (StoredMissionId != MissionId)
+					LegacyMissionIdMap.Add(StoredMissionId, MissionId);
 
 				//RestoredResume = Resume;
 
@@ -1301,7 +1383,15 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 				if (Ctrl)
 				{
+					Ctrl->RestoreStatus(Status);
 					Ctrl->MissionStep = MissionStep;
+					if (FActiveMissionEntry* RestoredEntry = ActiveMissions.Find(MissionId))
+					{
+						RestoredEntry->MissionId = MissionId;
+						RestoredEntry->MissionStep = MissionStep;
+						RestoredEntry->Priority = PriorityValue > 0.0 ? static_cast<int64>(PriorityValue) : ++MissionPriorityCounter;
+						MissionPriorityCounter = FMath::Max(MissionPriorityCounter, RestoredEntry->Priority);
+					}
 				}
 
 				switch (Resume)
@@ -1326,6 +1416,8 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					TEXT("MissionSubsystem::ApplySaveData: Restored mission '%s' Status=%d MissionStep = %d"),
 					*MissionIdStr, StatusInt, MissionStep);
 			}
+			if (const FName* MigratedActiveId = LegacyMissionIdMap.Find(ActiveMissionId))
+				ActiveMissionId = *MigratedActiveId;
 
 			// Восстанавливаем историю завершённых миссий
 			const TArray<TSharedPtr<FJsonValue>>* HistoryArray = nullptr;
@@ -1340,13 +1432,30 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 					FString MissionIdStr;
 					Obj->TryGetStringField(TEXT("MissionId"), MissionIdStr);
 					if (!MissionIdStr.IsEmpty())
-						CompletedMissionHistory.Add(FName(*MissionIdStr));
+					{
+						FName CompletedId(*MissionIdStr);
+						if (const FName* Migrated = LegacyMissionIdMap.Find(CompletedId)) CompletedId = *Migrated;
+						CompletedMissionHistory.Add(CompletedId);
+					}
 				}
 			}
 			
 			for (auto DelMissionName : DeletedMissions)
 			{
 				ActiveMissions.Remove(DelMissionName);
+			}
+			if (!ActiveMissions.Contains(ActiveMissionId))
+			{
+				ActiveMissionId = NAME_None;
+				int64 HighestPriority = MIN_int64;
+				for (const auto& Pair : ActiveMissions)
+				{
+					if (IsMissionActive(Pair.Key) && Pair.Value.Priority > HighestPriority)
+					{
+						HighestPriority = Pair.Value.Priority;
+						ActiveMissionId = Pair.Key;
+					}
+				}
 			}
 
 			IsLoadComplete = true;
@@ -1384,56 +1493,20 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 	if (!SourceFloor || !SourceFloor->FloorID.IsValid()) return;
 
 	const FGuid FloorId = SourceFloor->FloorID;
-	FGuid InteriorSetId;
-	if (SourceFloor->ParentInteriorSet.IsValid() && SourceFloor->ParentInteriorSet.Get())
+	FGuid InteriorSetId = SourceFloor->InteriorSetID;
+	if (!InteriorSetId.IsValid() && SourceFloor->ParentInteriorSet.IsValid())
 	{
-		InteriorSetId = SourceFloor->ParentInteriorSet.Get()->InteriorSetID;
+		if (UInteriorSetAsset* InteriorSet = SourceFloor->ParentInteriorSet.LoadSynchronous())
+			InteriorSetId = InteriorSet->InteriorSetID;
 	}
 
-	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
-	if (!EventBus) return;
-
-	// Find the highest-priority mission for this floor (larger Priority number = higher priority)
-	FName TopMissionId = NAME_None;
-	int32 TopPriority = INT32_MIN;
-
-	for (const auto& Pair : ActiveMissions)
-	{
-		const FName MissionId = Pair.Key;
-		UMissionController* Ctrl = Pair.Value.Controller;
-		if (!Ctrl) continue;
-
-		const FMissionEnvelope& Env = Ctrl->GetEnvelopes()[Pair.Value.MissionStep];
-		bool bInScope = false;
-		for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Env.Scope.InteriorScopes)
-		{
-			if (UFloorAsset* F = FloorRef.Get())
-			{
-				if (F->FloorID == FloorId) { bInScope = true; break; }
-			}
-		}
-		if (!bInScope) continue;
-
-		const EJobSpacePolicy JobPolicyForSave = Env.RuntimePolicy;
-		UFloorStatePayload* SaveP = Cast<UFloorStatePayload>(EventBus->CreatePayload(UFloorStatePayload::StaticClass()));
-		if (SaveP)
-		{
-			SaveP->InteriorSetId = InteriorSetId;
-			SaveP->FloorId = FloorId;
-			SaveP->MissionId = MissionId;
-			SaveP->CurrentMissionStep = Pair.Value.MissionStep;
-			SaveP->Channels = Env.RuntimePolicyChannels;
-			SaveP->Policy = JobPolicyForSave;
-			FOutcomeEventBase SaveEv;
-			SaveEv.OutcomeType = EOutcomeType::Interior;
-			SaveEv.OutcomeInterior = EOutcomeInterior::FloorStateSave;
-			SaveEv.Payload = SaveP;
-			EventBus->PublishOutcome(SaveEv);
-			UE_LOG(LogTemp, Log, TEXT("MissionSubsystem: Saved MissionFloorSnapshot for mission '%s' floor %s"),
-				*MissionId.ToString(), *FloorId.ToString());
-		}
-
-		TopMissionId = MissionId;
-	}
+	UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
+	if (!Interior) return;
+	const FInteriorFloorKey FloorKey(InteriorSetId, FloorId);
+	const FName DisplayedMissionId = Interior->GetCurrentFloorMissionId();
+	const FName NextOwnerId = Interior->GetAllocatedMissionForFloor(FloorKey);
+	Interior->SaveCurrentFloorStateForMission(DisplayedMissionId);
+	if (!NextOwnerId.IsNone() && NextOwnerId != DisplayedMissionId)
+		Interior->SaveCurrentFloorStateForMission(NextOwnerId);
 
 }

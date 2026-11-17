@@ -33,6 +33,11 @@ void UMissionController::Activate()
 
 void UMissionController::RequestResolve(EMissionEndReason Reason)
 {
+	if (Reason == EMissionEndReason::Abandoned && MissionAsset && MissionAsset->bIsMainMission)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MissionController[%s]: Main missions cannot be abandoned"), *GetMissionId().ToString());
+		return;
+	}
     if (Status != EMissionStatus::Active && Status != EMissionStatus::Suspended)
     {
         UE_LOG(LogTemp, Warning,
@@ -86,6 +91,12 @@ void UMissionController::OnRestore()
     OnMissionRestored();
 
     UE_LOG(LogTemp, Log, TEXT("MissionController[%s]: Restored"), *GetMissionId().ToString());
+}
+
+void UMissionController::RestoreStatus(EMissionStatus InStatus)
+{
+    Status = InStatus;
+    OnRestore();
 }
 
 FName UMissionController::GetMissionId() const

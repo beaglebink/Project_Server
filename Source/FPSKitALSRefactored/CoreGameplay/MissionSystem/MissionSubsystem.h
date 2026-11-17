@@ -31,6 +31,9 @@ struct FActiveMissionEntry
 	UPROPERTY()
 	int32 MissionStep = 0;
 
+	UPROPERTY()
+	int64 Priority = 0;
+
 	// Контроллер миссии — помечен UPROPERTY чтобы GC учитывал ссылку во время загрузок/SeamlessTravel
 	UPROPERTY()
 	TObjectPtr<UMissionController> Controller;
@@ -70,6 +73,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
 	void ActivateMission(FName MissionId, bool IsUpdateSnapshots = true);
 
+	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
+	bool SetActiveMission(FName MissionId);
+
 	// Завершить миссию с указанием причины.
 	// Вызывает Controller->RequestResolve(), затем обрабатывает Envelope release.
 	UFUNCTION(BlueprintCallable, Category = "MissionSubsystem|Missions")
@@ -82,6 +88,9 @@ public:
 	// Проверить есть ли активная миссия с данным ID
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|Missions")
 	bool IsMissionActive(FName MissionId) const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|Missions")
+	bool IsMissionOnHold(FName MissionId) const;
 
 	// Список ID всех активных миссий
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|Missions")
@@ -157,7 +166,7 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|Query")
 	int32 GetMissionStep(FName MissionId) const;
 
-	void SetActiveMissionId(FName& MissionId) { ActiveMissionId = MissionId; }
+	void SetActiveMissionId(FName& MissionId) { SetActiveMission(MissionId); }
 	FName GetActiveMissionId() const { return ActiveMissionId; }
 
 	void OnCheckRequest(const FOutcomeEventBase& Event);
@@ -231,6 +240,9 @@ private:
 	void UnsubscribeFloorLeaving();
 
 	FName ActiveMissionId;
+	int64 MissionPriorityCounter = 0;
+	void RaiseMissionPriority(FActiveMissionEntry& Entry);
+	void PublishMissionListUpdate(FName MissionId, EMissionEndReason Reason, bool bUpdateSnapshots);
 
 	bool IsLoadComplete = true;
 

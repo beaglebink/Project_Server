@@ -167,6 +167,8 @@ bool UMissionConditionAsset::EvaluateCondition(const FOutcomeEventBase& Outcome)
             UE_LOG(LogTemp, Warning, TEXT("MissionConditionAsset::EvaluateCondition: MissionSubsystem not found for StepReached"));
             return false;
         }
+		if (MissionSub->IsMissionOnHold(ExpectedId))
+			return false;
 
         int32 CurrentStep = MissionSub->GetMissionStep(ExpectedId);
         UE_LOG(LogTemp, Log, TEXT("MissionConditionAsset::EvaluateCondition: StepReached, MissionId=%s, CurrentStep=%d, ExpectedStep=%d, CompareOp=%d"),

@@ -76,7 +76,20 @@ enum class EMissionEndReason : uint8
     Abandoned   UMETA(DisplayName = "Abandoned")
 };
 
-// Политика выхода 
+// Описание канала с политикой
+USTRUCT(BlueprintType)
+struct FPSKITALSREFACTORED_API FEnvelopeChannelEntry
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Channel")
+    EEnvelopeChannel Channel = EEnvelopeChannel::Clutter;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Channel")
+    EChannelPolicy Policy = EChannelPolicy::Reset;
+};
+
+// Политика выхода
 // Определяет что происходит при уходе с этажа и из здания.
 USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FMissionExitPolicy
@@ -88,28 +101,18 @@ struct FPSKITALSREFACTORED_API FMissionExitPolicy
     //UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ExitPolicy")
     //bool bFloorTransitionPreservesEnvelope = true;
 
-    // Что делать с пространством задания при уходе из здания (во время активной миссии)
-    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
-    //EJobSpacePolicy OnLeaveBuilding = EJobSpacePolicy::None;
+    // Policy applied when the player leaves the building while this step remains active.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
+    EJobSpacePolicy OnLeaveBuilding = EJobSpacePolicy::Freeze;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
+        meta = (EditCondition = "OnLeaveBuilding == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> OnLeaveBuildingChannels;
 
     // Что делать с постоянным хранилищем при успешном завершении миссии (MissionCompleted)
     // ResetAll    — не обновлять FloorStateSnapshots
     // FreezeAll   — сохранить все акторы в FloorStateSnapshots
     // Partial     — сохранить по каналам согласно Channels
-
-};
-
-// Описание канала с политикой 
-USTRUCT(BlueprintType)
-struct FPSKITALSREFACTORED_API FEnvelopeChannelEntry
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Channel")
-    EEnvelopeChannel Channel = EEnvelopeChannel::Clutter;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Channel")
-    EChannelPolicy Policy = EChannelPolicy::Reset;
 };
 
 // Scope — зона действия Envelope 
@@ -135,6 +138,14 @@ USTRUCT(BlueprintType)
 struct FPSKITALSREFACTORED_API FMissionEnvelope
 {
     GENERATED_BODY()
+
+    // Policy applied when the player leaves the building while this step remains active.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy")
+    EJobSpacePolicy OnLeaveBuilding = EJobSpacePolicy::Freeze;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExitPolicy",
+        meta = (EditCondition = "OnLeaveBuilding == EJobSpacePolicy::Partial", EditConditionHides))
+    TArray<FEnvelopeChannelEntry> OnLeaveBuildingChannels;
 
     // Зона действия
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Scope")

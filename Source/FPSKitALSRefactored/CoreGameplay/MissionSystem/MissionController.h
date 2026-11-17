@@ -69,6 +69,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Mission|Control")
     void OnRestore();
 
+    void RestoreStatus(EMissionStatus InStatus);
+
     // Геттеры 
 
 	// Получить FName-идентификатор миссии (обычно совпадает с именем DataAsset)

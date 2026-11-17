@@ -31,6 +31,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Identity")
     FText Description;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Identity")
+    bool bIsMainMission = false;
+
     // Envelope contains the full persistence configuration.
     // If the Envelope is empty (JobSpacePolicy = None, Scope is empty), the world uses default behavior.
     // The Envelope array contains all configurations of the mission steps.
@@ -55,7 +58,7 @@ public:
     // Returns a stable FName identifier for runtime use.
     // Возвращает стабильный FName-идентификатор для использования в рантайме.
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mission|Identity")
-    FName GetMissionId() const { return DisplayName.IsEmpty() ? GetFName() : FName(*DisplayName.ToString()); }
+    FName GetMissionId() const { return GetFName(); }
 
     virtual FPrimaryAssetId GetPrimaryAssetId() const override
     {

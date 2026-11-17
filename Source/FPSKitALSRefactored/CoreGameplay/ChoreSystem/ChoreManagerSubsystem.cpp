@@ -7,9 +7,13 @@
 #include "ChoreHistoryConditionAsset.h"
 #include "SaveGame/GameSaveSubsystem.h"
 #include "ChorePayloads.h"
+#include "ChoreFloorActorInterface.h"
+#include "EngineUtils.h"
+#include "../InteriorInstanceSystem/FloorAssignmentComponent.h"
 #include "MissionConditionAsset.h"
 #include <MissionSubsystem.h>
 #include <LocationTrackerSubsystem/LocationTrackerSubsystem.h>
+#include "../InteriorInstanceSystem/InteriorSubsystem.h"
 
 void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -550,6 +554,13 @@ void UChoreManagerSubsystem::OfferChore(FName ChoreId)
     if (State.Status == EChoreStatus::Available || State.Status == EChoreStatus::Offered)
         return;
 
+    if (IsChoreBlockedByMission(ChoreId))
+    {
+        State.bBlockedByMission = true;
+        State.StatusBeforeMissionBlock = EChoreStatus::Available;
+        return;
+    }
+
     if (State.Status == EChoreStatus::Completed /* && !Definitions[ChoreId]->bIsRepeatable*/)
         return;
 
@@ -560,6 +571,7 @@ void UChoreManagerSubsystem::OfferChore(FName ChoreId)
 void UChoreManagerSubsystem::AcceptChore(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
+    if (IsChoreBlockedByMission(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
     if (State.Status != EChoreStatus::Available && State.Status != EChoreStatus::Offered)
         return;
@@ -592,6 +604,7 @@ void UChoreManagerSubsystem::AcceptChore(FName ChoreId)
 void UChoreManagerSubsystem::StartChore(FName ChoreId)
 {
     if (!ActiveStates.Contains(ChoreId)) return;
+    if (IsChoreBlockedByMission(ChoreId)) return;
     FChoreState& State = ActiveStates[ChoreId];
     if (State.Status != EChoreStatus::Accepted && State.Status != EChoreStatus::WaitingToStart)
         return;
@@ -2021,6 +2034,128 @@ void UChoreManagerSubsystem::ResumeChore(FName ChoreId)
     EventBus->PublishOutcome(Event);
 }
 
+bool UChoreManagerSubsystem::IsChoreBlockedByMission(const UChoreDefinition* Definition, const FInteriorFloorKey& FloorKey) const
+{
+    if (!Definition || (!FloorKey.InteriorSetId.IsValid() && !FloorKey.FloorId.IsValid())) return false;
+    const UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
+    if (!Interior) return false;
+    const UMissionAsset* OwningMission = Definition->OwningMission.LoadSynchronous();
+    const FName OwningMissionId = OwningMission ? OwningMission->GetMissionId() : NAME_None;
+    if (!OwningMissionId.IsNone())
+    {
+        if (const UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>())
+        {
+            if (MissionSubsystem->IsMissionOnHold(OwningMissionId)) return true;
+        }
+    }
+
+    if (FloorKey == Interior->GetCurrentFloorKey())
+    {
+        const FName DisplayedMissionId = Interior->GetCurrentFloorMissionId();
+        if (DisplayedMissionId.IsNone()) return false;
+        return OwningMissionId != DisplayedMissionId;
+    }
+    const FName FloorOwnerId = Interior->GetAllocatedMissionForFloor(FloorKey);
+    if (FloorOwnerId.IsNone()) return false;
+    return OwningMissionId != FloorOwnerId;
+}
+
+bool UChoreManagerSubsystem::IsChoreBlockedByMission(FName ChoreId) const
+{
+	const UChoreDefinition* Definition = GetChoreDefinition(ChoreId);
+	const FInteriorFloorKey* FloorKey = ChoreFloorKeys.Find(ChoreId);
+	return Definition && FloorKey && IsChoreBlockedByMission(Definition, *FloorKey);
+}
+
+void UChoreManagerSubsystem::RefreshMissionFloorConflicts()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	TMap<FName, bool> BlockedChores;
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!IsValid(Actor) || !Actor->GetClass()->ImplementsInterface(UChoreFloorActorInterface::StaticClass())) continue;
+		UChoreDefinition* Definition = IChoreFloorActorInterface::Execute_GetChoreDefinition(Actor);
+		if (!Definition) continue;
+
+		FInteriorFloorKey FloorKey;
+		if (const UFloorAssignmentComponent* FloorComponent = Actor->FindComponentByClass<UFloorAssignmentComponent>())
+			FloorKey = FInteriorFloorKey(FloorComponent->InteriorSetId, FloorComponent->FloorId);
+		if (!FloorKey.IsValid())
+		{
+			if (const UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>())
+				FloorKey = Interior->GetCurrentFloorKey();
+		}
+
+		if (!FloorKey.IsValid()) continue;
+		const FName ChoreId = Definition->GetChoreId();
+		ChoreFloorKeys.Add(ChoreId, FloorKey);
+		const bool bBlocked = IsChoreBlockedByMission(Definition, FloorKey);
+		bool& bAnyActorBlocked = BlockedChores.FindOrAdd(ChoreId);
+		bAnyActorBlocked |= bBlocked;
+		const TWeakObjectPtr<AActor> ActorKey(Actor);
+		const bool* PreviousBlockState = ChoreActorMissionBlockStates.Find(ActorKey);
+		if (!PreviousBlockState || *PreviousBlockState != bBlocked)
+		{
+			IChoreFloorActorInterface::Execute_SetMissionFloorBlocked(Actor, bBlocked);
+			ChoreActorMissionBlockStates.Add(ActorKey, bBlocked);
+		}
+	}
+	for (auto It = ChoreActorMissionBlockStates.CreateIterator(); It; ++It)
+		if (!It.Key().IsValid()) It.RemoveCurrent();
+
+	// Keep the last known floor key after an actor is unloaded so its chore deadline
+	// remains paused until that floor is loaded again and the conflict is resolved.
+    for (const auto& DefinitionPair : Definitions)
+    {
+        const FName ChoreId = DefinitionPair.Key;
+        FChoreState* State = ActiveStates.Find(ChoreId);
+        const FInteriorFloorKey* FloorKey = ChoreFloorKeys.Find(ChoreId);
+        if (!State || !DefinitionPair.Value || !FloorKey) continue;
+
+        const bool bBlocked = BlockedChores.Contains(ChoreId)
+			? BlockedChores.FindRef(ChoreId)
+			: IsChoreBlockedByMission(DefinitionPair.Value, *FloorKey);
+        if (bBlocked)
+        {
+            if (State->bBlockedByMission) continue;
+            State->bBlockedByMission = true;
+            if (State->Status == EChoreStatus::Active)
+            {
+                if (!State->bIsPaused)
+                {
+                    State->bPausedByMission = true;
+                    PauseChore(ChoreId);
+                }
+            }
+            else if (State->Status == EChoreStatus::Available || State->Status == EChoreStatus::Offered)
+            {
+                State->StatusBeforeMissionBlock = State->Status;
+                RevokeChore(ChoreId);
+            }
+            continue;
+        }
+
+        if (!State->bBlockedByMission) continue;
+        State->bBlockedByMission = false;
+        if (State->bPausedByMission)
+        {
+            State->bPausedByMission = false;
+            ResumeChore(ChoreId);
+        }
+        else if (State->Status == EChoreStatus::Unavailable &&
+            (State->StatusBeforeMissionBlock == EChoreStatus::Available || State->StatusBeforeMissionBlock == EChoreStatus::Offered))
+        {
+            const EChoreStatus RestoreStatus = State->StatusBeforeMissionBlock;
+            State->StatusBeforeMissionBlock = EChoreStatus::Unavailable;
+            RegisterAvailabilityHandler(DefinitionPair.Value);
+            UpdateChoreState(ChoreId, RestoreStatus);
+        }
+    }
+}
+
 // ---- ISaveableSubsystem ----
 void UChoreManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 {
@@ -2685,6 +2820,7 @@ void UChoreManagerSubsystem::HandleRegisterChoreActor(const FOutcomeEventBase& O
         if (auto* State = ActiveStates.Find(Payload->ChoreId))
         {
             State->bIsActorAlive = true;
+            RefreshMissionFloorConflicts();
         }
     }
 }
@@ -2709,6 +2845,7 @@ void UChoreManagerSubsystem::HandleUnregisterChoreActor(const FOutcomeEventBase&
 
     // 3. Сбрасываем флаг жизни актора
     State->bIsActorAlive = false;
+    RefreshMissionFloorConflicts();
 
     // 4. Пишем лог для отладки
     UE_LOG(LogTemp, Log, TEXT("ChoreManager: Actor for chore '%s' unregistered (left scene)."), *Payload->ChoreId.ToString());

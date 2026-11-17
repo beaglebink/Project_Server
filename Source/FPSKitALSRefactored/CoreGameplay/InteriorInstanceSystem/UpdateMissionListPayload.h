@@ -21,6 +21,9 @@ public:
 	FName CurrentMissionId;
 
 	UPROPERTY()
+	int64 PriorityCounter = 0;
+
+	UPROPERTY()
 	EMissionEndReason Reason = EMissionEndReason::Completed;
 
 	UPROPERTY()

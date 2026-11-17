@@ -8,6 +8,7 @@
 #include "ChorePayloads.h"
 #include "OutcomeEventBase.h"
 #include "EventBusSubsystem.h"
+#include "../InteriorInstanceSystem/FloorPopulationTypes.h"
 #include "ChoreManagerSubsystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -58,6 +59,15 @@ struct FChoreState
     // ---- Pause ----
     UPROPERTY(BlueprintReadOnly)
     bool bIsPaused = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bBlockedByMission = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bPausedByMission = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    EChoreStatus StatusBeforeMissionBlock = EChoreStatus::Unavailable;
 
     UPROPERTY(BlueprintReadOnly)
     FDateTime PauseStartTime;
@@ -248,6 +258,9 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
     bool IsChorePaused(FName ChoreId) const;
 
+    UFUNCTION(BlueprintCallable, Category = "Chore Manager|Mission")
+    void RefreshMissionFloorConflicts();
+
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
     bool IsChoreMultiStage(FName ChoreId) const;
 
@@ -317,6 +330,8 @@ protected:
     void ResumeChore(FName ChoreId);
 
 private:
+    bool IsChoreBlockedByMission(const UChoreDefinition* Definition, const FInteriorFloorKey& FloorKey) const;
+    bool IsChoreBlockedByMission(FName ChoreId) const;
     void HandleAcceptRequest(const FOutcomeEventBase& Outcome);
     void HandleStartRequest(const FOutcomeEventBase& Outcome);
     void HandleCompleteRequest(const FOutcomeEventBase& Outcome);
@@ -389,6 +404,10 @@ private:
 
     UPROPERTY()
     TMap<FName, TObjectPtr<UChoreDefinition>> Definitions;
+
+    // Last known actor floor, derived from the live chore actor's FloorAssignmentComponent.
+    TMap<FName, FInteriorFloorKey> ChoreFloorKeys;
+    TMap<TWeakObjectPtr<AActor>, bool> ChoreActorMissionBlockStates;
 
     UPROPERTY()
     TArray<FChoreHistoryEntry> History;

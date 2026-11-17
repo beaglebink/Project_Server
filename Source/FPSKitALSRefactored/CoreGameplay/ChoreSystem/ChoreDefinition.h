@@ -6,6 +6,8 @@
 #include "OutcomeConditionAsset.h"
 #include "ChoreDefinition.generated.h"
 
+class UMissionAsset;
+
 USTRUCT(BlueprintType)
 struct FChoreStageDefinition
 {
@@ -77,6 +79,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EChoreSubtype Subtype = EChoreSubtype::Default;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Location")
+    TSoftObjectPtr<UMissionAsset> OwningMission;
 
     // Reference to the asset with mini-game configuration (prefab, level, BP, etc.)
     // Ссылка на ассет с конфигурацией мини-игры (префаб, уровень, BP и т.п.)

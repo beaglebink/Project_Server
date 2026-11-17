@@ -9,6 +9,8 @@
 #include "SaveGame/GameSaveSubsystem.h"
 #include <WorldStateSubsystem.h>
 #include <MissionSubsystem.h>
+#include <MissionAsset.h>
+#include <UpdateMissionListPayload.h>
 #include <SpawnGroupSubsystem.h>
 #include <TerminalSystem/TerminalSubsystem.h>
 #include "SpawnGroupSystem/SpawnGroupSpawner.h"
@@ -414,6 +416,27 @@ void UScenarioManagerSubsystem::ReevaluateSteps()
         UPayloadBatchAsset* Step = Pair.Value;
         if (!Step) continue;
 
+        UMissionAsset* OwningMission = Step->OwningMission.LoadSynchronous();
+        if (OwningMission)
+        {
+            UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>();
+            if (MissionSubsystem)
+            {
+                const FName MissionId = OwningMission->GetMissionId();
+                if (MissionSubsystem->IsMissionOnHold(MissionId))
+                {
+                    // Preserve its active state while held: do not run either its
+                    // activation or deactivation entries until it resumes.
+                    continue;
+                }
+                if (!MissionSubsystem->IsMissionActive(MissionId))
+                {
+                    if (ActiveStepIds.Contains(Pair.Key)) ToDeactivate.Add(Step);
+                    continue;
+                }
+            }
+        }
+
         const bool bShouldBeActive = Step->bEnabled && Step->IsConditionMet(TagStorage);
         const bool bIsActive = ActiveStepIds.Contains(Pair.Key);
 
@@ -474,8 +497,35 @@ void UScenarioManagerSubsystem::ExecuteStepDeactivation(UPayloadBatchAsset* Step
 
 void UScenarioManagerSubsystem::HandleOutcomeWithTags(const FOutcomeEventBase& Outcome)
 {
+    if (Cast<UUpdateMissionListPayload>(Outcome.Payload))
+    {
+        // Mission updates also change hold status. Reevaluate owned steps without
+        // rerunning entries for steps that remained active while held.
+        ReevaluateSteps();
+        return;
+    }
+
     if (Outcome.TagsToAdd.Num() == 0 && Outcome.TagsToRemove.Num() == 0)
         return;
+
+    // Tags emitted by a mission-owned scenario step are frozen while that mission
+    // is held, just like the step itself.
+    if (Outcome.SourceStepId.IsValid())
+    {
+        if (TObjectPtr<UPayloadBatchAsset>* StepPtr = Steps.Find(Outcome.SourceStepId))
+        {
+            UPayloadBatchAsset* Step = StepPtr->Get();
+            UMissionAsset* Mission = Step ? Step->OwningMission.LoadSynchronous() : nullptr;
+            if (Mission)
+            {
+                if (UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>())
+                {
+                    if (MissionSubsystem->IsMissionOnHold(Mission->GetMissionId()))
+                        return;
+                }
+            }
+        }
+    }
 
     ChangeTags(Outcome.TagsToAdd, Outcome.TagsToRemove);
 }
