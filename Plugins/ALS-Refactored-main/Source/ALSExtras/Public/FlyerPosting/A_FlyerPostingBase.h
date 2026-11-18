@@ -34,9 +34,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlyerPosting")
 	FName ChoreId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FlyerPosting")
-	uint8 bIsAutoAcivated : 1{false};
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FlyerPosting")
 	uint8 bIsDeferredEvaluate : 1{false};
 
@@ -96,8 +93,6 @@ public:
 	void ApplyIntermediateSaveData(FString Jsonstring);
 
 private:
-	bool CheckIfStarted();
-
 	FTimerHandle TooltipCheckHandle;
 
 	UFUNCTION()

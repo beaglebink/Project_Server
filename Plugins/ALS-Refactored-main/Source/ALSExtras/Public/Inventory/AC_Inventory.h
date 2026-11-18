@@ -76,7 +76,9 @@ public:
 
 	bool CheckIfInventoryContainsItem(FGameplayTag ItemTag, int32 Quantity) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void AddItemToInventory(FGameplayTag ItemTag, int32 Quantity);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void RemoveItemFromInventory(FGameplayTag ItemTag, int32 Quantity);
 };
