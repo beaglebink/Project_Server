@@ -66,17 +66,19 @@ void AA_FlyerPostingBase::BeginPlay()
 			// Delay the application of chore placement data to the next tick to ensure that all actors are properly initialized
 			GetWorldTimerManager().SetTimerForNextTick([this, GIS]()
 				{
-					ApplyFlyerPostingSaveData_Implementation(0);
+					ApplyFlyerPostingSaveData_Implementation(GIS);
 				});
 		}
 	}
 
 	InteractiveItemComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_FlyerPostingBase::OnInteract);
 	InteractiveItemComponent->OnInteractiveReceiveFocusEvent.AddDynamic(this, &AA_FlyerPostingBase::OnInteractiveReceiveFocus);
+	InteractiveItemComponent->OnInteractiveLostFocusEvent.AddDynamic(this, &AA_FlyerPostingBase::OnInteractiveLostFocus);
 }
 
 void AA_FlyerPostingBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	GetWorldTimerManager().ClearTimer(TooltipCheckHandle);
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -192,16 +194,27 @@ FString AA_FlyerPostingBase::GetFloorAssignmentComponentIdAsString_Implementatio
 	return FString();
 }
 
-int32 AA_FlyerPostingBase::CollectFlyerPostingSaveData_Implementation()
+FFlyerPostingSaveData AA_FlyerPostingBase::CollectFlyerPostingSaveData_Implementation()
 {
+	FFlyerPostingSaveData FlyerPostingSaveData;
+	FlyerPostingSaveData.ChoreStatus = GetChoreStatus();
+	FlyerPostingSaveData.PlacedFlyers = PlacedFlyers;
 
-
-	return 0;
+	return FFlyerPostingSaveData();
 }
 
-void AA_FlyerPostingBase::ApplyFlyerPostingSaveData_Implementation(const int32 SaveData)
+void AA_FlyerPostingBase::ApplyFlyerPostingSaveData_Implementation(UGIS_FlyerPosting* GIS)
 {
-
+	FFlyerPostingSaveData* FlyerPostingSaveData = GIS->CachedFlyerPostingData.Find(GetFloorAssignmentComponentIdAsString_Implementation());
+	if (FlyerPostingSaveData)
+	{
+		SetChoreStatus(FlyerPostingSaveData->ChoreStatus);
+		PlacedFlyers = FlyerPostingSaveData->PlacedFlyers;
+		for (const auto& [FlyerId, FlyerTransform] : PlacedFlyers)
+		{
+			SpawnFlyer(FlyerId, FlyerTransform);
+		}
+	}
 }
 
 FString AA_FlyerPostingBase::CollectIntermediateSaveData()
@@ -226,7 +239,7 @@ void AA_FlyerPostingBase::ApplyIntermediateSaveData(FString Jsonstring)
 		{
 			SaveData.SerializedData = Jsonstring;
 			GIS->ApplySaveData(SaveData);
-			ApplyFlyerPostingSaveData_Implementation(0);
+			ApplyFlyerPostingSaveData_Implementation(GIS);
 		}
 	}
 }
@@ -250,32 +263,27 @@ void AA_FlyerPostingBase::OnInteract(UInteractivePickerComponent* Picker)
 		{
 			if (UAC_Inventory* InventoryComp = InteractingCharacter->FindComponentByClass<UAC_Inventory>())
 			{
-				if (InventoryComp->CheckIfInventoryContainsItem(FlyerTag, 1))
+				FHitResult HitResult = TraceForFlyer();
+				if (HitResult.bBlockingHit)
 				{
-					FHitResult HitResult = TraceForFlyer();
-					if (HitResult.bBlockingHit)
+					if (AA_Flyer* FlyerActor = Cast<AA_Flyer>(HitResult.GetActor()))
 					{
-						if (AA_Flyer* FlyerActor = Cast<AA_Flyer>(HitResult.GetActor()))
-						{
-							InventoryComp->AddItemToInventory(FlyerActor->FlyerTag, 1);
-							FlyerActor->Destroy();
-						}
-						else if (FlyerClass)
-						{
-							InventoryComp->RemoveItemFromInventory(FlyerTag, 1);
-							FTransform FlyerTransform;
-							FlyerTransform.SetLocation(HitResult.Location);
-							FlyerTransform.SetRotation(HitResult.Normal.ToOrientationQuat());
-
-							if (AA_Flyer* NewFlyer = GetWorld()->SpawnActorDeferred<AA_Flyer>(FlyerClass, FlyerTransform, this, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
-							{
-								NewFlyer->FlyerTag = FlyerTag;
-								NewFlyer->FinishSpawning(FlyerTransform);
-							}
-						}
+						InventoryComp->AddItemToInventory(FlyerActor->FlyerTag, 1);
+						PlacedFlyers.Remove(FlyerActor->FlyerId);
+						FlyerActor->Destroy();
+						FlyersSpawnObserver(false);
 					}
-					SpawnFlyerDecal(GetFlyerTransform());
-					InventoryComp->RemoveItemFromInventory(FlyerTag, 1);
+					else if (InventoryComp->CheckIfInventoryContainsItem(FlyerTag, 1) && FlyerClass)
+					{
+						InventoryComp->RemoveItemFromInventory(FlyerTag, 1);
+						FTransform FlyerTransform;
+						FlyerTransform.SetLocation(HitResult.Location);
+						FlyerTransform.SetRotation(HitResult.Normal.ToOrientationQuat());
+						FGuid FlyerId = CreateGuidForFlyer();
+						PlacedFlyers.Add(FlyerId, FlyerTransform);
+
+						SpawnFlyer(FlyerId, FlyerTransform);
+					}
 				}
 			}
 		}
@@ -284,42 +292,51 @@ void AA_FlyerPostingBase::OnInteract(UInteractivePickerComponent* Picker)
 
 void AA_FlyerPostingBase::OnInteractiveReceiveFocus(AActor* WhoInteract)
 {
-	if (GetChoreStatus() == EChoreStatus::Inactive)
-	{
-		InteractiveItemComponent->SetTooltip(FText::FromString("Flyer posting is not active"));
-		return;
-	}
-
 	if (GetChoreStatus() == EChoreStatus::Completed)
 	{
 		InteractiveItemComponent->SetTooltip(FText::FromString("Flyer posting is completed"));
 		return;
 	}
 
-	FHitResult HitResult = TraceForFlyer();
-	if (HitResult.bBlockingHit)
-	{
-		if (AA_Flyer* FlyerActor = Cast<AA_Flyer>(HitResult.GetActor()))
+	GetWorldTimerManager().ClearTimer(TooltipCheckHandle);
+	GetWorldTimerManager().SetTimer(TooltipCheckHandle, [this, WhoInteract]()
 		{
-			InteractiveItemComponent->SetTooltip(FText::FromString("The place is taken by another flyer, press F to take it."));
-			return;
-		}
-	}
+			if (GetChoreStatus() == EChoreStatus::Inactive)
+			{
+				InteractiveItemComponent->SetTooltip(FText::FromString("Flyer posting is inactive"));
+				return;
+			}
 
-	if (ACharacter* InteractingCharacter = Cast<ACharacter>(WhoInteract))
-	{
-		if (UAC_Inventory* InventoryComp = InteractingCharacter->FindComponentByClass<UAC_Inventory>())
-		{
-			if (InventoryComp->CheckIfInventoryContainsItem(FlyerTag, 1))
+			FHitResult HitResult = TraceForFlyer();
+			if (HitResult.bBlockingHit)
 			{
-				InteractiveItemComponent->SetTooltip(FText::FromString("Press F to place the flyer"));
+				if (AA_Flyer* FlyerActor = Cast<AA_Flyer>(HitResult.GetActor()))
+				{
+					InteractiveItemComponent->SetTooltip(FText::FromString("The place is taken by another flyer, press F to take it."));
+					return;
+				}
 			}
-			else
+
+			if (ACharacter* InteractingCharacter = Cast<ACharacter>(WhoInteract))
 			{
-				InteractiveItemComponent->SetTooltip(FText::FromString("You don't have enough or such flyers"));
+				if (UAC_Inventory* InventoryComp = InteractingCharacter->FindComponentByClass<UAC_Inventory>())
+				{
+					if (InventoryComp->CheckIfInventoryContainsItem(FlyerTag, 1))
+					{
+						InteractiveItemComponent->SetTooltip(FText::FromString("Press F to place the flyer"));
+					}
+					else
+					{
+						InteractiveItemComponent->SetTooltip(FText::FromString("You don't have enough or such flyers"));
+					}
+				}
 			}
-		}
-	}
+		}, 0.5, true, 0.0f);
+}
+
+void AA_FlyerPostingBase::OnInteractiveLostFocus(ACharacter* User)
+{
+	GetWorldTimerManager().ClearTimer(TooltipCheckHandle);
 }
 
 void AA_FlyerPostingBase::DrawZoneText(UCanvas* Canvas, int32 Width, int32 Height)
@@ -335,9 +352,29 @@ void AA_FlyerPostingBase::DrawZoneText(UCanvas* Canvas, int32 Width, int32 Heigh
 	Canvas->K2_DrawBox(FVector2D(0.0f, 0.0f), FVector2D(Width, Height), 1.0f, FLinearColor::White);
 }
 
-void AA_FlyerPostingBase::SpawnFlyerDecal(FTransform FlyerTransform)
+FGuid AA_FlyerPostingBase::CreateGuidForFlyer()
 {
+	FGuid NewGuid;
+	do
+	{
+		NewGuid = FGuid::NewGuid();
+	} while (PlacedFlyers.Contains(NewGuid));
 
+	return NewGuid;
+}
+
+void AA_FlyerPostingBase::SpawnFlyer(FGuid FlyerId, FTransform FlyerTransform)
+{
+	SetChoreStatus(EChoreStatus::Started);
+
+	if (AA_Flyer* NewFlyer = GetWorld()->SpawnActorDeferred<AA_Flyer>(FlyerClass, FlyerTransform, this, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn))
+	{
+		NewFlyer->FlyerId = FlyerId;
+		NewFlyer->FlyerTag = FlyerTag;
+		NewFlyer->FinishSpawning(FlyerTransform);
+
+		FlyersSpawnObserver(true);
+	}
 }
 
 FHitResult AA_FlyerPostingBase::TraceForFlyer()
@@ -349,18 +386,39 @@ FHitResult AA_FlyerPostingBase::TraceForFlyer()
 		FRotator ViewRotation;
 		PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
 
-		TArray<AActor*> ActorsToIgnore;
-		ActorsToIgnore.Add(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 
-		GetWorld()->LineTraceSingleByChannel(HitResult, ViewLocation, ViewLocation + ViewRotation.Vector() * (InteractiveItemComponent->InteractionRange + 50.0f), ECC_Visibility, FCollisionQueryParams(NAME_None, false, this));
+		GetWorld()->LineTraceSingleByChannel(HitResult, ViewLocation, ViewLocation + ViewRotation.Vector() * (InteractiveItemComponent->InteractionRange + 50.0f), ECC_Visibility, Params);
 	}
-
 	return HitResult;
 }
 
 FTransform AA_FlyerPostingBase::GetFlyerTransform() const
 {
 	return FTransform();
+}
+
+void AA_FlyerPostingBase::FlyersSpawnObserver(bool IsSpawned)
+{
+	if (IsSpawned)
+	{
+
+		--RequiredFlyersQuantityToPlace;
+		if (RequiredFlyersQuantityToPlace == 0)
+		{
+			if (!bIsDeferredEvaluate)
+			{
+				SetChoreStatus(EChoreStatus::Completed);
+			}
+			PublicResultState(true);
+		}
+	}
+	else
+	{
+		++RequiredFlyersQuantityToPlace;
+		SetChoreStatus(EChoreStatus::Active);
+	}
 }
 
 void AA_FlyerPostingBase::AddPlacementBox()
