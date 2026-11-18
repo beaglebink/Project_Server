@@ -4168,11 +4168,6 @@ void UInteriorSubsystem::OnPostLoadMap(UWorld* LoadedWorld)
 			// ── /Восстановление инвентаря ──
 
 			RebuildPopulationMapsForCurrentFloor();
-			SubscribeToSpawnActor();
-			IsPostLoadMapComplete = true;
-			SaveLoadFromDisk.Broadcast(false);
-
-			RebuildPopulationMapsForCurrentFloor();
 
 			SubscribeToSpawnActor();
 			IsPostLoadMapComplete = true;
@@ -4971,9 +4966,69 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				// Defer processing (snapshot transfer) until the end
 				// Отложим обработку (перенос снепшотов) до конца
 
-				Ctrl->OnMissionCompleted(EMissionEndReason::Failed);
 				break;
 			}
+			}
+		}
+
+		// Resolve ownership from the complete, pre-failure mission set. FailOnLoad
+		// missions that were already on hold must be discarded without applying
+		// their failure policy to the persistent floor state.
+		TMap<FName, bool> bFailOnLoadMissionWasHeld;
+		TArray<FName> RestoredMissionIds;
+		ActiveMissions.GetKeys(RestoredMissionIds);
+		RestoredMissionIds.Sort([this](const FName& A, const FName& B)
+		{
+			const FActiveMissionInterior* EntryA = ActiveMissions.Find(A);
+			const FActiveMissionInterior* EntryB = ActiveMissions.Find(B);
+			return EntryA && EntryB ? EntryA->Priority > EntryB->Priority : EntryA != nullptr;
+		});
+		TMap<FInteriorFloorKey, FName> RestoredFloorOwners;
+		for (const FName& MissionId : RestoredMissionIds)
+		{
+			const FActiveMissionInterior* Entry = ActiveMissions.Find(MissionId);
+			if (!Entry || !Entry->Controller) continue;
+			const EMissionStatus Status = Entry->Controller->GetStatus();
+			const TArray<FMissionEnvelope>& Envelopes = Entry->Controller->GetEnvelopes();
+			if (!Envelopes.IsValidIndex(Entry->MissionStep)) continue;
+			const FMissionEnvelope& Envelope = Envelopes[Entry->MissionStep];
+			// CollectSaveData stores an active FailOnLoad mission as Resolved/Failed.
+			// It still needs to participate in pre-failure floor arbitration so a
+			// held mission can be discarded without applying its failure policy.
+			const bool bSerializedActiveFailOnLoad =
+				Envelope.ResumeMode == EMissionResumeMode::FailOnLoad && Status == EMissionStatus::Resolved;
+			if (Status != EMissionStatus::Active && Status != EMissionStatus::Suspended && !bSerializedActiveFailOnLoad) continue;
+
+			TSet<FInteriorFloorKey> MissionFloors;
+			for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelopes[Entry->MissionStep].Scope.InteriorScopes)
+			{
+				UFloorAsset* Floor = FloorRef.LoadSynchronous();
+				if (!Floor || !Floor->FloorID.IsValid()) continue;
+				FGuid InteriorId = Floor->InteriorSetID;
+				if (!InteriorId.IsValid() && Floor->ParentInteriorSet.IsValid())
+				{
+					if (UInteriorSetAsset* Interior = Floor->ParentInteriorSet.LoadSynchronous()) InteriorId = Interior->InteriorSetID;
+				}
+				if (InteriorId.IsValid()) MissionFloors.Add(FInteriorFloorKey(InteriorId, Floor->FloorID));
+			}
+
+			bool bIsHeld = false;
+			for (const FInteriorFloorKey& FloorKey : MissionFloors)
+			{
+				if (RestoredFloorOwners.Contains(FloorKey))
+				{
+					bIsHeld = true;
+					break;
+				}
+			}
+			if (Envelope.ResumeMode == EMissionResumeMode::FailOnLoad)
+			{
+				bFailOnLoadMissionWasHeld.Add(MissionId, bIsHeld);
+			}
+			if (bIsHeld) continue;
+			for (const FInteriorFloorKey& FloorKey : MissionFloors)
+			{
+				RestoredFloorOwners.Add(FloorKey, MissionId);
 			}
 		}
 
@@ -4990,6 +5045,17 @@ void UInteriorSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
 			FMissionEnvelope Envelope = MissionAsset->Envelopes[Pair.Value.MissionStep];
 			if (Envelope.ResumeMode != EMissionResumeMode::FailOnLoad) continue;
+			if (bFailOnLoadMissionWasHeld.FindRef(MissionId))
+			{
+				UE_LOG(LogTemp, Log,
+					TEXT("InteriorSubsystem::ApplySaveData: Discarding held FailOnLoad mission '%s' without applying its failure policy"),
+					*MissionId.ToString());
+				RemoveMissionSnapshots(MissionFloorSnapshots, MissionId);
+				RemoveMissionFromPopulationMap(MissionSpawnedActorsByInteriorFloor, MissionId);
+				RemoveMissionFromPopulationMap(MissionDestroyedActorsByInteriorFloor, MissionId);
+				continue;
+			}
+			Controller->OnMissionCompleted(EMissionEndReason::Failed);
 
 			// Copy snapshots of this mission to FloorStateSnapshots (with uniqueness check)
 			// Копируем снепшоты этой миссии в FloorStateSnapshots (с проверкой уникальности)
