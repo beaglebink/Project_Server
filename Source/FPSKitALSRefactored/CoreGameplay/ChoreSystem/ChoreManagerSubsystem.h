@@ -150,6 +150,9 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     bool IsChoreAvailable(FName ChoreId) const;
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Mission")
+    bool CanChoreRunForMission(const UChoreDefinition* Definition) const;
+
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Query")
     FChoreState GetState(FName ChoreId) const;
 

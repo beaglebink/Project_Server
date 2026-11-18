@@ -244,6 +244,7 @@ private:
 	FName ActiveMissionId;
 	int64 MissionPriorityCounter = 0;
 	void RaiseMissionPriority(FActiveMissionEntry& Entry);
+	void SaveDisplayedFloorSnapshotBeforeMissionChange();
 	void PublishMissionListUpdate(FName MissionId, EMissionEndReason Reason, bool bUpdateSnapshots);
 
 	bool IsLoadComplete = true;

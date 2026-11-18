@@ -304,6 +304,10 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 				return;
 			}
 
+			// The scene keeps showing its current mission version until the player
+			// leaves. Preserve that version before progress changes floor priority.
+			SaveDisplayedFloorSnapshotBeforeMissionChange();
+
 			int32 StepIndex = ActiveMission->MissionStep;
 			StepIndex++; // предполагается, что прогресс миссии приходит после успешного выполнения шага, так что индекс шага для получения envelope увеличиваем на 1
 			ActiveMission->MissionStep = StepIndex; // сохраняем прогресс миссии (текущий шаг) в MissionSubsystem, чтобы при покидании этажа или загрузке игры можно было восстановить состояние миссии
@@ -425,6 +429,7 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 		return;
 	}
 
+	SaveDisplayedFloorSnapshotBeforeMissionChange();
 	Entry->Controller->Activate();
 	RaiseMissionPriority(*Entry);
 	ActiveMissionId = MissionId;
@@ -468,6 +473,16 @@ void UMissionSubsystem::RaiseMissionPriority(FActiveMissionEntry& Entry)
 	Entry.Priority = ++MissionPriorityCounter;
 }
 
+void UMissionSubsystem::SaveDisplayedFloorSnapshotBeforeMissionChange()
+{
+	if (UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>())
+	{
+		const FName DisplayedMissionId = Interior->GetCurrentFloorMissionId();
+		if (!DisplayedMissionId.IsNone())
+			Interior->SaveCurrentFloorStateForMission(DisplayedMissionId);
+	}
+}
+
 bool UMissionSubsystem::SetActiveMission(FName MissionId)
 {
 	FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
@@ -475,12 +490,7 @@ bool UMissionSubsystem::SetActiveMission(FName MissionId)
 		(Entry->Controller->GetStatus() != EMissionStatus::Active && Entry->Controller->GetStatus() != EMissionStatus::Suspended))
 		return false;
 
-	if (UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>())
-	{
-		const FName DisplayedMissionId = Interior->GetCurrentFloorMissionId();
-		if (!DisplayedMissionId.IsNone())
-			Interior->SaveCurrentFloorStateForMission(DisplayedMissionId);
-	}
+	SaveDisplayedFloorSnapshotBeforeMissionChange();
 	RaiseMissionPriority(*Entry);
 	ActiveMissionId = MissionId;
 	PublishMissionListUpdate(MissionId, EMissionEndReason::None, false);
@@ -524,8 +534,19 @@ void UMissionSubsystem::LogMissionPriorityState()
 	{
 		const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
 		if (!Entry) continue;
-		Lines += FString::Printf(TEXT("  %s | Priority=%lld | OnHold=%s\n"),
-			*MissionId.ToString(), Entry->Priority, IsMissionOnHold(MissionId) ? TEXT("true") : TEXT("false"));
+		const UMissionController* Controller = Entry->Controller;
+		const FString StatusName = Controller
+			? StaticEnum<EMissionStatus>()->GetNameStringByValue(static_cast<int64>(Controller->GetStatus()))
+			: TEXT("NoController");
+		FString ResumeModeName = TEXT("InvalidStep");
+		if (Controller && Controller->GetEnvelopes().IsValidIndex(Entry->MissionStep))
+		{
+			const EMissionResumeMode ResumeMode = Controller->GetEnvelopes()[Entry->MissionStep].ResumeMode;
+			ResumeModeName = StaticEnum<EMissionResumeMode>()->GetNameStringByValue(static_cast<int64>(ResumeMode));
+		}
+		Lines += FString::Printf(TEXT("  %s | Step=%d | Status=%s | ResumeMode=%s | Priority=%lld | OnHold=%s\n"),
+			*MissionId.ToString(), Entry->MissionStep, *StatusName, *ResumeModeName,
+			Entry->Priority, IsMissionOnHold(MissionId) ? TEXT("true") : TEXT("false"));
 	}
 	if (Lines.IsEmpty()) Lines = TEXT("  <no active missions>\n");
 
@@ -1343,12 +1364,21 @@ void UMissionSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
 
 		const UMissionAsset* Asset = Ctrl->GetMissionAsset();
 		if (!Asset) continue;
-		if (!Asset->Envelopes.IsValidIndex(Pair.Value.MissionStep)) continue;
+		if (!Asset->Envelopes.IsValidIndex(Pair.Value.MissionStep))
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("MissionSubsystem::CollectSaveData: Skipping '%s': step %d is outside Envelopes (%d steps)"),
+				*Pair.Key.ToString(), Pair.Value.MissionStep, Asset->Envelopes.Num());
+			continue;
+		}
 
 		const EMissionStatus Status      = Ctrl->GetStatus();
 		const EMissionEndReason EndReason = Ctrl->GetEndReason();
 		const EMissionResumeMode Resume  = Asset->Envelopes[Pair.Value.MissionStep].ResumeMode;
 		const int32 MissionStep = Pair.Value.MissionStep;
+		UE_LOG(LogTemp, Log,
+			TEXT("MissionSubsystem::CollectSaveData: Saving '%s' Status=%d Step=%d ResumeMode=%d Priority=%lld"),
+			*Pair.Key.ToString(), static_cast<int32>(Status), MissionStep, static_cast<int32>(Resume), Pair.Value.Priority);
 
 		// Применяем NonResumableMode при сохранении:
 		// FailOnLoad — запишем статус как Failed
@@ -1458,6 +1488,9 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				const EMissionStatus   Status = static_cast<EMissionStatus>(StatusInt);
 				const EMissionEndReason EndReason = static_cast<EMissionEndReason>(EndReasonInt);
 				const EMissionResumeMode Resume = static_cast<EMissionResumeMode>(ResumeModeInt);
+				UE_LOG(LogTemp, Log,
+					TEXT("MissionSubsystem::ApplySaveData: Loading '%s' Status=%d Step=%d ResumeMode=%d Priority=%.0f"),
+					*MissionIdStr, StatusInt, MissionStep, ResumeModeInt, PriorityValue);
 
 				UMissionAsset* Asset = Cast<UMissionAsset>(
 					StaticLoadObject(UMissionAsset::StaticClass(), nullptr, *AssetPath));
@@ -1501,6 +1534,9 @@ void UMissionSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 				}
 				case EMissionResumeMode::FailOnLoad:
 				{
+					UE_LOG(LogTemp, Warning,
+						TEXT("MissionSubsystem::ApplySaveData: '%s' is removed because its current step uses FailOnLoad"),
+						*MissionId.ToString());
 					DeletedMissions.Add(MissionId);
 					break;
 				}
@@ -1599,8 +1635,15 @@ void UMissionSubsystem::HandleFloorLeavingNotification(const FOutcomeEventBase& 
 	const FInteriorFloorKey FloorKey(InteriorSetId, FloorId);
 	const FName DisplayedMissionId = Interior->GetCurrentFloorMissionId();
 	const FName NextOwnerId = Interior->GetAllocatedMissionForFloor(FloorKey);
-	Interior->SaveCurrentFloorStateForMission(DisplayedMissionId);
 	if (!NextOwnerId.IsNone() && NextOwnerId != DisplayedMissionId)
+	{
+		// The visible scene still contains the old mission version. Keep its
+		// pre-conflict snapshot intact and save the final scene under its new owner.
 		Interior->SaveCurrentFloorStateForMission(NextOwnerId);
+	}
+	else if (NextOwnerId == DisplayedMissionId)
+	{
+		Interior->SaveCurrentFloorStateForMission(DisplayedMissionId);
+	}
 
 }

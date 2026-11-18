@@ -2034,20 +2034,28 @@ void UChoreManagerSubsystem::ResumeChore(FName ChoreId)
     EventBus->PublishOutcome(Event);
 }
 
+bool UChoreManagerSubsystem::CanChoreRunForMission(const UChoreDefinition* Definition) const
+{
+	if (!Definition) return false;
+    const UMissionAsset* OwningMission = Definition->OwningMission.LoadSynchronous();
+	if (!OwningMission) return Definition->OwningMission.IsNull();
+	const UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>();
+	if (!MissionSubsystem) return false;
+	const FName OwningMissionId = OwningMission->GetMissionId();
+	return MissionSubsystem->IsMissionActive(OwningMissionId) &&
+		!MissionSubsystem->IsMissionOnHold(OwningMissionId);
+}
+
 bool UChoreManagerSubsystem::IsChoreBlockedByMission(const UChoreDefinition* Definition, const FInteriorFloorKey& FloorKey) const
 {
-    if (!Definition || (!FloorKey.InteriorSetId.IsValid() && !FloorKey.FloorId.IsValid())) return false;
-    const UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
-    if (!Interior) return false;
-    const UMissionAsset* OwningMission = Definition->OwningMission.LoadSynchronous();
-    const FName OwningMissionId = OwningMission ? OwningMission->GetMissionId() : NAME_None;
-    if (!OwningMissionId.IsNone())
-    {
-        if (const UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>())
-        {
-            if (MissionSubsystem->IsMissionOnHold(OwningMissionId)) return true;
-        }
-    }
+	if (!Definition || Definition->OwningMission.IsNull()) return false;
+	if (!CanChoreRunForMission(Definition)) return true;
+	if (!FloorKey.InteriorSetId.IsValid() && !FloorKey.FloorId.IsValid()) return false;
+	const UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
+	if (!Interior) return false;
+	const UMissionAsset* OwningMission = Definition->OwningMission.LoadSynchronous();
+	if (!OwningMission) return true;
+	const FName OwningMissionId = OwningMission->GetMissionId();
 
     if (FloorKey == Interior->GetCurrentFloorKey())
     {
@@ -2063,6 +2071,8 @@ bool UChoreManagerSubsystem::IsChoreBlockedByMission(const UChoreDefinition* Def
 bool UChoreManagerSubsystem::IsChoreBlockedByMission(FName ChoreId) const
 {
 	const UChoreDefinition* Definition = GetChoreDefinition(ChoreId);
+	if (Definition && !Definition->OwningMission.IsNull() && !CanChoreRunForMission(Definition))
+		return true;
 	const FInteriorFloorKey* FloorKey = ChoreFloorKeys.Find(ChoreId);
 	return Definition && FloorKey && IsChoreBlockedByMission(Definition, *FloorKey);
 }
