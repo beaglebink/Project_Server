@@ -10,6 +10,8 @@
 #include "SaveSubsystems/GIS_RealEstatePaperWork.h"
 #include "FlyerPosting/O_FlyerPostingStructures.h"
 #include "SaveSubsystems/GIS_FlyerPosting.h"
+#include "Inventory/O_PickUpStructures.h"
+#include "SaveSubsystems/GIS_PickUp.h"
 #include "I_SaveableObject.generated.h"
 
 // ChorePlacement save data structure
@@ -130,4 +132,11 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyFlyerPostingSaveData(UGIS_FlyerPosting* SaveChoreData);
+
+	// PickUp save data collection and application functions
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	FPickUpSaveData CollectPickUpSaveData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
+	void ApplyPickUpSaveData(UGIS_PickUp* GIS);
 };
