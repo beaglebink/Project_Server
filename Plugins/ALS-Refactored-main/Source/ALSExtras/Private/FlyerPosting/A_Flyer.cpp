@@ -26,6 +26,9 @@ void AA_Flyer::BeginPlay()
 {
 	Super::BeginPlay();
 
+	float RandomLocX = FMath::RandRange(-0.5f, 0.5f);
+	FlyerMesh->AddLocalOffset(FVector(RandomLocX, 0.0f, 0.0f));
+
 	float RandomRoll = FMath::RandRange(-10.0f, 10.0f);
 	FlyerMesh->AddLocalRotation(FRotator(0.0f, 0.0f, RandomRoll));
 

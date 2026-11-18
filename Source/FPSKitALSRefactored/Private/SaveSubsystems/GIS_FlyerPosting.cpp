@@ -40,39 +40,21 @@ void UGIS_FlyerPosting::CollectSaveData(FSubsystemSaveData& OutData)
 			continue;
 		}
 
-		FFlyerPostingSaveData FlyerPostingSaveData = II_SaveableObject::Execute_CollectFlyerPostingSaveData(SaveableObject);;
+		FFlyerPostingSaveData FlyerPostingSaveData = II_SaveableObject::Execute_CollectFlyerPostingSaveData(SaveableObject);
 
-		//TSharedPtr<FJsonObject> FlyerPostingSaveJsonObject = MakeShared<FJsonObject>();
+		TSharedPtr<FJsonObject> FlyerPostingSaveDataJsonObject = MakeShared<FJsonObject>();
 
-		//FlyerPostingSaveJsonObject->SetNumberField(TEXT("ChoreStatus"), static_cast<int32>(FlyerPostingSaveData.ChoreStatus));
+		FlyerPostingSaveDataJsonObject->SetNumberField(TEXT("ChoreStatus"), static_cast<int32>(FlyerPostingSaveData.ChoreStatus));
 
-		//for (const auto& [Question, QuestionData] : FlyerPostingSaveData.Questions)
-		//{
-		//	TSharedPtr<FJsonObject> QuestionSaveJsonObject = MakeShared<FJsonObject>();
+		TSharedPtr<FJsonObject> FlyersSaveDataJsonObject = MakeShared<FJsonObject>();
+		for (const auto& [FlyerId, FlyerTransform] : FlyerPostingSaveData.PlacedFlyers)
+		{
+			FlyersSaveDataJsonObject->SetStringField(FlyerId.ToString(), FlyerTransform.ToString());
+		}
+		FlyerPostingSaveDataJsonObject->SetObjectField(TEXT("FlyersData"), FlyersSaveDataJsonObject);
 
-		//	TArray<TSharedPtr<FJsonValue>> AnswersJsonArray;
-
-		//	for (const auto& AnswerData : QuestionData.AnswersArray)
-		//	{
-		//		TSharedPtr<FJsonObject> AnswerSaveJsonObject = MakeShared<FJsonObject>();
-
-		//		FString SerializedAnswerText;
-		//		FTextStringHelper::WriteToBuffer(SerializedAnswerText, AnswerData.AnswerText, false, false);
-		//		AnswerSaveJsonObject->SetStringField(TEXT("AnswerText"), SerializedAnswerText);
-
-		//		AnswerSaveJsonObject->SetBoolField(TEXT("bIsSuitable"), AnswerData.bIsSuitable);
-		//		AnswerSaveJsonObject->SetBoolField(TEXT("bIsChecked"), AnswerData.bIsChecked);
-
-		//		AnswersJsonArray.Add(MakeShared<FJsonValueObject>(AnswerSaveJsonObject));
-		//	}
-		//	QuestionSaveJsonObject->SetArrayField(TEXT("AnswersArray"), AnswersJsonArray);
-		//	QuestionSaveJsonObject->SetBoolField(TEXT("bIsPassed"), QuestionData.bIsPassed);
-
-		//	FlyerPostingSaveJsonObject->SetObjectField(Question, QuestionSaveJsonObject);
-		//}
-
-		//FString FlyerPostingObjectName = II_SaveableObject::Execute_GetFloorAssignmentComponentIdAsString(SaveableObject);
-		//Root->SetObjectField(FlyerPostingObjectName, FlyerPostingSaveJsonObject);
+		FString FlyerPostingObjectName = II_SaveableObject::Execute_GetFloorAssignmentComponentIdAsString(SaveableObject);
+		Root->SetObjectField(FlyerPostingObjectName, FlyerPostingSaveDataJsonObject);
 	}
 
 	FString JsonString;
@@ -104,83 +86,50 @@ void UGIS_FlyerPosting::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
-	for (const auto& [RealEstateObjectId, RealEstateSaveJsonData] : Root->Values)
+	for (const auto& [FlyerPostingObjectId, FlyerPostingSaveDataJsonValue] : Root->Values)
 	{
-		//FQuestionSaveDataStruct QuestionSaveDataStruct;
+		FFlyerPostingSaveData FlyerPostingSaveData;
 
-		//int32 RealEstateStatusNumbered;
-		//if (!RealEstateSaveJsonData->AsObject()->TryGetNumberField(TEXT("ChoreStatus"), RealEstateStatusNumbered))
-		//{
-		//	continue;
-		//}
-		//QuestionSaveDataStruct.ChoreStatus = static_cast<EChoreStatus>(RealEstateStatusNumbered);
+		TSharedPtr<FJsonObject> FlyerPostingSaveDataJsonObject = FlyerPostingSaveDataJsonValue->AsObject();
 
-		//for (const auto& [Question, QuestionJsonData] : RealEstateSaveJsonData->AsObject()->Values)
-		//{
-		//	FQuestionDataStruct QuestionDataStruct;
+		if (!FlyerPostingSaveDataJsonObject)
+		{
+			continue;
+		}
 
-		//	if (!QuestionJsonData.IsValid() || QuestionJsonData->Type != EJson::Object)
-		//	{
-		//		continue;
-		//	}
-		//	const TSharedPtr<FJsonObject> QuestionSaveJsonObject = QuestionJsonData->AsObject();
-		//	if (!QuestionSaveJsonObject.IsValid())
-		//	{
-		//		continue;
-		//	}
+		int32 FlyerPostingStatusNumbered;
+		if (!FlyerPostingSaveDataJsonObject->TryGetNumberField(TEXT("ChoreStatus"), FlyerPostingStatusNumbered))
+		{
+			continue;
+		}
+		FlyerPostingSaveData.ChoreStatus = static_cast<EChoreStatus>(FlyerPostingStatusNumbered);
 
-		//	const TArray<TSharedPtr<FJsonValue>>* AnswersJsonArray = nullptr;
-		//	if (!QuestionSaveJsonObject->TryGetArrayField(TEXT("AnswersArray"), AnswersJsonArray))
-		//	{
-		//		continue;
-		//	}
-		//	for (const auto& AnswerJsonValue : *AnswersJsonArray)
-		//	{
-		//		FAnswerDataStruct AnswerDataStruct;
+		const TSharedPtr<FJsonObject>* FlyersSaveDataJsonObject = nullptr;
+		if (!FlyerPostingSaveDataJsonObject->TryGetObjectField(TEXT("FlyersData"), FlyersSaveDataJsonObject))
+		{
+			continue;
+		}
 
-		//		if (!AnswerJsonValue.IsValid() || AnswerJsonValue->Type != EJson::Object)
-		//		{
-		//			continue;
-		//		}
-		//		TSharedPtr<FJsonObject> AnswerJsonObject = AnswerJsonValue->AsObject();
+		TMap<FGuid, FTransform> PlacedFlyersData;
+		for (const auto& [FlyerIdString, FlyerTransformJsonValue] : (*FlyersSaveDataJsonObject)->Values)
+		{
+			FGuid FlyerId = FGuid(FlyerIdString);
 
-		//		FString AnswerText;
-		//		if (!AnswerJsonObject->TryGetStringField(TEXT("AnswerText"), AnswerText))
-		//		{
-		//			continue;
-		//		}
-		//		bool bIsSuitable = false;
-		//		if (!AnswerJsonObject->TryGetBoolField(TEXT("bIsSuitable"), bIsSuitable))
-		//		{
-		//			continue;
-		//		}
-		//		bool bIsChecked = false;
-		//		if (!AnswerJsonObject->TryGetBoolField(TEXT("bIsChecked"), bIsChecked))
-		//		{
-		//			continue;
-		//		}
+			FString FlyerTransformString;
+			if (!FlyerTransformJsonValue->TryGetString(FlyerTransformString))
+			{
+				continue;
+			}
+			FTransform FlyerTransform;
+			if (!FlyerTransform.InitFromString(FlyerTransformString))
+			{
+				continue;
+			}
+			PlacedFlyersData.Add(FlyerId, FlyerTransform);
+		}
+		FlyerPostingSaveData.PlacedFlyers = MoveTemp(PlacedFlyersData);
 
-		//		if (!FTextStringHelper::ReadFromBuffer(*AnswerText, AnswerDataStruct.AnswerText, TEXT(""), TEXT(""), false))
-		//		{
-		//			continue;
-		//		}
-
-		//		AnswerDataStruct.bIsSuitable = bIsSuitable;
-		//		AnswerDataStruct.bIsChecked = bIsChecked;
-		//		QuestionDataStruct.AnswersArray.Add(AnswerDataStruct);
-		//	}
-
-		//	bool bIsPassed = false;
-		//	if (!QuestionSaveJsonObject->TryGetBoolField(TEXT("bIsPassed"), bIsPassed))
-		//	{
-		//		continue;
-		//	}
-		//	QuestionDataStruct.bIsPassed = bIsPassed;
-
-		//	QuestionSaveDataStruct.Questions.Add(Question, QuestionDataStruct);
-		//}
-
-		//CachedFlyerPostingData.Add(FlyerPostingObjectId, QuestionSaveDataStruct);
+		CachedFlyerPostingData.Add(FlyerPostingObjectId, FlyerPostingSaveData);
 	}
 
 	bIsLoadComplete = true;

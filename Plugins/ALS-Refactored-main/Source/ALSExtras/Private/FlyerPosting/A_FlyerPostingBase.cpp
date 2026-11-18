@@ -52,11 +52,6 @@ void AA_FlyerPostingBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (bIsAutoAcivated)
-	{
-		SetChoreStatus(EChoreStatus::Active);
-	}
-
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		if (UGIS_FlyerPosting* GIS = GI->GetSubsystem<UGIS_FlyerPosting>())
@@ -100,9 +95,13 @@ void AA_FlyerPostingBase::SetChoreStatus(EChoreStatus NewStatus)
 	switch (ChoreStatus)
 	{
 	case EChoreStatus::Inactive:
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "INACTIVE");
+	}
+	break;
 	case EChoreStatus::Active:
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, ChoreStatus == EChoreStatus::Active ? "ACTIVE" : "INACTIVE");
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "ACTIVE");
 		break;
 	}
 	case EChoreStatus::Completed:
@@ -200,7 +199,7 @@ FFlyerPostingSaveData AA_FlyerPostingBase::CollectFlyerPostingSaveData_Implement
 	FlyerPostingSaveData.ChoreStatus = GetChoreStatus();
 	FlyerPostingSaveData.PlacedFlyers = PlacedFlyers;
 
-	return FFlyerPostingSaveData();
+	return FlyerPostingSaveData;
 }
 
 void AA_FlyerPostingBase::ApplyFlyerPostingSaveData_Implementation(UGIS_FlyerPosting* GIS)
@@ -244,12 +243,6 @@ void AA_FlyerPostingBase::ApplyIntermediateSaveData(FString Jsonstring)
 	}
 }
 
-bool AA_FlyerPostingBase::CheckIfStarted()
-{
-
-	return false;
-}
-
 void AA_FlyerPostingBase::OnInteract(UInteractivePickerComponent* Picker)
 {
 	if (GetChoreStatus() == EChoreStatus::Inactive || GetChoreStatus() == EChoreStatus::Completed)
@@ -275,6 +268,8 @@ void AA_FlyerPostingBase::OnInteract(UInteractivePickerComponent* Picker)
 					}
 					else if (InventoryComp->CheckIfInventoryContainsItem(FlyerTag, 1) && FlyerClass)
 					{
+						SetChoreStatus(EChoreStatus::Started);
+
 						InventoryComp->RemoveItemFromInventory(FlyerTag, 1);
 						FTransform FlyerTransform;
 						FlyerTransform.SetLocation(HitResult.Location);
@@ -292,15 +287,15 @@ void AA_FlyerPostingBase::OnInteract(UInteractivePickerComponent* Picker)
 
 void AA_FlyerPostingBase::OnInteractiveReceiveFocus(AActor* WhoInteract)
 {
-	if (GetChoreStatus() == EChoreStatus::Completed)
-	{
-		InteractiveItemComponent->SetTooltip(FText::FromString("Flyer posting is completed"));
-		return;
-	}
-
 	GetWorldTimerManager().ClearTimer(TooltipCheckHandle);
 	GetWorldTimerManager().SetTimer(TooltipCheckHandle, [this, WhoInteract]()
 		{
+			if (GetChoreStatus() == EChoreStatus::Completed)
+			{
+				InteractiveItemComponent->SetTooltip(FText::FromString("Flyer posting is completed"));
+				return;
+			}
+
 			if (GetChoreStatus() == EChoreStatus::Inactive)
 			{
 				InteractiveItemComponent->SetTooltip(FText::FromString("Flyer posting is inactive"));
@@ -434,7 +429,7 @@ void AA_FlyerPostingBase::AddPlacementBox()
 	PlacementMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	PlacementMeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Block);
 
-	//PlacementMeshComponent->SetHiddenInGame(true);
+	PlacementMeshComponent->SetHiddenInGame(true);
 
 	if (PlacementStaticMesh && MID_FlyerZone)
 	{
