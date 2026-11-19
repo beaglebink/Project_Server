@@ -1,13 +1,12 @@
 #include "FlyerPosting/A_FlyerPostingBase.h"
 #include "InteractiveItemComponent.h"
-#include "FloorAssignmentComponent.h"
-#include "SaveSubsystems/GIS_FlyerPosting.h"
 #include "Engine/CanvasRenderTarget2D.h"
 #include "Engine/Canvas.h"
 #include "Inventory/AC_Inventory.h"
 #include "InteractivePickerComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "FlyerPosting/A_Flyer.h"
+#include "Utils/GenericJsonLibrary.h"
 
 AA_FlyerPostingBase::AA_FlyerPostingBase()
 {
@@ -15,7 +14,6 @@ AA_FlyerPostingBase::AA_FlyerPostingBase()
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	InteractiveItemComponent = CreateDefaultSubobject<UInteractiveItemComponent>(TEXT("InteractiveItemComponent"));
-	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
 }
 
 void AA_FlyerPostingBase::OnConstruction(const FTransform& Transform)
@@ -51,20 +49,6 @@ void AA_FlyerPostingBase::Tick(float DeltaTime)
 void AA_FlyerPostingBase::BeginPlay()
 {
 	Super::BeginPlay();
-
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_FlyerPosting* GIS = GI->GetSubsystem<UGIS_FlyerPosting>())
-		{
-			GIS->AddSaveableObject(this);
-
-			// Delay the application of chore placement data to the next tick to ensure that all actors are properly initialized
-			GetWorldTimerManager().SetTimerForNextTick([this, GIS]()
-				{
-					//ApplyFlyerPostingSaveData_Implementation(GIS);
-				});
-		}
-	}
 
 	InteractiveItemComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_FlyerPostingBase::OnInteract);
 	InteractiveItemComponent->OnInteractiveReceiveFocusEvent.AddDynamic(this, &AA_FlyerPostingBase::OnInteractiveReceiveFocus);
@@ -184,61 +168,26 @@ FGameplayTag AA_FlyerPostingBase::PublicResultState_Implementation(bool Result)
 	return Result ? CompletedTag : FailedTag;
 }
 
-FString AA_FlyerPostingBase::GetFloorAssignmentComponentIdAsString_Implementation()
-{
-	if (IsValid(FloorAssignmentComponent))
-	{
-		return FloorAssignmentComponent->GetFloorId().ToString();
-	}
-	return FString();
-}
-
-FFlyerPostingSaveData AA_FlyerPostingBase::CollectFlyerPostingSaveData_Implementation()
+FString AA_FlyerPostingBase::CollectSaveData()
 {
 	FFlyerPostingSaveData FlyerPostingSaveData;
 	FlyerPostingSaveData.ChoreStatus = GetChoreStatus();
 	FlyerPostingSaveData.PlacedFlyers = PlacedFlyers;
 
-	return FlyerPostingSaveData;
+	return UGenericJsonLibrary::StructToJsonStringCpp(FlyerPostingSaveData);
 }
 
-void AA_FlyerPostingBase::ApplyFlyerPostingSaveData_Implementation(UGIS_FlyerPosting* GIS)
+void AA_FlyerPostingBase::ApplySaveData(FString Jsonstring)
 {
-	FFlyerPostingSaveData* FlyerPostingSaveData = GIS->CachedFlyerPostingData.Find(GetFloorAssignmentComponentIdAsString_Implementation());
-	if (FlyerPostingSaveData)
+	FFlyerPostingSaveData FlyerPostingSaveData;
+
+	if (UGenericJsonLibrary::JsonStringToStructCpp(Jsonstring, FlyerPostingSaveData))
 	{
-		SetChoreStatus(FlyerPostingSaveData->ChoreStatus);
-		PlacedFlyers = FlyerPostingSaveData->PlacedFlyers;
+		SetChoreStatus(FlyerPostingSaveData.ChoreStatus);
+		PlacedFlyers = FlyerPostingSaveData.PlacedFlyers;
 		for (const auto& [FlyerId, FlyerTransform] : PlacedFlyers)
 		{
 			SpawnFlyer(FlyerId, FlyerTransform);
-		}
-	}
-}
-
-FString AA_FlyerPostingBase::CollectIntermediateSaveData()
-{
-	FSubsystemSaveData SaveData;
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_FlyerPosting* GIS = GI->GetSubsystem<UGIS_FlyerPosting>())
-		{
-			GIS->CollectSaveData(SaveData);
-		}
-	}
-	return SaveData.SerializedData;
-}
-
-void AA_FlyerPostingBase::ApplyIntermediateSaveData(FString Jsonstring)
-{
-	FSubsystemSaveData SaveData;
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_FlyerPosting* GIS = GI->GetSubsystem<UGIS_FlyerPosting>())
-		{
-			SaveData.SerializedData = Jsonstring;
-			GIS->ApplySaveData(SaveData);
-			ApplyFlyerPostingSaveData_Implementation(GIS);
 		}
 	}
 }

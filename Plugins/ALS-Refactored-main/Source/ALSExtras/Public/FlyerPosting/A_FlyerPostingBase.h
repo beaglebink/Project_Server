@@ -2,17 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "SaveSubsystems/I_SaveableObject.h"
+#include "GameplayTagContainer.h"
 #include "FlyerPosting/O_FlyerPostingStructures.h"
 #include "A_FlyerPostingBase.generated.h"
 
 class UInteractiveItemComponent;
-class UFloorAssignmentComponent;
 class UCanvasRenderTarget2D;
 class AA_Flyer;
 
 UCLASS()
-class ALSEXTRAS_API AA_FlyerPostingBase : public AActor, public II_SaveableObject
+class ALSEXTRAS_API AA_FlyerPostingBase : public AActor
 {
 	GENERATED_BODY()
 
@@ -58,9 +57,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UInteractiveItemComponent* InteractiveItemComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	UFloorAssignmentComponent* FloorAssignmentComponent;
-
 private:
 	UPROPERTY()
 	EChoreStatus ChoreStatus;
@@ -78,19 +74,12 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "FlyerPosting")
 	FGameplayTag PublicResultState(bool Result);
 
-	// II_SaveableObject interface
-	virtual FString GetFloorAssignmentComponentIdAsString_Implementation() override;
-
-	virtual FFlyerPostingSaveData CollectFlyerPostingSaveData_Implementation() override;
-
-	virtual void ApplyFlyerPostingSaveData_Implementation(UGIS_FlyerPosting* GIS) override;
-
-	// Intermediate data saving
+	// Data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	FString CollectIntermediateSaveData();
+	FString CollectSaveData();
 
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	void ApplyIntermediateSaveData(FString Jsonstring);
+	void ApplySaveData(FString Jsonstring);
 
 private:
 	FTimerHandle TooltipCheckHandle;
