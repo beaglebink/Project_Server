@@ -12,7 +12,17 @@ enum class EOutcomeType : uint8
     Interior        UMETA(DisplayName = "Interior"),
     SpawnGroup      UMETA(DisplayName = "Spawn Group"),
     WorldState      UMETA(DisplayName = "World state"),
-    Chore           UMETA(DisplayName = "Chore")
+    Chore           UMETA(DisplayName = "Chore"),
+    ScenarioManager UMETA(DisplayName = "Scenario Manager")
+};
+
+UENUM(BlueprintType)
+enum class EOutcomeScenario : uint8
+{
+    Default                 UMETA(DisplayName = "Default"),
+    SuspendMissionTags      UMETA(DisplayName = "Suspend Mission Tags"),
+    ResumeMissionTags       UMETA(DisplayName = "Resume Mission Tags"),
+    FinalizeMissionTags     UMETA(DisplayName = "Finalize Mission Tags")
 };
 
 UENUM(BlueprintType)
@@ -27,7 +37,8 @@ enum class EOutcomeMission : uint8
     MissionAbandoned        UMETA(Hidden, DisplayName = "Mission Abandoned"),
     CheckRequest            UMETA(DisplayName = "Check Request"),
     CheckResponse           UMETA(DisplayName = "Check Response"),
-    ChoreStepRequest        UMETA(DisplayName = "Chore Step Request")
+    ChoreStepRequest        UMETA(DisplayName = "Chore Step Request"),
+    MissionStageCompleted   UMETA(DisplayName = "Mission Stage Completed")
 };
 
 UENUM(BlueprintType)

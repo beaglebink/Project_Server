@@ -308,17 +308,39 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 			// leaves. Preserve that version before progress changes floor priority.
 			SaveDisplayedFloorSnapshotBeforeMissionChange();
 
+			const FName PreviousActiveMissionId = ActiveMissionId;
 			int32 StepIndex = ActiveMission->MissionStep;
 			StepIndex++; // предполагается, что прогресс миссии приходит после успешного выполнения шага, так что индекс шага для получения envelope увеличиваем на 1
 			ActiveMission->MissionStep = StepIndex; // сохраняем прогресс миссии (текущий шаг) в MissionSubsystem, чтобы при покидании этажа или загрузке игры можно было восстановить состояние миссии
 			RaiseMissionPriority(*ActiveMission);
 			ActiveMissionId = MissionName;
+			if (PreviousActiveMissionId != MissionName)
+			{
+				if (!PreviousActiveMissionId.IsNone()) PublishMissionTagLifecycle(PreviousActiveMissionId, EOutcomeScenario::SuspendMissionTags);
+				PublishMissionTagLifecycle(MissionName, EOutcomeScenario::ResumeMissionTags);
+			}
 			ActiveMissions.Add(MissionName, *ActiveMission); // обновляем запись о миссии с новым шагом
 
 
 			if (MissionAsset->Envelopes.IsValidIndex(StepIndex))
 			{
 				const FMissionEnvelope& Envelope = MissionAsset->Envelopes[StepIndex];
+				if (MissionAsset->Envelopes.IsValidIndex(StepIndex - 1))
+				{
+					const FMissionEnvelope& CompletedEnvelope = MissionAsset->Envelopes[StepIndex - 1];
+					// Отдельный outcome завершения этапа: исходный MissionProgress уже
+					// обработан подсистемой и не должен повторно запускать прогресс.
+					if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
+					{
+						FOutcomeEventBase StageCompletedEvent;
+						StageCompletedEvent.OutcomeType = EOutcomeType::Mission;
+						StageCompletedEvent.OutcomeMission = EOutcomeMission::MissionStageCompleted;
+						StageCompletedEvent.SourceMissionId = MissionName;
+						StageCompletedEvent.TagsToAdd = CompletedEnvelope.AddCompleteTags;
+						StageCompletedEvent.TagsToRemove = CompletedEnvelope.RemoveCompleteTags;
+						EventBus->PublishOutcome(StageCompletedEvent);
+					}
+				}
 
 				if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 				{
@@ -332,6 +354,9 @@ void UMissionSubsystem::HandleMissionProgress(const FOutcomeEventBase& Outcome)
 						P1->Reason = EMissionEndReason::Completed;
 						FOutcomeEventBase Ev;
 						Ev.OutcomeType = EOutcomeType::Interior;
+						Ev.SourceMissionId = MissionName;
+						Ev.TagsToAdd = Envelope.AddActivateTags;
+						Ev.TagsToRemove = Envelope.RemoveActivateTags;
 						Ev.Payload = P1;
 						EventBus->PublishOutcome(Ev);
 					}
@@ -429,10 +454,16 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 		return;
 	}
 
+	const FName PreviousActiveMissionId = ActiveMissionId;
 	SaveDisplayedFloorSnapshotBeforeMissionChange();
-	Entry->Controller->Activate();
 	RaiseMissionPriority(*Entry);
 	ActiveMissionId = MissionId;
+	if (PreviousActiveMissionId != MissionId)
+	{
+		if (!PreviousActiveMissionId.IsNone()) PublishMissionTagLifecycle(PreviousActiveMissionId, EOutcomeScenario::SuspendMissionTags);
+		PublishMissionTagLifecycle(MissionId, EOutcomeScenario::ResumeMissionTags);
+	}
+	Entry->Controller->Activate();
 
 	// Публикуем MissionActivated для условий
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
@@ -444,6 +475,13 @@ void UMissionSubsystem::ActivateMission(FName MissionId, bool IsUpdateSnapshots)
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Mission;
 			Ev.OutcomeMission = EOutcomeMission::MissionActivated;
+			Ev.SourceMissionId = MissionId;
+			if (Entry->Controller->GetEnvelopes().IsValidIndex(Entry->MissionStep))
+			{
+				const FMissionEnvelope& Envelope = Entry->Controller->GetEnvelopes()[Entry->MissionStep];
+				Ev.TagsToAdd = Envelope.AddActivateTags;
+				Ev.TagsToRemove = Envelope.RemoveActivateTags;
+			}
 			Ev.Payload = Payload;
 			EventBus->PublishOutcome(Ev);
 		}
@@ -490,9 +528,15 @@ bool UMissionSubsystem::SetActiveMission(FName MissionId)
 		(Entry->Controller->GetStatus() != EMissionStatus::Active && Entry->Controller->GetStatus() != EMissionStatus::Suspended))
 		return false;
 
+	const FName PreviousActiveMissionId = ActiveMissionId;
 	SaveDisplayedFloorSnapshotBeforeMissionChange();
 	RaiseMissionPriority(*Entry);
 	ActiveMissionId = MissionId;
+	if (PreviousActiveMissionId != MissionId)
+	{
+		if (!PreviousActiveMissionId.IsNone()) PublishMissionTagLifecycle(PreviousActiveMissionId, EOutcomeScenario::SuspendMissionTags);
+		PublishMissionTagLifecycle(MissionId, EOutcomeScenario::ResumeMissionTags);
+	}
 	PublishMissionListUpdate(MissionId, EMissionEndReason::None, false);
 	return true;
 }
@@ -513,6 +557,19 @@ void UMissionSubsystem::PublishMissionListUpdate(FName MissionId, EMissionEndRea
 		Event.Payload = Payload;
 		EventBus->PublishOutcome(Event);
 	}
+}
+
+void UMissionSubsystem::PublishMissionTagLifecycle(FName MissionId, EOutcomeScenario Action)
+{
+	if (MissionId.IsNone()) return;
+	UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>();
+	if (!EventBus) return;
+
+	FOutcomeEventBase Event;
+	Event.OutcomeType = EOutcomeType::ScenarioManager;
+	Event.OutcomeScenario = Action;
+	Event.SourceMissionId = MissionId;
+	EventBus->PublishOutcome(Event);
 }
 
 void UMissionSubsystem::LogMissionPriorityState()
@@ -795,13 +852,44 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 
 			FOutcomeEventBase Ev;
 			Ev.OutcomeType = EOutcomeType::Interior;   
-			Ev.OutcomeMission = EOutcomeMission::MissionCompleted;
+			Ev.SourceMissionId = MissionId;
+			switch (EndReason)
+			{
+			case EMissionEndReason::Failed:
+				Ev.OutcomeMission = EOutcomeMission::MissionFailed;
+				if (const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId))
+				{
+					if (const UMissionAsset* Asset = Entry->Controller ? Entry->Controller->GetMissionAsset() : nullptr)
+					{
+						Ev.TagsToAdd = Asset->AddFailTags;
+						Ev.TagsToRemove = Asset->RemoveFailTags;
+					}
+				}
+				break;
+			case EMissionEndReason::Abandoned:
+				Ev.OutcomeMission = EOutcomeMission::MissionAbandoned;
+				if (const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId))
+				{
+					if (const UMissionAsset* Asset = Entry->Controller ? Entry->Controller->GetMissionAsset() : nullptr)
+					{
+						Ev.TagsToAdd = Asset->AddAbandonTags;
+						Ev.TagsToRemove = Asset->RemoveAbandonTags;
+					}
+				}
+				break;
+			default:
+				Ev.OutcomeMission = EOutcomeMission::MissionCompleted;
+				Ev.TagsToAdd = Envelope.AddCompleteTags;
+				Ev.TagsToRemove = Envelope.RemoveCompleteTags;
+				break;
+			}
 			Ev.Payload = P;
 			EventBus->PublishOutcome(Ev);
 		}
 
 		ActiveMissions.Remove(MissionId);
 	}
+	PublishMissionTagLifecycle(MissionId, EOutcomeScenario::FinalizeMissionTags);
 
 }
 

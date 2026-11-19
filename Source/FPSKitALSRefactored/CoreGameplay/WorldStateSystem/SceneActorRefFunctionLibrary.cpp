@@ -170,6 +170,38 @@ FSceneActorRef USceneActorRefFunctionLibrary::FindSceneActorRefByLabelOnRegion(
     return MakeSceneActorRefFromActor(Actor);
 }
 
+FGuid USceneActorRefFunctionLibrary::FindSceneActorItemIdByLabel(const FString& ActorLabel)
+{
+    if (ActorLabel.IsEmpty() || !GEngine)
+        return FGuid();
+
+    // Сначала проверяем игровой мир (включая PIE), затем открытый мир редактора.
+    for (const bool bSearchGameWorld : { true, false })
+    {
+        for (const FWorldContext& Context : GEngine->GetWorldContexts())
+        {
+            UWorld* World = Context.World();
+            if (!World)
+                continue;
+
+            const bool bIsGameWorld = World->IsGameWorld();
+            if (bIsGameWorld != bSearchGameWorld)
+                continue;
+
+            if (AActor* Actor = FindActorByLabelInWorld(World, ActorLabel))
+            {
+                if (const UFloorAssignmentComponent* FAC =
+                    Actor->FindComponentByClass<UFloorAssignmentComponent>())
+                {
+                    return FAC->ItemId;
+                }
+            }
+        }
+    }
+
+    return FGuid();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Актёры по ассету сцены
 // ─────────────────────────────────────────────────────────────────────────────

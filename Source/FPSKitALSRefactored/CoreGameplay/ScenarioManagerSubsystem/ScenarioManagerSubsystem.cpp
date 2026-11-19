@@ -5,6 +5,7 @@
 #include "OutcomeConditionAsset.h"
 #include "Engine/GameInstance.h"
 #include "Engine/AssetManager.h"
+#include "HAL/IConsoleManager.h"
 #include "JsonObjectConverter.h"
 #include "SaveGame/GameSaveSubsystem.h"
 #include <WorldStateSubsystem.h>
@@ -16,6 +17,44 @@
 #include "SpawnGroupSystem/SpawnGroupSpawner.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogScenario, Log, All);
+
+namespace
+{
+	void PrintActiveScenarioStepsFromConsole(UWorld* World)
+	{
+		UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		UScenarioManagerSubsystem* ScenarioManager = GameInstance
+			? GameInstance->GetSubsystem<UScenarioManagerSubsystem>()
+			: nullptr;
+		if (!ScenarioManager)
+		{
+			UE_LOG(LogScenario, Warning, TEXT("Scenario.ListActiveSteps: ScenarioManagerSubsystem is unavailable"));
+			return;
+		}
+
+		TArray<FName> ActiveStepNames = ScenarioManager->GetActiveStepNames();
+		ActiveStepNames.Sort([](const FName& A, const FName& B)
+			{
+				return A.ToString() < B.ToString();
+			});
+		UE_LOG(LogScenario, Display, TEXT("Active scenario steps (%d):"), ActiveStepNames.Num());
+		if (ActiveStepNames.IsEmpty())
+		{
+			UE_LOG(LogScenario, Display, TEXT("  <none>"));
+			return;
+		}
+
+		for (const FName& StepName : ActiveStepNames)
+		{
+			UE_LOG(LogScenario, Display, TEXT("  %s"), *StepName.ToString());
+		}
+	}
+
+	FAutoConsoleCommandWithWorld PrintActiveScenarioStepsConsoleCommand(
+		TEXT("Scenario.ListActiveSteps"),
+		TEXT("Print active scenario steps to the log."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&PrintActiveScenarioStepsFromConsole));
+}
 
 // =============================================================================
 // Lifecycle
@@ -78,6 +117,11 @@ void UScenarioManagerSubsystem::Deinitialize()
         {
             EventBus->UnregisterHandler(TagChangeHandler);
             TagChangeHandler.Invalidate();
+        }
+        if (MissionTagLifecycleHandler.IsValid())
+        {
+            EventBus->UnregisterHandler(MissionTagLifecycleHandler);
+            MissionTagLifecycleHandler.Invalidate();
         }
         if (InitialLevelLoadedHandler.IsValid())
         {
@@ -309,6 +353,16 @@ void UScenarioManagerSubsystem::SubscribeToEventBus()
         TagChangeCondition,
         FOutcomeHandlerDelegate::CreateUObject(
             this, &UScenarioManagerSubsystem::HandleOutcomeWithTags));
+
+    // Mission tag lifecycle commands have their own explicit EventBus subscription.
+    MissionTagLifecycleCondition = NewObject<UOutcomeConditionAsset>(this);
+    MissionTagLifecycleCondition->OperatorType = EConditionOperator::Composite;
+    MissionTagLifecycleCondition->CompileCondition();
+
+    MissionTagLifecycleHandler = EventBus->RegisterHandler(
+        MissionTagLifecycleCondition,
+        FOutcomeHandlerDelegate::CreateUObject(
+            this, &UScenarioManagerSubsystem::HandleMissionTagLifecycle));
 }
 
 // =============================================================================
@@ -366,6 +420,32 @@ void UScenarioManagerSubsystem::ChangeTags(const TArray<FGameplayTag>& TagsToAdd
     } while (bNeedsReevaluate);
 
     bIsReevaluating = false;
+}
+
+void UScenarioManagerSubsystem::SetMissionTagsSuspended(FName MissionId, bool bSuspended)
+{
+    FMissionTagState* State = MissionTagStates.Find(MissionId);
+    if (!State || State->bSuspended == bSuspended) return;
+
+    TArray<FGameplayTag> TagsToAdd;
+    TArray<FGameplayTag> TagsToRemove;
+    const TMap<FGameplayTag, bool>& TargetPresence = bSuspended
+        ? State->OriginalPresence
+        : State->DesiredPresence;
+    for (const TPair<FGameplayTag, bool>& Pair : TargetPresence)
+    {
+        const bool bCurrentlyPresent = TagStorage.Contains(Pair.Key);
+        if (Pair.Value && !bCurrentlyPresent) TagsToAdd.Add(Pair.Key);
+        else if (!Pair.Value && bCurrentlyPresent) TagsToRemove.Add(Pair.Key);
+    }
+
+    State->bSuspended = bSuspended;
+    ChangeTags(TagsToAdd, TagsToRemove);
+}
+
+void UScenarioManagerSubsystem::FinalizeMissionTags(FName MissionId)
+{
+    MissionTagStates.Remove(MissionId);
 }
 
 TArray<FGameplayTag> UScenarioManagerSubsystem::GetAllTags() const
@@ -497,37 +577,84 @@ void UScenarioManagerSubsystem::ExecuteStepDeactivation(UPayloadBatchAsset* Step
 
 void UScenarioManagerSubsystem::HandleOutcomeWithTags(const FOutcomeEventBase& Outcome)
 {
-    if (Cast<UUpdateMissionListPayload>(Outcome.Payload))
+    if (Outcome.OutcomeType == EOutcomeType::ScenarioManager) return;
+
+    const bool bMissionListUpdate = Cast<UUpdateMissionListPayload>(Outcome.Payload) != nullptr;
+
+    if (Outcome.TagsToAdd.Num() == 0 && Outcome.TagsToRemove.Num() == 0)
     {
-        // Mission updates also change hold status. Reevaluate owned steps without
-        // rerunning entries for steps that remained active while held.
-        ReevaluateSteps();
+        if (bMissionListUpdate)
+        {
+            // Mission updates also change hold status. Reevaluate owned steps without
+            // rerunning entries for steps that remained active while held.
+            ReevaluateSteps();
+        }
         return;
     }
 
-    if (Outcome.TagsToAdd.Num() == 0 && Outcome.TagsToRemove.Num() == 0)
-        return;
-
-    // Tags emitted by a mission-owned scenario step are frozen while that mission
-    // is held, just like the step itself.
+    FName SourceMissionId = Outcome.SourceMissionId;
     if (Outcome.SourceStepId.IsValid())
     {
         if (TObjectPtr<UPayloadBatchAsset>* StepPtr = Steps.Find(Outcome.SourceStepId))
         {
             UPayloadBatchAsset* Step = StepPtr->Get();
             UMissionAsset* Mission = Step ? Step->OwningMission.LoadSynchronous() : nullptr;
-            if (Mission)
-            {
-                if (UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>())
-                {
-                    if (MissionSubsystem->IsMissionOnHold(Mission->GetMissionId()))
-                        return;
-                }
-            }
+            if (Mission && SourceMissionId.IsNone()) SourceMissionId = Mission->GetMissionId();
         }
     }
 
+    if (!SourceMissionId.IsNone())
+    {
+        const bool bIsMissionTerminal = Outcome.OutcomeMission == EOutcomeMission::MissionCompleted ||
+            Outcome.OutcomeMission == EOutcomeMission::MissionFailed ||
+            Outcome.OutcomeMission == EOutcomeMission::MissionAbandoned;
+        if (UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>())
+        {
+            // ActiveMissionId is switched before activation tags are published,
+            // while Interior allocation is updated by a later mission-list event.
+            // Do not mistake that short transition window for a held mission.
+            const bool bIsCurrentMission = MissionSubsystem->GetActiveMissionId() == SourceMissionId;
+            if (!bIsMissionTerminal && !bIsCurrentMission && MissionSubsystem->IsMissionOnHold(SourceMissionId)) return;
+        }
+
+        FMissionTagState& State = MissionTagStates.FindOrAdd(SourceMissionId);
+        if (State.bSuspended && !bIsMissionTerminal) return;
+        for (const FGameplayTag& Tag : Outcome.TagsToAdd)
+        {
+            if (!Tag.IsValid()) continue;
+            if (!State.OriginalPresence.Contains(Tag)) State.OriginalPresence.Add(Tag, TagStorage.Contains(Tag));
+            State.DesiredPresence.Add(Tag, true);
+        }
+        for (const FGameplayTag& Tag : Outcome.TagsToRemove)
+        {
+            if (!Tag.IsValid()) continue;
+            if (!State.OriginalPresence.Contains(Tag)) State.OriginalPresence.Add(Tag, TagStorage.Contains(Tag));
+            State.DesiredPresence.Add(Tag, false);
+        }
+    }
     ChangeTags(Outcome.TagsToAdd, Outcome.TagsToRemove);
+    // ChangeTags already reevaluates steps, including mission owned steps whose
+    // hold status changed in the accompanying mission list update.
+}
+
+void UScenarioManagerSubsystem::HandleMissionTagLifecycle(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType != EOutcomeType::ScenarioManager || Outcome.SourceMissionId.IsNone()) return;
+
+    switch (Outcome.OutcomeScenario)
+    {
+    case EOutcomeScenario::SuspendMissionTags:
+        SetMissionTagsSuspended(Outcome.SourceMissionId, true);
+        break;
+    case EOutcomeScenario::ResumeMissionTags:
+        SetMissionTagsSuspended(Outcome.SourceMissionId, false);
+        break;
+    case EOutcomeScenario::FinalizeMissionTags:
+        FinalizeMissionTags(Outcome.SourceMissionId);
+        break;
+    default:
+        break;
+    }
 }
 
 // =============================================================================
@@ -551,6 +678,27 @@ void UScenarioManagerSubsystem::CollectSaveData(FSubsystemSaveData& OutData)
     for (const FPrimaryAssetId& Id : ActiveStepIds)
         StepsArray.Add(MakeShared<FJsonValueString>(Id.ToString()));
     Root->SetArrayField(TEXT("ActiveSteps"), StepsArray);
+
+    TArray<TSharedPtr<FJsonValue>> MissionTagsArray;
+    for (const TPair<FName, FMissionTagState>& MissionPair : MissionTagStates)
+    {
+        TSharedPtr<FJsonObject> MissionObject = MakeShared<FJsonObject>();
+        MissionObject->SetStringField(TEXT("MissionId"), MissionPair.Key.ToString());
+        MissionObject->SetBoolField(TEXT("Suspended"), MissionPair.Value.bSuspended);
+
+        TArray<TSharedPtr<FJsonValue>> TagStatesArray;
+        for (const TPair<FGameplayTag, bool>& TagPair : MissionPair.Value.OriginalPresence)
+        {
+            TSharedPtr<FJsonObject> TagObject = MakeShared<FJsonObject>();
+            TagObject->SetStringField(TEXT("Tag"), TagPair.Key.ToString());
+            TagObject->SetBoolField(TEXT("Original"), TagPair.Value);
+            TagObject->SetBoolField(TEXT("Desired"), MissionPair.Value.DesiredPresence.FindRef(TagPair.Key));
+            TagStatesArray.Add(MakeShared<FJsonValueObject>(TagObject));
+        }
+        MissionObject->SetArrayField(TEXT("Tags"), TagStatesArray);
+        MissionTagsArray.Add(MakeShared<FJsonValueObject>(MissionObject));
+    }
+    Root->SetArrayField(TEXT("MissionTagStates"), MissionTagsArray);
 
     FString Output;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Output);
@@ -578,6 +726,7 @@ void UScenarioManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
 
     TagStorage.Empty();
     ActiveStepIds.Empty();
+    MissionTagStates.Empty();
 
     // ---- Tags ----
     const TArray<TSharedPtr<FJsonValue>>* TagsArray = nullptr;
@@ -616,6 +765,41 @@ void UScenarioManagerSubsystem::ApplySaveData(const FSubsystemSaveData& InData)
             {
                 UE_LOG(LogScenario, Warning,
                     TEXT("ScenarioManager: invalid PrimaryAssetId in save '%s' — skipped"), *IdStr);
+            }
+        }
+    }
+
+    const TArray<TSharedPtr<FJsonValue>>* MissionTagsArray = nullptr;
+    if (Root->TryGetArrayField(TEXT("MissionTagStates"), MissionTagsArray))
+    {
+        for (const TSharedPtr<FJsonValue>& MissionValue : *MissionTagsArray)
+        {
+            const TSharedPtr<FJsonObject> MissionObject = MissionValue->AsObject();
+            if (!MissionObject.IsValid()) continue;
+
+            const FName MissionId(*MissionObject->GetStringField(TEXT("MissionId")));
+            if (MissionId.IsNone()) continue;
+
+            FMissionTagState& State = MissionTagStates.FindOrAdd(MissionId);
+            MissionObject->TryGetBoolField(TEXT("Suspended"), State.bSuspended);
+
+            const TArray<TSharedPtr<FJsonValue>>* TagStatesArray = nullptr;
+            if (!MissionObject->TryGetArrayField(TEXT("Tags"), TagStatesArray)) continue;
+            for (const TSharedPtr<FJsonValue>& TagValue : *TagStatesArray)
+            {
+                const TSharedPtr<FJsonObject> TagObject = TagValue->AsObject();
+                if (!TagObject.IsValid()) continue;
+
+                const FString TagString = TagObject->GetStringField(TEXT("Tag"));
+                const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
+                if (!Tag.IsValid()) continue;
+
+                bool bOriginal = false;
+                bool bDesired = false;
+                TagObject->TryGetBoolField(TEXT("Original"), bOriginal);
+                TagObject->TryGetBoolField(TEXT("Desired"), bDesired);
+                State.OriginalPresence.Add(Tag, bOriginal);
+                State.DesiredPresence.Add(Tag, bDesired);
             }
         }
     }

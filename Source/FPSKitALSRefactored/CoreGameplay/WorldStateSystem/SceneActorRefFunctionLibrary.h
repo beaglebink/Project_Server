@@ -38,6 +38,12 @@ public:
         UWorldRegionAsset* RegionAsset,
         const FString& ActorLabel);
 
+    // Ищет актёра по имени в текущем game world или открытом editor world.
+    // Работает для сцен этажа и района, возвращая ItemId компонента.
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Scene Actor",
+        meta = (DisplayName = "Find Scene Actor Item Id By Label"))
+    static FGuid FindSceneActorItemIdByLabel(const FString& ActorLabel);
+
     // ─────────────────────────────────────────────────────────────────────
     // Фабрика из AActor* — когда актёр уже известен в графе.
     // ─────────────────────────────────────────────────────────────────────

@@ -34,10 +34,6 @@ public:
 
     // =================== Public API ===================
 
-    UFUNCTION(BlueprintCallable, Category = "Scenario Manager")
-    void ChangeTags(const TArray<FGameplayTag>& TagsToAdd,
-        const TArray<FGameplayTag>& TagsToRemove);
-
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Scenario Manager|Query")
     bool HasTag(FGameplayTag Tag) const { return Tag.IsValid() && TagStorage.Contains(Tag); }
 
@@ -68,6 +64,7 @@ protected:
 
     // ---- EventBus handlers ----
     void HandleOutcomeWithTags(const FOutcomeEventBase& Outcome);
+    void HandleMissionTagLifecycle(const FOutcomeEventBase& Outcome);
     void OnInitialLevelLoaded(const FOutcomeEventBase& Outcome);
 
     // Точка входа переоценки при каждой загрузке уровня.
@@ -82,11 +79,25 @@ protected:
     static bool ShouldReapplyOnLoad(UPayloadBatchEntry* Entry);
 
 private:
+    void ChangeTags(const TArray<FGameplayTag>& TagsToAdd,
+        const TArray<FGameplayTag>& TagsToRemove);
+    void SetMissionTagsSuspended(FName MissionId, bool bSuspended);
+    void FinalizeMissionTags(FName MissionId);
+
+    struct FMissionTagState
+    {
+        TMap<FGameplayTag, bool> OriginalPresence;
+        TMap<FGameplayTag, bool> DesiredPresence;
+        bool bSuspended = false;
+    };
+
     UPROPERTY()
     TMap<FPrimaryAssetId, TObjectPtr<UPayloadBatchAsset>> Steps;
 
     UPROPERTY()
     TSet<FGameplayTag> TagStorage;
+
+    TMap<FName, FMissionTagState> MissionTagStates;
 
     UPROPERTY()
     TSet<FPrimaryAssetId> ActiveStepIds;
@@ -101,6 +112,9 @@ private:
     // ---- EventBus: теги ----
     FOutcomeHandlerHandle TagChangeHandler;
     UPROPERTY() TObjectPtr<UOutcomeConditionAsset> TagChangeCondition;
+
+    FOutcomeHandlerHandle MissionTagLifecycleHandler;
+    UPROPERTY() TObjectPtr<UOutcomeConditionAsset> MissionTagLifecycleCondition;
 
     // ---- EventBus: LevelLoaded ----
     // Хендлер живёт всю игру; при каждом LevelLoaded вызывается
