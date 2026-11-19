@@ -891,6 +891,34 @@ void UMissionSubsystem::ApplyMissionCompletionPolicy(
 	}
 	PublishMissionTagLifecycle(MissionId, EOutcomeScenario::FinalizeMissionTags);
 
+	// If the foreground mission ended, promote the highest-priority remaining
+	// active mission and restore its suspended tag state.
+	if (ActiveMissionId == MissionId)
+	{
+		const FName PreviousActiveMissionId = ActiveMissionId;
+		ActiveMissionId = NAME_None;
+		int64 HighestPriority = MIN_int64;
+		for (const TPair<FName, FActiveMissionEntry>& Pair : ActiveMissions)
+		{
+			if (Pair.Value.Controller && IsMissionActive(Pair.Key) && Pair.Value.Priority > HighestPriority)
+			{
+				HighestPriority = Pair.Value.Priority;
+				ActiveMissionId = Pair.Key;
+			}
+		}
+
+		PublishMissionTagLifecycle(PreviousActiveMissionId, EOutcomeScenario::SuspendMissionTags);
+		if (!ActiveMissionId.IsNone())
+			PublishMissionTagLifecycle(ActiveMissionId, EOutcomeScenario::ResumeMissionTags);
+
+		UE_LOG(LogTemp, Log,
+			TEXT("MissionSubsystem: Active mission after resolving '%s' is '%s'"),
+			*MissionId.ToString(), *ActiveMissionId.ToString());
+	}
+
+	// Keep InteriorSubsystem and ScenarioManager synchronized with the resolved mission removal.
+	PublishMissionListUpdate(ActiveMissionId, EndReason, false);
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1348,6 +1376,7 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 {
 	UReleaseMissionSnapshotPayload* P = Cast<UReleaseMissionSnapshotPayload>(Outcome.Payload);
 	if (!P) return;
+	const FName PreviousActiveMissionId = ActiveMissionId;
 
 	const FName MissionId = P->MissionId;
 	if (MissionId.IsNone()) return;
@@ -1400,6 +1429,12 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 			}
 		}
 	}
+	if (PreviousActiveMissionId != ActiveMissionId)
+	{
+		PublishMissionTagLifecycle(PreviousActiveMissionId, EOutcomeScenario::SuspendMissionTags);
+		if (!ActiveMissionId.IsNone())
+			PublishMissionTagLifecycle(ActiveMissionId, EOutcomeScenario::ResumeMissionTags);
+	}
 
 	if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
 	{
@@ -1408,7 +1443,7 @@ void UMissionSubsystem::HandleMissionReleased(const FOutcomeEventBase& Outcome)
 		if (P1)
 		{
 			P1->ActiveMissions = ActiveMissions;
-			P1->CurrentMissionId = MissionId;
+			P1->CurrentMissionId = ActiveMissionId;
 			P1->PriorityCounter = MissionPriorityCounter;
 			P1->Reason = P->EndReason;
 			P1->IsUpdateSnapshots = false;
