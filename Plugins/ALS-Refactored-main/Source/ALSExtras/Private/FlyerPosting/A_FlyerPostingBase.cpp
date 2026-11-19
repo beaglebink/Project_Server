@@ -61,7 +61,7 @@ void AA_FlyerPostingBase::BeginPlay()
 			// Delay the application of chore placement data to the next tick to ensure that all actors are properly initialized
 			GetWorldTimerManager().SetTimerForNextTick([this, GIS]()
 				{
-					ApplyFlyerPostingSaveData_Implementation(GIS);
+					//ApplyFlyerPostingSaveData_Implementation(GIS);
 				});
 		}
 	}
