@@ -15,11 +15,29 @@ AA_PickUp::AA_PickUp()
 	InteractiveComponent = CreateDefaultSubobject<UInteractiveItemComponent>(TEXT("InteractiveComponent"));
 	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
 	RootComponent = StaticMeshComp;
+
+	StaticMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	StaticMeshComp->SetCollisionProfileName(TEXT("PhysicsActor"));
+	StaticMeshComp->SetSimulatePhysics(true);
 }
 
 void AA_PickUp::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UGIS_PickUp* GIS = GI->GetSubsystem<UGIS_PickUp>())
+		{
+			GIS->AddSaveableObject(this);
+
+			// Delay the application of chore placement data to the next tick to ensure that all actors are properly initialized
+			GetWorldTimerManager().SetTimerForNextTick([this, GIS]()
+				{
+					ApplyPickUpSaveData_Implementation(GIS);
+				});
+		}
+	}
 
 	InteractiveComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_PickUp::AddToInventory);
 	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to pick up"));
@@ -46,16 +64,28 @@ void AA_PickUp::AddToInventory(UInteractivePickerComponent* Picker)
 
 FString AA_PickUp::GetFloorAssignmentComponentIdAsString_Implementation()
 {
+	if (IsValid(FloorAssignmentComponent))
+	{
+		return FloorAssignmentComponent->GetFloorId().ToString();
+	}
 	return FString();
 }
 
 FPickUpSaveData AA_PickUp::CollectPickUpSaveData_Implementation()
 {
-	return FPickUpSaveData();
+	FPickUpSaveData PickUpSaveData;
+	PickUpSaveData.PickUpTransform = GetActorTransform();
+
+	return PickUpSaveData;
 }
 
 void AA_PickUp::ApplyPickUpSaveData_Implementation(UGIS_PickUp* GIS)
 {
+	FPickUpSaveData* PickUpSaveData = GIS->CachedPickUpData.Find(GetFloorAssignmentComponentIdAsString_Implementation());
+	if (PickUpSaveData)
+	{
+		SetActorTransform(PickUpSaveData->PickUpTransform);
+	}
 }
 
 FString AA_PickUp::CollectIntermediateSaveData()
@@ -63,7 +93,7 @@ FString AA_PickUp::CollectIntermediateSaveData()
 	FSubsystemSaveData SaveData;
 	if (UGameInstance* GI = GetGameInstance())
 	{
-		if (UGIS_FlyerPosting* GIS = GI->GetSubsystem<UGIS_FlyerPosting>())
+		if (UGIS_PickUp* GIS = GI->GetSubsystem<UGIS_PickUp>())
 		{
 			GIS->CollectSaveData(SaveData);
 		}
