@@ -7,20 +7,23 @@ void UW_VisualDescription::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	if (RenderActorClass)
+	if (FS_ItemData* ItemData = ItemDataTable->FindRow<FS_ItemData>(ItemName, TEXT("Find row in datatable")))
 	{
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-		RenderActor = GetWorld()->SpawnActor<AA_3DDescription>(RenderActorClass, FVector(0.0f, 0.0f, -10000.0f), FRotator::ZeroRotator, Params);
-		if (RenderActor)
+		if (RenderActorClass)
 		{
-			if (UStaticMesh* MeshToRender = ItemDataTable->FindRow<FS_ItemData>(ItemName, TEXT("Find row in datatable"))->StaticMesh)
+			FActorSpawnParameters Params;
+			Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+			RenderActor = GetWorld()->SpawnActor<AA_3DDescription>(RenderActorClass, FVector(0.0f, 0.0f, -10000.0f), FRotator::ZeroRotator, Params);
+			if (RenderActor)
 			{
-				RenderActor->StaticMeshComponent->SetStaticMesh(MeshToRender);
+				if (UStaticMesh* MeshToRender = ItemData->StaticMesh)
+				{
+					RenderActor->StaticMeshComponent->SetStaticMesh(MeshToRender);
+				}
 			}
 		}
+		TextBlock_Description->SetText(ItemData->Description);
 	}
-	TextBlock_Description->SetText(ItemDataTable->FindRow<FS_ItemData>(ItemName, TEXT("Find row in datatable"))->Description);
 }
 
 void UW_VisualDescription::NativeDestruct()
