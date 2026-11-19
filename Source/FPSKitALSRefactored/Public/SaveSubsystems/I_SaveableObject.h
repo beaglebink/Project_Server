@@ -9,7 +9,6 @@
 #include "RealEstate/O_RealEstateStructures.h"
 #include "SaveSubsystems/GIS_RealEstatePaperWork.h"
 #include "FlyerPosting/O_FlyerPostingStructures.h"
-#include "SaveSubsystems/GIS_FlyerPosting.h"
 #include "Inventory/O_PickUpStructures.h"
 #include "SaveSubsystems/GIS_PickUp.h"
 #include "I_SaveableObject.generated.h"
@@ -125,13 +124,6 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyRealEstatePaperWorkSaveData(UGIS_RealEstatePaperWork* GIS);
-
-	// FlyerPosting save data collection and application functions
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	FFlyerPostingSaveData CollectFlyerPostingSaveData();
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyFlyerPostingSaveData(UGIS_FlyerPosting* SaveChoreData);
 
 	// PickUp save data collection and application functions
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
