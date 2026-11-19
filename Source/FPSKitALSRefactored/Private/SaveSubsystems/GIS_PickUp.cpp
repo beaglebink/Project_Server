@@ -33,29 +33,22 @@ void UGIS_PickUp::CollectSaveData(FSubsystemSaveData& OutData)
 
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
-	//for (UObject* SaveableObject : SaveableObjects)
-	//{
-	//	if (!SaveableObject || !SaveableObject->Implements<UI_SaveableObject>())
-	//	{
-	//		continue;
-	//	}
+	for (UObject* SaveableObject : SaveableObjects)
+	{
+		if (!SaveableObject || !SaveableObject->Implements<UI_SaveableObject>())
+		{
+			continue;
+		}
 
-	//	FFlyerPostingSaveData FlyerPostingSaveData = II_SaveableObject::Execute_CollectFlyerPostingSaveData(SaveableObject);
+		FPickUpSaveData PickUpSaveData = II_SaveableObject::Execute_CollectPickUpSaveData(SaveableObject);
 
-	//	TSharedPtr<FJsonObject> FlyerPostingSaveDataJsonObject = MakeShared<FJsonObject>();
+		TSharedPtr<FJsonObject> PickUpSaveDataJsonObject = MakeShared<FJsonObject>();
 
-	//	FlyerPostingSaveDataJsonObject->SetNumberField(TEXT("ChoreStatus"), static_cast<int32>(FlyerPostingSaveData.ChoreStatus));
+		PickUpSaveDataJsonObject->SetStringField(TEXT("PickUpTransform"), PickUpSaveData.PickUpTransform.ToString());
 
-	//	TSharedPtr<FJsonObject> FlyersSaveDataJsonObject = MakeShared<FJsonObject>();
-	//	for (const auto& [FlyerId, FlyerTransform] : FlyerPostingSaveData.PlacedFlyers)
-	//	{
-	//		FlyersSaveDataJsonObject->SetStringField(FlyerId.ToString(), FlyerTransform.ToString());
-	//	}
-	//	FlyerPostingSaveDataJsonObject->SetObjectField(TEXT("FlyersData"), FlyersSaveDataJsonObject);
-
-	//	FString FlyerPostingObjectName = II_SaveableObject::Execute_GetFloorAssignmentComponentIdAsString(SaveableObject);
-	//	Root->SetObjectField(FlyerPostingObjectName, FlyerPostingSaveDataJsonObject);
-	//}
+		FString PickUpObjectName = II_SaveableObject::Execute_GetFloorAssignmentComponentIdAsString(SaveableObject);
+		Root->SetObjectField(PickUpObjectName, PickUpSaveDataJsonObject);
+	}
 
 	FString JsonString;
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
@@ -86,50 +79,31 @@ void UGIS_PickUp::ApplySaveData(const FSubsystemSaveData& InData)
 		return;
 	}
 
-	for (const auto& [FlyerPostingObjectId, FlyerPostingSaveDataJsonValue] : Root->Values)
+	for (const auto& [PickUpObjectIdString, PickUpSaveDataJsonValue] : Root->Values)
 	{
-		FFlyerPostingSaveData FlyerPostingSaveData;
+		FPickUpSaveData PickUpSaveData;
 
-		TSharedPtr<FJsonObject> FlyerPostingSaveDataJsonObject = FlyerPostingSaveDataJsonValue->AsObject();
+		TSharedPtr<FJsonObject> PickUpSaveDataJsonObject = PickUpSaveDataJsonValue->AsObject();
 
-		if (!FlyerPostingSaveDataJsonObject)
+		if (!PickUpSaveDataJsonObject)
 		{
 			continue;
 		}
 
-		int32 FlyerPostingStatusNumbered;
-		if (!FlyerPostingSaveDataJsonObject->TryGetNumberField(TEXT("ChoreStatus"), FlyerPostingStatusNumbered))
+		FString PickUpTransformString;
+		if (!PickUpSaveDataJsonObject->TryGetStringField(TEXT("PickUpTransform"), PickUpTransformString))
 		{
 			continue;
 		}
-		FlyerPostingSaveData.ChoreStatus = static_cast<EChoreStatus>(FlyerPostingStatusNumbered);
-
-		const TSharedPtr<FJsonObject>* FlyersSaveDataJsonObject = nullptr;
-		if (!FlyerPostingSaveDataJsonObject->TryGetObjectField(TEXT("FlyersData"), FlyersSaveDataJsonObject))
+		FTransform PickUpTransform;
+		if (!PickUpTransform.InitFromString(PickUpTransformString))
 		{
 			continue;
 		}
-
-		TMap<FGuid, FTransform> PlacedFlyersData;
-		for (const auto& [FlyerIdString, FlyerTransformJsonValue] : (*FlyersSaveDataJsonObject)->Values)
-		{
-			FGuid FlyerId = FGuid(FlyerIdString);
-
-			FString FlyerTransformString;
-			if (!FlyerTransformJsonValue->TryGetString(FlyerTransformString))
-			{
-				continue;
-			}
-			FTransform FlyerTransform;
-			if (!FlyerTransform.InitFromString(FlyerTransformString))
-			{
-				continue;
-			}
-			PlacedFlyersData.Add(FlyerId, FlyerTransform);
-		}
-		FlyerPostingSaveData.PlacedFlyers = MoveTemp(PlacedFlyersData);
-
-		//CachedPickUpData.Add(FlyerPostingObjectId, FlyerPostingSaveData);
+		PickUpSaveData.PickUpTransform = PickUpTransform;
+			
+			
+		CachedPickUpData.Add(PickUpObjectIdString, PickUpSaveData);
 	}
 
 	bIsLoadComplete = true;
@@ -138,7 +112,7 @@ void UGIS_PickUp::ApplySaveData(const FSubsystemSaveData& InData)
 void UGIS_PickUp::ClearTransientData_Implementation()
 {
 	SaveableObjects.Empty();
-	UE_LOG(LogTemp, Log, TEXT("FlyerPosting transient data cleared"));
+	UE_LOG(LogTemp, Log, TEXT("PickUp transient data cleared"));
 }
 
 void UGIS_PickUp::AddSaveableObject(UObject* NewSaveableObject)

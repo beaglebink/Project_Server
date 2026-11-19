@@ -8,7 +8,6 @@ struct FPickUpSaveData
 {
 	GENERATED_BODY()
 
-	
 	UPROPERTY()
-	TMap<FGuid, FTransform> PlacedFlyers;
+	FTransform PickUpTransform;
 };

@@ -445,10 +445,6 @@ bool UAC_Container::SpawnRemovedItem(FName Name)
 
 	PickUpActor->Name = Name;
 	PickUpActor->StaticMeshComp->SetStaticMesh(ItemDataTable->FindRow<FS_ItemData>(Name, TEXT("Find row in datatable"))->StaticMesh);
-	PickUpActor->StaticMeshComp->SetMobility(EComponentMobility::Movable);
-	PickUpActor->StaticMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	PickUpActor->StaticMeshComp->SetCollisionProfileName(TEXT("PhysicsActor"));
-	PickUpActor->StaticMeshComp->SetSimulatePhysics(true);
 	PickUpActor->Sound = PickUpSound;
 
 	if (SpawnSound)

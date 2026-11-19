@@ -33,7 +33,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveableObject")
 	void AddSaveableObject(UObject* NewSaveableObject);
 
-	TMap<FString, int32> CachedPickUpData;
+	TMap<FString, FPickUpSaveData> CachedPickUpData;
 
 private:
 	bool bIsLoadComplete = false;
