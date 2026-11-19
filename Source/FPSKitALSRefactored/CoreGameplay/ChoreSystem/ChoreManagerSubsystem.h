@@ -344,6 +344,7 @@ private:
     void HandleRetryRequest(const FOutcomeEventBase& Outcome);
     void HandleUnlockRequest(const FOutcomeEventBase& Outcome);
     void HandleEvent(const FOutcomeEventBase& Outcome);
+    void AbandonChoresForResolvedMission(const FOutcomeEventBase& Outcome);
     void HandleChoreCompletion(const FOutcomeEventBase& Outcome);
     void HandleRegisterChoreRequest(const FOutcomeEventBase& Outcome);
     void HandleUnregisterChoreRequest(const FOutcomeEventBase& Outcome);

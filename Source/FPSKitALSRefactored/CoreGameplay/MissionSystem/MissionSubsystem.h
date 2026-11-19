@@ -92,6 +92,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MissionSubsystem|Missions")
 	bool IsMissionOnHold(FName MissionId) const;
 
+	// Reports priority/scope conflicts only; ignores the mission snapshot currently displayed on the loaded floor.
+	bool IsMissionOnHoldByPriority(FName MissionId) const;
+
 	void LogMissionPriorityState();
 
 	// Список ID всех активных миссий

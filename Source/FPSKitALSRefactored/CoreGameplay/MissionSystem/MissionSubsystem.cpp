@@ -546,7 +546,7 @@ void UMissionSubsystem::LogMissionPriorityState()
 		}
 		Lines += FString::Printf(TEXT("  %s | Step=%d | Status=%s | ResumeMode=%s | Priority=%lld | OnHold=%s\n"),
 			*MissionId.ToString(), Entry->MissionStep, *StatusName, *ResumeModeName,
-			Entry->Priority, IsMissionOnHold(MissionId) ? TEXT("true") : TEXT("false"));
+			Entry->Priority, IsMissionOnHoldByPriority(MissionId) ? TEXT("true") : TEXT("false"));
 	}
 	if (Lines.IsEmpty()) Lines = TEXT("  <no active missions>\n");
 
@@ -634,16 +634,18 @@ bool UMissionSubsystem::IsMissionActive(FName MissionId) const
 
 bool UMissionSubsystem::IsMissionOnHold(FName MissionId) const
 {
+	return IsMissionOnHoldByPriority(MissionId);
+}
+
+bool UMissionSubsystem::IsMissionOnHoldByPriority(FName MissionId) const
+{
 	const FActiveMissionEntry* Entry = ActiveMissions.Find(MissionId);
 	if (!Entry || !Entry->Controller || !IsMissionActive(MissionId)) return false;
 	const UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
 	if (!Interior) return false;
 	const TArray<FMissionEnvelope>& Envelopes = Entry->Controller->GetEnvelopes();
 	if (!Envelopes.IsValidIndex(Entry->MissionStep)) return false;
-	const FInteriorFloorKey CurrentFloorKey = Interior->GetCurrentFloorKey();
-	const bool bMissionVersionIsDisplayed =
-		CurrentFloorKey.InteriorSetId.IsValid() && CurrentFloorKey.FloorId.IsValid() &&
-		Interior->GetCurrentFloorMissionId() == MissionId;
+
 	for (const TSoftObjectPtr<UFloorAsset>& FloorRef : Envelopes[Entry->MissionStep].Scope.InteriorScopes)
 	{
 		UFloorAsset* Floor = FloorRef.LoadSynchronous();
@@ -651,19 +653,12 @@ bool UMissionSubsystem::IsMissionOnHold(FName MissionId) const
 		FGuid InteriorSetId = Floor->InteriorSetID;
 		if (!InteriorSetId.IsValid() && Floor->ParentInteriorSet.IsValid())
 		{
-			if (UInteriorSetAsset* InteriorAsset = Floor->ParentInteriorSet.LoadSynchronous()) InteriorSetId = InteriorAsset->InteriorSetID;
+			if (UInteriorSetAsset* InteriorAsset = Floor->ParentInteriorSet.LoadSynchronous())
+				InteriorSetId = InteriorAsset->InteriorSetID;
 		}
 		if (!InteriorSetId.IsValid()) continue;
+
 		const FInteriorFloorKey MissionFloorKey(InteriorSetId, Floor->FloorID);
-		// The displayed version remains live only while the player is actually
-		// standing on a floor claimed by this mission's current step. A stale
-		// CurrentFloorMissionId after leaving that floor must not suppress hold.
-		if (bMissionVersionIsDisplayed && MissionFloorKey == CurrentFloorKey) return false;
-		// A different mission's version is still displayed until the player leaves
-		// this floor. A newly allocated owner must wait for the next floor load.
-		if (CurrentFloorKey.InteriorSetId.IsValid() && CurrentFloorKey.FloorId.IsValid() &&
-			MissionFloorKey == CurrentFloorKey && Interior->GetCurrentFloorMissionId() != MissionId)
-			return true;
 		if (Interior->GetAllocatedMissionForFloor(MissionFloorKey) != MissionId)
 			return true;
 	}

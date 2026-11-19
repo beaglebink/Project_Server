@@ -14,6 +14,8 @@
 #include <MissionSubsystem.h>
 #include <LocationTrackerSubsystem/LocationTrackerSubsystem.h>
 #include "../InteriorInstanceSystem/InteriorSubsystem.h"
+#include "../InteriorInstanceSystem/ApplyMissionCompletionPolicyPayload.h"
+#include "../InteriorInstanceSystem/UpdateMissionListPayload.h"
 
 void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -951,7 +953,8 @@ TArray<FName> UChoreManagerSubsystem::GetAvailableChoreIds() const
     for (const auto& Pair : ActiveStates)
     {
         const EChoreStatus Status = Pair.Value.Status;
-        if (Status == EChoreStatus::Available || Status == EChoreStatus::Offered)
+        if ((Status == EChoreStatus::Available || Status == EChoreStatus::Offered) &&
+            !IsChoreBlockedByMission(Pair.Key))
         {
             Result.Add(Pair.Key);
         }
@@ -1508,6 +1511,66 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
             }
         }
     }
+
+    AbandonChoresForResolvedMission(Outcome);
+
+    // MissionSubsystem publishes activation/progress events and InteriorSubsystem
+    // publishes the authoritative mission-list update. Defer the refresh until all
+    // EventBus listeners have applied the new ownership/status data.
+    const bool bMissionStateChanged =
+        Outcome.OutcomeType == EOutcomeType::Mission ||
+        Cast<UUpdateMissionListPayload>(Outcome.Payload) != nullptr ||
+        Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload) != nullptr;
+    if (bMissionStateChanged && TimerManager)
+    {
+        TimerManager->SetTimerForNextTick(
+            FTimerDelegate::CreateUObject(this, &UChoreManagerSubsystem::RefreshMissionFloorConflicts));
+    }
+}
+
+void UChoreManagerSubsystem::AbandonChoresForResolvedMission(const FOutcomeEventBase& Outcome)
+{
+    if (Outcome.OutcomeType != EOutcomeType::Interior ||
+        Outcome.OutcomeMission != EOutcomeMission::MissionCompleted)
+    {
+        return;
+    }
+
+    const UApplyMissionCompletionPolicyPayload* Payload =
+        Cast<UApplyMissionCompletionPolicyPayload>(Outcome.Payload);
+    if (!Payload || Payload->MissionId.IsNone() || Payload->EndReason == EMissionEndReason::None)
+    {
+        return;
+    }
+
+    TArray<FName> ChoresToAbandon;
+    for (const TPair<FName, FChoreState>& Pair : ActiveStates)
+    {
+        const EChoreStatus Status = Pair.Value.Status;
+        if (Status != EChoreStatus::Accepted &&
+            Status != EChoreStatus::WaitingToStart &&
+            Status != EChoreStatus::Active)
+        {
+            continue;
+        }
+
+        const UChoreDefinition* Definition = GetChoreDefinition(Pair.Key);
+        if (!Definition || Definition->OwningMission.IsNull()) continue;
+
+        const UMissionAsset* OwningMission = Definition->OwningMission.LoadSynchronous();
+        if (OwningMission && OwningMission->GetMissionId() == Payload->MissionId)
+        {
+            ChoresToAbandon.Add(Pair.Key);
+        }
+    }
+
+    for (const FName ChoreId : ChoresToAbandon)
+    {
+        UE_LOG(LogTemp, Log,
+            TEXT("ChoreManager: Abandoning chore '%s' because owning mission '%s' ended (reason=%d)"),
+            *ChoreId.ToString(), *Payload->MissionId.ToString(), static_cast<int32>(Payload->EndReason));
+        AbandonChore(ChoreId);
+    }
 }
 
 /*
@@ -2043,38 +2106,19 @@ bool UChoreManagerSubsystem::CanChoreRunForMission(const UChoreDefinition* Defin
 	if (!MissionSubsystem) return false;
 	const FName OwningMissionId = OwningMission->GetMissionId();
 	return MissionSubsystem->IsMissionActive(OwningMissionId) &&
-		!MissionSubsystem->IsMissionOnHold(OwningMissionId);
+		!MissionSubsystem->IsMissionOnHoldByPriority(OwningMissionId);
 }
 
-bool UChoreManagerSubsystem::IsChoreBlockedByMission(const UChoreDefinition* Definition, const FInteriorFloorKey& FloorKey) const
+bool UChoreManagerSubsystem::IsChoreBlockedByMission(const UChoreDefinition* Definition, const FInteriorFloorKey& /*FloorKey*/) const
 {
 	if (!Definition || Definition->OwningMission.IsNull()) return false;
-	if (!CanChoreRunForMission(Definition)) return true;
-	if (!FloorKey.InteriorSetId.IsValid() && !FloorKey.FloorId.IsValid()) return false;
-	const UInteriorSubsystem* Interior = GetGameInstance()->GetSubsystem<UInteriorSubsystem>();
-	if (!Interior) return false;
-	const UMissionAsset* OwningMission = Definition->OwningMission.LoadSynchronous();
-	if (!OwningMission) return true;
-	const FName OwningMissionId = OwningMission->GetMissionId();
-
-    if (FloorKey == Interior->GetCurrentFloorKey())
-    {
-        const FName DisplayedMissionId = Interior->GetCurrentFloorMissionId();
-        if (DisplayedMissionId.IsNone()) return false;
-        return OwningMissionId != DisplayedMissionId;
-    }
-    const FName FloorOwnerId = Interior->GetAllocatedMissionForFloor(FloorKey);
-    if (FloorOwnerId.IsNone()) return false;
-    return OwningMissionId != FloorOwnerId;
+	return !CanChoreRunForMission(Definition);
 }
 
 bool UChoreManagerSubsystem::IsChoreBlockedByMission(FName ChoreId) const
 {
 	const UChoreDefinition* Definition = GetChoreDefinition(ChoreId);
-	if (Definition && !Definition->OwningMission.IsNull() && !CanChoreRunForMission(Definition))
-		return true;
-	const FInteriorFloorKey* FloorKey = ChoreFloorKeys.Find(ChoreId);
-	return Definition && FloorKey && IsChoreBlockedByMission(Definition, *FloorKey);
+	return Definition && !Definition->OwningMission.IsNull() && !CanChoreRunForMission(Definition);
 }
 
 void UChoreManagerSubsystem::RefreshMissionFloorConflicts()
@@ -2123,11 +2167,15 @@ void UChoreManagerSubsystem::RefreshMissionFloorConflicts()
         const FName ChoreId = DefinitionPair.Key;
         FChoreState* State = ActiveStates.Find(ChoreId);
         const FInteriorFloorKey* FloorKey = ChoreFloorKeys.Find(ChoreId);
-        if (!State || !DefinitionPair.Value || !FloorKey) continue;
+        if (!State || !DefinitionPair.Value) continue;
 
+        const bool bHasValidFloorKey = FloorKey &&
+            (FloorKey->InteriorSetId.IsValid() || FloorKey->FloorId.IsValid());
         const bool bBlocked = BlockedChores.Contains(ChoreId)
 			? BlockedChores.FindRef(ChoreId)
-			: IsChoreBlockedByMission(DefinitionPair.Value, *FloorKey);
+			: (bHasValidFloorKey
+				? IsChoreBlockedByMission(DefinitionPair.Value, *FloorKey)
+				: (!DefinitionPair.Value->OwningMission.IsNull() && !CanChoreRunForMission(DefinitionPair.Value)));
         if (bBlocked)
         {
             if (State->bBlockedByMission) continue;
