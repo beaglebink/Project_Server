@@ -55,16 +55,16 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Controller")
     TSubclassOf<UMissionController> ControllerClass;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Tags|Fail")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Tags|Fail")
     TArray<FGameplayTag> AddFailTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Tags|Fail")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Tags|Fail")
     TArray<FGameplayTag> RemoveFailTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Tags|Abandon")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Tags|Abandon")
     TArray<FGameplayTag> AddAbandonTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Tags|Abandon")
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission|Tags|Abandon")
     TArray<FGameplayTag> RemoveAbandonTags;
 
     // Returns a stable FName identifier for runtime use.

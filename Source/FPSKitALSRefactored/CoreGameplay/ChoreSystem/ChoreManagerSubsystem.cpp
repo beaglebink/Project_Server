@@ -755,6 +755,16 @@ void UChoreManagerSubsystem::AbandonChore(FName ChoreId)
 
     ClearDeadlineTimer(ChoreId);
     EnsureElapsedTimeRecorded(State);
+	if (State.bIsPaused && State.PauseStartTime != FDateTime::MinValue())
+	{
+		State.AccumulatedPauseTime += FDateTime::UtcNow() - State.PauseStartTime;
+	}
+	State.bIsPaused = false;
+	State.bPausedByMission = false;
+	State.bBlockedByMission = false;
+	State.PauseStartTime = FDateTime::MinValue();
+	State.PausedDeadlineRemaining = FTimespan::Zero();
+	State.StatusBeforeMissionBlock = EChoreStatus::Unavailable;
     UpdateChoreState(ChoreId, EChoreStatus::Abandoned);
     AddHistoryEntry(ChoreId, EOutcomeChore::AbandonRequest, State.Performance);
     State.IsExpired = false;
@@ -1530,8 +1540,11 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 
 void UChoreManagerSubsystem::AbandonChoresForResolvedMission(const FOutcomeEventBase& Outcome)
 {
-    if (Outcome.OutcomeType != EOutcomeType::Interior ||
-        Outcome.OutcomeMission != EOutcomeMission::MissionCompleted)
+    const bool bIsMissionTerminalEvent =
+        Outcome.OutcomeMission == EOutcomeMission::MissionCompleted ||
+        Outcome.OutcomeMission == EOutcomeMission::MissionFailed ||
+        Outcome.OutcomeMission == EOutcomeMission::MissionAbandoned;
+    if (Outcome.OutcomeType != EOutcomeType::Interior || !bIsMissionTerminalEvent)
     {
         return;
     }
@@ -2146,7 +2159,13 @@ void UChoreManagerSubsystem::RefreshMissionFloorConflicts()
 		if (!FloorKey.IsValid()) continue;
 		const FName ChoreId = Definition->GetChoreId();
 		ChoreFloorKeys.Add(ChoreId, FloorKey);
-		const bool bBlocked = IsChoreBlockedByMission(Definition, FloorKey);
+		const FChoreState* ChoreState = ActiveStates.Find(ChoreId);
+		const bool bChoreIsTerminal = ChoreState &&
+			(ChoreState->Status == EChoreStatus::Completed ||
+				ChoreState->Status == EChoreStatus::Failed ||
+				ChoreState->Status == EChoreStatus::Expired ||
+				ChoreState->Status == EChoreStatus::Abandoned);
+		const bool bBlocked = !bChoreIsTerminal && IsChoreBlockedByMission(Definition, FloorKey);
 		bool& bAnyActorBlocked = BlockedChores.FindOrAdd(ChoreId);
 		bAnyActorBlocked |= bBlocked;
 		const TWeakObjectPtr<AActor> ActorKey(Actor);
