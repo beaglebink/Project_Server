@@ -249,6 +249,7 @@ private:
 	void RaiseMissionPriority(FActiveMissionEntry& Entry);
 	void SaveDisplayedFloorSnapshotBeforeMissionChange();
 	void PublishMissionListUpdate(FName MissionId, EMissionEndReason Reason, bool bUpdateSnapshots);
+	void PublishMissionTagLifecycle(FName MissionId, EOutcomeScenario Action);
 
 	bool IsLoadComplete = true;
 

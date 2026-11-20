@@ -195,6 +195,18 @@ struct FPSKITALSREFACTORED_API FMissionEnvelope
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Save")
     EMissionResumeMode ResumeMode = EMissionResumeMode::Resumable;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Tags|Activate")
+    TArray<FGameplayTag> AddActivateTags;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Tags|Activate")
+    TArray<FGameplayTag> RemoveActivateTags;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Tags|Complete")
+    TArray<FGameplayTag> AddCompleteTags;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope|Tags|Complete")
+    TArray<FGameplayTag> RemoveCompleteTags;
+
     // Возвращает политику для указанного канала. Если канал не объявлен — TOptional пуст.
     TOptional<EChannelPolicy> GetPolicyForChannel(EEnvelopeChannel InChannel) const
     {

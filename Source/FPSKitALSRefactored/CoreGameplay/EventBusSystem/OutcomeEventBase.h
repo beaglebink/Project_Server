@@ -22,6 +22,7 @@ struct FOutcomeEventBase
     UPROPERTY(BlueprintReadWrite, Category = "Outcome") EOutcomeSpawnGroup OutcomeSpawnGroup = EOutcomeSpawnGroup::Default;
     UPROPERTY(BlueprintReadWrite, Category = "Outcome") EOutcomeWorldState OutcomeWorldState = EOutcomeWorldState::Default;
     UPROPERTY(BlueprintReadWrite, Category = "Outcome") EOutcomeChore      OutcomeChore = EOutcomeChore::Default;
+    UPROPERTY(BlueprintReadWrite, Category = "Outcome") EOutcomeScenario   OutcomeScenario = EOutcomeScenario::Default;
 
     // ===== optional payload =====
     UPROPERTY(BlueprintReadWrite, Category = "Outcome")
@@ -41,4 +42,7 @@ struct FOutcomeEventBase
     // Невалидное значение — событие опубликовано напрямую из C++/BP, не из шага.
     UPROPERTY(BlueprintReadWrite, Category = "Outcome|Source")
     FPrimaryAssetId SourceStepId;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Outcome|Source")
+    FName SourceMissionId;
 };
