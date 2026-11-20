@@ -6,8 +6,8 @@
 #include "Components/WidgetComponent.h"
 #include "RealEstate/W_RealEstateQuestionnaire.h"
 #include "RealEstate/DA_RealEstateQuestionnaire.h"
-#include "SaveSubsystems/GIS_RealEstatePaperWork.h"
 #include "Kismet/GameplayStatics.h"
+#include "Utils/GenericJsonLibrary.h"
 
 AA_RealEstatePaperWork::AA_RealEstatePaperWork()
 {
@@ -41,26 +41,14 @@ void AA_RealEstatePaperWork::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_RealEstatePaperWork* GIS = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
-		{
-			GIS->AddSaveableObject(this);
-			GetWorldTimerManager().SetTimerForNextTick([this, GIS]()
-				{
-					ApplyRealEstatePaperWorkSaveData_Implementation(GIS);
-				});
-		}
-	}
-
 	InteractiveItemComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_RealEstatePaperWork::OnInteract);
 	InteractiveItemComponent->OnInteractiveReceiveFocusEvent.AddDynamic(this, &AA_RealEstatePaperWork::OnInteractiveReceiveFocus);
 }
 
 void AA_RealEstatePaperWork::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	Super::EndPlay(EndPlayReason);
 
+	Super::EndPlay(EndPlayReason);
 }
 
 bool AA_RealEstatePaperWork::CheckIfCompleted()
@@ -221,8 +209,16 @@ void AA_RealEstatePaperWork::SetChoreStatus(EChoreStatus NewStatus)
 	}
 	case EChoreStatus::Started:
 	{
+		if (bWasStarted)
+		{
+			break;
+		}
+		bWasStarted = true;
+
 		OnStarted();
 		UE_LOG(LogTemp, Log, TEXT("RealEstateQuestionnaire %s is now Started"), *ChoreId.ToString());
+
+		SetChoreStatus(EChoreStatus::Active);
 		break;
 	}
 	default:
@@ -265,60 +261,26 @@ void AA_RealEstatePaperWork::HandleAnswerSelected(FString Question, int32 Answer
 	}
 }
 
-FString AA_RealEstatePaperWork::GetFloorAssignmentComponentIdAsString_Implementation()
+FString AA_RealEstatePaperWork::CollectSaveData()
 {
-	if (IsValid(FloorAssignmentComponent))
-	{
-		return FloorAssignmentComponent->GetFloorId().ToString();
-	}
-	return FString();
+	FQuestionSaveDataStruct QuestionSaveData;
+	QuestionSaveData.ChoreStatus = GetChoreStatus();
+	QuestionSaveData.bWasStarted = bWasStarted;
+	QuestionSaveData.Questions = QuestionsDataMap;
+
+	return UGenericJsonLibrary::StructToJsonStringCpp(QuestionSaveData);
 }
 
-FQuestionSaveDataStruct AA_RealEstatePaperWork::CollectRealEstatePaperWorkSaveData_Implementation()
+void AA_RealEstatePaperWork::ApplySaveData(FString Jsonstring)
 {
-	FQuestionSaveDataStruct SaveData;
+	FQuestionSaveDataStruct QuestionSaveData;
 
-	SaveData.ChoreStatus = GetChoreStatus();
-	SaveData.Questions = QuestionsDataMap;
-
-	return SaveData;
-}
-
-void AA_RealEstatePaperWork::ApplyRealEstatePaperWorkSaveData_Implementation(UGIS_RealEstatePaperWork* GIS)
-{
-	FQuestionSaveDataStruct* QuestionSaveData = GIS->CachedRealEstateData.Find(GetFloorAssignmentComponentIdAsString_Implementation());
-	if (QuestionSaveData)
+	if (UGenericJsonLibrary::JsonStringToStructCpp(Jsonstring, QuestionSaveData))
 	{
-		SetChoreStatus(QuestionSaveData->ChoreStatus);
-		QuestionsDataMap = QuestionSaveData->Questions;
-	}
+		bWasStarted = QuestionSaveData.bWasStarted;
+		SetChoreStatus(QuestionSaveData.ChoreStatus);
+		QuestionsDataMap = QuestionSaveData.Questions;
 
-	UpdateWidgetData();
-}
-
-FString AA_RealEstatePaperWork::CollectIntermediateSaveData()
-{
-	FSubsystemSaveData SaveData;
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_RealEstatePaperWork* GIS = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
-		{
-			GIS->CollectSaveData(SaveData);
-		}
-	}
-	return SaveData.SerializedData;
-}
-
-void AA_RealEstatePaperWork::ApplyIntermediateSaveData(FString Jsonstring)
-{
-	FSubsystemSaveData SaveData;
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_RealEstatePaperWork* GIS = GI->GetSubsystem<UGIS_RealEstatePaperWork>())
-		{
-			SaveData.SerializedData = Jsonstring;
-			GIS->ApplySaveData(SaveData);
-			ApplyRealEstatePaperWorkSaveData_Implementation(GIS);
-		}
+		UpdateWidgetData();
 	}
 }

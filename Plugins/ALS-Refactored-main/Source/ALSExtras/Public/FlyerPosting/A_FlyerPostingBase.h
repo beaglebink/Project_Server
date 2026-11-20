@@ -6,6 +6,7 @@
 #include "FlyerPosting/O_FlyerPostingStructures.h"
 #include "A_FlyerPostingBase.generated.h"
 
+class UFloorAssignmentComponent;
 class UInteractiveItemComponent;
 class UCanvasRenderTarget2D;
 class AA_Flyer;
@@ -55,11 +56,17 @@ public:
 	TSubclassOf<AA_Flyer> FlyerClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
+	UFloorAssignmentComponent* FloorAssignmentComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
 	UInteractiveItemComponent* InteractiveItemComponent;
 
 private:
 	UPROPERTY()
 	EChoreStatus ChoreStatus;
+
+	UPROPERTY()
+	uint8 bWasStarted : 1{false};
 
 	UPROPERTY()
 	TMap<FGuid, FTransform> PlacedFlyers;

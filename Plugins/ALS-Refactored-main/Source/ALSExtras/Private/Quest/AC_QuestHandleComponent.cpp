@@ -2,7 +2,7 @@
 #include "Engine/AssetManager.h"
 #include "CoreGameplay/LocationTrackerSubsystem/LocationTrackerSubsystem.h"
 #include "Inventory/AC_Inventory.h"
-#include "SaveSubsystems/GIS_Quest.h"
+#include "Utils/GenericJsonLibrary.h"
 
 UAC_QuestHandleComponent::UAC_QuestHandleComponent()
 {
@@ -19,23 +19,12 @@ void UAC_QuestHandleComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (GetOwner())
-	{
-		if (UGameInstance* GI = GetOwner()->GetGameInstance())
-		{
-			if (UGIS_Quest* GIS = GI->GetSubsystem<UGIS_Quest>())
-			{
-				GIS->AddSaveableObject(this);
-				ApplyQuestSaveData_Implementation(GIS);
-			}
-		}
-	}
 }
 
 void UAC_QuestHandleComponent::EndPlay(const EEndPlayReason::Type Reason)
 {
-	Super::EndPlay(Reason);
 
+	Super::EndPlay(Reason);
 }
 
 bool UAC_QuestHandleComponent::LoadQuestData(FName QuestName)
@@ -156,7 +145,15 @@ void UAC_QuestHandleComponent::SetChoreStatus(FName QuestName, EChoreStatus NewS
 			}
 			case EChoreStatus::Started:
 			{
+				if (QuestDataMap[QuestName].bWasStarted)
+				{
+					break;
+				}
+				QuestDataMap[QuestName].bWasStarted = true;
+
 				UE_LOG(LogTemp, Log, TEXT("Quest %s is now Started"), *QuestName.ToString());
+
+				SetChoreStatus(QuestName, EChoreStatus::Active);
 				break;
 			}
 			default:
@@ -183,46 +180,21 @@ EChoreStatus UAC_QuestHandleComponent::GetChoreStatus(FName ChoreID)const
 	return EChoreStatus::Inactive;
 }
 
-TMap<FName, FQuestStepDataStruct> UAC_QuestHandleComponent::CollectQuestSaveData_Implementation()
+FString UAC_QuestHandleComponent::CollectSaveData()
 {
-	return QuestDataMap;
+	FQuestSaveDataStruct QuestSaveDataStruct;
+	QuestSaveDataStruct.QuestDataMap = QuestDataMap;
+
+	return UGenericJsonLibrary::StructToJsonStringCpp(QuestSaveDataStruct);
 }
 
-void UAC_QuestHandleComponent::ApplyQuestSaveData_Implementation(UGIS_Quest* GIS)
+void UAC_QuestHandleComponent::ApplySaveData(FString Jsonstring)
 {
-	QuestDataMap = GIS->CachedQuestData;
-}
+	FQuestSaveDataStruct QuestSaveDataStruct;
 
-FString UAC_QuestHandleComponent::CollectIntermediateSaveData(FName ChoreID)
-{
-	FSubsystemSaveData SaveData;
-	if (GetOwner())
+	if (UGenericJsonLibrary::JsonStringToStructCpp(Jsonstring, QuestSaveDataStruct))
 	{
-		if (UGameInstance* GI = GetOwner()->GetGameInstance())
-		{
-			if (UGIS_Quest* QuestSys = GI->GetSubsystem<UGIS_Quest>())
-			{
-				QuestSys->CollectSaveData(SaveData);
-			}
-		}
-	}
-	return SaveData.SerializedData;
-}
-
-void UAC_QuestHandleComponent::ApplyIntermediateSaveData(FName ChoreID, FString Jsonstring)
-{
-	FSubsystemSaveData SaveData;
-	if (GetOwner())
-	{
-		if (UGameInstance* GI = GetOwner()->GetGameInstance())
-		{
-			if (UGIS_Quest* QuestSys = GI->GetSubsystem<UGIS_Quest>())
-			{
-				SaveData.SerializedData = Jsonstring;
-				QuestSys->ApplySaveData(SaveData);
-				ApplyQuestSaveData_Implementation(QuestSys);
-			}
-		}
+		QuestDataMap = QuestSaveDataStruct.QuestDataMap;
 	}
 }
 
