@@ -3,56 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Core/CubixonCoreData.h"
-#include "ChoreSystem/ChoreEnums.h"
-#include "Quest/O_QuestStructures.h"
-#include "SaveSubsystems/GIS_Quest.h"
-#include "RealEstate/O_RealEstateStructures.h"
-#include "SaveSubsystems/GIS_RealEstatePaperWork.h"
-#include "FlyerPosting/O_FlyerPostingStructures.h"
-#include "Inventory/O_PickUpStructures.h"
-#include "SaveSubsystems/GIS_PickUp.h"
 #include "I_SaveableObject.generated.h"
-
-// ChorePlacement save data structure
-USTRUCT(BlueprintType)
-struct FSaveItemData
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FGuid ItemId;
-
-	UPROPERTY()
-	FGuid AttachingDropZoneId;
-
-	UPROPERTY()
-	FTransform ItemTransform;
-
-	UPROPERTY()
-	uint8 bIsHeld : 1{false};
-
-	UPROPERTY()
-	uint8 bIsAttached : 1{false};
-
-	UPROPERTY()
-	uint8 bHasSimulatedPhysics : 1{false};
-
-	// Breakable actor
-	UPROPERTY()
-	uint8 bIsBroken : 1{false};
-};
-
-USTRUCT(BlueprintType)
-struct FSaveChoreData
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	EChoreStatus ChoreStatus;
-
-	UPROPERTY()
-	TArray<FSaveItemData> SaveItemData;
-};
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class UI_SaveableObject : public UInterface
@@ -103,32 +54,4 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
 	void ApplyBackupSaveData(const FGlobalBackupData& SaveData);
-
-	// ChorePlacement save data collection and application functions
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	FSaveChoreData CollectChorePlacementSaveData();
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyChorePlacementSaveData(const FSaveChoreData& SaveDataArray);
-	
-	// DeliveryChore(Quests) save data collection and application functions
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	TMap<FName, FQuestStepDataStruct> CollectQuestSaveData();
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyQuestSaveData(UGIS_Quest* GIS);
-
-	// RealEstatePaperWork save data collection and application functions
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	FQuestionSaveDataStruct CollectRealEstatePaperWorkSaveData();
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyRealEstatePaperWorkSaveData(UGIS_RealEstatePaperWork* GIS);
-
-	// PickUp save data collection and application functions
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	FPickUpSaveData CollectPickUpSaveData();
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SaveObject")
-	void ApplyPickUpSaveData(UGIS_PickUp* GIS);
 };

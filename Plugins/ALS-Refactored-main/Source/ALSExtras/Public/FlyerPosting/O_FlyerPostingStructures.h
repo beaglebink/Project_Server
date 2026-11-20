@@ -13,5 +13,8 @@ struct FFlyerPostingSaveData
 	EChoreStatus ChoreStatus;
 
 	UPROPERTY()
+	uint8 bWasStarted : 1;
+
+	UPROPERTY()
 	TMap<FGuid, FTransform> PlacedFlyers;
 };

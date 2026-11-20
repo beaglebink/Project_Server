@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "SaveSubsystems/I_SaveableObject.h"
 #include "O_RealEstateStructures.h"
+#include "GameplayTagContainer.h"
 #include "A_RealEstatePaperWork.generated.h"
 
 class UBoxComponent;
@@ -15,7 +15,7 @@ class UDA_RealEstateQuestionnaire;
 class UW_RealEstateQuestionnaire;
 
 UCLASS()
-class ALSEXTRAS_API AA_RealEstatePaperWork : public AActor, public II_SaveableObject
+class ALSEXTRAS_API AA_RealEstatePaperWork : public AActor
 {
 	GENERATED_BODY()
 
@@ -72,6 +72,9 @@ private:
 	UPROPERTY()
 	EChoreStatus ChoreStatus = EChoreStatus::Inactive;
 
+	UPROPERTY()
+	uint8 bWasStarted : 1{false};
+
 	UFUNCTION(BlueprintPure, BlueprintCallable, Category = "RealEstate")
 	bool CheckIfCompleted();
 
@@ -99,17 +102,10 @@ public:
 	UFUNCTION()
 	void HandleAnswerSelected(FString Question, int32 AnswerIndex, bool IsSelected);
 
-	// II_SaveableObject interface
-	virtual FString GetFloorAssignmentComponentIdAsString_Implementation() override;
-
-	virtual FQuestionSaveDataStruct CollectRealEstatePaperWorkSaveData_Implementation() override;
-
-	virtual void ApplyRealEstatePaperWorkSaveData_Implementation(UGIS_RealEstatePaperWork* GIS) override;
-
-	// Intermediate data saving
+	// Data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	FString CollectIntermediateSaveData();
+	FString CollectSaveData();
 
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	void ApplyIntermediateSaveData(FString Jsonstring);
+	void ApplySaveData(FString Jsonstring);
 };

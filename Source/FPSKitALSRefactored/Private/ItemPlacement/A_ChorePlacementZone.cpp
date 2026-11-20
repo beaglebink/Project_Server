@@ -5,9 +5,10 @@
 #include "PythonContainers/A_InteractableActor.h"
 #include "FloorAssignmentComponent.h"
 #include "ProceduralMeshComponent.h"
-#include "SaveSubsystems/GIS_ChorePlacement.h"
 #include "SaveSubsystems/WS_ActorRegistry.h"
 #include "ItemPlacement/A_Breakable.h"
+#include "ItemPlacement/O_ChorePlacementStructures.h"
+#include "Utils/GenericJsonLibrary.h"
 
 AA_ChorePlacementZone::AA_ChorePlacementZone()
 {
@@ -216,20 +217,6 @@ void AA_ChorePlacementZone::BeginPlay()
 			BreakableActor->OnBroken.AddDynamic(this, &AA_ChorePlacementZone::CountBreaks);
 		}
 	}
-
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_ChorePlacement* ChoreSys = GI->GetSubsystem<UGIS_ChorePlacement>())
-		{
-			ChoreSys->AddSaveableObject(this);
-
-			// Delay the application of chore placement data to the next tick to ensure that all actors are properly initialized
-			GetWorld()->GetTimerManager().SetTimerForNextTick([this, ChoreSys]()
-				{
-					ChoreSys->ApplyChorePlacementData(this);
-				});
-		}
-	}
 }
 
 void AA_ChorePlacementZone::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -426,8 +413,16 @@ void AA_ChorePlacementZone::SetChoreStatus(EChoreStatus NewStatus)
 	}
 	case EChoreStatus::Started:
 	{
+		if (bWasStarted)
+		{
+			break;
+		}
+		bWasStarted = true;
+
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "STARTED");
 		OnStarted();
+
+		SetChoreStatus(EChoreStatus::Active);
 		break;
 	}
 	default:
@@ -472,6 +467,7 @@ void AA_ChorePlacementZone::ResetChorePlacementZone()
 
 	BrokenItemsCount = 0;
 
+	bWasStarted = false;
 	SetChoreStatus(bIsAutoAcivated ? EChoreStatus::Active : EChoreStatus::Inactive);
 }
 
@@ -563,7 +559,7 @@ FGameplayTag AA_ChorePlacementZone::PublicResultState_Implementation(FChoreResul
 	return ChoreResult.bResult ? CompletedTag : FailedTag;
 }
 
-FSaveChoreData AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementation()
+FString AA_ChorePlacementZone::CollectSaveData()
 {
 	FSaveChoreData SaveChoreData;
 
@@ -605,11 +601,12 @@ FSaveChoreData AA_ChorePlacementZone::CollectChorePlacementSaveData_Implementati
 		SaveChoreData.SaveItemData.Add(SaveData);
 	}
 	SaveChoreData.ChoreStatus = GetChoreStatus();
+	SaveChoreData.bWasStarted = bWasStarted;
 
-	return SaveChoreData;
+	return UGenericJsonLibrary::StructToJsonStringCpp(SaveChoreData);
 }
 
-void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const FSaveChoreData& SaveChoreData)
+void AA_ChorePlacementZone::ApplySaveData(FString Jsonstring)
 {
 	UWS_ActorRegistry* ActorRegistrySubsystem = GetWorld()->GetSubsystem<UWS_ActorRegistry>();
 	if (!ActorRegistrySubsystem)
@@ -617,79 +614,57 @@ void AA_ChorePlacementZone::ApplyChorePlacementSaveData_Implementation(const FSa
 		return;
 	}
 
-	for (const FSaveItemData& SavedData : SaveChoreData.SaveItemData)
+	FSaveChoreData SaveChoreData;
+	if (UGenericJsonLibrary::JsonStringToStructCpp(Jsonstring, SaveChoreData))
 	{
-		AA_InteractableActor* ItemActor = Cast<AA_InteractableActor>(ActorRegistrySubsystem->FindActorByGuid(SavedData.ItemId));
-		if (!ItemActor)
+		for (const FSaveItemData& SavedData : SaveChoreData.SaveItemData)
 		{
-			continue;
-		}
-
-		UPrimitiveComponent* PrimitiveComponent = nullptr;
-		if (ItemActor->Implements<UInteractiveActorInterface>())
-		{
-			PrimitiveComponent = Cast<UPrimitiveComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemActor));
-		}
-
-		AA_DropZone* AttachingDropZone = Cast<AA_DropZone>(ActorRegistrySubsystem->FindActorByGuid(SavedData.AttachingDropZoneId));
-		if (AttachingDropZone)
-		{
-			ItemActor->AttachingDropZone = AttachingDropZone;
-			AttachingDropZone->bIsOccupied = true;
-			AttachingDropZone->SetMeshMaterialAndState(0, false);
-
-			if (PrimitiveComponent)
+			AA_InteractableActor* ItemActor = Cast<AA_InteractableActor>(ActorRegistrySubsystem->FindActorByGuid(SavedData.ItemId));
+			if (!ItemActor)
 			{
-				PrimitiveComponent->SetSimulatePhysics(false);
+				continue;
 			}
-			ItemActor->AttachToActor(AttachingDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-		}
-		else
-		{
-			ItemActor->SetActorTransform(SavedData.ItemTransform);
-			ItemActor->bIsHeld = SavedData.bIsHeld;
-			ItemActor->bIsAttached = SavedData.bIsAttached;
 
-			if (PrimitiveComponent)
+			UPrimitiveComponent* PrimitiveComponent = nullptr;
+			if (ItemActor->Implements<UInteractiveActorInterface>())
 			{
-				PrimitiveComponent->SetSimulatePhysics(SavedData.bHasSimulatedPhysics);
+				PrimitiveComponent = Cast<UPrimitiveComponent>(IInteractiveActorInterface::Execute_GetMeshComponent(ItemActor));
+			}
+
+			AA_DropZone* AttachingDropZone = Cast<AA_DropZone>(ActorRegistrySubsystem->FindActorByGuid(SavedData.AttachingDropZoneId));
+			if (AttachingDropZone)
+			{
+				ItemActor->AttachingDropZone = AttachingDropZone;
+				AttachingDropZone->bIsOccupied = true;
+				AttachingDropZone->SetMeshMaterialAndState(0, false);
+
+				if (PrimitiveComponent)
+				{
+					PrimitiveComponent->SetSimulatePhysics(false);
+				}
+				ItemActor->AttachToActor(AttachingDropZone, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+			}
+			else
+			{
+				ItemActor->SetActorTransform(SavedData.ItemTransform);
+				ItemActor->bIsHeld = SavedData.bIsHeld;
+				ItemActor->bIsAttached = SavedData.bIsAttached;
+
+				if (PrimitiveComponent)
+				{
+					PrimitiveComponent->SetSimulatePhysics(SavedData.bHasSimulatedPhysics);
+				}
+			}
+
+			// Breakable actor
+			if (AA_Breakable* BreakableActor = Cast<AA_Breakable>(ItemActor))
+			{
+				BreakableActor->SetIsBroken(SavedData.bIsBroken);
 			}
 		}
 
-		// Breakable actor
-		if (AA_Breakable* BreakableActor = Cast<AA_Breakable>(ItemActor))
-		{
-			BreakableActor->SetIsBroken(SavedData.bIsBroken);
-		}
-	}
-
-	SetChoreStatus(SaveChoreData.ChoreStatus);
-}
-
-FString AA_ChorePlacementZone::CollectIntermediateSaveData()
-{
-	FSubsystemSaveData SaveData;
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_ChorePlacement* ChoreSys = GI->GetSubsystem<UGIS_ChorePlacement>())
-		{
-			ChoreSys->CollectSaveData(SaveData);
-		}
-	}
-	return SaveData.SerializedData;
-}
-
-void AA_ChorePlacementZone::ApplyIntermediateSaveData(FString Jsonstring)
-{
-	FSubsystemSaveData SaveData;
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_ChorePlacement* ChoreSys = GI->GetSubsystem<UGIS_ChorePlacement>())
-		{
-			SaveData.SerializedData = Jsonstring;
-			ChoreSys->ApplySaveData(SaveData);
-			ChoreSys->ApplyChorePlacementData(this);
-		}
+		SaveChoreData.bWasStarted = bWasStarted;
+		SetChoreStatus(SaveChoreData.ChoreStatus);
 	}
 }
 

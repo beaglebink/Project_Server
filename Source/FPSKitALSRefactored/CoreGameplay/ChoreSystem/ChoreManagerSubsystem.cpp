@@ -153,6 +153,13 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
             /*bLoop=*/true);
     }
 
+    // Register Quests
+    FChoreState QuestsState;
+    QuestsState.ChoreId = FName(TEXT("Quests"));
+    QuestsState.Status = EChoreStatus::Active;
+
+    ActiveStates.Add(FName(TEXT("Quests")), QuestsState);
+
     UE_LOG(LogTemp, Log, TEXT("ChoreManagerSubsystem: Initialized."));
 }
 

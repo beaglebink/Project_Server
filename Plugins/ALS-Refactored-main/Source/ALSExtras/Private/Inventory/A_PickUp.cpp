@@ -25,20 +25,6 @@ void AA_PickUp::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_PickUp* GIS = GI->GetSubsystem<UGIS_PickUp>())
-		{
-			GIS->AddSaveableObject(this);
-
-			// Delay the application of chore placement data to the next tick to ensure that all actors are properly initialized
-			GetWorldTimerManager().SetTimerForNextTick([this, GIS]()
-				{
-					ApplyPickUpSaveData_Implementation(GIS);
-				});
-		}
-	}
-
 	InteractiveComponent->OnInteractionPressKeyEvent.AddDynamic(this, &AA_PickUp::AddToInventory);
 	InteractiveComponent->InteractiveTooltipText = FText::FromString(TEXT("Press \"F\" to pick up"));
 }
@@ -62,55 +48,13 @@ void AA_PickUp::AddToInventory(UInteractivePickerComponent* Picker)
 	Destroy();
 }
 
-FString AA_PickUp::GetFloorAssignmentComponentIdAsString_Implementation()
+FString AA_PickUp::CollectSaveData()
 {
-	if (IsValid(FloorAssignmentComponent))
-	{
-		return FloorAssignmentComponent->GetFloorId().ToString();
-	}
-	return FString();
+
+	return "";
 }
 
-FPickUpSaveData AA_PickUp::CollectPickUpSaveData_Implementation()
+void AA_PickUp::ApplySaveData(FString Jsonstring)
 {
-	FPickUpSaveData PickUpSaveData;
-	PickUpSaveData.PickUpTransform = GetActorTransform();
 
-	return PickUpSaveData;
-}
-
-void AA_PickUp::ApplyPickUpSaveData_Implementation(UGIS_PickUp* GIS)
-{
-	FPickUpSaveData* PickUpSaveData = GIS->CachedPickUpData.Find(GetFloorAssignmentComponentIdAsString_Implementation());
-	if (PickUpSaveData)
-	{
-		SetActorTransform(PickUpSaveData->PickUpTransform);
-	}
-}
-
-FString AA_PickUp::CollectIntermediateSaveData()
-{
-	FSubsystemSaveData SaveData;
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_PickUp* GIS = GI->GetSubsystem<UGIS_PickUp>())
-		{
-			GIS->CollectSaveData(SaveData);
-		}
-	}
-	return SaveData.SerializedData;
-}
-
-void AA_PickUp::ApplyIntermediateSaveData(FString Jsonstring)
-{
-	FSubsystemSaveData SaveData;
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UGIS_PickUp* GIS = GI->GetSubsystem<UGIS_PickUp>())
-		{
-			SaveData.SerializedData = Jsonstring;
-			GIS->ApplySaveData(SaveData);
-			ApplyPickUpSaveData_Implementation(GIS);
-		}
-	}
 }

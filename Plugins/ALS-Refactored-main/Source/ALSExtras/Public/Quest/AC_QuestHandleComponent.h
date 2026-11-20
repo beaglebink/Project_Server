@@ -34,17 +34,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChoreStatus")
 	EChoreStatus GetChoreStatus(FName ChoreID)const;
 
-	// Quest data saving and loading
-	virtual TMap<FName, FQuestStepDataStruct> CollectQuestSaveData_Implementation()override;
-
-	virtual void ApplyQuestSaveData_Implementation(UGIS_Quest* GIS)override;
-
-	// Intermediate data saving
+	// Data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	FString CollectIntermediateSaveData(FName ChoreID);
+	FString CollectSaveData();
 
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	void ApplyIntermediateSaveData(FName ChoreID, FString Jsonstring);
+	void ApplySaveData(FString Jsonstring);
 
 	UFUNCTION(BlueprintCallable, Category = "Quest")
 	bool CheckIfQuestIsCompleted(FName ChoreID);

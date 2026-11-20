@@ -47,5 +47,17 @@ struct FQuestStepDataStruct
 	EChoreStatus QuestStatus = EChoreStatus::Inactive;
 
 	UPROPERTY()
+	uint8 bWasStarted : 1{false};
+
+	UPROPERTY()
 	TArray<FQuestStepDataArray> QuestsArray;
+};
+
+USTRUCT(BlueprintType)
+struct FQuestSaveDataStruct
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TMap<FName, FQuestStepDataStruct> QuestDataMap;
 };

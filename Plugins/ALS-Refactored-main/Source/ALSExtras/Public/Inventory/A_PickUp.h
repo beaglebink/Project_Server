@@ -4,7 +4,6 @@
 #include "GameFramework/Actor.h"
 #include "SaveSubsystems/I_SaveableObject.h"
 #include "Inventory/O_PickUpStructures.h"
-#include "SaveSubsystems/GIS_PickUp.h"
 #include "A_PickUp.generated.h"
 
 class UInteractiveItemComponent;
@@ -12,7 +11,7 @@ class UInteractivePickerComponent;
 class UFloorAssignmentComponent;
 
 UCLASS(BlueprintType, Blueprintable)
-class ALSEXTRAS_API AA_PickUp : public AActor, public II_SaveableObject
+class ALSEXTRAS_API AA_PickUp : public AActor
 {
 	GENERATED_BODY()
 
@@ -42,17 +41,10 @@ private:
 	void AddToInventory(UInteractivePickerComponent* Picker);
 
 public:
-	// II_SaveableObject interface
-	virtual FString GetFloorAssignmentComponentIdAsString_Implementation() override;
-
-	virtual FPickUpSaveData CollectPickUpSaveData_Implementation() override;
-
-	virtual void ApplyPickUpSaveData_Implementation(UGIS_PickUp* GIS) override;
-
-	// Intermediate data saving
+	// Data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	FString CollectIntermediateSaveData();
+	FString CollectSaveData();
 
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	void ApplyIntermediateSaveData(FString Jsonstring);
+	void ApplySaveData(FString Jsonstring);
 };

@@ -41,5 +41,8 @@ struct FQuestionSaveDataStruct
 	EChoreStatus ChoreStatus;
 
 	UPROPERTY()
+	uint8 bWasStarted : 1;
+
+	UPROPERTY()
 	TMap<FString, FQuestionDataStruct> Questions;
 };

@@ -1,4 +1,5 @@
 #include "FlyerPosting/A_FlyerPostingBase.h"
+#include "FloorAssignmentComponent.h"
 #include "InteractiveItemComponent.h"
 #include "Engine/CanvasRenderTarget2D.h"
 #include "Engine/Canvas.h"
@@ -13,6 +14,7 @@ AA_FlyerPostingBase::AA_FlyerPostingBase()
 	PrimaryActorTick.bCanEverTick = true;
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+	FloorAssignmentComponent = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignmentComponent"));
 	InteractiveItemComponent = CreateDefaultSubobject<UInteractiveItemComponent>(TEXT("InteractiveItemComponent"));
 }
 
@@ -148,8 +150,16 @@ void AA_FlyerPostingBase::SetChoreStatus(EChoreStatus NewStatus)
 	}
 	case EChoreStatus::Started:
 	{
+		if (bWasStarted)
+		{
+			break;
+		}
+		bWasStarted = true;
+
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "STARTED");
 		OnStarted();
+
+		SetChoreStatus(EChoreStatus::Active);
 		break;
 	}
 	default:
@@ -172,6 +182,7 @@ FString AA_FlyerPostingBase::CollectSaveData()
 {
 	FFlyerPostingSaveData FlyerPostingSaveData;
 	FlyerPostingSaveData.ChoreStatus = GetChoreStatus();
+	FlyerPostingSaveData.bWasStarted = bWasStarted;
 	FlyerPostingSaveData.PlacedFlyers = PlacedFlyers;
 
 	return UGenericJsonLibrary::StructToJsonStringCpp(FlyerPostingSaveData);
@@ -183,6 +194,7 @@ void AA_FlyerPostingBase::ApplySaveData(FString Jsonstring)
 
 	if (UGenericJsonLibrary::JsonStringToStructCpp(Jsonstring, FlyerPostingSaveData))
 	{
+		bWasStarted = FlyerPostingSaveData.bWasStarted;
 		SetChoreStatus(FlyerPostingSaveData.ChoreStatus);
 		PlacedFlyers = FlyerPostingSaveData.PlacedFlyers;
 		for (const auto& [FlyerId, FlyerTransform] : PlacedFlyers)

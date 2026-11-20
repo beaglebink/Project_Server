@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "SaveSubsystems/I_SaveableObject.h"
+#include "GameplayTagContainer.h"
 #include "A_ChorePlacementZone.generated.h"
 
 class AA_DropZone;
@@ -70,7 +70,7 @@ struct FChoreResult
 };
 
 UCLASS()
-class FPSKITALSREFACTORED_API AA_ChorePlacementZone : public AActor, public II_SaveableObject
+class FPSKITALSREFACTORED_API AA_ChorePlacementZone : public AActor
 {
 	GENERATED_BODY()
 
@@ -164,6 +164,9 @@ private:
 	UPROPERTY()
 	EChoreStatus ChoreStatus;
 
+	UPROPERTY()
+	uint8 bWasStarted : 1{false};
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "ChoreStatus")
 	void SetChoreStatus(EChoreStatus NewStatus);
@@ -180,17 +183,12 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "ChorePlacement")
 	FGameplayTag PublicResultState(FChoreResult ChoreResult);
 
-	// II_SaveableObject interface
-	virtual FSaveChoreData CollectChorePlacementSaveData_Implementation() override;
-
-	virtual void ApplyChorePlacementSaveData_Implementation(const FSaveChoreData& SaveChoreData) override;
-
-	// Intermediate data saving
+	// Data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	FString CollectIntermediateSaveData();
+	FString CollectSaveData();
 
 	UFUNCTION(BlueprintCallable, Category = "Saving")
-	void ApplyIntermediateSaveData(FString Jsonstring);
+	void ApplySaveData(FString Jsonstring);
 
 private:
 	bool CheckIfStarted();
