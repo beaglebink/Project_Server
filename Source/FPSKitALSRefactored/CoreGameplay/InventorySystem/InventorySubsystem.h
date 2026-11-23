@@ -25,6 +25,24 @@ struct FInventoryInteractItemRecord
     UPROPERTY() float InteractionRange = 0.f;
 };
 
+USTRUCT()
+struct FPickUpsData
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    TArray<FTransform> PickUpTransformsArray;
+};
+
+USTRUCT()
+struct FPickUpsSaveDataStruct
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    TMap<FName, FPickUpsData> PickUpsSaveDataMap;
+};
+
 UCLASS()
 class FPSKITALSREFACTORED_API UInventorySubsystem
     : public UGameInstanceSubsystem
@@ -156,5 +174,15 @@ private:
     }
 
     FString SerializedAmmoData;
+    
     FString SerializedWeaponsData;
+
+    // PickUps save data
+    UFUNCTION()
+    void SaveLoadPickUpsData(bool IsSave);
+
+    TMap<FName, FPickUpsData> PickUpsSaveDataMap;
+
+    UPROPERTY()
+    FString SerializedPickUpsData;
 };

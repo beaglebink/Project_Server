@@ -19,6 +19,7 @@ AA_PickUp::AA_PickUp()
 	StaticMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	StaticMeshComp->SetCollisionProfileName(TEXT("PhysicsActor"));
 	StaticMeshComp->SetSimulatePhysics(true);
+	StaticMeshComp->SetMassOverrideInKg(NAME_None, 100.0f);
 }
 
 void AA_PickUp::BeginPlay()
@@ -46,15 +47,4 @@ void AA_PickUp::AddToInventory(UInteractivePickerComponent* Picker)
 	}
 
 	Destroy();
-}
-
-FString AA_PickUp::CollectSaveData()
-{
-
-	return "";
-}
-
-void AA_PickUp::ApplySaveData(FString Jsonstring)
-{
-
 }
