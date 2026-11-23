@@ -13,9 +13,9 @@
 #include "PlayerController_I.h"
 #include "InteriorSubsystem.h"
 #include "Kismet/GameplayStatics.h"
-#include "Inventory/AC_Container.h"
 #include "Inventory/A_PickUp.h"
 #include "Utils/GenericJsonLibrary.h"
+#include "LocationTrackerSubsystem/LocationTrackerSubsystem.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static JSON helpers
@@ -799,6 +799,15 @@ void UInventorySubsystem::OnPostLoadMap_ClearLoadingFlag(UWorld* LoadedWorld)
 
 void UInventorySubsystem::SaveLoadPickUpsData(bool IsSave)
 {
+	FGameplayTag CurrentLocationTag = FGameplayTag::EmptyTag;
+	if (ULocationTrackerSubsystem* TrackerSubSystem = GetGameInstance()->GetSubsystem<ULocationTrackerSubsystem>())
+	{
+		CurrentLocationTag = TrackerSubSystem->GetCurrentLocation();
+	}
+
+	FLevelPickUpsSaveDataStruct LevelPickUpsSaveDataStruct;
+	UGenericJsonLibrary::JsonStringToStructCpp(SerializedPickUpsData, LevelPickUpsSaveDataStruct);
+
 	FPickUpsSaveDataStruct PickUpsSaveDataStruct;
 
 	TArray<AActor*> FoundActors;
@@ -823,15 +832,11 @@ void UInventorySubsystem::SaveLoadPickUpsData(bool IsSave)
 				}
 			}
 		}
-		SerializedPickUpsData = UGenericJsonLibrary::StructToJsonStringCpp(PickUpsSaveDataStruct);
+		LevelPickUpsSaveDataStruct.LevelPickUpsSaveDataMap.Add(CurrentLocationTag, PickUpsSaveDataStruct);
+		SerializedPickUpsData = UGenericJsonLibrary::StructToJsonStringCpp(LevelPickUpsSaveDataStruct);
 	}
 	else
 	{
-		for (AActor* Actor : FoundActors)
-		{
-			Actor->Destroy();
-		}
-
 		USoundBase* PickUpSound = nullptr;
 		UDataTable* ItemDataTable = nullptr;
 		if (ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
@@ -846,18 +851,25 @@ void UInventorySubsystem::SaveLoadPickUpsData(bool IsSave)
 			}
 		}
 
-		UGenericJsonLibrary::JsonStringToStructCpp(SerializedPickUpsData, PickUpsSaveDataStruct);
-		for (const auto& [PickUpName, PickUpsData] : PickUpsSaveDataStruct.PickUpsSaveDataMap)
+		if (FPickUpsSaveDataStruct* PickUpsSaveDataStructPtr = LevelPickUpsSaveDataStruct.LevelPickUpsSaveDataMap.Find(CurrentLocationTag))
 		{
-			for (auto& PickUpTransformData : PickUpsData.PickUpTransformsArray)
+			for (AActor* Actor : FoundActors)
 			{
-				AA_PickUp* NewPickUp = GetWorld()->SpawnActorDeferred<AA_PickUp>(AA_PickUp::StaticClass(), PickUpTransformData, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
-				if (NewPickUp && ItemDataTable && PickUpSound)
+				Actor->Destroy();
+			}
+
+			for (const auto& [PickUpName, PickUpsData] : PickUpsSaveDataStructPtr->PickUpsSaveDataMap)
+			{
+				for (auto& PickUpTransformData : PickUpsData.PickUpTransformsArray)
 				{
-					NewPickUp->Name = PickUpName;
-					NewPickUp->StaticMeshComp->SetStaticMesh(ItemDataTable->FindRow<FS_ItemData>(PickUpName, TEXT("Find row in datatable"))->StaticMesh);
-					NewPickUp->Sound = PickUpSound;
-					NewPickUp->FinishSpawning(PickUpTransformData);
+					AA_PickUp* NewPickUp = GetWorld()->SpawnActorDeferred<AA_PickUp>(AA_PickUp::StaticClass(), PickUpTransformData, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+					if (NewPickUp && ItemDataTable && PickUpSound)
+					{
+						NewPickUp->Name = PickUpName;
+						NewPickUp->StaticMeshComp->SetStaticMesh(ItemDataTable->FindRow<FS_ItemData>(PickUpName, TEXT("Find row in datatable"))->StaticMesh);
+						NewPickUp->Sound = PickUpSound;
+						NewPickUp->FinishSpawning(PickUpTransformData);
+					}
 				}
 			}
 		}
