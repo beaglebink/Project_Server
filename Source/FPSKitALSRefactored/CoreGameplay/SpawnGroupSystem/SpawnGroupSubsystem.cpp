@@ -2266,6 +2266,16 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
             {
                 ASpawnGroupSpawner* Spawner = Pair.Value.Get();
                 if (!Spawner || !IsValid(Spawner)) continue;
+
+                if(UFloorAssignmentComponent* FloorComp = Spawner->FindComponentByClass<UFloorAssignmentComponent>())
+                {
+                    if(FloorComp->SnapshotChannel == ESnapshotChannel::None)
+                    {
+                        // Если канал не Floor, значит спавнер не привязан к этажу и не должен восстанавливаться из floor-wide PersistentGroupStates
+                        continue;
+					}
+				}
+
                 if (Spawner->Restore || !Spawner->SpawnGroupAsset) continue;
 
                 FInteriorFloorKey FloorKey = GetFloorKeyFromSpawner(Spawner);
@@ -2276,6 +2286,19 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 
                 FSpawnGroupState* State = FloorStates->Find(Spawner->GetRuntimeGroupId());
                 if (!State) continue;
+
+                // InteriorSubsystem has already restored this spawner from the
+                // snapshot of the mission which owns the floor. PersistentGroupStates
+                // is floor-wide and may contain a newer composition written by a
+                // competing mission when the player left the scene; applying it here
+                // would overwrite the mission-specific slots and enemy states.
+                if (Spawner->bWasRestoredByMission)
+                {
+                    UE_LOG(LogTemp, Log,
+                        TEXT("SpawnGroupSubsystem: Keeping mission snapshot for spawner %s; skipping floor-wide cached state"),
+                        *Spawner->GetName());
+                    continue;
+                }
 
                 if (!State->SpawnGroupAssetOverride.IsNull())
                     Spawner->SpawnGroupAsset = State->SpawnGroupAssetOverride.LoadSynchronous();
@@ -2292,7 +2315,7 @@ void USpawnGroupSubsystem::HandleLevelLoaded(const FOutcomeEventBase& Outcome)
 
                 ApplyRuntimeConfig(Spawner, State->RuntimeConfig);
 
-                if (Spawner->bWasRestoredByMission)
+                if (!Spawner->bWasRestoredByMission)
                     continue;
 
                 ESpawnerPreserveMode PreserveMode = GetPreserveModeViaEventBus(FloorKey);

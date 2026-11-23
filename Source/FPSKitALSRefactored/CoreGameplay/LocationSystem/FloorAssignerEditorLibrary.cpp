@@ -216,7 +216,7 @@ int32 FFloorAssignerEditorLibrary::CleanInvalidItemIds()
 
             Actor->Modify();
             Comp->Modify();
-            Comp->SnapshotChannel = ESnapshotChannel::None;
+            //Comp->SnapshotChannel = ESnapshotChannel::None;
 			Comp->ProtectedItemId.Invalidate();
             // ItemId остаётся невалидным (можно дополнительно обнулить, но он уже невалиден)
 

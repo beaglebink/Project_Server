@@ -878,7 +878,14 @@ static void CollectSaveGameProperties(UObject* Obj, TArray<FFloorSavedPropertyEn
 		if (!Prop->HasAllPropertyFlags(CPF_SaveGame)) continue;
 
 		FString Exported;
-		Prop->ExportText_InContainer(0, Exported, Obj, nullptr, Obj, PPF_None);
+		if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
+		{
+			Exported = BoolProp->GetPropertyValue_InContainer(Obj) ? TEXT("True") : TEXT("False");
+		}
+		else
+		{
+			Prop->ExportText_InContainer(0, Exported, Obj, nullptr, Obj, PPF_None);
+		}
 		OutProps.Add({ Prop->GetFName(), Exported });
 	}
 }
@@ -892,6 +899,12 @@ static void ApplySaveGameProperties(UObject* Obj, const TArray<FFloorSavedProper
 	{
 		FProperty* Prop = FindFProperty<FProperty>(Obj->GetClass(), Entry.PropertyName);
 		if (!Prop) continue;
+		if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
+		{
+			// Older snapshots may contain an empty string for false bool values.
+			BoolProp->SetPropertyValue_InContainer(Obj, Entry.ValueText.ToBool());
+			continue;
+		}
 		Prop->ImportText_InContainer(*Entry.ValueText, Obj, Obj, PPF_None);
 	}
 }
@@ -2279,6 +2292,8 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(
 			UFloorAssignmentComponent* C = Actor->FindComponentByClass<UFloorAssignmentComponent>();
 			if (!C) continue;
 
+			if (C->SnapshotChannel == ESnapshotChannel::None) continue;
+
 			if (Envelope.IsValid())
 			{
 				if (IsCurrentWorldMissionConst(Envelope))
@@ -2299,6 +2314,9 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(
 							if (Spawner)
 							{
 								Spawner->bWasRestoredByMission = true;
+								// Pending states belong to the previously applied mission snapshot.
+								// Clear them before loading this mission's optional enemy states.
+								Spawner->RestoreEnemyStates(TArray<FSpawnedEnemyState>());
 
 								switch (Envelope.RuntimePolicy)
 								{
@@ -2398,6 +2416,21 @@ int32 UInteriorSubsystem::RestoreFromSnapshotArray(
 									}
 									break;
 								}
+								}
+
+								// The spawner's SaveGame properties above restore its mission-specific
+								// AllSlots. Reconcile the live ghosts against those slots so a mission
+								// returning from hold replaces the competing mission's composition.
+								if (Spawner->IsUseStoreSpawnParameters && Spawner->IsStoreSpawnParameters)
+								{
+									FSpawnGroupState MissionGroupState;
+									MissionGroupState.GroupId = Spawner->GetRuntimeGroupId();
+									MissionGroupState.Status = Spawner->CurrentStatus;
+									MissionGroupState.bStoreSpawnParameters = true;
+									MissionGroupState.Slots = Spawner->GetAllSlots();
+									MissionGroupState.KilledCount = Spawner->GetKilledCount();
+									MissionGroupState.TypeKilled = Spawner->GetTypeKilled();
+									Spawner->RestoreFromStateWithoutCleanup(MissionGroupState);
 								}
 							}
 							break;
@@ -4469,7 +4502,7 @@ void UInteriorSubsystem::FloorSpawnActorsFromType(TArray<FFloorPopulationRecord>
 				{
 					Comp->ItemId = Record.ActorId;
 					Comp->ProtectedItemId = Comp->ItemId;
-					Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
+					//Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
 					Comp->ActorType = Record.ActorType;
 				}
 			}
@@ -4504,7 +4537,7 @@ void UInteriorSubsystem::FloorSpawnActorsFromType(TArray<FFloorPopulationRecord>
 		{
 			Comp->ItemId = Record.ActorId;
 			Comp->ProtectedItemId = Comp->ItemId;
-			Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
+			//Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
 			Comp->ActorType = Record.ActorType;
 		}
 	}
@@ -4662,7 +4695,7 @@ void UInteriorSubsystem::SpawnMissionRecords(const TArray<FFloorPopulationRecord
 		{
 			Comp->ItemId = Record.ActorId;
 			Comp->ProtectedItemId = Comp->ItemId;
-			Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
+			//Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
 			Comp->ActorType = Record.ActorType;
 		}
 	}
@@ -5595,7 +5628,7 @@ void UInteriorSubsystem::SpawnRecords(const TArray<FFloorPopulationRecord>& Reco
 		{
 			Comp->ItemId = Rec.ActorId;
 			Comp->ProtectedItemId = Comp->ItemId;
-			Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
+			//Comp->SnapshotChannel = ESnapshotChannel::Snapshot;
 			Comp->ActorType = Rec.ActorType;
 		}
 	}

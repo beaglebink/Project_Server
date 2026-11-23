@@ -4,6 +4,7 @@
 #include "EngineUtils.h"
 #include "Components/ChildActorComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/UnrealType.h"
 #include "../InteriorInstanceSystem/FloorAssignmentComponent.h"
 #include "../InteriorInstanceSystem/InteriorSubsystem.h"
 #include "../EventBusSystem/EventBusSubsystem.h"
@@ -88,7 +89,14 @@ namespace SpawnGroupSerialization
             if (!Prop->HasAllPropertyFlags(CPF_SaveGame)) continue;
 
             FString Exported;
-            Prop->ExportText_InContainer(0, Exported, Obj, nullptr, Obj, PPF_None);
+            if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
+            {
+                Exported = BoolProp->GetPropertyValue_InContainer(Obj) ? TEXT("True") : TEXT("False");
+            }
+            else
+            {
+                Prop->ExportText_InContainer(0, Exported, Obj, nullptr, Obj, PPF_None);
+            }
             OutProps.Add({ Prop->GetFName(), Exported });
         }
     }
@@ -180,6 +188,12 @@ namespace SpawnGroupSerialization
         {
             FProperty* Prop = FindFProperty<FProperty>(Obj->GetClass(), Entry.PropertyName);
             if (!Prop) continue;
+			if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
+			{
+				// Older snapshots may contain an empty string for false bool values.
+				BoolProp->SetPropertyValue_InContainer(Obj, Entry.ValueText.ToBool());
+				continue;
+			}
             Prop->ImportText_InContainer(*Entry.ValueText, Obj, Obj, PPF_None);
         }
     }
@@ -240,7 +254,7 @@ ASpawnGroupSpawner::ASpawnGroupSpawner()
     FloorAssignmentComp = CreateDefaultSubobject<UFloorAssignmentComponent>(TEXT("FloorAssignment"));
     if (FloorAssignmentComp)
     {
-        FloorAssignmentComp->SnapshotChannel = ESnapshotChannel::Snapshot;
+        //FloorAssignmentComp->SnapshotChannel = ESnapshotChannel::Snapshot;
         FloorAssignmentComp->ActorType = EFloorActorType::SpawnGroupSpawner;
     }
 }
@@ -253,8 +267,7 @@ void ASpawnGroupSpawner::OnConstruction(const FTransform& Transform)
     {
         FloorAssignmentComp->ItemId = FGuid::NewGuid();
         FloorAssignmentComp->ProtectedItemId = FloorAssignmentComp->ItemId;
-        FloorAssignmentComp->SnapshotChannel = ESnapshotChannel::Snapshot;
-        // Generated new ItemId for duplicate
+        //FloorAssignmentComp->SnapshotChannel = ESnapshotChannel::Snapshot;
         // Generated new ItemId for duplicate
         UE_LOG(LogTemp, Verbose, TEXT("SpawnGroupSpawner [%s]: Generated new ItemId for duplicate"), *GetName());
     }
@@ -276,7 +289,7 @@ void ASpawnGroupSpawner::BeginPlay()
         FloorComp->ItemId = FGuid::NewGuid();
         FloorComp->ProtectedItemId = FloorComp->ItemId;
     }
-    FloorComp->SnapshotChannel = ESnapshotChannel::Snapshot;
+    //FloorComp->SnapshotChannel = ESnapshotChannel::Snapshot;
     FloorComp->ActorType = EFloorActorType::SpawnGroupSpawner;
 
     if (UEventBusSubsystem* EventBus = GetGameInstance()->GetSubsystem<UEventBusSubsystem>())
@@ -1015,7 +1028,7 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
         Component->InteriorSetId = FloorAssignmentComp->InteriorSetId;
         Component->FloorId = FloorAssignmentComp->FloorId;
         Component->ActorType = EFloorActorType::SpawnItems;
-        Component->SnapshotChannel = ESnapshotChannel::None;
+        //Component->SnapshotChannel = ESnapshotChannel::None;
         Component->GameplayTagContainer.AppendTags(EnemyGameplayTags);
     }
     else
@@ -1027,7 +1040,7 @@ AActor* ASpawnGroupSpawner::SpawnSingleGhost(TSubclassOf<AActor> ActorClass, con
         NewComp->InteriorSetId = FloorAssignmentComp->InteriorSetId;
         NewComp->FloorId = FloorAssignmentComp->FloorId;
         NewComp->ActorType = EFloorActorType::SpawnItems;
-        NewComp->SnapshotChannel = ESnapshotChannel::None;
+        //NewComp->SnapshotChannel = ESnapshotChannel::None;
         NewComp->GameplayTagContainer.AppendTags(EnemyGameplayTags);
     }
 
@@ -1137,7 +1150,7 @@ void ASpawnGroupSpawner::RestoreFromSlots(const TArray<FSpawnSlotState>& Slots)
             if (UFloorAssignmentComponent* Comp = Ghost->FindComponentByClass<UFloorAssignmentComponent>())
             {
                 Comp->ItemId = Slot.ItemId;
-                Comp->SnapshotChannel = ESnapshotChannel::None;
+                //Comp->SnapshotChannel = ESnapshotChannel::None;
                 Comp->ActorType = EFloorActorType::SpawnItems;
             }
             else
@@ -1146,7 +1159,7 @@ void ASpawnGroupSpawner::RestoreFromSlots(const TArray<FSpawnSlotState>& Slots)
                 NewComp->RegisterComponent();
                 Ghost->AddInstanceComponent(NewComp);
                 NewComp->ItemId = Slot.ItemId;
-                NewComp->SnapshotChannel = ESnapshotChannel::None;
+                //NewComp->SnapshotChannel = ESnapshotChannel::None;
                 NewComp->ActorType = EFloorActorType::SpawnItems;
             }
 
@@ -1158,7 +1171,7 @@ void ASpawnGroupSpawner::RestoreFromSlots(const TArray<FSpawnSlotState>& Slots)
             }
 
             SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
-            Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+            Ghost->OnDestroyed.AddUniqueDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
         }
         UpdateGroupStatus();
     }
@@ -1248,6 +1261,44 @@ void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
     // Если есть слоты – восстанавливаем призраков, не изменяя AllSlots
     if (State.Slots.Num() > 0)
     {
+        // A mission can return from hold with a different saved slot state than
+        // the mission that currently owns this floor. Only alive slots should
+        // have an actor in the world.
+        TSet<FGuid> DesiredAliveItemIds;
+        for (const FSpawnSlotState& Slot : State.Slots)
+        {
+            if (Slot.State == EGhostState::Alive && Slot.ItemId.IsValid())
+            {
+                DesiredAliveItemIds.Add(Slot.ItemId);
+            }
+        }
+
+        auto DestroyGhostWithoutChangingSlotState = [this](AActor* Ghost)
+        {
+            if (!IsValid(Ghost)) return;
+            Ghost->OnDestroyed.RemoveDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+            SpawnedGhosts.Remove(Cast<AAlsCharacter>(Ghost));
+            Ghost->Destroy();
+        };
+
+        for (int32 Index = SpawnedGhosts.Num() - 1; Index >= 0; --Index)
+        {
+            AAlsCharacter* Ghost = SpawnedGhosts[Index].Get();
+            if (!IsValid(Ghost))
+            {
+                SpawnedGhosts.RemoveAt(Index);
+                continue;
+            }
+
+            const FGuid ItemId = GetItemIdFromActor(Ghost);
+            if (!ItemId.IsValid() || DesiredAliveItemIds.Contains(ItemId))
+            {
+                continue;
+            }
+
+            DestroyGhostWithoutChangingSlotState(Ghost);
+        }
+
         if (IsResetToAlive)
         {
             for (auto& Slot : State.Slots)
@@ -1263,29 +1314,42 @@ void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
         SpawnedCount = AllSlots.Num();
         for (const FSpawnSlotState& Slot : State.Slots)
         {
+            AActor* ExistingActor = Slot.ItemId.IsValid() ? FindActorByItemId(Slot.ItemId) : nullptr;
+
             // Spawn only alive ones, and only if an actor with this ItemId does not exist in the world
             // Спавним только живых, и только если актор с таким ItemId отсутствует в мире
-            if (Slot.State != EGhostState::Alive) continue;
+            if (Slot.State != EGhostState::Alive)
+            {
+                DestroyGhostWithoutChangingSlotState(ExistingActor);
+                continue;
+            }
             if (!Slot.ActorClass) continue;
 
-            // Check if there is already an actor with this ItemId in the world
-            // Проверяем, есть ли уже актор с таким ItemId в мире
-            if (FindActorByItemId(Slot.ItemId))
-                continue; // already exists – do not spawn again
+            AActor* Ghost = ExistingActor;
+            if (IsValid(Ghost) && Ghost->GetClass() != Slot.ActorClass.Get())
+            {
+                DestroyGhostWithoutChangingSlotState(Ghost);
+                Ghost = nullptr;
+            }
 
-            // If actor is missing – spawn it
-            // Если актор отсутствует – спавним
-            FActorSpawnParameters SpawnParams;
-            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-            AActor* Ghost = GetWorld()->SpawnActor<AActor>(Slot.ActorClass, Slot.SpawnTransform, SpawnParams);
-            if (!Ghost) continue;
+            if (!IsValid(Ghost))
+            {
+                FActorSpawnParameters SpawnParams;
+                SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+                Ghost = GetWorld()->SpawnActor<AActor>(Slot.ActorClass, Slot.SpawnTransform, SpawnParams);
+                if (!Ghost) continue;
+            }
+            else
+            {
+                Ghost->SetActorTransform(Slot.SpawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
+            }
 
             // Configure FloorAssignmentComponent
             // Настраиваем компонент FloorAssignmentComponent
             if (UFloorAssignmentComponent* Comp = Ghost->FindComponentByClass<UFloorAssignmentComponent>())
             {
                 Comp->ItemId = Slot.ItemId;
-                Comp->SnapshotChannel = ESnapshotChannel::None;
+                //Comp->SnapshotChannel = ESnapshotChannel::None;
                 Comp->ActorType = EFloorActorType::SpawnItems;
                 Comp->GameplayTagContainer = Slot.GameplayTags;
                 Ghost->Tags = Slot.TextTags;
@@ -1296,7 +1360,7 @@ void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
                 NewComp->RegisterComponent();
                 Ghost->AddInstanceComponent(NewComp);
                 NewComp->ItemId = Slot.ItemId;
-                NewComp->SnapshotChannel = ESnapshotChannel::None;
+                //NewComp->SnapshotChannel = ESnapshotChannel::None;
                 NewComp->ActorType = EFloorActorType::SpawnItems;
                 NewComp->GameplayTagContainer = Slot.GameplayTags;
                 Ghost->Tags = Slot.TextTags;
@@ -1309,8 +1373,11 @@ void ASpawnGroupSpawner::RestoreFromStateWithoutCleanup(FSpawnGroupState& State)
                     *GetName(), *Slot.ItemId.ToString());
             }
 
-            SpawnedGhosts.Add(Cast<AAlsCharacter>(Ghost));
-            Ghost->OnDestroyed.AddDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
+            if (AAlsCharacter* Character = Cast<AAlsCharacter>(Ghost))
+            {
+                SpawnedGhosts.AddUnique(Character);
+            }
+            Ghost->OnDestroyed.AddUniqueDynamic(this, &ASpawnGroupSpawner::OnGhostDestroyed);
         }
         UpdateGroupStatus();
     }
