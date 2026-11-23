@@ -39,12 +39,4 @@ protected:
 private:
 	UFUNCTION()
 	void AddToInventory(UInteractivePickerComponent* Picker);
-
-public:
-	// Data saving
-	UFUNCTION(BlueprintCallable, Category = "Saving")
-	FString CollectSaveData();
-
-	UFUNCTION(BlueprintCallable, Category = "Saving")
-	void ApplySaveData(FString Jsonstring);
 };
