@@ -6,7 +6,7 @@
 #include "O_QuestStructures.generated.h"
 
 USTRUCT(BlueprintType)
-struct FQuestStepData
+struct FQuestPartStepData
 {
 	GENERATED_BODY()
 
@@ -27,7 +27,7 @@ struct FQuestStepData
 };
 
 USTRUCT(BlueprintType)
-struct FQuestStepDataArray
+struct FQuestPartData
 {
 	GENERATED_BODY()
 
@@ -35,11 +35,11 @@ struct FQuestStepDataArray
 	uint8 bIsCompleted : 1{false};
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
-	TArray<FQuestStepData> QuestStepDataArray;
+	TArray<FQuestPartStepData> QuestPartStepDataArray;
 };
 
 USTRUCT(BlueprintType)
-struct FQuestStepDataStruct
+struct FQuestData
 {
 	GENERATED_BODY()
 
@@ -49,15 +49,15 @@ struct FQuestStepDataStruct
 	UPROPERTY()
 	uint8 bWasStarted : 1{false};
 
-	UPROPERTY()
-	TArray<FQuestStepDataArray> QuestsArray;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
+	TArray<FQuestPartData> QuestPartsArray;
 };
 
 USTRUCT(BlueprintType)
-struct FQuestSaveDataStruct
+struct FQuestSaveData
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TMap<FName, FQuestStepDataStruct> QuestDataMap;
+	TMap<FName, FQuestData> QuestDataMap;
 };
