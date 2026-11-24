@@ -51,7 +51,7 @@ void UAnimNotifyVariatingSpeedCurve::NotifyTick(USkeletalMeshComponent* MeshComp
 			characterMovementComponentVar->ApplyShift(FVector2D(lateralShift, verticalShift));
 			characterMovementComponentVar->SetAnimationAddedPitch(pitchShift);
 		}
-#if WITH_EDITOR
+#if WITH_EDITOR && 0
 		if (IsValid(GEngine))
 		{
 			if (IsValid(Animation))
