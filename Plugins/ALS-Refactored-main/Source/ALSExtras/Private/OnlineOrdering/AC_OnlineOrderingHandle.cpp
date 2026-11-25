@@ -20,6 +20,12 @@ void UAC_OnlineOrderingHandle::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// JUST FOR TEST
+	LoadOnlineOrderingData(FName(TEXT("PDA_Order_1")));
+	if (!OnlineOrderingDataMap.IsEmpty())
+	{
+		OnlineOrderingDataMap.begin()->Value.OrderStatus = EChoreStatus::Active;
+	}
 }
 
 void UAC_OnlineOrderingHandle::EndPlay(const EEndPlayReason::Type Reason)
@@ -201,4 +207,16 @@ void UAC_OnlineOrderingHandle::ApplySaveData(FString Jsonstring)
 bool UAC_OnlineOrderingHandle::CheckIfOrderIsCompleted(FName OrderName)
 {
 	return false;
+}
+
+FOnlineOrderingData UAC_OnlineOrderingHandle::GetActiveOrder()
+{
+	for (auto& [OrderName, OrderData] : OnlineOrderingDataMap)
+	{
+		if (OrderData.OrderStatus == EChoreStatus::Active)
+		{
+			return OrderData;
+		}
+	}
+	return FOnlineOrderingData();
 }

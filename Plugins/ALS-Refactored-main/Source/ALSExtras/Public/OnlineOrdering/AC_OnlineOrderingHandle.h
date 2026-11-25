@@ -22,10 +22,10 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "QuestData")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "OnlineOrderingData")
 	TMap<FName, FOnlineOrderingData> OnlineOrderingDataMap;
 
-	UFUNCTION(BlueprintCallable, Category = "Quest")
+	UFUNCTION(BlueprintCallable, Category = "OnlineOrdering")
 	bool LoadOnlineOrderingData(FName OrderName);
 
 	UFUNCTION(BlueprintCallable, Category = "ChoreStatus")
@@ -41,6 +41,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Saving")
 	void ApplySaveData(FString Jsonstring);
 
-	UFUNCTION(BlueprintCallable, Category = "Quest")
+	UFUNCTION(BlueprintCallable, Category = "OnlineOrdering")
 	bool CheckIfOrderIsCompleted(FName OrderName);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "OnlineOrdering")
+	FOnlineOrderingData GetActiveOrder();
+
 };
