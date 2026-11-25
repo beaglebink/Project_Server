@@ -18,10 +18,19 @@ struct FCatalogItemData
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering", meta = (ClampMin = 0.0f))
 	float ItemPrice;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering", meta = (ClampMin = 0))
+	int32 ItemQuantity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering")
+	FText Delivery;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering")
 	FText Extras;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering")
+	FName SellerName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OnlineOrdering")
 	TArray<FSlateBrush> Gallery;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering")

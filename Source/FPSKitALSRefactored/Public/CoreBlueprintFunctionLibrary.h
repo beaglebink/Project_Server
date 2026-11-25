@@ -6,6 +6,7 @@
 #include "EnhancedInputComponent.h"
 #include "InputTriggers.h"
 #include "InputModifiers.h"
+#include "GameplayTagContainer.h"
 #include "CoreBlueprintFunctionLibrary.generated.h"
 
 USTRUCT(BlueprintType)
@@ -53,4 +54,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Geometry")
 	static FTransform RotateTransformAroundPoint(const FTransform& inTransform, const FVector& inPivotPoint, const FQuat& inRotation);
+
+	// Return parent Tag from Tag
+	UFUNCTION(BlueprintPure, Category = "GameplayTag")
+	static FGameplayTag GetParentTag(const FGameplayTag Tag);
 };
