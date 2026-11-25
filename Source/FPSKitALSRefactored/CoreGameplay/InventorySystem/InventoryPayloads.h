@@ -24,6 +24,7 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") int32 NewQuantity = 0;
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") float CurrentWeight = 0.0f;
     UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") float CurrentMoney = 0.0f;
+    UPROPERTY(BlueprintReadOnly, Category = "InventoryChange") int32 AmmoCount = -1;
 
     UFUNCTION(BlueprintCallable, Category = "InventoryChange")
     UInventoryChangePayload* Setup(
@@ -34,7 +35,8 @@ public:
         bool  bInShouldCount,
         int32 InNewQuantity,
         float InCurrentWeight,
-        float InCurrentMoney)
+        float InCurrentMoney,
+        int32 InAmmoCount)
     {
         ItemName = InItemName;
         SpecialTag = InSpecialTag;
@@ -44,6 +46,7 @@ public:
         NewQuantity = InNewQuantity;
         CurrentWeight = InCurrentWeight;
         CurrentMoney = InCurrentMoney;
+        AmmoCount = InAmmoCount;
         return this;
     }
 };

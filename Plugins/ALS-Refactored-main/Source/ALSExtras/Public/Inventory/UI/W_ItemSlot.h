@@ -65,6 +65,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Format")
 	static FText FormatFloatFixed(float Value, int32 Precision);
 
+	UPROPERTY(EditAnywhere ,BlueprintReadWrite) // Для оружия - количество оставшихся патронов
+	int32 AmmoCount;
+
 public:
 	void SetTintOnSelected(bool IsSet);
 

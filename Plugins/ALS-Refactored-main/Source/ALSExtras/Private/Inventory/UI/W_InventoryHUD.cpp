@@ -354,7 +354,7 @@ void UW_InventoryHUD::AddToSlotContainer(UW_Inventory* Inventory_To, UW_ItemSlot
 		}
 	}
 	Inventory_To->SlotsFilter(Inventory_To->CurrentTabType);
-	Inventory_To->Container->AddToContainer(SlotToAdd->Item.Name, QuantityToAdd, CurrentTradeCoeff, bShouldCount);
+	Inventory_To->Container->AddToContainer(SlotToAdd->Item.Name, QuantityToAdd, CurrentTradeCoeff, bShouldCount, SlotToAdd->AmmoCount);
 }
 
 void UW_InventoryHUD::RemoveFromSlotContainer(UW_Inventory* Inventory_From, UW_ItemSlot* SlotToRemove, int32 QuantityToRemove, bool bShouldCount, bool bShouldSpawn)

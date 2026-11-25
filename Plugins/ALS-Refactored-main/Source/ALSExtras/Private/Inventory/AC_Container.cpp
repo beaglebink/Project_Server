@@ -131,7 +131,8 @@ static void PublishInventoryChangeReport(
 	int32 Quantity,
 	float TradeCoeff,
 	bool bShouldCount,
-	int32 NewQuantity)
+	int32 NewQuantity,
+	int32 AmmoCount)
 {
 	if (!Self) return;
 
@@ -152,7 +153,7 @@ static void PublishInventoryChangeReport(
 	UInventoryChangePayload* Payload = Bus->CreatePayload<UInventoryChangePayload>();
 	if (!Payload) return;
 
-	Payload->Setup(ItemName, SpecialTag, Quantity, TradeCoeff, bShouldCount, NewQuantity, Self->GetWeight(), Self->GetMoney());
+	Payload->Setup(ItemName, SpecialTag, Quantity, TradeCoeff, bShouldCount, NewQuantity, Self->GetWeight(), Self->GetMoney(), AmmoCount);
 
 	FOutcomeEventBase Ev;
 	Ev.OutcomeType = EOutcomeType::Inventory;
@@ -161,7 +162,7 @@ static void PublishInventoryChangeReport(
 	Bus->PublishOutcome(Ev);
 }
 
-void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount)
+void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount, int32 AmmoCount /* = 0*/)
 {
 	if (!ItemDataTable)
 	{
@@ -194,13 +195,13 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff,
 		}
 		else
 		{
-			Items.Add(FS_Item(Name, Quantity));
+			Items.Add(FS_Item(Name, Quantity, ItemData->SpecialTag, AmmoCount));
 			NewQuantity = Quantity;
 		}
 	}
 	else
 	{
-		Items.Add(FS_Item(Name, 1));
+		Items.Add(FS_Item(Name, 1, ItemData->SpecialTag, AmmoCount));
 		NewQuantity = 1;
 	}
 
@@ -215,7 +216,7 @@ void UAC_Container::AddToContainer(FName Name, int32 Quantity, float TradeCoeff,
 	PublishInventoryChangeReport(
 		this, EOutcomeInventory::ItemAdd,
 		Name, ItemData->SpecialTag,
-		Quantity, TradeCoeff, bShouldCount, NewQuantity);
+		Quantity, TradeCoeff, bShouldCount, NewQuantity, AmmoCount);
 }
 
 void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn)
@@ -307,7 +308,7 @@ void UAC_Container::RemoveFromContainer(int32 ItemIndex, int32 Quantity, float T
 	PublishInventoryChangeReport(
 		this, EOutcomeInventory::ItemRemove,
 		Name, ItemSpecialTag,
-		Quantity, TradeCoeff, bShouldCount, NewQuantity);
+		Quantity, TradeCoeff, bShouldCount, NewQuantity, -1);
 }
 
 bool UAC_Container::FindItemByName(FName Name, int32& OutItemIndex, int32& OutQuantity) const
@@ -403,7 +404,7 @@ bool UAC_Container::SetItemQuantityByName(FName Name, int32 NewQuantity)
 			this, EOutcomeInventory::ItemAdd,
 			Name, SpecialTag,
 			Delta, /*TradeCoeff*/ 1.0f, /*bShouldCount*/ false,
-			/*NewQuantity*/ NewQuantity);
+			/*NewQuantity*/ NewQuantity, -1);
 	}
 	else if (Delta < 0)
 	{
@@ -411,7 +412,7 @@ bool UAC_Container::SetItemQuantityByName(FName Name, int32 NewQuantity)
 			this, EOutcomeInventory::ItemRemove,
 			Name, SpecialTag,
 			-Delta, /*TradeCoeff*/ 1.0f, /*bShouldCount*/ false,
-			/*NewQuantity*/ NewQuantity);
+			/*NewQuantity*/ NewQuantity, -1);
 	}
 
 	const FString OldQtyStr = bExists ? FString::FromInt(OldQuantity) : TEXT("<new>");

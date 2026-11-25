@@ -19,7 +19,7 @@ class ALSEXTRAS_API UAC_Container : public UActorComponent, public II_SaveableOb
 public:
     UAC_Container();
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category = "Items")
+    UPROPERTY(EditAnywhere/*EditDefaultsOnly*/, BlueprintReadWrite, SaveGame, Category = "Items")
     TArray<FS_Item> Items;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Items")
@@ -38,7 +38,7 @@ public:
     UPROPERTY(BlueprintAssignable) FOnMoneyChanged OnMoneyChanged;
 
     UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
-    void AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount);
+    void AddToContainer(FName Name, int32 Quantity, float TradeCoeff, bool bShouldCount, int32 AmmoCount = 0);
 
     UFUNCTION(BlueprintCallable, Category = "ContainerInteraction")
     void RemoveFromContainer(int32 ItemIndex, int32 Quantity, float TradeCoeff, bool bShouldCount, bool bShouldSpawn = false);

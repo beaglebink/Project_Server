@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
@@ -50,13 +50,19 @@ struct ALSEXTRAS_API FS_Item
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	FName Name;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	int32 Quantity = 1;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Item")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	FGameplayTag Tag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item") //Если это оружие то количество патронов в оружии
+	int32 CurrentAmmoCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	EItemMarking Marking = EItemMarking::Default;
 
 	bool operator ==(const FS_Item& Item)const

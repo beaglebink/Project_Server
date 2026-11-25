@@ -84,6 +84,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Button", meta = (BindWidget))
 	UW_FocusableButton* Button_Sort_Value;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	bool IsPlayerInventory = false;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Items")
 	UDataTable* ItemDataTable;
