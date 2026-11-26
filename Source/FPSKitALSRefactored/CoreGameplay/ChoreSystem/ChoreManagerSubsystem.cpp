@@ -160,6 +160,13 @@ void UChoreManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     ActiveStates.Add(FName(TEXT("Quests")), QuestsState);
 
+    // Register OnlineOrdering
+    FChoreState OnlineOrderingState;
+    OnlineOrderingState.ChoreId = FName(TEXT("OnlineOrdering"));
+    OnlineOrderingState.Status = EChoreStatus::Active;
+
+    ActiveStates.Add(FName(TEXT("OnlineOrdering")), OnlineOrderingState);
+
     UE_LOG(LogTemp, Log, TEXT("ChoreManagerSubsystem: Initialized."));
 }
 

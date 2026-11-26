@@ -2,12 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "SaveSubsystems/I_SaveableObject.h"
 #include "Quest/PDA_Quest.h"
 #include "AC_QuestHandleComponent.generated.h"
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class ALSEXTRAS_API UAC_QuestHandleComponent : public UActorComponent, public II_SaveableObject
+class ALSEXTRAS_API UAC_QuestHandleComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -23,16 +22,16 @@ protected:
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "QuestData")
-	TMap<FName, FQuestStepDataStruct> QuestDataMap;
+	TMap<FName, FQuestData> QuestDataMap;
 
 	UFUNCTION(BlueprintCallable, Category = "Quest")
-	bool LoadQuestData(FName ChoreID);
+	bool LoadQuestData(FName QuestName);
 
 	UFUNCTION(BlueprintCallable, Category = "ChoreStatus")
-	void SetChoreStatus(FName ChoreID, EChoreStatus NewStatus);
+	void SetChoreStatus(FName QuestName, EChoreStatus NewStatus);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "ChoreStatus")
-	EChoreStatus GetChoreStatus(FName ChoreID)const;
+	EChoreStatus GetChoreStatus(FName QuestName)const;
 
 	// Data saving
 	UFUNCTION(BlueprintCallable, Category = "Saving")
@@ -42,5 +41,5 @@ public:
 	void ApplySaveData(FString Jsonstring);
 
 	UFUNCTION(BlueprintCallable, Category = "Quest")
-	bool CheckIfQuestIsCompleted(FName ChoreID);
+	bool CheckIfQuestIsCompleted(FName QuestName);
 };

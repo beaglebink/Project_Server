@@ -23,7 +23,10 @@ public class FPSKitALSRefactored : ModuleRules
             "SlateRHIRenderer",
     	    "GameplayTags",
             "ProceduralMeshComponent",
-            "GeometryCollectionEngine"
+            "GeometryCollectionEngine",
+            "AIModule",
+            "GameplayTasks",
+            "NavigationSystem"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]

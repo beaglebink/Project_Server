@@ -26,7 +26,9 @@ public:
 	UPROPERTY(Category = "Character Movement: Flying", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0", ForceUnits = "cm/s"))
 	float MaxFlySpeedHorizontal;
 
-	//UPROPERTY(Category = "Character Movement: Flying", EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Category = "Character Movement: Flying", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0", ForceUnits = "cm/s"))
+	TObjectPtr<UCurveFloat> PitchCouplingMultiplierCurve = nullptr;
+
 	float VerticalFlySkeletalMeshPitchScale = 1.f;
 
 	virtual float GetMaxSpeed() const override;

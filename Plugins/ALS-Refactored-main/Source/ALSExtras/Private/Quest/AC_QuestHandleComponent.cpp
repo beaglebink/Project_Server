@@ -6,12 +6,13 @@
 
 UAC_QuestHandleComponent::UAC_QuestHandleComponent()
 {
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 
 }
 
 void UAC_QuestHandleComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 }
 
@@ -60,9 +61,7 @@ bool UAC_QuestHandleComponent::LoadQuestData(FName QuestName)
 		return false;
 	}
 
-	FQuestStepDataStruct RuntimeQuestData;
-	RuntimeQuestData.QuestsArray = QuestAsset->QuestsArray;
-	QuestDataMap.Add(AssetId.PrimaryAssetName, MoveTemp(RuntimeQuestData));
+	QuestDataMap.Add(AssetId.PrimaryAssetName, QuestAsset->QuestData);
 
 	return true;
 }
@@ -170,11 +169,11 @@ void UAC_QuestHandleComponent::SetChoreStatus(FName QuestName, EChoreStatus NewS
 	}
 }
 
-EChoreStatus UAC_QuestHandleComponent::GetChoreStatus(FName ChoreID)const
+EChoreStatus UAC_QuestHandleComponent::GetChoreStatus(FName QuestName)const
 {
-	if (QuestDataMap.Contains(ChoreID))
+	if (QuestDataMap.Contains(QuestName))
 	{
-		return QuestDataMap[ChoreID].QuestStatus;
+		return QuestDataMap[QuestName].QuestStatus;
 	}
 
 	return EChoreStatus::Inactive;
@@ -182,40 +181,40 @@ EChoreStatus UAC_QuestHandleComponent::GetChoreStatus(FName ChoreID)const
 
 FString UAC_QuestHandleComponent::CollectSaveData()
 {
-	FQuestSaveDataStruct QuestSaveDataStruct;
-	QuestSaveDataStruct.QuestDataMap = QuestDataMap;
+	FQuestSaveData QuestSaveData;
+	QuestSaveData.QuestDataMap = QuestDataMap;
 
-	return UGenericJsonLibrary::StructToJsonStringCpp(QuestSaveDataStruct);
+	return UGenericJsonLibrary::StructToJsonStringCpp(QuestSaveData);
 }
 
 void UAC_QuestHandleComponent::ApplySaveData(FString Jsonstring)
 {
-	FQuestSaveDataStruct QuestSaveDataStruct;
+	FQuestSaveData QuestSaveData;
 
-	if (UGenericJsonLibrary::JsonStringToStructCpp(Jsonstring, QuestSaveDataStruct))
+	if (UGenericJsonLibrary::JsonStringToStructCpp(Jsonstring, QuestSaveData))
 	{
-		QuestDataMap = QuestSaveDataStruct.QuestDataMap;
+		QuestDataMap = QuestSaveData.QuestDataMap;
 	}
 }
 
-bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
+bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName QuestName)
 {
-	if (!QuestDataMap.Contains(ChoreID) || !GetOwner())
+	if (!QuestDataMap.Contains(QuestName) || !GetOwner())
 	{
 		return false;
 	}
 
-	if (GetChoreStatus(ChoreID) == EChoreStatus::Inactive)
+	if (GetChoreStatus(QuestName) == EChoreStatus::Inactive)
 	{
 		return false;
 	}
 
-	if (GetChoreStatus(ChoreID) == EChoreStatus::Completed)
+	if (GetChoreStatus(QuestName) == EChoreStatus::Completed)
 	{
 		return true;
 	}
 
-	for (auto& QuestPart : QuestDataMap[ChoreID].QuestsArray)
+	for (auto& QuestPart : QuestDataMap[QuestName].QuestPartsArray)
 	{
 		if (QuestPart.bIsCompleted)
 		{
@@ -223,7 +222,7 @@ bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
 		}
 		bool bAllStepsCompleted = true;
 
-		for (auto& QuestStep : QuestPart.QuestStepDataArray)
+		for (auto& QuestStep : QuestPart.QuestPartStepDataArray)
 		{
 			if (QuestStep.bIsChecked)
 			{
@@ -280,7 +279,7 @@ bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
 			QuestPart.bIsCompleted = true;
 
 			// Remove quest items from inventory if needed
-			for (auto& QuestStep : QuestPart.QuestStepDataArray)
+			for (auto& QuestStep : QuestPart.QuestPartStepDataArray)
 			{
 				if (QuestStep.bShouldBeRemovedFromInventoryOnComplete)
 				{
@@ -293,7 +292,7 @@ bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
 		}
 	}
 
-	for (auto& QuestPart : QuestDataMap[ChoreID].QuestsArray)
+	for (auto& QuestPart : QuestDataMap[QuestName].QuestPartsArray)
 	{
 		if (!QuestPart.bIsCompleted)
 		{
@@ -301,8 +300,7 @@ bool UAC_QuestHandleComponent::CheckIfQuestIsCompleted(FName ChoreID)
 		}
 	}
 
-	SetChoreStatus(ChoreID, EChoreStatus::Completed);
-
+	SetChoreStatus(QuestName, EChoreStatus::Completed);
 
 	return true;
 }

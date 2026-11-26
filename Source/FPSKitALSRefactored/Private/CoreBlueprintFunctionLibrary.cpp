@@ -157,3 +157,8 @@ FTransform UCoreBlueprintFunctionLibrary::RotateTransformAroundPoint(const FTran
 
 	return FTransform(newRotation, newLocation, inTransform.GetScale3D());
 }
+
+FGameplayTag UCoreBlueprintFunctionLibrary::GetParentTag(const FGameplayTag Tag)
+{
+	return Tag.RequestDirectParent();
+}

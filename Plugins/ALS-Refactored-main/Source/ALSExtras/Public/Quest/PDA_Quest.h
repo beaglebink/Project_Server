@@ -13,5 +13,5 @@ class ALSEXTRAS_API UPDA_Quest : public UPrimaryDataAsset
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
-	TArray<FQuestStepDataArray> QuestsArray;
+	FQuestData QuestData;
 };
