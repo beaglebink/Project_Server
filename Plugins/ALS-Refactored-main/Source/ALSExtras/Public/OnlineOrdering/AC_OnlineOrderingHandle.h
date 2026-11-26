@@ -45,6 +45,6 @@ public:
 	bool CheckIfOrderIsCompleted(FName OrderName);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "OnlineOrdering")
-	FOnlineOrderingData GetActiveOrder();
+	FOnlineOrderingData GetActiveOrder(FGuid TerminalId);
 
 };

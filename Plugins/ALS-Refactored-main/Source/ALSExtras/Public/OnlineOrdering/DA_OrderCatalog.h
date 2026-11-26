@@ -22,9 +22,6 @@ struct FCatalogItemData
 	int32 ItemQuantity;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering")
-	FText Delivery;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering")
 	FText Extras;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering")

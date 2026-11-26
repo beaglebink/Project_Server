@@ -29,6 +29,9 @@ struct FOnlineOrderingData
 	UPROPERTY()
 	uint8 bWasStarted : 1{false};
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrders")
+	FGuid TerminalId;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OnlineOrdering", meta = (ClampMin = 0))
 	int32 OrderMoneyLimit;
 

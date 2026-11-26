@@ -209,11 +209,11 @@ bool UAC_OnlineOrderingHandle::CheckIfOrderIsCompleted(FName OrderName)
 	return false;
 }
 
-FOnlineOrderingData UAC_OnlineOrderingHandle::GetActiveOrder()
+FOnlineOrderingData UAC_OnlineOrderingHandle::GetActiveOrder(FGuid TerminalId)
 {
 	for (auto& [OrderName, OrderData] : OnlineOrderingDataMap)
 	{
-		if (OrderData.OrderStatus == EChoreStatus::Active)
+		if (TerminalId == OrderData.TerminalId && OrderData.OrderStatus == EChoreStatus::Active)
 		{
 			return OrderData;
 		}
