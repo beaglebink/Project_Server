@@ -5261,7 +5261,7 @@ void UInteriorSubsystem::HandleUpdateMissionList(const FOutcomeEventBase& Outcom
 		}
 		ResolveMissionForFloor(CurrentKey);
 		if (UChoreManagerSubsystem* ChoreManager = GetGameInstance()->GetSubsystem<UChoreManagerSubsystem>())
-			ChoreManager->RefreshMissionFloorConflicts();
+			ChoreManager->RefreshMissionFloorConflicts(false);
 		if (UMissionSubsystem* MissionSubsystem = GetGameInstance()->GetSubsystem<UMissionSubsystem>())
 			MissionSubsystem->LogMissionPriorityState();
 	}

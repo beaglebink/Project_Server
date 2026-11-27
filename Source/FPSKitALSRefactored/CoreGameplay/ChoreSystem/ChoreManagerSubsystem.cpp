@@ -1397,6 +1397,12 @@ bool UChoreManagerSubsystem::IsChorePaused(FName ChoreId) const
     return ActiveStates.Contains(ChoreId) && ActiveStates[ChoreId].bIsPaused;
 }
 
+bool UChoreManagerSubsystem::IsChoreBlocked(FName ChoreId) const
+{
+    const FChoreState* State = ActiveStates.Find(ChoreId);
+    return State && State->bBlockedByMission;
+}
+
 bool UChoreManagerSubsystem::IsChoreMultiStage(FName ChoreId) const
 {
     return GetChoreTotalStages(ChoreId) > 1;
@@ -1538,9 +1544,8 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
 
     AbandonChoresForResolvedMission(Outcome);
 
-    // MissionSubsystem publishes activation/progress events and InteriorSubsystem
-    // publishes the authoritative mission-list update. Defer the refresh until all
-    // EventBus listeners have applied the new ownership/status data.
+    // Mission state affects the available chore list immediately. Runtime chore
+    // state and actor blocking are reconciled only when the player enters a floor.
     const bool bMissionStateChanged =
         Outcome.OutcomeType == EOutcomeType::Mission ||
         Cast<UUpdateMissionListPayload>(Outcome.Payload) != nullptr ||
@@ -1548,7 +1553,7 @@ void UChoreManagerSubsystem::HandleEvent(const FOutcomeEventBase& Outcome)
     if (bMissionStateChanged && TimerManager)
     {
         TimerManager->SetTimerForNextTick(
-            FTimerDelegate::CreateUObject(this, &UChoreManagerSubsystem::RefreshMissionFloorConflicts));
+            FTimerDelegate::CreateUObject(this, &UChoreManagerSubsystem::RefreshMissionFloorConflicts, false));
     }
 }
 
@@ -2148,7 +2153,7 @@ bool UChoreManagerSubsystem::IsChoreBlockedByMission(FName ChoreId) const
 	return Definition && !Definition->OwningMission.IsNull() && !CanChoreRunForMission(Definition);
 }
 
-void UChoreManagerSubsystem::RefreshMissionFloorConflicts()
+void UChoreManagerSubsystem::RefreshMissionFloorConflicts(bool bApplyFloorRuntimeChanges)
 {
 	UWorld* World = GetWorld();
 	if (!World) return;
@@ -2184,7 +2189,7 @@ void UChoreManagerSubsystem::RefreshMissionFloorConflicts()
 		bAnyActorBlocked |= bBlocked;
 		const TWeakObjectPtr<AActor> ActorKey(Actor);
 		const bool* PreviousBlockState = ChoreActorMissionBlockStates.Find(ActorKey);
-		if (!PreviousBlockState || *PreviousBlockState != bBlocked)
+		if (bApplyFloorRuntimeChanges && (!PreviousBlockState || *PreviousBlockState != bBlocked))
 		{
 			IChoreFloorActorInterface::Execute_SetMissionFloorBlocked(Actor, bBlocked);
 			ChoreActorMissionBlockStates.Add(ActorKey, bBlocked);
@@ -2201,6 +2206,23 @@ void UChoreManagerSubsystem::RefreshMissionFloorConflicts()
         FChoreState* State = ActiveStates.Find(ChoreId);
         const FInteriorFloorKey* FloorKey = ChoreFloorKeys.Find(ChoreId);
         if (!State || !DefinitionPair.Value) continue;
+
+		const bool bChoreIsInCurrentWorld = BlockedChores.Contains(ChoreId);
+		if (bApplyFloorRuntimeChanges && !bChoreIsInCurrentWorld)
+		{
+			// Do not pause or resume chores on floors that are not currently loaded.
+			continue;
+		}
+
+		if (!bApplyFloorRuntimeChanges &&
+			(State->Status == EChoreStatus::Accepted ||
+				State->Status == EChoreStatus::WaitingToStart ||
+				State->Status == EChoreStatus::Active))
+		{
+			// A mission priority/hold change must not alter an in-progress chore
+			// until its floor is entered again.
+			continue;
+		}
 
         const bool bHasValidFloorKey = FloorKey &&
             (FloorKey->InteriorSetId.IsValid() || FloorKey->FloorId.IsValid());
@@ -2911,7 +2933,6 @@ void UChoreManagerSubsystem::HandleRegisterChoreActor(const FOutcomeEventBase& O
         if (auto* State = ActiveStates.Find(Payload->ChoreId))
         {
             State->bIsActorAlive = true;
-            RefreshMissionFloorConflicts();
         }
     }
 }
@@ -2936,7 +2957,6 @@ void UChoreManagerSubsystem::HandleUnregisterChoreActor(const FOutcomeEventBase&
 
     // 3. Сбрасываем флаг жизни актора
     State->bIsActorAlive = false;
-    RefreshMissionFloorConflicts();
 
     // 4. Пишем лог для отладки
     UE_LOG(LogTemp, Log, TEXT("ChoreManager: Actor for chore '%s' unregistered (left scene)."), *Payload->ChoreId.ToString());

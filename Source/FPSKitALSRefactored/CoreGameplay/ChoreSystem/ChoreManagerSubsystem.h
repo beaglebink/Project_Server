@@ -261,8 +261,13 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
     bool IsChorePaused(FName ChoreId) const;
 
+    // Returns the mission-block state last applied for this chore's floor.
+    // Unlike IsChoreBlockedByMission, this value is intentionally deferred until floor refresh.
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Mission")
+    bool IsChoreBlocked(FName ChoreId) const;
+
     UFUNCTION(BlueprintCallable, Category = "Chore Manager|Mission")
-    void RefreshMissionFloorConflicts();
+    void RefreshMissionFloorConflicts(bool bApplyFloorRuntimeChanges = true);
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Chore Manager|Stage")
     bool IsChoreMultiStage(FName ChoreId) const;
